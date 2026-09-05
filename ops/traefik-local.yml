@@ -1,0 +1,11 @@
+http:
+  routers:
+    neurodoc:
+      rule: 'Host(`localhost`) || Host(`127.0.0.1`)'
+      entryPoints: [web]
+      service: neurodoc
+  services:
+    neurodoc:
+      loadBalancer:
+        servers:
+          - url: http://app:8000

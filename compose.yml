@@ -1,0 +1,283 @@
+services:
+  app:
+    image: neurodoc:dev
+    command:
+    - app
+    env_file:
+    - .runtime/app.env
+    environment:
+      RELEASE_ID: dev
+      ROLLOUT_ID: dev
+    read_only: true
+    tmpfs:
+    - /tmp:size=128m,mode=1777
+    - /run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700
+    volumes:
+    - media:/data/media
+    - staticfiles:/data/staticfiles
+    - signing:/data/signing
+    secrets:
+    - NEURODOC_DJANGO_SECRET_KEY
+    - NEURODOC_DB_APP_PASSWORD
+    - NEURODOC_DB_OWNER_PASSWORD
+    - NEURODOC_RABBITMQ_PASSWORD
+    - NEURODOC_REDIS_PASSWORD
+    - NEURODOC_PFX_MASTER_KEY
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - /app/ops/http_health.py
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 5
+    stop_grace_period: 60s
+    restart: on-failure:10
+    build:
+      context: .
+      args:
+        PYTHON_IMAGE: python:3.14.7-slim-bookworm
+        RELEASE_ID: dev
+    ports:
+    - 127.0.0.1:8000:8000
+  celery_worker:
+    image: neurodoc:dev
+    command:
+    - worker
+    env_file:
+    - .runtime/worker.env
+    environment:
+      RELEASE_ID: dev
+      ROLLOUT_ID: dev
+    read_only: true
+    tmpfs:
+    - /tmp:size=256m,mode=1777
+    volumes:
+    - media:/data/media
+    - clamav:/data/clamav
+    secrets:
+    - NEURODOC_DJANGO_SECRET_KEY
+    - NEURODOC_DB_APP_PASSWORD
+    - NEURODOC_RABBITMQ_PASSWORD
+    - NEURODOC_REDIS_PASSWORD
+    - NEURODOC_SMTP_PASSWORD
+    - NEURODOC_SMSDEV_API_KEY
+    - NEURODOC_OPENROUTER_API_KEY
+    - NEURODOC_OPENAI_API_KEY
+    - NEURODOC_ANTHROPIC_API_KEY
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - /app/ops/celery_health.py
+      - worker
+      interval: 30s
+      timeout: 10s
+      start_period: 180s
+      retries: 5
+    stop_grace_period: 390s
+    restart: on-failure:10
+  celery_beat:
+    image: neurodoc:dev
+    command:
+    - beat
+    env_file:
+    - .runtime/beat.env
+    environment:
+      RELEASE_ID: dev
+      ROLLOUT_ID: dev
+    read_only: true
+    tmpfs:
+    - /tmp:size=64m,mode=1777
+    volumes:
+    - beat:/data/beat
+    secrets:
+    - NEURODOC_DJANGO_SECRET_KEY
+    - NEURODOC_DB_APP_PASSWORD
+    - NEURODOC_RABBITMQ_PASSWORD
+    - NEURODOC_REDIS_PASSWORD
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD
+      - python
+      - /app/ops/celery_health.py
+      - beat
+      interval: 30s
+      timeout: 5s
+      start_period: 180s
+      retries: 5
+    stop_grace_period: 30s
+    restart: on-failure:10
+  db:
+    image: postgres:17.11-bookworm
+    environment:
+      POSTGRES_DB: neurodoc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/NEURODOC_DB_ADMIN_PASSWORD
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --auth-local=trust
+    volumes:
+    - postgres:/var/lib/postgresql/data
+    configs:
+    - source: postgres_init
+      target: /docker-entrypoint-initdb.d/10-neurodoc.sh
+      mode: 365
+    secrets:
+    - NEURODOC_DB_ADMIN_PASSWORD
+    - NEURODOC_DB_OWNER_PASSWORD
+    - NEURODOC_DB_APP_PASSWORD
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres -d neurodoc
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
+    stop_grace_period: 60s
+    restart: on-failure:10
+  rabbitmq:
+    image: rabbitmq:4.3.5
+    hostname: rabbitmq
+    entrypoint:
+    - sh
+    - /etc/neurodoc/infra_entrypoint.sh
+    - rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: neurodoc
+      RABBITMQ_DEFAULT_VHOST: neurodoc
+      RABBITMQ_NODENAME: rabbit@rabbitmq
+    volumes:
+    - rabbitmq:/var/lib/rabbitmq
+    configs:
+    - source: infra_entrypoint
+      target: /etc/neurodoc/infra_entrypoint.sh
+    secrets:
+    - NEURODOC_RABBITMQ_PASSWORD
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD
+      - rabbitmq-diagnostics
+      - -q
+      - check_port_connectivity
+      interval: 30s
+      timeout: 15s
+      start_period: 120s
+      retries: 5
+    stop_grace_period: 60s
+    restart: on-failure:10
+  redis:
+    image: redis:8.10.1
+    entrypoint:
+    - sh
+    - /etc/neurodoc/infra_entrypoint.sh
+    - redis
+    volumes:
+    - redis:/data
+    configs:
+    - source: infra_entrypoint
+      target: /etc/neurodoc/infra_entrypoint.sh
+    secrets:
+    - NEURODOC_REDIS_PASSWORD
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD
+      - sh
+      - /etc/neurodoc/infra_entrypoint.sh
+      - redis-health
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    stop_grace_period: 30s
+    restart: on-failure:10
+  traefik:
+    image: traefik:v3.7.12
+    command:
+    - --entrypoints.web.address=:80
+    - --entrypoints.ping.address=:8082
+    - --ping=true
+    - --ping.entrypoint=ping
+    - --providers.file.filename=/etc/traefik/local.yml
+    environment: {}
+    read_only: true
+    tmpfs:
+    - /tmp:size=32m,mode=1777
+    ports:
+    - 127.0.0.1:8080:80
+    volumes: []
+    configs:
+    - source: traefik_local
+      target: /etc/traefik/local.yml
+    secrets: []
+    networks:
+    - local
+    healthcheck:
+      test:
+      - CMD
+      - traefik
+      - healthcheck
+      - --ping
+      - --entrypoints.ping.address=:8082
+      - --ping.entrypoint=ping
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    restart: on-failure:10
+networks:
+  local:
+    driver: bridge
+volumes:
+  postgres: {}
+  redis: {}
+  rabbitmq: {}
+  media: {}
+  staticfiles: {}
+  signing: {}
+  beat: {}
+  clamav: {}
+configs:
+  postgres_init:
+    file: ./ops/postgres_init.sh
+  infra_entrypoint:
+    file: ./ops/infra_entrypoint.sh
+  traefik_local:
+    file: ./ops/traefik-local.yml
+secrets:
+  NEURODOC_DJANGO_SECRET_KEY:
+    file: ./.secrets/NEURODOC_DJANGO_SECRET_KEY
+  NEURODOC_DB_ADMIN_PASSWORD:
+    file: ./.secrets/NEURODOC_DB_ADMIN_PASSWORD
+  NEURODOC_DB_OWNER_PASSWORD:
+    file: ./.secrets/NEURODOC_DB_OWNER_PASSWORD
+  NEURODOC_DB_APP_PASSWORD:
+    file: ./.secrets/NEURODOC_DB_APP_PASSWORD
+  NEURODOC_RABBITMQ_PASSWORD:
+    file: ./.secrets/NEURODOC_RABBITMQ_PASSWORD
+  NEURODOC_REDIS_PASSWORD:
+    file: ./.secrets/NEURODOC_REDIS_PASSWORD
+  NEURODOC_SMTP_PASSWORD:
+    file: ./.secrets/NEURODOC_SMTP_PASSWORD
+  NEURODOC_SMSDEV_API_KEY:
+    file: ./.secrets/NEURODOC_SMSDEV_API_KEY
+  NEURODOC_OPENROUTER_API_KEY:
+    file: ./.secrets/NEURODOC_OPENROUTER_API_KEY
+  NEURODOC_OPENAI_API_KEY:
+    file: ./.secrets/NEURODOC_OPENAI_API_KEY
+  NEURODOC_ANTHROPIC_API_KEY:
+    file: ./.secrets/NEURODOC_ANTHROPIC_API_KEY
+  NEURODOC_PFX_MASTER_KEY:
+    file: ./.secrets/NEURODOC_PFX_MASTER_KEY

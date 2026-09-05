@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Configurar autenticação em duas etapas — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Configurar autenticação em duas etapas</h1>
+{% if error %}<p>{{ error }}</p>{% endif %}
+<p>Adicione esta chave a um aplicativo autenticador (Google Authenticator, Authy, etc):</p>
+<p><code>{{ otpauth_url }}</code></p>
+<form method="post">
+    {% csrf_token %}
+    <label for="code">Código do aplicativo</label>
+    <input type="text" id="code" name="code" autocomplete="one-time-code" required>
+    <button type="submit">Confirmar</button>
+</form>
+{% endblock %}

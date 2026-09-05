@@ -1,0 +1,5 @@
+Confirme seu e-mail para acessar o NeuroDoc:
+
+{{ url }}
+
+Se você não solicitou isso, ignore esta mensagem.

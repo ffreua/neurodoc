@@ -1,0 +1,11 @@
+[Unit]
+Description=Backup diario do NeuroDoc
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 America/Sao_Paulo
+Persistent=true
+RandomizedDelaySec=600
+Unit=neurodoc-backup.service
+
+[Install]
+WantedBy=timers.target

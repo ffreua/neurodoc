@@ -1,0 +1,286 @@
+version: '3.9'
+x-restart: &restart
+  condition: on-failure
+  delay: 10s
+  max_attempts: 10
+  window: 120s
+x-placement: &placement
+  constraints: ['node.labels.neurodoc_data == true']
+services:
+  app:
+    image: ${APP_IMAGE}
+    command: [app]
+    env_file: [.runtime/app.env]
+    environment:
+      RELEASE_ID: ${RELEASE_ID}
+      ROLLOUT_ID: ${ROLLOUT_ID}
+    read_only: true
+    tmpfs: ['/tmp:size=128m,mode=1777']
+    volumes:
+      - media:/data/media
+      - staticfiles:/data/staticfiles
+      - signing:/data/signing
+      - type: bind
+        source: /run/neurodoc-signing
+        target: /run/neurodoc-signing
+    secrets:
+      - NEURODOC_DJANGO_SECRET_KEY
+      - NEURODOC_DB_APP_PASSWORD
+      - NEURODOC_DB_OWNER_PASSWORD
+      - NEURODOC_RABBITMQ_PASSWORD
+      - NEURODOC_REDIS_PASSWORD
+      - NEURODOC_PFX_MASTER_KEY
+    networks: [traefik_public, neurodoc_v1_internal]
+    healthcheck:
+      test: [CMD, python, /app/ops/http_health.py]
+      interval: 15s
+      timeout: 5s
+      start_period: 120s
+      retries: 5
+    stop_grace_period: 60s
+    deploy:
+      replicas: ${APP_REPLICAS}
+      restart_policy: *restart
+      placement: *placement
+      resources:
+        limits: {cpus: '1.0', memory: 1G}
+        reservations: {cpus: '0.25', memory: 384M}
+      update_config:
+        parallelism: 1
+        delay: 120s
+        monitor: 180s
+        order: start-first
+        failure_action: rollback
+        max_failure_ratio: 0
+      rollback_config:
+        parallelism: 1
+        delay: 30s
+        order: start-first
+        monitor: 180s
+        failure_action: pause
+      labels:
+        com.neurodoc.platform: neurodoc_v1
+        traefik.enable: 'true'
+        traefik.swarm.network: traefik_public
+        traefik.http.routers.neurodoc.rule: 'Host(`neurodoc.app.br`) || HostRegexp(`^[a-z0-9-]+\.neurodoc\.app\.br$$`)'
+        traefik.http.routers.neurodoc.entrypoints: websecure
+        traefik.http.routers.neurodoc.tls: 'true'
+        traefik.http.routers.neurodoc.tls.certresolver: cloudflare
+        traefik.http.routers.neurodoc.tls.domains[0].main: neurodoc.app.br
+        traefik.http.routers.neurodoc.tls.domains[0].sans: '*.neurodoc.app.br'
+        traefik.http.services.neurodoc.loadbalancer.server.port: '8000'
+        traefik.http.services.neurodoc.loadbalancer.healthcheck.path: /health/
+        traefik.http.services.neurodoc.loadbalancer.healthcheck.hostname: localhost
+        traefik.http.services.neurodoc.loadbalancer.healthcheck.interval: 15s
+        traefik.http.services.neurodoc.loadbalancer.healthcheck.timeout: 5s
+  celery_worker:
+    image: ${APP_IMAGE}
+    command: [worker]
+    env_file: [.runtime/worker.env]
+    environment: {RELEASE_ID: '${RELEASE_ID}', ROLLOUT_ID: '${ROLLOUT_ID}'}
+    read_only: true
+    tmpfs: ['/tmp:size=256m,mode=1777']
+    volumes: [media:/data/media, clamav:/data/clamav]
+    secrets:
+      - NEURODOC_DJANGO_SECRET_KEY
+      - NEURODOC_DB_APP_PASSWORD
+      - NEURODOC_RABBITMQ_PASSWORD
+      - NEURODOC_REDIS_PASSWORD
+      - NEURODOC_SMTP_PASSWORD
+      - NEURODOC_SMSDEV_API_KEY
+      - NEURODOC_OPENROUTER_API_KEY
+      - NEURODOC_OPENAI_API_KEY
+      - NEURODOC_ANTHROPIC_API_KEY
+    networks: [neurodoc_v1_internal, neurodoc_v1_egress]
+    healthcheck:
+      test: [CMD, python, /app/ops/celery_health.py, worker]
+      interval: 30s
+      timeout: 10s
+      start_period: 180s
+      retries: 5
+    stop_grace_period: 390s
+    deploy:
+      replicas: 1
+      placement: *placement
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '1.5', memory: 3G}
+        reservations: {cpus: '0.75', memory: 1G}
+      update_config: {parallelism: 1, order: stop-first, failure_action: rollback, monitor: 180s}
+  celery_beat:
+    image: ${APP_IMAGE}
+    command: [beat]
+    env_file: [.runtime/beat.env]
+    environment: {RELEASE_ID: '${RELEASE_ID}', ROLLOUT_ID: '${ROLLOUT_ID}'}
+    read_only: true
+    tmpfs: ['/tmp:size=64m,mode=1777']
+    volumes: [beat:/data/beat]
+    secrets:
+      - NEURODOC_DJANGO_SECRET_KEY
+      - NEURODOC_DB_APP_PASSWORD
+      - NEURODOC_RABBITMQ_PASSWORD
+      - NEURODOC_REDIS_PASSWORD
+    networks: [neurodoc_v1_internal, neurodoc_v1_egress]
+    healthcheck:
+      test: [CMD, python, /app/ops/celery_health.py, beat]
+      interval: 30s
+      timeout: 5s
+      start_period: 180s
+      retries: 5
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      placement: *placement
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '0.25', memory: 256M}
+        reservations: {cpus: '0.1', memory: 64M}
+      update_config: {parallelism: 1, order: stop-first, failure_action: rollback, monitor: 180s}
+      rollback_config: {parallelism: 1, order: stop-first}
+  db:
+    image: ${POSTGRES_IMAGE}
+    environment:
+      POSTGRES_DB: neurodoc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/NEURODOC_DB_ADMIN_PASSWORD
+      POSTGRES_INITDB_ARGS: '--auth-host=scram-sha-256 --auth-local=trust'
+    volumes: [postgres:/var/lib/postgresql/data]
+    configs:
+      - source: postgres_init
+        target: /docker-entrypoint-initdb.d/10-neurodoc.sh
+        mode: 0555
+    secrets: [NEURODOC_DB_ADMIN_PASSWORD, NEURODOC_DB_OWNER_PASSWORD, NEURODOC_DB_APP_PASSWORD]
+    networks: [neurodoc_v1_internal]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres -d neurodoc']
+      interval: 15s
+      timeout: 5s
+      start_period: 90s
+      retries: 5
+    stop_grace_period: 60s
+    deploy:
+      replicas: 1
+      placement: *placement
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '1.0', memory: 2G}
+        reservations: {cpus: '0.25', memory: 512M}
+      update_config: {parallelism: 1, order: stop-first, failure_action: pause}
+  rabbitmq:
+    image: ${RABBITMQ_IMAGE}
+    hostname: rabbitmq
+    entrypoint: [sh, /etc/neurodoc/infra_entrypoint.sh, rabbitmq]
+    environment:
+      RABBITMQ_DEFAULT_USER: neurodoc
+      RABBITMQ_DEFAULT_VHOST: neurodoc
+      RABBITMQ_NODENAME: rabbit@rabbitmq
+    volumes: [rabbitmq:/var/lib/rabbitmq]
+    configs:
+      - source: infra_entrypoint
+        target: /etc/neurodoc/infra_entrypoint.sh
+    secrets: [NEURODOC_RABBITMQ_PASSWORD]
+    networks: [neurodoc_v1_internal]
+    healthcheck:
+      test: [CMD, rabbitmq-diagnostics, -q, check_port_connectivity]
+      interval: 30s
+      timeout: 15s
+      start_period: 120s
+      retries: 5
+    stop_grace_period: 60s
+    deploy:
+      replicas: 1
+      placement: *placement
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '0.75', memory: 1G}
+        reservations: {cpus: '0.25', memory: 256M}
+      update_config: {parallelism: 1, order: stop-first, failure_action: pause}
+  redis:
+    image: ${REDIS_IMAGE}
+    entrypoint: [sh, /etc/neurodoc/infra_entrypoint.sh, redis]
+    volumes: [redis:/data]
+    configs:
+      - source: infra_entrypoint
+        target: /etc/neurodoc/infra_entrypoint.sh
+    secrets: [NEURODOC_REDIS_PASSWORD]
+    networks: [neurodoc_v1_internal]
+    healthcheck:
+      test: [CMD, sh, /etc/neurodoc/infra_entrypoint.sh, redis-health]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    stop_grace_period: 30s
+    deploy:
+      replicas: 1
+      placement: *placement
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '0.5', memory: 512M}
+        reservations: {cpus: '0.1', memory: 128M}
+      update_config: {parallelism: 1, order: stop-first, failure_action: pause}
+  traefik:
+    image: ${TRAEFIK_IMAGE}
+    command: ['--configFile=/etc/traefik/traefik.yml']
+    environment:
+      CF_DNS_API_TOKEN_FILE: /run/secrets/CLOUDFLARE_DNS_API_TOKEN
+    read_only: true
+    tmpfs: ['/tmp:size=32m,mode=1777']
+    ports:
+      - {target: 80, published: 80, protocol: tcp, mode: host}
+      - {target: 443, published: 443, protocol: tcp, mode: host}
+    volumes:
+      - letsencrypt:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    configs:
+      - source: traefik_settings
+        target: /etc/traefik/traefik.yml
+    secrets: [CLOUDFLARE_DNS_API_TOKEN]
+    networks: [traefik_public]
+    healthcheck:
+      test: [CMD, traefik, healthcheck, '--ping']
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ['node.role == manager', 'node.labels.neurodoc_data == true']
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '0.5', memory: 256M}
+        reservations: {cpus: '0.1', memory: 64M}
+      update_config: {parallelism: 1, order: stop-first, failure_action: rollback}
+networks:
+  traefik_public: {external: true, name: traefik_public}
+  neurodoc_v1_internal: {external: true, name: neurodoc_v1_internal}
+  neurodoc_v1_egress: {external: true, name: neurodoc_v1_egress}
+volumes:
+  postgres: {external: true, name: neurodoc_v1_postgres}
+  redis: {external: true, name: neurodoc_v1_redis}
+  rabbitmq: {external: true, name: neurodoc_v1_rabbitmq}
+  media: {external: true, name: neurodoc_v1_media}
+  staticfiles: {external: true, name: neurodoc_v1_staticfiles}
+  letsencrypt: {external: true, name: neurodoc_v1_letsencrypt}
+  signing: {external: true, name: neurodoc_v1_signing}
+  beat: {external: true, name: neurodoc_v1_beat}
+  clamav: {external: true, name: neurodoc_v1_clamav}
+configs:
+  postgres_init: {external: true, name: '${POSTGRES_INIT_CONFIG}'}
+  infra_entrypoint: {external: true, name: '${INFRA_ENTRYPOINT_CONFIG}'}
+  traefik_settings: {external: true, name: '${TRAEFIK_CONFIG}'}
+secrets:
+  NEURODOC_DJANGO_SECRET_KEY: {external: true}
+  NEURODOC_DB_ADMIN_PASSWORD: {external: true}
+  NEURODOC_DB_OWNER_PASSWORD: {external: true}
+  NEURODOC_DB_APP_PASSWORD: {external: true}
+  NEURODOC_RABBITMQ_PASSWORD: {external: true}
+  NEURODOC_REDIS_PASSWORD: {external: true}
+  NEURODOC_SMTP_PASSWORD: {external: true}
+  NEURODOC_SMSDEV_API_KEY: {external: true}
+  NEURODOC_OPENROUTER_API_KEY: {external: true}
+  NEURODOC_OPENAI_API_KEY: {external: true}
+  NEURODOC_ANTHROPIC_API_KEY: {external: true}
+  NEURODOC_PFX_MASTER_KEY: {external: true}
+  CLOUDFLARE_DNS_API_TOKEN: {external: true}

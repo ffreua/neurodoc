@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Verificação em duas etapas — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Verificação em duas etapas</h1>
+<p>Informe o código do aplicativo autenticador ou um código de recuperação.</p>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Confirmar</button>
+</form>
+{% endblock %}

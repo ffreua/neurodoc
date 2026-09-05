@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Códigos de recuperação — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Autenticação em duas etapas ativada</h1>
+<p>Guarde estes códigos de recuperação em local seguro. Cada um pode ser usado uma única vez.</p>
+<ul>
+    {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+</ul>
+{% endblock %}

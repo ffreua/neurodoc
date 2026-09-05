@@ -1,0 +1,14 @@
+[Unit]
+Description=Backup criptografado do NeuroDoc
+Requires=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+User=neurodocops
+Group=neurodocops
+WorkingDirectory=/srv/neurodoc
+ExecStart=/srv/neurodoc/scripts/backup.sh
+UMask=0077
+TimeoutStartSec=4h
+NoNewPrivileges=true
