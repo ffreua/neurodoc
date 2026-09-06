@@ -12,7 +12,12 @@ altura {{ bmi.height_m }} m em {{ bmi.height_observed_at|date:"d/m/Y" }})</p>
 <p>IMC: medições de peso/altura insuficientes.</p>
 {% endif %}
 
-<p><a href="{% url 'patients:update' patient.id %}">Editar</a></p>
+<p>
+    <a href="{% url 'clinical:timeline' patient.id %}">Prontuário</a> |
+    <a href="{% url 'clinical:new' patient.id %}">Novo atendimento</a> |
+    <a href="{% url 'documents:list' patient.id %}">Anexos</a> |
+    <a href="{% url 'patients:update' patient.id %}">Editar cadastro</a>
+</p>
 {% if patient.status == 'active' %}
 <form method="post" action="{% url 'patients:archive' patient.id %}">
     {% csrf_token %}
