@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
-from .models import RecoveryCode, User
+from .models import PhysicianProfile, RecoveryCode, User
 
 
 @admin.register(User)
@@ -34,3 +34,10 @@ class RecoveryCodeAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+
+@admin.register(PhysicianProfile)
+class PhysicianProfileAdmin(admin.ModelAdmin):
+    list_display = ['professional_name', 'crm_number', 'crm_state', 'verification_status']
+    list_filter = ['verification_status']
+    search_fields = ['professional_name', 'crm_number', 'user__email']

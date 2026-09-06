@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Convite enviado — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Convite criado</h1>
+<p>Envio automático por e-mail ainda não está disponível (sprint S08). Copie e
+compartilhe o link abaixo com o colaborador:</p>
+<p><code>/invite/{{ token }}/</code></p>
+<p>Expira em {{ invitation.expires_at }}.</p>
+<p><a href="{% url 'tenancy:collaborators' %}">Voltar</a></p>
+{% endblock %}

@@ -75,3 +75,30 @@ class RecoveryCode(TimestampedModel):
     code_hash = models.CharField(max_length=255)
     used_at = models.DateTimeField(null=True, blank=True)
     expires_at = models.DateTimeField(null=True, blank=True)
+
+
+class PhysicianProfile(TimestampedModel):
+    class VerificationStatus(models.TextChoices):
+        PENDING = 'pending', 'Pending'
+        VERIFIED = 'verified', 'Verified'
+        REJECTED = 'rejected', 'Rejected'
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='physician_profile')
+    professional_name = models.CharField(max_length=255)
+    crm_number = models.CharField(max_length=20)
+    crm_state = models.CharField(max_length=2)
+    rqe = models.CharField(max_length=20, blank=True)
+    professional_phone = models.CharField(max_length=16, blank=True)
+    professional_email = models.EmailField(max_length=254, blank=True)
+    professional_address = models.CharField(max_length=255, blank=True)
+    verification_status = models.CharField(
+        max_length=40, choices=VerificationStatus.choices, default=VerificationStatus.PENDING,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['crm_number', 'crm_state'], name='accounts_physicianprofile_crm_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.professional_name} (CRM {self.crm_number}/{self.crm_state})'

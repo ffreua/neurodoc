@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}NeuroDoc{% endblock %}
+{% block content %}
+<h1>NeuroDoc</h1>
+<p>Sistema para atendimento longitudinal em neurologia e neurocirurgia.</p>
+
+<h2>Planos</h2>
+<ul>
+    <li><strong>Free</strong> — disponível com convite. <a href="#invite-form">Usar convite</a></li>
+    <li>Profissional — Em breve</li>
+    <li>Clínica — Em breve</li>
+</ul>
+
+<p><a href="{% url 'accounts:login' %}">Já tenho conta — Entrar</a></p>
+
+<h2 id="invite-form">Tenho um convite</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Continuar</button>
+</form>
+{% endblock %}

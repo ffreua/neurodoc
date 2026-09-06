@@ -15,6 +15,10 @@ def protect_ip(ip):
     return ''
 
 
+def _pk(value):
+    return value.pk if hasattr(value, 'pk') else value
+
+
 def record_audit_event(
     actor, tenant, action, *, object_type='', object_id=None,
     purpose='', outcome=AuditOutcome.SUCCESS, request_id=None,
@@ -22,12 +26,14 @@ def record_audit_event(
 ):
     """Single explicit entry point for writing AuditEvent rows.
 
+    `actor`/`tenant` accept either a model instance or a raw UUID (e.g. an
+    AccessContext only carries `tenant_id`, not the full Tenant).
     Callers must never pass clinical text, tokens, or secrets in `purpose`
     or `integrity_metadata`.
     """
     return AuditEvent.objects.create(
-        actor=actor,
-        tenant=tenant,
+        actor_id=_pk(actor),
+        tenant_id=_pk(tenant),
         action=action,
         object_type=object_type,
         object_id=object_id,

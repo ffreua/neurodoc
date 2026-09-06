@@ -20,6 +20,12 @@ PRD; é a referência operacional viva gerada a partir dele.
 - [Homologação M0](homologation/M0.md) — evidências de H-02/H-03/H-19 básicos
   e H-21 técnico com dados sintéticos.
 
+## Onboarding, pacientes e catálogos (S03)
+
+- [Homologação de onboarding e pacientes](homologation/patients.md) —
+  evidências de H-01, H-04 e H-05 com dados sintéticos, incluindo verificação
+  por teclado e viewport móvel.
+
 ## Arquitetura
 
 ```mermaid

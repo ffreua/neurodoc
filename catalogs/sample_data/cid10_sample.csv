@@ -1,0 +1,11 @@
+code,description,parent_code
+G40,Epilepsia,
+G40.9,Epilepsia não especificada,G40
+G43,Enxaqueca [migrânea],
+G43.9,Enxaqueca não especificada,G43
+G45,Ataques isquêmicos cerebrais transitórios e síndromes correlatas,
+G50,Transtornos do nervo trigêmeo,
+G56,Mononeuropatias do membro superior,
+G62,Outras polineuropatias,
+I10,Hipertensão essencial (primária),
+R51,Cefaleia,

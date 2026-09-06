@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Criar organização — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Criar sua clínica</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Criar conta e clínica</button>
+</form>
+{% endblock %}

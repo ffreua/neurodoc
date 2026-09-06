@@ -1440,31 +1440,31 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S02; material visual P-01 e versão das fontes de catálogo.
 
-- [ ] **S03-T01 — Criar convite inicial com hash, expiração e consumo transacional.** Dependências: S02. Componente: `tenancy/invitations.py`. Requisitos: RF-01.02, RF-01.03. **Aceite:** Duas tentativas simultâneas não consomem o mesmo convite.
+- [x] **S03-T01 — Criar convite inicial com hash, expiração e consumo transacional.** Dependências: S02. Componente: `tenancy/invitations.py`. Requisitos: RF-01.02, RF-01.03. **Aceite:** Duas tentativas simultâneas não consomem o mesmo convite.
 
-- [ ] **S03-T02 — Montar landing e formulário de organização/plano free.** Dependências: S03-T01, S01-T02. Componente: `base/views.py, templates/onboarding/`. Requisitos: RF-01.01, RF-01.03. **Aceite:** CNPJ/razão social obrigatórios e planos futuros não são contratáveis.
+- [x] **S03-T02 — Montar landing e formulário de organização/plano free.** Dependências: S03-T01, S01-T02. Componente: `base/views.py, templates/onboarding/`. Requisitos: RF-01.01, RF-01.03. **Aceite:** CNPJ/razão social obrigatórios e planos futuros não são contratáveis.
 
-- [ ] **S03-T03 — Implementar convites internos e gestão de colaboradores.** Dependências: S03-T01. Componente: `tenancy/views.py, forms.py`. Requisitos: RF-01.05. **Aceite:** Owner não atribui automaticamente habilitação médica.
+- [x] **S03-T03 — Implementar convites internos e gestão de colaboradores.** Dependências: S03-T01. Componente: `tenancy/views.py, forms.py`. Requisitos: RF-01.05. **Aceite:** Owner não atribui automaticamente habilitação médica.
 
-- [ ] **S03-T04 — Criar Patient com validações e unicidades condicionais.** Dependências: S02-T05. Componente: `patients/models.py, forms.py`. Requisitos: RF-02.01, RF-02.02. **Aceite:** Menor sem CPF é aceito e duplicidade não revela outro tenant.
+- [x] **S03-T04 — Criar Patient com validações e unicidades condicionais.** Dependências: S02-T05. Componente: `patients/models.py, forms.py`. Requisitos: RF-02.01, RF-02.02. **Aceite:** Menor sem CPF é aceito e duplicidade não revela outro tenant.
 
-- [ ] **S03-T05 — Criar contatos autorizados e responsável legal.** Dependências: S03-T04. Componente: `patients/contacts.py, templates/patients/`. Requisitos: RF-02.01, RF-09.03. **Aceite:** Contato de entrega exige finalidade e vínculo registrado.
+- [x] **S03-T05 — Criar contatos autorizados e responsável legal.** Dependências: S03-T04. Componente: `patients/contacts.py, templates/patients/`. Requisitos: RF-02.01, RF-09.03. **Aceite:** Contato de entrega exige finalidade e vínculo registrado.
 
-- [ ] **S03-T06 — Implementar lista, detalhe, busca e arquivamento.** Dependências: S03-T04. Componente: `patients/views.py, selectors.py`. Requisitos: RF-02.01, RF-02.02. **Aceite:** H-04 mantém histórico após arquivamento e paginação estável.
+- [x] **S03-T06 — Implementar lista, detalhe, busca e arquivamento.** Dependências: S03-T04. Componente: `patients/views.py, selectors.py`. Requisitos: RF-02.01, RF-02.02. **Aceite:** H-04 mantém histórico após arquivamento e paginação estável.
 
-- [ ] **S03-T07 — Integrar consulta ViaCEP com timeout e edição manual.** Dependências: S03-T04. Componente: `integrations/cep.py`. Requisitos: RF-02.03. **Aceite:** Falha/erro do serviço deixa cadastro utilizável e não altera complemento.
+- [x] **S03-T07 — Integrar consulta ViaCEP com timeout e edição manual.** Dependências: S03-T04. Componente: `integrations/cep.py`. Requisitos: RF-02.03. **Aceite:** Falha/erro do serviço deixa cadastro utilizável e não altera complemento.
 
-- [ ] **S03-T08 — Criar medições históricas, idade contextual e cálculo IMC.** Dependências: S03-T04. Componente: `patients/observations.py`. Requisitos: RF-02.04. **Aceite:** Medições anteriores permanecem e unidades inválidas são recusadas.
+- [x] **S03-T08 — Criar medições históricas, idade contextual e cálculo IMC.** Dependências: S03-T04. Componente: `patients/observations.py`. Requisitos: RF-02.04. **Aceite:** Medições anteriores permanecem e unidades inválidas são recusadas.
 
-- [ ] **S03-T09 — Cadastrar operadoras/planos e modalidade particular.** Dependências: S03-T04. Componente: `patients/coverage.py, forms.py`. Requisitos: RF-02.05. **Aceite:** Plano pertence à operadora e vigência é explícita.
+- [x] **S03-T09 — Cadastrar operadoras/planos e modalidade particular.** Dependências: S03-T04. Componente: `patients/coverage.py, forms.py`. Requisitos: RF-02.05. **Aceite:** Plano pertence à operadora e vigência é explícita.
 
-- [ ] **S03-T10 — Criar importador versionado de CID-10/TUSS com dry-run.** Dependências: P-04, S03-T09. Componente: `catalogs/importers.py, management/commands/`. Requisitos: RF-02.05. **Aceite:** Carga usa fonte/versionamento reais e não altera descrição histórica.
+- [x] **S03-T10 — Criar importador versionado de CID-10/TUSS com dry-run.** Dependências: P-04, S03-T09. Componente: `catalogs/importers.py, management/commands/`. Requisitos: RF-02.05. **Aceite:** Carga usa fonte/versionamento reais e não altera descrição histórica.
 
-- [ ] **S03-T11 — Implementar fixtures sintéticas idempotentes de dois tenants.** Dependências: S03-T06, S03-T09. Componente: `base/management/commands/seed_demo.py`. Requisitos: RF-12.02. **Aceite:** Rodar duas vezes não duplica cadastro nem dispara comunicação.
+- [x] **S03-T11 — Implementar fixtures sintéticas idempotentes de dois tenants.** Dependências: S03-T06, S03-T09. Componente: `base/management/commands/seed_demo.py`. Requisitos: RF-12.02. **Aceite:** Rodar duas vezes não duplica cadastro nem dispara comunicação.
 
-- [ ] **S03-T12 — Homologar onboarding/cadastro e componentes de formulário.** Dependências: S03-T02, S03-T10, S03-T11. Componente: `docs/homologation/patients.md`. Requisitos: RF-01, RF-02, RNF-01.09. **Aceite:** H-01/H-04/H-05 por teclado e em celular registrados.
+- [x] **S03-T12 — Homologar onboarding/cadastro e componentes de formulário.** Dependências: S03-T02, S03-T10, S03-T11. Componente: `docs/homologation/patients.md`. Requisitos: RF-01, RF-02, RNF-01.09. **Aceite:** H-01/H-04/H-05 por teclado e em celular registrados.
 
-- [ ] **Saída de S03:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S03:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S04 — Agenda e trabalho da secretaria
 

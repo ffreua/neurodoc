@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}Pacientes — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Pacientes</h1>
+<form method="get">
+    <label for="q">Buscar por nome, CPF ou contato</label>
+    <input type="search" id="q" name="q" value="{{ query }}" minlength="2">
+    <button type="submit">Buscar</button>
+</form>
+<p><a href="{% url 'patients:create' %}">Novo paciente</a></p>
+<table>
+    <thead><tr><th>Nome</th><th>CPF</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for patient in patients %}
+        <tr>
+            <td><a href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a></td>
+            <td>{{ patient.cpf|default:"—" }}</td>
+            <td>{{ patient.get_status_display }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="3">Nenhum paciente encontrado.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% if patients.has_previous %}<a href="?q={{ query }}&page={{ patients.previous_page_number }}">Anterior</a>{% endif %}
+{% if patients.has_next %}<a href="?q={{ query }}&page={{ patients.next_page_number }}">Próxima</a>{% endif %}
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}{{ patient.full_name }} — NeuroDoc{% endblock %}
+{% block content %}
+<h1>{{ patient.full_name }}</h1>
+<p>Status: {{ patient.get_status_display }}</p>
+<p>Idade: {% if age is not None %}{{ age }} anos{% else %}desconhecida{% endif %}</p>
+<p>CPF: {{ patient.cpf|default:"não informado" }}</p>
+{% if bmi %}
+<p>IMC: {{ bmi.value }} (peso {{ bmi.weight_kg }} kg em {{ bmi.weight_observed_at|date:"d/m/Y" }};
+altura {{ bmi.height_m }} m em {{ bmi.height_observed_at|date:"d/m/Y" }})</p>
+{% else %}
+<p>IMC: medições de peso/altura insuficientes.</p>
+{% endif %}
+
+<p><a href="{% url 'patients:update' patient.id %}">Editar</a></p>
+{% if patient.status == 'active' %}
+<form method="post" action="{% url 'patients:archive' patient.id %}">
+    {% csrf_token %}
+    <label for="reason">Motivo do arquivamento</label>
+    <input type="text" id="reason" name="reason">
+    <button type="submit">Arquivar</button>
+</form>
+{% endif %}
+
+<h2>Contatos</h2>
+<ul>
+    {% for contact in patient.contacts.all %}
+    <li>
+        {{ contact.name }} ({{ contact.relationship|default:"—" }})
+        {% if contact.authorized_for_documents %}— autorizado para entrega de documentos{% endif %}
+        {% if contact.legal_authority %}— representante legal{% endif %}
+    </li>
+    {% empty %}
+    <li>Nenhum contato cadastrado.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'patients:add-contact' patient.id %}">
+    {% csrf_token %}
+    {{ contact_form.as_p }}
+    <button type="submit">Adicionar contato</button>
+</form>
+
+<h2>Cobertura</h2>
+<ul>
+    {% for coverage in patient.coverages.all %}
+    <li>{{ coverage.plan }} — matrícula {{ coverage.member_number|default:"—" }}
+        (desde {{ coverage.starts_on|date:"d/m/Y"|default:"—" }})</li>
+    {% empty %}
+    <li>Nenhuma cobertura cadastrada.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'patients:add-coverage' patient.id %}">
+    {% csrf_token %}
+    {{ coverage_form.as_p }}
+    <button type="submit">Adicionar cobertura</button>
+</form>
+
+<p><a href="{% url 'patients:list' %}">Voltar à lista</a></p>
+{% endblock %}

@@ -11,4 +11,7 @@ urlpatterns = [
     path('technical-docs/', technical_docs, name='technical-docs-index'),
     path('technical-docs/<path:path>', technical_docs, name='technical-docs'),
     path('accounts/', include('accounts.urls')),
+    path('', include('tenancy.urls')),
+    path('app/patients/', include('patients.urls')),
+    path('', include('base.urls')),
 ]

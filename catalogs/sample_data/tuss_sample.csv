@@ -1,0 +1,7 @@
+code,description,parent_code
+10101012,Consulta em consultório (no horário normal ou preestabelecido),
+10101039,Consulta em domicílio,
+40901255,Eletroencefalograma (EEG) de rotina,
+40901298,Eletroneuromiografia de um membro,
+41001040,Ressonância magnética do crânio,
+41001091,Tomografia computadorizada do crânio,

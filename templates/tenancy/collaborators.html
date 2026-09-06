@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Colaboradores — NeuroDoc{% endblock %}
+{% block content %}
+<h1>Colaboradores</h1>
+<table>
+    <thead><tr><th>E-mail</th><th>Papéis</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+        {% for membership in memberships %}
+        <tr>
+            <td>{{ membership.user.email }}</td>
+            <td>{{ membership.roles|join:", " }}</td>
+            <td>{{ membership.get_status_display }}</td>
+            <td>
+                {% if membership.status == 'active' %}
+                <form method="post" action="{% url 'tenancy:revoke-collaborator' membership.id %}">
+                    {% csrf_token %}
+                    <button type="submit">Revogar</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Convidar colaborador</h2>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Enviar convite</button>
+</form>
+{% endblock %}

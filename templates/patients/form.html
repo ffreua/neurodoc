@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}{% if patient %}Editar{% else %}Novo{% endif %} paciente — NeuroDoc{% endblock %}
+{% block content %}
+<h1>{% if patient %}Editar paciente{% else %}Novo paciente{% endif %}</h1>
+
+{% if duplicates %}
+<div>
+    <p>Possível duplicidade encontrada:</p>
+    <ul>
+        {% for dup in duplicates %}<li>{{ dup.full_name }}</li>{% endfor %}
+    </ul>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <input type="hidden" name="confirm_duplicate" value="1">
+        <button type="submit">Cadastrar mesmo assim</button>
+    </form>
+</div>
+{% else %}
+<form method="post">
+    {% csrf_token %}
+    {% if patient %}<input type="hidden" name="row_version" value="{{ patient.row_version }}">{% endif %}
+    {{ form.as_p }}
+    <button type="submit">Salvar</button>
+</form>
+{% endif %}
+{% endblock %}
