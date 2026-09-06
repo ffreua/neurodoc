@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Novo documento médico{% endblock %}
+{% block content %}
+<h1>Novo documento médico</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Gerar rascunho</button>
+</form>
+<p>Preencha apenas os campos do tipo escolhido; os demais são ignorados.</p>
+{% endblock %}

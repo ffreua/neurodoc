@@ -9,4 +9,27 @@ urlpatterns = [
     path('<uuid:attachment_id>/download/', views.AttachmentDownloadView.as_view(), name='download'),
     path('<uuid:attachment_id>/preview/', views.AttachmentPreviewView.as_view(), name='preview'),
     path('<uuid:attachment_id>/delete/', views.AttachmentDeleteView.as_view(), name='delete'),
+
+    path('encounters/<uuid:encounter_id>/medical/', views.MedicalDocumentListView.as_view(), name='medical-list'),
+    path('encounters/<uuid:encounter_id>/medical/new/', views.MedicalDocumentCreateView.as_view(), name='medical-new'),
+    path('medical/<uuid:document_id>/', views.MedicalDocumentDetailView.as_view(), name='medical-detail'),
+    path('medical/<uuid:document_id>/review/', views.MedicalDocumentReviewView.as_view(), name='medical-review'),
+    path('medical/<uuid:document_id>/discard/', views.MedicalDocumentDiscardView.as_view(), name='medical-discard'),
+    path('medical/<uuid:document_id>/sign/', views.MedicalDocumentSignView.as_view(), name='medical-sign'),
+    path(
+        'medical/<uuid:document_id>/correction/',
+        views.MedicalDocumentCorrectionView.as_view(), name='medical-correction',
+    ),
+
+    path('signing/credentials/', views.SigningCredentialListView.as_view(), name='credential-list'),
+    path('signing/credentials/upload/', views.SigningCredentialUploadView.as_view(), name='credential-upload'),
+    path(
+        'signing/credentials/<uuid:credential_id>/revoke/',
+        views.SigningCredentialRevokeView.as_view(), name='credential-revoke',
+    ),
+    path('signing/sessions/start/', views.SigningSessionStartView.as_view(), name='session-start'),
+    path(
+        'signing/sessions/<uuid:session_id>/revoke/',
+        views.SigningSessionRevokeView.as_view(), name='session-revoke',
+    ),
 ]

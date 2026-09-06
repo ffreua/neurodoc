@@ -1,0 +1,10 @@
+[Unit]
+Description=Limpeza periodica de chaves de assinatura orfas do NeuroDoc
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=5min
+Unit=neurodoc-signing-cleanup.service
+
+[Install]
+WantedBy=timers.target

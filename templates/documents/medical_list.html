@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Documentos médicos{% endblock %}
+{% block content %}
+<h1>Documentos médicos — {{ encounter.patient.full_name }}</h1>
+<ul>
+    {% for doc in documents %}
+    <li>
+        <a href="{% url 'documents:medical-detail' doc.id %}">
+            {{ doc.get_kind_display }} — {{ doc.document_number|default:"rascunho" }} (v{{ doc.version }})
+        </a>
+        — {{ doc.get_status_display }}
+    </li>
+    {% empty %}
+    <li>Nenhum documento.</li>
+    {% endfor %}
+</ul>
+<a href="{% url 'documents:medical-new' encounter.id %}">Novo documento</a>
+{% endblock %}

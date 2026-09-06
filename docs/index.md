@@ -40,6 +40,12 @@ PRD; é a referência operacional viva gerada a partir dele.
   incluindo detecção real de malware via ClamAV e correção de um bug de
   configuração (base de definições nunca era lida do volume persistente).
 
+## Documentos médicos e assinatura (S07)
+
+- [Homologação de assinatura](homologation/signing.md) — evidências de H-08
+  com certificado PFX autoassinado sintético (P-05 em aberto), incluindo
+  assinatura PAdES real via pyHanko e validação independente.
+
 ## Arquitetura
 
 ```mermaid

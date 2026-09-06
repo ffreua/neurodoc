@@ -1,0 +1,14 @@
+[Unit]
+Description=Remove chaves de assinatura orfas do tmpfs do NeuroDoc
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=neurodocops
+Group=neurodocops
+WorkingDirectory=/srv/neurodoc
+ExecStart=/srv/neurodoc/scripts/cleanup_signing_keys.sh
+UMask=0077
+TimeoutStartSec=1min
+NoNewPrivileges=true

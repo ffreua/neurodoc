@@ -3,6 +3,10 @@
 {% block content %}
 <h1>Atendimento — {{ encounter.patient.full_name }}</h1>
 <p>Status: {{ encounter.get_status_display }} | Versão: {{ encounter.row_version }}</p>
+<p>
+    <a href="{% url 'documents:list' encounter.patient.id %}">Anexos</a> |
+    <a href="{% url 'documents:medical-list' encounter.id %}">Documentos médicos</a>
+</p>
 
 {% if pending_carry_forward %}
 <div>

@@ -1560,27 +1560,27 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S05/S06; P-05/P-07 e titularidade do certificado.
 
-- [ ] **S07-T01 — Modelar MedicalDocument, versões e estados de emissão.** Dependências: S06. Componente: `documents/models.py`. Requisitos: RF-04.01, RF-04.04. **Aceite:** PDF gerado não é tratado como documento emitido.
+- [x] **S07-T01 — Modelar MedicalDocument, versões e estados de emissão.** Dependências: S06. Componente: `documents/models.py`. Requisitos: RF-04.01, RF-04.04. **Aceite:** PDF gerado não é tratado como documento emitido.
 
-- [ ] **S07-T02 — Criar template de receita comum e campos por modalidade.** Dependências: S07-T01, P-05. Componente: `documents/pdf/prescription.py`. Requisitos: RF-04.01. **Aceite:** Médico revisa conteúdo/identificação antes da assinatura.
+- [x] **S07-T02 — Criar template de receita comum e campos por modalidade.** Dependências: S07-T01, P-05. Componente: `documents/pdf/prescription.py`. Requisitos: RF-04.01. **Aceite:** Médico revisa conteúdo/identificação antes da assinatura.
 
-- [ ] **S07-T03 — Criar templates de relatório, pedido e encaminhamento.** Dependências: S07-T02. Componente: `documents/pdf/`. Requisitos: RF-04.01. **Aceite:** Cada tipo tem campos obrigatórios definidos e layout do design system.
+- [x] **S07-T03 — Criar templates de relatório, pedido e encaminhamento.** Dependências: S07-T02. Componente: `documents/pdf/`. Requisitos: RF-04.01. **Aceite:** Cada tipo tem campos obrigatórios definidos e layout do design system.
 
-- [ ] **S07-T04 — Implementar upload PFX, envelope e metadados públicos.** Dependências: S07-T01, S02-T07. Componente: `documents/credentials.py`. Requisitos: RF-04.02, RT-03. **Aceite:** Certificado privado não entra em media, logs ou worker.
+- [x] **S07-T04 — Implementar upload PFX, envelope e metadados públicos.** Dependências: S07-T01, S02-T07. Componente: `documents/credentials.py`. Requisitos: RF-04.02, RT-03. **Aceite:** Certificado privado não entra em media, logs ou worker.
 
-- [ ] **S07-T05 — Implementar sessão 2/4/6/12 h com chave em tmpfs.** Dependências: S07-T04. Componente: `documents/signing_sessions.py`. Requisitos: RF-04.03. **Aceite:** Expiração no servidor, vínculo à sessão web e chave não persistente.
+- [x] **S07-T05 — Implementar sessão 2/4/6/12 h com chave em tmpfs.** Dependências: S07-T04. Componente: `documents/signing_sessions.py`. Requisitos: RF-04.03. **Aceite:** Expiração no servidor, vínculo à sessão web e chave não persistente.
 
-- [ ] **S07-T06 — Implementar revogação, limpeza e invalidação no reboot.** Dependências: S07-T05. Componente: `documents/signing_sessions.py, maintenance`. Requisitos: RF-04.03, RT-03. **Aceite:** Revogação impede novo uso em ambas as réplicas.
+- [x] **S07-T06 — Implementar revogação, limpeza e invalidação no reboot.** Dependências: S07-T05. Componente: `documents/signing_sessions.py, maintenance`. Requisitos: RF-04.03, RT-03. **Aceite:** Revogação impede novo uso em ambas as réplicas.
 
-- [ ] **S07-T07 — Integrar assinatura PAdES com pyHanko e validação.** Dependências: S07-T03, S07-T05, P-05. Componente: `documents/signing.py`. Requisitos: RF-04.04. **Aceite:** Senha inválida, revogação, expiração e falha não produzem estado issued.
+- [x] **S07-T07 — Integrar assinatura PAdES com pyHanko e validação.** Dependências: S07-T03, S07-T05, P-05. Componente: `documents/signing.py`. Requisitos: RF-04.04. **Aceite:** Senha inválida, revogação, expiração e falha não produzem estado issued.
 
-- [ ] **S07-T08 — Implementar confirmação médica por documento e auditoria.** Dependências: S07-T07. Componente: `documents/views.py, audit/`. Requisitos: RF-04.03, RF-04.04. **Aceite:** Secretaria/IA não conseguem assinar com sessão do médico.
+- [x] **S07-T08 — Implementar confirmação médica por documento e auditoria.** Dependências: S07-T07. Componente: `documents/views.py, audit/`. Requisitos: RF-04.03, RF-04.04. **Aceite:** Secretaria/IA não conseguem assinar com sessão do médico.
 
-- [ ] **S07-T09 — Persistir arquivo final, hash e evento de emissão.** Dependências: S07-T08, S06-T02. Componente: `documents/issuance.py, events/`. Requisitos: RF-04.05. **Aceite:** Evento só existe após assinatura válida e arquivo final disponível.
+- [x] **S07-T09 — Persistir arquivo final, hash e evento de emissão.** Dependências: S07-T08, S06-T02. Componente: `documents/issuance.py, events/`. Requisitos: RF-04.05. **Aceite:** Evento só existe após assinatura válida e arquivo final disponível.
 
-- [ ] **S07-T10 — Homologar certificado autorizado com documento sintético.** Dependências: S07-T09, P-05. Componente: `docs/homologation/signing.md`. Requisitos: RF-04, RT-03. **Aceite:** H-08 registra evidência de validação, sem PFX/senha nos anexos.
+- [x] **S07-T10 — Homologar certificado autorizado com documento sintético.** Dependências: S07-T09, P-05. Componente: `docs/homologation/signing.md`. Requisitos: RF-04, RT-03. **Aceite:** H-08 registra evidência de validação, sem PFX/senha nos anexos.
 
-- [ ] **Saída de S07:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S07:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S08 — Comunicações, outbox e notificações
 
@@ -1843,11 +1843,11 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-08 — Assinatura e documentos
 
-- [ ] Gerar cada tipo com paciente/emissor/campos obrigatórios corretos; confirmar que PDF sem assinatura não recebe sucesso de emissão quando a assinatura é exigida.
-- [ ] Habilitar sessão PFX em cada duração 2/4/6/12 h e verificar expiração no servidor, revogação, duas réplicas e reboot; não confundir o encerramento da sessão com validade de assinatura anterior.
-- [ ] Senha inválida, certificado de titular incorreto, expirado/revogado e erro de cadeia/validação bloqueiam emissão; secretaria/gestor/IA não executam assinatura.
-- [ ] Validar integridade e autoria de PDF sintético assinado com certificado autorizado, inclusive em verificador independente. O [VALIDAR do ITI](https://www.gov.br/pt-br/servicos/realizar-validacao-de-assinaturas-eletronicas-validar) é uma referência de verificação; enviar somente documento cuja submissão tenha sido autorizada.
-- [ ] Hash/versionamento preservam documento emitido; correção gera nova versão; nenhuma senha/chave aparece no banco em texto puro, Redis, broker, logs ou artefatos de homologação.
+- [x] Gerar cada tipo com paciente/emissor/campos obrigatórios corretos; confirmar que PDF sem assinatura não recebe sucesso de emissão quando a assinatura é exigida.
+- [x] Habilitar sessão PFX em cada duração 2/4/6/12 h e verificar expiração no servidor, revogação, duas réplicas e reboot; não confundir o encerramento da sessão com validade de assinatura anterior.
+- [x] Senha inválida, certificado de titular incorreto, expirado/revogado e erro de cadeia/validação bloqueiam emissão; secretaria/gestor/IA não executam assinatura.
+- [x] Validar integridade e autoria de PDF sintético assinado com certificado autorizado, inclusive em verificador independente. O [VALIDAR do ITI](https://www.gov.br/pt-br/servicos/realizar-validacao-de-assinaturas-eletronicas-validar) é uma referência de verificação; enviar somente documento cuja submissão tenha sido autorizada.
+- [x] Hash/versionamento preservam documento emitido; correção gera nova versão; nenhuma senha/chave aparece no banco em texto puro, Redis, broker, logs ou artefatos de homologação.
 
 ### H-09 — Entrega e lembretes
 

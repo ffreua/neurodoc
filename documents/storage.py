@@ -105,3 +105,25 @@ def open_for_read(attachment):
     if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
         raise PermissionError('Attachment is not available')
     return open(attachment.storage_key, 'rb')
+
+
+def store_generated_attachment(tenant, patient, uploaded_by, content, original_name,
+                                classification=AttachmentClassification.ADMINISTRATIVE, encounter=None):
+    """For server-synthesized files (rendered/signed PDFs) rather than
+    user uploads: no malware risk from content this application generated
+    itself, so this skips quarantine/ClamAV entirely and publishes straight
+    to AVAILABLE, deduped by sha256 exactly like publish_from_quarantine.
+    """
+    sha256 = hashlib.sha256(content).hexdigest()
+    final_dir = _published_dir(tenant.id) / sha256
+    final_dir.mkdir(parents=True, exist_ok=True)
+    final_path = final_dir / original_name
+    if not final_path.exists():
+        fd = os.open(final_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, 'wb') as fh:
+            fh.write(content)
+    return Attachment.objects.create(
+        tenant=tenant, patient=patient, encounter=encounter, storage_key=str(final_path),
+        original_name=original_name, mime='application/pdf', bytes=len(content), sha256=sha256,
+        classification=classification, scan_status=AttachmentScanStatus.AVAILABLE, uploaded_by=uploaded_by,
+    )

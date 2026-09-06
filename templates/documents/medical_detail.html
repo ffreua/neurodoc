@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Documento médico{% endblock %}
+{% block content %}
+<h1>{{ document.get_kind_display }} — {{ document.get_status_display }}</h1>
+<p><b>Paciente:</b> {{ document.patient.full_name }}</p>
+<p><b>Número:</b> {{ document.document_number|default:"rascunho — sem validade" }} (versão {{ document.version }})</p>
+
+{% if document.pdf_attachment_id %}
+<p><a href="{% url 'documents:download' document.pdf_attachment_id %}">Baixar PDF (rascunho gerado)</a></p>
+{% endif %}
+{% if document.signed_pdf_attachment_id %}
+<p><a href="{% url 'documents:download' document.signed_pdf_attachment_id %}">Baixar PDF assinado (emitido)</a></p>
+{% endif %}
+
+{% if sign_error %}
+<p style="color:red">Falha ao assinar: {{ sign_error }}</p>
+{% endif %}
+
+{% if is_own_document %}
+    {% if document.status == "draft" %}
+    <form method="post" action="{% url 'documents:medical-review' document.id %}">
+        {% csrf_token %}
+        <button type="submit">Revisei o conteúdo — confirmar</button>
+    </form>
+    <form method="post" action="{% url 'documents:medical-discard' document.id %}">
+        {% csrf_token %}
+        <button type="submit">Descartar rascunho</button>
+    </form>
+    {% elif document.status == "ready_to_sign" %}
+        {% if active_session %}
+        <form method="post" action="{% url 'documents:medical-sign' document.id %}">
+            {% csrf_token %}
+            <button type="submit">Assinar e emitir</button>
+        </form>
+        {% else %}
+        <p>Nenhuma sessão de assinatura ativa. <a href="{% url 'documents:credential-list' %}">Habilitar sessão de assinatura</a>.</p>
+        {% endif %}
+        <form method="post" action="{% url 'documents:medical-discard' document.id %}">
+            {% csrf_token %}
+            <button type="submit">Descartar</button>
+        </form>
+    {% elif document.status == "failed" %}
+        <p>Falha inesperada na assinatura. Descarte e gere uma nova versão.</p>
+        <form method="post" action="{% url 'documents:medical-discard' document.id %}">
+            {% csrf_token %}
+            <button type="submit">Descartar</button>
+        </form>
+    {% elif document.status == "issued" %}
+        <h2>Criar correção (nova versão)</h2>
+        <form method="post" action="{% url 'documents:medical-correction' document.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="kind" value="{{ document.kind }}">
+            <textarea name="prescription_text" placeholder="prescription_text"></textarea>
+            <textarea name="special_instructions" placeholder="special_instructions"></textarea>
+            <textarea name="report_text" placeholder="report_text"></textarea>
+            <textarea name="requested_procedure" placeholder="requested_procedure"></textarea>
+            <textarea name="justification" placeholder="justification"></textarea>
+            <input type="text" name="referral_specialty" placeholder="referral_specialty">
+            <textarea name="reason" placeholder="reason"></textarea>
+            <button type="submit">Gerar correção</button>
+        </form>
+    {% endif %}
+{% endif %}
+{% endblock %}

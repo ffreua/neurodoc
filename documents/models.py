@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import Q
 
 from base.models import TenantModel
 
@@ -62,3 +63,101 @@ class AttachmentOcrPage(TenantModel):
 
     def __str__(self):
         return f'{self.attachment_id} p{self.page_number}'
+
+
+class MedicalDocumentKind(models.TextChoices):
+    PRESCRIPTION = 'prescription', 'Prescription'
+    REPORT = 'report', 'Report'
+    REQUEST = 'request', 'Request'
+    REFERRAL = 'referral', 'Referral'
+
+
+class MedicalDocumentStatus(models.TextChoices):
+    DRAFT = 'draft', 'Draft'
+    READY_TO_SIGN = 'ready_to_sign', 'Ready to sign'
+    SIGNING = 'signing', 'Signing'
+    ISSUED = 'issued', 'Issued'
+    FAILED = 'failed', 'Failed'
+
+
+class MedicalDocument(TenantModel):
+    patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='medical_documents')
+    encounter = models.ForeignKey(
+        'clinical.Encounter', on_delete=models.PROTECT, related_name='medical_documents',
+    )
+    physician = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, related_name='medical_documents',
+    )
+    document_number = models.CharField(max_length=64, blank=True)
+    version = models.PositiveIntegerField(default=1)
+    kind = models.CharField(max_length=40, choices=MedicalDocumentKind.choices)
+    template_version = models.CharField(max_length=20, default='v1')
+    content_snapshot = models.JSONField(default=dict, blank=True)
+    pdf_attachment = models.ForeignKey(
+        Attachment, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    signed_pdf_attachment = models.ForeignKey(
+        Attachment, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    status = models.CharField(max_length=40, choices=MedicalDocumentStatus.choices, default=MedicalDocumentStatus.DRAFT)
+    issued_at = models.DateTimeField(null=True, blank=True)
+    signature_metadata = models.JSONField(default=dict, blank=True)
+    replaces_document = models.ForeignKey(
+        'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replaced_by',
+    )
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(
+                fields=['tenant', 'document_number'], condition=~Q(document_number=''),
+                name='documents_medicaldocument_number_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'patient'], name='documents_meddoc_patient_idx'),
+        ]
+
+    def __str__(self):
+        return self.document_number or f'{self.kind} draft ({self.id})'
+
+
+class SigningCredentialStatus(models.TextChoices):
+    ACTIVE = 'active', 'Active'
+    EXPIRED = 'expired', 'Expired'
+    REVOKED = 'revoked', 'Revoked'
+
+
+class SigningCredential(TenantModel):
+    physician = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, related_name='signing_credentials',
+    )
+    ciphertext_path = models.CharField(max_length=512)
+    wrapped_key_metadata = models.JSONField(default=dict)
+    certificate_serial = models.CharField(max_length=64)
+    certificate_fingerprint = models.CharField(max_length=64)
+    issuer = models.CharField(max_length=255)
+    not_before = models.DateTimeField()
+    not_after = models.DateTimeField()
+    status = models.CharField(
+        max_length=40, choices=SigningCredentialStatus.choices, default=SigningCredentialStatus.ACTIVE,
+    )
+
+    def __str__(self):
+        return f'{self.certificate_serial} ({self.status})'
+
+
+class SigningSession(TenantModel):
+    physician = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, related_name='signing_sessions',
+    )
+    credential = models.ForeignKey(SigningCredential, on_delete=models.PROTECT, related_name='sessions')
+    duration_hours = models.PositiveSmallIntegerField()
+    expires_at = models.DateTimeField()
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    mfa_at = models.DateTimeField()
+    session_binding_hash = models.CharField(max_length=64)
+    encrypted_unlock_material = models.TextField()
+    ephemeral_key_id = models.UUIDField()
+
+    def __str__(self):
+        return f'session {self.id} ({self.physician_id})'
