@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
-from django.http import Http404, HttpResponse
+from django.forms import modelform_factory
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -21,8 +22,31 @@ from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
 from .forms import AmendmentForm, DiagnosisForm, EncounterForm, FindingForm
-from .models import Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain
+from .models import (
+    Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
+)
 
+
+def _first_error(form):
+    """Primeira mensagem de erro do formulário, em texto corrido."""
+    for field, errors in form.errors.items():
+        if not errors:
+            continue
+        label = form.fields[field].label if field in form.fields else ''
+        return f'{label}: {errors[0]}' if label else errors[0]
+    return 'Não foi possível salvar.'
+
+
+def _blocked(request, encounter, message, anchor=''):
+    """Recusa uma ação sem tirar quem usa o sistema de dentro dele.
+
+    Antes cada recusa devolvia uma página de texto cru — "3", o dict de
+    erros do formulário, uma frase em inglês. Agora volta para o
+    atendimento com a mensagem na tela, na aba de onde a ação partiu.
+    """
+    messages.error(request, message)
+    url = reverse('clinical:detail', args=[encounter.id])
+    return redirect(f'{url}#{anchor}' if anchor else url)
 
 class TenantScopedView(LoginRequiredMixin, View):
     def dispatch(self, request, *args, **kwargs):
@@ -106,33 +130,82 @@ class EncounterDetailView(TenantScopedView):
 
 
 class EncounterAutosaveView(TenantScopedView):
+    """Grava a parte do prontuário que veio no envio.
+
+    Duas coisas importam aqui:
+
+    - **grava só os campos enviados.** A tela divide história e conduta em
+      abas; validar o formulário inteiro faria salvar a história apagar a
+      conduta, porque os campos da outra aba chegam ausentes e o ModelForm
+      os gravaria em branco.
+    - **responde conforme quem perguntou.** Chamada por `fetch` (o autosave)
+      devolve JSON com a versão nova; envio normal de formulário volta para
+      a tela com mensagem, em vez de deixar o navegador numa página escrita
+      "3".
+    """
+
+    #: Campos que a tela pode enviar; qualquer outro é ignorado.
+    EDITABLE = tuple(EncounterForm.Meta.fields)
+
+    def _wants_json(self, request):
+        return (
+            request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+            or 'application/json' in request.headers.get('Accept', '')
+        )
+
+    def _fail(self, request, encounter, message, status):
+        if self._wants_json(request):
+            return JsonResponse({'ok': False, 'error': message}, status=status)
+        messages.error(request, message)
+        return redirect('clinical:detail', encounter_id=encounter.id)
+
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         if not encounter.is_editable():
-            return HttpResponse('Encounter is finalized and cannot be edited.', status=409)
+            return self._fail(
+                request, encounter,
+                'Atendimento finalizado: o registro não pode mais ser alterado. '
+                'Use um adendo.', 409,
+            )
         submitted_version = request.POST.get('row_version')
         if submitted_version and str(encounter.row_version) != submitted_version:
-            return HttpResponse('Conflict: this encounter changed since you opened it.', status=409)
-        form = EncounterForm(request.POST, instance=encounter)
+            return self._fail(
+                request, encounter,
+                'Este atendimento foi alterado em outra aba desde que você o abriu. '
+                'Recarregue a página para não sobrescrever o que já foi gravado.', 409,
+            )
+
+        submitted = [name for name in self.EDITABLE if name in request.POST]
+        if not submitted:
+            return self._fail(request, encounter, 'Nada para salvar.', 400)
+
+        PartialForm = modelform_factory(Encounter, form=EncounterForm, fields=submitted)
+        form = PartialForm(request.POST, instance=encounter)
         if not form.is_valid():
-            return HttpResponse(str(form.errors), status=400)
+            first = next(iter(form.errors.values()))[0]
+            return self._fail(request, encounter, first, 400)
+
         updated = form.save(commit=False)
         if updated.status == EncounterStatus.DRAFT:
             updated.status = EncounterStatus.IN_PROGRESS
         updated.row_version += 1
         updated.full_clean()
         updated.save()
-        return HttpResponse(str(updated.row_version), status=200)
+
+        if self._wants_json(request):
+            return JsonResponse({'ok': True, 'row_version': updated.row_version})
+        messages.success(request, 'Prontuário salvo.')
+        return redirect('clinical:detail', encounter_id=updated.id)
 
 
 class FindingUpsertView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         if not encounter.is_editable():
-            return HttpResponse('Encounter is finalized.', status=409)
+            return _blocked(request, encounter, 'Atendimento finalizado.')
         form = FindingForm(request.POST)
         if not form.is_valid():
-            return HttpResponse(str(form.errors), status=400)
+            return _blocked(request, encounter, _first_error(form), anchor='tab-exame')
         data = form.cleaned_data
         try:
             if data['domain'] == ExaminationDomain.CRANIAL_NERVE:
@@ -147,8 +220,9 @@ class FindingUpsertView(TenantScopedView):
                     data['numeric_value'], data['qualifier'], data['note'],
                 )
         except Exception as exc:
-            return HttpResponse(str(exc), status=400)
-        return redirect('clinical:detail', encounter_id=encounter.id)
+            return _blocked(request, encounter, str(exc), anchor='tab-exame')
+        messages.success(request, 'Achado registrado.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
 
 class ExamAxisSaveView(TenantScopedView):
@@ -162,12 +236,15 @@ class ExamAxisSaveView(TenantScopedView):
     def post(self, request, encounter_id, axis):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         if not encounter.is_editable():
-            return HttpResponse('Atendimento finalizado.', status=409)
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exame')
         template = resolve_template(
             request.access_context.tenant_id, request.access_context.membership_id,
         )
         if template is None:
-            return HttpResponse('Nenhum roteiro de exame publicado nesta organização.', status=409)
+            return _blocked(
+                request, encounter,
+                'Nenhum roteiro de exame publicado nesta organização.', anchor='tab-exame',
+            )
         saved, removed = save_axis(request.access_context, encounter, template, axis, request.POST)
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.exam_axis_saved',
@@ -190,16 +267,19 @@ class ExamGroupNormalView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         if not encounter.is_editable():
-            return HttpResponse('Atendimento finalizado.', status=409)
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exame')
         template = resolve_template(
             request.access_context.tenant_id, request.access_context.membership_id,
         )
         if template is None:
-            return HttpResponse('Nenhum roteiro de exame publicado.', status=409)
+            return _blocked(
+                request, encounter,
+                'Nenhum roteiro de exame publicado nesta organização.', anchor='tab-exame',
+            )
 
         path = (request.POST.get('path') or '').strip()
         if not path:
-            return HttpResponse('Grupo não informado.', status=400)
+            return _blocked(request, encounter, 'Grupo não informado.', anchor='tab-exame')
         undo = request.POST.get('undo') == '1'
 
         if undo:
@@ -236,7 +316,7 @@ class ScaleRecordView(TenantScopedView):
     def post(self, request, encounter_id, code):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         if not encounter.is_editable():
-            return HttpResponse('Atendimento finalizado.', status=409)
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exame')
         scale = get_object_or_404(
             ExamScale, tenant_id=request.access_context.tenant_id, code=code, active=True,
         )
@@ -264,10 +344,10 @@ class DiagnosisCreateView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         if not encounter.is_editable():
-            return HttpResponse('Encounter is finalized.', status=409)
+            return _blocked(request, encounter, 'Atendimento finalizado.')
         form = DiagnosisForm(request.POST)
         if not form.is_valid():
-            return HttpResponse(str(form.errors), status=400)
+            return _blocked(request, encounter, _first_error(form), anchor='tab-hipoteses')
         EncounterDiagnosis.objects.create(
             tenant_id=request.access_context.tenant_id, encounter=encounter,
             diagnosis_code_id=form.cleaned_data['diagnosis_code_id'],
@@ -300,7 +380,8 @@ class FinalizeEncounterView(TenantScopedView):
         try:
             finalization.finalize_encounter(request.access_context, encounter, membership)
         except finalization.FinalizationError as exc:
-            return HttpResponse(str(exc), status=409)
+            return _blocked(request, encounter, str(exc))
+        messages.success(request, 'Atendimento finalizado. O registro agora é imutável.')
         return redirect('clinical:detail', encounter_id=encounter.id)
 
 
@@ -312,12 +393,47 @@ class AmendmentCreateView(TenantScopedView):
             raise Http404
         form = AmendmentForm(request.POST)
         if not form.is_valid():
-            return HttpResponse(str(form.errors), status=400)
+            return _blocked(request, encounter, _first_error(form), anchor='tab-adendos')
         try:
             finalization.add_amendment(
                 request.access_context, encounter, membership,
                 form.cleaned_data['reason'], form.cleaned_data['text'],
             )
         except finalization.FinalizationError as exc:
-            return HttpResponse(str(exc), status=409)
-        return redirect('clinical:detail', encounter_id=encounter.id)
+            return _blocked(request, encounter, str(exc), anchor='tab-adendos')
+        messages.success(request, 'Adendo registrado.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-adendos')
+
+
+class FindingDeleteView(TenantScopedView):
+    """Remove um item registrado no exame, a partir do grid.
+
+    Existe porque desmarcar no roteiro só funciona para item que ainda está
+    no roteiro em vigor: achado do catálogo avulso, escala aplicada e item de
+    uma versão anterior do roteiro não têm onde ser desmarcados. O grid é o
+    lugar em que todos aparecem, então é dele que se apaga.
+    """
+
+    def post(self, request, encounter_id, finding_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(
+                request, encounter,
+                'Atendimento finalizado: o exame não pode mais ser alterado.',
+                anchor='tab-exame',
+            )
+        finding = get_object_or_404(
+            ExaminationFinding,
+            tenant_id=request.access_context.tenant_id,
+            encounter=encounter, id=finding_id,
+        )
+        label = finding.qualifier or finding.get_state_display()
+        item = finding.item_code
+        finding.delete()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.exam_finding_deleted',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'item_code': item},
+        )
+        messages.success(request, f'Item removido do exame ({label}).')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')

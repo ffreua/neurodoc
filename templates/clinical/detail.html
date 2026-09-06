@@ -269,7 +269,8 @@ digitado em outra.{% endcomment %}
                                     <th class="ps-4" scope="col">Item</th>
                                     <th scope="col">Lado</th>
                                     <th scope="col">Registro</th>
-                                    <th class="pe-4" scope="col">Observação</th>
+                                    <th scope="col">Observação</th>
+                                    <th class="text-end pe-4" scope="col"><span class="visually-hidden">Ações</span></th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -291,8 +292,19 @@ digitado em outra.{% endcomment %}
                                         </span>
                                         {% endif %}
                                     </td>
-                                    <td class="pe-4 text-wrap">
+                                    <td class="text-wrap">
                                         <span class="fs-12 text-muted nd-prose">{{ finding.note|default:"—" }}</span>
+                                    </td>
+                                    <td class="text-end pe-4">
+                                        {% if encounter.status != 'finalized' %}
+                                        <button type="button" class="btn btn-icon btn-sm btn-light-danger"
+                                                data-nd-remove-finding
+                                                data-nd-url="{% url 'clinical:delete-finding' encounter.id finding.id %}"
+                                                data-nd-label="{{ finding.label }}{% if finding.get_side_display and finding.side != 'not_applicable' %} ({{ finding.get_side_display }}){% endif %}"
+                                                aria-label="Remover {{ finding.label }} do exame">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                                        </button>
+                                        {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -381,15 +393,9 @@ digitado em outra.{% endcomment %}
                 <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
-                    {% comment %}O autosave grava o formulário inteiro; os campos da
-                    aba História seguem aqui como ocultos para que salvar a conduta
-                    não apague o que foi escrito lá.{% endcomment %}
-                    <input type="hidden" name="chief_complaint" value="{{ encounter.chief_complaint }}">
-                    <input type="hidden" name="hpi" value="{{ encounter.hpi }}">
-                    <input type="hidden" name="personal_history" value="{{ encounter.personal_history }}">
-                    <input type="hidden" name="family_history" value="{{ encounter.family_history }}">
-                    <input type="hidden" name="consanguinity_state" value="{{ encounter.consanguinity_state }}">
-                    <input type="hidden" name="consanguinity_details" value="{{ encounter.consanguinity_details }}">
+                    {% comment %}Sem cópias ocultas da outra aba: o autosave grava
+                    apenas os campos que chegam no envio, então salvar a conduta não
+                    toca na história e vice-versa.{% endcomment %}
                     <div class="row g-3">
                         {% include "partials/field.html" with field=form.plan_text col="col-lg-8" %}
                         {% include "partials/field.html" with field=form.finalization_justification col="col-lg-4" %}
@@ -439,6 +445,28 @@ digitado em outra.{% endcomment %}
 
 {% block modals %}
 {% if encounter.status != 'finalized' %}
+<div class="modal fade" id="remove-finding-modal" tabindex="-1" aria-hidden="true"
+     aria-labelledby="remove-finding-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="remove-finding-form">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="remove-finding-title">Remover item do exame</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fs-13 mb-0" id="remove-finding-summary"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" data-nd-busy>Remover</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="normal-modal" tabindex="-1" aria-hidden="true" aria-labelledby="normal-modal-title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -515,6 +543,23 @@ digitado em outra.{% endcomment %}
     var summary = document.getElementById('normal-summary');
     var warning = document.getElementById('normal-warning');
     var confirm = document.getElementById('normal-confirm');
+
+    /* Lixeira do grid: um modal só para todas as linhas, com a ação
+       apontando para o achado clicado. */
+    var removeModal = document.getElementById('remove-finding-modal');
+    var removeForm = document.getElementById('remove-finding-form');
+    var removeSummary = document.getElementById('remove-finding-summary');
+    if (removeModal) {
+        document.addEventListener('click', function (event) {
+            var trash = event.target.closest('[data-nd-remove-finding]');
+            if (!trash) return;
+            removeForm.action = trash.getAttribute('data-nd-url');
+            removeSummary.textContent =
+                'Remover “' + (trash.getAttribute('data-nd-label') || 'este item') +
+                '” do exame deste atendimento?';
+            window.NeuroDoc.openModal(removeModal);
+        });
+    }
 
     document.addEventListener('click', function (event) {
         var button = event.target.closest('[data-nd-normal]');

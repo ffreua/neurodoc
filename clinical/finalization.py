@@ -17,15 +17,23 @@ class FinalizationError(Exception):
 @transaction.atomic
 def finalize_encounter(context, encounter, actor_membership):
     if encounter.status == EncounterStatus.FINALIZED:
-        raise FinalizationError('Encounter is already finalized')
+        raise FinalizationError('Este atendimento já está finalizado.')
     if has_pending_review(encounter):
-        raise FinalizationError('Carry-forward items are still pending review')
+        raise FinalizationError(
+            'Há dados trazidos da consulta anterior aguardando revisão. '
+            'Aceite ou rejeite cada um antes de finalizar.'
+        )
     has_history = bool(encounter.chief_complaint or encounter.hpi)
     has_plan = bool(encounter.plan_text)
     if not (has_history or encounter.finalization_justification):
-        raise FinalizationError('Chief complaint/HPI or a justification is required')
+        raise FinalizationError(
+            'Preencha a queixa principal ou a história da doença atual. '
+            'Se não for possível, escreva a justificativa em Conduta.'
+        )
     if not (has_plan or encounter.finalization_justification):
-        raise FinalizationError('Plan (conduta) or a justification is required')
+        raise FinalizationError(
+            'Preencha a conduta. Se não for possível, escreva a justificativa ao lado dela.'
+        )
 
     encounter.status = EncounterStatus.FINALIZED
     encounter.finalized_at = timezone.now()
@@ -54,7 +62,7 @@ def finalize_encounter(context, encounter, actor_membership):
 @transaction.atomic
 def add_amendment(context, encounter, author_membership, reason, text):
     if encounter.status != EncounterStatus.FINALIZED:
-        raise FinalizationError('Amendments only apply to finalized encounters')
+        raise FinalizationError('Adendo só se aplica a atendimento finalizado.')
     amendment = ClinicalAmendment.objects.create(
         tenant_id=context.tenant_id, encounter=encounter, author=author_membership,
         reason=reason, text=text, authored_at=timezone.now(),

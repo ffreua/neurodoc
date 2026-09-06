@@ -22,6 +22,10 @@ urlpatterns = [
         '<uuid:encounter_id>/escala/<slug:code>/',
         views.ScaleRecordView.as_view(), name='record-scale',
     ),
+    path(
+        '<uuid:encounter_id>/achados/<uuid:finding_id>/remover/',
+        views.FindingDeleteView.as_view(), name='delete-finding',
+    ),
     path('<uuid:encounter_id>/diagnoses/', views.DiagnosisCreateView.as_view(), name='add-diagnosis'),
     path(
         '<uuid:encounter_id>/carry-forward/<uuid:item_id>/review/',
