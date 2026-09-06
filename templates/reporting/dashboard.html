@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Indicadores{% endblock %}
+{% block content %}
+<h1>Indicadores</h1>
+<form method="get">
+    De <input type="date" name="start" value="{{ start|date:'Y-m-d' }}">
+    até <input type="date" name="end" value="{{ end|date:'Y-m-d' }}">
+    <button type="submit">Filtrar</button>
+</form>
+<p>Período: {{ start }} a {{ end }} — todos os valores abaixo são desta clínica apenas.</p>
+
+<table>
+    <tr><th>Indicador</th><th>Valor</th><th>n / observações</th></tr>
+    <tr><td>Carteira ativa</td><td>{{ indicators.active_patients }}</td><td>—</td></tr>
+    <tr><td>Pacientes atendidos</td><td>{{ indicators.patients_seen }}</td><td>—</td></tr>
+    <tr><td>Novos pacientes</td><td>{{ indicators.new_patients }}</td><td>—</td></tr>
+    <tr><td>Retornos</td><td>{{ indicators.returning_patients }}</td><td>—</td></tr>
+    <tr>
+        <td>Taxa de falta</td>
+        <td>{{ indicators.no_show.rate|default:"sem dados" }}</td>
+        <td>n={{ indicators.no_show.n }} (completed={{ indicators.no_show.completed }}, no_show={{ indicators.no_show.no_show }})</td>
+    </tr>
+    <tr>
+        <td>Idade (mediana/IQR)</td>
+        <td>{{ indicators.age.median_years|floatformat:1|default:"—" }} anos</td>
+        <td>conhecidos={{ indicators.age.n_known }}, desconhecidos={{ indicators.age.n_unknown }}</td>
+    </tr>
+    <tr><td>Receita por competência</td><td>R$ {{ indicators.revenue_by_competence }}</td><td>—</td></tr>
+    <tr><td>Recebido em caixa</td><td>R$ {{ indicators.cash_received }}</td><td>—</td></tr>
+    <tr><td>Saldo em aberto</td><td>R$ {{ indicators.outstanding_balance }}</td><td>—</td></tr>
+    <tr><td>Repasse previsto</td><td>R$ {{ indicators.doctor_share_forecast }}</td><td>—</td></tr>
+    <tr>
+        <td>Particular/plano (pacientes)</td>
+        <td>Particular: {{ indicators.payment_category.private }} | Plano: {{ indicators.payment_category.insurance }}</td>
+        <td>—</td>
+    </tr>
+</table>
+
+<h2>Localização (pacientes distintos)</h2>
+<table>
+    <tr><th>Município/UF</th><th>n</th></tr>
+    {% for row in indicators.location %}
+    <tr><td>{{ row.city }}/{{ row.state }}</td><td>{{ row.n }}</td></tr>
+    {% endfor %}
+</table>
+
+<h2>Exportar</h2>
+<form method="post" action="{% url 'reporting:export-request' %}">
+    {% csrf_token %}
+    <input type="hidden" name="start" value="{{ start|date:'Y-m-d' }}">
+    <input type="hidden" name="end" value="{{ end|date:'Y-m-d' }}">
+    <input type="hidden" name="report_name" value="patients_seen_detail">
+    <button type="submit">Exportar pacientes atendidos (CSV)</button>
+</form>
+{% endblock %}

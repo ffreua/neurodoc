@@ -1730,29 +1730,29 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S09/S12; método analítico, P-08 e política de exportação.
 
-- [ ] **S13-T01 — Criar seletores dos indicadores de pacientes/seguimento.** Dependências: S05, S09. Componente: `reporting/patients.py`. Requisitos: RF-10.01. **Aceite:** Numeradores e faltantes reproduzem a tabela da seção 13.
+- [x] **S13-T01 — Criar seletores dos indicadores de pacientes/seguimento.** Dependências: S05, S09. Componente: `reporting/patients.py`. Requisitos: RF-10.01. **Aceite:** Numeradores e faltantes reproduzem a tabela da seção 13.
 
-- [ ] **S13-T02 — Criar indicadores de agenda, modalidade e financeiro.** Dependências: S13-T01. Componente: `reporting/operations.py`. Requisitos: RF-10.01. **Aceite:** Caixa/competência e unidade paciente/consulta não se confundem.
+- [x] **S13-T02 — Criar indicadores de agenda, modalidade e financeiro.** Dependências: S13-T01. Componente: `reporting/operations.py`. Requisitos: RF-10.01. **Aceite:** Caixa/competência e unidade paciente/consulta não se confundem.
 
-- [ ] **S13-T03 — Montar dashboard, filtros e tabelas alternativas.** Dependências: S13-T02, S01-T02. Componente: `templates/reporting/, static/reporting/`. Requisitos: RF-10.01, RNF-01.09. **Aceite:** Gráfico mostra período, unidade, n e dados ausentes.
+- [x] **S13-T03 — Montar dashboard, filtros e tabelas alternativas.** Dependências: S13-T02, S01-T02. Componente: `templates/reporting/, static/reporting/`. Requisitos: RF-10.01, RNF-01.09. **Aceite:** Gráfico mostra período, unidade, n e dados ausentes.
 
-- [ ] **S13-T04 — Implementar CSV seguro e supressão gerencial.** Dependências: S13-T02. Componente: `reporting/exporters.py`. Requisitos: RF-10.02, RF-10.03. **Aceite:** Células com fórmula não executam e filtro não expõe clínica alheia.
+- [x] **S13-T04 — Implementar CSV seguro e supressão gerencial.** Dependências: S13-T02. Componente: `reporting/exporters.py`. Requisitos: RF-10.02, RF-10.03. **Aceite:** Células com fórmula não executam e filtro não expõe clínica alheia.
 
-- [ ] **S13-T05 — Implementar PDF e exportação grande assíncrona privada.** Dependências: S13-T04, S08-T09. Componente: `reporting/tasks.py`. Requisitos: RF-10.02. **Aceite:** Arquivo expira em 24 h e conclusão gera notificação autorizada.
+- [x] **S13-T05 — Implementar PDF e exportação grande assíncrona privada.** Dependências: S13-T04, S08-T09. Componente: `reporting/tasks.py`. Requisitos: RF-10.02. **Aceite:** Arquivo expira em 24 h e conclusão gera notificação autorizada.
 
-- [ ] **S13-T06 — Formalizar primeiro ReportDefinition inferencial elegível.** Dependências: S13-T01, responsável metodológico. Componente: `reporting/models.py, docs/analytics/`. Requisitos: RF-10.04. **Aceite:** Pergunta/unidade/amostra/pressupostos registrados ou relatório fica indisponível.
+- [x] **S13-T06 — Formalizar primeiro ReportDefinition inferencial elegível.** Dependências: S13-T01, responsável metodológico. Componente: `reporting/models.py, docs/analytics/`. Requisitos: RF-10.04. **Aceite:** Pergunta/unidade/amostra/pressupostos registrados ou relatório fica indisponível.
 
-- [ ] **S13-T07 — Criar CaptureDevice/CaptureSession e pareamento.** Dependências: S06, P-08. Componente: `integrations/capture.py`. Requisitos: RF-05.04. **Aceite:** Token só autoriza upload na sessão vinculada.
+- [x] **S13-T07 — Criar CaptureDevice/CaptureSession e pareamento.** Dependências: S06, P-08. Componente: `integrations/capture.py`. Requisitos: RF-05.04. **Aceite:** Token só autoriza upload na sessão vinculada.
 
-- [ ] **S13-T08 — Implementar receptor de lote com hash/ordem e quarentena.** Dependências: S13-T07, S06-T02. Componente: `integrations/capture_views.py`. Requisitos: RF-05.04. **Aceite:** Repetição e troca de paciente não anexam silenciosamente no lugar errado.
+- [x] **S13-T08 — Implementar receptor de lote com hash/ordem e quarentena.** Dependências: S13-T07, S06-T02. Componente: `integrations/capture_views.py`. Requisitos: RF-05.04. **Aceite:** Repetição e troca de paciente não anexam silenciosamente no lugar errado.
 
-- [ ] **S13-T09 — Criar agente local de pasta e transporte HTTPS limitado.** Dependências: S13-T08, P-08. Componente: `capture_agent/`. Requisitos: RF-05.04. **Aceite:** Arquivo ainda sendo gravado não é enviado e fila local é protegida.
+- [x] **S13-T09 — Criar agente local de pasta e transporte HTTPS limitado.** Dependências: S13-T08, P-08. Componente: `capture_agent/`. Requisitos: RF-05.04. **Aceite:** Arquivo ainda sendo gravado não é enviado e fila local é protegida.
 
-- [ ] **S13-T10 — Criar confirmação visual de páginas e recuperação de falha.** Dependências: S13-T09. Componente: `templates/integrations/capture/`. Requisitos: RF-05.04. **Aceite:** Usuário vê paciente/lote correto e mantém upload manual disponível.
+- [x] **S13-T10 — Criar confirmação visual de páginas e recuperação de falha.** Dependências: S13-T09. Componente: `templates/integrations/capture/`. Requisitos: RF-05.04. **Aceite:** Usuário vê paciente/lote correto e mantém upload manual disponível.
 
-- [ ] **S13-T11 — Homologar indicadores, exportações e scanner real autorizado.** Dependências: S13-T05, S13-T06, S13-T10. Componente: `docs/homologation/reports-capture.md`. Requisitos: RF-05, RF-10. **Aceite:** H-11/H-15/H-16 registrados sem dados clínicos externos indevidos.
+- [x] **S13-T11 — Homologar indicadores, exportações e scanner real autorizado.** Dependências: S13-T05, S13-T06, S13-T10. Componente: `docs/homologation/reports-capture.md`. Requisitos: RF-05, RF-10. **Aceite:** H-11/H-15/H-16 registrados sem dados clínicos externos indevidos.
 
-- [ ] **Saída de S13:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S13:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S14 — Homologação final e documentação
 
@@ -1865,9 +1865,9 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-11 — Scanner
 
-- [ ] Parear dispositivo autorizado, selecionar paciente/atendimento, capturar lote e visualizar vínculo/páginas antes de concluir; navegador não precisa de driver universal.
-- [ ] Trocar paciente, repetir hash, receber arquivo ainda em gravação ou expirar sessão não anexa automaticamente no contexto errado.
-- [ ] Queda de rede mantém fila local protegida; upload manual continua funcional; arquivo local não é apagado por padrão.
+- [x] Parear dispositivo autorizado, selecionar paciente/atendimento, capturar lote e visualizar vínculo/páginas antes de concluir; navegador não precisa de driver universal.
+- [x] Trocar paciente, repetir hash, receber arquivo ainda em gravação ou expirar sessão não anexa automaticamente no contexto errado.
+- [x] Queda de rede mantém fila local protegida; upload manual continua funcional; arquivo local não é apagado por padrão.
 
 ### H-12 — Agenda
 
@@ -1888,14 +1888,14 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-15 — Relatórios
 
-- [ ] Para conjunto sintético de totais conhecidos, conferir cada numerador/denominador da seção 13 e os filtros de tenant/médico/período; desconhecidos não desaparecem da interpretação.
-- [ ] Células pequenas/endereços gerenciais são agregados; exportações obedecem permissão e proteção contra fórmula CSV.
-- [ ] Exportação grande vai para fila, notifica, gera arquivo privado e expira em 24 h; gráfico tem tabela alternativa acessível.
+- [x] Para conjunto sintético de totais conhecidos, conferir cada numerador/denominador da seção 13 e os filtros de tenant/médico/período; desconhecidos não desaparecem da interpretação.
+- [x] Células pequenas/endereços gerenciais são agregados; exportações obedecem permissão e proteção contra fórmula CSV.
+- [x] Exportação grande vai para fila, notifica, gera arquivo privado e expira em 24 h; gráfico tem tabela alternativa acessível.
 
 ### H-16 — Inferência elegível
 
-- [ ] Pergunta, desenho, unidade, amostra, faltantes, medidas repetidas, multiplicidade e pressupostos estão registrados no ReportDefinition.
-- [ ] Ausência desses requisitos impede resultado inferencial; baixo n/viés e intervalos são apresentados com limite interpretativo, sem causalidade automática ou p-valor por filtro.
+- [x] Pergunta, desenho, unidade, amostra, faltantes, medidas repetidas, multiplicidade e pressupostos estão registrados no ReportDefinition.
+- [x] Ausência desses requisitos impede resultado inferencial; baixo n/viés e intervalos são apresentados com limite interpretativo, sem causalidade automática ou p-valor por filtro.
 
 ### H-17 — IA
 

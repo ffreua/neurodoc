@@ -127,6 +127,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'communications.tasks.reconcile_pending_sms',
         'schedule': 60,
     },
+    'reporting-expire-exports': {
+        'task': 'reporting.tasks.expire_exports',
+        'schedule': 300,
+    },
 }
 CACHES = {'default': {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',

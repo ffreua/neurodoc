@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Sessão de captura{% endblock %}
+{% block content %}
+<h1>Sessão de captura — {{ session.patient.full_name }}</h1>
+<p>Token da sessão (uso único, válido por 30 min): <code>{{ token }}</code></p>
+<p>Páginas recebidas: <span id="page-count">{{ session.page_count }}</span></p>
+<p>Confirme que o paciente/lote acima estão corretos antes de iniciar a digitalização.
+   O upload manual (tela de Anexos) continua disponível a qualquer momento.</p>
+{% endblock %}

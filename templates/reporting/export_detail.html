@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Exportação{% endblock %}
+{% block content %}
+<h1>Exportação — {{ export.report_name }}</h1>
+<p>Status: {{ export.get_status_display }}</p>
+{% if export.status == "ready" %}
+<p>{{ export.row_count }} linhas. Expira em {{ export.expires_at|date:"d/m/Y H:i" }}.</p>
+<a href="{% url 'reporting:export-download' export.id %}">Baixar CSV</a>
+{% elif export.status == "queued" or export.status == "running" %}
+<p>Em processamento — você será notificado quando estiver pronta.</p>
+{% elif export.status == "failed" %}
+<p>Falha ao gerar a exportação.</p>
+{% elif export.status == "expired" %}
+<p>Esta exportação expirou (validade de 24h) e não está mais disponível.</p>
+{% endif %}
+{% endblock %}

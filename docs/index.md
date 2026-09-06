@@ -75,6 +75,14 @@ PRD; é a referência operacional viva gerada a partir dele.
   cancelamento, sanitização de Markdown e revogação interrompendo uma
   leitura já aberta.
 
+## Relatórios e captura local (S13)
+
+- [Homologação de relatórios e captura](homologation/reports-capture.md) —
+  evidências de H-11/H-15/H-16: indicadores conferidos com totais
+  sintéticos conhecidos, CSV protegido contra injeção de fórmula,
+  exportação síncrona/assíncrona com expiração de 24h, e pareamento/sessão/
+  recepção de lote do scanner (P-08 em aberto para o hardware real).
+
 ## Operação e piloto assistencial (S10)
 
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/

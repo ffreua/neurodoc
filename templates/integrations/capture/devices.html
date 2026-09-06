@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Dispositivos de captura{% endblock %}
+{% block content %}
+<h1>Dispositivos de captura (scanner)</h1>
+<ul>
+    {% for d in devices %}
+    <li>
+        {{ d.name }} — {{ d.get_status_display }}
+        {% if d.status == "paired" %}
+        <form method="post" action="{% url 'integrations:capture-session-open' d.id %}" style="display:inline">
+            {% csrf_token %}
+            <input type="text" name="patient_id" placeholder="ID do paciente">
+            <button type="submit">Abrir sessão de captura</button>
+        </form>
+        <form method="post" action="{% url 'integrations:capture-device-revoke' d.id %}" style="display:inline">
+            {% csrf_token %}<button type="submit">Revogar</button>
+        </form>
+        {% endif %}
+    </li>
+    {% empty %}
+    <li>Nenhum dispositivo pareado.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'integrations:capture-device-pair' %}">
+    {% csrf_token %}
+    <input type="text" name="name" placeholder="Nome do dispositivo">
+    <button type="submit">Iniciar pareamento</button>
+</form>
+{% endblock %}
