@@ -1,0 +1,179 @@
+# Escalas funcionais padronizadas.
+#
+# Blocos reutilizáveis: um roteiro aponta para a escala pelo `code`, e a
+# mesma escala serve a vários roteiros e especialidades. Carregadas por
+# `python manage.py install_exam_template --tenant <slug>`, que instala as
+# escalas antes do roteiro que as referencia.
+#
+# A pontuação de cada opção é explícita, nunca inferida da ordem: a RASS
+# vai de -5 a +4 e uma escala com pontos não sequenciais precisaria de
+# exceção se o valor viesse da posição na lista.
+
+- code: glasgow
+  name: Escala de coma de Glasgow
+  description: >-
+    Soma de abertura ocular, resposta verbal e resposta motora. Não pontuar
+    um eixo que não pôde ser avaliado (paciente intubado, olho ocluído):
+    registre a limitação em vez de somar um valor que não foi medido.
+  source_note: Teasdale & Jennett, 1974
+  min_score: 3
+  max_score: 15
+  items:
+  - code: abertura_ocular
+    label: Abertura ocular
+    options:
+    - {value: 4, label: Espontânea}
+    - {value: 3, label: Ao comando verbal}
+    - {value: 2, label: À dor}
+    - {value: 1, label: Ausente}
+  - code: resposta_verbal
+    label: Resposta verbal
+    options:
+    - {value: 5, label: Orientado}
+    - {value: 4, label: Confuso}
+    - {value: 3, label: Palavras inapropriadas}
+    - {value: 2, label: Sons incompreensíveis}
+    - {value: 1, label: Ausente}
+  - code: resposta_motora
+    label: Resposta motora
+    options:
+    - {value: 6, label: Obedece comandos}
+    - {value: 5, label: Localiza dor}
+    - {value: 4, label: Retirada inespecífica}
+    - {value: 3, label: Flexão anormal (decorticação)}
+    - {value: 2, label: Extensão anormal (descerebração)}
+    - {value: 1, label: Ausente}
+
+- code: four
+  name: Escala FOUR
+  description: >-
+    Full Outline of UnResponsiveness. Quatro eixos de 0 a 4; avalia tronco
+    encefálico e respiração, o que a Glasgow não faz, e é aplicável ao
+    paciente intubado.
+  source_note: Wijdicks et al., 2005
+  min_score: 0
+  max_score: 16
+  items:
+  - code: ocular
+    label: Resposta ocular
+    options:
+    - {value: 4, label: Olhos abertos, seguindo ou piscando ao comando}
+    - {value: 3, label: Olhos abertos, sem seguimento}
+    - {value: 2, label: Olhos fechados, abrem a estímulo sonoro forte}
+    - {value: 1, label: Olhos fechados, abrem à dor}
+    - {value: 0, label: Olhos permanecem fechados}
+  - code: motora
+    label: Resposta motora
+    options:
+    - {value: 4, label: Faz sinal de joia, punho ou paz}
+    - {value: 3, label: Localiza dor}
+    - {value: 2, label: Flexão à dor}
+    - {value: 1, label: Extensão à dor}
+    - {value: 0, label: Sem resposta ou estado mioclônico}
+  - code: tronco
+    label: Reflexos de tronco
+    options:
+    - {value: 4, label: Pupilar e corneano presentes}
+    - {value: 3, label: Uma pupila dilatada e fixa}
+    - {value: 2, label: Pupilar ou corneano ausente}
+    - {value: 1, label: Pupilar e corneano ausentes}
+    - {value: 0, label: Pupilar, corneano e de tosse ausentes}
+  - code: respiracao
+    label: Respiração
+    options:
+    - {value: 4, label: Não intubado, padrão respiratório regular}
+    - {value: 3, label: Não intubado, padrão de Cheyne-Stokes}
+    - {value: 2, label: Não intubado, padrão irregular}
+    - {value: 1, label: Intubado, respira acima do ventilador}
+    - {value: 0, label: Intubado, respira no ventilador ou apneia}
+
+- code: rass
+  name: Escala de agitação e sedação de Richmond (RASS)
+  description: >-
+    Eixo único de -5 (não desperta) a +4 (combativo). Não é somatória: o
+    valor registrado é o próprio nível observado.
+  source_note: Sessler et al., 2002
+  min_score: -5
+  max_score: 4
+  items:
+  - code: nivel
+    label: Nível
+    options:
+    - {value: 4, label: "+4 Combativo"}
+    - {value: 3, label: "+3 Muito agitado"}
+    - {value: 2, label: "+2 Agitado"}
+    - {value: 1, label: "+1 Inquieto"}
+    - {value: 0, label: "0 Alerta e calmo"}
+    - {value: -1, label: "-1 Sonolento"}
+    - {value: -2, label: "-2 Sedação leve"}
+    - {value: -3, label: "-3 Sedação moderada"}
+    - {value: -4, label: "-4 Sedação profunda"}
+    - {value: -5, label: "-5 Não desperta"}
+
+- code: meem
+  name: Mini-exame do estado mental (MEEM)
+  description: >-
+    Rastreio cognitivo de 0 a 30 pontos. A nota de corte depende de
+    escolaridade e não é aplicada automaticamente pelo sistema.
+  source_note: Folstein et al., 1975; versão brasileira de Brucki et al., 2003
+  min_score: 0
+  max_score: 30
+  items:
+  - code: orientacao_temporal
+    label: Orientação temporal
+    options:
+    - {value: 5, label: 5}
+    - {value: 4, label: 4}
+    - {value: 3, label: 3}
+    - {value: 2, label: 2}
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}
+  - code: orientacao_espacial
+    label: Orientação espacial
+    options:
+    - {value: 5, label: 5}
+    - {value: 4, label: 4}
+    - {value: 3, label: 3}
+    - {value: 2, label: 2}
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}
+  - code: registro
+    label: Registro de três palavras
+    options:
+    - {value: 3, label: 3}
+    - {value: 2, label: 2}
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}
+  - code: atencao_calculo
+    label: Atenção e cálculo
+    options:
+    - {value: 5, label: 5}
+    - {value: 4, label: 4}
+    - {value: 3, label: 3}
+    - {value: 2, label: 2}
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}
+  - code: evocacao
+    label: Evocação das três palavras
+    options:
+    - {value: 3, label: 3}
+    - {value: 2, label: 2}
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}
+  - code: linguagem
+    label: Linguagem
+    options:
+    - {value: 8, label: 8}
+    - {value: 7, label: 7}
+    - {value: 6, label: 6}
+    - {value: 5, label: 5}
+    - {value: 4, label: 4}
+    - {value: 3, label: 3}
+    - {value: 2, label: 2}
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}
+  - code: praxia_construtiva
+    label: Praxia construtiva
+    options:
+    - {value: 1, label: 1}
+    - {value: 0, label: 0}

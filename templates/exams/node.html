@@ -1,0 +1,47 @@
+{% comment %}Um nó do roteiro, recursivo.
+
+Grupo vira cabeçalho com os filhos aninhados; item vira uma linha com o
+controle adequado ao tipo de entrada, uma coluna por lado quando o item é
+lateralizado. Só quem tem valor preenchido gera achado ao salvar.{% endcomment %}
+{% load nd %}
+
+{% if entry.is_group %}
+<section class="nd-exam-group mb-3">
+    <div class="d-flex align-items-center gap-2 mb-2">
+        <h6 class="fw-bold text-dark mb-0 fs-13">{{ entry.node.label }}</h6>
+        {% if entry.filled %}
+        <span class="badge bg-soft-success text-success fs-10">{{ entry.filled }}</span>
+        {% endif %}
+    </div>
+    {% if entry.node.help_text %}
+    <p class="fs-11 text-muted mb-2">{{ entry.node.help_text }}</p>
+    {% endif %}
+    <div class="ps-3 border-start">
+        {% for child in entry.children %}
+        {% include "exams/node.html" with entry=child %}
+        {% endfor %}
+    </div>
+</section>
+{% else %}
+<div class="row g-2 align-items-start py-2 border-bottom nd-exam-item">
+    <div class="col-lg-4">
+        <label class="form-label fw-semibold fs-12 mb-0">{{ entry.node.label }}</label>
+        {% if entry.node.unit %}<span class="fs-10 text-muted">({{ entry.node.unit }})</span>{% endif %}
+        {% if entry.node.help_text %}
+        <span class="d-block fs-10 text-muted">{{ entry.node.help_text }}</span>
+        {% endif %}
+    </div>
+    <div class="col-lg-8">
+        <div class="row g-2">
+            {% for side, side_label in entry.node|nd_exam_sides %}
+            <div class="{% if entry.node.lateralized %}col-md-6{% else %}col-12{% endif %}">
+                {% if entry.node.lateralized %}
+                <span class="d-block fs-10 text-muted mb-1">{{ side_label }}</span>
+                {% endif %}
+                {% include "exams/control.html" with node=entry.node side=side finding=entry.values|nd_get:side %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}

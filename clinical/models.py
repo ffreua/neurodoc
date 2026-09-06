@@ -95,6 +95,15 @@ class EncounterDiagnosis(TenantModel):
 
 
 class ExaminationDomain(models.TextChoices):
+    # Eixos do roteiro estruturado (app `exams`). Convivem com os domínios
+    # do catálogo legado abaixo: um achado registrado por roteiro guarda o
+    # eixo, um achado do catálogo antigo guarda o domínio antigo, e os dois
+    # continuam legíveis lado a lado no mesmo atendimento.
+    AXIS_CONSCIOUSNESS = 'consciencia', 'Nível de consciência'
+    AXIS_COGNITIVE = 'cognitivo', 'Cognitivo (roteiro)'
+    AXIS_SOMATIC = 'somatico', 'Somático'
+    AXIS_CRANIAL_NERVES = 'nervos_cranianos', 'Nervos cranianos (roteiro)'
+
     COGNITIVE = 'cognitive', 'Cognitivo'
     STRENGTH = 'strength', 'Força'
     TONE = 'tone', 'Tônus'
@@ -123,9 +132,35 @@ class Side(models.TextChoices):
 
 
 class ExaminationFinding(TenantModel):
+    """Um item examinado neste atendimento.
+
+    Só existe linha para item de fato registrado — item não avaliado não
+    tem linha e, portanto, nunca aparece como normal.
+
+    Dois caminhos convivem: o catálogo legado (`clinical.examination`), em
+    que `item_code` é um código curto do catálogo, e o roteiro estruturado
+    (`exams`), em que `item_code` é o caminho do nó no roteiro
+    (`somatico.motricidade.forca.flexao_cotovelo`) e `template_node` aponta
+    para a definição usada.
+
+    Onde o valor fica depende do tipo de entrada do item:
+
+    - `state`  -> `state` (não avaliado / não informado / normal / alterado);
+    - `number` -> `numeric_value`;
+    - demais   -> `value_json`, com a versão legível em `qualifier`.
+
+    `state` só tem significado clínico em item do tipo `state`; nos outros
+    ele permanece no padrão e quem lê deve olhar o valor.
+    """
+
     encounter = models.ForeignKey(Encounter, on_delete=models.PROTECT, related_name='examination_findings')
     domain = models.CharField(max_length=40, choices=ExaminationDomain.choices)
-    item_code = models.CharField(max_length=60)
+    item_code = models.CharField(max_length=200)
+    template_node = models.ForeignKey(
+        'exams.ExamNode', on_delete=models.PROTECT, null=True, blank=True, related_name='findings',
+    )
+    template_version = models.PositiveIntegerField(null=True, blank=True)
+    value_json = models.JSONField(default=dict, blank=True)
     side = models.CharField(max_length=40, choices=Side.choices, default=Side.NOT_APPLICABLE)
     body_site = models.CharField(max_length=100, blank=True)
     state = models.CharField(max_length=40, choices=ExaminationState.choices, default=ExaminationState.NOT_ASSESSED)

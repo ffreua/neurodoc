@@ -30,6 +30,8 @@ de S01-T01 e é atualizado sempre que uma pendência é resolvida ou uma decisã
 | DEC-20 | Nenhuma suíte de testes automatizados | Decisão confirmada; revisão, verificação sintática e homologação manual continuam obrigatórias |
 | DEC-21 | Base local de faixas de CEP dos Correios (`catalogs.PostalCodeRange`, 6.614 faixas versionadas em `catalogs/data/postal_ranges.csv`) como fonte de município/UF; ViaCEP fica apenas como complemento de logradouro/bairro | O cadastro resolve o endereço sem depender de rede; o conjunto local é por faixa municipal e não contém logradouro, por isso o complemento externo permanece — enviando somente o CEP, nunca dado do paciente |
 | DEC-22 | CPF obrigatório no formulário de cadastro de paciente, não no modelo | Identifica o paciente em documento, guia e cobrança e bloqueia duplicata por CPF; o modelo continua aceitando nulo para não invalidar registros criados antes desta regra |
+| DEC-23 | Roteiro de exame como árvore versionada carregada de YAML (`exams`), com o roteiro oficial publicado pela organização e derivação pessoal por médico | Especialidade nova é arquivo novo, sem alterar código; o atendimento guarda roteiro e versão, então registro antigo continua sendo lido com o roteiro com que foi preenchido |
+| DEC-24 | Finalizar o atendimento sempre trava e registra hash, mesmo sem sessão de assinatura; a assinatura digital do prontuário fica pendente e pode ser feita depois | Decidido com o produto: exigir certificado para fechar a consulta impediria o médico sem PFX à mão de encerrar o atendimento. A imutabilidade não depende da assinatura |
 
 ## Pendências que não impedem a especificação (P-01 a P-10)
 

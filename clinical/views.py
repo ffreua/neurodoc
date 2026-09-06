@@ -1,15 +1,21 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
+from audit.services import record_audit_event
 from patients.models import Patient
 from tenancy.selectors import scope_to_tenant
 
 from . import carry_forward as cf
 from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
+from exams.recording import save_axis
+from exams.selectors import build_tree, resolve_template
+
 from .examination import group_findings_by_domain, upsert_finding
 from .forms import AmendmentForm, DiagnosisForm, EncounterForm, FindingForm
 from .models import Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain
@@ -58,13 +64,21 @@ class EncounterDetailView(TenantScopedView):
     def get(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         pending_items = encounter.carry_forward_items.filter(review_action='pending').select_related('source_encounter')
-        findings = list(encounter.examination_findings.all().order_by('domain', 'item_code', 'side'))
+        findings = list(
+            encounter.examination_findings.select_related('template_node')
+            .order_by('domain', 'item_code', 'side')
+        )
+        template = resolve_template(
+            request.access_context.tenant_id, request.access_context.membership_id,
+        )
         return render(request, 'clinical/detail.html', {
             'encounter': encounter, 'form': EncounterForm(instance=encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
             'amendment_form': AmendmentForm(), 'pending_carry_forward': pending_items,
             'findings': findings,
             'findings_by_domain': group_findings_by_domain(findings),
+            'exam_template': template,
+            'exam_tree': build_tree(template, findings),
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
         })
@@ -114,6 +128,33 @@ class FindingUpsertView(TenantScopedView):
         except Exception as exc:
             return HttpResponse(str(exc), status=400)
         return redirect('clinical:detail', encounter_id=encounter.id)
+
+
+class ExamAxisSaveView(TenantScopedView):
+    """Grava um eixo inteiro do roteiro de exame.
+
+    O roteiro tem quase 400 itens; enviar tudo de uma vez a cada salvamento
+    obrigaria o médico a esperar a página inteira. Um eixo por vez mantém o
+    formulário pequeno e o que ele acabou de preencher é o que é gravado.
+    """
+
+    def post(self, request, encounter_id, axis):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return HttpResponse('Atendimento finalizado.', status=409)
+        template = resolve_template(
+            request.access_context.tenant_id, request.access_context.membership_id,
+        )
+        if template is None:
+            return HttpResponse('Nenhum roteiro de exame publicado nesta organização.', status=409)
+        saved, removed = save_axis(request.access_context, encounter, template, axis, request.POST)
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.exam_axis_saved',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'axis': axis, 'saved': saved, 'removed': removed},
+        )
+        messages.success(request, f'Exame salvo: {saved} item(ns) registrado(s) neste eixo.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
 
 class DiagnosisCreateView(TenantScopedView):

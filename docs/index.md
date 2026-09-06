@@ -37,6 +37,10 @@ PRD; é a referência operacional viva gerada a partir dele.
 ## Prontuário e exame neurológico (S05)
 
 - [Homologação de prontuário](homologation/clinical.md) — evidências de H-06/H-07.
+- [Roteiro de exame estruturado](homologation/exam-templates.md) — motor de
+  roteiro em árvore (387 nós carregados de YAML), roteiro de neurologia do
+  `docs/reference/roteiro-exame-neurologico.pdf`, personalização por médico
+  e tela do exame por eixo. Etapa 1 de 3.
 
 ## Anexos privados e processamento local (S06)
 

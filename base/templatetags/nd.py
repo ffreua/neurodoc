@@ -129,3 +129,32 @@ def nd_in_stage(cards, stage_id):
     """
     wanted = str(stage_id)
     return [card for card in cards if str(card.stage_id) == wanted]
+
+
+@register.filter
+def nd_get(mapping, key):
+    """Acesso por chave dinâmica — o template do Django não tem `d[k]`."""
+    if mapping is None:
+        return None
+    try:
+        return mapping.get(key)
+    except AttributeError:
+        return None
+
+
+@register.filter
+def nd_exam_sides(node):
+    """Lados a renderizar para um item do roteiro.
+
+    Item lateralizado rende duas colunas (esquerdo e direito), que viram
+    duas linhas distintas de achado; os demais rendem uma só.
+    """
+    if getattr(node, 'lateralized', False):
+        return [('left', 'Esquerdo'), ('right', 'Direito')]
+    return [('not_applicable', '')]
+
+
+@register.filter
+def nd_exam_field(node, side):
+    """Nome do campo do item no formulário — espelha `exams.recording.field_name`."""
+    return f'no__{node.path}__{side}'

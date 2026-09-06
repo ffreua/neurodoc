@@ -1,0 +1,86 @@
+{% comment %}O controle de um item, escolhido pelo tipo de entrada do nó.
+
+O nome do campo é `no__<caminho>__<lado>` e a observação é o mesmo nome com
+`__nota`; `exams.recording.save_axis` lê exatamente esses nomes.{% endcomment %}
+{% load nd %}
+{% with name=node|nd_exam_field:side %}
+
+{% if node.node_type == 'scale' %}
+<div class="border rounded-3 p-2 bg-white">
+    <div class="row g-2">
+        {% for item in node.scale.items.all %}
+        <div class="col-md-6">
+            <label class="form-label fs-11 mb-1" for="{{ name }}__{{ item.code }}">{{ item.label }}</label>
+            <select class="form-select form-select-sm" id="{{ name }}__{{ item.code }}"
+                    name="{{ name }}__{{ item.code }}" {% if disabled %}disabled{% endif %}>
+                <option value="">—</option>
+                {% for option in item.options %}
+                <option value="{{ option.value }}"
+                    {% if finding %}{% if finding.value_json.scores|nd_get:item.code|stringformat:"s" == option.value|stringformat:"s" %}selected{% endif %}{% endif %}>
+                    {{ option.label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        {% endfor %}
+    </div>
+    {% if finding and finding.value_json.total is not None %}
+    <span class="badge bg-soft-primary text-primary mt-2">Total: {{ finding.value_json.total }}</span>
+    {% endif %}
+</div>
+
+{% elif node.input_type == 'state' %}
+<select class="form-select form-select-sm" name="{{ name }}" aria-label="{{ node.label }}"
+        {% if disabled %}disabled{% endif %}>
+    <option value="not_assessed">Não avaliado</option>
+    <option value="normal" {% if finding.state == 'normal' %}selected{% endif %}>Normal</option>
+    <option value="altered" {% if finding.state == 'altered' %}selected{% endif %}>Alterado</option>
+    <option value="not_informed" {% if finding.state == 'not_informed' %}selected{% endif %}>Não informado</option>
+</select>
+
+{% elif node.input_type == 'choice' %}
+<select class="form-select form-select-sm" name="{{ name }}" aria-label="{{ node.label }}"
+        {% if disabled %}disabled{% endif %}>
+    <option value="">Não avaliado</option>
+    {% for option in node.options %}
+    <option value="{{ option.value }}"
+            {% if finding.value_json.choice == option.value %}selected{% endif %}>{{ option.label }}</option>
+    {% endfor %}
+</select>
+
+{% elif node.input_type == 'multichoice' %}
+<div class="d-flex flex-wrap gap-3">
+    {% for option in node.options %}
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox" name="{{ name }}" value="{{ option.value }}"
+               id="{{ name }}__{{ forloop.counter }}"
+               {% if option.value in finding.value_json.choices %}checked{% endif %}
+               {% if disabled %}disabled{% endif %}>
+        <label class="form-check-label fs-12" for="{{ name }}__{{ forloop.counter }}">{{ option.label }}</label>
+    </div>
+    {% endfor %}
+</div>
+
+{% elif node.input_type == 'number' %}
+<input type="number" step="any" class="form-control form-control-sm" name="{{ name }}"
+       aria-label="{{ node.label }}" placeholder="{{ node.unit|default:'valor' }}"
+       value="{% if finding.numeric_value is not None %}{{ finding.numeric_value|floatformat:'-2' }}{% endif %}"
+       {% if disabled %}disabled{% endif %}>
+
+{% elif node.input_type == 'boolean' %}
+<select class="form-select form-select-sm" name="{{ name }}" aria-label="{{ node.label }}"
+        {% if disabled %}disabled{% endif %}>
+    <option value="">Não avaliado</option>
+    <option value="presente" {% if finding.value_json.boolean %}selected{% endif %}>Presente</option>
+    <option value="ausente" {% if finding.value_json.boolean is False %}selected{% endif %}>Ausente</option>
+</select>
+
+{% else %}
+<input type="text" class="form-control form-control-sm" name="{{ name }}" aria-label="{{ node.label }}"
+       value="{{ finding.value_json.text|default:'' }}" {% if disabled %}disabled{% endif %}>
+{% endif %}
+
+<input type="text" class="form-control form-control-sm mt-1 fs-11" name="{{ name }}__nota"
+       placeholder="observação" aria-label="Observação sobre {{ node.label }}"
+       value="{{ finding.note|default:'' }}" {% if disabled %}disabled{% endif %}>
+{% endwith %}

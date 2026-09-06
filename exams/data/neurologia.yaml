@@ -1,0 +1,767 @@
+# Roteiro do exame neurológico — roteiro padrão da organização.
+#
+# Transcrito de docs/reference/roteiro-exame-neurologico.pdf, preservando os
+# quatro eixos e a hierarquia original. Carregado por
+# `python manage.py install_exam_template --tenant <slug>`.
+#
+# Convenção deste arquivo:
+#   - um nó com `children` é grupo (só organiza, não registra valor);
+#   - um nó sem `children` é item e precisa de `input`;
+#   - `input` aceita: state, choice, multichoice, number, text, boolean;
+#   - `side: true` marca item lateralizado (registra lado esquerdo/direito);
+#   - `scale: <codigo>` transforma o nó em escala pontuável.
+#
+# `state` é o padrão do produto: não avaliado / não informado / normal /
+# alterado. Item não avaliado nunca vira normal sozinho.
+
+code: neurologia-padrao
+name: Exame neurológico — roteiro padrão
+specialty: neurology
+description: >-
+  Roteiro completo do exame neurológico em quatro eixos: nível de consciência,
+  cognitivo, somático e nervos cranianos. Pode ser derivado por cada médico.
+source_note: Roteiro do Exame Neurológico (docs/reference/roteiro-exame-neurologico.pdf)
+
+nodes:
+
+# =====================================================================
+# 1. NÍVEL DE CONSCIÊNCIA
+# =====================================================================
+- code: consciencia
+  label: Nível de consciência
+  children:
+
+  - code: escalas
+    label: Escalas padronizadas
+    children:
+    - {code: glasgow, label: Escala de coma de Glasgow, scale: glasgow}
+    - {code: four, label: Escala FOUR, scale: four}
+    - {code: rass, label: Escala RASS, scale: rass}
+
+  - code: descritiva
+    label: Avaliação descritiva
+    help: Preferencial em relação às escalas isoladas.
+    children:
+
+    - code: inspecao
+      label: Inspeção
+      children:
+      - {code: impressao_geral, label: Impressão geral, input: text,
+         help: "Sinais vitais, sedoanalgesia, entre outros."}
+      - {code: comportamento_espontaneo, label: Comportamento espontâneo, input: state}
+      - {code: interacao_ambiente, label: Interação com o ambiente, input: state}
+      - code: interacao_examinador
+        label: Interação com o examinador
+        input: choice
+        help: Do estímulo de menor para o de maior intensidade.
+        options: [Espontânea, Verbal, Mecânico leve, Mecânico vigoroso, Doloroso axial, Doloroso apendicular, Ausente]
+      - {code: movimentos_involuntarios, label: Movimentos involuntários, input: state}
+      - {code: sinais_meningorradiculares, label: Sinais meningorradiculares, input: state}
+
+    - code: abertura_ocular
+      label: Abertura ocular
+      children:
+      - code: padrao
+        label: Padrão de abertura ocular
+        input: choice
+        options: [Espontânea, Após estímulo, Sustentada, Não sustentada, Ausente]
+      - code: nivel
+        label: Nível de vigília
+        input: choice
+        options: [Vigil, Sonolento, Torporoso, Comatoso]
+      - {code: desvio_ocular, label: Desalinhamento/desvio ocular, input: state, side: true}
+      - code: movimento_espontaneo
+        label: Movimento ocular espontâneo
+        input: multichoice
+        options: [Varredura, Bobbing, Dipping, Ausente]
+
+    - code: resposta_verbal
+      label: Resposta verbal
+      children:
+      - code: padrao
+        label: Padrão da resposta verbal
+        input: choice
+        options: [Orientado, Conta a própria história, Confuso, Palavras inapropriadas, Palavras incompreensíveis, Ausente]
+
+    - code: resposta_motora
+      label: Resposta motora
+      children:
+      - code: padrao
+        label: Padrão da resposta motora
+        input: choice
+        options: [Obedece comandos, Localiza dor, Retirada inespecífica à dor, Decorticação, Decorticação invertida, Descerebração, Sem resposta]
+      - {code: tonus, label: Tônus muscular, input: state, side: true}
+      - {code: reflexos_profundos, label: Reflexos profundos, input: state, side: true}
+      - code: cutaneoplantar
+        label: Reflexo cutaneoplantar
+        input: choice
+        side: true
+        options: [Flexor, Extensor, Indiferente]
+
+    - code: fundo_de_olho
+      label: Fundo de olho
+      children:
+      - code: achado
+        label: Achado à fundoscopia
+        input: multichoice
+        side: true
+        options: [Normal, Edema de papila, Hemorragia, Exsudato, Palidez de papila]
+
+    - code: reflexos_tronco
+      label: Reflexos de tronco
+      children:
+      - {code: fotomotor, label: Reflexo fotomotor, input: state, side: true}
+      - code: pupilas
+        label: Exame das pupilas
+        input: choice
+        options: [Isocóricas, Anisocóricas, Mióticas, Midriáticas, Médio-fixas, Puntiformes]
+      - {code: oculocefalico_horizontal, label: Oculocefálico horizontal, input: state}
+      - {code: oculocefalico_vertical, label: Oculocefálico vertical, input: state}
+      - {code: corneopalpebral, label: Corneopalpebral, input: state, side: true}
+      - {code: vestibulo_calorico, label: Vestíbulo-calórico, input: state, side: true}
+      - {code: tosse, label: Reflexo de tosse, input: state}
+
+    - code: padrao_respiratorio
+      label: Padrão respiratório
+      children:
+      - code: suporte
+        label: Ventilação
+        input: choice
+        options: [Espontânea, Artificial]
+      - code: padrao
+        label: Padrão
+        input: choice
+        options: [Normal, Cheyne-Stokes, Hiperpneia neurogênica, Apnêustica, Atáxica/Biot, Apneia]
+
+# =====================================================================
+# 2. COGNITIVO
+# =====================================================================
+- code: cognitivo
+  label: Cognitivo
+  children:
+
+  - code: testes_padronizados
+    label: Testes padronizados
+    children:
+    - {code: meem, label: Mini-exame do estado mental (MEEM), scale: meem}
+    - {code: bbrc, label: Bateria breve de rastreio cognitivo (BBRC), input: number, unit: pontos}
+    - {code: moca, label: Montreal Cognitive Assessment (MoCA), input: number, unit: pontos}
+
+  - code: dominios
+    label: Domínios específicos
+    children:
+
+    - code: atencao
+      label: Atenção básica
+      children:
+      - {code: contar_1_20, label: Contar de 1 a 20, input: state}
+      - {code: meses_direta, label: Meses do ano na ordem direta, input: state}
+      - {code: digit_span_direto, label: Digit span em ordem direta, input: number, unit: dígitos}
+      - {code: vigilancia, label: Teste de vigilância, input: state}
+      - {code: trail_making_a, label: Trail making A, input: number, unit: s}
+
+    - code: executivas
+      label: Funções executivas
+      children:
+
+      - code: memoria_operacional
+        label: Memória operacional
+        children:
+        - {code: contar_20_1, label: Contar de 20 a 1, input: state}
+        - {code: meses_inversa, label: Meses na ordem inversa, input: state}
+        - {code: digit_span_inverso, label: Digit span na ordem inversa, input: number, unit: dígitos}
+        - {code: subtracoes_seriadas, label: Subtrações seriadas, input: state}
+        - {code: soletracao_contrario, label: Soletração ao contrário, input: state}
+
+      - code: controle_inibitorio
+        label: Controle inibitório
+        children:
+        - {code: go_no_go, label: Go/no-go, input: state}
+        - {code: trail_making_b, label: Trail making B, input: number, unit: s}
+        - {code: stroop, label: Teste de Stroop, input: state}
+        - {code: antissacadas, label: Teste de antissacadas, input: state}
+        - {code: vigilancia, label: Teste de vigilância, input: state}
+
+      - code: atos_alternados
+        label: Atos alternados
+        children:
+        - {code: aplauso, label: Teste do aplauso (3 aplausos), input: state}
+        - {code: ozeretski, label: Teste de Ozeretski, input: state}
+        - {code: luria, label: Teste de Luria (punho, borda, palma), input: state}
+
+      - code: planejamento
+        label: Planejamento
+        children:
+        - {code: desenho_relogio, label: Teste do desenho do relógio, input: state}
+
+      - code: fluencia_verbal
+        label: Fluência verbal
+        children:
+        - {code: fonemica, label: "Fluência fonêmica (F, A, S — 1 min)", input: number, unit: palavras}
+        - {code: semantica, label: "Fluência semântica (animais — 1 min)", input: number, unit: palavras}
+
+      - code: solucao_problemas
+        label: Solução de problemas
+        children:
+        - {code: situacao_hipotetica, label: Situação hipotética, input: state,
+           help: "Ex.: “se você visse fumaça saindo pela janela do vizinho, o que faria?”"}
+
+      - code: abstracao
+        label: Abstração
+        children:
+        - {code: proverbios, label: Interpretação de provérbios, input: state}
+        - code: semelhancas
+          label: Teste de semelhanças
+          input: choice
+          options: [Correto, Pensamento concreto, Não realizado]
+
+      - code: frontalizacao
+        label: Sinais de frontalização
+        children:
+        - {code: glabelar, label: Reflexo glabelar, input: state}
+        - {code: snout, label: Orbicular dos lábios (snout), input: state}
+        - {code: masseterico, label: Massetérico/mandibular, input: state}
+        - {code: grasping, label: Grasping, input: state, side: true}
+        - {code: groping, label: Groping, input: state, side: true}
+        - {code: palmomentoniano, label: Palmomentoniano, input: state, side: true}
+        - code: apatia_desinibicao
+          label: Apatia / desinibição
+          input: choice
+          options: [Ausente, Apatia, Desinibição, Ambas]
+
+    - code: memoria
+      label: Memória
+      children:
+
+      - code: episodica
+        label: Memória episódica
+        children:
+        - {code: remota_autobiografica, label: "Memória remota (dados autobiográficos)", input: state}
+        - {code: bbrc, label: Recente — BBRC, input: state}
+        - {code: cerad, label: Recente — lista de palavras do CERAD, input: number, unit: palavras}
+        - {code: esconder_objetos, label: Recente — esconder objetos, input: state}
+        - {code: endereco, label: Recente — endereço após distração, input: state}
+        - {code: frase_cdr, label: Recente — frase do CDR, input: state}
+        - {code: figura_rey, label: Recente — figura complexa de Rey, input: state}
+
+      - code: semantica
+        label: Memória semântica
+        children:
+        - {code: nome_funcao_objetos, label: Nome e função de objetos, input: state}
+        - {code: conhecimento_geral, label: Conhecimento geral e pessoas famosas, input: state}
+        - {code: compreensao_palavra, label: Compreensão de palavra única, input: state}
+
+    - code: linguagem
+      label: Linguagem
+      children:
+
+      - code: nomeacao
+        label: Nomeação
+        children:
+        - {code: objetos, label: "Objetos (inteiros e partes)", input: state}
+        - {code: partes_corpo, label: Partes do corpo, input: state}
+        - {code: figuras, label: Figuras, input: state}
+        - {code: via_alternativa, label: "Se anomia: identificação por outra via", input: state}
+
+      - code: fala_espontanea
+        label: Fala espontânea
+        children:
+        - {code: fluencia, label: Fluência verbal, input: number, unit: palavras/min}
+        - {code: prosodia, label: Prosódia, input: state}
+        - code: elementos_anormais
+          label: Elementos anormais
+          input: multichoice
+          options: [Agramatismo, Fala telegráfica, Word finding, Generalização, Parafasia fonêmica, Parafasia semântica, Circunlóquio, Neologismo, Ecolalia/palilalia]
+
+      - code: compreensao
+        label: Compreensão
+        children:
+        - {code: comandos_simples, label: Comandos simples, input: state}
+        - {code: comandos_complexos, label: Comandos complexos, input: state}
+        - {code: perguntas_simples, label: "Perguntas simples (sim/não)", input: state}
+        - {code: voz_passiva, label: "Perguntas complexas — voz passiva", input: state}
+        - {code: voz_possessiva, label: "Perguntas complexas — voz possessiva", input: state}
+
+      - code: repeticao
+        label: Repetição
+        children:
+        - {code: palavras, label: Palavras, input: state}
+        - {code: frases_curtas, label: Frases curtas, input: state}
+        - {code: frases_longas, label: Frases longas, input: state}
+
+      - code: escrita
+        label: Escrita
+        children:
+        - {code: espontanea, label: Espontânea, input: state}
+        - {code: ditado, label: Sob ditado, input: state}
+        - {code: copia, label: Cópia de frases, input: state}
+
+      - code: leitura
+        label: Leitura
+        children:
+        - {code: palavras_frases_textos, label: "Palavras, frases e textos", input: state}
+        - {code: interpretacao, label: Interpretação, input: state}
+
+    - code: praxias
+      label: Praxias
+      children:
+      - code: ideomotora
+        label: Apraxia ideomotora
+        input: state
+        help: Reconhecer gestos, utilizar instrumentos.
+      - {code: ideatoria, label: Apraxia ideatória, input: state, help: "Preparar café, envelopar carta."}
+      - {code: melocinetica, label: Apraxia melocinética, input: state, help: "Abotoar camisa, rolar moeda entre os dedos."}
+      - {code: conceitual, label: Apraxia conceitual, input: state}
+      - code: construcional
+        label: Apraxia construcional
+        input: state
+        help: "Pentágonos, cubos, relógio, figura de Rey."
+      - {code: vestir_se, label: Apraxia do vestir-se, input: state}
+      - {code: orobucolingual, label: Apraxia orobucolingual, input: state}
+      - {code: fala, label: Apraxia da fala, input: state}
+      - {code: oculomotora, label: Apraxia oculomotora, input: state}
+      - {code: marcha, label: Apraxia da marcha, input: state}
+
+    - code: visuoespaciais
+      label: Funções visuoespaciais
+      children:
+
+      - code: heminegligencia
+        label: Síndrome de heminegligência
+        children:
+        - {code: inspecao_atitude, label: Inspeção (atitude), input: state}
+        - {code: hemisseccao_linha, label: Hemissecção de uma linha, input: state, side: true}
+        - {code: cancelamento_linhas, label: Cancelamento de linhas, input: state, side: true}
+        - {code: descrever_figuras, label: Descrever figuras, input: state}
+        - code: extincao_sensorial
+          label: Extinção sensorial
+          input: multichoice
+          side: true
+          options: [Tátil, Visual, Auditiva, Ausente]
+        - {code: hemissomatoagnosia, label: Hemissomatoagnosia, input: state, side: true}
+        - {code: anosognosia, label: Anosognosia, input: state}
+
+      - code: balint
+        label: Síndrome de Balint
+        children:
+        - {code: apraxia_oculomotora, label: Apraxia oculomotora, input: state}
+        - {code: ataxia_optica, label: Ataxia óptica, input: state, side: true}
+        - {code: simultanagnosia, label: Simultanagnosia, input: state}
+
+    - code: visuoperceptivas
+      label: Funções visuoperceptivas
+      children:
+      - code: formas_objetos
+        label: Percepção de formas e objetos
+        input: state
+        help: Avaliar agnosia visual e afasia óptica.
+      - {code: faces, label: "Percepção de faces (prosopagnosia)", input: state}
+      - code: cores
+        label: Percepção de cores
+        input: choice
+        options: [Normal, Acromatopsia, Agnosia para cores, Anomia para cores]
+
+# =====================================================================
+# 3. SOMÁTICO
+# =====================================================================
+- code: somatico
+  label: Somático
+  children:
+
+  - code: motricidade
+    label: Motricidade
+    children:
+
+    - code: manobras_deficitarias
+      label: Manobras deficitárias
+      help: Manter por 1 a 2 minutos.
+      children:
+      - {code: bracos_estendidos, label: "Braços estendidos (Mingazzini de MMSS)", input: state, side: true}
+      - {code: raimiste, label: Raimiste, input: state, side: true}
+      - {code: mingazzini, label: Mingazzini, input: state, side: true}
+      - {code: barre, label: Barré, input: state, side: true}
+      - {code: calcanhar_gluteo, label: Manobra calcanhar-glúteo, input: state, side: true}
+
+    - code: amplitude_velocidade
+      label: Amplitude e velocidade de movimentos
+      children:
+      - {code: finger_tapping, label: Finger tapping, input: state, side: true}
+      - {code: abrir_fechar_maos, label: Abrir e fechar as mãos, input: state, side: true}
+      - {code: rolamento_antebracos, label: Rolamento de antebraços/dedos, input: state, side: true}
+      - {code: enroscar_lampada, label: Enroscar lâmpada, input: state, side: true}
+      - {code: foot_tapping, label: Foot tapping, input: state, side: true}
+
+    - code: forca
+      label: Manobras de oposição (força)
+      help: Escala MRC de 0 a 5, por miótomo/músculo.
+      children:
+      - {code: abducao_ombro, label: Abdução do ombro, input: number, side: true, unit: MRC}
+      - {code: flexao_cotovelo, label: Flexão do cotovelo, input: number, side: true, unit: MRC}
+      - {code: extensao_cotovelo, label: Extensão do cotovelo, input: number, side: true, unit: MRC}
+      - {code: extensao_punho, label: Extensão do punho, input: number, side: true, unit: MRC}
+      - {code: flexao_dedos, label: Flexão dos dedos, input: number, side: true, unit: MRC}
+      - {code: abducao_dedos, label: Abdução dos dedos, input: number, side: true, unit: MRC}
+      - {code: flexao_quadril, label: Flexão do quadril, input: number, side: true, unit: MRC}
+      - {code: extensao_joelho, label: Extensão do joelho, input: number, side: true, unit: MRC}
+      - {code: flexao_joelho, label: Flexão do joelho, input: number, side: true, unit: MRC}
+      - {code: dorsiflexao_tornozelo, label: Dorsiflexão do tornozelo, input: number, side: true, unit: MRC}
+      - {code: flexao_plantar, label: Flexão plantar do tornozelo, input: number, side: true, unit: MRC}
+
+    - code: tonus
+      label: Tônus muscular
+      children:
+      - code: padrao
+        label: Padrão do tônus
+        input: choice
+        side: true
+        options: [Normal, Hipotonia, Hipertonia elástica, Hipertonia plástica, Paratonia]
+      - {code: balanco_passivo, label: Balanço passivo, input: state, side: true}
+      - {code: fenomeno_miotonico, label: "Percussão (fenômeno miotônico)", input: state, side: true}
+
+    - code: trofismo
+      label: Trofismo
+      children:
+      - code: inspecao
+        label: Inspeção
+        input: choice
+        side: true
+        options: [Normal, Atrofia, Hipertrofia, Pseudo-hipertrofia]
+      - {code: espessamento_nervos, label: Espessamento de nervos periféricos, input: state, side: true}
+      - {code: deformidades, label: Deformidades/posturas patológicas, input: state, side: true}
+
+    - code: reflexos
+      label: Reflexos
+      children:
+
+      - code: profundos
+        label: Reflexos profundos
+        help: Registrar a escala usada; não converter entre escalas.
+        children:
+        - {code: bicipital, label: Bicipital, input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+        - {code: estilorradial, label: Estilorradial, input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+        - {code: tricipital, label: Tricipital, input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+        - {code: flexor_dedos, label: "Flexor dos dedos (Hoffmann/Tromner)", input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+        - {code: patelar, label: Patelar, input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+        - {code: aquileu, label: Aquileu, input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+        - {code: adutor, label: Adutor, input: choice, side: true, options: [Ausente, Reduzido, Normal, Vivo, Exaltado]}
+
+      - code: superficiais
+        label: Reflexos superficiais
+        children:
+        - code: cutaneo_plantar
+          label: Cutâneo-plantar
+          input: choice
+          side: true
+          help: Resposta indiferente não é sinal de Babinski.
+          options: [Flexor, Extensor, Indiferente]
+        - {code: cutaneo_abdominal, label: Cutâneo-abdominal, input: state, side: true}
+        - {code: cremasterico, label: Cremastérico, input: state, side: true}
+        - {code: bulbocavernoso, label: Bulbocavernoso, input: state}
+        - {code: anal_superficial, label: Anal superficial, input: state}
+
+      - code: clonus
+        label: Pesquisa de clônus
+        children:
+        - {code: punho, label: Punho, input: state, side: true}
+        - {code: patela, label: Patela, input: state, side: true}
+        - {code: mandibula, label: Mandíbula, input: state}
+        - {code: tornozelo, label: Tornozelo, input: state, side: true}
+
+    - code: movimentos_involuntarios
+      label: Movimentos involuntários
+      children:
+      - code: tipo
+        label: Tipo
+        input: multichoice
+        options: [Atetose, Balismo, Coreia, Distonia, Mioclonia, Mioquimia, Tique, Tremor de repouso, Tremor postural, Tremor de ação]
+      - {code: descricao, label: Descrição, input: text}
+
+    - code: fatigabilidade
+      label: Pesquisa de fatigabilidade
+      children:
+      - {code: palpebral, label: "Fatigabilidade palpebral (Mingazzini palpebral)", input: state, side: true}
+      - {code: cogan, label: Espasmo palpebral de Cogan, input: state}
+      - {code: sinal_cortina, label: Sinal da cortina, input: state}
+      - {code: teste_gelo, label: Teste do gelo, input: state}
+      - {code: bracos_20, label: Abaixar e levantar os braços 20 vezes, input: state}
+      - {code: sentar_levantar_10, label: Sentar e levantar da cadeira 10 vezes, input: state}
+      - {code: vocal, label: Fatigabilidade vocal, input: state}
+
+  - code: sensibilidade
+    label: Sensibilidade
+    help: Pesquisar assimetrias, gradiente distal-proximal e nível sensitivo.
+    children:
+
+    - code: superficial
+      label: Superficial
+      children:
+      - {code: dolorosa, label: Dolorosa, input: state, side: true}
+      - {code: termica, label: Térmica, input: state, side: true}
+      - {code: tatil, label: Tátil, input: state, side: true}
+
+    - code: profunda
+      label: Profunda
+      children:
+      - {code: vibratoria, label: "Vibratória (diapasão 128 Hz)", input: state, side: true}
+      - {code: propriocepcao, label: Propriocepção consciente, input: state, side: true}
+
+    - code: cortical
+      label: Cortical
+      children:
+      - {code: estereognosia, label: Estereognosia, input: state, side: true}
+      - {code: grafestesia, label: Grafestesia, input: state, side: true}
+      - {code: discriminacao_dois_pontos, label: Discriminação de dois pontos, input: number, side: true, unit: mm}
+
+    - code: distribuicao
+      label: Distribuição do déficit
+      children:
+      - {code: nivel_sensitivo, label: Nível sensitivo, input: text}
+      - {code: gradiente, label: Gradiente distal-proximal, input: state}
+      - {code: dissociacao, label: Dissociação térmico-dolorosa/tátil, input: state}
+
+  - code: coordenacao
+    label: Coordenação
+    children:
+
+    - code: axial
+      label: Axial
+      children:
+      - {code: motricidade_ocular, label: Motricidade ocular, input: state}
+      - {code: fala, label: Fala, input: state}
+      - {code: equilibrio_estatico, label: Equilíbrio estático, input: state}
+      - {code: equilibrio_dinamico, label: Equilíbrio dinâmico, input: state}
+      - {code: babinski_dissinergia, label: "Prova de Babinski — dissinergia tronco-membros", input: state}
+      - {code: babinski_inclinacao, label: "Prova de Babinski — inclinação do tronco", input: state}
+      - {code: babinski_cadeira, label: "Prova de Babinski — cadeira puxada", input: state}
+
+    - code: apendicular
+      label: Apendicular
+      children:
+      - {code: index_nariz, label: Índex-nariz, input: state, side: true}
+      - {code: index_nariz_index, label: Índex-nariz-índex, input: state, side: true}
+      - {code: diadococinesia, label: Diadococinesia, input: state, side: true}
+      - {code: rechaco, label: "Rechaço (Stewart-Holmes)", input: state, side: true}
+      - {code: escrita, label: Escrita, input: state}
+      - {code: espiral_arquimedes, label: Espiral de Arquimedes, input: state}
+      - {code: calcanhar_joelho, label: Calcanhar-joelho, input: state, side: true}
+      - {code: halux_index, label: Hálux-índex, input: state, side: true}
+
+  - code: equilibrio_marcha
+    label: Equilíbrio e marcha
+    children:
+
+    - code: estatico
+      label: Equilíbrio estático
+      children:
+      - {code: sentado, label: Sentado, input: state}
+      - {code: ortostase_olhos_abertos, label: Ortostase com olhos abertos, input: state}
+      - {code: romberg, label: "Ortostase com olhos fechados (Romberg)", input: state}
+      - {code: tandem, label: Ortostase em tandem, input: state}
+      - {code: ponta_pes, label: Ortostase na ponta dos pés, input: state}
+      - {code: calcanhares, label: Ortostase nos calcanhares, input: state}
+      - {code: um_pe, label: Ortostase com um pé só, input: state, side: true}
+      - {code: almofada, label: Ortostase na almofada, input: state}
+      - {code: pull_test, label: Pull-test, input: state}
+
+    - code: dinamico
+      label: Equilíbrio dinâmico (marcha)
+      children:
+      - {code: olhos_abertos, label: Marcha com olhos abertos, input: state}
+      - {code: olhos_fechados, label: Marcha com olhos fechados, input: state}
+      - {code: tandem, label: Marcha em tandem, input: state}
+      - {code: ponta_pes, label: Marcha na ponta dos pés, input: state}
+      - {code: calcanhares, label: Marcha nos calcanhares, input: state}
+      - {code: tras_frente, label: Marcha de trás para frente, input: state}
+
+    - code: caracteristicas
+      label: Características da marcha
+      children:
+      - {code: base, label: Base, input: choice, options: [Normal, Alargada, Estreita]}
+      - {code: pes, label: "Pés (posição, passada, contato com o solo)", input: text}
+      - {code: tronco, label: Tronco, input: state}
+      - {code: mmss, label: Balanço dos membros superiores, input: state, side: true}
+      - {code: virada, label: Virada, input: state}
+      - code: freezing_festinacao
+        label: Freezing ou festinação
+        input: choice
+        options: [Ausente, Freezing, Festinação, Ambos]
+      - {code: movimentos_involuntarios, label: Movimentos involuntários na marcha, input: state}
+      - {code: auxilio, label: Auxílio necessário, input: text}
+
+  - code: meningorradiculares
+    label: Sinais meningorradiculares
+    children:
+    - {code: rigidez_nuca, label: Rigidez de nuca, input: state}
+    - {code: brudzinski, label: Brudzinski, input: state}
+    - {code: kernig, label: Kernig, input: state, side: true}
+    - {code: lasegue, label: Laségue, input: state, side: true}
+    - {code: lasegue_invertido, label: Laségue invertido, input: state, side: true}
+    - {code: bikele, label: Bikele, input: state, side: true}
+    - {code: spurling, label: Spurling, input: state, side: true}
+
+  - code: autonomico
+    label: Sistema nervoso autônomo
+    children:
+    - {code: inspecao_cutanea, label: "Inspeção cutânea (sudorese, temperatura, pilificação, coloração)", input: state}
+    - {code: pa_decubito, label: PA e FC em decúbito, input: text}
+    - {code: pa_ortostase, label: PA e FC em ortostase, input: text}
+    - {code: pupilas, label: "Avaliação pupilar (tamanho, simetria, reatividade)", input: state, side: true}
+    - {code: schirmer, label: Teste de Schirmer, input: state, side: true}
+
+# =====================================================================
+# 4. NERVOS CRANIANOS
+# =====================================================================
+- code: nervos_cranianos
+  label: Nervos cranianos
+  children:
+
+  - code: nc1
+    label: I — Olfatório
+    children:
+    - {code: olfato, label: Avaliação do olfato, input: state, side: true,
+       help: "Uma narina por vez, com substâncias não irritantes."}
+
+  - code: nc2
+    label: II — Óptico
+    children:
+    - {code: acuidade, label: Acuidade visual, input: text, side: true, help: "Tabela de Rosenbaum; se < 20/800, CD/MM/PL/APL."}
+    - code: campo_visual
+      label: Campo visual
+      input: choice
+      side: true
+      options: [Normal, Hemianopsia, Quadrantanopsia, Escotoma, Constrição de campo, Déficit altitudinal]
+    - code: cores
+      label: Visão para cores
+      input: choice
+      side: true
+      options: [Normal, Dessaturação do vermelho, Alterada nas tabelas de Ishihara]
+    - {code: fundoscopia, label: Fundoscopia, input: text, side: true}
+    - {code: fotomotor_direto, label: Reflexo fotomotor direto, input: state, side: true}
+    - {code: fotomotor_consensual, label: Reflexo fotomotor consensual, input: state, side: true}
+    - code: dpa
+      label: Defeito pupilar aferente
+      input: choice
+      side: true
+      options: [Ausente, DPA absoluto, DPAR]
+
+  - code: nc3_4_6
+    label: III, IV e VI — Oculomotor, troclear e abducente
+    children:
+    - {code: pupilas, label: "Pupilas (forma, tamanho, simetria, posição)", input: state, side: true}
+    - {code: fenda_palpebral, label: Fenda palpebral, input: state, side: true}
+    - {code: alinhamento, label: Alinhamento ocular, input: state}
+    - {code: posicao_globo, label: Posição do globo ocular, input: state, side: true}
+    - {code: posicao_cabeca, label: Posição da cabeça, input: state}
+    - {code: hirschberg, label: "“Reflexo” luminoso (Hirschberg)", input: state}
+    - {code: duccoes, label: Ducções, input: state, side: true}
+    - {code: versoes, label: Versões, input: state}
+    - {code: diplopia, label: Diplopia, input: boolean}
+    - {code: seguimento_horizontal, label: Seguimento horizontal, input: state}
+    - {code: seguimento_vertical, label: Seguimento vertical, input: state}
+    - {code: sacada_horizontal, label: Sacada horizontal, input: state}
+    - {code: sacada_vertical, label: Sacada vertical, input: state}
+    - {code: convergencia, label: Convergência, input: state}
+    - {code: divergencia, label: Divergência, input: state}
+    - {code: impulso_cefalico, label: "Teste do impulso cefálico (Halmagyi)", input: state, side: true}
+    - {code: oculocefalico, label: Reflexo oculocefálico, input: state}
+    - {code: prova_calorica, label: Prova calórica, input: state, side: true}
+    - {code: noc, label: Nistagmo optocinético, input: state}
+
+  - code: nc5
+    label: V — Trigêmeo
+    children:
+    - code: sensibilidade_padrao
+      label: Padrão de sensibilidade
+      input: choice
+      side: true
+      options: [Normal, "Central (casca de cebola)", Oftálmico, Maxilar, Mandibular]
+    - {code: dissociacao, label: Dissociação térmico-dolorosa/tátil, input: state, side: true}
+    - {code: palestesia_facial, label: Palestesia facial, input: state, side: true}
+    - {code: inspecao_estatica, label: Inspeção estática, input: state}
+    - {code: inspecao_dinamica, label: "Inspeção dinâmica (abertura, lateralização, protrusão)", input: state}
+    - {code: palpacao_masseter, label: Palpação de masseter e temporal, input: state, side: true}
+    - {code: oposicao, label: "Manobra de oposição (espátulas)", input: state, side: true}
+    - {code: corneo_palpebral, label: Reflexo córneo-palpebral, input: state, side: true}
+    - {code: esternutatorio, label: Reflexo esternutatório, input: state}
+    - {code: masseterico, label: Reflexo massetérico, input: state}
+    - {code: snout, label: "Reflexo orbicular dos lábios (snout)", input: state}
+
+  - code: nc7
+    label: VII — Facial
+    children:
+    - {code: inspecao_estatica, label: Inspeção estática, input: state, side: true}
+    - {code: inspecao_dinamica, label: "Inspeção dinâmica (sobrancelhas, testa, sorriso, bico, bochechas, platisma)", input: state, side: true}
+    - code: topografia
+      label: Topografia do déficit
+      input: choice
+      side: true
+      options: [Ausente, Central, Periférico]
+    - {code: dissociacao_volitivo_automatica, label: Dissociação volitivo-automática, input: state}
+    - {code: movimentos_involuntarios, label: Movimentos involuntários, input: state, side: true}
+    - {code: gustacao, label: Gustação dos 2/3 anteriores da língua, input: state, side: true}
+    - {code: glabelar, label: Reflexo glabelar, input: state}
+    - {code: schirmer, label: "Teste de Schirmer (lacrimação)", input: state, side: true}
+
+  - code: nc8
+    label: VIII — Vestibulococlear
+    children:
+    - {code: barany, label: Prova de Barany, input: state}
+    - {code: unterberger, label: "Marcha do soldado prussiano (Unterberger-Fukuda)", input: state}
+    - {code: babinski_weill, label: "Marcha em estrela (Babinski-Weill)", input: state}
+    - {code: nistagmo_posicao_primaria, label: Nistagmo em posição primária, input: state}
+    - {code: nistagmo_nove_posicoes, label: Nistagmo nas nove posições, input: state}
+    - {code: head_shaking, label: Head shaking, input: state}
+    - {code: dix_hallpike, label: Dix-Hallpike, input: state, side: true}
+    - {code: head_roll, label: Head-roll, input: state, side: true}
+    - {code: otoscopia, label: Otoscopia, input: state, side: true}
+    - {code: acuidade_auditiva, label: Acuidade auditiva, input: state, side: true}
+    - code: weber
+      label: Teste de Weber
+      input: choice
+      options: [Centrado, Lateralizado à direita, Lateralizado à esquerda]
+    - code: rinne
+      label: Teste de Rinne
+      input: choice
+      side: true
+      options: [Positivo, Negativo]
+    - {code: schwabach, label: Teste de Schwabach, input: state, side: true}
+    - {code: cocleo_palpebral, label: Reflexo cócleo-palpebral, input: state}
+
+  - code: nc9_10
+    label: IX e X — Glossofaríngeo e vago
+    children:
+    - {code: palato_estatico, label: "Palato — inspeção estática", input: state}
+    - {code: palato_dinamico, label: "Palato — inspeção dinâmica", input: state}
+    - {code: fala_espontanea, label: Fala espontânea, input: state}
+    - {code: fonemas, label: "Fonemas específicos (PA/TA/CA)", input: state}
+    - {code: prolongamento_vogal, label: "Prolongamento de vogal (fala em staccato)", input: state}
+    - {code: velocidade_fala, label: Velocidade de fala, input: state}
+    - {code: hipernasalidade, label: Hipernasalidade, input: state}
+    - {code: teste_copo_agua, label: Teste do copo d'água, input: state}
+    - {code: golpe_glote, label: Golpe de glote, input: state}
+    - {code: tosse, label: Tosse, input: state}
+    - {code: gustacao, label: Gustação do 1/3 posterior da língua, input: state, side: true}
+    - {code: reflexo_nauseoso, label: "Reflexo nauseoso (palatal e faríngeo)", input: state, side: true}
+
+  - code: nc11
+    label: XI — Acessório
+    children:
+    - {code: posicao_cefalica, label: Posição cefálica, input: state}
+    - {code: altura_ombros, label: Altura dos ombros, input: state, side: true}
+    - {code: sinal_watemberg, label: Sinal de Watemberg, input: state, side: true}
+    - {code: escapula_alada, label: Escápula alada, input: state, side: true}
+    - {code: tonus, label: Tônus, input: state, side: true}
+    - {code: trofismo, label: Trofismo, input: state, side: true}
+    - {code: rotacao_cabeca, label: Rotação da cabeça, input: number, side: true, unit: MRC}
+    - {code: elevacao_escapulas, label: Elevação das escápulas, input: number, side: true, unit: MRC}
+    - {code: abducao_ombro, label: "Abdução do ombro > 90°", input: number, side: true, unit: MRC}
+
+  - code: nc12
+    label: XII — Hipoglosso
+    children:
+    - {code: inspecao, label: "Inspeção (trofismo, fasciculações)", input: state, side: true}
+    - code: desvio
+      label: Desvio da língua
+      input: choice
+      options: [Ausente, À direita, À esquerda]
+    - {code: oposicao, label: Manobras de oposição, input: number, side: true, unit: MRC}
