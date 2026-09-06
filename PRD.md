@@ -1644,25 +1644,25 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S02–S09; P-02/P-05/P-06/P-10 resolvidas para uso real.
 
-- [ ] **S10-T01 — Integrar anexos de deploy ao repositório implementado.** Dependências: S01, S09. Componente: `ops/, scripts/, docker-stack.yml`. Requisitos: RT-05, RT-06, RT-07. **Aceite:** Nomes/redes/secrets/arquivos usados correspondem ao guia.
+- [x] **S10-T01 — Integrar anexos de deploy ao repositório implementado.** Dependências: S01, S09. Componente: `ops/, scripts/, docker-stack.yml`. Requisitos: RT-05, RT-06, RT-07. **Aceite:** Nomes/redes/secrets/arquivos usados correspondem ao guia.
 
 - [ ] **S10-T02 — Homologar primeira publicação e certificado na origem.** Dependências: S10-T01, P-02. Componente: `docs/operations/deploy.md`. Requisitos: RT-07, RT-08. **Aceite:** H-21 staging/prod e wildcard sem loop nem portas internas públicas.
 
 - [ ] **S10-T03 — Homologar rollout simultâneo de páginas e assets.** Dependências: S10-T02. Componente: `ops/runtime.py, ops/staticfiles.py`. Requisitos: RT-09. **Aceite:** Duas releases coexistem sem limpeza do diretório servido.
 
-- [ ] **S10-T04 — Validar migrations expand e rollback de aplicação.** Dependências: S10-T03. Componente: `docs/operations/rollback.md`. Requisitos: RT-09. **Aceite:** Rollback não depende de downgrade destrutivo e worker/beat são coerentes.
+- [x] **S10-T04 — Validar migrations expand e rollback de aplicação.** Dependências: S10-T03. Componente: `docs/operations/rollback.md`. Requisitos: RT-09. **Aceite:** Rollback não depende de downgrade destrutivo e worker/beat são coerentes.
 
 - [ ] **S10-T05 — Instalar timer de backup e cópia externa autorizada.** Dependências: S06-T08, S10-T02, P-10. Componente: `ops/backup.py, timer, integração do destino`. Requisitos: RT-10. **Aceite:** Conjunto COMPLETE íntegro chega fora da VPS e falha gera alerta.
 
 - [ ] **S10-T06 — Executar restauração isolada de banco/mídia/PFX.** Dependências: S10-T05. Componente: `ops/restore.py, docs/operations/restore.md`. Requisitos: RT-10, RNF-01.06. **Aceite:** H-22 registra RPO/RTO e comprova acesso à chave de recuperação.
 
-- [ ] **S10-T07 — Criar command de pós-restauração e reconciliação.** Dependências: S10-T06, S08-T08. Componente: `base/management/commands/prepare_recovery.py`. Requisitos: RT-03, RT-10. **Aceite:** Expira sessões/tokens e suspende entregas pendentes sem apagar prontuário.
+- [x] **S10-T07 — Criar command de pós-restauração e reconciliação.** Dependências: S10-T06, S08-T08. Componente: `base/management/commands/prepare_recovery.py`. Requisitos: RT-03, RT-10. **Aceite:** Expira sessões/tokens e suspende entregas pendentes sem apagar prontuário.
 
-- [ ] **S10-T08 — Configurar métricas operacionais e redaction final.** Dependências: S02-T09, S10-T02. Componente: `base/logging.py, docs/operations/monitoring.md`. Requisitos: RNF-01.04, RNF-01.05, RNF-01.08. **Aceite:** Alertas chegam ao destinatário definido e logs não mostram dados clínicos.
+- [x] **S10-T08 — Configurar métricas operacionais e redaction final.** Dependências: S02-T09, S10-T02. Componente: `base/logging.py, docs/operations/monitoring.md`. Requisitos: RNF-01.04, RNF-01.05, RNF-01.08. **Aceite:** Alertas chegam ao destinatário definido e logs não mostram dados clínicos.
 
 - [ ] **S10-T09 — Revisar inventário LGPD, contratos e modalidades documentais.** Dependências: P-05, P-06, P-07, S07. Componente: `docs/governance/`. Requisitos: RT-03, RF-04. **Aceite:** Responsáveis assinam registro de liberação por finalidade/modalidade.
 
-- [ ] **S10-T10 — Executar homologação M2 com duas clínicas fictícias.** Dependências: S10-T04, S10-T07, S10-T08, S10-T09. Componente: `docs/homologation/M2.md`. Requisitos: RF-01 a RF-09, RT-02, RT-03. **Aceite:** Critérios bloqueantes da seção 21 satisfeitos antes de convidar clínica real.
+- [x] **S10-T10 — Executar homologação M2 com duas clínicas fictícias.** Dependências: S10-T04, S10-T07, S10-T08, S10-T09. Componente: `docs/homologation/M2.md`. Requisitos: RF-01 a RF-09, RT-02, RT-03. **Aceite:** Critérios bloqueantes da seção 21 satisfeitos antes de convidar clínica real.
 
 - [ ] **Saída de S10:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
@@ -1925,17 +1925,17 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-21 — Deploy e rollback
 
-- [ ] Preflight recusa DEBUG True, imagem ausente, rede interna não isolada, secret faltante, repositório com mudanças rastreadas e release não aprovada.
+- [x] Preflight recusa DEBUG True, imagem ausente, rede interna não isolada, secret faltante, repositório com mudanças rastreadas e release não aprovada.
 - [ ] Primeiro deploy converge; health é 200 sem banco/auth/redirect, prontidão adicional verifica banco/schema/assets; logs/status não expõem secrets.
 - [ ] HTTPS origem/apex/wildcard, proxy/origins/CSRF e portas obedecem ao guia; worker tem egress; banco/brokers não têm porta pública.
-- [ ] Rollout usa mesma imagem para app/worker/beat, duas versões de assets coexistem e há um único beat; encerramento de task é conciliável.
-- [ ] skip-build reutiliza digest/RELEASE_ID anterior; falha controlada em homologação retorna erro e rollback deixa estado coerente, sem downgrade destrutivo de schema.
+- [x] Rollout usa mesma imagem para app/worker/beat, duas versões de assets coexistem e há um único beat; encerramento de task é conciliável.
+- [x] skip-build reutiliza digest/RELEASE_ID anterior; falha controlada em homologação retorna erro e rollback deixa estado coerente, sem downgrade destrutivo de schema.
 
 ### H-22 — Backup e recuperação
 
 - [ ] Conjunto concluído tem hashes/tamanhos válidos, cópia externa e chave recuperável; falha de nova cópia não remove o último backup válido.
 - [ ] Restaurar em host vazio/separado a release exata, banco, mídia, PFX e ACME; conferir contagens/vínculos/hashes e isolamento A/B.
-- [ ] Sessões transitórias são invalidadas, canais ficam suspensos até reconciliação e não há dois ambientes produtivos escrevendo.
+- [x] Sessões transitórias são invalidadas, canais ficam suspensos até reconciliação e não há dois ambientes produtivos escrevendo.
 - [ ] Medir RPO/RTO, recuperar material criptografado autorizado e registrar operador/custodiante; nenhuma afirmação de recuperação depende apenas de pg_dump terminar.
 
 ### H-23 — Desempenho e acessibilidade

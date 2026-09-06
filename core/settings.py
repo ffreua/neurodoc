@@ -179,6 +179,10 @@ EMAIL_HOST_PASSWORD = secret('SMTP_PASSWORD', required=(EMAIL_ENABLED and env('S
 EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
+SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
+ADMINS = [(f'ops-{i}', addr) for i, addr in enumerate(env.list('ALERT_ADMIN_EMAILS', default=[]))]
+MANAGERS = ADMINS
+DEFAULT_EXCEPTION_REPORTER_FILTER = 'base.logging.NoPostDataExceptionReporterFilter'
 SMS_ENABLED = env.bool('SMS_ENABLED', default=False)
 SMSDEV_API_KEY = secret('SMSDEV_API_KEY', required=(SMS_ENABLED and env('SERVICE_ROLE', default='app') == 'worker'))
 AI_ENABLED = env.bool('AI_ENABLED', default=False)
@@ -195,9 +199,22 @@ NEURODOC_DOCS_ENABLED = env.bool('NEURODOC_DOCS_ENABLED', default=True)
 LOGGING = {
     'version': 1, 'disable_existing_loggers': False,
     'filters': {'redact_sensitive': {'()': 'base.logging.RedactSensitiveDataFilter'}},
-    'handlers': {'console': {'class': 'logging.StreamHandler', 'filters': ['redact_sensitive']}},
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler', 'filters': ['redact_sensitive']},
+        # Alert recipients (ALERT_ADMIN_EMAILS) get an e-mail for every
+        # unhandled 5xx, through the same redaction filter -- so an alert
+        # can carry a stack trace/request path, never a clinical payload.
+        'mail_admins': {
+            'class': 'django.utils.log.AdminEmailHandler', 'level': 'ERROR', 'filters': ['redact_sensitive'],
+        },
+    },
     'root': {'handlers': ['console'], 'level': 'WARNING'},
-    'loggers': {'django.security.DisallowedHost': {
-        'handlers': ['console'], 'level': 'ERROR', 'propagate': False,
-    }},
+    'loggers': {
+        'django.security.DisallowedHost': {
+            'handlers': ['console'], 'level': 'ERROR', 'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'mail_admins'], 'level': 'ERROR', 'propagate': False,
+        },
+    },
 }

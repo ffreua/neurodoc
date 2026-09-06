@@ -16,6 +16,7 @@ class DeliveryStatus(models.TextChoices):
     UNKNOWN = 'unknown', 'Unknown'
     FAILED = 'failed', 'Failed'
     NO_CONTACT = 'no_contact', 'No contact'
+    NEEDS_RECONCILIATION = 'needs_reconciliation', 'Needs reconciliation'
 
 
 class DeliveryAttemptOutcome(models.TextChoices):

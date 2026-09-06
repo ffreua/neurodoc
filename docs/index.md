@@ -59,6 +59,20 @@ PRD; é a referência operacional viva gerada a partir dele.
   agenda por evento explícito, tabelas de preço com vigência sem
   sobreposição e conciliação de recebíveis/pagamentos/ajustes em Decimal.
 
+## Operação e piloto assistencial (S10)
+
+- [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/
+  H-21/H-22 e revisão de H-03) com duas clínicas fictícias; P-02/P-05/P-06/
+  P-07/P-10 permanecem pendentes e explicitamente bloqueiam o piloto real.
+- [Deploy](operations/deploy.md), [rollback](operations/rollback.md),
+  [backup e restauração](operations/restore.md) e
+  [monitoramento](operations/monitoring.md) — mecanismos verificados sem VPS
+  real (P-02), incluindo o roundtrip criptográfico do `age` e a correção de
+  três bugs reais no comando `prepare_recovery`.
+- [Inventário de governança/LGPD](governance/inventory.md) — categorias de
+  dado e retenção implementadas; liberação por responsáveis reais depende
+  de P-06/P-07.
+
 ## Arquitetura
 
 ```mermaid

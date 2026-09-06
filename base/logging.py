@@ -1,6 +1,8 @@
 import logging
 import re
 
+from django.views.debug import SafeExceptionReporterFilter
+
 SENSITIVE_KEYS = ('password', 'token', 'secret', 'otp', 'authorization', 'pfx', 'code_hash')
 _PATTERN = re.compile(
     r'(?i)(' + '|'.join(SENSITIVE_KEYS) + r')(["\']?\s*[:=]\s*["\']?)([^\s,;&"\']+)',
@@ -25,3 +27,18 @@ class RedactSensitiveDataFilter(logging.Filter):
             else:
                 record.args = tuple(_redact(arg) for arg in record.args)
         return True
+
+
+class NoPostDataExceptionReporterFilter(SafeExceptionReporterFilter):
+    """Used for admin error e-mails (DEFAULT_EXCEPTION_REPORTER_FILTER).
+
+    Django's own filter only redacts POST fields whose *name* looks
+    sensitive (password, token, ...); it has no way to know that
+    `chief_complaint` or `hpi` is clinical text. Rather than enumerate
+    every clinical field name across every app, suppress POST data from
+    error alerts entirely -- an alert needs the traceback and request
+    path, never the request body.
+    """
+
+    def get_post_parameters(self, request):
+        return {}
