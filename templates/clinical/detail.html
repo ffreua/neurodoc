@@ -9,204 +9,381 @@
 <li class="breadcrumb-item">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</li>
 {% endblock %}
 {% block page_actions %}
-<span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }} fs-12 px-3 py-2">{{ encounter.get_status_display }}</span>
 <a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
-<a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos médicos</a>
-{% if encounter.status == 'finalized' %}
+<a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
+{% if encounter.status != 'finalized' %}
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#finalize-modal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+    <span>Finalizar atendimento</span>
+</button>
+{% else %}
 <form method="post" action="{% url 'ai:summarize-encounter' encounter.id %}">
     {% csrf_token %}
-    <button type="submit" class="btn btn-light-primary" data-nd-busy>Resumo por IA (rascunho)</button>
+    <button type="submit" class="btn btn-light-primary" data-nd-busy>Resumo por IA</button>
 </form>
 {% endif %}
 {% endblock %}
 {% block content %}
-{% if pending_carry_forward %}
-<div class="row">
-    <div class="col-12">
-        <div class="card stretch stretch-full mb-4">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Dados trazidos da consulta de {{ pending_carry_forward.0.source_encounter.occurred_at|date:"d/m/Y" }}</h5>
-                <span class="badge bg-soft-warning text-warning">Revisão pendente</span>
-            </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-gray-100">
-                            <tr class="border-b">
-                                <th class="ps-4" scope="col">Campo</th>
-                                <th scope="col">Valor copiado</th>
-                                <th class="text-end pe-4" scope="col">Revisão</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for item in pending_carry_forward %}
-                            <tr>
-                                <td class="ps-4 fw-semibold text-dark">{{ item.field_path }}</td>
-                                <td><span class="fs-12 text-muted nd-prose">{{ item.copied_value }}</span></td>
-                                <td class="text-end pe-4">
-                                    <form method="post" action="{% url 'clinical:review-carry-forward' encounter.id item.id %}" class="d-inline-flex gap-1">
-                                        {% csrf_token %}
-                                        <button type="submit" name="action" value="accepted" class="btn btn-sm btn-light-success">Aceitar</button>
-                                        <button type="submit" name="action" value="rejected" class="btn btn-sm btn-light-danger">Rejeitar</button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
+
+{% comment %}Cabeçalho do atendimento — quem, quando, em que estado.{% endcomment %}
+<div class="card mb-4">
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0">
+                {{ encounter.patient.full_name|slice:":1"|upper }}
+            </span>
+            <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <a class="fw-bold text-dark fs-14" href="{% url 'patients:detail' encounter.patient_id %}">
+                        {{ encounter.patient.full_name }}
+                    </a>
+                    <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">
+                        {{ encounter.get_status_display }}
+                    </span>
+                    <span class="badge bg-gray-200 text-dark">versão {{ encounter.row_version }}</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-3 fs-12 text-muted mt-1">
+                    <span>{{ encounter.occurred_at|date:"d/m/Y H:i" }}</span>
+                    <span>{{ encounter.physician_membership.user.get_full_name }}</span>
+                    {% if encounter.status == 'finalized' %}
+                    <span class="text-break">hash {{ encounter.content_hash|slice:":16" }}…</span>
+                    {% endif %}
                 </div>
             </div>
+        </div>
+        {% if encounter.status == 'finalized' %}
+        <div class="alert alert-success fade show fs-12 mt-3 mb-0 d-flex align-items-start gap-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            <span>
+                Registro finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }} por
+                {{ encounter.finalized_by.user.get_full_name }} — imutável. Correções entram como adendo.
+            </span>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if pending_carry_forward %}
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">
+            Dados trazidos da consulta de {{ pending_carry_forward.0.source_encounter.occurred_at|date:"d/m/Y" }}
+        </h5>
+        <span class="badge bg-soft-warning text-warning">Revisão pendente</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Campo</th>
+                        <th scope="col">Valor copiado</th>
+                        <th class="text-end pe-4" scope="col">Revisão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in pending_carry_forward %}
+                    <tr>
+                        <td class="ps-4 fw-semibold text-dark">{{ item.field_path }}</td>
+                        <td class="text-wrap"><span class="fs-12 text-muted nd-prose">{{ item.copied_value }}</span></td>
+                        <td class="text-end pe-4">
+                            <form method="post" action="{% url 'clinical:review-carry-forward' encounter.id item.id %}" class="d-inline-flex gap-1">
+                                {% csrf_token %}
+                                <button type="submit" name="action" value="accepted" class="btn btn-sm btn-light-success">Aceitar</button>
+                                <button type="submit" name="action" value="rejected" class="btn btn-sm btn-light-danger">Rejeitar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>
 {% endif %}
 
-<div class="row g-4">
-    <div class="col-xxl-8 col-lg-7">
-        <div class="card stretch stretch-full mb-4">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">História</h5>
-                <span class="badge bg-gray-200 text-dark">versão {{ encounter.row_version }}</span>
-            </div>
+{% comment %}Abas: a consulta é longa demais para uma coluna só. Cada seção
+carrega o próprio formulário, então trocar de aba nunca perde o que está
+digitado em outra.{% endcomment %}
+<div class="card">
+    <div class="card-header p-0 border-bottom">
+        <ul class="nav nav-tabs nav-tabs-custom-style border-0" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-historia"
+                        type="button" role="tab" aria-selected="true">História</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-exame"
+                        type="button" role="tab" aria-selected="false">
+                    Exame neurológico
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ findings|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-hipoteses"
+                        type="button" role="tab" aria-selected="false">
+                    Hipóteses
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ diagnoses|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-conduta"
+                        type="button" role="tab" aria-selected="false">Conduta</button>
+            </li>
+            {% if encounter.status == 'finalized' %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-adendos"
+                        type="button" role="tab" aria-selected="false">
+                    Adendos
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ amendments|length }}</span>
+                </button>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <div class="tab-content">
+        {# ---------------------------------------------------------- História #}
+        <div class="tab-pane fade show active" id="tab-historia" role="tabpanel">
             <div class="card-body">
                 <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
-                    {% include "partials/form_fields.html" %}
-                    <button type="submit" class="btn btn-primary" data-nd-busy
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.chief_complaint col="col-lg-6" %}
+                        {% include "partials/field.html" with field=form.hpi col="col-lg-6" %}
+                        {% include "partials/field.html" with field=form.personal_history col="col-lg-6" %}
+                        {% include "partials/field.html" with field=form.family_history col="col-lg-6" %}
+                        {% include "partials/field.html" with field=form.consanguinity_state col="col-lg-3" %}
+                        {% include "partials/field.html" with field=form.consanguinity_details col="col-lg-9" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy
                             {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar história</button>
                 </form>
             </div>
         </div>
 
-        <div class="card stretch stretch-full">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Exame neurológico</h5>
-                <span class="badge bg-soft-primary text-primary">{{ findings|length }} achado{{ findings|length|pluralize }}</span>
+        {# ------------------------------------------------------------- Exame #}
+        <div class="tab-pane fade" id="tab-exame" role="tabpanel">
+            <div class="card-body">
+                <div class="alert alert-primary fade show fs-12 d-flex align-items-start gap-2" role="alert">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                    <span>Item não avaliado nunca aparece como normal. Só entra no exame o que foi de fato examinado.</span>
+                </div>
+
+                {% if encounter.status != 'finalized' %}
+                <form method="post" action="{% url 'clinical:add-finding' encounter.id %}" novalidate
+                      class="border rounded-3 p-3 bg-gray-100 mb-4">
+                    {% csrf_token %}
+                    <h6 class="fw-bold text-dark mb-3">Registrar achado</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=finding_form.item col="col-lg-4 col-md-6" %}
+                        {% include "partials/field.html" with field=finding_form.side col="col-lg-2 col-md-4" %}
+                        {% include "partials/field.html" with field=finding_form.state col="col-lg-3 col-md-4" %}
+                        {% include "partials/field.html" with field=finding_form.numeric_value col="col-lg-1 col-md-4" %}
+                        {% include "partials/field.html" with field=finding_form.qualifier col="col-lg-2 col-md-6" %}
+                        {% include "partials/field.html" with field=finding_form.body_site col="col-lg-4 col-md-6" %}
+                        {% include "partials/field.html" with field=finding_form.note col="col-lg-8" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Registrar achado</button>
+                </form>
+                {% endif %}
+
+                {% for group in findings_by_domain %}
+                <div class="mb-4">
+                    <div class="d-flex align-items-center justify-content-between mb-2">
+                        <h6 class="fw-bold text-dark mb-0">{{ group.label }}</h6>
+                        <span class="badge bg-gray-200 text-dark">{{ group.findings|length }}</span>
+                    </div>
+                    <div class="table-responsive border rounded-3">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="bg-gray-100">
+                                <tr class="border-b">
+                                    <th class="ps-4" scope="col">Item</th>
+                                    <th scope="col">Lado</th>
+                                    <th scope="col">Estado</th>
+                                    <th scope="col">Grau</th>
+                                    <th class="pe-4" scope="col">Qualificador / observação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for finding in group.findings %}
+                                <tr>
+                                    <td class="ps-4 fw-semibold text-dark">{{ finding.label }}</td>
+                                    <td><span class="fs-12 text-muted">{{ finding.get_side_display }}</span></td>
+                                    <td>
+                                        <span class="badge bg-soft-{{ finding.state|nd_tone }} text-{{ finding.state|nd_tone }}">
+                                            {{ finding.get_state_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if finding.numeric_value is not None %}
+                                        <span class="fw-semibold text-dark">{{ finding.numeric_value|floatformat:0 }}</span>
+                                        {% else %}<span class="fs-12 text-muted">—</span>{% endif %}
+                                    </td>
+                                    <td class="pe-4 text-wrap">
+                                        <span class="fs-12 text-muted">
+                                            {{ finding.qualifier|default:"" }}
+                                            {% if finding.body_site %} · {{ finding.body_site }}{% endif %}
+                                            {% if finding.note %}<span class="d-block nd-prose">{{ finding.note }}</span>{% endif %}
+                                            {% if not finding.qualifier and not finding.body_site and not finding.note %}—{% endif %}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-center text-muted py-5 mb-0 fs-13">
+                    Nenhum item examinado ainda — itens não avaliados não aparecem como normais.
+                </p>
+                {% endfor %}
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
+        </div>
+
+        {# --------------------------------------------------------- Hipóteses #}
+        <div class="tab-pane fade" id="tab-hipoteses" role="tabpanel">
+            <div class="card-body">
+                {% if encounter.status != 'finalized' %}
+                <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
+                      class="border rounded-3 p-3 bg-gray-100 mb-4">
+                    {% csrf_token %}
+                    <h6 class="fw-bold text-dark mb-3">Adicionar hipótese</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=diagnosis_form.code_snapshot col="col-lg-2 col-md-4" %}
+                        {% include "partials/field.html" with field=diagnosis_form.description_snapshot col="col-lg-6" %}
+                        {% include "partials/field.html" with field=diagnosis_form.certainty col="col-lg-2 col-md-4" %}
+                        {% include "partials/field.html" with field=diagnosis_form.rank col="col-lg-2 col-md-4" %}
+                        {% include "partials/field.html" with field=diagnosis_form.physician_note col="col-12" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Adicionar hipótese</button>
+                </form>
+                {% endif %}
+
+                <div class="table-responsive border rounded-3">
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-gray-100">
                             <tr class="border-b">
-                                <th class="ps-4" scope="col">Domínio / item</th>
-                                <th scope="col">Lado</th>
-                                <th scope="col">Estado</th>
-                                <th class="pe-4" scope="col">Qualificador</th>
+                                <th class="ps-4" scope="col">#</th>
+                                <th scope="col">CID</th>
+                                <th scope="col">Descrição</th>
+                                <th class="text-end pe-4" scope="col">Certeza</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for finding in findings %}
+                            {% for diag in diagnoses %}
                             <tr>
-                                <td class="ps-4 fw-semibold text-dark">{{ finding.domain }} / {{ finding.item_code }}</td>
-                                <td><span class="fs-12 text-muted">{{ finding.side }}</span></td>
-                                <td>
-                                    <span class="badge bg-soft-{{ finding.state|nd_tone }} text-{{ finding.state|nd_tone }}">{{ finding.state }}</span>
+                                <td class="ps-4 fw-bold text-dark">{{ diag.rank }}</td>
+                                <td class="fw-semibold text-dark">{{ diag.code_snapshot|default:"—" }}</td>
+                                <td class="text-wrap"><span class="fs-13">{{ diag.description_snapshot }}</span></td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-soft-{{ diag.certainty|nd_tone }} text-{{ diag.certainty|nd_tone }}">
+                                        {{ diag.get_certainty_display }}
+                                    </span>
                                 </td>
-                                <td class="pe-4"><span class="fs-12 text-muted">{{ finding.qualifier|default:"—" }}</span></td>
                             </tr>
                             {% empty %}
-                            <tr>
-                                <td colspan="4" class="text-muted py-4 ps-4 fs-12">
-                                    Nenhum item avaliado ainda — itens não avaliados nunca aparecem como normais.
-                                </td>
-                            </tr>
+                            <tr><td colspan="4" class="text-center text-muted py-5 fs-13">Nenhuma hipótese registrada.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
-            {% if encounter.status != 'finalized' %}
-            <div class="card-footer">
-                <form method="post" action="{% url 'clinical:add-finding' encounter.id %}" novalidate>
+        </div>
+
+        {# ----------------------------------------------------------- Conduta #}
+        <div class="tab-pane fade" id="tab-conduta" role="tabpanel">
+            <div class="card-body">
+                <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
-                    {% include "partials/form_fields.html" with form=finding_form %}
-                    <button type="submit" class="btn btn-light-primary" data-nd-busy>Registrar achado</button>
+                    <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    {% comment %}O autosave grava o formulário inteiro; os campos da
+                    aba História seguem aqui como ocultos para que salvar a conduta
+                    não apague o que foi escrito lá.{% endcomment %}
+                    <input type="hidden" name="chief_complaint" value="{{ encounter.chief_complaint }}">
+                    <input type="hidden" name="hpi" value="{{ encounter.hpi }}">
+                    <input type="hidden" name="personal_history" value="{{ encounter.personal_history }}">
+                    <input type="hidden" name="family_history" value="{{ encounter.family_history }}">
+                    <input type="hidden" name="consanguinity_state" value="{{ encounter.consanguinity_state }}">
+                    <input type="hidden" name="consanguinity_details" value="{{ encounter.consanguinity_details }}">
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.plan_text col="col-lg-8" %}
+                        {% include "partials/field.html" with field=form.finalization_justification col="col-lg-4" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy
+                            {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar conduta</button>
                 </form>
             </div>
-            {% endif %}
         </div>
-    </div>
 
-    <div class="col-xxl-4 col-lg-5">
-        <div class="card stretch stretch-full mb-4">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Hipóteses diagnósticas</h5>
-                <span class="badge bg-gray-200 text-dark">{{ diagnoses|length }}</span>
-            </div>
-            <div class="card-body p-0">
+        {# ----------------------------------------------------------- Adendos #}
+        {% if encounter.status == 'finalized' %}
+        <div class="tab-pane fade" id="tab-adendos" role="tabpanel">
+            <div class="card-body">
+                <form method="post" action="{% url 'clinical:add-amendment' encounter.id %}" novalidate
+                      class="border rounded-3 p-3 bg-gray-100 mb-4">
+                    {% csrf_token %}
+                    <h6 class="fw-bold text-dark mb-3">Adicionar adendo</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=amendment_form.reason col="col-lg-4" %}
+                        {% include "partials/field.html" with field=amendment_form.text col="col-lg-8" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Adicionar adendo</button>
+                </form>
+
                 <ul class="list-group list-group-flush">
-                    {% for diag in diagnoses %}
-                    <li class="list-group-item">
-                        <div class="d-flex align-items-start justify-content-between gap-2">
-                            <div>
-                                <span class="d-block fw-semibold text-dark fs-12">{{ diag.code_snapshot }}</span>
-                                <span class="d-block fs-11 text-muted">{{ diag.description_snapshot }}</span>
-                            </div>
-                            <span class="badge bg-soft-{{ diag.certainty|nd_tone }} text-{{ diag.certainty|nd_tone }} flex-shrink-0">{{ diag.certainty }}</span>
-                        </div>
-                    </li>
-                    {% empty %}
-                    <li class="list-group-item text-muted fs-12">Nenhuma hipótese registrada.</li>
-                    {% endfor %}
-                </ul>
-            </div>
-            {% if encounter.status != 'finalized' %}
-            <div class="card-footer">
-                <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate>
-                    {% csrf_token %}
-                    {% include "partials/form_fields.html" with form=diagnosis_form %}
-                    <button type="submit" class="btn btn-light-primary w-100" data-nd-busy>Adicionar hipótese</button>
-                </form>
-            </div>
-            {% endif %}
-        </div>
-
-        {% if encounter.status != 'finalized' %}
-        <div class="card stretch stretch-full">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Finalizar atendimento</h5>
-            </div>
-            <div class="card-body">
-                <p class="fs-12 text-muted">Depois de finalizado, o registro só admite adendos — nunca edição do
-                que já foi escrito.</p>
-                <form method="post" action="{% url 'clinical:finalize' encounter.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Finalizar atendimento</button>
-                </form>
-            </div>
-        </div>
-        {% else %}
-        <div class="card stretch stretch-full">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Adendos</h5>
-                <span class="badge bg-soft-success text-success">Finalizado</span>
-            </div>
-            <div class="card-body">
-                <p class="fs-11 text-muted mb-3">
-                    Finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }}
-                    por {{ encounter.finalized_by.user.get_full_name }}<br>
-                    <span class="text-break">hash {{ encounter.content_hash|slice:":16" }}…</span>
-                </p>
-                <ul class="list-group list-group-flush mb-3">
                     {% for amendment in amendments %}
                     <li class="list-group-item px-0">
-                        <span class="d-block fs-11 text-muted">{{ amendment.authored_at|date:"d/m/Y H:i" }} — {{ amendment.author.user.get_full_name }}</span>
-                        <span class="d-block fs-12 fw-semibold text-dark">{{ amendment.reason }}</span>
-                        <span class="d-block fs-12 text-muted nd-prose">{{ amendment.text }}</span>
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span class="fw-semibold text-dark fs-13">{{ amendment.reason }}</span>
+                            <span class="fs-11 text-muted flex-shrink-0">
+                                {{ amendment.authored_at|date:"d/m/Y H:i" }} — {{ amendment.author.user.get_full_name }}
+                            </span>
+                        </div>
+                        <span class="d-block fs-13 text-muted nd-prose mt-1">{{ amendment.text }}</span>
                     </li>
                     {% empty %}
-                    <li class="list-group-item px-0 text-muted fs-12">Nenhum adendo.</li>
+                    <li class="list-group-item px-0 text-muted fs-13">Nenhum adendo.</li>
                     {% endfor %}
                 </ul>
-                <form method="post" action="{% url 'clinical:add-amendment' encounter.id %}" novalidate>
-                    {% csrf_token %}
-                    {% include "partials/form_fields.html" with form=amendment_form %}
-                    <button type="submit" class="btn btn-light-primary w-100" data-nd-busy>Adicionar adendo</button>
-                </form>
             </div>
         </div>
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block modals %}
+{% if encounter.status != 'finalized' %}
+<div class="modal fade" id="finalize-modal" tabindex="-1" aria-hidden="true" aria-labelledby="finalize-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'clinical:finalize' encounter.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="finalize-modal-title">Finalizar este atendimento?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning fade show fs-12" role="alert">
+                        Depois de finalizado, o registro fica <strong>imutável</strong>: nada do que já
+                        foi escrito pode ser alterado, e correções passam a entrar como adendo
+                        identificado.
+                    </div>
+                    <p class="fs-13 text-muted mb-0">
+                        Confirme que história, exame, hipóteses e conduta estão como você quer
+                        que fiquem registrados.
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Revisar antes</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Finalizar atendimento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}

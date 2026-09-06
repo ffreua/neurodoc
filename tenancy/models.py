@@ -14,10 +14,10 @@ RESERVED_SLUGS = {'app', 'admin', 'api', 'static', 'health', 'technical-docs', '
 
 
 class Role(models.TextChoices):
-    OWNER = 'owner', 'Owner'
-    DOCTOR = 'doctor', 'Doctor'
-    SECRETARY = 'secretary', 'Secretary'
-    MANAGER = 'manager', 'Manager'
+    OWNER = 'owner', 'Responsável'
+    DOCTOR = 'doctor', 'Médico'
+    SECRETARY = 'secretary', 'Secretaria'
+    MANAGER = 'manager', 'Gestor'
 
 
 class TenantStatus(models.TextChoices):

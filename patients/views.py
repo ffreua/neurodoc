@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
@@ -72,16 +73,33 @@ class PatientCreateView(TenantScopedView):
         return render(request, 'patients/form.html', {'form': form, 'duplicates': duplicates})
 
 
+def _detail_context(request, patient, **overrides):
+    """Contexto da tela do paciente, num lugar só.
+
+    Três views renderizam `patients/detail.html` (abrir, adicionar contato,
+    adicionar cobertura); montar o contexto em cada uma já tinha deixado
+    duas delas sem o formulário da outra.
+    """
+    context = {
+        'patient': patient,
+        'bmi': compute_bmi(patient),
+        'age': age_at(patient.birth_date),
+        'contact_form': PatientContactForm(),
+        'coverage_form': PatientCoverageForm(tenant_id=request.access_context.tenant_id),
+        'recent_encounters': (
+            patient.encounters
+            .select_related('physician_membership__user')
+            .order_by('-occurred_at')[:5]
+        ),
+    }
+    context.update(overrides)
+    return context
+
+
 class PatientDetailView(TenantScopedView):
     def get(self, request, patient_id):
         patient = selectors.get_patient_or_404(request.access_context, patient_id)
-        bmi = compute_bmi(patient)
-        age = age_at(patient.birth_date)
-        return render(request, 'patients/detail.html', {
-            'patient': patient, 'bmi': bmi, 'age': age,
-            'contact_form': PatientContactForm(),
-            'coverage_form': PatientCoverageForm(tenant_id=request.access_context.tenant_id),
-        })
+        return render(request, 'patients/detail.html', _detail_context(request, patient))
 
 
 class PatientUpdateView(TenantScopedView):
@@ -114,17 +132,44 @@ class PatientUpdateView(TenantScopedView):
 
 
 class PatientArchiveView(TenantScopedView):
+    """Arquivar exige justificativa escrita e confirmação explícita.
+
+    Arquivar tira o paciente da carteira ativa e dos indicadores; sem
+    justificativa não há como saber depois por que aquele prontuário saiu
+    de circulação, e sem confirmação o botão fica a um clique acidental de
+    distância numa tela cheia de outros botões.
+    """
+
+    MIN_REASON = 5
+
     def post(self, request, patient_id):
         patient = selectors.get_patient_or_404(request.access_context, patient_id)
+        if patient.status == PatientStatus.ARCHIVED:
+            messages.warning(request, 'Este paciente já está arquivado.')
+            return redirect('patients:detail', patient_id=patient.id)
+
+        reason = (request.POST.get('reason') or '').strip()
+        if request.POST.get('confirm') != 'archive':
+            messages.error(request, 'Arquivamento não confirmado — nada foi alterado.')
+            return redirect('patients:detail', patient_id=patient.id)
+        if len(reason) < self.MIN_REASON:
+            messages.error(
+                request,
+                'Informe o motivo do arquivamento (pelo menos '
+                f'{self.MIN_REASON} caracteres) — nada foi alterado.',
+            )
+            return redirect('patients:detail', patient_id=patient.id)
+
         patient.status = PatientStatus.ARCHIVED
         patient.archived_at = timezone.now()
-        patient.archived_reason = request.POST.get('reason', '')[:255]
+        patient.archived_reason = reason[:255]
         patient.row_version += 1
         patient.save(update_fields=['status', 'archived_at', 'archived_reason', 'row_version', 'updated_at'])
         record_audit_event(
             request.user, request.access_context.tenant_id, 'patients.patient_archived', object_type='patient',
             object_id=patient.id, outcome='success',
         )
+        messages.success(request, f'{patient.full_name} foi arquivado.')
         return redirect('patients:detail', patient_id=patient.id)
 
 
@@ -143,12 +188,7 @@ class PatientContactCreateView(TenantScopedView):
                     object_type='patient', object_id=patient.id, outcome='success',
                 )
                 return redirect('patients:detail', patient_id=patient.id)
-        bmi = compute_bmi(patient)
-        age = age_at(patient.birth_date)
-        return render(request, 'patients/detail.html', {
-            'patient': patient, 'bmi': bmi, 'age': age, 'contact_form': form,
-            'coverage_form': PatientCoverageForm(tenant_id=request.access_context.tenant_id),
-        })
+        return render(request, 'patients/detail.html', _detail_context(request, patient, contact_form=form))
 
 
 class PatientCoverageCreateView(TenantScopedView):
@@ -170,12 +210,7 @@ class PatientCoverageCreateView(TenantScopedView):
                     object_type='patient', object_id=patient.id, outcome='success',
                 )
                 return redirect('patients:detail', patient_id=patient.id)
-        bmi = compute_bmi(patient)
-        age = age_at(patient.birth_date)
-        return render(request, 'patients/detail.html', {
-            'patient': patient, 'bmi': bmi, 'age': age, 'coverage_form': form,
-            'contact_form': PatientContactForm(),
-        })
+        return render(request, 'patients/detail.html', _detail_context(request, patient, coverage_form=form))
 
 
 class CepLookupView(TenantScopedView):

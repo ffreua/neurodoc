@@ -10,7 +10,7 @@ from tenancy.selectors import scope_to_tenant
 from . import carry_forward as cf
 from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
-from .examination import upsert_finding
+from .examination import group_findings_by_domain, upsert_finding
 from .forms import AmendmentForm, DiagnosisForm, EncounterForm, FindingForm
 from .models import Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain
 
@@ -58,11 +58,13 @@ class EncounterDetailView(TenantScopedView):
     def get(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         pending_items = encounter.carry_forward_items.filter(review_action='pending').select_related('source_encounter')
+        findings = list(encounter.examination_findings.all().order_by('domain', 'item_code', 'side'))
         return render(request, 'clinical/detail.html', {
             'encounter': encounter, 'form': EncounterForm(instance=encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
             'amendment_form': AmendmentForm(), 'pending_carry_forward': pending_items,
-            'findings': encounter.examination_findings.all().order_by('domain', 'item_code', 'side'),
+            'findings': findings,
+            'findings_by_domain': group_findings_by_domain(findings),
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
         })

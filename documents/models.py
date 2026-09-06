@@ -9,14 +9,14 @@ ALLOWED_EXTENSIONS = {'pdf', 'jpg', 'jpeg', 'png', 'tiff', 'tif', 'docx'}
 
 
 class AttachmentClassification(models.TextChoices):
-    CLINICAL = 'clinical', 'Clinical'
-    ADMINISTRATIVE = 'administrative', 'Administrative'
+    CLINICAL = 'clinical', 'Clínico'
+    ADMINISTRATIVE = 'administrative', 'Administrativo'
 
 
 class AttachmentScanStatus(models.TextChoices):
-    QUARANTINED = 'quarantined', 'Quarantined'
-    AVAILABLE = 'available', 'Available'
-    REJECTED = 'rejected', 'Rejected'
+    QUARANTINED = 'quarantined', 'Em quarentena'
+    AVAILABLE = 'available', 'Liberado'
+    REJECTED = 'rejected', 'Recusado'
 
 
 class Attachment(TenantModel):
@@ -66,18 +66,18 @@ class AttachmentOcrPage(TenantModel):
 
 
 class MedicalDocumentKind(models.TextChoices):
-    PRESCRIPTION = 'prescription', 'Prescription'
-    REPORT = 'report', 'Report'
-    REQUEST = 'request', 'Request'
-    REFERRAL = 'referral', 'Referral'
+    PRESCRIPTION = 'prescription', 'Receita'
+    REPORT = 'report', 'Relatório'
+    REQUEST = 'request', 'Pedido de exame'
+    REFERRAL = 'referral', 'Encaminhamento'
 
 
 class MedicalDocumentStatus(models.TextChoices):
-    DRAFT = 'draft', 'Draft'
-    READY_TO_SIGN = 'ready_to_sign', 'Ready to sign'
-    SIGNING = 'signing', 'Signing'
-    ISSUED = 'issued', 'Issued'
-    FAILED = 'failed', 'Failed'
+    DRAFT = 'draft', 'Rascunho'
+    READY_TO_SIGN = 'ready_to_sign', 'Pronto para assinar'
+    SIGNING = 'signing', 'Assinando'
+    ISSUED = 'issued', 'Emitido'
+    FAILED = 'failed', 'Falhou'
 
 
 class MedicalDocument(TenantModel):
@@ -122,9 +122,9 @@ class MedicalDocument(TenantModel):
 
 
 class SigningCredentialStatus(models.TextChoices):
-    ACTIVE = 'active', 'Active'
-    EXPIRED = 'expired', 'Expired'
-    REVOKED = 'revoked', 'Revoked'
+    ACTIVE = 'active', 'Ativo'
+    EXPIRED = 'expired', 'Expirado'
+    REVOKED = 'revoked', 'Revogado'
 
 
 class SigningCredential(TenantModel):

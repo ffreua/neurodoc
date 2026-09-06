@@ -16,21 +16,21 @@ class AIJobKind(models.TextChoices):
 
 
 class AIJobStatus(models.TextChoices):
-    DISABLED = 'disabled', 'Disabled'
-    BLOCKED_PRIVACY = 'blocked_privacy', 'Blocked (privacy)'
-    QUEUED = 'queued', 'Queued'
-    RUNNING = 'running', 'Running'
-    SUCCEEDED = 'succeeded', 'Succeeded'
-    FAILED = 'failed', 'Failed'
-    CANCELLED = 'cancelled', 'Cancelled'
-    STALE = 'stale', 'Stale'
+    DISABLED = 'disabled', 'Desativado'
+    BLOCKED_PRIVACY = 'blocked_privacy', 'Bloqueado (privacidade)'
+    QUEUED = 'queued', 'Na fila'
+    RUNNING = 'running', 'Processando'
+    SUCCEEDED = 'succeeded', 'Concluído'
+    FAILED = 'failed', 'Falhou'
+    CANCELLED = 'cancelled', 'Cancelado'
+    STALE = 'stale', 'Desatualizado'
 
 
 class AIReviewState(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    ACCEPTED = 'accepted', 'Accepted'
-    EDITED = 'edited', 'Edited'
-    REJECTED = 'rejected', 'Rejected'
+    PENDING = 'pending', 'Pendente de revisão'
+    ACCEPTED = 'accepted', 'Aceito'
+    EDITED = 'edited', 'Editado'
+    REJECTED = 'rejected', 'Rejeitado'
 
 
 class AIJob(TenantModel):

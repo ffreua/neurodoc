@@ -50,11 +50,11 @@ class ReportExportKind(models.TextChoices):
 
 
 class ReportExportStatus(models.TextChoices):
-    QUEUED = 'queued', 'Queued'
-    RUNNING = 'running', 'Running'
-    READY = 'ready', 'Ready'
-    FAILED = 'failed', 'Failed'
-    EXPIRED = 'expired', 'Expired'
+    QUEUED = 'queued', 'Na fila'
+    RUNNING = 'running', 'Processando'
+    READY = 'ready', 'Pronta'
+    FAILED = 'failed', 'Falhou'
+    EXPIRED = 'expired', 'Expirada'
 
 
 class ReportExport(TenantModel):

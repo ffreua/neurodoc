@@ -7,10 +7,10 @@ from base.models import TenantModel
 
 
 class AppointmentType(models.TextChoices):
-    FIRST_VISIT = 'first_visit', 'First visit'
-    FOLLOW_UP = 'follow_up', 'Follow-up'
-    PROCEDURE = 'procedure', 'Procedure'
-    OTHER = 'other', 'Other'
+    FIRST_VISIT = 'first_visit', 'Primeira consulta'
+    FOLLOW_UP = 'follow_up', 'Retorno'
+    PROCEDURE = 'procedure', 'Procedimento'
+    OTHER = 'other', 'Outro'
 
 
 class AvailabilityRule(TenantModel):
@@ -65,13 +65,13 @@ class ScheduleBlock(TenantModel):
 
 
 class AppointmentStatus(models.TextChoices):
-    SCHEDULED = 'scheduled', 'Scheduled'
-    CONFIRMED = 'confirmed', 'Confirmed'
-    CHECKED_IN = 'checked_in', 'Checked in'
-    IN_PROGRESS = 'in_progress', 'In progress'
-    COMPLETED = 'completed', 'Completed'
-    CANCELLED = 'cancelled', 'Cancelled'
-    NO_SHOW = 'no_show', 'No-show'
+    SCHEDULED = 'scheduled', 'Agendado'
+    CONFIRMED = 'confirmed', 'Confirmado'
+    CHECKED_IN = 'checked_in', 'Check-in feito'
+    IN_PROGRESS = 'in_progress', 'Em atendimento'
+    COMPLETED = 'completed', 'Concluído'
+    CANCELLED = 'cancelled', 'Cancelado'
+    NO_SHOW = 'no_show', 'Falta'
 
 
 OCCUPYING_STATUSES = [

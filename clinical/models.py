@@ -7,16 +7,16 @@ from base.models import TenantModel
 
 
 class EncounterStatus(models.TextChoices):
-    DRAFT = 'draft', 'Draft'
-    IN_PROGRESS = 'in_progress', 'In progress'
-    FINALIZED = 'finalized', 'Finalized'
+    DRAFT = 'draft', 'Rascunho'
+    IN_PROGRESS = 'in_progress', 'Em andamento'
+    FINALIZED = 'finalized', 'Finalizado'
 
 
 class ConsanguinityState(models.TextChoices):
-    NONE = 'none', 'None'
-    SUSPECTED = 'suspected', 'Suspected'
-    CONFIRMED = 'confirmed', 'Confirmed'
-    NOT_INFORMED = 'not_informed', 'Not informed'
+    NONE = 'none', 'Ausente'
+    SUSPECTED = 'suspected', 'Suspeita'
+    CONFIRMED = 'confirmed', 'Confirmada'
+    NOT_INFORMED = 'not_informed', 'Não informada'
 
 
 class Encounter(TenantModel):
@@ -69,9 +69,9 @@ class Encounter(TenantModel):
 
 
 class DiagnosisCertainty(models.TextChoices):
-    SUSPECTED = 'suspected', 'Suspected'
-    CONFIRMED = 'confirmed', 'Confirmed'
-    REFUTED = 'refuted', 'Refuted'
+    SUSPECTED = 'suspected', 'Suspeita'
+    CONFIRMED = 'confirmed', 'Confirmada'
+    REFUTED = 'refuted', 'Refutada'
 
 
 class EncounterDiagnosis(TenantModel):
@@ -95,31 +95,31 @@ class EncounterDiagnosis(TenantModel):
 
 
 class ExaminationDomain(models.TextChoices):
-    COGNITIVE = 'cognitive', 'Cognitive'
-    STRENGTH = 'strength', 'Strength'
-    TONE = 'tone', 'Tone'
-    SENSORY_SUPERFICIAL = 'sensory_superficial', 'Superficial sensibility'
-    SENSORY_DEEP = 'sensory_deep', 'Deep sensibility'
-    REFLEX_MYOTATIC = 'reflex_myotatic', 'Myotatic reflexes'
-    REFLEX_CUTANEOUS = 'reflex_cutaneous', 'Cutaneous reflexes'
-    COORDINATION_AXIAL = 'coordination_axial', 'Axial coordination'
-    COORDINATION_APPENDICULAR = 'coordination_appendicular', 'Appendicular coordination'
-    GAIT = 'gait', 'Gait and balance'
-    CRANIAL_NERVE = 'cranial_nerve', 'Cranial nerve'
+    COGNITIVE = 'cognitive', 'Cognitivo'
+    STRENGTH = 'strength', 'Força'
+    TONE = 'tone', 'Tônus'
+    SENSORY_SUPERFICIAL = 'sensory_superficial', 'Sensibilidade superficial'
+    SENSORY_DEEP = 'sensory_deep', 'Sensibilidade profunda'
+    REFLEX_MYOTATIC = 'reflex_myotatic', 'Reflexos miotáticos'
+    REFLEX_CUTANEOUS = 'reflex_cutaneous', 'Reflexos cutâneos'
+    COORDINATION_AXIAL = 'coordination_axial', 'Coordenação axial'
+    COORDINATION_APPENDICULAR = 'coordination_appendicular', 'Coordenação apendicular'
+    GAIT = 'gait', 'Marcha e equilíbrio'
+    CRANIAL_NERVE = 'cranial_nerve', 'Nervos cranianos'
 
 
 class ExaminationState(models.TextChoices):
-    NOT_ASSESSED = 'not_assessed', 'Not assessed'
-    NOT_INFORMED = 'not_informed', 'Not informed'
+    NOT_ASSESSED = 'not_assessed', 'Não avaliado'
+    NOT_INFORMED = 'not_informed', 'Não informado'
     NORMAL = 'normal', 'Normal'
-    ALTERED = 'altered', 'Altered'
+    ALTERED = 'altered', 'Alterado'
 
 
 class Side(models.TextChoices):
-    LEFT = 'left', 'Left'
-    RIGHT = 'right', 'Right'
+    LEFT = 'left', 'Esquerdo'
+    RIGHT = 'right', 'Direito'
     BILATERAL = 'bilateral', 'Bilateral'
-    NOT_APPLICABLE = 'not_applicable', 'Not applicable'
+    NOT_APPLICABLE = 'not_applicable', 'Não se aplica'
 
 
 class ExaminationFinding(TenantModel):
@@ -147,10 +147,10 @@ class ExaminationFinding(TenantModel):
 
 
 class ReviewAction(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    ACCEPTED = 'accepted', 'Accepted'
-    EDITED = 'edited', 'Edited'
-    REJECTED = 'rejected', 'Rejected'
+    PENDING = 'pending', 'Pendente'
+    ACCEPTED = 'accepted', 'Aceito'
+    EDITED = 'edited', 'Editado'
+    REJECTED = 'rejected', 'Rejeitado'
 
 
 class CarryForwardItem(TenantModel):

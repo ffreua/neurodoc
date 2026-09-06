@@ -313,6 +313,105 @@
         });
     }
 
+    /* -------------------------------------------------------------- modais */
+
+    /* Bootstrap deixa .modal em display:none e é o JS que o mostra, adiciona
+     * .show, injeta o backdrop e põe .modal-open no body — no Duralux essa
+     * última classe é o que desfoca o resto da tela. */
+    function openModal(modal) {
+        if (!modal || modal.classList.contains('show')) return;
+        var backdrop = document.createElement('div');
+        backdrop.className = 'modal-backdrop fade show';
+        backdrop.dataset.ndFor = modal.id || '';
+        document.body.appendChild(backdrop);
+        document.body.classList.add('modal-open');
+        modal.style.display = 'block';
+        modal.removeAttribute('aria-hidden');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('role', 'dialog');
+        /* Um reflow entre display e .show para a transição do tema rodar. */
+        void modal.offsetWidth;
+        modal.classList.add('show');
+        var focusable = modal.querySelector(
+            'input:not([type="hidden"]), select, textarea, button, [href], [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable) focusable.focus();
+        backdrop.addEventListener('click', function () {
+            closeModal(modal);
+        });
+    }
+
+    function closeModal(modal) {
+        if (!modal || !modal.classList.contains('show')) return;
+        modal.classList.remove('show');
+        modal.setAttribute('aria-hidden', 'true');
+        modal.removeAttribute('aria-modal');
+        document.querySelectorAll('.modal-backdrop').forEach(function (el) {
+            el.remove();
+        });
+        document.body.classList.remove('modal-open');
+        var hide = function () {
+            modal.style.display = 'none';
+        };
+        if (reducedMotion()) {
+            hide();
+        } else {
+            window.setTimeout(hide, 200);
+        }
+        var opener = modal.dataset.ndOpener && document.getElementById(modal.dataset.ndOpener);
+        if (opener) opener.focus();
+    }
+
+    function initModals() {
+        document.addEventListener('click', function (event) {
+            var opener = event.target.closest('[data-bs-toggle="modal"]');
+            if (opener) {
+                event.preventDefault();
+                var target = targetOf(opener);
+                if (target) {
+                    if (opener.id) target.dataset.ndOpener = opener.id;
+                    openModal(target);
+                }
+                return;
+            }
+            var closer = event.target.closest('[data-bs-dismiss="modal"]');
+            if (closer) {
+                event.preventDefault();
+                closeModal(closer.closest('.modal'));
+            }
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Escape') return;
+            var open = document.querySelector('.modal.show');
+            if (open) closeModal(open);
+        });
+
+        /* Foco preso dentro do modal: sem isso o Tab sai para a página
+         * desfocada atrás, que continua clicável por teclado. */
+        document.addEventListener('keydown', function (event) {
+            if (event.key !== 'Tab') return;
+            var modal = document.querySelector('.modal.show');
+            if (!modal) return;
+            var items = Array.prototype.filter.call(
+                modal.querySelectorAll(
+                    'input:not([type="hidden"]), select, textarea, button, [href], [tabindex]:not([tabindex="-1"])'
+                ),
+                function (el) { return !el.disabled && el.offsetParent !== null; }
+            );
+            if (!items.length) return;
+            var first = items[0];
+            var last = items[items.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
+    }
+
     /* -------------------------------------------------------------- alerts */
 
     function initAlerts() {
@@ -477,6 +576,7 @@
         initDropdowns();
         initTabs();
         initCollapse();
+        initModals();
         initAlerts();
         initTooltips();
         initCounters();

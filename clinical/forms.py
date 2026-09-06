@@ -1,6 +1,11 @@
+from decimal import Decimal
+
 from django import forms
 
-from .models import ConsanguinityState, DiagnosisCertainty, Encounter
+from .models import (
+    ConsanguinityState, DiagnosisCertainty, Encounter, ExaminationDomain,
+    ExaminationState, Side,
+)
 
 
 class EncounterForm(forms.ModelForm):
@@ -31,18 +36,62 @@ class EncounterForm(forms.ModelForm):
 
 
 class FindingForm(forms.Form):
-    domain = forms.CharField(label='Domínio', max_length=40)
-    item_code = forms.CharField(label='Item', max_length=60)
-    side = forms.CharField(label='Lado', max_length=40, required=False)
-    body_site = forms.CharField(label='Local anatômico', max_length=100, required=False)
-    state = forms.CharField(label='Estado', max_length=40)
-    numeric_value = forms.DecimalField(
-        label='Valor numérico', max_digits=6, decimal_places=2, required=False,
+    """Registro de um item do exame.
+
+    O item vem de um `<select>` agrupado por domínio (`dominio:item`), e não
+    de dois campos de texto livre: digitar `sensory_superficial` à mão era
+    a única forma de registrar um achado, e um código errado só aparecia
+    como erro depois de enviar.
+    """
+
+    item = forms.ChoiceField(label='Item do exame', choices=())
+    side = forms.ChoiceField(label='Lado', choices=Side.choices, initial=Side.NOT_APPLICABLE)
+    state = forms.ChoiceField(
+        label='Estado', choices=ExaminationState.choices, initial=ExaminationState.NOT_ASSESSED,
     )
-    qualifier = forms.CharField(label='Qualificador', max_length=255, required=False)
+    numeric_value = forms.ChoiceField(
+        label='Grau (MRC)', required=False,
+        choices=[('', '—')] + [(str(g), f'{g}') for g in range(6)],
+        help_text='Somente para força: 0 a 5.',
+    )
+    body_site = forms.CharField(
+        label='Local anatômico', max_length=100, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: território de C6'}),
+    )
+    qualifier = forms.CharField(
+        label='Qualificador', max_length=255, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: extensor, hipertonia elástica'}),
+    )
     note = forms.CharField(
-        label='Observação', max_length=2000, required=False, widget=forms.Textarea(attrs={'rows': 2}),
+        label='Observação', max_length=2000, required=False,
+        widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'Detalhe do achado, limitação do exame…'}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from .examination import grouped_item_choices
+
+        self.fields['item'].choices = [('', 'Selecione o item')] + grouped_item_choices()
+
+    def clean(self):
+        cleaned = super().clean()
+        raw = cleaned.get('item') or ''
+        if ':' not in raw:
+            if raw:
+                self.add_error('item', 'Item inválido.')
+            return cleaned
+        domain, item_code = raw.split(':', 1)
+        cleaned['domain'] = domain
+        cleaned['item_code'] = item_code
+
+        value = cleaned.get('numeric_value')
+        if value in ('', None):
+            cleaned['numeric_value'] = None
+        elif domain != ExaminationDomain.STRENGTH:
+            self.add_error('numeric_value', 'O grau MRC só se aplica a itens de força.')
+        else:
+            cleaned['numeric_value'] = Decimal(value)
+        return cleaned
 
 
 class DiagnosisForm(forms.Form):

@@ -4,27 +4,27 @@ from base.models import TenantModel
 
 
 class PaymentCategory(models.TextChoices):
-    PRIVATE = 'private', 'Private'
-    INSURANCE = 'insurance', 'Insurance'
+    PRIVATE = 'private', 'Particular'
+    INSURANCE = 'insurance', 'Plano'
 
 
 class ChargeKind(models.TextChoices):
-    CONSULTATION = 'consultation', 'Consultation'
-    PROCEDURE = 'procedure', 'Procedure'
+    CONSULTATION = 'consultation', 'Consulta'
+    PROCEDURE = 'procedure', 'Procedimento'
 
 
 class ReceivableStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    PARTIAL = 'partial', 'Partial'
-    PAID = 'paid', 'Paid'
-    CANCELLED = 'cancelled', 'Cancelled'
+    PENDING = 'pending', 'Em aberto'
+    PARTIAL = 'partial', 'Parcial'
+    PAID = 'paid', 'Pago'
+    CANCELLED = 'cancelled', 'Cancelado'
 
 
 class AdjustmentType(models.TextChoices):
-    DISCOUNT = 'discount', 'Discount'
-    SURCHARGE = 'surcharge', 'Surcharge'
-    REFUND = 'refund', 'Refund'
-    WRITEOFF = 'writeoff', 'Write-off'
+    DISCOUNT = 'discount', 'Desconto'
+    SURCHARGE = 'surcharge', 'Acréscimo'
+    REFUND = 'refund', 'Estorno'
+    WRITEOFF = 'writeoff', 'Baixa'
 
 
 class FeeSchedule(TenantModel):

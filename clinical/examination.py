@@ -141,3 +141,90 @@ def mark_section_normal(context, encounter, domain, actor_side_map):
     for item_code, side in actor_side_map:
         created.append(upsert_finding(context, encounter, domain, item_code, side, state=ExaminationState.NORMAL))
     return created
+
+
+DOMAIN_LABELS = {
+    ExaminationDomain.COGNITIVE: 'Cognitivo',
+    ExaminationDomain.STRENGTH: 'Força',
+    ExaminationDomain.TONE: 'Tônus',
+    ExaminationDomain.SENSORY_SUPERFICIAL: 'Sensibilidade superficial',
+    ExaminationDomain.SENSORY_DEEP: 'Sensibilidade profunda',
+    ExaminationDomain.REFLEX_MYOTATIC: 'Reflexos miotáticos',
+    ExaminationDomain.REFLEX_CUTANEOUS: 'Reflexos cutâneos',
+    ExaminationDomain.COORDINATION_APPENDICULAR: 'Coordenação apendicular',
+    ExaminationDomain.COORDINATION_AXIAL: 'Coordenação axial',
+    ExaminationDomain.GAIT: 'Marcha e equilíbrio',
+    ExaminationDomain.CRANIAL_NERVE: 'Nervos cranianos',
+}
+
+# Ordem de apresentação do exame na tela, do geral para o focal — a mesma
+# sequência em que o exame é feito à beira do leito.
+DOMAIN_ORDER = [
+    ExaminationDomain.COGNITIVE,
+    ExaminationDomain.CRANIAL_NERVE,
+    ExaminationDomain.STRENGTH,
+    ExaminationDomain.TONE,
+    ExaminationDomain.REFLEX_MYOTATIC,
+    ExaminationDomain.REFLEX_CUTANEOUS,
+    ExaminationDomain.SENSORY_SUPERFICIAL,
+    ExaminationDomain.SENSORY_DEEP,
+    ExaminationDomain.COORDINATION_APPENDICULAR,
+    ExaminationDomain.COORDINATION_AXIAL,
+    ExaminationDomain.GAIT,
+]
+
+
+def item_label(domain, item_code):
+    """Rótulo em português de um item, para a tela não mostrar o código cru."""
+    from .cranial_nerves import CRANIAL_NERVE_ITEMS
+
+    if domain == ExaminationDomain.CRANIAL_NERVE:
+        return CRANIAL_NERVE_ITEMS.get(item_code, item_code)
+    return CATALOG_BY_DOMAIN.get(domain, {}).get(item_code, item_code)
+
+
+def grouped_item_choices():
+    """Escolhas agrupadas por domínio para um <select> com <optgroup>.
+
+    O valor carrega domínio e item (`dominio:item`) porque o mesmo código de
+    item pode existir em domínios diferentes, e a tela não deve obrigar
+    ninguém a digitar `sensory_superficial` à mão.
+    """
+    from .cranial_nerves import CRANIAL_NERVE_ITEMS
+
+    groups = []
+    for domain in DOMAIN_ORDER:
+        if domain == ExaminationDomain.CRANIAL_NERVE:
+            catalog = CRANIAL_NERVE_ITEMS
+        else:
+            catalog = CATALOG_BY_DOMAIN.get(domain, {})
+        options = [(f'{domain}:{code}', label) for code, label in catalog.items()]
+        if options:
+            groups.append((DOMAIN_LABELS[domain], options))
+    return groups
+
+
+def is_lateralized(domain, item_code):
+    from .cranial_nerves import CRANIAL_NERVE_ITEMS, NOT_LATERALIZED_ITEMS as CN_NOT_LATERALIZED
+
+    if domain == ExaminationDomain.CRANIAL_NERVE:
+        return item_code in CRANIAL_NERVE_ITEMS and item_code not in CN_NOT_LATERALIZED
+    return domain not in NOT_LATERALIZED_DOMAINS and item_code not in NOT_LATERALIZED_ITEMS
+
+
+def group_findings_by_domain(findings):
+    """Agrupa os achados por domínio na ordem de exame, com rótulo legível."""
+    buckets = {}
+    for finding in findings:
+        # Rótulo em português anexado ao próprio achado: a tela não deve
+        # exibir `cn3_4_6_ocular_motility` para quem está atendendo.
+        finding.label = item_label(finding.domain, finding.item_code)
+        buckets.setdefault(finding.domain, []).append(finding)
+    ordered = []
+    for domain in DOMAIN_ORDER:
+        items = buckets.pop(domain, [])
+        if items:
+            ordered.append({'domain': domain, 'label': DOMAIN_LABELS[domain], 'findings': items})
+    for domain, items in buckets.items():
+        ordered.append({'domain': domain, 'label': DOMAIN_LABELS.get(domain, domain), 'findings': items})
+    return ordered

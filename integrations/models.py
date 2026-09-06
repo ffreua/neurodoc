@@ -4,15 +4,15 @@ from base.models import TenantModel
 
 
 class CaptureDeviceStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending pairing'
-    PAIRED = 'paired', 'Paired'
-    REVOKED = 'revoked', 'Revoked'
+    PENDING = 'pending', 'Aguardando pareamento'
+    PAIRED = 'paired', 'Pareado'
+    REVOKED = 'revoked', 'Revogado'
 
 
 class CaptureSessionStatus(models.TextChoices):
-    OPEN = 'open', 'Open'
-    CLOSED = 'closed', 'Closed'
-    EXPIRED = 'expired', 'Expired'
+    OPEN = 'open', 'Aberta'
+    CLOSED = 'closed', 'Encerrada'
+    EXPIRED = 'expired', 'Expirada'
 
 
 class CaptureDevice(TenantModel):

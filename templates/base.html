@@ -75,6 +75,11 @@
     </footer>
 </main>
 
+{% comment %}Modais ficam fora de .nxl-container de propósito: o tema desfoca
+header, sidebar e container enquanto um modal está aberto (body.modal-open), e
+um modal declarado lá dentro sairia borrado junto com o fundo.{% endcomment %}
+{% block modals %}{% endblock %}
+
 <script src="{% static 'duralux/app.js' %}"></script>
 {% block scripts %}{% endblock %}
 </body>

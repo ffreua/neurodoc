@@ -38,8 +38,8 @@ class PaymentCategory(models.TextChoices):
 
 
 class PatientStatus(models.TextChoices):
-    ACTIVE = 'active', 'Active'
-    ARCHIVED = 'archived', 'Archived'
+    ACTIVE = 'active', 'Ativo'
+    ARCHIVED = 'archived', 'Arquivado'
 
 
 class Insurer(TenantModel):
@@ -168,8 +168,8 @@ class PatientContact(TenantModel):
 
 
 class ObservationKind(models.TextChoices):
-    WEIGHT = 'weight', 'Weight'
-    HEIGHT = 'height', 'Height'
+    WEIGHT = 'weight', 'Peso'
+    HEIGHT = 'height', 'Altura'
 
 
 class Observation(TenantModel):
