@@ -1,5 +1,7 @@
 from django import forms
 
+from base.widgets import HTML5DateInput
+
 from .models import AttachmentClassification, MedicalDocumentKind
 from .signing_sessions import ALLOWED_DURATIONS_HOURS
 
@@ -8,7 +10,7 @@ class AttachmentUploadForm(forms.Form):
     file = forms.FileField(label='Arquivo')
     classification = forms.ChoiceField(label='Classificação', choices=AttachmentClassification.choices)
     document_date = forms.DateField(
-        label='Data do documento', required=False, widget=forms.DateInput(attrs={'type': 'date'}),
+        label='Data do documento', required=False, widget=HTML5DateInput(),
     )
     encounter_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
 

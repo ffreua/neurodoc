@@ -25,6 +25,10 @@ PRD; é a referência operacional viva gerada a partir dele.
 - [Homologação de onboarding e pacientes](homologation/patients.md) —
   evidências de H-01, H-04 e H-05 com dados sintéticos, incluindo verificação
   por teclado e viewport móvel.
+- [Cadastro de paciente — layout, CPF, CEP e plano](homologation/patient-registration.md) —
+  formulário reorganizado em seções, CPF obrigatório e conferido, base local
+  de CEP dos Correios e bloco de plano de saúde; inclui um bug real de datas
+  que apagava valores ao editar.
 
 ## Agenda e trabalho da secretaria (S04)
 

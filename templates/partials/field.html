@@ -1,0 +1,21 @@
+{% load nd %}
+{% comment %}Um campo do formulário dentro de uma coluna do grid.
+
+Uso: {% include "partials/field.html" with field=form.cpf col="col-md-4" %}
+`col` define a largura — é o que faz UF ocupar duas colunas e o nome ocupar
+oito, em vez de todos os campos terem a mesma barra.{% endcomment %}
+<div class="{{ col|default:'col-md-6' }}">
+    {% if field|nd_is_checkbox %}
+    <div class="form-check mt-4">
+        {{ field|nd_field }}
+        <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    </div>
+    {% else %}
+    <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+        {{ field.label }}{% if field.field.required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}
+    </label>
+    {{ field|nd_field }}
+    {% endif %}
+    {% if field.help_text %}<div class="form-text fs-11">{{ field.help_text }}</div>{% endif %}
+    {% for error in field.errors %}<div class="invalid-feedback d-block fs-11">{{ error }}</div>{% endfor %}
+</div>

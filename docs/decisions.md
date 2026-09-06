@@ -28,6 +28,8 @@ de S01-T01 e é atualizado sempre que uma pendência é resolvida ou uma decisã
 | DEC-18 | Redis: resultados DB 0, cache DB 1, eventos transitórios DB 2; fonte clínica definitiva no PostgreSQL | Separação lógica não é fronteira de segurança |
 | DEC-19 | PostgreSQL 17, roles separadas para migração e execução, nenhum superuser no Django | App recebe credencial de DDL por exigir migrations no entrypoint; risco residual documentado |
 | DEC-20 | Nenhuma suíte de testes automatizados | Decisão confirmada; revisão, verificação sintática e homologação manual continuam obrigatórias |
+| DEC-21 | Base local de faixas de CEP dos Correios (`catalogs.PostalCodeRange`, 6.614 faixas versionadas em `catalogs/data/postal_ranges.csv`) como fonte de município/UF; ViaCEP fica apenas como complemento de logradouro/bairro | O cadastro resolve o endereço sem depender de rede; o conjunto local é por faixa municipal e não contém logradouro, por isso o complemento externo permanece — enviando somente o CEP, nunca dado do paciente |
+| DEC-22 | CPF obrigatório no formulário de cadastro de paciente, não no modelo | Identifica o paciente em documento, guia e cobrança e bloqueia duplicata por CPF; o modelo continua aceitando nulo para não invalidar registros criados antes desta regra |
 
 ## Pendências que não impedem a especificação (P-01 a P-10)
 

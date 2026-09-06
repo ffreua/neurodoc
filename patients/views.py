@@ -1,4 +1,5 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -9,7 +10,7 @@ from integrations.cep import lookup_cep
 
 from . import selectors
 from .contacts import create_contact
-from .coverage import add_coverage
+from .coverage import add_coverage, set_patient_coverage
 from .forms import PatientContactForm, PatientCoverageForm, PatientForm
 from .models import Patient, PatientStatus
 from .observations import compute_bmi, age_at
@@ -53,10 +54,16 @@ class PatientCreateView(TenantScopedView):
             )
             if duplicates and not request.POST.get('confirm_duplicate'):
                 return render(request, 'patients/form.html', {'form': form, 'duplicates': duplicates})
-            patient = form.save(commit=False)
-            patient.tenant_id = request.access_context.tenant_id
-            patient.full_clean()
-            patient.save()
+            coverage_data = form.coverage_data
+            # Paciente e carteirinha entram juntos: um cadastro "por plano"
+            # sem cobertura faria a cobrança cair em particular.
+            with transaction.atomic():
+                patient = form.save(commit=False)
+                patient.tenant_id = request.access_context.tenant_id
+                patient.full_clean()
+                patient.save()
+                if coverage_data:
+                    set_patient_coverage(request.access_context, patient, **coverage_data)
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_created', object_type='patient',
                 object_id=patient.id, outcome='success',
@@ -92,8 +99,12 @@ class PatientUpdateView(TenantScopedView):
         if form.is_valid():
             updated = form.save(commit=False)
             updated.row_version += 1
-            updated.full_clean()
-            updated.save()
+            coverage_data = form.coverage_data
+            with transaction.atomic():
+                updated.full_clean()
+                updated.save()
+                if coverage_data:
+                    set_patient_coverage(request.access_context, updated, **coverage_data)
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_updated', object_type='patient',
                 object_id=updated.id, outcome='success',

@@ -51,9 +51,22 @@ class Insurer(TenantModel):
         return self.name
 
 
+class HealthPlanKind(models.TextChoices):
+    AMBULATORIAL = 'ambulatorial', 'Ambulatorial'
+    HOSPITALAR = 'hospitalar', 'Hospitalar'
+    HOSPITALAR_OBSTETRICIA = 'hospitalar_obstetricia', 'Hospitalar com obstetrícia'
+    REFERENCIA = 'referencia', 'Referência'
+    ODONTOLOGICO = 'odontologico', 'Odontológico'
+    OTHER = 'other', 'Outro'
+    NOT_INFORMED = 'not_informed', 'Não informado'
+
+
 class HealthPlan(TenantModel):
     insurer = models.ForeignKey(Insurer, on_delete=models.PROTECT, related_name='plans')
     name = models.CharField(max_length=255)
+    kind = models.CharField(
+        max_length=40, choices=HealthPlanKind.choices, default=HealthPlanKind.NOT_INFORMED,
+    )
     active = models.BooleanField(default=True)
     administrative_notes = models.TextField(max_length=2000, blank=True)
 

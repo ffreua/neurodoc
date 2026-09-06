@@ -27,7 +27,8 @@ class Command(BaseCommand):
         from catalogs.importers import activate_release, import_catalog
         from catalogs.models import CatalogRelease
         from patients.models import (
-            HealthPlan, Insurer, ObservationKind, Patient, PatientCoverage, SexAtRegistration,
+            HealthPlan, HealthPlanKind, Insurer, ObservationKind, Patient, PatientCoverage,
+            SexAtRegistration,
         )
         from scheduling.models import Appointment, AppointmentStatus
         from tenancy.models import Membership, MembershipStatus, Role, Tenant, TenantStatus
@@ -119,7 +120,17 @@ class Command(BaseCommand):
         )
 
         insurer_a = Insurer.objects.get_or_create(tenant=tenant_a, name='Amil (demo)')[0]
-        plan_a = HealthPlan.objects.get_or_create(tenant=tenant_a, insurer=insurer_a, name='Amil 400 (demo)')[0]
+        plan_a = HealthPlan.objects.get_or_create(
+            tenant=tenant_a, insurer=insurer_a, name='Amil 400 (demo)',
+            defaults={'kind': HealthPlanKind.HOSPITALAR},
+        )[0]
+        # Uma segunda operadora/plano para que a escolha de plano no cadastro
+        # do paciente seja exercitável com mais de uma opção.
+        insurer_b = Insurer.objects.get_or_create(tenant=tenant_a, name='Unimed (demo)')[0]
+        HealthPlan.objects.get_or_create(
+            tenant=tenant_a, insurer=insurer_b, name='Unimed Nacional (demo)',
+            defaults={'kind': HealthPlanKind.REFERENCIA},
+        )
         if not PatientCoverage.objects.filter(tenant=tenant_a, patient=adult).exists():
             PatientCoverage.objects.create(
                 tenant=tenant_a, patient=adult, plan=plan_a,

@@ -1,5 +1,7 @@
 from django import forms
 
+from base.widgets import HTML5DateInput, HTML5DateTimeInput, HTML5TimeInput
+
 from .models import AppointmentType, AvailabilityRule
 
 
@@ -22,10 +24,10 @@ class AvailabilityRuleForm(forms.ModelForm):
             'appointment_type': 'Tipo de atendimento',
         }
         widgets = {
-            'local_start': forms.TimeInput(attrs={'type': 'time'}),
-            'local_end': forms.TimeInput(attrs={'type': 'time'}),
-            'starts_on': forms.DateInput(attrs={'type': 'date'}),
-            'ends_on': forms.DateInput(attrs={'type': 'date'}),
+            'local_start': HTML5TimeInput(),
+            'local_end': HTML5TimeInput(),
+            'starts_on': HTML5DateInput(),
+            'ends_on': HTML5DateInput(),
         }
 
     def __init__(self, *args, tenant_id=None, **kwargs):
@@ -60,8 +62,8 @@ def _doctor_label(membership):
 class ReserveAppointmentForm(forms.Form):
     patient_id = forms.UUIDField(widget=forms.HiddenInput)
     physician_membership = forms.ModelChoiceField(queryset=None, label='Médico')
-    starts_at = forms.DateTimeField(label='Início', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
-    ends_at = forms.DateTimeField(label='Fim', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
+    starts_at = forms.DateTimeField(label='Início', widget=HTML5DateTimeInput())
+    ends_at = forms.DateTimeField(label='Fim', widget=HTML5DateTimeInput())
     type = forms.ChoiceField(label='Tipo', choices=AppointmentType.choices)
     is_overbook = forms.BooleanField(label='Encaixe (overbook)', required=False)
     override_reason = forms.CharField(label='Justificativa do encaixe', max_length=255, required=False)
@@ -79,6 +81,6 @@ class ReserveAppointmentForm(forms.Form):
 
 
 class RescheduleAppointmentForm(forms.Form):
-    starts_at = forms.DateTimeField(label='Novo início', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
-    ends_at = forms.DateTimeField(label='Novo fim', widget=forms.DateTimeInput(attrs={'type': 'datetime-local'}))
+    starts_at = forms.DateTimeField(label='Novo início', widget=HTML5DateTimeInput())
+    ends_at = forms.DateTimeField(label='Novo fim', widget=HTML5DateTimeInput())
     row_version = forms.IntegerField(widget=forms.HiddenInput)

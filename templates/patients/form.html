@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}{% if patient %}Editar{% else %}Novo{% endif %} paciente — NeuroDoc{% endblock %}
 {% block page_title %}{% if patient %}Editar paciente{% else %}Novo paciente{% endif %}{% endblock %}
 {% block breadcrumb %}
@@ -6,48 +7,179 @@
 <li class="breadcrumb-item"><a href="{% url 'patients:list' %}">Pacientes</a></li>
 <li class="breadcrumb-item">{% if patient %}Editar{% else %}Novo{% endif %}</li>
 {% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% if patient %}{% url 'patients:detail' patient.id %}{% else %}{% url 'patients:list' %}{% endif %}">Cancelar</a>
+<button type="submit" form="patient-form" class="btn btn-primary" data-nd-busy>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+    <span>{% if duplicates %}Cadastrar mesmo assim{% else %}Salvar paciente{% endif %}</span>
+</button>
+{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-xxl-8 col-xl-10">
-        {% if duplicates %}
-        <div class="card stretch stretch-full mb-4 border-warning">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Possível duplicidade</h5>
-                <span class="badge bg-soft-warning text-warning">Confirmação necessária</span>
-            </div>
-            <div class="card-body">
-                <p class="fs-13 text-muted">Já existe cadastro compatível com os dados informados:</p>
-                <ul class="list-group list-group-flush mb-0">
-                    {% for dup in duplicates %}
-                    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
-                        <span class="fw-semibold text-dark">{{ dup.full_name }}</span>
-                        <a class="btn btn-sm btn-light-primary" href="{% url 'patients:detail' dup.id %}">Abrir cadastro</a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        </div>
-        {% endif %}
+{% if duplicates %}
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Possível duplicidade</h5>
+        <span class="badge bg-soft-warning text-warning">Confirmação necessária</span>
+    </div>
+    <div class="card-body">
+        <p class="fs-13 text-muted">Já existe cadastro com o mesmo nome e data de nascimento:</p>
+        <ul class="list-group list-group-flush mb-0">
+            {% for dup in duplicates %}
+            <li class="list-group-item d-flex align-items-center justify-content-between px-0">
+                <span class="fw-semibold text-dark">{{ dup.full_name }}</span>
+                <a class="btn btn-sm btn-light-primary" href="{% url 'patients:detail' dup.id %}">Abrir cadastro</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
 
-        <div class="card stretch stretch-full">
-            <div class="card-header">
-                <h5 class="card-title mb-0">Dados cadastrais</h5>
+<form method="post" novalidate id="patient-form" data-cep-url="{% url 'patients:cep-lookup' %}">
+    {% csrf_token %}
+    {% if patient %}<input type="hidden" name="row_version" value="{{ patient.row_version }}">{% endif %}
+    {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
+
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger fade show" role="alert">
+        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="card-title mb-0">
+                <span class="badge bg-soft-primary text-primary me-2">1</span>Identificação
+            </h5>
+            <span class="fs-11 text-muted">Campos com <span class="text-danger">*</span> são obrigatórios</span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.full_name col="col-lg-6" %}
+                {% include "partials/field.html" with field=form.cpf col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.birth_date col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.sex_at_registration col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.marital_status col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.identity_number col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.occupation col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.mother_name col="col-lg-6" %}
             </div>
-            <div class="card-body">
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    {% if patient %}<input type="hidden" name="row_version" value="{{ patient.row_version }}">{% endif %}
-                    {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
-                    {% include "partials/form_fields.html" %}
-                    <div class="d-flex align-items-center gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary" data-nd-busy>
-                            {% if duplicates %}Cadastrar mesmo assim{% else %}Salvar{% endif %}
-                        </button>
-                        <a class="btn btn-light" href="{% if patient %}{% url 'patients:detail' patient.id %}{% else %}{% url 'patients:list' %}{% endif %}">Cancelar</a>
-                    </div>
-                </form>
+
+            <button class="btn btn-light-primary btn-sm mt-3 collapsed" type="button"
+                    data-bs-toggle="collapse" data-bs-target="#unknown-birth" aria-expanded="false">
+                Não sei a data de nascimento
+            </button>
+            <div class="collapse {% if form.birth_date_unknown_reason.value or form.estimated_birth_year.value or form.birth_date.errors %}show{% endif %}"
+                 id="unknown-birth">
+                <div class="row g-3 mt-0">
+                    {% include "partials/field.html" with field=form.birth_date_unknown_reason col="col-lg-6" %}
+                    {% include "partials/field.html" with field=form.estimated_birth_year col="col-lg-3 col-md-6" %}
+                </div>
             </div>
         </div>
     </div>
-</div>
+
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="card-title mb-0">
+                <span class="badge bg-soft-primary text-primary me-2">2</span>Endereço
+            </h5>
+            <span class="fs-11 text-muted" id="cep-status" role="status" aria-live="polite"></span>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.postal_code col="col-lg-3 col-md-4" %}
+                {% include "partials/field.html" with field=form.street col="col-lg-7 col-md-6" %}
+                {% include "partials/field.html" with field=form.number col="col-lg-2 col-md-2" %}
+                {% include "partials/field.html" with field=form.complement col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.district col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.city col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.state col="col-lg-2 col-md-3" %}
+                {% include "partials/field.html" with field=form.country col="col-lg-1 col-md-3" %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <span class="badge bg-soft-primary text-primary me-2">3</span>Atendimento
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.responsible_membership col="col-lg-4 col-md-6" %}
+                {% include "partials/field.html" with field=form.referral_source col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.referral_details col="col-lg-5" %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <span class="badge bg-soft-primary text-primary me-2">4</span>Pagamento
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.payment_category col="col-lg-3 col-md-6" %}
+            </div>
+
+            <div class="border rounded-3 p-3 mt-3 bg-gray-100" id="plan-block" hidden>
+                {% if form.has_plans %}
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="fw-bold text-dark mb-0">Dados do plano</h6>
+                    <span class="badge bg-soft-info text-info" id="plan-kind" hidden></span>
+                </div>
+                <div class="row g-3">
+                    {% include "partials/field.html" with field=form.coverage_plan col="col-lg-5 col-md-6" %}
+                    {% include "partials/field.html" with field=form.coverage_member_number col="col-lg-3 col-md-6" %}
+                    {% include "partials/field.html" with field=form.coverage_starts_on col="col-lg-2 col-md-6" %}
+                    {% include "partials/field.html" with field=form.coverage_ends_on col="col-lg-2 col-md-6" %}
+                </div>
+                {% else %}
+                <div class="d-flex align-items-start gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1 text-warning"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    <div>
+                        <span class="d-block fw-semibold text-dark fs-13">Nenhum plano de saúde cadastrado</span>
+                        <span class="d-block fs-12 text-muted">
+                            A lista de planos é mantida pelo responsável da organização. Enquanto
+                            não houver plano cadastrado, use a forma de pagamento
+                            <strong>Particular</strong>.
+                        </span>
+                    </div>
+                </div>
+                {% endif %}
+                {% for error in form.coverage_plan.errors %}<div class="invalid-feedback d-block fs-11">{{ error }}</div>{% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <span class="badge bg-soft-primary text-primary me-2">5</span>Observações
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.administrative_notes col="col-lg-8" %}
+            </div>
+            <p class="fs-11 text-muted mb-0">
+                Somente informação administrativa. Nada clínico é registrado aqui.
+            </p>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center gap-2">
+        <button type="submit" class="btn btn-primary" data-nd-busy>
+            {% if duplicates %}Cadastrar mesmo assim{% else %}Salvar paciente{% endif %}
+        </button>
+        <a class="btn btn-light" href="{% if patient %}{% url 'patients:detail' patient.id %}{% else %}{% url 'patients:list' %}{% endif %}">Cancelar</a>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'patients/patient_form.js' %}"></script>
 {% endblock %}
