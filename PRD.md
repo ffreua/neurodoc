@@ -1704,25 +1704,25 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S11 e middleware async homologado.
 
-- [ ] **S12-T01 — Modelar sessões/mensagens e contexto explícito de paciente.** Dependências: S11-T01. Componente: `ai/chat_models.py`. Requisitos: RF-11.03. **Aceite:** Trocar tenant não reaproveita histórico/contexto automaticamente.
+- [x] **S12-T01 — Modelar sessões/mensagens e contexto explícito de paciente.** Dependências: S11-T01. Componente: `ai/chat_models.py`. Requisitos: RF-11.03. **Aceite:** Trocar tenant não reaproveita histórico/contexto automaticamente.
 
-- [ ] **S12-T02 — Criar lista de sessões, título e navegação lateral.** Dependências: S12-T01. Componente: `ai/chat_views.py, templates/ai/chat/`. Requisitos: RF-11.03. **Aceite:** Sessões pertencem ao usuário/tenant correto.
+- [x] **S12-T02 — Criar lista de sessões, título e navegação lateral.** Dependências: S12-T01. Componente: `ai/chat_views.py, templates/ai/chat/`. Requisitos: RF-11.03. **Aceite:** Sessões pertencem ao usuário/tenant correto.
 
-- [ ] **S12-T03 — Implementar publicação Redis Streams por job e sequência.** Dependências: S12-T01, S11-T09. Componente: `ai/streaming.py`. Requisitos: RF-11.04. **Aceite:** Chave inclui tenant/user/session/job e TTL de 1 h.
+- [x] **S12-T03 — Implementar publicação Redis Streams por job e sequência.** Dependências: S12-T01, S11-T09. Componente: `ai/streaming.py`. Requisitos: RF-11.04. **Aceite:** Chave inclui tenant/user/session/job e TTL de 1 h.
 
-- [ ] **S12-T04 — Criar endpoint SSE com autorização e heartbeat.** Dependências: S12-T03, S02-T04. Componente: `ai/sse.py`. Requisitos: RF-11.04, RT-02. **Aceite:** Revogação interrompe leitura e não mantém conexão ORM aberta.
+- [x] **S12-T04 — Criar endpoint SSE com autorização e heartbeat.** Dependências: S12-T03, S02-T04. Componente: `ai/sse.py`. Requisitos: RF-11.04, RT-02. **Aceite:** Revogação interrompe leitura e não mantém conexão ORM aberta.
 
-- [ ] **S12-T05 — Implementar reconexão por Last-Event-ID e buffer expirado.** Dependências: S12-T04. Componente: `ai/sse.py, static/ai/chat.js`. Requisitos: RF-11.04. **Aceite:** Reconectar não duplica mensagem nem acessa stream alheia.
+- [x] **S12-T05 — Implementar reconexão por Last-Event-ID e buffer expirado.** Dependências: S12-T04. Componente: `ai/sse.py, static/ai/chat.js`. Requisitos: RF-11.04. **Aceite:** Reconectar não duplica mensagem nem acessa stream alheia.
 
-- [ ] **S12-T06 — Implementar cancelamento e limite de concorrência.** Dependências: S12-T03, S11-T09. Componente: `ai/cancellation.py`. Requisitos: RF-11.04, RT-04. **Aceite:** Cancelamento fica persistido e não promete estorno de custo.
+- [x] **S12-T06 — Implementar cancelamento e limite de concorrência.** Dependências: S12-T03, S11-T09. Componente: `ai/cancellation.py`. Requisitos: RF-11.04, RT-04. **Aceite:** Cancelamento fica persistido e não promete estorno de custo.
 
-- [ ] **S12-T07 — Integrar Markdown incremental e final sanitizado.** Dependências: S12-T04. Componente: `ai/rendering.py, static/ai/chat.js`. Requisitos: RF-11.04, RT-03. **Aceite:** Scripts/links perigosos não executam durante streaming.
+- [x] **S12-T07 — Integrar Markdown incremental e final sanitizado.** Dependências: S12-T04. Componente: `ai/rendering.py, static/ai/chat.js`. Requisitos: RF-11.04, RT-03. **Aceite:** Scripts/links perigosos não executam durante streaming.
 
-- [ ] **S12-T08 — Persistir conclusão/notificação e referências de origem.** Dependências: S12-T05, S08-T09. Componente: `ai/chat_services.py`. Requisitos: RF-11.03, RF-11.04. **Aceite:** Resultado final sobrevive à perda do Redis.
+- [x] **S12-T08 — Persistir conclusão/notificação e referências de origem.** Dependências: S12-T05, S08-T09. Componente: `ai/chat_services.py`. Requisitos: RF-11.03, RF-11.04. **Aceite:** Resultado final sobrevive à perda do Redis.
 
-- [ ] **S12-T09 — Homologar SSE através do Traefik durante rollout.** Dependências: S12-T07, S12-T08, S10-T03. Componente: `docs/homologation/chat.md`. Requisitos: RF-11, RT-09. **Aceite:** H-18 preserva escopo e comunica reconexão/interrupção.
+- [x] **S12-T09 — Homologar SSE através do Traefik durante rollout.** Dependências: S12-T07, S12-T08, S10-T03. Componente: `docs/homologation/chat.md`. Requisitos: RF-11, RT-09. **Aceite:** H-18 preserva escopo e comunica reconexão/interrupção.
 
-- [ ] **Saída de S12:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S12:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S13 — Relatórios e captura local
 
@@ -1907,10 +1907,10 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-18 — Chat e SSE
 
-- [ ] Duas sessões/tenants/pacientes permanecem separadas; médico e secretaria recebem apenas ferramentas de seus escopos.
-- [ ] Tokens chegam incrementalmente pelo Traefik; heartbeat, reconexão, Last-Event-ID, cancelamento e buffer expirado têm estados visíveis.
-- [ ] Revogação interrompe leitura; Markdown malicioso não executa script durante ou após stream; resultado final permanece após perda do Redis.
-- [ ] Rollout comunica reconexão quando necessária; não apresentar animação de texto pronto como streaming real.
+- [x] Duas sessões/tenants/pacientes permanecem separadas; médico e secretaria recebem apenas ferramentas de seus escopos.
+- [x] Tokens chegam incrementalmente pelo Traefik; heartbeat, reconexão, Last-Event-ID, cancelamento e buffer expirado têm estados visíveis.
+- [x] Revogação interrompe leitura; Markdown malicioso não executa script durante ou após stream; resultado final permanece após perda do Redis.
+- [x] Rollout comunica reconexão quando necessária; não apresentar animação de texto pronto como streaming real.
 
 ### H-19 — Admin e documentação
 

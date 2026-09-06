@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Chat{% endblock %}
+{% block content %}
+<h1>{{ session.title|default:"Chat" }}</h1>
+
+<div id="messages">
+    {% for item in rendered_messages %}
+    <div class="message {{ item.message.role }}" data-message-id="{{ item.message.id }}" data-state="{{ item.message.state }}">
+        <strong>{{ item.message.get_role_display }}:</strong>
+        {% if item.html %}
+        <div class="rendered">{{ item.html|safe }}</div>
+        {% else %}
+        <div class="rendered">{{ item.message.content }}</div>
+        {% endif %}
+        {% if item.message.state == "streaming" %}
+        <form method="post" action="{% url 'ai:chat-message-cancel' session.id item.message.id %}">
+            {% csrf_token %}<button type="submit">Cancelar</button>
+        </form>
+        <div class="live" id="live-{{ item.message.id }}"
+             data-stream-url="{% url 'ai:chat-stream' session.id item.message.id %}"></div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<form method="post" action="{% url 'ai:chat-message-create' session.id %}">
+    {% csrf_token %}
+    <textarea name="content" placeholder="Mensagem"></textarea>
+    <button type="submit">Enviar</button>
+</form>
+
+<script src="{% static 'ai/chat.js' %}"></script>
+{% endblock %}

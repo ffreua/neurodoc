@@ -2,6 +2,13 @@ from django.db import models
 
 from base.models import TenantModel
 
+# Django's app loader only auto-imports `<app>.models`; chat models live in
+# their own module (ai/chat_models.py, per the PRD's component naming) and
+# must be re-exported here so they register under the `ai` app label.
+from .chat_models import (  # noqa: F401,E402
+    ChatMessage, ChatMessageRole, ChatMessageState, ChatSession, ChatSessionStatus,
+)
+
 
 class AIJobKind(models.TextChoices):
     ENCOUNTER_SUMMARY = 'encounter_summary', 'Encounter summary'

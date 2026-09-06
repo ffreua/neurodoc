@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Chat com IA{% endblock %}
+{% block content %}
+<h1>Sessões de chat</h1>
+<ul>
+    {% for s in sessions %}
+    <li><a href="{% url 'ai:chat-session-detail' s.id %}">{{ s.title|default:"Sem título" }}</a>
+        {% if s.patient %} — {{ s.patient.full_name }}{% endif %}
+        — {{ s.last_message_at|date:"d/m/Y H:i"|default:"sem mensagens" }}</li>
+    {% empty %}
+    <li>Nenhuma sessão ainda.</li>
+    {% endfor %}
+</ul>
+<form method="post">
+    {% csrf_token %}
+    <input type="text" name="title" placeholder="Título (opcional)">
+    <input type="text" name="patient_id" placeholder="ID do paciente (opcional)">
+    <button type="submit">Nova sessão</button>
+</form>
+{% endblock %}

@@ -139,6 +139,7 @@ if not re.fullmatch(r'(dev|[a-f0-9]{40})', RELEASE_ID):
     raise ValueError('Invalid RELEASE_ID')
 STATIC_URL = f'/static/{RELEASE_ID}/'
 STATIC_ROOT = Path(os.environ.get('STATIC_PREPARATION_ROOT', '/data/staticfiles/public/static/' + RELEASE_ID))
+STATICFILES_DIRS = [BASE_DIR / 'static']
 WHITENOISE_AUTOREFRESH = False
 WHITENOISE_USE_FINDERS = False
 STORAGES = {

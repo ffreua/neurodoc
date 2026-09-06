@@ -67,6 +67,14 @@ PRD; é a referência operacional viva gerada a partir dele.
   inválida/probabilidade numérica, e um bug real corrigido no dispatcher de
   outbox (só suportava um consumidor por tópico). P-06/P-09 em aberto.
 
+## Chat persistente e streaming (S12)
+
+- [Homologação de chat](homologation/chat.md) — evidências de H-18: sessões
+  isoladas sem herança de contexto, streaming real via Redis Streams e SSE
+  verificado através do Traefik real, reconexão por Last-Event-ID,
+  cancelamento, sanitização de Markdown e revogação interrompendo uma
+  leitura já aberta.
+
 ## Operação e piloto assistencial (S10)
 
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/

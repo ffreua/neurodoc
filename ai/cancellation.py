@@ -1,0 +1,44 @@
+from django.utils import timezone
+
+from audit.services import record_audit_event
+
+from .chat_models import ChatMessageState
+from .services import cancel_job
+from .streaming import publish_event
+
+MAX_CONCURRENT_STREAMS_PER_USER = 3
+
+
+class ConcurrencyLimitExceeded(Exception):
+    pass
+
+
+def check_concurrency_limit(tenant_id, user_id):
+    from .chat_models import ChatMessage
+
+    active = ChatMessage.objects.filter(
+        session__tenant_id=tenant_id, session__owner_user_id=user_id, state=ChatMessageState.STREAMING,
+    ).count()
+    if active >= MAX_CONCURRENT_STREAMS_PER_USER:
+        raise ConcurrencyLimitExceeded(f'Already streaming {active} response(s); wait or cancel one first')
+
+
+def cancel_message(message, actor_id):
+    """Cancellation is a persisted state transition, nothing more -- it
+    makes no claim about token/cost refund from the provider (a partially
+    generated response may already have been billed upstream), and it does
+    not retroactively delete whatever partial content was streamed.
+    """
+    message.state = ChatMessageState.CANCELLED
+    message.save(update_fields=['state'])
+    if message.ai_job_id:
+        cancel_job(message.ai_job, actor_id)
+    publish_event(
+        message.tenant_id, message.session.owner_user_id, message.session_id,
+        str(message.ai_job_id or message.id), 'cancelled', {},
+    )
+    record_audit_event(
+        actor_id, message.tenant_id, 'ai.chat_message_cancelled',
+        object_type='chat_message', object_id=message.id, outcome='success',
+    )
+    return message
