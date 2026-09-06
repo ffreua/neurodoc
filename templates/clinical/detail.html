@@ -7,6 +7,12 @@
     <a href="{% url 'documents:list' encounter.patient.id %}">Anexos</a> |
     <a href="{% url 'documents:medical-list' encounter.id %}">Documentos médicos</a>
 </p>
+{% if encounter.status == 'finalized' %}
+<form method="post" action="{% url 'ai:summarize-encounter' encounter.id %}">
+    {% csrf_token %}
+    <button type="submit">Solicitar resumo por IA (rascunho, requer revisão)</button>
+</form>
+{% endif %}
 
 {% if pending_carry_forward %}
 <div>

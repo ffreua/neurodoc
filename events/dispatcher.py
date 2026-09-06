@@ -13,18 +13,21 @@ _HANDLERS = {}
 
 def register_handler(topic_prefix, consumer_name, handler):
     """Registers `handler(event)` for any topic starting with `topic_prefix`.
-    `consumer_name` is the ProcessedEvent idempotency key -- distinct
-    consumers of the same event (unlikely here, but future-proof) get
-    independent at-least-once delivery.
+    `consumer_name` is the ProcessedEvent idempotency key. More than one
+    independent consumer can register for the same topic (e.g. both
+    `finance` and `ai` react to `clinical.encounter_finalized`) -- each
+    gets its own ProcessedEvent row and its own at-least-once delivery;
+    one consumer's failure never blocks or skips another's.
     """
-    _HANDLERS[topic_prefix] = (consumer_name, handler)
+    _HANDLERS.setdefault(topic_prefix, []).append((consumer_name, handler))
 
 
-def _handler_for(topic):
-    for prefix, entry in _HANDLERS.items():
+def _handlers_for(topic):
+    matches = []
+    for prefix, entries in _HANDLERS.items():
         if topic.startswith(prefix):
-            return entry
-    return None, None
+            matches.extend(entries)
+    return matches
 
 
 @transaction.atomic
@@ -48,8 +51,8 @@ def _claim_batch():
 
 
 def _process_one(event):
-    consumer_name, handler = _handler_for(event.topic)
-    if handler is None:
+    handlers = _handlers_for(event.topic)
+    if not handlers:
         # Unroutable topic: leave it PENDING with a pushed-back available_at
         # rather than silently dropping it -- a future deploy may register
         # the missing handler.
@@ -58,21 +61,25 @@ def _process_one(event):
         )
         return 'no_handler'
 
-    if ProcessedEvent.objects.filter(event=event, consumer=consumer_name).exists():
-        # Already applied by a previous (possibly redelivered) attempt --
-        # ack without re-running the side effect.
-        OutboxEvent.objects.filter(id=event.id).update(status=OutboxEventStatus.COMPLETED)
-        return 'already_processed'
+    any_failed = False
+    all_already_processed = True
+    for consumer_name, handler in handlers:
+        if ProcessedEvent.objects.filter(event=event, consumer=consumer_name).exists():
+            # This consumer already applied a previous (possibly
+            # redelivered) attempt -- skip it, but still let any other
+            # consumer for this same event run.
+            continue
+        all_already_processed = False
+        try:
+            with transaction.atomic():
+                handler(event)
+                ProcessedEvent.objects.get_or_create(
+                    event=event, consumer=consumer_name, defaults={'processed_at': timezone.now()},
+                )
+        except Exception:
+            any_failed = True
 
-    try:
-        with transaction.atomic():
-            handler(event)
-            ProcessedEvent.objects.get_or_create(
-                event=event, consumer=consumer_name, defaults={'processed_at': timezone.now()},
-            )
-        OutboxEvent.objects.filter(id=event.id).update(status=OutboxEventStatus.COMPLETED)
-        return 'completed'
-    except Exception:
+    if any_failed:
         attempts = event.attempts
         if attempts >= MAX_ATTEMPTS:
             OutboxEvent.objects.filter(id=event.id).update(status=OutboxEventStatus.FAILED)
@@ -83,6 +90,9 @@ def _process_one(event):
             available_at=timezone.now() + timezone.timedelta(seconds=backoff_seconds),
         )
         return 'retrying'
+
+    OutboxEvent.objects.filter(id=event.id).update(status=OutboxEventStatus.COMPLETED)
+    return 'already_processed' if all_already_processed else 'completed'
 
 
 def run_once():

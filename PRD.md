@@ -1672,31 +1672,31 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S05/S06/S08; P-06/P-09 e provedor final aprovados.
 
-- [ ] **S11-T01 — Modelar AIJob, AIArtifact e revisão clínica versionada.** Dependências: S05-T10. Componente: `ai/models.py`. Requisitos: RF-11.01, RF-11.02. **Aceite:** Nova geração não sobrescreve artefato revisado anterior.
+- [x] **S11-T01 — Modelar AIJob, AIArtifact e revisão clínica versionada.** Dependências: S05-T10. Componente: `ai/models.py`. Requisitos: RF-11.01, RF-11.02. **Aceite:** Nova geração não sobrescreve artefato revisado anterior.
 
-- [ ] **S11-T02 — Criar adaptador OpenRouter com modelo padrão explícito.** Dependências: S01-T03, P-03. Componente: `ai/providers/openrouter.py`. Requisitos: RT-04. **Aceite:** Identificador, streaming/tools e limitações de schema documentados.
+- [x] **S11-T02 — Criar adaptador OpenRouter com modelo padrão explícito.** Dependências: S01-T03, P-03. Componente: `ai/providers/openrouter.py`. Requisitos: RT-04. **Aceite:** Identificador, streaming/tools e limitações de schema documentados.
 
-- [ ] **S11-T03 — Criar adaptadores OpenAI/Anthropic e seleção autorizada.** Dependências: S11-T02. Componente: `ai/providers/`. Requisitos: RT-04. **Aceite:** Troca de provedor é explícita e não amplia política de dados.
+- [x] **S11-T03 — Criar adaptadores OpenAI/Anthropic e seleção autorizada.** Dependências: S11-T02. Componente: `ai/providers/`. Requisitos: RT-04. **Aceite:** Troca de provedor é explícita e não amplia política de dados.
 
-- [ ] **S11-T04 — Implementar autorização e seleção mínima local.** Dependências: S11-T01, S02-T03. Componente: `ai/context.py`. Requisitos: RT-02, RT-04. **Aceite:** Usuario revogado e patient_id arbitrário não entram no job.
+- [x] **S11-T04 — Implementar autorização e seleção mínima local.** Dependências: S11-T01, S02-T03. Componente: `ai/context.py`. Requisitos: RT-02, RT-04. **Aceite:** Usuario revogado e patient_id arbitrário não entram no job.
 
-- [ ] **S11-T05 — Implementar desidentificação local de texto/metadados/OCR.** Dependências: S11-T04, S06-T09. Componente: `ai/deidentification.py`. Requisitos: RF-11.06, RT-04. **Aceite:** Originais identificados nunca são enviados para anonimização externa.
+- [x] **S11-T05 — Implementar desidentificação local de texto/metadados/OCR.** Dependências: S11-T04, S06-T09. Componente: `ai/deidentification.py`. Requisitos: RF-11.06, RT-04. **Aceite:** Originais identificados nunca são enviados para anonimização externa.
 
-- [ ] **S11-T06 — Implementar decisão de risco residual e fail closed.** Dependências: S11-T05, P-06. Componente: `ai/privacy_policy.py`. Requisitos: RF-11.06. **Aceite:** Caso raro/genealogia não seguro vira blocked_privacy sem request.
+- [x] **S11-T06 — Implementar decisão de risco residual e fail closed.** Dependências: S11-T05, P-06. Componente: `ai/privacy_policy.py`. Requisitos: RF-11.06. **Aceite:** Caso raro/genealogia não seguro vira blocked_privacy sem request.
 
-- [ ] **S11-T07 — Criar tools de linha do tempo e achados de exame.** Dependências: S11-T04, S11-T06. Componente: `ai/tools/clinical.py`. Requisitos: RT-04. **Aceite:** Tool revalida escopo e limita páginas/linhas/chamadas.
+- [x] **S11-T07 — Criar tools de linha do tempo e achados de exame.** Dependências: S11-T04, S11-T06. Componente: `ai/tools/clinical.py`. Requisitos: RT-04. **Aceite:** Tool revalida escopo e limita páginas/linhas/chamadas.
 
-- [ ] **S11-T08 — Criar tools administrativas/financeiras separadas.** Dependências: S11-T07, S09. Componente: `ai/tools/administrative.py`. Requisitos: RT-02, RT-04. **Aceite:** Chat administrativo não obtém nota clínica nem certificado.
+- [x] **S11-T08 — Criar tools administrativas/financeiras separadas.** Dependências: S11-T07, S09. Componente: `ai/tools/administrative.py`. Requisitos: RT-02, RT-04. **Aceite:** Chat administrativo não obtém nota clínica nem certificado.
 
-- [ ] **S11-T09 — Montar grafo, schema Pydantic e limites de custo/tempo.** Dependências: S11-T02, S11-T06, S11-T07. Componente: `ai/graphs.py, schemas.py`. Requisitos: RT-04, RF-11.05. **Aceite:** Saída inválida/referência inventada não é apresentada como válida.
+- [x] **S11-T09 — Montar grafo, schema Pydantic e limites de custo/tempo.** Dependências: S11-T02, S11-T06, S11-T07. Componente: `ai/graphs.py, schemas.py`. Requisitos: RT-04, RF-11.05. **Aceite:** Saída inválida/referência inventada não é apresentada como válida.
 
-- [ ] **S11-T10 — Conectar finalização/resumo manual à fila e notificação.** Dependências: S11-T09, S08-T09. Componente: `ai/tasks.py, views.py`. Requisitos: RF-11.01, RF-11.02. **Aceite:** Falha de IA preserva atendimento e informa resultado ao solicitante.
+- [x] **S11-T10 — Conectar finalização/resumo manual à fila e notificação.** Dependências: S11-T09, S08-T09. Componente: `ai/tasks.py, views.py`. Requisitos: RF-11.01, RF-11.02. **Aceite:** Falha de IA preserva atendimento e informa resultado ao solicitante.
 
-- [ ] **S11-T11 — Montar revisão médica aceitar/editar/rejeitar e stale.** Dependências: S11-T10. Componente: `ai/review.py, templates/ai/`. Requisitos: RF-11.05, RT-03. **Aceite:** Aceitar não assina/prescreve e fonte alterada torna rascunho stale.
+- [x] **S11-T11 — Montar revisão médica aceitar/editar/rejeitar e stale.** Dependências: S11-T10. Componente: `ai/review.py, templates/ai/`. Requisitos: RF-11.05, RT-03. **Aceite:** Aceitar não assina/prescreve e fonte alterada torna rascunho stale.
 
-- [ ] **S11-T12 — Homologar casos de privacidade, injeção e insuficiência.** Dependências: S11-T08, S11-T11, P-09. Componente: `docs/homologation/ai.md`. Requisitos: RF-11, RT-04. **Aceite:** H-17 registra bloqueio, limites e decisão médica sem alegar acurácia.
+- [x] **S11-T12 — Homologar casos de privacidade, injeção e insuficiência.** Dependências: S11-T08, S11-T11, P-09. Componente: `docs/homologation/ai.md`. Requisitos: RF-11, RT-04. **Aceite:** H-17 registra bloqueio, limites e decisão médica sem alegar acurácia.
 
-- [ ] **Saída de S11:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S11:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S12 — Chat persistente e streaming
 
@@ -1899,11 +1899,11 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-17 — IA
 
-- [ ] Job reautoriza usuário/tenant/paciente, seleciona dados mínimos e bloqueia envio quando desidentificação/risco residual falha; incluir genealogia/doença rara/metadados/OCR na revisão.
-- [ ] Tools não aceitam tenant controlado pelo modelo, SQL/URL arbitrários ou instruções presentes no documento; leitura administrativa não acessa material clínico.
-- [ ] Resposta fora de schema, fonte inexistente, timeout e orçamento excedido geram estados controlados; prioridade qualitativa não vira probabilidade diagnóstica numérica.
-- [ ] Rascunho tem fontes, modelo, versão, limites e revisão médica; aceitar/editar/rejeitar é auditável; fonte alterada torna artefato stale.
-- [ ] Provedor alternativo é escolhido explicitamente; política de retenção/roteamento final é verificada; IA indisponível não bloqueia prontuário.
+- [x] Job reautoriza usuário/tenant/paciente, seleciona dados mínimos e bloqueia envio quando desidentificação/risco residual falha; incluir genealogia/doença rara/metadados/OCR na revisão.
+- [x] Tools não aceitam tenant controlado pelo modelo, SQL/URL arbitrários ou instruções presentes no documento; leitura administrativa não acessa material clínico.
+- [x] Resposta fora de schema, fonte inexistente, timeout e orçamento excedido geram estados controlados; prioridade qualitativa não vira probabilidade diagnóstica numérica.
+- [x] Rascunho tem fontes, modelo, versão, limites e revisão médica; aceitar/editar/rejeitar é auditável; fonte alterada torna artefato stale.
+- [x] Provedor alternativo é escolhido explicitamente; política de retenção/roteamento final é verificada; IA indisponível não bloqueia prontuário.
 
 ### H-18 — Chat e SSE
 

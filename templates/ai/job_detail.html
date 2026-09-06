@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Job de IA{% endblock %}
+{% block content %}
+<h1>Job de IA — {{ job.get_kind_display }}</h1>
+<p>Status: {{ job.get_status_display }}{% if job.status_detail %} — {{ job.status_detail }}{% endif %}</p>
+
+{% for artifact in artifacts %}
+<div>
+    <h2>Rascunho ({{ artifact.get_review_state_display }}{% if artifact.stale %} — DESATUALIZADO{% endif %})</h2>
+    <p><strong>Aviso:</strong> {{ artifact.result.medical_review_notice }}</p>
+    <p><strong>Resumo:</strong> {{ artifact.result.summary }}</p>
+    <p><strong>Hipóteses qualitativas:</strong></p>
+    <ul>
+        {% for h in artifact.result.qualitative_hypotheses %}
+        <li>{{ h }}</li>
+        {% empty %}
+        <li>Nenhuma.</li>
+        {% endfor %}
+    </ul>
+    <p><strong>Informação faltante:</strong> {{ artifact.result.missing_information }}</p>
+    <p><strong>Limites:</strong> {{ artifact.result.limitations }}</p>
+    <p><strong>Provedor/modelo:</strong> {{ artifact.provider }} / {{ artifact.model }}</p>
+    {% if artifact.review_state == "pending" %}
+    <form method="post" action="{% url 'ai:artifact-accept' artifact.id %}" style="display:inline">
+        {% csrf_token %}<button type="submit">Aceitar</button>
+    </form>
+    <form method="post" action="{% url 'ai:artifact-reject' artifact.id %}" style="display:inline">
+        {% csrf_token %}
+        <input type="text" name="reason" placeholder="Motivo">
+        <button type="submit">Rejeitar</button>
+    </form>
+    {% endif %}
+</div>
+{% empty %}
+<p>Nenhum rascunho gerado ainda.</p>
+{% endfor %}
+{% endblock %}

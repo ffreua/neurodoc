@@ -59,6 +59,14 @@ PRD; é a referência operacional viva gerada a partir dele.
   agenda por evento explícito, tabelas de preço com vigência sem
   sobreposição e conciliação de recebíveis/pagamentos/ajustes em Decimal.
 
+## IA com autorização e revisão médica (S11)
+
+- [Homologação de IA](homologation/ai.md) — evidências de H-17: autorização
+  revalidada no worker, tools com escopo/paginação, desidentificação e
+  política de privacidade fail-closed, schema Pydantic rejeitando saída
+  inválida/probabilidade numérica, e um bug real corrigido no dispatcher de
+  outbox (só suportava um consumidor por tópico). P-06/P-09 em aberto.
+
 ## Operação e piloto assistencial (S10)
 
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/
