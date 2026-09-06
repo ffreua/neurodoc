@@ -41,6 +41,9 @@ PRD; é a referência operacional viva gerada a partir dele.
   roteiro em árvore (387 nós carregados de YAML), roteiro de neurologia do
   `docs/reference/roteiro-exame-neurologico.pdf`, personalização por médico
   e tela do exame por eixo. Etapa 1 de 3.
+- [Escalas funcionais](homologation/exam-scales.md) — 14 escalas com
+  pontuação, faixas de interpretação e itens em média (SARA); painel para
+  aplicá-las no atendimento. Etapa 2 de 3.
 
 ## Anexos privados e processamento local (S06)
 

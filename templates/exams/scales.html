@@ -1,0 +1,107 @@
+{% comment %}Escalas funcionais aplicáveis ao atendimento.
+
+Todas as escalas ficam no DOM e o seletor mostra uma por vez: são ~110
+campos no total, contra os ~900 do roteiro, e assim aplicar uma escala não
+custa uma ida ao servidor para carregar o formulário.
+
+Cada escala é um formulário próprio. Enviar sem nenhum item marcado remove a
+escala do atendimento — é como se desfaz uma aplicação equivocada.{% endcomment %}
+{% load nd %}
+
+<div class="card mt-4">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">Escalas funcionais</h5>
+        <div class="d-flex align-items-center gap-2">
+            <label class="fs-11 text-muted mb-0" for="scale-picker">Aplicar escala</label>
+            <select class="form-select form-select-sm" id="scale-picker" style="min-width:280px"
+                    {% if exam_readonly %}disabled{% endif %}>
+                <option value="">Selecione a escala</option>
+                {% for scale in scales %}
+                <option value="scale-{{ scale.code }}">
+                    {{ scale.name }}{% if scale_values|nd_get:scale.code %} ✓{% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        {% for scale in scales %}
+        {% with finding=scale_values|nd_get:scale.code %}
+        <form method="post" action="{% url 'clinical:record-scale' encounter.id scale.code %}"
+              class="nd-scale-form" id="scale-{{ scale.code }}" hidden
+              data-nd-scale="{{ scale.code }}"
+              data-nd-max="{{ scale.max_score|default_if_none:'' }}"
+              data-nd-bands="{{ scale.bands|nd_json }}">
+            {% csrf_token %}
+            <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-3">
+                <div>
+                    <h6 class="fw-bold text-dark mb-1">{{ scale.name }}</h6>
+                    {% if scale.description %}
+                    <p class="fs-12 text-muted mb-1">{{ scale.description }}</p>
+                    {% endif %}
+                    {% if scale.instructions %}
+                    <p class="fs-11 text-muted mb-0"><strong>Como pontuar:</strong> {{ scale.instructions }}</p>
+                    {% endif %}
+                </div>
+                <div class="text-end flex-shrink-0">
+                    <span class="badge bg-soft-primary text-primary fs-13" data-nd-total>—</span>
+                    <span class="d-block fs-10 text-muted" data-nd-band></span>
+                    <span class="d-block fs-10 text-muted">
+                        {% if scale.higher_is_worse %}maior = pior{% else %}maior = melhor{% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="row g-3">
+                {% for item in scale.items.all %}
+                <div class="col-lg-6">
+                    <label class="form-label fw-semibold fs-12" for="escala__{{ scale.code }}__{{ item.code }}">
+                        {{ item.label }}
+                    </label>
+                    <select class="form-select form-select-sm" data-nd-scale-item
+                            data-nd-group="{{ item.score_group|default:item.code }}"
+                            id="escala__{{ scale.code }}__{{ item.code }}"
+                            name="escala__{{ scale.code }}__{{ item.code }}"
+                            {% if exam_readonly %}disabled{% endif %}>
+                        <option value="">Não avaliado</option>
+                        {% with current=finding|nd_scale_value:item.code %}
+                        {% for option in item.options %}
+                        <option value="{{ option.value }}"
+                                {% if current == option.value|stringformat:"s" %}selected{% endif %}>{{ option.label }}</option>
+                        {% endfor %}
+                        {% endwith %}
+                    </select>
+                    {% if item.help_text %}
+                    <span class="d-block fs-10 text-muted mt-1">{{ item.help_text }}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+
+            <div class="mt-3">
+                <label class="form-label fw-semibold fs-12" for="escala__{{ scale.code }}__nota">Observação</label>
+                <input type="text" class="form-control form-control-sm" id="escala__{{ scale.code }}__nota"
+                       name="escala__{{ scale.code }}__nota" value="{{ finding.note|default:'' }}"
+                       placeholder="Limitação do exame, contexto da aplicação…"
+                       {% if exam_readonly %}disabled{% endif %}>
+            </div>
+
+            {% if scale.source_note %}
+            <p class="fs-10 text-muted mt-3 mb-0">Referência: {{ scale.source_note }}</p>
+            {% endif %}
+
+            {% if not exam_readonly %}
+            <div class="d-flex align-items-center gap-2 mt-3">
+                <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>Salvar escala</button>
+                <span class="fs-11 text-muted">
+                    Enviar sem nenhum item marcado remove esta escala do atendimento.
+                </span>
+            </div>
+            {% endif %}
+        </form>
+        {% endwith %}
+        {% empty %}
+        <p class="text-muted fs-13 mb-0">Nenhuma escala cadastrada nesta organização.</p>
+        {% endfor %}
+    </div>
+</div>

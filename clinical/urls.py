@@ -18,6 +18,10 @@ urlpatterns = [
         '<uuid:encounter_id>/exam-normal/',
         views.ExamGroupNormalView.as_view(), name='exam-group-normal',
     ),
+    path(
+        '<uuid:encounter_id>/escala/<slug:code>/',
+        views.ScaleRecordView.as_view(), name='record-scale',
+    ),
     path('<uuid:encounter_id>/diagnoses/', views.DiagnosisCreateView.as_view(), name='add-diagnosis'),
     path(
         '<uuid:encounter_id>/carry-forward/<uuid:item_id>/review/',

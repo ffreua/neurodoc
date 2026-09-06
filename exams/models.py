@@ -63,8 +63,18 @@ class ExamScale(TenantModel):
     name = models.CharField(max_length=255)
     description = models.TextField(max_length=2000, blank=True)
     source_note = models.CharField(max_length=255, blank=True)
+    instructions = models.TextField(max_length=2000, blank=True)
     min_score = models.IntegerField(null=True, blank=True)
     max_score = models.IntegerField(null=True, blank=True)
+    # [{"min": 0, "max": 10, "label": "Normal"}, ...] — faixas de
+    # interpretação do escore. Ficam como dado porque cada escala tem as
+    # suas e elas mudam com a literatura; a tela só exibe a faixa em que o
+    # total caiu, sem transformar isso em diagnóstico.
+    bands = models.JSONField(default=list, blank=True)
+    # Muitas escalas de gravidade sobem quando o paciente piora (SARA,
+    # NIHSS) e outras descem (ALSFRS-R, Barthel). Sem registrar isso a tela
+    # não tem como dizer o que o número significa.
+    higher_is_worse = models.BooleanField(default=True)
     active = models.BooleanField(default=True)
 
     class Meta(TenantModel.Meta):
@@ -84,10 +94,16 @@ class ExamScaleItem(TenantModel):
     order = models.PositiveIntegerField(default=0)
     code = models.CharField(max_length=60)
     label = models.CharField(max_length=255)
+    help_text = models.CharField(max_length=500, blank=True)
     # [{"value": 4, "label": "Espontânea"}, ...] — pontuação explícita, nunca
     # inferida da ordem, para que uma escala com pontos não sequenciais
     # (ou invertidos, como a RASS) seja representável.
     options = models.JSONField(default=list)
+    # Itens que compartilham um grupo entram no total pela **média**, não
+    # pela soma. É como a SARA pontua os itens bilaterais (índex-nariz,
+    # diadococinesia…): cada lado é avaliado e a média dos dois é que conta.
+    # Vazio = o item vale por si.
+    score_group = models.CharField(max_length=60, blank=True)
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [

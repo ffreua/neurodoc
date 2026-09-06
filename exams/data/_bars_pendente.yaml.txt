@@ -1,0 +1,68 @@
+# BARS retirada do lote: os 8 itens transcritos da calculadora somam 35,
+# mas a escala publicada (Schmahmann 2009) declara outro máximo. Aguarda
+# confirmação do conjunto de itens e da pontuação antes de entrar.
+
+- code: bars
+  name: BARS — Brief Ataxia Rating Scale
+  description: Versão breve derivada da ICARS, com oito itens.
+  source_note: Schmahmann JD et al. Mov Disord. 2009;24(12):1820-1828
+  min_score: 0
+  max_score: 30
+  higher_is_worse: true
+  items:
+  - code: marcha
+    label: 1. Marcha
+    options:
+    - {value: 0, label: "0 — Normal"}
+    - {value: 1, label: "1 — Leve alargamento da base ou irregularidade ocasional"}
+    - {value: 2, label: "2 — Alargamento moderado da base, instabilidade ocasional"}
+    - {value: 3, label: "3 — Alargamento significativo, instabilidade frequente"}
+    - {value: 4, label: "4 — Marcha severamente atáxica, necessita apoio"}
+    - {value: 5, label: "5 — Incapaz de caminhar sem assistência"}
+    - {value: 6, label: "6 — Incapaz de caminhar mesmo com assistência"}
+  - code: postura
+    label: 2. Postura em pé
+    options:
+    - {value: 0, label: "0 — Normal, estável por >10 s"}
+    - {value: 1, label: "1 — Oscilação leve, estável por >10 s"}
+    - {value: 2, label: "2 — Oscilação moderada, estável por >10 s"}
+    - {value: 3, label: "3 — Em pé >10 s com oscilação significativa"}
+    - {value: 4, label: "4 — Em pé <10 s"}
+    - {value: 5, label: "5 — Incapaz de ficar em pé sem apoio"}
+  - code: sentado
+    label: 3. Posição sentada
+    options:
+    - {value: 0, label: "0 — Normal, sem oscilação do tronco"}
+    - {value: 1, label: "1 — Oscilação leve do tronco"}
+    - {value: 2, label: "2 — Oscilação moderada do tronco"}
+    - {value: 3, label: "3 — Oscilação severa, apoio ocasional"}
+    - {value: 4, label: "4 — Incapaz de sentar sem apoio contínuo"}
+  - code: fala
+    label: 4. Distúrbios da fala
+    options:
+    - {value: 0, label: "0 — Normal"}
+    - {value: 1, label: "1 — Disartria leve"}
+    - {value: 2, label: "2 — Disartria moderada, ainda compreensível"}
+    - {value: 3, label: "3 — Disartria severa, dificilmente compreensível"}
+    - {value: 4, label: "4 — Anartria ou fala incompreensível"}
+  - {code: perseguicao, label: "5. Perseguição com o dedo", help: "Melhor desempenho entre os dois lados.", options: &bars_membro [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Oscilação ou irregularidade leve"}, {value: 2, label: "2 — Tremor de intenção moderado"}, {value: 3, label: "3 — Tremor de intenção severo"}, {value: 4, label: "4 — Incapaz de realizar"}]}
+  - {code: index_nariz, label: "6. Índex-nariz", help: "Melhor desempenho entre os dois lados.", options: *bars_membro}
+  - code: alternados
+    label: 7. Movimentos alternados rápidos
+    help: Melhor desempenho entre os dois lados.
+    options:
+    - {value: 0, label: "0 — Normal"}
+    - {value: 1, label: "1 — Leve irregularidade, quebra de ritmo ocasional"}
+    - {value: 2, label: "2 — Irregularidade moderada, quebra frequente"}
+    - {value: 3, label: "3 — Irregularidade severa, movimentos muito lentos"}
+    - {value: 4, label: "4 — Incapaz"}
+  - code: calcanhar
+    label: 8. Calcanhar-tornozelo
+    help: Melhor desempenho entre os dois lados.
+    options:
+    - {value: 0, label: "0 — Normal"}
+    - {value: 1, label: "1 — Oscilação ou irregularidade leve"}
+    - {value: 2, label: "2 — Movimentos laterais moderados da perna"}
+    - {value: 3, label: "3 — Movimentos laterais severos da perna"}
+    - {value: 4, label: "4 — Incapaz de realizar"}
+

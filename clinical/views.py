@@ -13,7 +13,10 @@ from tenancy.selectors import scope_to_tenant
 from . import carry_forward as cf
 from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
-from exams.recording import mark_group_normal, save_axis, undo_group_normal
+from exams.models import ExamScale
+from exams.recording import (
+    mark_group_normal, record_scale, save_axis, scale_item_code, undo_group_normal,
+)
 from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
@@ -71,6 +74,18 @@ class EncounterDetailView(TenantScopedView):
         template = resolve_template(
             request.access_context.tenant_id, request.access_context.membership_id,
         )
+        scales = list(
+            ExamScale.objects
+            .filter(tenant_id=request.access_context.tenant_id, active=True)
+            .prefetch_related('items')
+        )
+        # Escalas já aplicadas neste atendimento, para o formulário reabrir
+        # preenchido em vez de exigir digitar tudo de novo.
+        scale_values = {
+            finding.item_code.split('.', 1)[1]: finding
+            for finding in findings
+            if finding.item_code.startswith('escala.')
+        }
         return render(request, 'clinical/detail.html', {
             'encounter': encounter, 'form': EncounterForm(instance=encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
@@ -83,6 +98,8 @@ class EncounterDetailView(TenantScopedView):
             # roteiro saem desabilitados — o servidor já recusa a gravação,
             # e a tela não deve sugerir que ainda dá para editar.
             'exam_readonly': not encounter.is_editable(),
+            'scales': scales,
+            'scale_values': scale_values,
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
         })
@@ -204,6 +221,41 @@ class ExamGroupNormalView(TenantScopedView):
             'clinical.exam_group_normal_undone' if undo else 'clinical.exam_group_normal',
             object_type='encounter', object_id=encounter.id, outcome='success',
             integrity_metadata={'path': path, **outcome},
+        )
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
+
+
+class ScaleRecordView(TenantScopedView):
+    """Aplica uma escala funcional ao atendimento.
+
+    Vale para escala que não está amarrada a um ponto do roteiro — Barthel,
+    Epworth, Pfeffer descrevem o paciente inteiro. Enviar sem nenhum item
+    marcado remove a escala do atendimento.
+    """
+
+    def post(self, request, encounter_id, code):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return HttpResponse('Atendimento finalizado.', status=409)
+        scale = get_object_or_404(
+            ExamScale, tenant_id=request.access_context.tenant_id, code=code, active=True,
+        )
+        finding, removed = record_scale(request.access_context, encounter, scale, request.POST)
+        if finding is None:
+            messages.success(request, f'{scale.name} removida do atendimento.')
+            detail = {'scale': scale.code, 'removed': removed}
+        else:
+            summary = f'{scale.name}: {finding.qualifier}' if finding.qualifier else f'{scale.name} registrada.'
+            messages.success(request, summary)
+            detail = {
+                'scale': scale.code,
+                'total': finding.value_json.get('total'),
+                'complete': finding.value_json.get('complete'),
+            }
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.scale_recorded',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata=detail,
         )
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 

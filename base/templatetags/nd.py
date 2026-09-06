@@ -158,3 +158,23 @@ def nd_exam_sides(node):
 def nd_exam_field(node, side):
     """Nome do campo do item no formulário — espelha `exams.recording.field_name`."""
     return f'no__{node.path}__{side}'
+
+
+@register.filter
+def nd_json(value):
+    """Serializa para uso em atributo `data-*` — o JS da tela lê de volta."""
+    import json
+
+    from django.utils.html import escape
+
+    return escape(json.dumps(value or [], ensure_ascii=False))
+
+
+@register.filter
+def nd_scale_value(finding, item_code):
+    """Valor já registrado de um item de escala, como texto, para o `selected`."""
+    if not finding:
+        return ''
+    scores = (getattr(finding, 'value_json', None) or {}).get('scores') or {}
+    value = scores.get(item_code)
+    return '' if value is None else str(value)

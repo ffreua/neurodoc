@@ -149,6 +149,7 @@ DOMAIN_LABELS = {
     ExaminationDomain.AXIS_COGNITIVE: 'Cognitivo',
     ExaminationDomain.AXIS_SOMATIC: 'Somático',
     ExaminationDomain.AXIS_CRANIAL_NERVES: 'Nervos cranianos',
+    ExaminationDomain.AXIS_SCALES: 'Escalas funcionais',
     # catálogo legado
     ExaminationDomain.COGNITIVE: 'Cognitivo (avulso)',
     ExaminationDomain.STRENGTH: 'Força',
@@ -170,6 +171,7 @@ DOMAIN_ORDER = [
     ExaminationDomain.AXIS_COGNITIVE,
     ExaminationDomain.AXIS_SOMATIC,
     ExaminationDomain.AXIS_CRANIAL_NERVES,
+    ExaminationDomain.AXIS_SCALES,
     ExaminationDomain.COGNITIVE,
     ExaminationDomain.CRANIAL_NERVE,
     ExaminationDomain.STRENGTH,
@@ -235,6 +237,12 @@ def group_findings_by_domain(findings):
         if node is not None:
             finding.label = node.label
             finding.breadcrumb = node.breadcrumb
+        elif finding.item_code.startswith('escala.'):
+            # Escala aplicada fora do roteiro: o nome fica no próprio achado
+            # para que o registro continue legível mesmo se a escala for
+            # depois desativada no cadastro da organização.
+            finding.label = finding.value_json.get('name') or finding.item_code
+            finding.breadcrumb = ''
         else:
             finding.label = item_label(finding.domain, finding.item_code)
             finding.breadcrumb = ''

@@ -27,24 +27,7 @@ def _sides(node):
 def _extract(node, data, prefix):
     """Valor tipado de um nó a partir do POST, ou None quando em branco."""
     if node.node_type == ExamNodeType.SCALE:
-        scores = {}
-        for item in node.scale.items.all():
-            raw = (data.get(f'{prefix}__{item.code}') or '').strip()
-            if raw:
-                try:
-                    scores[item.code] = int(raw)
-                except ValueError:
-                    continue
-        if not scores:
-            return None
-        total = sum(scores.values())
-        rendered = ', '.join(f'{code}={value}' for code, value in sorted(scores.items()))
-        return {
-            'value_json': {'scale': node.scale.code, 'scores': scores, 'total': total},
-            'qualifier': f'{node.scale.code} = {total} ({rendered})'[:255],
-            'numeric_value': total,
-            'state': ExaminationState.NOT_ASSESSED,
-        }
+        return extract_scale(node.scale, data, prefix)
 
     if node.input_type == ExamInputType.STATE:
         raw = (data.get(prefix) or '').strip()
@@ -98,6 +81,41 @@ def _extract(node, data, prefix):
         'value_json': {key: raw},
         'qualifier': raw[:255],
         'numeric_value': None,
+        'state': ExaminationState.NOT_ASSESSED,
+    }
+
+
+def extract_scale(scale, data, prefix):
+    """Lê os itens de uma escala do POST e pontua. None se nada foi marcado.
+
+    A pontuação vem de `exams.scoring`, que trata itens em média (SARA) e
+    marca a escala como parcial quando falta item — nunca completa o que não
+    foi avaliado.
+    """
+    from .scoring import render_summary, score
+
+    items = list(scale.items.all())
+    values = {}
+    for item in items:
+        raw = (data.get(f'{prefix}__{item.code}') or '').strip()
+        if raw != '':
+            values[item.code] = raw
+    if not values:
+        return None
+
+    result = score(scale, items, values)
+    return {
+        'value_json': {
+            'scale': scale.code,
+            'scores': values,
+            'total': result['total'],
+            'complete': result['complete'],
+            'band': result['band'],
+            'answered': result['answered'],
+            'expected': result['expected'],
+        },
+        'qualifier': render_summary(scale, result, values),
+        'numeric_value': result['total'],
         'state': ExaminationState.NOT_ASSESSED,
     }
 
@@ -233,3 +251,56 @@ def undo_group_normal(context, encounter, template, path):
             finding.delete()
             removed += 1
     return removed
+
+
+SCALE_ITEM_PREFIX = 'escala'
+
+
+def scale_item_code(scale):
+    return f'{SCALE_ITEM_PREFIX}.{scale.code}'
+
+
+@transaction.atomic
+def record_scale(context, encounter, scale, data):
+    """Aplica uma escala ao atendimento, fora da árvore do roteiro.
+
+    Nem toda escala pertence a um ponto do exame: Barthel, Epworth e
+    Pfeffer descrevem o paciente como um todo, e a MG-ADL é respondida por
+    ele. Elas entram como achado próprio, no eixo "escalas funcionais".
+
+    Enviar a escala sem nenhum item marcado remove o registro — é como se
+    desfaz uma escala aplicada por engano.
+    """
+    from clinical.models import ExaminationDomain
+
+    prefix = f'escala__{scale.code}'
+    payload = extract_scale(scale, data, prefix)
+    item_code = scale_item_code(scale)
+    note = (data.get(f'{prefix}__nota') or '').strip()
+
+    if payload is None and not note:
+        deleted, _ = ExaminationFinding.objects.filter(
+            tenant_id=context.tenant_id, encounter=encounter, item_code=item_code,
+        ).delete()
+        return None, deleted
+
+    payload = payload or {
+        'value_json': {}, 'qualifier': '', 'numeric_value': None,
+        'state': ExaminationState.NOT_ASSESSED,
+    }
+    # O nome viaja junto com o achado para que o registro continue legível
+    # mesmo se a escala for desativada no cadastro depois.
+    payload['value_json'] = {**payload['value_json'], 'name': scale.name}
+
+    finding, _ = ExaminationFinding.objects.update_or_create(
+        tenant_id=context.tenant_id, encounter=encounter,
+        item_code=item_code, side=Side.NOT_APPLICABLE, body_site='',
+        defaults={
+            'domain': ExaminationDomain.AXIS_SCALES,
+            'template_node': None,
+            'template_version': None,
+            'note': note[:2000],
+            **payload,
+        },
+    )
+    return finding, 0

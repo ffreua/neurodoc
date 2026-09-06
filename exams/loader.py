@@ -66,9 +66,12 @@ def load_scales(tenant_id, path=SCALES_FILE):
             defaults={
                 'name': entry.get('name', code),
                 'description': entry.get('description', '') or '',
+                'instructions': entry.get('instructions', '') or '',
                 'source_note': entry.get('source_note', '') or '',
                 'min_score': entry.get('min_score'),
                 'max_score': entry.get('max_score'),
+                'bands': entry.get('bands') or [],
+                'higher_is_worse': bool(entry.get('higher_is_worse', True)),
                 'active': True,
             },
         )
@@ -82,7 +85,9 @@ def load_scales(tenant_id, path=SCALES_FILE):
                 defaults={
                     'order': order,
                     'label': item.get('label', item_code),
+                    'help_text': item.get('help', '') or '',
                     'options': _normalize_options(item.get('options')),
+                    'score_group': item.get('score_group', '') or '',
                 },
             )
             seen.append(item_code)

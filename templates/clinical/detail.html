@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd %}
+{% load nd static %}
 {% block title %}Atendimento — {{ encounter.patient.full_name }}{% endblock %}
 {% block page_title %}Atendimento{% endblock %}
 {% block breadcrumb %}
@@ -244,6 +244,8 @@ digitado em outra.{% endcomment %}
                     </div>
                     {% endfor %}
                 </div>
+
+                {% include "exams/scales.html" %}
 
                 {% else %}
                 <div class="alert alert-warning fade show fs-13" role="alert">
@@ -499,6 +501,7 @@ digitado em outra.{% endcomment %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'clinical/exam.js' %}"></script>
 <script>
 /* Um modal só para todos os botões "tudo normal": são dezenas de grupos no
    roteiro e declarar um modal por grupo encheria a página à toa. O botão

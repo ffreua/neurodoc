@@ -177,3 +177,273 @@
     options:
     - {value: 1, label: 1}
     - {value: 0, label: 0}
+
+# ---------------------------------------------------------------------
+# Escalas funcionais adicionais.
+#
+# Estrutura transcrita das calculadoras em drfernandofreua.com.br/escalas,
+# conferida contra a referência primária citada em cada `source_note`.
+# ---------------------------------------------------------------------
+
+- code: epworth
+  name: Escala de Sonolência de Epworth (ESS)
+  description: >-
+    Chance de cochilar em oito situações do cotidiano. Responde o próprio
+    paciente.
+  instructions: 0 = não cochilaria; 1 = pequena chance; 2 = moderada; 3 = grande chance.
+  source_note: Johns MW. Sleep. 1991;14(6):540-545
+  min_score: 0
+  max_score: 24
+  higher_is_worse: true
+  bands:
+  - {min: 0, max: 10, label: Normal}
+  - {min: 11, max: 12, label: Sonolência excessiva leve}
+  - {min: 13, max: 15, label: Sonolência excessiva moderada}
+  - {min: 16, max: 24, label: Sonolência excessiva acentuada}
+  items:
+  - {code: lendo, label: Sentado e lendo, options: &ess [{value: 0, label: 0 — Não cochilaria}, {value: 1, label: 1 — Pequena chance}, {value: 2, label: 2 — Moderada chance}, {value: 3, label: 3 — Grande chance}]}
+  - {code: tv, label: Assistindo televisão, options: *ess}
+  - {code: publico, label: "Sentado, inativo em local público", options: *ess}
+  - {code: passageiro, label: Passageiro em carro por 1 hora sem parar, options: *ess}
+  - {code: descanso_tarde, label: "Deitando-se para descansar à tarde", options: *ess}
+  - {code: conversando, label: Sentado conversando com alguém, options: *ess}
+  - {code: apos_almoco, label: Sentado calmamente após o almoço sem álcool, options: *ess}
+  - {code: transito, label: "Ao dirigir, parado alguns minutos no trânsito", options: *ess}
+
+- code: barthel
+  name: Índice de Barthel
+  description: Independência em dez atividades básicas de vida diária.
+  source_note: Mahoney FI, Barthel DW. Md State Med J. 1965;14:61-65
+  min_score: 0
+  max_score: 100
+  higher_is_worse: false
+  bands:
+  - {min: 0, max: 20, label: Dependência total}
+  - {min: 21, max: 60, label: Dependência grave}
+  - {min: 61, max: 90, label: Dependência moderada}
+  - {min: 91, max: 99, label: Dependência leve}
+  - {min: 100, max: 100, label: Independente}
+  items:
+  - {code: alimentacao, label: Alimentação, options: [{value: 10, label: 10 — Independente}, {value: 5, label: 5 — Necessita ajuda}, {value: 0, label: 0 — Dependente}]}
+  - {code: banho, label: Banho, options: [{value: 5, label: 5 — Independente}, {value: 0, label: 0 — Dependente}]}
+  - {code: higiene, label: Higiene pessoal, options: [{value: 5, label: 5 — Independente}, {value: 0, label: 0 — Dependente}]}
+  - {code: vestir, label: Vestir-se, options: [{value: 10, label: 10 — Independente}, {value: 5, label: 5 — Necessita ajuda}, {value: 0, label: 0 — Dependente}]}
+  - {code: intestinos, label: Controle de intestinos, options: [{value: 10, label: 10 — Continente}, {value: 5, label: 5 — Incontinência ocasional}, {value: 0, label: 0 — Incontinente}]}
+  - {code: bexiga, label: Controle de bexiga, options: [{value: 10, label: 10 — Continente}, {value: 5, label: 5 — Incontinência ocasional}, {value: 0, label: 0 — Incontinente}]}
+  - {code: vaso, label: Uso do vaso sanitário, options: [{value: 10, label: 10 — Independente}, {value: 5, label: 5 — Necessita ajuda}, {value: 0, label: 0 — Dependente}]}
+  - {code: transferencia, label: Transferência cama-cadeira, options: [{value: 15, label: 15 — Independente}, {value: 10, label: 10 — Pequena ajuda}, {value: 5, label: 5 — Grande ajuda}, {value: 0, label: 0 — Dependente}]}
+  - {code: deambulacao, label: Deambulação, options: [{value: 15, label: 15 — Independente}, {value: 10, label: 10 — Com ajuda}, {value: 5, label: 5 — Usa cadeira de rodas}, {value: 0, label: 0 — Impossível}]}
+  - {code: escadas, label: Subir escadas, options: [{value: 10, label: 10 — Independente}, {value: 5, label: 5 — Com ajuda}, {value: 0, label: 0 — Incapaz}]}
+
+- code: mrs
+  name: Escala de Rankin modificada (mRS)
+  description: Grau global de incapacidade após evento neurológico. Eixo único.
+  source_note: van Swieten JC et al. Stroke. 1988;19(5):604-607
+  min_score: 0
+  max_score: 6
+  higher_is_worse: true
+  items:
+  - code: grau
+    label: Grau de incapacidade
+    options:
+    - {value: 0, label: 0 — Sem sintomas}
+    - {value: 1, label: 1 — Sem incapacidade significativa apesar dos sintomas}
+    - {value: 2, label: 2 — Incapacidade leve; independente para os próprios cuidados}
+    - {value: 3, label: 3 — Incapacidade moderada; anda sem ajuda}
+    - {value: 4, label: 4 — Incapacidade moderada a grave; não anda sem ajuda}
+    - {value: 5, label: 5 — Incapacidade grave; acamado, requer cuidado constante}
+    - {value: 6, label: 6 — Óbito}
+
+- code: nihss
+  name: NIHSS — National Institutes of Health Stroke Scale
+  description: Gravidade do déficit neurológico no AVC agudo.
+  source_note: Brott T et al. Stroke. 1989;20(7):864-870
+  min_score: 0
+  max_score: 42
+  higher_is_worse: true
+  bands:
+  - {min: 0, max: 0, label: Sem sintomas}
+  - {min: 1, max: 4, label: Leve}
+  - {min: 5, max: 15, label: Moderado}
+  - {min: 16, max: 20, label: Moderado a grave}
+  - {min: 21, max: 42, label: Grave}
+  items:
+  - {code: nc_1a, label: "1a. Nível de consciência", options: [{value: 0, label: "0 — Alerta"}, {value: 1, label: "1 — Sonolento"}, {value: 2, label: "2 — Requer estímulo repetido e vigoroso"}, {value: 3, label: "3 — Sem resposta"}]}
+  - {code: nc_1b, label: "1b. Perguntas (mês e idade)", options: [{value: 0, label: "0 — 2 corretas"}, {value: 1, label: "1 — 1 correta"}, {value: 2, label: "2 — 0 corretas"}]}
+  - {code: nc_1c, label: "1c. Comandos", options: [{value: 0, label: "0 — Ambos corretos"}, {value: 1, label: "1 — 1 correto"}, {value: 2, label: "2 — 0 corretos"}]}
+  - {code: gaze, label: "2. Melhor olhar", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Paresia parcial do olhar"}, {value: 2, label: "2 — Desvio forçado"}]}
+  - {code: campos, label: "3. Campos visuais", options: [{value: 0, label: "0 — Sem déficit"}, {value: 1, label: "1 — Hemianopsia parcial"}, {value: 2, label: "2 — Hemianopsia completa"}, {value: 3, label: "3 — Cegueira cortical"}]}
+  - {code: facial, label: "4. Paralisia facial", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Leve"}, {value: 2, label: "2 — Parcial"}, {value: 3, label: "3 — Completa"}]}
+  - {code: braco_esq, label: "5a. Força braço esquerdo (10 s)", options: &nihss_braco [{value: 0, label: "0 — Mantém 10 s"}, {value: 1, label: "1 — Cai após 10 s, sem tocar a cama"}, {value: 2, label: "2 — Cai antes de 10 s"}, {value: 3, label: "3 — Cai imediatamente"}, {value: 4, label: "4 — Sem movimento"}]}
+  - {code: braco_dir, label: "5b. Força braço direito (10 s)", options: *nihss_braco}
+  - {code: perna_esq, label: "6a. Força perna esquerda (5 s)", options: &nihss_perna [{value: 0, label: "0 — Mantém 5 s"}, {value: 1, label: "1 — Cai após 5 s, sem tocar a cama"}, {value: 2, label: "2 — Cai antes de 5 s"}, {value: 3, label: "3 — Cai imediatamente"}, {value: 4, label: "4 — Sem movimento"}]}
+  - {code: perna_dir, label: "6b. Força perna direita (5 s)", options: *nihss_perna}
+  - {code: ataxia, label: "7. Ataxia de membros", options: [{value: 0, label: "0 — Ausente"}, {value: 1, label: "1 — Em 1 membro"}, {value: 2, label: "2 — Em 2 membros"}]}
+  - {code: sensibilidade, label: "8. Sensibilidade", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Perda leve a moderada"}, {value: 2, label: "2 — Perda grave ou anestesia"}]}
+  - {code: linguagem, label: "9. Linguagem", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Afasia leve"}, {value: 2, label: "2 — Afasia moderada"}, {value: 3, label: "3 — Afasia grave ou mudo"}]}
+  - {code: disartria, label: "10. Disartria", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Leve a moderada"}, {value: 2, label: "2 — Grave ou ininteligível"}]}
+  - {code: extincao, label: "11. Extinção e inatenção", options: [{value: 0, label: "0 — Ausente"}, {value: 1, label: "1 — Leve"}, {value: 2, label: "2 — Grave"}]}
+
+- code: sara
+  name: SARA — Scale for the Assessment and Rating of Ataxia
+  description: >-
+    Oito itens de ataxia. Os quatro itens apendiculares são avaliados nos
+    dois lados e entram no total pela média dos lados.
+  source_note: Schmitz-Hübsch T et al. Neurology. 2006;66(11):1717-1720
+  min_score: 0
+  max_score: 40
+  higher_is_worse: true
+  items:
+  - code: marcha
+    label: "1. Marcha (0–8)"
+    help: Caminhar paralelo à parede com meia-volta e em tandem, sem apoio.
+    options:
+    - {value: 0, label: "0 — Normal (inclui tandem com até 1 erro)"}
+    - {value: 1, label: "1 — Dificuldades leves, visíveis em 10 passos em tandem"}
+    - {value: 2, label: "2 — Anormal; não consegue >10 passos em tandem"}
+    - {value: 3, label: "3 — Cambaleio considerável; dificuldade na meia-volta, sem apoio"}
+    - {value: 4, label: "4 — Cambaleio marcado; apoio intermitente da parede"}
+    - {value: 5, label: "5 — Apoio permanente de bengala ou braço"}
+    - {value: 6, label: "6 — Anda >10 m apenas com forte apoio"}
+    - {value: 7, label: "7 — Anda <10 m apenas com forte apoio"}
+    - {value: 8, label: "8 — Incapaz de andar, mesmo com apoio"}
+  - code: postura
+    label: "2. Postura (0–6)"
+    help: "Em pé: posição natural, pés juntos e tandem; olhos abertos, sem sapatos."
+    options:
+    - {value: 0, label: "0 — Normal; mantém tandem >10 s"}
+    - {value: 1, label: "1 — Pés juntos sem oscilação, mas não tandem >10 s"}
+    - {value: 2, label: "2 — Pés juntos >10 s com oscilação"}
+    - {value: 3, label: "3 — >10 s apenas em posição natural"}
+    - {value: 4, label: "4 — >10 s em posição natural, com apoio intermitente"}
+    - {value: 5, label: "5 — >10 s em posição natural, com apoio constante"}
+    - {value: 6, label: "6 — Incapaz de manter >10 s mesmo com apoio constante"}
+  - code: sentar
+    label: "3. Sentar (0–4)"
+    options:
+    - {value: 0, label: "0 — Normal; >10 s sem dificuldade"}
+    - {value: 1, label: "1 — Dificuldade leve; oscilação intermitente"}
+    - {value: 2, label: "2 — Oscilação constante; mantém >10 s sem apoio"}
+    - {value: 3, label: "3 — >10 s apenas com apoio intermitente"}
+    - {value: 4, label: "4 — Incapaz de >10 s sem apoio contínuo"}
+  - code: fala
+    label: "4. Distúrbio da fala (0–6)"
+    options:
+    - {value: 0, label: "0 — Normal"}
+    - {value: 1, label: "1 — Sugestão de alteração"}
+    - {value: 2, label: "2 — Alterada, porém fácil de entender"}
+    - {value: 3, label: "3 — Palavras ocasionalmente difíceis de entender"}
+    - {value: 4, label: "4 — Muitas palavras difíceis de entender"}
+    - {value: 5, label: "5 — Apenas palavras isoladas compreensíveis"}
+    - {value: 6, label: "6 — Ininteligível / anartria"}
+  - {code: perseguicao_dir, label: "5. Perseguição com o dedo — direita", score_group: perseguicao, options: &sara_dismetria [{value: 0, label: "0 — Sem dismetria"}, {value: 1, label: "1 — Sub/superalvo <5 cm"}, {value: 2, label: "2 — Sub/superalvo <15 cm"}, {value: 3, label: "3 — Sub/superalvo >15 cm"}, {value: 4, label: "4 — Incapaz"}]}
+  - {code: perseguicao_esq, label: "5. Perseguição com o dedo — esquerda", score_group: perseguicao, options: *sara_dismetria}
+  - {code: index_nariz_dir, label: "6. Índex-nariz — direita", score_group: index_nariz, options: &sara_tremor [{value: 0, label: "0 — Sem tremor"}, {value: 1, label: "1 — Tremor <2 cm"}, {value: 2, label: "2 — Tremor <5 cm"}, {value: 3, label: "3 — Tremor >5 cm"}, {value: 4, label: "4 — Incapaz"}]}
+  - {code: index_nariz_esq, label: "6. Índex-nariz — esquerda", score_group: index_nariz, options: *sara_tremor}
+  - {code: alternados_dir, label: "7. Movimentos alternados rápidos — direita", score_group: alternados, options: &sara_alt [{value: 0, label: "0 — Normal, sem irregularidade (<10 s)"}, {value: 1, label: "1 — Levemente irregular (<10 s)"}, {value: 2, label: "2 — Claramente irregular, mas <10 s"}, {value: 3, label: "3 — Muito irregular, >10 s"}, {value: 4, label: "4 — Incapaz de completar 10 ciclos"}]}
+  - {code: alternados_esq, label: "7. Movimentos alternados rápidos — esquerda", score_group: alternados, options: *sara_alt}
+  - {code: calcanhar_dir, label: "8. Calcanhar-tornozelo — direita", score_group: calcanhar, options: &sara_calc [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Ligeiramente anormal; mantém contato"}, {value: 2, label: "2 — Sai da tíbia até 3 vezes"}, {value: 3, label: "3 — Sai 4+ vezes"}, {value: 4, label: "4 — Incapaz de executar"}]}
+  - {code: calcanhar_esq, label: "8. Calcanhar-tornozelo — esquerda", score_group: calcanhar, options: *sara_calc}
+
+- code: alsfrs_r
+  name: ALSFRS-R — Escala Funcional da ELA (revisada)
+  description: Doze itens de função bulbar, motora fina, motora grosseira e respiratória.
+  source_note: Cedarbaum JM et al. J Neurol Sci. 1999;169(1-2):13-21
+  min_score: 0
+  max_score: 48
+  higher_is_worse: false
+  items:
+  - {code: fala, label: "1. Fala", options: [{value: 4, label: "4 — Normal"}, {value: 3, label: "3 — Disartria leve, totalmente compreensível"}, {value: 2, label: "2 — Exige repetição ocasional"}, {value: 1, label: "1 — Dificilmente compreensível"}, {value: 0, label: "0 — Sem fala funcional"}]}
+  - {code: salivacao, label: "2. Salivação", options: [{value: 4, label: "4 — Sem sialorreia"}, {value: 3, label: "3 — Hipersalivação ocasional"}, {value: 2, label: "2 — Manobras ou medicação ocasionais"}, {value: 1, label: "1 — Sialorreia persistente"}, {value: 0, label: "0 — Sialorreia contínua e incapacitante"}]}
+  - {code: degluticao, label: "3. Deglutição", options: [{value: 4, label: "4 — Via oral plena"}, {value: 3, label: "3 — Engasgos ocasionais"}, {value: 2, label: "2 — Requer adaptação de consistência"}, {value: 1, label: "1 — Via oral limitada com risco"}, {value: 0, label: "0 — Nutrição enteral exclusiva"}]}
+  - {code: escrita, label: "4. Escrita", options: [{value: 4, label: "4 — Normal"}, {value: 3, label: "3 — Ligeira lentidão ou deformação"}, {value: 2, label: "2 — Por vezes ilegível"}, {value: 1, label: "1 — Sem escrita funcional"}, {value: 0, label: "0 — Não consegue escrever"}]}
+  - {code: talheres, label: "5. Cortar alimentos e manusear talheres", options: [{value: 4, label: "4 — Come sem ajuda"}, {value: 3, label: "3 — Pequena dificuldade ou adaptações"}, {value: 2, label: "2 — Ajuda para cortar; ritmo lento"}, {value: 1, label: "1 — Ajuda significativa"}, {value: 0, label: "0 — Assistência total"}]}
+  - {code: vestir, label: "6. Vestir-se e higiene", options: [{value: 4, label: "4 — Sem ajuda"}, {value: 3, label: "3 — Lentidão ou leve ajuda"}, {value: 2, label: "2 — Ajuda em algumas tarefas"}, {value: 1, label: "1 — Ajuda na maior parte"}, {value: 0, label: "0 — Dependência total"}]}
+  - {code: cama, label: "7. Virar-se na cama", options: [{value: 4, label: "4 — Sem dificuldade"}, {value: 3, label: "3 — Ligeira lentidão"}, {value: 2, label: "2 — Ajuda ocasional"}, {value: 1, label: "1 — Ajuda frequente"}, {value: 0, label: "0 — Dependente"}]}
+  - {code: deambulacao, label: "8. Deambulação", options: [{value: 4, label: "4 — Sem limitações"}, {value: 3, label: "3 — Marcha lenta ou instável, sem dispositivo"}, {value: 2, label: "2 — Necessita apoio ou pausas"}, {value: 1, label: "1 — Apenas com grande apoio"}, {value: 0, label: "0 — Não deambula"}]}
+  - {code: escadas, label: "9. Subir escadas", options: [{value: 4, label: "4 — Sem apoio"}, {value: 3, label: "3 — Devagar, corrimão ocasional"}, {value: 2, label: "2 — Corrimão e pausas"}, {value: 1, label: "1 — Poucos degraus com ajuda"}, {value: 0, label: "0 — Não sobe escadas"}]}
+  - {code: dispneia, label: "10. Dispneia", options: [{value: 4, label: "4 — Ausente"}, {value: 3, label: "3 — A grandes esforços"}, {value: 2, label: "2 — A esforços leves"}, {value: 1, label: "1 — Ao mínimo esforço"}, {value: 0, label: "0 — Ao repouso"}]}
+  - {code: ortopneia, label: "11. Ortopneia", options: [{value: 4, label: "4 — Dorme plano"}, {value: 3, label: "3 — 1 travesseiro extra"}, {value: 2, label: "2 — Cabeceira elevada"}, {value: 1, label: "1 — Sintomas mesmo elevado"}, {value: 0, label: "0 — Não tolera decúbito"}]}
+  - {code: ventilacao, label: "12. Uso de ventilação", options: [{value: 4, label: "4 — Não utiliza"}, {value: 3, label: "3 — VNI noturna intermitente"}, {value: 2, label: "2 — VNI noturna regular"}, {value: 1, label: "1 — VNI diurna parcial"}, {value: 0, label: "0 — VNI contínua ou ventilação invasiva"}]}
+
+- code: mg_adl
+  name: MG-ADL — Miastenia Gravis, atividades de vida diária
+  description: Oito itens relatados pelo paciente na última semana.
+  source_note: Wolfe GI et al. Neurology. 1999;52(7):1487-1489
+  min_score: 0
+  max_score: 24
+  higher_is_worse: true
+  items:
+  - {code: fala, label: "1. Fala", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Fadiga leve com fala prolongada"}, {value: 2, label: "2 — Disartria evidente"}, {value: 3, label: "3 — Difícil de entender"}]}
+  - {code: mastigacao, label: "2. Mastigação", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Fadiga com alimentos firmes"}, {value: 2, label: "2 — Pausas ou dieta macia"}, {value: 3, label: "3 — Incapaz de mastigar sólidos"}]}
+  - {code: degluticao, label: "3. Deglutição", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Engasgos ocasionais"}, {value: 2, label: "2 — Adapta consistência"}, {value: 3, label: "3 — Aspiração ou espessantes frequentes"}]}
+  - {code: respiracao, label: "4. Respiração", options: [{value: 0, label: "0 — Sem sintomas"}, {value: 1, label: "1 — Dispneia a grandes esforços"}, {value: 2, label: "2 — Dispneia a atividades leves"}, {value: 3, label: "3 — Dispneia em repouso"}]}
+  - {code: higiene, label: "5. Higiene pessoal", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Cansaço leve"}, {value: 2, label: "2 — Necessita pausas"}, {value: 3, label: "3 — Incapaz ou precisa de ajuda"}]}
+  - {code: levantar, label: "6. Levantar da cadeira", options: [{value: 0, label: "0 — Normal"}, {value: 1, label: "1 — Leve dificuldade"}, {value: 2, label: "2 — Usa apoio ou esforço evidente"}, {value: 3, label: "3 — Precisa de ajuda"}]}
+  - {code: diplopia, label: "7. Diplopia", options: [{value: 0, label: "0 — Nunca"}, {value: 1, label: "1 — Ocasional"}, {value: 2, label: "2 — Frequente"}, {value: 3, label: "3 — Constante"}]}
+  - {code: ptose, label: "8. Ptose palpebral", options: [{value: 0, label: "0 — Ausente"}, {value: 1, label: "1 — Leve ou tardia"}, {value: 2, label: "2 — Moderada"}, {value: 3, label: "3 — Grave"}]}
+
+- code: pfeffer
+  name: Questionário de Pfeffer (PFAQ)
+  description: >-
+    Atividades instrumentais de vida diária, respondido pelo informante.
+  instructions: >-
+    0 = capaz (ou nunca fez, mas poderia); 1 = faz com dificuldade (ou nunca
+    fez e teria dificuldade); 2 = necessita ajuda; 3 = não é capaz.
+  source_note: Pfeffer RI et al. J Gerontol. 1982;37(3):323-329
+  min_score: 0
+  max_score: 30
+  higher_is_worse: true
+  bands:
+  - {min: 0, max: 4, label: Sem comprometimento funcional relevante}
+  - {min: 5, max: 30, label: Comprometimento funcional sugestivo}
+  items:
+  - {code: dinheiro, label: "1. Cuidar do próprio dinheiro", options: &pfaq [{value: 0, label: "0 — Sim, é capaz"}, {value: 1, label: "1 — Faz, mas com dificuldade"}, {value: 2, label: "2 — Necessita de ajuda"}, {value: 3, label: "3 — Não é capaz"}]}
+  - {code: compras, label: "2. Fazer compras sozinho", options: *pfaq}
+  - {code: agua_fogo, label: "3. Esquentar água e apagar o fogo", options: *pfaq}
+  - {code: comida, label: "4. Preparar comida", options: *pfaq}
+  - {code: vizinhanca, label: "5. Manter-se a par dos acontecimentos", options: *pfaq}
+  - {code: atencao, label: "6. Prestar atenção e discutir um programa ou notícia", options: *pfaq}
+  - {code: compromissos, label: "7. Lembrar de compromissos e acontecimentos familiares", options: *pfaq}
+  - {code: medicamentos, label: "8. Cuidar dos próprios medicamentos", options: *pfaq}
+  - {code: deslocar, label: "9. Deslocar-se pela vizinhança", options: *pfaq}
+  - {code: visitas, label: "10. Visitar amigos ou familiares", options: *pfaq}
+
+- code: ashworth
+  name: Escala de Ashworth modificada
+  description: >-
+    Tônus muscular à movimentação passiva. Registrar por segmento e lado.
+    A escala tem seis graus (0, 1, 1+, 2, 3, 4); como "1+" fica entre 1 e 2,
+    o valor interno é ordinal de 0 a 5 e o grau publicado aparece no rótulo.
+  source_note: Bohannon RW, Smith MB. Phys Ther. 1987;67(2):206-207
+  min_score: 0
+  max_score: 5
+  higher_is_worse: true
+  items:
+  - code: grau
+    label: Grau
+    options:
+    - {value: 0, label: "0 — Sem aumento do tônus"}
+    - {value: 1, label: "1 — Leve aumento; resistência mínima no fim da amplitude"}
+    - {value: 2, label: "1+ — Leve aumento em menos de metade da amplitude"}
+    - {value: 3, label: "2 — Aumento marcado na maior parte da amplitude; mobilização fácil"}
+    - {value: 4, label: "3 — Aumento considerável; movimentação passiva difícil"}
+    - {value: 5, label: "4 — Segmento rígido em flexão ou extensão"}
+
+- code: hoehn_yahr
+  name: Estadiamento de Hoehn e Yahr
+  description: Estágio da doença de Parkinson. Eixo único.
+  source_note: Hoehn MM, Yahr MD. Neurology. 1967;17(5):427-442
+  min_score: 0
+  max_score: 5
+  higher_is_worse: true
+  items:
+  - code: estagio
+    label: Estágio
+    options:
+    - {value: 0, label: "0 — Sem sinais da doença"}
+    - {value: 1, label: "1 — Doença unilateral"}
+    - {value: 2, label: "2 — Doença bilateral, sem comprometimento do equilíbrio"}
+    - {value: 3, label: "3 — Doença bilateral leve a moderada; alguma instabilidade postural; independente"}
+    - {value: 4, label: "4 — Incapacidade grave; ainda anda ou fica em pé sem ajuda"}
+    - {value: 5, label: "5 — Restrito à cadeira de rodas ou ao leito sem ajuda"}

@@ -103,6 +103,7 @@ class ExaminationDomain(models.TextChoices):
     AXIS_COGNITIVE = 'cognitivo', 'Cognitivo (roteiro)'
     AXIS_SOMATIC = 'somatico', 'Somático'
     AXIS_CRANIAL_NERVES = 'nervos_cranianos', 'Nervos cranianos (roteiro)'
+    AXIS_SCALES = 'escalas', 'Escalas funcionais'
 
     COGNITIVE = 'cognitive', 'Cognitivo'
     STRENGTH = 'strength', 'Força'
