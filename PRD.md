@@ -1472,27 +1472,27 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S03; isolamento e contatos estabelecidos.
 
-- [ ] **S04-T01 — Modelar disponibilidade semanal e duração por tipo.** Dependências: S03. Componente: `scheduling/models.py, forms.py`. Requisitos: RF-06.01, RF-06.02. **Aceite:** Regra semanal não aceita intervalo inválido.
+- [x] **S04-T01 — Modelar disponibilidade semanal e duração por tipo.** Dependências: S03. Componente: `scheduling/models.py, forms.py`. Requisitos: RF-06.01, RF-06.02. **Aceite:** Regra semanal não aceita intervalo inválido.
 
-- [ ] **S04-T02 — Implementar bloqueios, férias e exceções por data.** Dependências: S04-T01. Componente: `scheduling/availability.py`. Requisitos: RF-06.02. **Aceite:** Exceção datada prevalece sem alterar histórico semanal.
+- [x] **S04-T02 — Implementar bloqueios, férias e exceções por data.** Dependências: S04-T01. Componente: `scheduling/availability.py`. Requisitos: RF-06.02. **Aceite:** Exceção datada prevalece sem alterar histórico semanal.
 
-- [ ] **S04-T03 — Criar Appointment, estados e histórico de remarcação.** Dependências: S04-T01. Componente: `scheduling/models.py`. Requisitos: RF-06.03, RF-06.04. **Aceite:** Transições ilegais são recusadas no service.
+- [x] **S04-T03 — Criar Appointment, estados e histórico de remarcação.** Dependências: S04-T01. Componente: `scheduling/models.py`. Requisitos: RF-06.03, RF-06.04. **Aceite:** Transições ilegais são recusadas no service.
 
-- [ ] **S04-T04 — Adicionar exclusion constraint e reserva transacional.** Dependências: S04-T03, S02-T05. Componente: `scheduling/services.py, migrations/`. Requisitos: RF-06.03. **Aceite:** H-12 com duas abas confirma apenas uma reserva comum sobreposta.
+- [x] **S04-T04 — Adicionar exclusion constraint e reserva transacional.** Dependências: S04-T03, S02-T05. Componente: `scheduling/services.py, migrations/`. Requisitos: RF-06.03. **Aceite:** H-12 com duas abas confirma apenas uma reserva comum sobreposta.
 
-- [ ] **S04-T05 — Implementar encaixe com permissão, motivo e lock estável.** Dependências: S04-T04. Componente: `scheduling/services.py`. Requisitos: RF-06.03. **Aceite:** Encaixe exige justificativa e não ignora bloqueio sem autorização.
+- [x] **S04-T05 — Implementar encaixe com permissão, motivo e lock estável.** Dependências: S04-T04. Componente: `scheduling/services.py`. Requisitos: RF-06.03. **Aceite:** Encaixe exige justificativa e não ignora bloqueio sem autorização.
 
-- [ ] **S04-T06 — Montar calendário dia/semana/mês e lista móvel.** Dependências: S04-T04, S01-T02. Componente: `templates/scheduling/, static/scheduling/`. Requisitos: RF-06.01, RNF-01.09. **Aceite:** Remarcar por botão/teclado e não apenas arrastar.
+- [x] **S04-T06 — Montar calendário dia/semana/mês e lista móvel.** Dependências: S04-T04, S01-T02. Componente: `templates/scheduling/, static/scheduling/`. Requisitos: RF-06.01, RNF-01.09. **Aceite:** Remarcar por botão/teclado e não apenas arrastar.
 
-- [ ] **S04-T07 — Implementar check-in, confirmação, falta e cancelamento.** Dependências: S04-T03. Componente: `scheduling/views.py`. Requisitos: RF-06.04. **Aceite:** Cancelar libera horário e mantém trilha de estados.
+- [x] **S04-T07 — Implementar check-in, confirmação, falta e cancelamento.** Dependências: S04-T03. Componente: `scheduling/views.py`. Requisitos: RF-06.04. **Aceite:** Cancelar libera horário e mantém trilha de estados.
 
-- [ ] **S04-T08 — Montar painel da secretaria com contatos e pendências.** Dependências: S04-T06, S03-T05. Componente: `templates/scheduling/desk.html`. Requisitos: RF-06.05. **Aceite:** Sem notas clínicas ou diagnóstico em cards/contadores.
+- [x] **S04-T08 — Montar painel da secretaria com contatos e pendências.** Dependências: S04-T06, S03-T05. Componente: `templates/scheduling/desk.html`. Requisitos: RF-06.05. **Aceite:** Sem notas clínicas ou diagnóstico em cards/contadores.
 
-- [ ] **S04-T09 — Gravar eventos de lembrete com versão do agendamento.** Dependências: S04-T07. Componente: `scheduling/events.py, events/models.py`. Requisitos: RF-06.04, RF-09. **Aceite:** Remarcação invalida lembretes da versão anterior.
+- [x] **S04-T09 — Gravar eventos de lembrete com versão do agendamento.** Dependências: S04-T07. Componente: `scheduling/events.py, events/models.py`. Requisitos: RF-06.04, RF-09. **Aceite:** Remarcação invalida lembretes da versão anterior.
 
-- [ ] **S04-T10 — Homologar limites, timezone e concorrência da agenda.** Dependências: S04-T05, S04-T08, S04-T09. Componente: `docs/homologation/scheduling.md`. Requisitos: RF-06, RT-02. **Aceite:** H-12 inclui duas abas, cancelamento e consultas adjacentes.
+- [x] **S04-T10 — Homologar limites, timezone e concorrência da agenda.** Dependências: S04-T05, S04-T08, S04-T09. Componente: `docs/homologation/scheduling.md`. Requisitos: RF-06, RT-02. **Aceite:** H-12 inclui duas abas, cancelamento e consultas adjacentes.
 
-- [ ] **Saída de S04:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S04:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S05 — Prontuário e exame neurológico
 

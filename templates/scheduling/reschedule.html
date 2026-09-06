@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Remarcar — Agenda{% endblock %}
+{% block content %}
+<h1>Remarcar consulta de {{ appointment.patient.full_name }}</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Remarcar</button>
+</form>
+{% endblock %}

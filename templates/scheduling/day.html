@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Agenda — {{ day }}{% endblock %}
+{% block content %}
+<h1>Agenda — {{ day|date:"d/m/Y" }}</h1>
+<p>
+    <a href="?date={{ prev_day|date:'Y-m-d' }}">Dia anterior</a> |
+    <a href="?date={{ next_day|date:'Y-m-d' }}">Próximo dia</a> |
+    <a href="{% url 'scheduling:week' %}?date={{ day|date:'Y-m-d' }}">Ver semana</a> |
+    <a href="{% url 'scheduling:month' %}?date={{ day|date:'Y-m-d' }}">Ver mês</a>
+</p>
+<table>
+    <thead><tr><th>Horário</th><th>Paciente</th><th>Médico</th><th>Status</th><th>Ações</th></tr></thead>
+    <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ appt.starts_at|date:"H:i" }}–{{ appt.ends_at|date:"H:i" }}</td>
+            <td>{{ appt.patient.full_name }}</td>
+            <td>{{ appt.physician_membership.user.get_full_name }}</td>
+            <td>{{ appt.get_status_display }}{% if appt.is_overbook %} (encaixe){% endif %}</td>
+            <td>
+                {% if appt.status == 'scheduled' %}
+                <form method="post" action="{% url 'scheduling:action' appt.id 'confirm' %}" style="display:inline">
+                    {% csrf_token %}<button type="submit">Confirmar</button>
+                </form>
+                {% endif %}
+                {% if appt.status == 'scheduled' or appt.status == 'confirmed' %}
+                <form method="post" action="{% url 'scheduling:action' appt.id 'check-in' %}" style="display:inline">
+                    {% csrf_token %}<button type="submit">Check-in</button>
+                </form>
+                <a href="{% url 'scheduling:reschedule' appt.id %}">Remarcar</a>
+                <form method="post" action="{% url 'scheduling:action' appt.id 'cancel' %}" style="display:inline">
+                    {% csrf_token %}<button type="submit">Cancelar</button>
+                </form>
+                {% endif %}
+                {% if appt.status == 'checked_in' %}
+                <form method="post" action="{% url 'scheduling:action' appt.id 'start' %}" style="display:inline">
+                    {% csrf_token %}<button type="submit">Iniciar atendimento</button>
+                </form>
+                {% endif %}
+                {% if appt.status == 'in_progress' %}
+                <form method="post" action="{% url 'scheduling:action' appt.id 'complete' %}" style="display:inline">
+                    {% csrf_token %}<button type="submit">Concluir</button>
+                </form>
+                {% endif %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Nenhum agendamento neste dia.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+<p><a href="{% url 'scheduling:reserve' %}">Nova reserva</a></p>
+{% endblock %}

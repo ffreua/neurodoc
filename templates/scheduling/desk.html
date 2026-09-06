@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Painel da secretaria{% endblock %}
+{% block content %}
+<h1>Painel da secretaria — {{ today|date:"d/m/Y" }}</h1>
+<table>
+    <thead><tr><th>Horário</th><th>Paciente</th><th>Contato</th><th>Médico</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ appt.starts_at|date:"H:i" }}</td>
+            <td>{{ appt.patient.full_name }}</td>
+            <td>
+                {% with contact=appt.patient.contacts.first %}
+                {% if contact %}{{ contact.phone|default:contact.email }}{% else %}—{% endif %}
+                {% endwith %}
+            </td>
+            <td>{{ appt.physician_membership.user.get_full_name }}</td>
+            <td>{{ appt.get_status_display }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Sem pendências hoje.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

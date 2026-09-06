@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Agenda — mês{% endblock %}
+{% block content %}
+<h1>Agenda — {{ month_start|date:"F/Y" }}</h1>
+<p>
+    <a href="?date={{ prev_month|date:'Y-m-d' }}">Mês anterior</a> |
+    <a href="?date={{ next_month|date:'Y-m-d' }}">Próximo mês</a>
+</p>
+<ul>
+    {% for row in day_counts %}
+    <li><a href="{% url 'scheduling:day' %}?date={{ row.date|date:'Y-m-d' }}">{{ row.date|date:"d/m (D)" }}</a>
+        — {{ row.count }} agendamento{{ row.count|pluralize }}</li>
+    {% empty %}
+    <li>Nenhum agendamento neste mês.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

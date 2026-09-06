@@ -13,5 +13,6 @@ urlpatterns = [
     path('accounts/', include('accounts.urls')),
     path('', include('tenancy.urls')),
     path('app/patients/', include('patients.urls')),
+    path('app/scheduling/', include('scheduling.urls')),
     path('', include('base.urls')),
 ]

@@ -26,6 +26,10 @@ PRD; é a referência operacional viva gerada a partir dele.
   evidências de H-01, H-04 e H-05 com dados sintéticos, incluindo verificação
   por teclado e viewport móvel.
 
+## Agenda e trabalho da secretaria (S04)
+
+- [Homologação de agenda](homologation/scheduling.md) — evidências de H-12.
+
 ## Arquitetura
 
 ```mermaid

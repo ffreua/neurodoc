@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Agenda — semana{% endblock %}
+{% block content %}
+<h1>Agenda — semana</h1>
+<p>
+    <a href="?date={{ prev_week|date:'Y-m-d' }}">Semana anterior</a> |
+    <a href="?date={{ next_week|date:'Y-m-d' }}">Próxima semana</a>
+</p>
+{% for row in day_rows %}
+<h2><a href="{% url 'scheduling:day' %}?date={{ row.date|date:'Y-m-d' }}">{{ row.date|date:"D, d/m" }}</a></h2>
+<ul>
+    {% for appt in row.appointments %}
+    <li>{{ appt.starts_at|date:"H:i" }} — {{ appt.patient.full_name }}
+        ({{ appt.physician_membership.user.get_full_name }}) — {{ appt.get_status_display }}</li>
+    {% empty %}
+    <li>Sem agendamentos.</li>
+    {% endfor %}
+</ul>
+{% endfor %}
+{% endblock %}
