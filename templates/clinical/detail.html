@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Atendimento — {{ encounter.patient.full_name }}{% endblock %}
+{% block content %}
+<h1>Atendimento — {{ encounter.patient.full_name }}</h1>
+<p>Status: {{ encounter.get_status_display }} | Versão: {{ encounter.row_version }}</p>
+
+{% if pending_carry_forward %}
+<div>
+    <p><strong>Dados trazidos da consulta de {{ pending_carry_forward.0.source_encounter.occurred_at|date:"d/m/Y" }} — revisão pendente.</strong></p>
+    {% for item in pending_carry_forward %}
+    <p>{{ item.field_path }}: {{ item.copied_value }}</p>
+    <form method="post" action="{% url 'clinical:review-carry-forward' encounter.id item.id %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" name="action" value="accepted">Aceitar</button>
+        <button type="submit" name="action" value="rejected">Rejeitar</button>
+    </form>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h2>História</h2>
+<form method="post" action="{% url 'clinical:autosave' encounter.id %}">
+    {% csrf_token %}
+    <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+    {{ form.as_p }}
+    <button type="submit" {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar</button>
+</form>
+
+<h2>Exame — achados registrados</h2>
+<ul>
+    {% for finding in findings %}
+    <li>{{ finding.domain }}/{{ finding.item_code }} ({{ finding.side }}): {{ finding.state }}
+        {% if finding.qualifier %}— {{ finding.qualifier }}{% endif %}</li>
+    {% empty %}
+    <li>Nenhum item avaliado ainda (itens não avaliados não aparecem como normais).</li>
+    {% endfor %}
+</ul>
+{% if encounter.status != 'finalized' %}
+<form method="post" action="{% url 'clinical:add-finding' encounter.id %}">
+    {% csrf_token %}
+    {{ finding_form.as_p }}
+    <button type="submit">Registrar achado</button>
+</form>
+{% endif %}
+
+<h2>Hipóteses diagnósticas</h2>
+<ul>
+    {% for diag in diagnoses %}
+    <li>{{ diag.code_snapshot }} — {{ diag.description_snapshot }} ({{ diag.certainty }})</li>
+    {% empty %}
+    <li>Nenhuma hipótese registrada.</li>
+    {% endfor %}
+</ul>
+{% if encounter.status != 'finalized' %}
+<form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}">
+    {% csrf_token %}
+    {{ diagnosis_form.as_p }}
+    <button type="submit">Adicionar hipótese</button>
+</form>
+{% endif %}
+
+{% if encounter.status != 'finalized' %}
+<h2>Finalizar</h2>
+<form method="post" action="{% url 'clinical:finalize' encounter.id %}">
+    {% csrf_token %}
+    <button type="submit">Finalizar atendimento</button>
+</form>
+{% else %}
+<h2>Adendo</h2>
+<p>Registro finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }}
+   por {{ encounter.finalized_by.user.get_full_name }} — hash {{ encounter.content_hash|slice:":16" }}…</p>
+<ul>
+    {% for amendment in amendments %}
+    <li>{{ amendment.authored_at|date:"d/m/Y H:i" }} — {{ amendment.author.user.get_full_name }}:
+        {{ amendment.reason }} — {{ amendment.text }}</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'clinical:add-amendment' encounter.id %}">
+    {% csrf_token %}
+    {{ amendment_form.as_p }}
+    <button type="submit">Adicionar adendo</button>
+</form>
+{% endif %}
+{% endblock %}

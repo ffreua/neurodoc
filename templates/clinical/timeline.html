@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Linha do tempo — {{ patient.full_name }}{% endblock %}
+{% block content %}
+<h1>Linha do tempo — {{ patient.full_name }}</h1>
+<form method="post" action="{% url 'clinical:new' patient.id %}">
+    {% csrf_token %}
+    <button type="submit">Novo atendimento</button>
+</form>
+<ul>
+    {% for encounter in encounters %}
+    <li>
+        <a href="{% url 'clinical:detail' encounter.id %}">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</a>
+        — {{ encounter.physician_membership.user.get_full_name }} — {{ encounter.get_status_display }}
+    </li>
+    {% empty %}
+    <li>Nenhum atendimento registrado.</li>
+    {% endfor %}
+</ul>
+{% endblock %}

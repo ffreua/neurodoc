@@ -1500,31 +1500,31 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S04 e acesso clínico por paciente.
 
-- [ ] **S05-T01 — Modelar Encounter, autoria, estados e row_version.** Dependências: S03-T04, S02-T05. Componente: `clinical/models.py`. Requisitos: RF-03.01, RF-03.05. **Aceite:** Tenant/médico/paciente obrigatórios e estados controlados.
+- [x] **S05-T01 — Modelar Encounter, autoria, estados e row_version.** Dependências: S03-T04, S02-T05. Componente: `clinical/models.py`. Requisitos: RF-03.01, RF-03.05. **Aceite:** Tenant/médico/paciente obrigatórios e estados controlados.
 
-- [ ] **S05-T02 — Montar história clínica, antecedentes e consanguinidade.** Dependências: S05-T01. Componente: `clinical/forms.py, templates/clinical/`. Requisitos: RF-03.02. **Aceite:** Todos os blocos clínicos solicitados têm campo e origem claros.
+- [x] **S05-T02 — Montar história clínica, antecedentes e consanguinidade.** Dependências: S05-T01. Componente: `clinical/forms.py, templates/clinical/`. Requisitos: RF-03.02. **Aceite:** Todos os blocos clínicos solicitados têm campo e origem claros.
 
-- [ ] **S05-T03 — Criar achados cognitivos e força por segmento/lado.** Dependências: S05-T01. Componente: `clinical/examination.py`. Requisitos: RF-03.03. **Aceite:** Normal/alterado/não avaliado/não informado são distintos.
+- [x] **S05-T03 — Criar achados cognitivos e força por segmento/lado.** Dependências: S05-T01. Componente: `clinical/examination.py`. Requisitos: RF-03.03. **Aceite:** Normal/alterado/não avaliado/não informado são distintos.
 
-- [ ] **S05-T04 — Criar sensibilidade superficial/profunda e reflexos.** Dependências: S05-T03. Componente: `clinical/examination.py`. Requisitos: RF-03.03. **Aceite:** Qualificadores e lateralidade não se contradizem.
+- [x] **S05-T04 — Criar sensibilidade superficial/profunda e reflexos.** Dependências: S05-T03. Componente: `clinical/examination.py`. Requisitos: RF-03.03. **Aceite:** Qualificadores e lateralidade não se contradizem.
 
-- [ ] **S05-T05 — Criar coordenação, marcha, equilíbrio e tônus.** Dependências: S05-T03. Componente: `clinical/examination.py`. Requisitos: RF-03.03. **Aceite:** Controles propostos são identificados e não vêm normais por padrão.
+- [x] **S05-T05 — Criar coordenação, marcha, equilíbrio e tônus.** Dependências: S05-T03. Componente: `clinical/examination.py`. Requisitos: RF-03.03. **Aceite:** Controles propostos são identificados e não vêm normais por padrão.
 
-- [ ] **S05-T06 — Criar nervos cranianos I a VI individualmente.** Dependências: S05-T03. Componente: `clinical/cranial_nerves.py`. Requisitos: RF-03.03. **Aceite:** Cada nervo mantém achado, lado e limitação quando aplicável.
+- [x] **S05-T06 — Criar nervos cranianos I a VI individualmente.** Dependências: S05-T03. Componente: `clinical/cranial_nerves.py`. Requisitos: RF-03.03. **Aceite:** Cada nervo mantém achado, lado e limitação quando aplicável.
 
-- [ ] **S05-T07 — Criar nervos cranianos VII a XII individualmente.** Dependências: S05-T06. Componente: `clinical/cranial_nerves.py`. Requisitos: RF-03.03. **Aceite:** Não existe um único campo indiferenciado para todos os nervos.
+- [x] **S05-T07 — Criar nervos cranianos VII a XII individualmente.** Dependências: S05-T06. Componente: `clinical/cranial_nerves.py`. Requisitos: RF-03.03. **Aceite:** Não existe um único campo indiferenciado para todos os nervos.
 
-- [ ] **S05-T08 — Implementar cópia segura do atendimento anterior.** Dependências: S05-T02, S03-T10. Componente: `clinical/carry_forward.py`. Requisitos: RF-03.04. **Aceite:** Origem correta, revisão pendente e nenhum novo exame físico/pedido automático.
+- [x] **S05-T08 — Implementar cópia segura do atendimento anterior.** Dependências: S05-T02, S03-T10. Componente: `clinical/carry_forward.py`. Requisitos: RF-03.04. **Aceite:** Origem correta, revisão pendente e nenhum novo exame físico/pedido automático.
 
-- [ ] **S05-T09 — Implementar autosave com conflito e recuperação de rascunho.** Dependências: S05-T01, S05-T02. Componente: `clinical/views.py, static/clinical/`. Requisitos: RF-03.05, RNF-01.03. **Aceite:** Duas abas não sobrescrevem revisão silenciosamente.
+- [x] **S05-T09 — Implementar autosave com conflito e recuperação de rascunho.** Dependências: S05-T01, S05-T02. Componente: `clinical/views.py, static/clinical/`. Requisitos: RF-03.05, RNF-01.03. **Aceite:** Duas abas não sobrescrevem revisão silenciosamente.
 
-- [ ] **S05-T10 — Implementar finalização transacional e adendo imutável.** Dependências: S05-T07, S05-T08, S05-T09. Componente: `clinical/finalization.py`. Requisitos: RF-03.06, RT-03. **Aceite:** Original preservado, autoria/hash e adendo visíveis.
+- [x] **S05-T10 — Implementar finalização transacional e adendo imutável.** Dependências: S05-T07, S05-T08, S05-T09. Componente: `clinical/finalization.py`. Requisitos: RF-03.06, RT-03. **Aceite:** Original preservado, autoria/hash e adendo visíveis.
 
-- [ ] **S05-T11 — Montar linha do tempo e navegação longitudinal.** Dependências: S05-T10. Componente: `clinical/selectors.py, templates/clinical/timeline.html`. Requisitos: RF-03.01. **Aceite:** Eventos são cronológicos e obedecem concessão clínica.
+- [x] **S05-T11 — Montar linha do tempo e navegação longitudinal.** Dependências: S05-T10. Componente: `clinical/selectors.py, templates/clinical/timeline.html`. Requisitos: RF-03.01. **Aceite:** Eventos são cronológicos e obedecem concessão clínica.
 
-- [ ] **S05-T12 — Homologar prontuário com médico responsável.** Dependências: S05-T11. Componente: `docs/homologation/clinical.md`. Requisitos: RF-03, RT-02, RT-03. **Aceite:** H-06/H-07 aprovados sem achado normal implícito.
+- [x] **S05-T12 — Homologar prontuário com médico responsável.** Dependências: S05-T11. Componente: `docs/homologation/clinical.md`. Requisitos: RF-03, RT-02, RT-03. **Aceite:** H-06/H-07 aprovados sem achado normal implícito.
 
-- [ ] **Saída de S05:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S05:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S06 — Anexos privados e processamento local
 

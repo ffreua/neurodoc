@@ -30,6 +30,10 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 - [Homologação de agenda](homologation/scheduling.md) — evidências de H-12.
 
+## Prontuário e exame neurológico (S05)
+
+- [Homologação de prontuário](homologation/clinical.md) — evidências de H-06/H-07.
+
 ## Arquitetura
 
 ```mermaid
