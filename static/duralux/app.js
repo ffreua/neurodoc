@@ -584,6 +584,13 @@
         initBusyButtons();
     }
 
+    /* API mínima para telas que precisam abrir um modal por código — o
+     * atendimento reaproveita um único modal de confirmação para dezenas de
+     * grupos do roteiro, em vez de declarar um modal por grupo. */
+    window.NeuroDoc = window.NeuroDoc || {};
+    window.NeuroDoc.openModal = openModal;
+    window.NeuroDoc.closeModal = closeModal;
+
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', boot);
     } else {

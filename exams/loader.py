@@ -93,7 +93,7 @@ def load_scales(tenant_id, path=SCALES_FILE):
     return installed
 
 
-def _build_nodes(tenant_id, template, entries, parent, axis, prefix, scales, counters):
+def _build_nodes(tenant_id, template, entries, parent, axis, prefix, scales, counters, trail=()):
     for order, entry in enumerate(entries or []):
         code = _slug(entry.get('code'))
         if not code:
@@ -131,13 +131,17 @@ def _build_nodes(tenant_id, template, entries, parent, axis, prefix, scales, cou
             lateralized=bool(entry.get('side')),
             unit=entry.get('unit', '') or '',
             scale=scale, axis=axis or code, active=True,
+            breadcrumb=' › '.join(trail)[:400],
         )
         node.full_clean(exclude=['tenant'])
         node.save()
         counters[node_type] = counters.get(node_type, 0) + 1
         if children:
+            # O eixo (raiz) não entra na trilha: ele já é o título da seção.
+            child_trail = trail if parent is None else trail + (node.label,)
             _build_nodes(
                 tenant_id, template, children, node, axis or code, path, scales, counters,
+                child_trail,
             )
 
 

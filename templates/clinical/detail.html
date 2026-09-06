@@ -202,11 +202,33 @@ digitado em outra.{% endcomment %}
                         <div class="accordion-collapse collapse" id="axis-{{ axis.node.code }}"
                              data-bs-parent="#exam-axes">
                             <div class="accordion-body">
+                                {% if encounter.status != 'finalized' and axis.normal_candidates %}
+                                <div class="d-flex flex-wrap align-items-center gap-2 mb-3 pb-3 border-bottom">
+                                    <button type="button" class="btn btn-sm btn-light-success"
+                                            data-nd-normal
+                                            data-nd-path="{{ axis.node.path }}"
+                                            data-nd-label="{{ axis.node.label }}"
+                                            data-nd-count="{{ axis.normal_candidates }}">
+                                        {{ axis.node.label }} normal
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-light"
+                                            data-nd-normal data-nd-undo="1"
+                                            data-nd-path="{{ axis.node.path }}"
+                                            data-nd-label="{{ axis.node.label }}"
+                                            data-nd-count="{{ axis.normal_candidates }}">
+                                        Desfazer
+                                    </button>
+                                    <span class="fs-11 text-muted">
+                                        Marca os {{ axis.normal_candidates }} itens de estado deste eixo.
+                                        Item já preenchido à mão é preservado.
+                                    </span>
+                                </div>
+                                {% endif %}
                                 <form method="post"
                                       action="{% url 'clinical:save-exam-axis' encounter.id axis.node.code %}">
                                     {% csrf_token %}
                                     {% for child in axis.children %}
-                                    {% include "exams/node.html" with entry=child disabled=exam_disabled %}
+                                    {% include "exams/node.html" with entry=child disabled=exam_readonly %}
                                     {% endfor %}
                                     {% if encounter.status != 'finalized' %}
                                     <div class="d-flex align-items-center gap-2 mt-3">
@@ -251,7 +273,12 @@ digitado em outra.{% endcomment %}
                             <tbody>
                                 {% for finding in group.findings %}
                                 <tr>
-                                    <td class="ps-4 fw-semibold text-dark text-wrap">{{ finding.label }}</td>
+                                    <td class="ps-4 text-wrap">
+                                        <span class="fw-semibold text-dark">{{ finding.label }}</span>
+                                        {% if finding.breadcrumb %}
+                                        <span class="d-block fs-10 text-muted">{{ finding.breadcrumb }}</span>
+                                        {% endif %}
+                                    </td>
                                     <td><span class="fs-12 text-muted">{{ finding.get_side_display }}</span></td>
                                     <td class="text-wrap">
                                         {% if finding.qualifier %}
@@ -410,6 +437,36 @@ digitado em outra.{% endcomment %}
 
 {% block modals %}
 {% if encounter.status != 'finalized' %}
+<div class="modal fade" id="normal-modal" tabindex="-1" aria-hidden="true" aria-labelledby="normal-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'clinical:exam-group-normal' encounter.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="path" id="normal-path">
+                <input type="hidden" name="undo" id="normal-undo" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="normal-modal-title">Marcar tudo normal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fs-13 mb-2" id="normal-summary"></p>
+                    <div class="alert alert-warning fade show fs-12 mb-0" role="alert" id="normal-warning">
+                        Só itens do tipo <strong>estado</strong> são marcados — escolha, número e
+                        escala continuam como estão, porque o sistema não pode inventar uma medida.
+                        Item que você já preencheu à mão é preservado. Dá para desfazer enquanto o
+                        atendimento não for finalizado.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="normal-confirm" data-nd-busy>Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if encounter.status != 'finalized' %}
 <div class="modal fade" id="finalize-modal" tabindex="-1" aria-hidden="true" aria-labelledby="finalize-modal-title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
@@ -439,4 +496,38 @@ digitado em outra.{% endcomment %}
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* Um modal só para todos os botões "tudo normal": são dezenas de grupos no
+   roteiro e declarar um modal por grupo encheria a página à toa. O botão
+   clicado diz qual caminho confirmar. */
+(function () {
+    'use strict';
+    var modal = document.getElementById('normal-modal');
+    if (!modal) return;
+    var pathField = document.getElementById('normal-path');
+    var undoField = document.getElementById('normal-undo');
+    var summary = document.getElementById('normal-summary');
+    var warning = document.getElementById('normal-warning');
+    var confirm = document.getElementById('normal-confirm');
+
+    document.addEventListener('click', function (event) {
+        var button = event.target.closest('[data-nd-normal]');
+        if (!button) return;
+        var undo = button.getAttribute('data-nd-undo') === '1';
+        var label = button.getAttribute('data-nd-label') || 'este grupo';
+        var count = button.getAttribute('data-nd-count') || '0';
+        pathField.value = button.getAttribute('data-nd-path') || '';
+        undoField.value = undo ? '1' : '';
+        summary.textContent = undo
+            ? 'Desfazer a marcação em bloco de \u201c' + label + '\u201d? Só sai o que foi marcado em bloco e não recebeu observação.'
+            : 'Marcar como normal os itens de estado de \u201c' + label + '\u201d (até ' + count + ' itens)?';
+        warning.hidden = undo;
+        confirm.textContent = undo ? 'Desfazer' : 'Marcar como normal';
+        window.NeuroDoc.openModal(modal);
+    });
+})();
+</script>
 {% endblock %}

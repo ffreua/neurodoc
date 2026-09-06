@@ -7,10 +7,19 @@ lateralizado. Só quem tem valor preenchido gera achado ao salvar.{% endcomment 
 
 {% if entry.is_group %}
 <section class="nd-exam-group mb-3">
-    <div class="d-flex align-items-center gap-2 mb-2">
+    <div class="d-flex align-items-center gap-2 mb-2 flex-wrap">
         <h6 class="fw-bold text-dark mb-0 fs-13">{{ entry.node.label }}</h6>
         {% if entry.filled %}
         <span class="badge bg-soft-success text-success fs-10">{{ entry.filled }}</span>
+        {% endif %}
+        {% if entry.normal_candidates and not disabled %}
+        <button type="button" class="btn btn-xs btn-light-success fs-10 py-0 px-2"
+                data-nd-normal
+                data-nd-path="{{ entry.node.path }}"
+                data-nd-label="{{ entry.node.label }}"
+                data-nd-count="{{ entry.normal_candidates }}">
+            tudo normal
+        </button>
         {% endif %}
     </div>
     {% if entry.node.help_text %}
@@ -18,7 +27,7 @@ lateralizado. Só quem tem valor preenchido gera achado ao salvar.{% endcomment 
     {% endif %}
     <div class="ps-3 border-start">
         {% for child in entry.children %}
-        {% include "exams/node.html" with entry=child %}
+        {% include "exams/node.html" with entry=child disabled=disabled %}
         {% endfor %}
     </div>
 </section>

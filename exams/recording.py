@@ -146,3 +146,90 @@ def save_axis(context, encounter, template, axis, data):
             )
             saved += 1
     return saved, removed
+
+
+def state_items_under(template, path):
+    """Itens do tipo estado sob um nó, incluindo o próprio.
+
+    Só item de estado pode ser "normal": um item de escolha ("Padrão da
+    resposta motora") não tem normalidade definida, e um item numérico
+    (força em MRC) só teria se o sistema inventasse a medida — que é
+    exatamente o que um prontuário não pode fazer.
+    """
+    from django.db.models import Q
+
+    return ExamNode.objects.filter(
+        template=template, active=True,
+        node_type=ExamNodeType.ITEM, input_type=ExamInputType.STATE,
+    ).filter(Q(path=path) | Q(path__startswith=f'{path}.'))
+
+
+@transaction.atomic
+def mark_group_normal(context, encounter, template, path):
+    """Marca como normal os itens de estado de um grupo. Ação deliberada.
+
+    Regras que tornam isso seguro num prontuário (PRD 11.1):
+
+    - **nunca sobrescreve registro manual.** Item que o médico já preencheu
+      fica como está e entra na contagem de ignorados; só é marcado o que
+      estava em branco ou o que já viera desta mesma ação em bloco;
+    - **só item de estado** — ver `state_items_under`;
+    - **fica marcado como ação em bloco** (`value_json['bulk']`), o que
+      permite desfazer exatamente o que foi criado assim, sem tocar no que
+      foi digitado à mão.
+
+    Devolve (marcados, ignorados).
+    """
+    nodes = list(state_items_under(template, path))
+    existing = {
+        (finding.item_code, finding.side): finding
+        for finding in ExaminationFinding.objects.filter(
+            tenant_id=context.tenant_id, encounter=encounter,
+            item_code__in=[node.path for node in nodes],
+        )
+    }
+    marked = 0
+    skipped = 0
+    for node in nodes:
+        for side in _sides(node):
+            current = existing.get((node.path, side))
+            if current is not None and not current.value_json.get('bulk'):
+                skipped += 1
+                continue
+            ExaminationFinding.objects.update_or_create(
+                tenant_id=context.tenant_id, encounter=encounter,
+                item_code=node.path, side=side, body_site='',
+                defaults={
+                    'domain': node.axis,
+                    'template_node': node,
+                    'template_version': template.version,
+                    'state': ExaminationState.NORMAL,
+                    'numeric_value': None,
+                    'qualifier': '',
+                    'note': current.note if current is not None else '',
+                    'value_json': {'bulk': True},
+                    'schema_version': str(template.version),
+                },
+            )
+            marked += 1
+    return marked, skipped
+
+
+@transaction.atomic
+def undo_group_normal(context, encounter, template, path):
+    """Desfaz a marcação em bloco de um grupo, antes da finalização.
+
+    Remove apenas o que foi criado pela ação em bloco e continua sem
+    observação escrita — o que o médico ajustou ou comentou depois
+    permanece.
+    """
+    paths = [node.path for node in state_items_under(template, path)]
+    removed = 0
+    for finding in ExaminationFinding.objects.filter(
+        tenant_id=context.tenant_id, encounter=encounter, item_code__in=paths,
+        state=ExaminationState.NORMAL,
+    ):
+        if finding.value_json.get('bulk') and not finding.note:
+            finding.delete()
+            removed += 1
+    return removed

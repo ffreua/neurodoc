@@ -144,7 +144,13 @@ def mark_section_normal(context, encounter, domain, actor_side_map):
 
 
 DOMAIN_LABELS = {
-    ExaminationDomain.COGNITIVE: 'Cognitivo',
+    # eixos do roteiro estruturado
+    ExaminationDomain.AXIS_CONSCIOUSNESS: 'Nível de consciência',
+    ExaminationDomain.AXIS_COGNITIVE: 'Cognitivo',
+    ExaminationDomain.AXIS_SOMATIC: 'Somático',
+    ExaminationDomain.AXIS_CRANIAL_NERVES: 'Nervos cranianos',
+    # catálogo legado
+    ExaminationDomain.COGNITIVE: 'Cognitivo (avulso)',
     ExaminationDomain.STRENGTH: 'Força',
     ExaminationDomain.TONE: 'Tônus',
     ExaminationDomain.SENSORY_SUPERFICIAL: 'Sensibilidade superficial',
@@ -160,6 +166,10 @@ DOMAIN_LABELS = {
 # Ordem de apresentação do exame na tela, do geral para o focal — a mesma
 # sequência em que o exame é feito à beira do leito.
 DOMAIN_ORDER = [
+    ExaminationDomain.AXIS_CONSCIOUSNESS,
+    ExaminationDomain.AXIS_COGNITIVE,
+    ExaminationDomain.AXIS_SOMATIC,
+    ExaminationDomain.AXIS_CRANIAL_NERVES,
     ExaminationDomain.COGNITIVE,
     ExaminationDomain.CRANIAL_NERVE,
     ExaminationDomain.STRENGTH,
@@ -216,9 +226,18 @@ def group_findings_by_domain(findings):
     """Agrupa os achados por domínio na ordem de exame, com rótulo legível."""
     buckets = {}
     for finding in findings:
-        # Rótulo em português anexado ao próprio achado: a tela não deve
-        # exibir `cn3_4_6_ocular_motility` para quem está atendendo.
-        finding.label = item_label(finding.domain, finding.item_code)
+        # Rótulo legível anexado ao próprio achado: a tela nunca deve exibir
+        # o identificador cru (`cn3_4_6_ocular_motility` no catálogo antigo,
+        # `somatico.motricidade.manobras_deficitarias.bracos_estendidos` no
+        # roteiro). Quando o achado vem do roteiro, o nó já traz o rótulo e a
+        # trilha dos grupos acima dele.
+        node = finding.template_node
+        if node is not None:
+            finding.label = node.label
+            finding.breadcrumb = node.breadcrumb
+        else:
+            finding.label = item_label(finding.domain, finding.item_code)
+            finding.breadcrumb = ''
         buckets.setdefault(finding.domain, []).append(finding)
     ordered = []
     for domain in DOMAIN_ORDER:

@@ -13,7 +13,7 @@ from tenancy.selectors import scope_to_tenant
 from . import carry_forward as cf
 from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
-from exams.recording import save_axis
+from exams.recording import mark_group_normal, save_axis, undo_group_normal
 from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
@@ -79,6 +79,10 @@ class EncounterDetailView(TenantScopedView):
             'findings_by_domain': group_findings_by_domain(findings),
             'exam_template': template,
             'exam_tree': build_tree(template, findings),
+            # Atendimento finalizado continua legível, mas os controles do
+            # roteiro saem desabilitados — o servidor já recusa a gravação,
+            # e a tela não deve sugerir que ainda dá para editar.
+            'exam_readonly': not encounter.is_editable(),
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
         })
@@ -154,6 +158,53 @@ class ExamAxisSaveView(TenantScopedView):
             integrity_metadata={'axis': axis, 'saved': saved, 'removed': removed},
         )
         messages.success(request, f'Exame salvo: {saved} item(ns) registrado(s) neste eixo.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
+
+
+class ExamGroupNormalView(TenantScopedView):
+    """Marca (ou desfaz) "tudo normal" num grupo do roteiro.
+
+    Ação deliberada, exigida explicitamente pelo PRD (11.1): nunca é
+    pré-selecionada, diz quantos itens foram marcados e quantos foram
+    ignorados por já terem registro manual, e pode ser desfeita enquanto o
+    atendimento não estiver finalizado.
+    """
+
+    def post(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return HttpResponse('Atendimento finalizado.', status=409)
+        template = resolve_template(
+            request.access_context.tenant_id, request.access_context.membership_id,
+        )
+        if template is None:
+            return HttpResponse('Nenhum roteiro de exame publicado.', status=409)
+
+        path = (request.POST.get('path') or '').strip()
+        if not path:
+            return HttpResponse('Grupo não informado.', status=400)
+        undo = request.POST.get('undo') == '1'
+
+        if undo:
+            removed = undo_group_normal(request.access_context, encounter, template, path)
+            outcome = {'removed': removed}
+            messages.success(request, f'Marcação em bloco desfeita: {removed} item(ns) removido(s).')
+        else:
+            marked, skipped = mark_group_normal(
+                request.access_context, encounter, template, path,
+            )
+            outcome = {'marked': marked, 'skipped': skipped}
+            text = f'{marked} item(ns) marcado(s) como normal.'
+            if skipped:
+                text += f' {skipped} preservado(s) por já terem registro próprio.'
+            messages.success(request, text)
+
+        record_audit_event(
+            request.user, request.access_context.tenant_id,
+            'clinical.exam_group_normal_undone' if undo else 'clinical.exam_group_normal',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'path': path, **outcome},
+        )
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
 

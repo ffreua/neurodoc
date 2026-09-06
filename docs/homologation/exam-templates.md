@@ -99,6 +99,48 @@ O registro avulso pelo catálogo antigo continua disponível, recolhido, em
 "registrar item fora do roteiro" — nenhum achado existente foi perdido nem
 migrado.
 
+## Rótulo legível no grid
+
+O achado do roteiro aparecia no grid pelo identificador cru
+(`consciencia.escalas.glasgow`,
+`somatico.motricidade.manobras_deficitarias.bracos_estendidos`) porque o
+rótulo só era resolvido pelos catálogos antigos. Agora o nó guarda uma
+**trilha legível** (`ExamNode.breadcrumb`) — os grupos acima dele, sem o
+eixo, que já é o título da seção — e o grid mostra duas linhas:
+
+```
+Desalinhamento/desvio ocular
+Avaliação descritiva › Abertura ocular        Esquerdo   Normal
+```
+
+A trilha é gravada junto com o nó em vez de reconstruída subindo a árvore:
+o grid precisa dela em toda linha, e subir a árvore custaria uma consulta
+por achado. Uma migration de dados preencheu os nós já instalados, para que
+achado registrado antes desta versão também ganhe a trilha.
+
+## "Tudo normal" por grupo
+
+Botão em cada eixo e em cada grupo do roteiro que contenha item de estado.
+O PRD (11.1) permite "normal em todos os itens" **somente por ação
+deliberada, com indicação visual e possibilidade de desfazer**, e é assim
+que está implementado:
+
+- **confirmação explícita** num modal que diz qual grupo e quantos itens;
+- **só item do tipo estado.** Escolha, número e escala ficam de fora: um
+  item de escolha ("Padrão da resposta motora") não tem normalidade
+  definida, e marcar força como normal exigiria o sistema inventar um grau
+  MRC — que é exatamente o que um prontuário não pode fazer;
+- **nunca sobrescreve registro manual.** Item já preenchido à mão é
+  preservado e entra na contagem de ignorados exibida ao final;
+- **desfazível** enquanto o atendimento não for finalizado. O que entrou em
+  bloco fica marcado (`value_json['bulk']`), então desfazer remove
+  exatamente isso e não toca no que foi digitado — nem no que recebeu
+  observação depois.
+
+Um único modal atende todos os botões: são dezenas de grupos no roteiro e
+declarar um modal por grupo encheria a página à toa. `app.js` passou a
+expor `window.NeuroDoc.openModal` para esse caso.
+
 ## Verificação executada
 
 | Verificação | Resultado |
@@ -110,6 +152,8 @@ migrado.
 | Item em branco | não cria linha |
 | Esvaziar e salvar | remove os 5 achados daquele eixo e **não toca** no outro eixo |
 | Releitura | a árvore volta com os valores e a contagem por eixo |
+| Trilha legível | `somatico.motricidade.manobras_deficitarias.bracos_estendidos` passa a exibir "Braços estendidos (Mingazzini de MMSS)" com a trilha "Motricidade › Manobras deficitárias"; 1.820 de 1.935 nós com trilha (os 115 sem trilha são os eixos e seus filhos diretos, como esperado) |
+| "Tudo normal" | `somatico.motricidade` tem 29 itens de estado → 48 achados (lateralizados contam dois lados); um Barré "alterado" registrado à mão foi **preservado** e contado como ignorado; o item numérico de força **não** foi tocado; desfazer removeu os 48 e deixou o manual intacto |
 | Regressão | 61 templates parseiam; 27 páginas renderizam; 26 telas com contexto sintético — 0 falhas |
 
 ## Pendências desta etapa

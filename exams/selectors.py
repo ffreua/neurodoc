@@ -61,6 +61,8 @@ def build_tree(template, findings=()):
         .order_by('order', 'path')
     )
 
+    from .models import ExamInputType
+
     wrapped = {}
     for node in nodes:
         wrapped[node.id] = {
@@ -69,6 +71,11 @@ def build_tree(template, findings=()):
             'values': _render_value(node, findings_by_key),
             'is_group': node.node_type == ExamNodeType.GROUP,
             'filled': 0,
+            # Quantos itens deste ramo podem receber "normal" em bloco —
+            # só item de estado pode, e é isso que o botão anuncia.
+            'normal_candidates': (
+                1 if node.input_type == ExamInputType.STATE else 0
+            ),
         }
 
     roots = []
@@ -81,10 +88,14 @@ def build_tree(template, findings=()):
 
     def count(entry):
         total = len(entry['values'])
+        candidates = entry['normal_candidates']
         for child in entry['children']:
-            total += count(child)
+            child_total, child_candidates = count(child)
+            total += child_total
+            candidates += child_candidates
         entry['filled'] = total
-        return total
+        entry['normal_candidates'] = candidates
+        return total, candidates
 
     for root in roots:
         count(root)

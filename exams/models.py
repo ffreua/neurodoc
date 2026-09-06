@@ -166,6 +166,12 @@ class ExamNode(TenantModel):
     # Eixo do roteiro a que o nó pertence, propagado da raiz — é o que a
     # tela usa para agrupar e o que vai para `ExaminationFinding.domain`.
     axis = models.CharField(max_length=40, blank=True)
+    # Caminho legível dos grupos acima deste nó, sem o eixo (que já é o
+    # título da seção) e sem o próprio rótulo: "Motricidade › Manobras
+    # deficitárias". Guardado junto com o nó porque o grid de achados
+    # precisa dele em toda linha, e reconstruí-lo subindo a árvore custaria
+    # uma consulta por achado.
+    breadcrumb = models.CharField(max_length=400, blank=True)
     active = models.BooleanField(default=True)
 
     class Meta(TenantModel.Meta):
