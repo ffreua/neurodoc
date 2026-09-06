@@ -1,0 +1,94 @@
+from django.db import models
+
+from base.models import TenantModel
+
+
+class PaymentCategory(models.TextChoices):
+    PRIVATE = 'private', 'Private'
+    INSURANCE = 'insurance', 'Insurance'
+
+
+class ChargeKind(models.TextChoices):
+    CONSULTATION = 'consultation', 'Consultation'
+    PROCEDURE = 'procedure', 'Procedure'
+
+
+class ReceivableStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    PARTIAL = 'partial', 'Partial'
+    PAID = 'paid', 'Paid'
+    CANCELLED = 'cancelled', 'Cancelled'
+
+
+class AdjustmentType(models.TextChoices):
+    DISCOUNT = 'discount', 'Discount'
+    SURCHARGE = 'surcharge', 'Surcharge'
+    REFUND = 'refund', 'Refund'
+    WRITEOFF = 'writeoff', 'Write-off'
+
+
+class FeeSchedule(TenantModel):
+    physician = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True, related_name='fee_schedules',
+    )
+    plan = models.ForeignKey('patients.HealthPlan', on_delete=models.PROTECT, null=True, blank=True, related_name='+')
+    procedure = models.ForeignKey(
+        'catalogs.ProcedureCode', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+    )
+    payment_category = models.CharField(max_length=20, choices=PaymentCategory.choices)
+    gross_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    doctor_share_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    effective_from = models.DateField()
+    effective_to = models.DateField(null=True, blank=True)
+
+    class Meta(TenantModel.Meta):
+        indexes = [
+            models.Index(fields=['tenant', 'physician', 'plan', 'procedure'], name='finance_fee_lookup_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.payment_category} {self.gross_amount} ({self.effective_from})'
+
+
+class Receivable(TenantModel):
+    patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='receivables')
+    encounter = models.ForeignKey('clinical.Encounter', on_delete=models.PROTECT, related_name='receivables')
+    charge_kind = models.CharField(max_length=20, choices=ChargeKind.choices, default=ChargeKind.CONSULTATION)
+    fee_snapshot = models.JSONField(default=dict)
+    expected_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    charged_amount = models.DecimalField(max_digits=12, decimal_places=2)
+    due_date = models.DateField()
+    competence_date = models.DateField()
+    status = models.CharField(max_length=20, choices=ReceivableStatus.choices, default=ReceivableStatus.PENDING)
+    cancellation_reason = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant', 'encounter', 'charge_kind'], name='finance_receivable_origin_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.encounter_id}:{self.charge_kind} ({self.status})'
+
+
+class Payment(TenantModel):
+    receivable = models.ForeignKey(Receivable, on_delete=models.PROTECT, related_name='payments')
+    paid_at = models.DateTimeField()
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    method = models.CharField(max_length=40)
+    external_reference = models.CharField(max_length=100, blank=True)
+
+    def __str__(self):
+        return f'{self.receivable_id}: {self.amount}'
+
+
+class FinancialAdjustment(TenantModel):
+    receivable = models.ForeignKey(Receivable, on_delete=models.PROTECT, related_name='adjustments')
+    payment = models.ForeignKey(Payment, on_delete=models.PROTECT, null=True, blank=True, related_name='adjustments')
+    type = models.CharField(max_length=20, choices=AdjustmentType.choices)
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reason = models.CharField(max_length=255)
+    approved_by = models.ForeignKey('tenancy.Membership', on_delete=models.PROTECT, related_name='+')
+
+    def __str__(self):
+        return f'{self.type} {self.amount} on {self.receivable_id}'

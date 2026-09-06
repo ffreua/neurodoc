@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Financeiro{% endblock %}
+{% block content %}
+<h1>Financeiro</h1>
+<form method="get">
+    De <input type="date" name="start" value="{{ start|date:'Y-m-d' }}">
+    até <input type="date" name="end" value="{{ end|date:'Y-m-d' }}">
+    <button type="submit">Filtrar</button>
+</form>
+
+<h2>Competência (data do atendimento)</h2>
+<table>
+    <thead><tr><th>Paciente</th><th>Competência</th><th>Esperado</th><th>Cobrado</th><th>Status</th></tr></thead>
+    <tbody>
+        {% for r in receivables %}
+        <tr>
+            <td><a href="{% url 'finance:receivable-detail' r.id %}">{{ r.patient.full_name }}</a></td>
+            <td>{{ r.competence_date }}</td>
+            <td>{{ r.expected_amount }}</td>
+            <td>{{ r.charged_amount }}</td>
+            <td>{{ r.get_status_display }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">Nenhum recebível no período.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2>Caixa (data do recebimento)</h2>
+<table>
+    <thead><tr><th>Paciente</th><th>Recebido em</th><th>Valor</th><th>Método</th></tr></thead>
+    <tbody>
+        {% for p in payments %}
+        <tr>
+            <td>{{ p.receivable.patient.full_name }}</td>
+            <td>{{ p.paid_at|date:"d/m/Y H:i" }}</td>
+            <td>{{ p.amount }}</td>
+            <td>{{ p.method }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4">Nenhum recebimento no período.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

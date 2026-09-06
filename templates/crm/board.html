@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}CRM — Painel administrativo{% endblock %}
+{% block content %}
+<h1>CRM — Painel administrativo</h1>
+<p>Apenas dados administrativos: nenhum diagnóstico ou hipótese clínica aparece aqui.</p>
+
+<form method="get">
+    <select name="stage">
+        <option value="">Todas as etapas</option>
+        {% for s in stages %}
+        <option value="{{ s.id }}">{{ s.name }}</option>
+        {% endfor %}
+    </select>
+    <button type="submit">Filtrar</button>
+</form>
+
+<table>
+    <thead>
+        <tr><th>Paciente</th><th>Etapa</th><th>Responsável</th><th>Prazo</th><th>Resumo</th><th>Mover para</th></tr>
+    </thead>
+    <tbody>
+        {% for card in cards %}
+        <tr>
+            <td>{{ card.patient.full_name }}</td>
+            <td>{{ card.stage.name }}</td>
+            <td>{{ card.assigned_membership.user.get_full_name|default:"—" }}</td>
+            <td>{{ card.due_at|date:"d/m/Y H:i"|default:"—" }}</td>
+            <td>{{ card.administrative_summary }}</td>
+            <td>
+                {% for s in stages %}
+                {% if s.id != card.stage_id %}
+                <form method="post" action="{% url 'crm:move' card.id %}" style="display:inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="to_stage" value="{{ s.id }}">
+                    <button type="submit">{{ s.name }}</button>
+                </form>
+                {% endif %}
+                {% endfor %}
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">Nenhum card.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

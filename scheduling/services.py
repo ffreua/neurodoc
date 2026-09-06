@@ -3,7 +3,7 @@ from django.utils import timezone
 
 from audit.services import record_audit_event
 
-from .events import invalidate_stale_reminders, schedule_reminders
+from .events import emit_appointment_reserved, invalidate_stale_reminders, schedule_reminders
 from .models import ALLOWED_TRANSITIONS, Appointment, AppointmentStatus
 
 
@@ -67,6 +67,7 @@ def reserve_appointment(
         object_type='appointment', object_id=appointment.id, outcome='success',
     )
     schedule_reminders(appointment)
+    emit_appointment_reserved(appointment)
     return appointment
 
 

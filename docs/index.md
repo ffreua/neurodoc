@@ -52,6 +52,13 @@ PRD; é a referência operacional viva gerada a partir dele.
   de H-09: dispatcher outbox idempotente, entrega por e-mail/SMS, link
   opaco com OTP e reconciliação (P-03 em aberto para credenciais reais).
 
+## CRM e financeiro (S09)
+
+- [Homologação de CRM e financeiro](homologation/management.md) — evidências
+  de H-13/H-14: kanban administrativo sem dado clínico, integração com a
+  agenda por evento explícito, tabelas de preço com vigência sem
+  sobreposição e conciliação de recebíveis/pagamentos/ajustes em Decimal.
+
 ## Arquitetura
 
 ```mermaid

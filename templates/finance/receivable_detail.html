@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Recebível{% endblock %}
+{% block content %}
+<h1>Recebível — {{ receivable.patient.full_name }}</h1>
+<p>Esperado: {{ receivable.expected_amount }} | Cobrado: {{ receivable.charged_amount }}
+   | Recebido líquido: {{ net_received }} | Saldo: {{ balance }} | Status: {{ receivable.get_status_display }}</p>
+
+<h2>Pagamentos</h2>
+<ul>
+    {% for p in receivable.payments.all %}
+    <li>{{ p.paid_at|date:"d/m/Y H:i" }} — {{ p.amount }} ({{ p.method }})</li>
+    {% empty %}
+    <li>Nenhum pagamento.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'finance:record-payment' receivable.id %}">
+    {% csrf_token %}
+    <input type="text" name="amount" placeholder="Valor">
+    <input type="text" name="method" placeholder="Método">
+    <button type="submit">Registrar pagamento</button>
+</form>
+
+<h2>Ajustes</h2>
+<ul>
+    {% for a in receivable.adjustments.all %}
+    <li>{{ a.get_type_display }} — {{ a.amount }} — {{ a.reason }}</li>
+    {% empty %}
+    <li>Nenhum ajuste.</li>
+    {% endfor %}
+</ul>
+<form method="post" action="{% url 'finance:apply-adjustment' receivable.id %}">
+    {% csrf_token %}
+    <select name="type">
+        <option value="discount">Desconto</option>
+        <option value="surcharge">Acréscimo</option>
+        <option value="refund">Estorno</option>
+        <option value="writeoff">Baixa</option>
+    </select>
+    <input type="text" name="amount" placeholder="Valor">
+    <input type="text" name="reason" placeholder="Motivo">
+    <button type="submit">Aplicar</button>
+</form>
+{% endblock %}

@@ -1616,27 +1616,27 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S04/S08; regras de valores aprovadas pelo produto.
 
-- [ ] **S09-T01 — Modelar etapas, cards e transições do CRM.** Dependências: S04. Componente: `crm/models.py`. Requisitos: RF-07.01. **Aceite:** Etapa administrativa é distinta do estado clínico.
+- [x] **S09-T01 — Modelar etapas, cards e transições do CRM.** Dependências: S04. Componente: `crm/models.py`. Requisitos: RF-07.01. **Aceite:** Etapa administrativa é distinta do estado clínico.
 
-- [ ] **S09-T02 — Criar kanban/grid com filtros e ação por teclado.** Dependências: S09-T01. Componente: `crm/views.py, templates/crm/`. Requisitos: RF-07.01. **Aceite:** Cards não exibem diagnósticos e movem por botão.
+- [x] **S09-T02 — Criar kanban/grid com filtros e ação por teclado.** Dependências: S09-T01. Componente: `crm/views.py, templates/crm/`. Requisitos: RF-07.01. **Aceite:** Cards não exibem diagnósticos e movem por botão.
 
-- [ ] **S09-T03 — Integrar agenda por evento explícito e histórico.** Dependências: S09-T02, S08-T01. Componente: `crm/events.py`. Requisitos: RF-07.02. **Aceite:** Mover card não finaliza consulta ou emite documento.
+- [x] **S09-T03 — Integrar agenda por evento explícito e histórico.** Dependências: S09-T02, S08-T01. Componente: `crm/events.py`. Requisitos: RF-07.02. **Aceite:** Mover card não finaliza consulta ou emite documento.
 
-- [ ] **S09-T04 — Modelar tabelas de preço/repasse com vigência.** Dependências: S03-T09. Componente: `finance/models.py`. Requisitos: RF-08.01. **Aceite:** Regra equivalente não tem períodos sobrepostos.
+- [x] **S09-T04 — Modelar tabelas de preço/repasse com vigência.** Dependências: S03-T09. Componente: `finance/models.py`. Requisitos: RF-08.01. **Aceite:** Regra equivalente não tem períodos sobrepostos.
 
-- [ ] **S09-T05 — Implementar escolha da regra e snapshot do atendimento.** Dependências: S09-T04, S05-T10. Componente: `finance/pricing.py`. Requisitos: RF-08.01, RF-08.02. **Aceite:** Mudança de tabela não altera consulta histórica.
+- [x] **S09-T05 — Implementar escolha da regra e snapshot do atendimento.** Dependências: S09-T04, S05-T10. Componente: `finance/pricing.py`. Requisitos: RF-08.01, RF-08.02. **Aceite:** Mudança de tabela não altera consulta histórica.
 
-- [ ] **S09-T06 — Criar recebível por evento idempotente.** Dependências: S09-T05, S08-T01. Componente: `finance/receivables.py`. Requisitos: RF-08.02. **Aceite:** Reprocessar finalização não duplica lançamento.
+- [x] **S09-T06 — Criar recebível por evento idempotente.** Dependências: S09-T05, S08-T01. Componente: `finance/receivables.py`. Requisitos: RF-08.02. **Aceite:** Reprocessar finalização não duplica lançamento.
 
-- [ ] **S09-T07 — Implementar pagamentos parciais e estado do saldo.** Dependências: S09-T06. Componente: `finance/payments.py`. Requisitos: RF-08.03. **Aceite:** Decimal e arredondamento centavo conciliam soma e saldo.
+- [x] **S09-T07 — Implementar pagamentos parciais e estado do saldo.** Dependências: S09-T06. Componente: `finance/payments.py`. Requisitos: RF-08.03. **Aceite:** Decimal e arredondamento centavo conciliam soma e saldo.
 
-- [ ] **S09-T08 — Implementar ajustes/estornos com motivo e auditoria.** Dependências: S09-T07. Componente: `finance/adjustments.py`. Requisitos: RF-08.03. **Aceite:** Estorno não apaga recebimento original.
+- [x] **S09-T08 — Implementar ajustes/estornos com motivo e auditoria.** Dependências: S09-T07. Componente: `finance/adjustments.py`. Requisitos: RF-08.03. **Aceite:** Estorno não apaga recebimento original.
 
-- [ ] **S09-T09 — Criar visões distintas de competência e caixa.** Dependências: S09-T08. Componente: `finance/selectors.py, templates/finance/`. Requisitos: RF-08.04. **Aceite:** Valores de datas diferentes aparecem no período correto.
+- [x] **S09-T09 — Criar visões distintas de competência e caixa.** Dependências: S09-T08. Componente: `finance/selectors.py, templates/finance/`. Requisitos: RF-08.04. **Aceite:** Valores de datas diferentes aparecem no período correto.
 
-- [ ] **S09-T10 — Homologar CRM/financeiro e privacidade administrativa.** Dependências: S09-T03, S09-T09. Componente: `docs/homologation/management.md`. Requisitos: RF-07, RF-08, RT-02. **Aceite:** H-13/H-14 fecham valores sem leitura de notas clínicas.
+- [x] **S09-T10 — Homologar CRM/financeiro e privacidade administrativa.** Dependências: S09-T03, S09-T09. Componente: `docs/homologation/management.md`. Requisitos: RF-07, RF-08, RT-02. **Aceite:** H-13/H-14 fecham valores sem leitura de notas clínicas.
 
-- [ ] **Saída de S09:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S09:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S10 — Operação e piloto assistencial
 
@@ -1877,14 +1877,14 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-13 — CRM
 
-- [ ] Grid/kanban filtram responsável/prazo/etapa; transição registra ator, anterior e seguinte e funciona por teclado.
-- [ ] Card não mostra diagnóstico nem altera estado clínico/assinatura; integração com agenda ocorre pelo evento definido.
+- [x] Grid/kanban filtram responsável/prazo/etapa; transição registra ator, anterior e seguinte e funciona por teclado.
+- [x] Card não mostra diagnóstico nem altera estado clínico/assinatura; integração com agenda ocorre pelo evento definido.
 
 ### H-14 — Financeiro
 
-- [ ] Aplicar preço/repasse vigente, alterar tabela depois e conferir snapshot histórico; valores usam Decimal BRL com arredondamento de centavos explícito.
-- [ ] Recebimentos parciais, ajuste e estorno preservam registros e conciliam saldo; evento duplicado não gera segunda cobrança.
-- [ ] Visões de competência/caixa usam datas e fórmulas corretas; usuário financeiro não lê nota clínica.
+- [x] Aplicar preço/repasse vigente, alterar tabela depois e conferir snapshot histórico; valores usam Decimal BRL com arredondamento de centavos explícito.
+- [x] Recebimentos parciais, ajuste e estorno preservam registros e conciliam saldo; evento duplicado não gera segunda cobrança.
+- [x] Visões de competência/caixa usam datas e fórmulas corretas; usuário financeiro não lê nota clínica.
 
 ### H-15 — Relatórios
 

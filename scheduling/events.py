@@ -25,6 +25,28 @@ def invalidate_stale_reminders(appointment):
     ).exclude(event_version=appointment.row_version).update(status=OutboxEventStatus.CANCELLED)
 
 
+RESERVED_TOPIC = 'scheduling.appointment_reserved'
+
+
+@transaction.atomic
+def emit_appointment_reserved(appointment):
+    """A distinct, explicit event for administrative (CRM) integration --
+    kept separate from the reminder events above, and from the synchronous
+    audit trail entry, so a CRM-side failure can never affect the booking
+    itself (the event is only ever consumed asynchronously by the outbox
+    dispatcher).
+    """
+    OutboxEvent.objects.get_or_create(
+        tenant_id=appointment.tenant_id, topic=RESERVED_TOPIC, aggregate_type='appointment',
+        aggregate_id=appointment.id, event_version=appointment.row_version,
+        defaults={
+            'payload_minimal': {'appointment_id': str(appointment.id), 'patient_id': str(appointment.patient_id)},
+            'available_at': _now(),
+            'status': OutboxEventStatus.PENDING,
+        },
+    )
+
+
 @transaction.atomic
 def schedule_reminders(appointment):
     invalidate_stale_reminders(appointment)

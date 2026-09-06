@@ -2,9 +2,12 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.services import record_audit_event
+from events.models import OutboxEvent, OutboxEventStatus
 
 from .carry_forward import has_pending_review
 from .models import ClinicalAmendment, Encounter, EncounterStatus
+
+ENCOUNTER_FINALIZED_TOPIC = 'clinical.encounter_finalized'
 
 
 class FinalizationError(Exception):
@@ -35,6 +38,15 @@ def finalize_encounter(context, encounter, actor_membership):
         actor_membership.user_id, context.tenant_id, 'clinical.encounter_finalized',
         object_type='encounter', object_id=encounter.id, outcome='success',
         integrity_metadata={'content_hash': encounter.content_hash},
+    )
+    OutboxEvent.objects.get_or_create(
+        tenant_id=encounter.tenant_id, topic=ENCOUNTER_FINALIZED_TOPIC, aggregate_type='encounter',
+        aggregate_id=encounter.id, event_version=encounter.row_version,
+        defaults={
+            'payload_minimal': {'encounter_id': str(encounter.id), 'patient_id': str(encounter.patient_id)},
+            'available_at': timezone.now(),
+            'status': OutboxEventStatus.PENDING,
+        },
     )
     return encounter
 
