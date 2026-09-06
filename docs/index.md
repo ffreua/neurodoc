@@ -75,6 +75,22 @@ PRD; é a referência operacional viva gerada a partir dele.
   cancelamento, sanitização de Markdown e revogação interrompendo uma
   leitura já aberta.
 
+## Homologação final e documentação (S14)
+
+- [Aceite final v1](homologation/v1.md) — rastreabilidade, pendências
+  explícitas e liberação de funcionalidades elegíveis.
+- [Aderência visual](homologation/design-adherence.md) — tokens reais do
+  design system aplicados a todo o produto; achados reais de navegação
+  corrigidos (seleção de organização, redirecionamento após deep link).
+- [Acessibilidade](homologation/accessibility.md) — teclado, foco, rótulos
+  e viewport móvel verificados com navegador real.
+- [Desempenho e índices](homologation/performance.md) — medição na escala
+  local disponível; RNF-01.01 na escala-alvo permanece pendente.
+- [Revisão de isolamento](homologation/isolation.md) — admin, exportações,
+  chat, tasks, download e cache revisados novamente.
+- [Retenção, chaves e incidentes](governance/incident-response.md) —
+  consolidação final de governança operacional.
+
 ## Relatórios e captura local (S13)
 
 - [Homologação de relatórios e captura](homologation/reports-capture.md) —

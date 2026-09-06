@@ -1760,27 +1760,27 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S01–S13; nenhuma pendência bloqueante para a funcionalidade liberada.
 
-- [ ] **S14-T01 — Completar cenários sintéticos de demo em múltiplas datas.** Dependências: S03-T11, S13. Componente: `base/management/commands/seed_demo.py`. Requisitos: RF-12.02. **Aceite:** H-20 cobre faltas, retornos, planos, documentos e falhas sem entregas reais.
+- [x] **S14-T01 — Completar cenários sintéticos de demo em múltiplas datas.** Dependências: S03-T11, S13. Componente: `base/management/commands/seed_demo.py`. Requisitos: RF-12.02. **Aceite:** H-20 cobre faltas, retornos, planos, documentos e falhas sem entregas reais.
 
-- [ ] **S14-T02 — Revisar aderência visual e estados das jornadas.** Dependências: S01-T02, S13. Componente: `templates/, static/, docs/design-system.md`. Requisitos: RNF-01.09. **Aceite:** Arquivo real do design system fundamenta cada divergência corrigida.
+- [x] **S14-T02 — Revisar aderência visual e estados das jornadas.** Dependências: S01-T02, S13. Componente: `templates/, static/, docs/design-system.md`. Requisitos: RNF-01.09. **Aceite:** Arquivo real do design system fundamenta cada divergência corrigida.
 
-- [ ] **S14-T03 — Homologar teclado, foco, rótulos e telas móveis.** Dependências: S14-T02. Componente: `templates/, docs/homologation/accessibility.md`. Requisitos: RNF-01.09. **Aceite:** Cadastro, consulta, agenda e chat concluídos sem depender de mouse.
+- [x] **S14-T03 — Homologar teclado, foco, rótulos e telas móveis.** Dependências: S14-T02. Componente: `templates/, docs/homologation/accessibility.md`. Requisitos: RNF-01.09. **Aceite:** Cadastro, consulta, agenda e chat concluídos sem depender de mouse.
 
-- [ ] **S14-T04 — Medir latência de páginas, buscas, autosave e fila.** Dependências: S14-T01, S10-T08. Componente: `docs/homologation/performance.md`. Requisitos: RNF-01.01 a RNF-01.04. **Aceite:** H-23 registra percentis, base, máquina e concorrência usados.
+- [x] **S14-T04 — Medir latência de páginas, buscas, autosave e fila.** Dependências: S14-T01, S10-T08. Componente: `docs/homologation/performance.md`. Requisitos: RNF-01.01 a RNF-01.04. **Aceite:** H-23 registra percentis, base, máquina e concorrência usados.
 
-- [ ] **S14-T05 — Revisar consultas/índices e resolver gargalo medido prioritário.** Dependências: S14-T04. Componente: `selectors.py, migrations dos apps`. Requisitos: RNF-01.01, RNF-01.02. **Aceite:** Nova medição compara a mesma consulta e contexto.
+- [x] **S14-T05 — Revisar consultas/índices e resolver gargalo medido prioritário.** Dependências: S14-T04. Componente: `selectors.py, migrations dos apps`. Requisitos: RNF-01.01, RNF-01.02. **Aceite:** Nova medição compara a mesma consulta e contexto.
 
-- [ ] **S14-T06 — Repetir revisão manual das superfícies de autorização alteradas.** Dependências: S14-T01, S02-T10, S12. Componente: `docs/homologation/isolation.md`. Requisitos: RT-02, RT-03. **Aceite:** H-03 cobre admin/export/chat/tasks/download/cache novamente.
+- [x] **S14-T06 — Repetir revisão manual das superfícies de autorização alteradas.** Dependências: S14-T01, S02-T10, S12. Componente: `docs/homologation/isolation.md`. Requisitos: RT-02, RT-03. **Aceite:** H-03 cobre admin/export/chat/tasks/download/cache novamente.
 
-- [ ] **S14-T07 — Conferir políticas de retenção, chaves e resposta a incidentes.** Dependências: S10-T09, S13. Componente: `docs/governance/, docs/operations/`. Requisitos: RT-03, RT-10. **Aceite:** Responsáveis e fluxo de incidente estão acessíveis e atualizados.
+- [x] **S14-T07 — Conferir políticas de retenção, chaves e resposta a incidentes.** Dependências: S10-T09, S13. Componente: `docs/governance/, docs/operations/`. Requisitos: RT-03, RT-10. **Aceite:** Responsáveis e fluxo de incidente estão acessíveis e atualizados.
 
-- [ ] **S14-T08 — Atualizar guias MkDocs por perfil e por operação.** Dependências: S14-T03, S14-T07. Componente: `docs/, mkdocs.yml`. Requisitos: RF-12.03. **Aceite:** Build estrito e navegação técnica protegida aprovados em H-19.
+- [x] **S14-T08 — Atualizar guias MkDocs por perfil e por operação.** Dependências: S14-T03, S14-T07. Componente: `docs/, mkdocs.yml`. Requisitos: RF-12.03. **Aceite:** Build estrito e navegação técnica protegida aprovados em H-19.
 
-- [ ] **S14-T09 — Conferir rastreabilidade, pendências e release notes.** Dependências: S14-T05, S14-T06, S14-T08. Componente: `docs/releases/, matriz da seção 22`. Requisitos: RF-01 a RF-12, RT-01 a RT-10. **Aceite:** Nenhum requisito some por adiamento e toda restrição tem gate explícito.
+- [x] **S14-T09 — Conferir rastreabilidade, pendências e release notes.** Dependências: S14-T05, S14-T06, S14-T08. Componente: `docs/releases/, matriz da seção 22`. Requisitos: RF-01 a RF-12, RT-01 a RT-10. **Aceite:** Nenhum requisito some por adiamento e toda restrição tem gate explícito.
 
-- [ ] **S14-T10 — Registrar aceite do produto e liberar funcionalidades elegíveis.** Dependências: S14-T09, médico/produto/operação. Componente: `docs/homologation/v1.md`. Requisitos: RF-01 a RF-12, RNF-01. **Aceite:** Critérios da seção 21 aprovados; módulos bloqueados continuam identificados.
+- [x] **S14-T10 — Registrar aceite do produto e liberar funcionalidades elegíveis.** Dependências: S14-T09, médico/produto/operação. Componente: `docs/homologation/v1.md`. Requisitos: RF-01 a RF-12, RNF-01. **Aceite:** Critérios da seção 21 aprovados; módulos bloqueados continuam identificados.
 
-- [ ] **Saída de S14:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S14:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 
 ## 21. Homologação manual e critérios de liberação
@@ -1914,14 +1914,14 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-19 — Admin e documentação
 
-- [ ] Admin, dj-celery-panel e dependências têm todas as rotas protegidas por perfil técnico/MFA; argumentos/resultados/configuração sensíveis são mascarados ou suprimidos.
-- [ ] MkDocs/diagramas renderizam em URL autenticada, incluindo assets da documentação; usuário da clínica não os acessa.
-- [ ] Guias contêm instalação, permissões, integração, backup/restauração/diagnóstico e release vigente, sem credencial ou dados reais.
+- [x] Admin, dj-celery-panel e dependências têm todas as rotas protegidas por perfil técnico/MFA; argumentos/resultados/configuração sensíveis são mascarados ou suprimidos.
+- [x] MkDocs/diagramas renderizam em URL autenticada, incluindo assets da documentação; usuário da clínica não os acessa.
+- [x] Guias contêm instalação, permissões, integração, backup/restauração/diagnóstico e release vigente, sem credencial ou dados reais.
 
 ### H-20 — Demonstração
 
-- [ ] seed_demo é idempotente e cria clínicas, perfis, múltiplas datas, faltas/retornos, planos/particular, arquivos e falhas sintéticas.
-- [ ] Não há envio real, PFX real, prontuário real ou contatos roteáveis de pacientes; produção recusa execução com flag padrão.
+- [x] seed_demo é idempotente e cria clínicas, perfis, múltiplas datas, faltas/retornos, planos/particular, arquivos e falhas sintéticas.
+- [x] Não há envio real, PFX real, prontuário real ou contatos roteáveis de pacientes; produção recusa execução com flag padrão.
 
 ### H-21 — Deploy e rollback
 

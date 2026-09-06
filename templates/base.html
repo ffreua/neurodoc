@@ -1,15 +1,43 @@
 <!DOCTYPE html>
+{% load static %}
 <html lang="pt-br">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}NeuroDoc{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'base.css' %}">
 </head>
 <body>
+    <header class="nd-header">
+        <a class="nd-brand" href="{% if request.access_context %}{% url 'reporting:dashboard' %}{% else %}{% url 'onboarding:landing' %}{% endif %}">NeuroDoc</a>
+        {% if request.access_context %}
+        <nav aria-label="Navegação principal">
+            <a href="{% url 'reporting:dashboard' %}">Indicadores</a>
+            <a href="{% url 'crm:board' %}">CRM</a>
+            <a href="{% url 'finance:overview' %}">Financeiro</a>
+            <a href="{% url 'ai:chat-list' %}">Chat IA</a>
+            <a href="{% url 'notifications:list' %}">Notificações</a>
+            <a href="{% url 'documents:credential-list' %}">Assinatura</a>
+            <a href="{% url 'accounts:logout' %}">Sair</a>
+        </nav>
+        {% elif request.user.is_authenticated %}
+        <nav aria-label="Navegação principal">
+            <a href="{% url 'accounts:tenant-picker' %}">Organizações</a>
+            <a href="{% url 'accounts:logout' %}">Sair</a>
+        </nav>
+        {% else %}
+        <nav aria-label="Navegação principal">
+            <a href="{% url 'accounts:login' %}">Entrar</a>
+        </nav>
+        {% endif %}
+    </header>
     {% if messages %}
-    <ul>
+    <ul class="nd-messages">
         {% for message in messages %}<li>{{ message }}</li>{% endfor %}
     </ul>
     {% endif %}
-    {% block content %}{% endblock %}
+    <main>
+        {% block content %}{% endblock %}
+    </main>
 </body>
 </html>

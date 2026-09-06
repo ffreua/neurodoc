@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Sem organização{% endblock %}
+{% block content %}
+<h1>Nenhuma organização ativa</h1>
+<p>Sua conta não tem nenhum vínculo ativo com uma organização no momento.
+   Entre em contato com quem administra sua clínica para receber um convite,
+   ou entre em contato com o suporte se isso parecer incorreto.</p>
+<form method="post" action="{% url 'accounts:logout' %}">
+    {% csrf_token %}<button type="submit">Sair</button>
+</form>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Escolher organização{% endblock %}
+{% block content %}
+<h1>Escolher organização</h1>
+<p>Você participa de mais de uma organização. Escolha em qual deseja entrar.</p>
+<ul>
+    {% for m in memberships %}
+    <li>
+        <form method="post" action="{% url 'accounts:switch-tenant' %}">
+            {% csrf_token %}
+            <input type="hidden" name="tenant_id" value="{{ m.tenant_id }}">
+            {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+            <button type="submit">{{ m.tenant.legal_name }} — {{ m.roles|join:", " }}</button>
+        </form>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

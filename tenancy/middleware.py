@@ -21,6 +21,12 @@ class TenantMiddleware:
             return self.get_response(request)
         if not request.user.is_authenticated:
             return redirect_to_login(request.get_full_path())
+        if request.user.email_verified_at is not None and not request.session.get('tenant_id'):
+            # Authenticated, verified, but no organization chosen yet in
+            # this browser session (fresh login, or a deep link opened
+            # before ever picking one) -- send them to pick one and come
+            # straight back here, instead of a bare 404 with no way out.
+            return redirect_to_login(request.get_full_path(), login_url='accounts:tenant-picker')
         context = build_access_context(request)
         if context is None:
             raise Http404

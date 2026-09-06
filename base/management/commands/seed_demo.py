@@ -29,6 +29,7 @@ class Command(BaseCommand):
         from patients.models import (
             HealthPlan, Insurer, ObservationKind, Patient, PatientCoverage, SexAtRegistration,
         )
+        from scheduling.models import Appointment, AppointmentStatus
         from tenancy.models import Membership, MembershipStatus, Role, Tenant, TenantStatus
 
         counts = {'tenants': 0, 'users': 0, 'memberships': 0, 'patients': 0, 'contacts': 0, 'observations': 0, 'coverages': 0}
@@ -134,6 +135,107 @@ class Command(BaseCommand):
             tenant_b, 'Fernanda Exemplo Souza', birth_date=date(1992, 11, 20),
             cpf='93541134780', sex_at_registration=SexAtRegistration.FEMALE,
         )
+
+        # --- Multiple dates: a completed visit (with a finalized encounter,
+        # a return visit, a no-show, and an upcoming booking) so H-20 has
+        # faltas/retornos/planos/particular to point at without relying on
+        # whatever a prior manual smoke test happened to leave behind ---
+        from clinical.finalization import finalize_encounter
+        from clinical.models import Encounter, EncounterStatus
+        from crm.services import bootstrap_default_stages
+        from finance.models import PaymentCategory
+        from finance.payments import record_payment
+        from finance.pricing import create_fee_schedule
+        from finance.receivables import create_receivable_for_encounter
+        from scheduling.models import AppointmentType, AvailabilityRule
+        from scheduling.services import reserve_appointment
+        from tenancy.context import AccessContext
+        import uuid as uuid_module
+
+        AvailabilityRule.objects.get_or_create(
+            tenant=tenant_a, physician_membership=membership_doctor_a, weekday=0,
+            defaults={'local_start': timezone.datetime.min.time().replace(hour=9),
+                      'local_end': timezone.datetime.min.time().replace(hour=17), 'slot_minutes': 30},
+        )
+
+        demo_ctx = AccessContext(
+            user_id=doctor_a.id, tenant_id=tenant_a.id, membership_id=membership_doctor_a.id,
+            permissions=frozenset(), request_id=uuid_module.uuid4(),
+        )
+
+        def _next_monday(base):
+            candidate = base
+            while candidate.weekday() != 0:
+                candidate += timedelta(days=1)
+            return candidate
+
+        counts.setdefault('encounters', 0)
+        counts.setdefault('appointments', 0)
+
+        if not Encounter.objects.filter(tenant=tenant_a, patient=adult, status=EncounterStatus.FINALIZED).exists():
+            first_visit_at = timezone.now() - timedelta(days=60)
+            first_encounter = Encounter.objects.create(
+                tenant=tenant_a, patient=adult, physician_membership=membership_doctor_a,
+                occurred_at=first_visit_at, chief_complaint='Cefaleia recorrente há 3 meses (demo)',
+                hpi='Dor pulsátil, unilateral, sem aura (demo).', plan_text='Observação e diário de crises (demo).',
+            )
+            finalize_encounter(demo_ctx, first_encounter, membership_doctor_a)
+            return_visit_at = timezone.now() - timedelta(days=20)
+            return_encounter = Encounter.objects.create(
+                tenant=tenant_a, patient=adult, physician_membership=membership_doctor_a,
+                occurred_at=return_visit_at, chief_complaint='Retorno — mesma queixa, melhora parcial (demo)',
+                hpi='Redução de frequência das crises (demo).', plan_text='Manter conduta (demo).',
+            )
+            finalize_encounter(demo_ctx, return_encounter, membership_doctor_a)
+            counts['encounters'] += 2
+
+            create_fee_schedule(
+                tenant_a, PaymentCategory.PRIVATE, Decimal('350.00'), Decimal('280.00'),
+                date.today() - timedelta(days=400), physician=membership_doctor_a,
+            )
+            for encounter in [first_encounter, return_encounter]:
+                receivable = create_receivable_for_encounter(encounter, doctor_a.id)
+                if receivable is not None:
+                    record_payment(receivable, receivable.charged_amount, 'pix', doctor_a.id)
+
+        past_monday = _next_monday(date.today() - timedelta(days=10))
+        no_show_starts_at = timezone.make_aware(timezone.datetime.combine(past_monday, timezone.datetime.min.time().replace(hour=10)))
+        if not Appointment.objects.filter(tenant=tenant_a, patient=minor, starts_at=no_show_starts_at).exists():
+            no_show_appt = reserve_appointment(
+                demo_ctx, minor, membership_doctor_a, no_show_starts_at,
+                no_show_starts_at + timedelta(minutes=30), AppointmentType.FIRST_VISIT,
+            )
+            no_show_appt.status = AppointmentStatus.NO_SHOW
+            no_show_appt.save(update_fields=['status'])
+            counts['appointments'] += 1
+
+        future_monday = _next_monday(date.today() + timedelta(days=7))
+        upcoming_starts_at = timezone.make_aware(timezone.datetime.combine(future_monday, timezone.datetime.min.time().replace(hour=11)))
+        if not Appointment.objects.filter(tenant=tenant_a, patient=adult, starts_at=upcoming_starts_at).exists():
+            reserve_appointment(
+                demo_ctx, adult, membership_doctor_a, upcoming_starts_at,
+                upcoming_starts_at + timedelta(minutes=30), AppointmentType.FOLLOW_UP,
+            )
+            counts['appointments'] += 1
+
+        bootstrap_default_stages(tenant_a)
+
+        # --- A synthetic failure: an attachment that failed the malware
+        # scan, kept quarantined with a visible (synthetic) error, never
+        # silently available -- exactly the failure mode H-20 asks to see
+        # demonstrated without any real malicious content involved ---
+        from documents.models import Attachment, AttachmentClassification, AttachmentScanStatus
+
+        counts.setdefault('attachments', 0)
+        if not Attachment.objects.filter(tenant=tenant_a, patient=adult, scan_status=AttachmentScanStatus.REJECTED).exists():
+            Attachment.objects.create(
+                tenant=tenant_a, patient=adult, storage_key='', original_name='exame_externo_demo.pdf',
+                mime='application/pdf', bytes=1024, sha256='0' * 64,
+                classification=AttachmentClassification.CLINICAL, scan_status=AttachmentScanStatus.REJECTED,
+                scan_error='Falha sintética de demonstração — antivírus indisponível ao processar (demo)',
+                uploaded_by=doctor_a,
+            )
+            counts['attachments'] += 1
 
         # --- Sample (non-official) catalog release, so patients app has real
         # DiagnosisCode/ProcedureCode rows to reference in later sprints ---

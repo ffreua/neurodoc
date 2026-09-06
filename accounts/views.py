@@ -73,7 +73,7 @@ class MFAChallengeView(FormView):
         record_audit_event(
             user, None, 'auth.login', outcome='success', integrity_metadata={'mfa': True},
         )
-        return redirect(self.request.GET.get('next') or '/app/')
+        return redirect(self.request.GET.get('next') or 'accounts:tenant-picker')
 
 
 class VerifyEmailView(View):
@@ -91,12 +91,47 @@ class ResendVerificationEmailView(LoginRequiredMixin, View):
         return render(request, 'accounts/email_verification_sent.html')
 
 
+def _safe_next(request):
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    next_url = request.POST.get('next') or request.GET.get('next')
+    if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+        return next_url
+    return None
+
+
 class SwitchTenantView(LoginRequiredMixin, View):
     def post(self, request):
         tenant_id = request.POST.get('tenant_id')
         if services.switch_tenant(request, tenant_id):
-            return redirect('/app/')
+            return redirect(_safe_next(request) or 'reporting:dashboard')
         return HttpResponseForbidden('No active membership for that organization.')
+
+
+class TenantPickerView(LoginRequiredMixin, View):
+    """LOGIN_REDIRECT_URL lands here, not directly on /app/ -- a fresh
+    login carries no `tenant_id` in session yet, and TenantMiddleware
+    redirects any /app/ path without one back to this same picker
+    (preserving where the user meant to go via `next`). A user with
+    exactly one active membership skips straight through; anyone in more
+    than one organization picks explicitly, every time, since the session
+    never remembers a previous choice across logins on purpose (a revoked
+    membership must never be silently reused from a stale session).
+    """
+
+    def get(self, request):
+        from tenancy.models import Membership, MembershipStatus
+
+        memberships = Membership.objects.filter(
+            user=request.user, status=MembershipStatus.ACTIVE,
+        ).select_related('tenant').order_by('tenant__legal_name')
+        next_url = _safe_next(request)
+        if memberships.count() == 1:
+            if services.switch_tenant(request, memberships.first().tenant_id):
+                return redirect(next_url or 'reporting:dashboard')
+        if not memberships:
+            return render(request, 'accounts/no_organizations.html')
+        return render(request, 'accounts/tenant_picker.html', {'memberships': memberships, 'next': next_url})
 
 
 class MFASetupView(LoginRequiredMixin, View):
