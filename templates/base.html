@@ -13,6 +13,8 @@
         {% if request.access_context %}
         <nav aria-label="Navegação principal">
             <a href="{% url 'reporting:dashboard' %}">Indicadores</a>
+            <a href="{% url 'patients:list' %}">Pacientes</a>
+            <a href="{% url 'scheduling:day' %}">Agenda</a>
             <a href="{% url 'crm:board' %}">CRM</a>
             <a href="{% url 'finance:overview' %}">Financeiro</a>
             <a href="{% url 'ai:chat-list' %}">Chat IA</a>

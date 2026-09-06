@@ -21,7 +21,7 @@
     <tbody>
         {% for card in cards %}
         <tr>
-            <td>{{ card.patient.full_name }}</td>
+            <td><a href="{% url 'patients:detail' card.patient_id %}">{{ card.patient.full_name }}</a></td>
             <td>{{ card.stage.name }}</td>
             <td>{{ card.assigned_membership.user.get_full_name|default:"—" }}</td>
             <td>{{ card.due_at|date:"d/m/Y H:i"|default:"—" }}</td>
