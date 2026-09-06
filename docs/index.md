@@ -46,6 +46,12 @@ PRD; é a referência operacional viva gerada a partir dele.
   com certificado PFX autoassinado sintético (P-05 em aberto), incluindo
   assinatura PAdES real via pyHanko e validação independente.
 
+## Comunicações, outbox e notificações (S08)
+
+- [Homologação de comunicações](homologation/communications.md) — evidências
+  de H-09: dispatcher outbox idempotente, entrega por e-mail/SMS, link
+  opaco com OTP e reconciliação (P-03 em aberto para credenciais reais).
+
 ## Arquitetura
 
 ```mermaid

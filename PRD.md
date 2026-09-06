@@ -1588,27 +1588,27 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S04/S07; contratos e credenciais P-03.
 
-- [ ] **S08-T01 — Criar dispatcher outbox com lease e ProcessedEvent.** Dependências: S04-T09, S07-T09. Componente: `events/dispatcher.py, tasks.py`. Requisitos: RT-08, RF-09.04. **Aceite:** Redelivery não duplica efeito de negócio.
+- [x] **S08-T01 — Criar dispatcher outbox com lease e ProcessedEvent.** Dependências: S04-T09, S07-T09. Componente: `events/dispatcher.py, tasks.py`. Requisitos: RT-08, RF-09.04. **Aceite:** Redelivery não duplica efeito de negócio.
 
-- [ ] **S08-T02 — Modelar Delivery e DeliveryAttempt por canal.** Dependências: S08-T01. Componente: `communications/models.py`. Requisitos: RF-09.01, RF-09.04. **Aceite:** Aceito pelo provedor difere de entrega confirmada.
+- [x] **S08-T02 — Modelar Delivery e DeliveryAttempt por canal.** Dependências: S08-T01. Componente: `communications/models.py`. Requisitos: RF-09.01, RF-09.04. **Aceite:** Aceito pelo provedor difere de entrega confirmada.
 
-- [ ] **S08-T03 — Integrar backend nativo de e-mail no worker.** Dependências: S08-T02, P-03. Componente: `communications/email.py`. Requisitos: RF-09.01, RF-01.04. **Aceite:** Recuperação/convite/documento usam fila e remetente autorizado.
+- [x] **S08-T03 — Integrar backend nativo de e-mail no worker.** Dependências: S08-T02, P-03. Componente: `communications/email.py`. Requisitos: RF-09.01, RF-01.04. **Aceite:** Recuperação/convite/documento usam fila e remetente autorizado.
 
-- [ ] **S08-T04 — Implementar adaptador SMSDEV POST JSON e timeout.** Dependências: S08-T02, P-03. Componente: `communications/smsdev.py`. Requisitos: RF-09.01. **Aceite:** Endpoint e campos reais homologados com destinatário autorizado.
+- [x] **S08-T04 — Implementar adaptador SMSDEV POST JSON e timeout.** Dependências: S08-T02, P-03. Componente: `communications/smsdev.py`. Requisitos: RF-09.01. **Aceite:** Endpoint e campos reais homologados com destinatário autorizado.
 
-- [ ] **S08-T05 — Criar links opacos, OTP, tentativas e revogação.** Dependências: S07-T09, S08-T03. Componente: `communications/access.py`. Requisitos: RF-09.02. **Aceite:** Link isolado não abre documento e token não revela identificadores.
+- [x] **S08-T05 — Criar links opacos, OTP, tentativas e revogação.** Dependências: S07-T09, S08-T03. Componente: `communications/access.py`. Requisitos: RF-09.02. **Aceite:** Link isolado não abre documento e token não revela identificadores.
 
-- [ ] **S08-T06 — Conectar emissão à entrega em ambos os canais elegíveis.** Dependências: S08-T04, S08-T05. Componente: `communications/services.py`. Requisitos: RF-04.05, RF-09.03. **Aceite:** Ausência de contato gera pendência sem invalidar emissão.
+- [x] **S08-T06 — Conectar emissão à entrega em ambos os canais elegíveis.** Dependências: S08-T04, S08-T05. Componente: `communications/services.py`. Requisitos: RF-04.05, RF-09.03. **Aceite:** Ausência de contato gera pendência sem invalidar emissão.
 
-- [ ] **S08-T07 — Conectar lembretes às versões atuais de agenda.** Dependências: S08-T01, S04-T09. Componente: `scheduling/tasks.py`. Requisitos: RF-06.04, RF-09. **Aceite:** Remarcação/cancelamento impede lembrete obsoleto.
+- [x] **S08-T07 — Conectar lembretes às versões atuais de agenda.** Dependências: S08-T01, S04-T09. Componente: `scheduling/tasks.py`. Requisitos: RF-06.04, RF-09. **Aceite:** Remarcação/cancelamento impede lembrete obsoleto.
 
-- [ ] **S08-T08 — Implementar unknown, reconciliação e reenvio autorizado.** Dependências: S08-T04, S08-T06. Componente: `communications/reconciliation.py`. Requisitos: RF-09.04. **Aceite:** Timeout ambíguo não gera retry cego.
+- [x] **S08-T08 — Implementar unknown, reconciliação e reenvio autorizado.** Dependências: S08-T04, S08-T06. Componente: `communications/reconciliation.py`. Requisitos: RF-09.04. **Aceite:** Timeout ambíguo não gera retry cego.
 
-- [ ] **S08-T09 — Criar Notification e caixa interna com read_at.** Dependências: S08-T01. Componente: `notifications/models.py, views.py`. Requisitos: RF-11, RT-02. **Aceite:** Notificação persiste e não aparece em outro tenant.
+- [x] **S08-T09 — Criar Notification e caixa interna com read_at.** Dependências: S08-T01. Componente: `notifications/models.py, views.py`. Requisitos: RF-11, RT-02. **Aceite:** Notificação persiste e não aparece em outro tenant.
 
-- [ ] **S08-T10 — Homologar comunicação e falhas de dependência.** Dependências: S08-T07, S08-T08, S08-T09. Componente: `docs/homologation/communications.md`. Requisitos: RF-09, RT-08. **Aceite:** H-09 diferencia accepted/delivered/unknown sem envio clínico no texto.
+- [x] **S08-T10 — Homologar comunicação e falhas de dependência.** Dependências: S08-T07, S08-T08, S08-T09. Componente: `docs/homologation/communications.md`. Requisitos: RF-09, RT-08. **Aceite:** H-09 diferencia accepted/delivered/unknown sem envio clínico no texto.
 
-- [ ] **Saída de S08:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S08:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S09 — CRM e financeiro
 
@@ -1851,10 +1851,10 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-09 — Entrega e lembretes
 
-- [ ] Documento emitido gera e-mail e SMS quando ambos são elegíveis; ausência de canal gera pendência; mensagem não contém diagnóstico nem PDF em URL permanente.
-- [ ] Link sem OTP, expirado, revogado ou com tentativas excedidas não libera documento; contato legal autorizado recebe a comunicação prevista.
-- [ ] API aceita mensagem → accepted; delivered somente com evidência real. Timeout após possível aceitação → unknown, sem reenvio automático cego.
-- [ ] Remarcar/cancelar invalida lembrete antigo; reprocessar outbox não duplica efeito; indisponibilidade SMTP/SMS não invalida prontuário.
+- [x] Documento emitido gera e-mail e SMS quando ambos são elegíveis; ausência de canal gera pendência; mensagem não contém diagnóstico nem PDF em URL permanente.
+- [x] Link sem OTP, expirado, revogado ou com tentativas excedidas não libera documento; contato legal autorizado recebe a comunicação prevista.
+- [x] API aceita mensagem → accepted; delivered somente com evidência real. Timeout após possível aceitação → unknown, sem reenvio automático cego.
+- [x] Remarcar/cancelar invalida lembrete antigo; reprocessar outbox não duplica efeito; indisponibilidade SMTP/SMS não invalida prontuário.
 
 ### H-10 — Arquivos e processamento
 

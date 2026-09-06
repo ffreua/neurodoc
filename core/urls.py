@@ -16,5 +16,7 @@ urlpatterns = [
     path('app/scheduling/', include('scheduling.urls')),
     path('app/clinical/', include('clinical.urls')),
     path('app/documents/', include('documents.urls')),
+    path('app/notifications/', include('notifications.urls')),
+    path('d/', include('communications.urls')),
     path('', include('base.urls')),
 ]

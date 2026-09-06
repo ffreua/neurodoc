@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Acessar documento{% endblock %}
+{% block content %}
+<h1>Acessar documento</h1>
+<p>Por segurança, enviaremos um código de verificação ao contato já confirmado.</p>
+<form method="post" action="{% url 'communications:request-otp' raw_token %}">
+    {% csrf_token %}
+    <button type="submit">Enviar código</button>
+</form>
+{% endblock %}

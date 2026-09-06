@@ -17,6 +17,7 @@ DEBUG = env.bool('DEBUG', default=False)
 SECRET_KEY = secret('DJANGO_SECRET_KEY')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+PUBLIC_BASE_URL = env('PUBLIC_BASE_URL', default='http://localhost:8000')
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = env('TIME_ZONE', default='America/Sao_Paulo')
 USE_I18N = True
@@ -117,6 +118,14 @@ CELERY_BEAT_SCHEDULE = {
     'documents-update-clamav-definitions': {
         'task': 'documents.tasks.update_clamav_definitions',
         'schedule': 6 * 60 * 60,
+    },
+    'events-dispatch-outbox': {
+        'task': 'events.tasks.dispatch_outbox',
+        'schedule': 5,
+    },
+    'communications-reconcile-pending-sms': {
+        'task': 'communications.tasks.reconcile_pending_sms',
+        'schedule': 60,
     },
 }
 CACHES = {'default': {
