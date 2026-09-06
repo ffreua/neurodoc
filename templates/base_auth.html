@@ -1,0 +1,43 @@
+{% load static %}<!DOCTYPE html>
+{% comment %}Shell for pages that exist outside a tenant: landing, authentication,
+organization choice, invitations and the patient document link. No sidebar,
+no header — the Duralux auth card layout instead.{% endcomment %}
+<html lang="pt-br">
+<head>
+    {% include "partials/head.html" %}
+</head>
+<body class="auth-container">
+<div class="nd-auth-shell">
+    <a class="nd-auth-brand" href="{% url 'onboarding:landing' %}">
+        <span class="brand-mark" aria-hidden="true">N</span>
+        <span class="brand-name">NeuroDoc</span>
+    </a>
+    <p class="fs-12 text-muted mb-3">{% block tagline %}Prontuário e gestão da clínica neurológica{% endblock %}</p>
+
+    <div class="card {% block card_width %}wd-450{% endblock %} border-0 shadow-sm">
+        <div class="card-body p-4">
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-primary{% endif %} alert-dismissible fade show" role="alert">
+                <span>{{ message }}</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <h4 class="fw-bold text-dark mb-1">{% block heading %}{% endblock %}</h4>
+            <p class="fs-12 text-muted mb-4">{% block subheading %}{% endblock %}</p>
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    {% block outside_card %}{% endblock %}
+
+    <p class="fs-11 text-muted text-uppercase fw-medium mt-4 mb-0">Dados sob sigilo médico</p>
+</div>
+
+<script src="{% static 'duralux/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

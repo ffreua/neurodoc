@@ -1,10 +1,30 @@
 {% extends "base.html" %}
 {% block title %}Remarcar — Agenda{% endblock %}
+{% block page_title %}Remarcar consulta{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:day' %}">Agenda</a></li>
+<li class="breadcrumb-item">Remarcar</li>
+{% endblock %}
 {% block content %}
-<h1>Remarcar consulta de {{ appointment.patient.full_name }}</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Remarcar</button>
-</form>
+<div class="row justify-content-center">
+    <div class="col-xxl-6 col-xl-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">{{ appointment.patient.full_name }}</h5>
+                <span class="badge bg-soft-primary text-primary">{{ appointment.starts_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <div class="d-flex align-items-center gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Remarcar</button>
+                        <a class="btn btn-light" href="{% url 'scheduling:day' %}">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,6 +1,7 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}E-mail confirmado — NeuroDoc{% endblock %}
+{% block heading %}E-mail confirmado{% endblock %}
+{% block subheading %}Você já pode acessar as áreas clínicas do NeuroDoc.{% endblock %}
 {% block content %}
-<h1>E-mail confirmado</h1>
-<p>Seu e-mail foi confirmado. Você já pode acessar as áreas clínicas do NeuroDoc.</p>
+<a class="btn btn-primary w-100" href="{% url 'accounts:login' %}">Entrar</a>
 {% endblock %}

@@ -1,46 +1,97 @@
 {% extends "base.html" %}
-{% block title %}CRM — Painel administrativo{% endblock %}
-{% block content %}
-<h1>CRM — Painel administrativo</h1>
-<p>Apenas dados administrativos: nenhum diagnóstico ou hipótese clínica aparece aqui.</p>
-
-<form method="get">
-    <select name="stage">
+{% load nd %}
+{% block title %}CRM — NeuroDoc{% endblock %}
+{% block page_title %}CRM{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">CRM</li>
+{% endblock %}
+{% block page_actions %}
+<form method="get" class="d-flex align-items-center gap-2">
+    <select class="form-select form-select-sm" name="stage" aria-label="Filtrar por etapa">
         <option value="">Todas as etapas</option>
         {% for s in stages %}
-        <option value="{{ s.id }}">{{ s.name }}</option>
+        <option value="{{ s.id }}" {% if request.GET.stage == s.id|stringformat:"s" %}selected{% endif %}>{{ s.name }}</option>
         {% endfor %}
     </select>
-    <button type="submit">Filtrar</button>
+    <button type="submit" class="btn btn-light-primary btn-sm">Filtrar</button>
 </form>
+{% endblock %}
+{% block content %}
+<div class="alert alert-primary fade show d-flex align-items-center gap-2 fs-12" role="alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    <span>Painel administrativo: nenhum diagnóstico ou hipótese clínica aparece aqui.</span>
+</div>
 
-<table>
-    <thead>
-        <tr><th>Paciente</th><th>Etapa</th><th>Responsável</th><th>Prazo</th><th>Resumo</th><th>Mover para</th></tr>
-    </thead>
-    <tbody>
-        {% for card in cards %}
-        <tr>
-            <td><a href="{% url 'patients:detail' card.patient_id %}">{{ card.patient.full_name }}</a></td>
-            <td>{{ card.stage.name }}</td>
-            <td>{{ card.assigned_membership.user.get_full_name|default:"—" }}</td>
-            <td>{{ card.due_at|date:"d/m/Y H:i"|default:"—" }}</td>
-            <td>{{ card.administrative_summary }}</td>
-            <td>
-                {% for s in stages %}
-                {% if s.id != card.stage_id %}
-                <form method="post" action="{% url 'crm:move' card.id %}" style="display:inline">
-                    {% csrf_token %}
-                    <input type="hidden" name="to_stage" value="{{ s.id }}">
-                    <button type="submit">{{ s.name }}</button>
-                </form>
-                {% endif %}
-                {% endfor %}
-            </td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="6">Nenhum card.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="row g-3">
+    {% for stage in stages %}
+    {% with stage_cards=cards|nd_in_stage:stage.id %}
+    <div class="col-xxl-3 col-lg-4 col-md-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">{{ stage.name }}</h5>
+                <span class="badge bg-gray-200 text-dark">{{ stage_cards|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for card in stage_cards %}
+                    <li class="list-group-item chat-single-item">
+                        <div class="d-flex align-items-start justify-content-between gap-2">
+                            <a class="fw-semibold text-dark fs-13" href="{% url 'patients:detail' card.patient_id %}">
+                                {{ card.patient.full_name }}
+                            </a>
+                            <div class="dropdown flex-shrink-0">
+                                <button class="btn btn-icon btn-sm btn-light" type="button"
+                                        data-bs-toggle="dropdown" aria-expanded="false"
+                                        aria-label="Mover {{ card.patient.full_name }} de etapa">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                                </button>
+                                <div class="dropdown-menu dropdown-menu-end">
+                                    <h6 class="dropdown-header fs-11 text-uppercase">Mover para</h6>
+                                    {% for target in stages %}
+                                    {% if target.id != card.stage_id %}
+                                    <form method="post" action="{% url 'crm:move' card.id %}">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="to_stage" value="{{ target.id }}">
+                                        <button type="submit" class="dropdown-item border-0 bg-transparent w-100 text-start">
+                                            {{ target.name }}
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                    {% endfor %}
+                                    <div class="dropdown-divider"></div>
+                                    <a class="dropdown-item" href="{% url 'patients:detail' card.patient_id %}">Abrir cadastro</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% if card.administrative_summary %}
+                        <span class="d-block fs-11 text-muted mt-1">{{ card.administrative_summary }}</span>
+                        {% endif %}
+                        <div class="d-flex align-items-center justify-content-between gap-2 mt-2">
+                            <span class="fs-11 text-muted">
+                                {{ card.assigned_membership.user.get_full_name|default:"sem responsável" }}
+                            </span>
+                            {% if card.due_at %}
+                            <span class="badge bg-soft-warning text-warning">{{ card.due_at|date:"d/m H:i" }}</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Nenhum card nesta etapa.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% empty %}
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-body text-center py-5">
+                <p class="text-muted mb-0">Nenhuma etapa de CRM configurada nesta organização.</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
 {% endblock %}

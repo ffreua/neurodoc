@@ -1,0 +1,128 @@
+<header class="nxl-header">
+    <div class="header-wrapper">
+        <div class="header-left d-flex align-items-center gap-4">
+            <a class="nxl-head-mobile-toggler" href="#" id="mobile-collapse" aria-label="Abrir menu lateral">
+                <div class="hamburger hamburger--arrowturn">
+                    <div class="hamburger-box"><div class="hamburger-inner"></div></div>
+                </div>
+            </a>
+            <div class="nxl-navigation-toggle">
+                <a href="#" id="menu-mini-button" aria-label="Recolher menu lateral">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="17" y1="10" x2="3" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="17" y1="18" x2="3" y2="18"></line></svg>
+                </a>
+                <a href="#" id="menu-expend-button" style="display:none" aria-label="Expandir menu lateral">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" y1="10" x2="7" y2="10"></line><line x1="21" y1="6" x2="3" y2="6"></line><line x1="21" y1="14" x2="3" y2="14"></line><line x1="21" y1="18" x2="7" y2="18"></line></svg>
+                </a>
+            </div>
+            {% if nd_tenant %}
+            <span class="badge bg-soft-primary text-primary fs-11 d-none d-md-inline-flex">
+                {{ nd_tenant.trade_name|default:nd_tenant.legal_name }}
+            </span>
+            {% endif %}
+        </div>
+
+        <div class="header-right ms-auto">
+            <div class="d-flex align-items-center">
+                <div class="nxl-h-item d-none d-sm-flex">
+                    <div class="full-screen-switcher">
+                        <span class="nxl-head-link me-0" role="button" data-bs-toggle="tooltip" aria-label="Tela cheia">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"></path><path d="M21 8V5a2 2 0 0 0-2-2h-3"></path><path d="M16 21h3a2 2 0 0 0 2-2v-3"></path><path d="M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                        </span>
+                    </div>
+                </div>
+
+                <div class="nxl-h-item dark-light-theme">
+                    <div class="nxl-head-link me-0 dark-button" role="button" data-bs-toggle="tooltip" aria-label="Tema escuro">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    </div>
+                    <div class="nxl-head-link me-0 light-button" role="button" style="display:none" data-bs-toggle="tooltip" aria-label="Tema claro">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    </div>
+                </div>
+
+                <div class="dropdown nxl-h-item">
+                    <div class="nxl-head-link me-0" data-bs-toggle="dropdown" data-bs-auto-close="outside" role="button" aria-expanded="false" aria-label="Notificações">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                        {% if nd_unread_notifications %}<span class="badge bg-danger nxl-h-badge">{{ nd_unread_notifications }}</span>{% endif %}
+                    </div>
+                    <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-notifications-menu">
+                        <div class="d-flex justify-content-between align-items-center notifications-head">
+                            <h6 class="fw-bold text-dark mb-0">Notificações</h6>
+                            <a class="fs-11 text-success text-end ms-auto" href="{% url 'notifications:list' %}">
+                                <span>Ver todas</span>
+                            </a>
+                        </div>
+                        {% for item in nd_recent_notifications %}
+                        <div class="notifications-item">
+                            <div class="avatar-text avatar-md bg-soft-primary text-primary me-3">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            </div>
+                            <div class="notifications-desc">
+                                <a class="font-body text-truncate-2-line" href="{% url 'notifications:list' %}">
+                                    <span class="fw-semibold text-dark">{{ item.sanitized_title }}</span>
+                                </a>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="notifications-date text-muted">{{ item.created_at|date:"d/m/Y H:i" }}</div>
+                                    {% if not item.read_at %}<span class="badge bg-soft-danger text-danger fs-10">nova</span>{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="d-flex justify-content-between align-items-center flex-column py-4">
+                            <p class="text-muted fs-12 mb-0">Nenhuma notificação.</p>
+                        </div>
+                        {% endfor %}
+                        <div class="text-center notifications-footer">
+                            <a class="fs-13 fw-semibold text-dark" href="{% url 'notifications:list' %}">Central de notificações</a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dropdown nxl-h-item">
+                    <a href="#" data-bs-toggle="dropdown" data-bs-auto-close="outside" role="button" aria-expanded="false" aria-label="Conta">
+                        <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold">{{ nd_user_initials }}</span>
+                    </a>
+                    <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-user-dropdown">
+                        <div class="dropdown-header">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold">{{ nd_user_initials }}</span>
+                                <div>
+                                    <h6 class="text-dark mb-0">{{ request.user.get_full_name|default:request.user.email }}</h6>
+                                    <span class="fs-12 fw-medium text-muted">{{ request.user.email }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <a class="dropdown-item" href="{% url 'accounts:mfa-setup' %}">
+                            <i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                            </i>
+                            <span>Segundo fator (MFA)</span>
+                        </a>
+                        <a class="dropdown-item" href="{% url 'documents:credential-list' %}">
+                            <i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                            </i>
+                            <span>Certificados de assinatura</span>
+                        </a>
+                        <a class="dropdown-item" href="{% url 'accounts:tenant-picker' %}">
+                            <i>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path></svg>
+                            </i>
+                            <span>Trocar organização</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <form method="post" action="{% url 'accounts:logout' %}">
+                            {% csrf_token %}
+                            <button class="dropdown-item border-0 bg-transparent w-100 text-start" type="submit">
+                                <i>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                                </i>
+                                <span>Sair</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>

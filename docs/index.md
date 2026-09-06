@@ -82,6 +82,11 @@ PRD; é a referência operacional viva gerada a partir dele.
 - [Aderência visual](homologation/design-adherence.md) — tokens reais do
   design system aplicados a todo o produto; achados reais de navegação
   corrigidos (seleção de organização, redirecionamento após deep link).
+- [Aplicação integral do design system](homologation/design-system-full.md) —
+  o tema Duralux real (CSS, JS, shell, botões, sombras, animações)
+  aplicado às 51 telas, servido localmente sem requisição externa;
+  nove defeitos reais encontrados e corrigidos, incluindo dois do próprio
+  tema.
 - [Acessibilidade](homologation/accessibility.md) — teclado, foco, rótulos
   e viewport móvel verificados com navegador real.
 - [Desempenho e índices](homologation/performance.md) — medição na escala

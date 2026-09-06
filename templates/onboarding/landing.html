@@ -1,22 +1,30 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}NeuroDoc{% endblock %}
+{% block heading %}Atendimento longitudinal em neurologia{% endblock %}
+{% block subheading %}Prontuário, agenda, documentos assinados e gestão da clínica em um só lugar.{% endblock %}
 {% block content %}
-<h1>NeuroDoc</h1>
-<p>Sistema para atendimento longitudinal em neurologia e neurocirurgia.</p>
-
-<h2>Planos</h2>
-<ul>
-    <li><strong>Free</strong> — disponível com convite. <a href="#invite-form">Usar convite</a></li>
-    <li>Profissional — Em breve</li>
-    <li>Clínica — Em breve</li>
+<ul class="list-group list-group-flush mb-4">
+    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
+        <span class="fw-semibold text-dark">Free</span>
+        <span class="badge bg-soft-success text-success">Disponível com convite</span>
+    </li>
+    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
+        <span class="fw-semibold text-dark">Profissional</span>
+        <span class="badge bg-gray-200 text-dark">Em breve</span>
+    </li>
+    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
+        <span class="fw-semibold text-dark">Clínica</span>
+        <span class="badge bg-gray-200 text-dark">Em breve</span>
+    </li>
 </ul>
 
-<p><a href="{% url 'accounts:login' %}">Já tenho conta — Entrar</a></p>
-
-<h2 id="invite-form">Tenho um convite</h2>
-<form method="post">
+<h6 class="fw-bold text-dark mb-3" id="invite-form">Tenho um convite</h6>
+<form method="post" novalidate>
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Continuar</button>
+    {% include "partials/form_fields.html" %}
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Continuar com o convite</button>
 </form>
+<div class="text-center mt-4">
+    <a class="fs-12 fw-semibold" href="{% url 'accounts:login' %}">Já tenho conta — entrar</a>
+</div>
 {% endblock %}

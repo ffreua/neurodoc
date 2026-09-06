@@ -1,9 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Sessão de captura{% endblock %}
+{% block title %}Sessão de captura — NeuroDoc{% endblock %}
+{% block page_title %}Sessão de captura{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'integrations:capture-devices' %}">Captura local</a></li>
+<li class="breadcrumb-item">Sessão</li>
+{% endblock %}
 {% block content %}
-<h1>Sessão de captura — {{ session.patient.full_name }}</h1>
-<p>Token da sessão (uso único, válido por 30 min): <code>{{ token }}</code></p>
-<p>Páginas recebidas: <span id="page-count">{{ session.page_count }}</span></p>
-<p>Confirme que o paciente/lote acima estão corretos antes de iniciar a digitalização.
-   O upload manual (tela de Anexos) continua disponível a qualquer momento.</p>
+<div class="row justify-content-center">
+    <div class="col-xxl-6 col-lg-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">{{ session.patient.full_name }}</h5>
+                <span class="badge bg-soft-success text-success">Sessão aberta</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning fade show fs-12" role="alert">
+                    Confirme que o paciente e o lote acima estão corretos antes de iniciar a
+                    digitalização.
+                </div>
+                <p class="fs-13 text-muted mb-2">Token da sessão (uso único, válido por 30 minutos):</p>
+                <div class="bg-gray-100 border rounded-3 p-3 mb-4">
+                    <code class="fs-12 text-break">{{ token }}</code>
+                </div>
+                <div class="d-flex align-items-center justify-content-between border rounded-3 p-3">
+                    <span class="fs-13 fw-semibold text-dark">Páginas recebidas</span>
+                    <span class="badge bg-soft-primary text-primary fs-13" id="page-count">{{ session.page_count }}</span>
+                </div>
+                <p class="fs-11 text-muted mt-3 mb-0">O upload manual pela tela de Anexos continua
+                disponível a qualquer momento.</p>
+            </div>
+            <div class="card-footer">
+                <a class="btn btn-light" href="{% url 'documents:list' session.patient_id %}">Ir para os anexos do paciente</a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

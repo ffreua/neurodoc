@@ -10,6 +10,17 @@ class AvailabilityRuleForm(forms.ModelForm):
             'physician_membership', 'weekday', 'local_start', 'local_end',
             'starts_on', 'ends_on', 'slot_minutes', 'buffer_minutes', 'appointment_type',
         ]
+        labels = {
+            'physician_membership': 'Médico',
+            'weekday': 'Dia da semana',
+            'local_start': 'Início',
+            'local_end': 'Fim',
+            'starts_on': 'Vigência a partir de',
+            'ends_on': 'Vigência até',
+            'slot_minutes': 'Duração do slot (min)',
+            'buffer_minutes': 'Intervalo entre slots (min)',
+            'appointment_type': 'Tipo de atendimento',
+        }
         widgets = {
             'local_start': forms.TimeInput(attrs={'type': 'time'}),
             'local_end': forms.TimeInput(attrs={'type': 'time'}),

@@ -1,64 +1,158 @@
 {% extends "base.html" %}
+{% load nd %}
 {% block title %}{{ patient.full_name }} — NeuroDoc{% endblock %}
+{% block page_title %}{{ patient.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:list' %}">Pacientes</a></li>
+<li class="breadcrumb-item">{{ patient.full_name }}</li>
+{% endblock %}
+{% block page_actions %}
+<span class="badge bg-soft-{{ patient.status|nd_tone }} text-{{ patient.status|nd_tone }} fs-12 px-3 py-2">{{ patient.get_status_display }}</span>
+<a class="btn btn-light" href="{% url 'documents:list' patient.id %}">Anexos</a>
+<a class="btn btn-light" href="{% url 'patients:update' patient.id %}">Editar cadastro</a>
+<a class="btn btn-light-primary" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
+<form method="post" action="{% url 'clinical:new' patient.id %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary" data-nd-busy>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        <span>Novo atendimento</span>
+    </button>
+</form>
+{% endblock %}
 {% block content %}
-<h1>{{ patient.full_name }}</h1>
-<p>Status: {{ patient.get_status_display }}</p>
-<p>Idade: {% if age is not None %}{{ age }} anos{% else %}desconhecida{% endif %}</p>
-<p>CPF: {{ patient.cpf|default:"não informado" }}</p>
-{% if bmi %}
-<p>IMC: {{ bmi.value }} (peso {{ bmi.weight_kg }} kg em {{ bmi.weight_observed_at|date:"d/m/Y" }};
-altura {{ bmi.height_m }} m em {{ bmi.height_observed_at|date:"d/m/Y" }})</p>
-{% else %}
-<p>IMC: medições de peso/altura insuficientes.</p>
-{% endif %}
+<div class="row g-4">
+    <div class="col-xxl-4 col-lg-5">
+        <div class="card stretch stretch-full mb-4">
+            <div class="card-body text-center">
+                <div class="avatar-text avatar-xl bg-soft-primary text-primary fw-bold fs-4 mx-auto mb-3">
+                    {{ patient.full_name|slice:":1"|upper }}
+                </div>
+                <h5 class="fw-bold text-dark mb-1">{{ patient.full_name }}</h5>
+                <p class="fs-12 text-muted mb-0">
+                    {% if age is not None %}{{ age }} anos{% else %}idade desconhecida{% endif %}
+                </p>
+            </div>
+            <div class="card-body p-0 border-top">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <tbody>
+                            <tr>
+                                <th class="ps-4 fs-12 text-muted fw-normal" scope="row">CPF</th>
+                                <td class="pe-4 fw-semibold text-dark">{{ patient.cpf|default:"não informado" }}</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-4 fs-12 text-muted fw-normal" scope="row">IMC</th>
+                                <td class="pe-4">
+                                    {% if bmi %}
+                                    <span class="fw-semibold text-dark">{{ bmi.value }}</span>
+                                    <span class="d-block fs-11 text-muted">
+                                        peso {{ bmi.weight_kg }} kg ({{ bmi.weight_observed_at|date:"d/m/Y" }}),
+                                        altura {{ bmi.height_m }} m ({{ bmi.height_observed_at|date:"d/m/Y" }})
+                                    </span>
+                                    {% else %}
+                                    <span class="fs-12 text-muted">medições de peso/altura insuficientes</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if patient.status == 'active' %}
+            <div class="card-footer">
+                <form method="post" action="{% url 'patients:archive' patient.id %}">
+                    {% csrf_token %}
+                    <div class="mb-2">
+                        <label class="form-label fw-semibold fs-11" for="reason">Motivo do arquivamento</label>
+                        <input type="text" class="form-control form-control-sm" id="reason" name="reason">
+                    </div>
+                    <button type="submit" class="btn btn-light-danger btn-sm w-100">Arquivar paciente</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 
-<p>
-    <a href="{% url 'clinical:timeline' patient.id %}">Prontuário</a> |
-    <a href="{% url 'clinical:new' patient.id %}">Novo atendimento</a> |
-    <a href="{% url 'documents:list' patient.id %}">Anexos</a> |
-    <a href="{% url 'patients:update' patient.id %}">Editar cadastro</a>
-</p>
-{% if patient.status == 'active' %}
-<form method="post" action="{% url 'patients:archive' patient.id %}">
-    {% csrf_token %}
-    <label for="reason">Motivo do arquivamento</label>
-    <input type="text" id="reason" name="reason">
-    <button type="submit">Arquivar</button>
-</form>
-{% endif %}
+    <div class="col-xxl-8 col-lg-7">
+        <div class="card stretch stretch-full mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Contatos</h5>
+                <span class="badge bg-gray-200 text-dark">{{ patient.contacts.all|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for contact in patient.contacts.all %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between gap-2">
+                        <div>
+                            <span class="d-block fw-semibold text-dark fs-13">{{ contact.name }}</span>
+                            <span class="d-block fs-11 text-muted">{{ contact.relationship|default:"—" }}</span>
+                        </div>
+                        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                            {% if contact.authorized_for_documents %}
+                            <span class="badge bg-soft-success text-success">recebe documentos</span>
+                            {% endif %}
+                            {% if contact.legal_authority %}
+                            <span class="badge bg-soft-primary text-primary">representante legal</span>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Nenhum contato cadastrado.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-light-primary btn-sm collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#contact-form" aria-expanded="false">
+                    Adicionar contato
+                </button>
+                <div class="collapse mt-3" id="contact-form">
+                    <form method="post" action="{% url 'patients:add-contact' patient.id %}" novalidate>
+                        {% csrf_token %}
+                        {% include "partials/form_fields.html" with form=contact_form %}
+                        <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>Salvar contato</button>
+                    </form>
+                </div>
+            </div>
+        </div>
 
-<h2>Contatos</h2>
-<ul>
-    {% for contact in patient.contacts.all %}
-    <li>
-        {{ contact.name }} ({{ contact.relationship|default:"—" }})
-        {% if contact.authorized_for_documents %}— autorizado para entrega de documentos{% endif %}
-        {% if contact.legal_authority %}— representante legal{% endif %}
-    </li>
-    {% empty %}
-    <li>Nenhum contato cadastrado.</li>
-    {% endfor %}
-</ul>
-<form method="post" action="{% url 'patients:add-contact' patient.id %}">
-    {% csrf_token %}
-    {{ contact_form.as_p }}
-    <button type="submit">Adicionar contato</button>
-</form>
-
-<h2>Cobertura</h2>
-<ul>
-    {% for coverage in patient.coverages.all %}
-    <li>{{ coverage.plan }} — matrícula {{ coverage.member_number|default:"—" }}
-        (desde {{ coverage.starts_on|date:"d/m/Y"|default:"—" }})</li>
-    {% empty %}
-    <li>Nenhuma cobertura cadastrada.</li>
-    {% endfor %}
-</ul>
-<form method="post" action="{% url 'patients:add-coverage' patient.id %}">
-    {% csrf_token %}
-    {{ coverage_form.as_p }}
-    <button type="submit">Adicionar cobertura</button>
-</form>
-
-<p><a href="{% url 'patients:list' %}">Voltar à lista</a></p>
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Cobertura</h5>
+                <span class="badge bg-gray-200 text-dark">{{ patient.coverages.all|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for coverage in patient.coverages.all %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between gap-2">
+                        <div>
+                            <span class="d-block fw-semibold text-dark fs-13">{{ coverage.plan }}</span>
+                            <span class="d-block fs-11 text-muted">matrícula {{ coverage.member_number|default:"—" }}</span>
+                        </div>
+                        <span class="badge bg-gray-200 text-dark flex-shrink-0">
+                            desde {{ coverage.starts_on|date:"d/m/Y"|default:"—" }}
+                        </span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Nenhuma cobertura cadastrada.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer">
+                <button class="btn btn-light-primary btn-sm collapsed" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#coverage-form" aria-expanded="false">
+                    Adicionar cobertura
+                </button>
+                <div class="collapse mt-3" id="coverage-form">
+                    <form method="post" action="{% url 'patients:add-coverage' patient.id %}" novalidate>
+                        {% csrf_token %}
+                        {% include "partials/form_fields.html" with form=coverage_form %}
+                        <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>Salvar cobertura</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

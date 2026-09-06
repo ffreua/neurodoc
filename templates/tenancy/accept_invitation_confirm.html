@@ -1,11 +1,14 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Aceitar convite — NeuroDoc{% endblock %}
+{% block heading %}Aceitar convite{% endblock %}
+{% block subheading %}{{ invitation.target_tenant.legal_name }}{% endblock %}
 {% block content %}
-<h1>Aceitar convite</h1>
-<p>Você foi convidado para {{ invitation.target_tenant.legal_name }} com os
-papéis: {{ invitation.role_grants|join:", " }}.</p>
+<p class="fs-13 text-muted">Papéis concedidos:</p>
+<p class="mb-4">
+    {% for role in invitation.role_grants %}<span class="badge bg-soft-primary text-primary me-1">{{ role }}</span>{% endfor %}
+</p>
 <form method="post">
     {% csrf_token %}
-    <button type="submit">Aceitar</button>
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Aceitar convite</button>
 </form>
 {% endblock %}

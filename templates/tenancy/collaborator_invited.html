@@ -1,10 +1,30 @@
 {% extends "base.html" %}
-{% block title %}Convite enviado — NeuroDoc{% endblock %}
+{% block title %}Convite criado — NeuroDoc{% endblock %}
+{% block page_title %}Convite criado{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tenancy:collaborators' %}">Colaboradores</a></li>
+<li class="breadcrumb-item">Convite</li>
+{% endblock %}
 {% block content %}
-<h1>Convite criado</h1>
-<p>Envio automático por e-mail ainda não está disponível (sprint S08). Copie e
-compartilhe o link abaixo com o colaborador:</p>
-<p><code>/invite/{{ token }}/</code></p>
-<p>Expira em {{ invitation.expires_at }}.</p>
-<p><a href="{% url 'tenancy:collaborators' %}">Voltar</a></p>
+<div class="row justify-content-center">
+    <div class="col-xxl-6 col-lg-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Link do convite</h5>
+                <span class="badge bg-soft-warning text-warning">Compartilhe manualmente</span>
+            </div>
+            <div class="card-body">
+                <p class="fs-13 text-muted">Copie o link abaixo e envie ao colaborador:</p>
+                <div class="bg-gray-100 border rounded-3 p-3 mb-3">
+                    <code class="fs-12 text-break">/invite/{{ token }}/</code>
+                </div>
+                <p class="fs-12 text-muted mb-0">Expira em {{ invitation.expires_at|date:"d/m/Y H:i" }}.</p>
+            </div>
+            <div class="card-footer">
+                <a class="btn btn-light" href="{% url 'tenancy:collaborators' %}">Voltar aos colaboradores</a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,37 +1,100 @@
 {% extends "base.html" %}
-{% block title %}Job de IA{% endblock %}
+{% load nd %}
+{% block title %}Rascunho de IA — NeuroDoc{% endblock %}
+{% block page_title %}Rascunho de IA{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Apoio por IA</li>
+<li class="breadcrumb-item">{{ job.get_kind_display }}</li>
+{% endblock %}
+{% block page_actions %}
+<span class="badge bg-soft-{{ job.status|nd_tone }} text-{{ job.status|nd_tone }} fs-12 px-3 py-2">{{ job.get_status_display }}</span>
+{% endblock %}
 {% block content %}
-<h1>Job de IA — {{ job.get_kind_display }}</h1>
-<p>Status: {{ job.get_status_display }}{% if job.status_detail %} — {{ job.status_detail }}{% endif %}</p>
+{% if job.status_detail %}
+<div class="alert alert-primary fade show fs-12" role="alert">{{ job.status_detail }}</div>
+{% endif %}
 
-{% for artifact in artifacts %}
-<div>
-    <h2>Rascunho ({{ artifact.get_review_state_display }}{% if artifact.stale %} — DESATUALIZADO{% endif %})</h2>
-    <p><strong>Aviso:</strong> {{ artifact.result.medical_review_notice }}</p>
-    <p><strong>Resumo:</strong> {{ artifact.result.summary }}</p>
-    <p><strong>Hipóteses qualitativas:</strong></p>
-    <ul>
-        {% for h in artifact.result.qualitative_hypotheses %}
-        <li>{{ h }}</li>
-        {% empty %}
-        <li>Nenhuma.</li>
-        {% endfor %}
-    </ul>
-    <p><strong>Informação faltante:</strong> {{ artifact.result.missing_information }}</p>
-    <p><strong>Limites:</strong> {{ artifact.result.limitations }}</p>
-    <p><strong>Provedor/modelo:</strong> {{ artifact.provider }} / {{ artifact.model }}</p>
-    {% if artifact.review_state == "pending" %}
-    <form method="post" action="{% url 'ai:artifact-accept' artifact.id %}" style="display:inline">
-        {% csrf_token %}<button type="submit">Aceitar</button>
-    </form>
-    <form method="post" action="{% url 'ai:artifact-reject' artifact.id %}" style="display:inline">
-        {% csrf_token %}
-        <input type="text" name="reason" placeholder="Motivo">
-        <button type="submit">Rejeitar</button>
-    </form>
-    {% endif %}
+<div class="row g-4">
+    {% for artifact in artifacts %}
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h5 class="card-title mb-0">Rascunho</h5>
+                <div class="d-flex align-items-center gap-2">
+                    {% if artifact.stale %}<span class="badge bg-soft-danger text-danger">Desatualizado</span>{% endif %}
+                    <span class="badge bg-soft-{{ artifact.review_state|nd_tone }} text-{{ artifact.review_state|nd_tone }}">{{ artifact.get_review_state_display }}</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning fade show fs-12" role="alert">
+                    {{ artifact.result.medical_review_notice }}
+                </div>
+
+                <h6 class="fw-bold text-dark mb-2">Resumo</h6>
+                <p class="fs-13 text-muted nd-prose">{{ artifact.result.summary }}</p>
+
+                <h6 class="fw-bold text-dark mb-2">Hipóteses qualitativas</h6>
+                <ul class="list-group list-group-flush mb-4">
+                    {% for h in artifact.result.qualitative_hypotheses %}
+                    <li class="list-group-item px-0 fs-13">{{ h }}</li>
+                    {% empty %}
+                    <li class="list-group-item px-0 fs-13 text-muted">Nenhuma.</li>
+                    {% endfor %}
+                </ul>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="border rounded-3 p-3 bg-gray-100 h-100">
+                            <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Informação faltante</span>
+                            <span class="fs-13 nd-prose">{{ artifact.result.missing_information }}</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="border rounded-3 p-3 bg-gray-100 h-100">
+                            <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Limites</span>
+                            <span class="fs-13 nd-prose">{{ artifact.result.limitations }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <p class="fs-11 text-muted mt-3 mb-0">
+                    Provedor/modelo: {{ artifact.provider }} / {{ artifact.model }}
+                </p>
+            </div>
+            {% if artifact.review_state == "pending" %}
+            <div class="card-footer">
+                <div class="d-flex flex-wrap align-items-end gap-2">
+                    <form method="post" action="{% url 'ai:artifact-accept' artifact.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Aceitar rascunho</button>
+                    </form>
+                    <form method="post" action="{% url 'ai:artifact-reject' artifact.id %}" class="d-flex align-items-end gap-2">
+                        {% csrf_token %}
+                        <div>
+                            <label class="form-label fw-semibold fs-11" for="reject-{{ artifact.id }}">Motivo</label>
+                            <input type="text" class="form-control form-control-sm" id="reject-{{ artifact.id }}" name="reason">
+                        </div>
+                        <button type="submit" class="btn btn-light-danger">Rejeitar</button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% empty %}
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-body text-center py-5">
+                {% if job.status == 'queued' or job.status == 'running' %}
+                <span class="spinner-border text-primary mb-3" role="status" aria-hidden="true"></span>
+                <p class="text-muted mb-0">Processando — você será notificado quando o rascunho ficar pronto.</p>
+                {% else %}
+                <p class="text-muted mb-0">Nenhum rascunho gerado.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
 </div>
-{% empty %}
-<p>Nenhum rascunho gerado ainda.</p>
-{% endfor %}
 {% endblock %}

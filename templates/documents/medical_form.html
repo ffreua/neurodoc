@@ -1,11 +1,31 @@
 {% extends "base.html" %}
-{% block title %}Novo documento médico{% endblock %}
+{% block title %}Novo documento médico — NeuroDoc{% endblock %}
+{% block page_title %}Novo documento médico{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Documentos</li>
+<li class="breadcrumb-item">Novo</li>
+{% endblock %}
 {% block content %}
-<h1>Novo documento médico</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Gerar rascunho</button>
-</form>
-<p>Preencha apenas os campos do tipo escolhido; os demais são ignorados.</p>
+<div class="row justify-content-center">
+    <div class="col-xxl-8 col-xl-10">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Conteúdo do documento</h5>
+                <span class="badge bg-soft-warning text-warning">Gera rascunho sem validade</span>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <div class="d-flex align-items-center gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Gerar rascunho</button>
+                    </div>
+                </form>
+                <p class="fs-11 text-muted mt-3 mb-0">Preencha apenas os campos do tipo escolhido;
+                os demais são ignorados. O documento só passa a valer depois de revisado e assinado.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

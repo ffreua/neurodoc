@@ -1,20 +1,52 @@
 {% extends "base.html" %}
+{% load nd %}
 {% block title %}Agenda — semana{% endblock %}
+{% block page_title %}Agenda da semana{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Agenda</li>
+<li class="breadcrumb-item">Semana</li>
+{% endblock %}
+{% block page_actions %}
+<div class="btn-group" role="group" aria-label="Navegação da agenda">
+    <a class="btn btn-light btn-sm" href="?date={{ prev_week|date:'Y-m-d' }}">Semana anterior</a>
+    <a class="btn btn-light btn-sm" href="?date={{ next_week|date:'Y-m-d' }}">Próxima semana</a>
+</div>
+<div class="btn-group" role="group" aria-label="Visões da agenda">
+    <a class="btn btn-light btn-sm" href="{% url 'scheduling:day' %}">Dia</a>
+    <a class="btn btn-light-primary btn-sm active" href="{% url 'scheduling:week' %}">Semana</a>
+    <a class="btn btn-light btn-sm" href="{% url 'scheduling:month' %}">Mês</a>
+</div>
+{% endblock %}
 {% block content %}
-<h1>Agenda — semana</h1>
-<p>
-    <a href="?date={{ prev_week|date:'Y-m-d' }}">Semana anterior</a> |
-    <a href="?date={{ next_week|date:'Y-m-d' }}">Próxima semana</a>
-</p>
-{% for row in day_rows %}
-<h2><a href="{% url 'scheduling:day' %}?date={{ row.date|date:'Y-m-d' }}">{{ row.date|date:"D, d/m" }}</a></h2>
-<ul>
-    {% for appt in row.appointments %}
-    <li>{{ appt.starts_at|date:"H:i" }} — {{ appt.patient.full_name }}
-        ({{ appt.physician_membership.user.get_full_name }}) — {{ appt.get_status_display }}</li>
-    {% empty %}
-    <li>Sem agendamentos.</li>
+<div class="row g-3">
+    {% for row in day_rows %}
+    <div class="col-xxl-3 col-lg-4 col-md-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0 text-capitalize">
+                    <a class="text-dark" href="{% url 'scheduling:day' %}?date={{ row.date|date:'Y-m-d' }}">{{ row.date|date:"D, d/m" }}</a>
+                </h5>
+                <span class="badge bg-gray-200 text-dark">{{ row.appointments|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for appt in row.appointments %}
+                    <li class="list-group-item chat-single-item">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span class="fw-bold text-dark fs-12">{{ appt.starts_at|date:"H:i" }}</span>
+                            <span class="badge bg-soft-{{ appt.status|nd_tone }} text-{{ appt.status|nd_tone }} fs-10">{{ appt.get_status_display }}</span>
+                        </div>
+                        <a class="d-block fs-12 fw-semibold text-dark mt-1" href="{% url 'patients:detail' appt.patient_id %}">{{ appt.patient.full_name }}</a>
+                        <span class="d-block fs-11 text-muted">{{ appt.physician_membership.user.get_full_name }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Sem agendamentos.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
     {% endfor %}
-</ul>
-{% endfor %}
+</div>
 {% endblock %}

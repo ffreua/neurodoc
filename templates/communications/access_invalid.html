@@ -1,6 +1,8 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Link inválido{% endblock %}
+{% block tagline %}Entrega de documento{% endblock %}
+{% block heading %}Link inválido ou expirado{% endblock %}
+{% block subheading %}Este link não é mais válido.{% endblock %}
 {% block content %}
-<h1>Link inválido ou expirado</h1>
-<p>Este link não é mais válido. Entre em contato com a clínica para receber uma nova via.</p>
+<p class="fs-13 text-muted mb-0">Entre em contato com a clínica para receber uma nova via do documento.</p>
 {% endblock %}

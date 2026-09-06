@@ -1,16 +1,54 @@
 {% extends "base.html" %}
-{% block title %}Exportação{% endblock %}
+{% load nd %}
+{% block title %}Exportação — NeuroDoc{% endblock %}
+{% block page_title %}Exportação{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Indicadores</a></li>
+<li class="breadcrumb-item">Exportação</li>
+{% endblock %}
 {% block content %}
-<h1>Exportação — {{ export.report_name }}</h1>
-<p>Status: {{ export.get_status_display }}</p>
-{% if export.status == "ready" %}
-<p>{{ export.row_count }} linhas. Expira em {{ export.expires_at|date:"d/m/Y H:i" }}.</p>
-<a href="{% url 'reporting:export-download' export.id %}">Baixar CSV</a>
-{% elif export.status == "queued" or export.status == "running" %}
-<p>Em processamento — você será notificado quando estiver pronta.</p>
-{% elif export.status == "failed" %}
-<p>Falha ao gerar a exportação.</p>
-{% elif export.status == "expired" %}
-<p>Esta exportação expirou (validade de 24h) e não está mais disponível.</p>
-{% endif %}
+<div class="row justify-content-center">
+    <div class="col-xxl-6 col-lg-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">{{ export.report_name }}</h5>
+                <span class="badge bg-soft-{{ export.status|nd_tone }} text-{{ export.status|nd_tone }}">{{ export.get_status_display }}</span>
+            </div>
+            <div class="card-body">
+                {% if export.status == "ready" %}
+                <p class="fs-13 text-muted">
+                    {{ export.row_count }} linha{{ export.row_count|pluralize }} —
+                    expira em {{ export.expires_at|date:"d/m/Y H:i" }}.
+                </p>
+                <a class="btn btn-primary" href="{% url 'reporting:export-download' export.id %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <span>Baixar CSV</span>
+                </a>
+                {% elif export.status == "queued" or export.status == "running" %}
+                <div class="d-flex align-items-center gap-3">
+                    <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                    <span class="fs-13 text-muted">Em processamento — você será notificado quando estiver pronta.</span>
+                </div>
+                <div class="progress w-100 ht-5 mt-3">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated bg-primary"
+                         role="progressbar" style="width:100%" aria-label="Processando"
+                         aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                {% elif export.status == "failed" %}
+                <div class="alert alert-danger fade show fs-13 mb-0" role="alert">
+                    Falha ao gerar a exportação.
+                </div>
+                {% elif export.status == "expired" %}
+                <div class="alert alert-warning fade show fs-13 mb-0" role="alert">
+                    Esta exportação expirou (validade de 24h) e não está mais disponível.
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a class="btn btn-light" href="{% url 'reporting:dashboard' %}">Voltar aos indicadores</a>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

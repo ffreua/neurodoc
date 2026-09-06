@@ -1,27 +1,98 @@
 {% extends "base.html" %}
+{% load nd %}
 {% block title %}Pacientes — NeuroDoc{% endblock %}
+{% block page_title %}Pacientes{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Pacientes</li>
+{% endblock %}
+{% block page_actions %}
+<a href="{% url 'patients:create' %}" class="btn btn-primary">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <span>Novo paciente</span>
+</a>
+{% endblock %}
 {% block content %}
-<h1>Pacientes</h1>
-<form method="get">
-    <label for="q">Buscar por nome, CPF ou contato</label>
-    <input type="search" id="q" name="q" value="{{ query }}" minlength="2">
-    <button type="submit">Buscar</button>
-</form>
-<p><a href="{% url 'patients:create' %}">Novo paciente</a></p>
-<table>
-    <thead><tr><th>Nome</th><th>CPF</th><th>Status</th></tr></thead>
-    <tbody>
-        {% for patient in patients %}
-        <tr>
-            <td><a href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a></td>
-            <td>{{ patient.cpf|default:"—" }}</td>
-            <td>{{ patient.get_status_display }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="3">Nenhum paciente encontrado.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
-{% if patients.has_previous %}<a href="?q={{ query }}&page={{ patients.previous_page_number }}">Anterior</a>{% endif %}
-{% if patients.has_next %}<a href="?q={{ query }}&page={{ patients.next_page_number }}">Próxima</a>{% endif %}
+<div class="row">
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-3">
+                <h5 class="card-title mb-0">Cadastro de pacientes</h5>
+                <form method="get" class="d-flex" role="search">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </span>
+                        <input type="search" class="form-control" id="q" name="q" value="{{ query }}"
+                               minlength="2" placeholder="Nome, CPF ou contato"
+                               aria-label="Buscar por nome, CPF ou contato">
+                        <button class="btn btn-light-primary" type="submit">Buscar</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-4" scope="col">Nome</th>
+                                <th scope="col">CPF</th>
+                                <th scope="col">Status</th>
+                                <th class="text-end pe-4" scope="col">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for patient in patients %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold">
+                                            {{ patient.full_name|slice:":1"|upper }}
+                                        </span>
+                                        <a class="fw-semibold text-dark" href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a>
+                                    </div>
+                                </td>
+                                <td><span class="fs-12 text-muted">{{ patient.cpf|default:"—" }}</span></td>
+                                <td>
+                                    <span class="badge bg-soft-{{ patient.status|nd_tone }} text-{{ patient.status|nd_tone }}">
+                                        {{ patient.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    {# .btn is display:flex in Duralux, so siblings need a flex row of their own. #}
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        <a class="btn btn-sm btn-light-primary" href="{% url 'patients:detail' patient.id %}">Abrir</a>
+                                        <a class="btn btn-sm btn-light" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-5">Nenhum paciente encontrado.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% if patients.has_previous or patients.has_next %}
+            <div class="card-footer">
+                <nav aria-label="Paginação">
+                    <ul class="pagination pagination-common-style mb-0 justify-content-end">
+                        <li class="page-item {% if not patients.has_previous %}disabled{% endif %}">
+                            <a class="page-link" href="?q={{ query }}&amp;page={{ patients.previous_page_number|default:1 }}">Anterior</a>
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link">{{ patients.number }} / {{ patients.paginator.num_pages }}</span>
+                        </li>
+                        <li class="page-item {% if not patients.has_next %}disabled{% endif %}">
+                            <a class="page-link" href="?q={{ query }}&amp;page={{ patients.next_page_number|default:patients.number }}">Próxima</a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
 {% endblock %}

@@ -1,20 +1,68 @@
 {% extends "base.html" %}
-{% block title %}Chat com IA{% endblock %}
+{% block title %}Chat de apoio — NeuroDoc{% endblock %}
+{% block page_title %}Chat de apoio{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Chat de apoio</li>
+{% endblock %}
 {% block content %}
-<h1>Sessões de chat</h1>
-<ul>
-    {% for s in sessions %}
-    <li><a href="{% url 'ai:chat-session-detail' s.id %}">{{ s.title|default:"Sem título" }}</a>
-        {% if s.patient %} — {{ s.patient.full_name }}{% endif %}
-        — {{ s.last_message_at|date:"d/m/Y H:i"|default:"sem mensagens" }}</li>
-    {% empty %}
-    <li>Nenhuma sessão ainda.</li>
-    {% endfor %}
-</ul>
-<form method="post">
-    {% csrf_token %}
-    <input type="text" name="title" placeholder="Título (opcional)">
-    <input type="text" name="patient_id" placeholder="ID do paciente (opcional)">
-    <button type="submit">Nova sessão</button>
-</form>
+<div class="row g-4">
+    <div class="col-xxl-8 col-lg-7">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Sessões</h5>
+                <span class="badge bg-soft-primary text-primary">{{ sessions|length }} sessão{{ sessions|length|pluralize:"ões" }}</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for s in sessions %}
+                    <li class="list-group-item chat-single-item d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="avatar-text avatar-md bg-soft-primary text-primary">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            </span>
+                            <div>
+                                <a class="d-block fw-semibold text-dark" href="{% url 'ai:chat-session-detail' s.id %}">{{ s.title|default:"Sem título" }}</a>
+                                <span class="d-block fs-11 text-muted">
+                                    {% if s.patient %}{{ s.patient.full_name }} — {% endif %}
+                                    {{ s.last_message_at|date:"d/m/Y H:i"|default:"sem mensagens" }}
+                                </span>
+                            </div>
+                        </div>
+                        <a class="btn btn-sm btn-light-primary flex-shrink-0" href="{% url 'ai:chat-session-detail' s.id %}">Abrir</a>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center text-muted py-5">Nenhuma sessão ainda.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-4 col-lg-5">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Nova sessão</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="chat-title">Título</label>
+                        <input type="text" class="form-control" id="chat-title" name="title">
+                        <div class="form-text fs-11">Opcional.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="chat-patient">ID do paciente</label>
+                        <input type="text" class="form-control" id="chat-patient" name="patient_id">
+                        <div class="form-text fs-11">Opcional — sessões sem paciente não acessam dado clínico.</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Criar sessão</button>
+                </form>
+                <p class="fs-11 text-muted mt-3 mb-0">Cada sessão é isolada: nenhuma herda o
+                contexto de outra.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

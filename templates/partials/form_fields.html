@@ -1,0 +1,29 @@
+{% load nd %}
+{% if form.non_field_errors %}
+<div class="alert alert-danger fade show d-flex align-items-start gap-2" role="alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+    <div>{% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>
+</div>
+{% endif %}
+{% for field in form.hidden_fields %}{{ field }}{% endfor %}
+{% for field in form.visible_fields %}
+<div class="mb-3">
+    {% if field|nd_is_checkbox %}
+    <div class="form-check">
+        {{ field|nd_field }}
+        <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    </div>
+    {% else %}
+    <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+        {{ field.label }}{% if field.field.required %} <span class="text-danger" aria-hidden="true">*</span>{% endif %}
+    </label>
+    {% if field|nd_is_choice_list %}
+    <div class="nd-form">{{ field }}</div>
+    {% else %}
+    {{ field|nd_field }}
+    {% endif %}
+    {% endif %}
+    {% if field.help_text %}<div class="form-text fs-11">{{ field.help_text }}</div>{% endif %}
+    {% for error in field.errors %}<div class="invalid-feedback d-block fs-11">{{ error }}</div>{% endfor %}
+</div>
+{% endfor %}

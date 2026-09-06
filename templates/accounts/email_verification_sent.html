@@ -1,6 +1,8 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Confirme seu e-mail — NeuroDoc{% endblock %}
+{% block heading %}Confirme seu e-mail{% endblock %}
+{% block subheading %}Enviamos um link de confirmação para o e-mail cadastrado.{% endblock %}
 {% block content %}
-<h1>Confirme seu e-mail</h1>
-<p>Enviamos um link de confirmação para o seu e-mail cadastrado.</p>
+<p class="fs-13 text-muted mb-4">As áreas clínicas só abrem depois da confirmação.</p>
+<a class="btn btn-light-primary w-100" href="{% url 'accounts:login' %}">Voltar para entrar</a>
 {% endblock %}

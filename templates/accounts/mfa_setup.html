@@ -1,14 +1,24 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Configurar autenticação em duas etapas — NeuroDoc{% endblock %}
+{% block heading %}Autenticação em duas etapas{% endblock %}
+{% block subheading %}Obrigatória para assinar documentos e para o painel técnico.{% endblock %}
 {% block content %}
-<h1>Configurar autenticação em duas etapas</h1>
-{% if error %}<p>{{ error }}</p>{% endif %}
-<p>Adicione esta chave a um aplicativo autenticador (Google Authenticator, Authy, etc):</p>
-<p><code>{{ otpauth_url }}</code></p>
-<form method="post">
+{% if error %}
+<div class="alert alert-danger fade show fs-13" role="alert">{{ error }}</div>
+{% endif %}
+<p class="fs-13 text-muted">Adicione a chave abaixo a um aplicativo autenticador
+(Google Authenticator, Authy, 1Password, entre outros):</p>
+<div class="bg-gray-100 border rounded-3 p-3 mb-4">
+    <code class="fs-11 text-break">{{ otpauth_url }}</code>
+</div>
+<form method="post" novalidate>
     {% csrf_token %}
-    <label for="code">Código do aplicativo</label>
-    <input type="text" id="code" name="code" autocomplete="one-time-code" required>
-    <button type="submit">Confirmar</button>
+    <div class="mb-3">
+        <label class="form-label fw-semibold" for="code">Código do aplicativo <span class="text-danger" aria-hidden="true">*</span></label>
+        <input type="text" class="form-control" id="code" name="code" inputmode="numeric"
+               autocomplete="one-time-code" maxlength="6" required>
+        <div class="form-text fs-11">Seis dígitos exibidos no aplicativo.</div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Confirmar</button>
 </form>
 {% endblock %}

@@ -1,19 +1,50 @@
 {% extends "base.html" %}
-{% block title %}Notificações{% endblock %}
+{% block title %}Notificações — NeuroDoc{% endblock %}
+{% block page_title %}Notificações{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Notificações</li>
+{% endblock %}
 {% block content %}
-<h1>Notificações</h1>
-<ul>
-    {% for n in notifications %}
-    <li>
-        {{ n.sanitized_title }} — {{ n.created_at|date:"d/m/Y H:i" }}
-        {% if n.read_at %} (lida){% else %}
-        <form method="post" action="{% url 'notifications:mark-read' n.id %}" style="display:inline">
-            {% csrf_token %}<button type="submit">Marcar como lida</button>
-        </form>
-        {% endif %}
-    </li>
-    {% empty %}
-    <li>Nenhuma notificação.</li>
-    {% endfor %}
-</ul>
+<div class="row justify-content-center">
+    <div class="col-xxl-8 col-lg-10">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Central de notificações</h5>
+                {% if nd_unread_notifications %}
+                <span class="badge bg-soft-danger text-danger">{{ nd_unread_notifications }} não lida{{ nd_unread_notifications|pluralize }}</span>
+                {% else %}
+                <span class="badge bg-soft-success text-success">Tudo lido</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for n in notifications %}
+                    <li class="list-group-item chat-single-item d-flex align-items-center justify-content-between gap-3">
+                        <div class="d-flex align-items-center gap-3">
+                            <span class="avatar-text avatar-md {% if n.read_at %}bg-gray-200 text-muted{% else %}bg-soft-primary text-primary{% endif %}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                            </span>
+                            <div>
+                                <span class="d-block fw-semibold text-dark fs-13">{{ n.sanitized_title }}</span>
+                                <span class="d-block fs-11 text-muted">{{ n.created_at|date:"d/m/Y H:i" }}</span>
+                            </div>
+                        </div>
+                        {% if n.read_at %}
+                        <span class="badge bg-gray-200 text-dark flex-shrink-0">lida</span>
+                        {% else %}
+                        <form method="post" action="{% url 'notifications:mark-read' n.id %}" class="flex-shrink-0">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-light-primary">Marcar como lida</button>
+                        </form>
+                        {% endif %}
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-center text-muted py-5">Nenhuma notificação.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

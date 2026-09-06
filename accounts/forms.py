@@ -25,4 +25,4 @@ class ThrottledAuthenticationForm(AuthenticationForm):
 
 
 class MFAChallengeForm(forms.Form):
-    code = forms.CharField(max_length=32, label='Authentication code')
+    code = forms.CharField(max_length=32, label='Código de autenticação')

@@ -1,28 +1,83 @@
 {% extends "base.html" %}
+{% load nd %}
 {% block title %}Anexos — {{ patient.full_name }}{% endblock %}
+{% block page_title %}Anexos{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a></li>
+<li class="breadcrumb-item">Anexos</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
+{% endblock %}
 {% block content %}
-<h1>Anexos — {{ patient.full_name }}</h1>
-<ul>
-    {% for a in attachments %}
-    <li>
-        {{ a.original_name }} ({{ a.classification }}) — {{ a.get_scan_status_display }}
-        {% if a.scan_status == 'available' %}
-        <a href="{% url 'documents:download' a.id %}">Baixar</a>
-        <a href="{% url 'documents:preview' a.id %}">Prévia</a>
-        {% endif %}
-        {% if a.scan_error %}— erro: {{ a.scan_error }}{% endif %}
-        <form method="post" action="{% url 'documents:delete' a.id %}" style="display:inline">
-            {% csrf_token %}<button type="submit">Remover</button>
-        </form>
-    </li>
-    {% empty %}
-    <li>Nenhum anexo.</li>
-    {% endfor %}
-</ul>
-<h2>Enviar novo anexo</h2>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Enviar</button>
-</form>
+<div class="row g-4">
+    <div class="col-xxl-8 col-lg-7">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Arquivos do paciente</h5>
+                <span class="badge bg-soft-primary text-primary">{{ attachments|length }} arquivo{{ attachments|length|pluralize }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-4" scope="col">Arquivo</th>
+                                <th scope="col">Classificação</th>
+                                <th scope="col">Antivírus</th>
+                                <th class="text-end pe-4" scope="col">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in attachments %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="d-block fw-semibold text-dark">{{ a.original_name }}</span>
+                                    {% if a.scan_error %}<span class="d-block fs-11 text-danger">{{ a.scan_error }}</span>{% endif %}
+                                </td>
+                                <td><span class="badge bg-gray-200 text-dark">{{ a.classification }}</span></td>
+                                <td>
+                                    <span class="badge bg-soft-{{ a.scan_status|nd_tone }} text-{{ a.scan_status|nd_tone }}">{{ a.get_scan_status_display }}</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <div class="d-inline-flex align-items-center gap-1">
+                                        {% if a.scan_status == 'available' %}
+                                        <a class="btn btn-sm btn-light-primary" href="{% url 'documents:download' a.id %}">Baixar</a>
+                                        <a class="btn btn-sm btn-light" href="{% url 'documents:preview' a.id %}">Prévia</a>
+                                        {% endif %}
+                                        <form method="post" action="{% url 'documents:delete' a.id %}">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-light-danger">Remover</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="4" class="text-center text-muted py-5">Nenhum anexo.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-4 col-lg-5">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Enviar novo anexo</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Enviar</button>
+                </form>
+                <p class="fs-11 text-muted mt-3 mb-0">Todo arquivo passa por verificação de
+                malware antes de ficar disponível para download.</p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

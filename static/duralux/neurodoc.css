@@ -1,0 +1,300 @@
+/*
+ * NeuroDoc additions on top of duralux.css.
+ *
+ * Deliberately small: it only covers what the Duralux stylesheet has no
+ * class for (a text wordmark instead of the shipped bitmap logo, Django's
+ * own form/errorlist markup, print output). No Duralux token, colour,
+ * shadow or radius is redefined here.
+ */
+
+/* ---- Sidebar wordmark (Duralux ships a bitmap logo we do not have) ---- */
+.nxl-navigation .m-header .b-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+}
+
+.nxl-navigation .m-header .brand-mark {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    color: #fff;
+    font-weight: 700;
+    font-size: 16px;
+    background: var(--bs-primary, #3454d1);
+}
+
+.nxl-navigation .m-header .logo-lg {
+    color: #283c50;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+/* Duralux fixes the sidebar body at calc(100vh - 80px) and relies on the
+ * perfect-scrollbar plugin to scroll it. Without that plugin the lower menu
+ * items are simply unreachable on a short screen, so scroll it natively. */
+.nxl-navigation .navbar-content {
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+}
+
+html.app-navigation-dark .nxl-navigation .m-header .logo-lg,
+html.app-skin-dark .nxl-navigation .m-header .logo-lg {
+    color: #fff;
+}
+
+/* ---- Dark skin: soft buttons rendered as links ----------------------- */
+/* Duralux's dark skin paints every <a> white with !important. A soft button
+ * (.btn-light-primary and friends) keeps its pale background, so any such
+ * button written as a link ends up white-on-pale and unreadable. Restore
+ * the contextual text colour these buttons have in the light skin; the
+ * hover state, which does turn the background solid, is left to the theme. */
+html.app-skin-dark a.btn-light-primary:not(:hover):not(:focus):not(:active) {
+    color: #3454d1 !important;
+}
+
+html.app-skin-dark a.btn-light-secondary:not(:hover):not(:focus):not(:active) {
+    color: #64748b !important;
+}
+
+html.app-skin-dark a.btn-light-success:not(:hover):not(:focus):not(:active) {
+    color: #17c666 !important;
+}
+
+html.app-skin-dark a.btn-light-info:not(:hover):not(:focus):not(:active) {
+    color: #3dc7be !important;
+}
+
+html.app-skin-dark a.btn-light-warning:not(:hover):not(:focus):not(:active) {
+    color: #ffa21d !important;
+}
+
+html.app-skin-dark a.btn-light-danger:not(:hover):not(:focus):not(:active) {
+    color: #ea4d4d !important;
+}
+
+html.app-skin-dark a.btn-light-dark:not(:hover):not(:focus):not(:active) {
+    color: #283c50 !important;
+}
+
+/* ---- Dark skin: standard contextual alerts --------------------------- */
+/* The design system uses plain Bootstrap alerts (.alert-primary and
+ * friends), but Duralux's dark skin only restyles its own
+ * .alert-soft-*-message variants, leaving the standard ones bright white on
+ * a dark page. These follow the theme's own dark idiom for alerts: soft
+ * background, contextual text, dashed border. */
+html.app-skin-dark .alert-primary {
+    color: #3454d1;
+    background-color: rgba(52, 84, 209, 0.075);
+    border: 1px dashed #21387f;
+}
+
+html.app-skin-dark .alert-success {
+    color: #17c666;
+    background-color: rgba(23, 198, 102, 0.075);
+    border: 1px dashed #0a542b;
+}
+
+html.app-skin-dark .alert-warning {
+    color: #ffa21d;
+    background-color: rgba(255, 162, 29, 0.075);
+    border: 1px dashed #9d5c00;
+}
+
+html.app-skin-dark .alert-danger {
+    color: #ea4d4d;
+    background-color: rgba(234, 77, 77, 0.075);
+    border: 1px dashed #bb1616;
+}
+
+html.app-skin-dark .alert-info {
+    color: #3dc7be;
+    background-color: rgba(61, 199, 190, 0.075);
+    border: 1px dashed #226e69;
+}
+
+html.app-skin-dark .alert .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* ---- Authentication / public shell ----------------------------------- */
+/* Duralux styles the auth card (.auth-container .card.wd-450) but leaves the
+ * page that holds it to the template. */
+.nd-auth-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+}
+
+.nd-auth-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    text-decoration: none;
+}
+
+.nd-auth-brand .brand-mark {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9px;
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    background: var(--bs-primary, #3454d1);
+}
+
+.nd-auth-brand .brand-name {
+    color: #283c50;
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+}
+
+html.app-skin-dark .nd-auth-brand .brand-name {
+    color: #fff;
+}
+
+/* ---- Django form rendering ------------------------------------------- */
+/* Forms are rendered field by field with Duralux classes wherever the
+ * template controls the markup. Where a form is still rendered through
+ * Django's own {{ form }} output, these rules keep it inside the design
+ * language instead of falling back to unstyled browser controls. */
+.nd-form ul.errorlist {
+    margin: 0.35rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--bs-danger, #ea4d4d);
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.nd-form .helptext {
+    display: block;
+    margin-top: 0.35rem;
+    color: #6b7280;
+    font-size: 11px;
+}
+
+.nd-form p {
+    margin-bottom: 1rem;
+}
+
+.nd-form label {
+    display: inline-block;
+    margin-bottom: 0.35rem;
+    color: #283c50;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.nd-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]),
+.nd-form select,
+.nd-form textarea {
+    display: block;
+    width: 100%;
+    padding: 0.375rem 0.75rem;
+    color: #283c50;
+    background-color: #fff;
+    border: 1px solid #dcdee4;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.5;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.nd-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]):focus,
+.nd-form select:focus,
+.nd-form textarea:focus {
+    border-color: var(--bs-primary, #3454d1);
+    box-shadow: 0 0 0 0.2rem rgba(52, 84, 209, 0.15);
+    outline: 0;
+}
+
+html.app-skin-dark .nd-form label {
+    color: #b1b4c0;
+}
+
+html.app-skin-dark .nd-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]),
+html.app-skin-dark .nd-form select,
+html.app-skin-dark .nd-form textarea {
+    color: #b1b4c0;
+    background-color: #19253f;
+    border-color: #1b2436;
+}
+
+/* ---- Accessibility --------------------------------------------------- */
+/* Duralux removes the default outline on several controls; a visible focus
+ * ring is a hard requirement for keyboard use of a clinical record. */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible,
+.nxl-link:focus-visible,
+.nxl-head-link:focus-visible,
+.page-link:focus-visible,
+.dropdown-item:focus-visible {
+    outline: 2px solid var(--bs-primary, #3454d1);
+    outline-offset: 2px;
+}
+
+.nd-skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 2000;
+    padding: 10px 16px;
+    background: #fff;
+    color: #283c50;
+    font-weight: 600;
+    border-radius: 0 0 6px 0;
+}
+
+.nd-skip-link:focus {
+    left: 0;
+}
+
+/* ---- Long clinical text --------------------------------------------- */
+.nd-prose {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+/* ---- Print ----------------------------------------------------------- */
+@media print {
+    .nxl-navigation,
+    .nxl-header,
+    .page-header-right,
+    .footer,
+    .nd-no-print {
+        display: none !important;
+    }
+
+    .nxl-container {
+        top: 0;
+        margin-left: 0;
+    }
+
+    .nxl-container .nxl-content {
+        padding-top: 0;
+    }
+
+    .card {
+        box-shadow: none !important;
+        border: 1px solid #e5e7eb !important;
+    }
+}

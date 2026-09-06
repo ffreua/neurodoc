@@ -1,45 +1,81 @@
-<!DOCTYPE html>
-{% load static %}
+{% load static %}<!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}NeuroDoc{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'base.css' %}">
+    {% include "partials/head.html" %}
 </head>
-<body>
-    <header class="nd-header">
-        <a class="nd-brand" href="{% if request.access_context %}{% url 'reporting:dashboard' %}{% else %}{% url 'onboarding:landing' %}{% endif %}">NeuroDoc</a>
-        {% if request.access_context %}
-        <nav aria-label="Navegação principal">
-            <a href="{% url 'reporting:dashboard' %}">Indicadores</a>
-            <a href="{% url 'patients:list' %}">Pacientes</a>
-            <a href="{% url 'scheduling:day' %}">Agenda</a>
-            <a href="{% url 'crm:board' %}">CRM</a>
-            <a href="{% url 'finance:overview' %}">Financeiro</a>
-            <a href="{% url 'ai:chat-list' %}">Chat IA</a>
-            <a href="{% url 'notifications:list' %}">Notificações</a>
-            <a href="{% url 'documents:credential-list' %}">Assinatura</a>
-            <a href="{% url 'accounts:logout' %}">Sair</a>
-        </nav>
-        {% elif request.user.is_authenticated %}
-        <nav aria-label="Navegação principal">
-            <a href="{% url 'accounts:tenant-picker' %}">Organizações</a>
-            <a href="{% url 'accounts:logout' %}">Sair</a>
-        </nav>
-        {% else %}
-        <nav aria-label="Navegação principal">
-            <a href="{% url 'accounts:login' %}">Entrar</a>
-        </nav>
-        {% endif %}
-    </header>
-    {% if messages %}
-    <ul class="nd-messages">
-        {% for message in messages %}<li>{{ message }}</li>{% endfor %}
-    </ul>
-    {% endif %}
-    <main>
-        {% block content %}{% endblock %}
-    </main>
+<body{% block body_attrs %}{% endblock %}>
+<a class="nd-skip-link" href="#nd-main">Ir para o conteúdo</a>
+
+{% if request.access_context %}
+{% include "partials/sidebar.html" %}
+{% include "partials/header.html" %}
+{% endif %}
+
+<main class="nxl-container">
+    <div class="nxl-content">
+        <div class="page-header">
+            <div class="page-header-left d-flex align-items-center">
+                <div class="page-header-title">
+                    <h5 class="m-b-10">{% block page_title %}NeuroDoc{% endblock %}</h5>
+                </div>
+                <ul class="breadcrumb">
+                    {% block breadcrumb %}
+                    <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+                    {% endblock %}
+                </ul>
+            </div>
+            <div class="page-header-right ms-auto">
+                {% comment %}Abaixo de 768px o tema transforma .page-header-right-items
+                num painel fixo fora da tela (transform: translate(100%)), revelado por
+                .page-header-right-open. Sem este gatilho as ações da página ficariam
+                inalcançáveis no celular.{% endcomment %}
+                <button class="btn btn-icon btn-light d-md-none" type="button"
+                        data-nd-toggle="page-actions" aria-expanded="false" aria-label="Ações da página">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+                </button>
+                <div class="page-header-right-items">
+                    <div class="page-header-right-close-toggle d-md-none" role="button"
+                         data-nd-toggle="page-actions" tabindex="0">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        <span class="fs-13 fw-bold ms-2">Voltar</span>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 page-header-right-items-wrapper">
+                        {% block page_actions %}{% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-content" id="nd-main">
+            {% if messages %}
+            <div class="row">
+                <div class="col-12">
+                    {% for message in messages %}
+                    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-primary{% endif %} alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <span>{{ message }}</span>
+                        <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Fechar"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% block content %}{% endblock %}
+        </div>
+    </div>
+
+    <footer class="footer">
+        <p class="fs-11 text-muted fw-medium text-uppercase mb-0">
+            NeuroDoc — prontuário e gestão da clínica neurológica
+        </p>
+        <div class="d-flex align-items-center gap-4">
+            <span class="fs-11 fw-semibold text-uppercase text-muted">Dados sob sigilo médico</span>
+        </div>
+    </footer>
+</main>
+
+<script src="{% static 'duralux/app.js' %}"></script>
+{% block scripts %}{% endblock %}
 </body>
 </html>

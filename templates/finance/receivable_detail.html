@@ -1,43 +1,142 @@
 {% extends "base.html" %}
-{% block title %}Recebível{% endblock %}
+{% load nd %}
+{% block title %}Recebível — NeuroDoc{% endblock %}
+{% block page_title %}Recebível{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'finance:overview' %}">Financeiro</a></li>
+<li class="breadcrumb-item">{{ receivable.patient.full_name }}</li>
+{% endblock %}
+{% block page_actions %}
+<span class="badge bg-soft-{{ receivable.status|nd_tone }} text-{{ receivable.status|nd_tone }} fs-12 px-3 py-2">{{ receivable.get_status_display }}</span>
+<a class="btn btn-light" href="{% url 'finance:overview' %}">Voltar</a>
+{% endblock %}
 {% block content %}
-<h1>Recebível — {{ receivable.patient.full_name }}</h1>
-<p>Esperado: {{ receivable.expected_amount }} | Cobrado: {{ receivable.charged_amount }}
-   | Recebido líquido: {{ net_received }} | Saldo: {{ balance }} | Status: {{ receivable.get_status_display }}</p>
+<div class="row g-3 mb-2">
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full short-info-card">
+            <div class="card-body">
+                <div class="fs-4 fw-bold text-dark">R$ {{ receivable.expected_amount }}</div>
+                <h3 class="fs-13 text-muted mb-0">Esperado</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full short-info-card">
+            <div class="card-body">
+                <div class="fs-4 fw-bold text-dark">R$ {{ receivable.charged_amount }}</div>
+                <h3 class="fs-13 text-muted mb-0">Cobrado</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full short-info-card">
+            <div class="card-body">
+                <div class="fs-4 fw-bold text-success">R$ {{ net_received }}</div>
+                <h3 class="fs-13 text-muted mb-0">Recebido líquido</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full short-info-card">
+            <div class="card-body">
+                <div class="fs-4 fw-bold text-warning">R$ {{ balance }}</div>
+                <h3 class="fs-13 text-muted mb-0">Saldo</h3>
+            </div>
+        </div>
+    </div>
+</div>
 
-<h2>Pagamentos</h2>
-<ul>
-    {% for p in receivable.payments.all %}
-    <li>{{ p.paid_at|date:"d/m/Y H:i" }} — {{ p.amount }} ({{ p.method }})</li>
-    {% empty %}
-    <li>Nenhum pagamento.</li>
-    {% endfor %}
-</ul>
-<form method="post" action="{% url 'finance:record-payment' receivable.id %}">
-    {% csrf_token %}
-    <input type="text" name="amount" placeholder="Valor">
-    <input type="text" name="method" placeholder="Método">
-    <button type="submit">Registrar pagamento</button>
-</form>
+<div class="row g-4">
+    <div class="col-xxl-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Pagamentos</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for p in receivable.payments.all %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <div>
+                            <span class="d-block fw-semibold text-dark fs-12">R$ {{ p.amount }}</span>
+                            <span class="d-block fs-11 text-muted">{{ p.paid_at|date:"d/m/Y H:i" }}</span>
+                        </div>
+                        <span class="badge bg-gray-200 text-dark">{{ p.method }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Nenhum pagamento.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer">
+                <form method="post" action="{% url 'finance:record-payment' receivable.id %}">
+                    {% csrf_token %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold fs-11" for="pay-amount">Valor</label>
+                            <input type="text" class="form-control form-control-sm" id="pay-amount" name="amount" inputmode="decimal">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold fs-11" for="pay-method">Método</label>
+                            <input type="text" class="form-control form-control-sm" id="pay-method" name="method">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary btn-sm w-100" data-nd-busy>Registrar pagamento</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
-<h2>Ajustes</h2>
-<ul>
-    {% for a in receivable.adjustments.all %}
-    <li>{{ a.get_type_display }} — {{ a.amount }} — {{ a.reason }}</li>
-    {% empty %}
-    <li>Nenhum ajuste.</li>
-    {% endfor %}
-</ul>
-<form method="post" action="{% url 'finance:apply-adjustment' receivable.id %}">
-    {% csrf_token %}
-    <select name="type">
-        <option value="discount">Desconto</option>
-        <option value="surcharge">Acréscimo</option>
-        <option value="refund">Estorno</option>
-        <option value="writeoff">Baixa</option>
-    </select>
-    <input type="text" name="amount" placeholder="Valor">
-    <input type="text" name="reason" placeholder="Motivo">
-    <button type="submit">Aplicar</button>
-</form>
+    <div class="col-xxl-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Ajustes</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for a in receivable.adjustments.all %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between gap-2">
+                        <div>
+                            <span class="d-block fw-semibold text-dark fs-12">R$ {{ a.amount }}</span>
+                            <span class="d-block fs-11 text-muted">{{ a.reason }}</span>
+                        </div>
+                        <span class="badge bg-soft-info text-info flex-shrink-0">{{ a.get_type_display }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Nenhum ajuste.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="card-footer">
+                <form method="post" action="{% url 'finance:apply-adjustment' receivable.id %}">
+                    {% csrf_token %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold fs-11" for="adj-type">Tipo</label>
+                            <select class="form-select form-select-sm" id="adj-type" name="type">
+                                <option value="discount">Desconto</option>
+                                <option value="surcharge">Acréscimo</option>
+                                <option value="refund">Estorno</option>
+                                <option value="writeoff">Baixa</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold fs-11" for="adj-amount">Valor</label>
+                            <input type="text" class="form-control form-control-sm" id="adj-amount" name="amount" inputmode="decimal">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold fs-11" for="adj-reason">Motivo</label>
+                            <input type="text" class="form-control form-control-sm" id="adj-reason" name="reason">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-light-primary btn-sm w-100" data-nd-busy>Aplicar ajuste</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

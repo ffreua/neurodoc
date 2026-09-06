@@ -19,6 +19,31 @@ class PatientForm(forms.ModelForm):
             'referral_source', 'referral_details', 'marital_status', 'occupation',
             'payment_category', 'responsible_membership', 'administrative_notes',
         ]
+        labels = {
+            'full_name': 'Nome completo',
+            'birth_date': 'Data de nascimento',
+            'birth_date_unknown_reason': 'Motivo do nascimento desconhecido',
+            'estimated_birth_year': 'Ano de nascimento estimado',
+            'sex_at_registration': 'Sexo no cadastro',
+            'cpf': 'CPF',
+            'identity_number': 'Documento de identidade',
+            'mother_name': 'Nome da mãe',
+            'postal_code': 'CEP',
+            'street': 'Logradouro',
+            'number': 'Número',
+            'complement': 'Complemento',
+            'district': 'Bairro',
+            'city': 'Município',
+            'state': 'UF',
+            'country': 'País',
+            'referral_source': 'Origem do encaminhamento',
+            'referral_details': 'Detalhes do encaminhamento',
+            'marital_status': 'Estado civil',
+            'occupation': 'Ocupação',
+            'payment_category': 'Forma de pagamento',
+            'responsible_membership': 'Médico responsável',
+            'administrative_notes': 'Observações administrativas',
+        }
         widgets = {
             'birth_date': forms.DateInput(attrs={'type': 'date'}),
             'administrative_notes': forms.Textarea(attrs={'rows': 3}),
@@ -68,6 +93,17 @@ class PatientContactForm(forms.ModelForm):
             'name', 'relationship', 'phone', 'email', 'authorized_for_documents',
             'sms_enabled', 'email_enabled', 'legal_authority', 'authority_evidence',
         ]
+        labels = {
+            'name': 'Nome',
+            'relationship': 'Relação com o paciente',
+            'phone': 'Telefone',
+            'email': 'E-mail',
+            'authorized_for_documents': 'Autorizado a receber documentos',
+            'sms_enabled': 'Aceita SMS',
+            'email_enabled': 'Aceita e-mail',
+            'legal_authority': 'Representante legal',
+            'authority_evidence': 'Comprovação da representação',
+        }
 
     def clean(self):
         cleaned = super().clean()

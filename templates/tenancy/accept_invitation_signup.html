@@ -1,12 +1,15 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Aceitar convite — NeuroDoc{% endblock %}
+{% block heading %}Criar conta e aceitar convite{% endblock %}
+{% block subheading %}{{ invitation.target_tenant.legal_name }}{% endblock %}
 {% block content %}
-<h1>Criar conta e aceitar convite</h1>
-<p>Você foi convidado para {{ invitation.target_tenant.legal_name }} com os
-papéis: {{ invitation.role_grants|join:", " }}.</p>
-<form method="post">
+<p class="fs-13 text-muted">Papéis concedidos:</p>
+<p class="mb-4">
+    {% for role in invitation.role_grants %}<span class="badge bg-soft-primary text-primary me-1">{{ role }}</span>{% endfor %}
+</p>
+<form method="post" novalidate>
     {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Criar conta e aceitar</button>
+    {% include "partials/form_fields.html" %}
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Criar conta e aceitar</button>
 </form>
 {% endblock %}

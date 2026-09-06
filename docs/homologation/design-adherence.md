@@ -82,14 +82,23 @@ automaticamente pela reserva de consulta (S09).
 
 ## Decisões de escopo
 
-- A folha de estilo completa do Duralux (445 KB CSS + 3,7 MB JS,
+- ~~A folha de estilo completa do Duralux (445 KB CSS + 3,7 MB JS,
   componentes de sidebar/cards/kanban visual específicos do tema) **não**
   foi adotada integralmente — isso exigiria reestruturar a marcação HTML
   de mais de 30 templates para as classes específicas daquele tema, um
   escopo maior que esta sprint. O que foi adotado são os tokens de cor/
   tipografia/raio reais, aplicados sobre a estrutura HTML já correta de
   cada tela — uma melhoria visual real e de baixo risco, não uma
-  reprodução pixel-a-pixel do arquivo de referência.
+  reprodução pixel-a-pixel do arquivo de referência.~~
+
+  **Decisão superada.** O tema passou a ser aplicado integralmente (CSS,
+  JS, botões, sombras, animações e shell), incluindo a reestruturação da
+  marcação das 51 telas — ver
+  [aplicação integral do design system](design-system-full.md). O
+  `static/base.css` descrito abaixo foi substituído por
+  `static/duralux/duralux.css` (o arquivo real do tema, servido
+  localmente) mais `static/duralux/neurodoc.css` e
+  `static/duralux/app.js`.
 - Um achado de UX real (o gap de seleção de organização) só apareceu
   porque este foi o primeiro teste de ponta a ponta como usuário real
   nesta sessão — toda sprint anterior validou views/dados via

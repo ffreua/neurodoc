@@ -1,9 +1,18 @@
-{% extends "base.html" %}
+{% extends "base_auth.html" %}
 {% block title %}Códigos de recuperação — NeuroDoc{% endblock %}
+{% block heading %}Duas etapas ativada{% endblock %}
+{% block subheading %}Guarde estes códigos em local seguro — cada um funciona uma única vez.{% endblock %}
 {% block content %}
-<h1>Autenticação em duas etapas ativada</h1>
-<p>Guarde estes códigos de recuperação em local seguro. Cada um pode ser usado uma única vez.</p>
-<ul>
-    {% for code in codes %}<li><code>{{ code }}</code></li>{% endfor %}
+<div class="alert alert-warning fade show fs-12" role="alert">
+    Esta é a única vez que os códigos são exibidos.
+</div>
+<ul class="list-group list-group-flush mb-4">
+    {% for code in codes %}
+    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
+        <code class="fs-13">{{ code }}</code>
+        <span class="badge bg-gray-200 text-dark">uso único</span>
+    </li>
+    {% endfor %}
 </ul>
+<a class="btn btn-primary w-100" href="{% url 'accounts:tenant-picker' %}">Continuar</a>
 {% endblock %}

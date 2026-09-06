@@ -1,27 +1,53 @@
 {% extends "base.html" %}
 {% block title %}{% if patient %}Editar{% else %}Novo{% endif %} paciente — NeuroDoc{% endblock %}
+{% block page_title %}{% if patient %}Editar paciente{% else %}Novo paciente{% endif %}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:list' %}">Pacientes</a></li>
+<li class="breadcrumb-item">{% if patient %}Editar{% else %}Novo{% endif %}</li>
+{% endblock %}
 {% block content %}
-<h1>{% if patient %}Editar paciente{% else %}Novo paciente{% endif %}</h1>
+<div class="row justify-content-center">
+    <div class="col-xxl-8 col-xl-10">
+        {% if duplicates %}
+        <div class="card stretch stretch-full mb-4 border-warning">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Possível duplicidade</h5>
+                <span class="badge bg-soft-warning text-warning">Confirmação necessária</span>
+            </div>
+            <div class="card-body">
+                <p class="fs-13 text-muted">Já existe cadastro compatível com os dados informados:</p>
+                <ul class="list-group list-group-flush mb-0">
+                    {% for dup in duplicates %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
+                        <span class="fw-semibold text-dark">{{ dup.full_name }}</span>
+                        <a class="btn btn-sm btn-light-primary" href="{% url 'patients:detail' dup.id %}">Abrir cadastro</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
 
-{% if duplicates %}
-<div>
-    <p>Possível duplicidade encontrada:</p>
-    <ul>
-        {% for dup in duplicates %}<li>{{ dup.full_name }}</li>{% endfor %}
-    </ul>
-    <form method="post">
-        {% csrf_token %}
-        {{ form.as_p }}
-        <input type="hidden" name="confirm_duplicate" value="1">
-        <button type="submit">Cadastrar mesmo assim</button>
-    </form>
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Dados cadastrais</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% if patient %}<input type="hidden" name="row_version" value="{{ patient.row_version }}">{% endif %}
+                    {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
+                    {% include "partials/form_fields.html" %}
+                    <div class="d-flex align-items-center gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>
+                            {% if duplicates %}Cadastrar mesmo assim{% else %}Salvar{% endif %}
+                        </button>
+                        <a class="btn btn-light" href="{% if patient %}{% url 'patients:detail' patient.id %}{% else %}{% url 'patients:list' %}{% endif %}">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
-{% else %}
-<form method="post">
-    {% csrf_token %}
-    {% if patient %}<input type="hidden" name="row_version" value="{{ patient.row_version }}">{% endif %}
-    {{ form.as_p }}
-    <button type="submit">Salvar</button>
-</form>
-{% endif %}
 {% endblock %}

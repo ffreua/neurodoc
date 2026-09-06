@@ -1,25 +1,63 @@
 {% extends "base.html" %}
-{% block title %}Painel da secretaria{% endblock %}
+{% load nd %}
+{% block title %}Mesa da secretaria — NeuroDoc{% endblock %}
+{% block page_title %}Mesa da secretaria{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Agenda</li>
+<li class="breadcrumb-item">Mesa da secretaria</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'scheduling:day' %}">Ver agenda do dia</a>
+<a class="btn btn-primary" href="{% url 'scheduling:reserve' %}">Nova reserva</a>
+{% endblock %}
 {% block content %}
-<h1>Painel da secretaria — {{ today|date:"d/m/Y" }}</h1>
-<table>
-    <thead><tr><th>Horário</th><th>Paciente</th><th>Contato</th><th>Médico</th><th>Status</th></tr></thead>
-    <tbody>
-        {% for appt in appointments %}
-        <tr>
-            <td>{{ appt.starts_at|date:"H:i" }}</td>
-            <td>{{ appt.patient.full_name }}</td>
-            <td>
-                {% with contact=appt.patient.contacts.first %}
-                {% if contact %}{{ contact.phone|default:contact.email }}{% else %}—{% endif %}
-                {% endwith %}
-            </td>
-            <td>{{ appt.physician_membership.user.get_full_name }}</td>
-            <td>{{ appt.get_status_display }}</td>
-        </tr>
-        {% empty %}
-        <tr><td colspan="5">Sem pendências hoje.</td></tr>
-        {% endfor %}
-    </tbody>
-</table>
+<div class="row">
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Atendimentos de {{ today|date:"d/m/Y" }}</h5>
+                <span class="badge bg-soft-primary text-primary">{{ appointments|length }} na fila</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-4" scope="col">Horário</th>
+                                <th scope="col">Paciente</th>
+                                <th scope="col">Contato</th>
+                                <th scope="col">Médico</th>
+                                <th class="text-end pe-4" scope="col">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for appt in appointments %}
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">{{ appt.starts_at|date:"H:i" }}</td>
+                                <td>
+                                    <a class="fw-semibold text-dark" href="{% url 'patients:detail' appt.patient_id %}">{{ appt.patient.full_name }}</a>
+                                </td>
+                                <td>
+                                    <span class="fs-12 text-muted">
+                                        {% with contact=appt.patient.contacts.first %}
+                                        {% if contact %}{{ contact.phone|default:contact.email }}{% else %}—{% endif %}
+                                        {% endwith %}
+                                    </span>
+                                </td>
+                                <td><span class="fs-12 text-muted">{{ appt.physician_membership.user.get_full_name }}</span></td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-soft-{{ appt.status|nd_tone }} text-{{ appt.status|nd_tone }}">{{ appt.get_status_display }}</span>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted py-5">Sem pendências hoje.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

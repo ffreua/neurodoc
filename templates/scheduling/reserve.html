@@ -1,10 +1,29 @@
 {% extends "base.html" %}
 {% block title %}Nova reserva — Agenda{% endblock %}
+{% block page_title %}Nova reserva{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:day' %}">Agenda</a></li>
+<li class="breadcrumb-item">Nova reserva</li>
+{% endblock %}
 {% block content %}
-<h1>Nova reserva</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Reservar</button>
-</form>
+<div class="row justify-content-center">
+    <div class="col-xxl-6 col-xl-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Dados da reserva</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <div class="d-flex align-items-center gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Reservar</button>
+                        <a class="btn btn-light" href="{% url 'scheduling:day' %}">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

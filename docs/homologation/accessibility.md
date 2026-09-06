@@ -6,11 +6,18 @@ registro.
 
 ## Teclado e foco
 
-- [x] `:focus-visible` aplicado globalmente (`static/base.css`) a links,
-  botões, campos de formulário e qualquer elemento com `tabindex` — testado
-  pressionando `Tab` repetidamente a partir do login real e capturando a
-  tela: o anel de foco azul (cor `--nd-primary`, a mesma do design system)
-  aparece claramente sobre o link "Indicadores" da navegação.
+- [x] `:focus-visible` aplicado globalmente (`static/duralux/neurodoc.css`)
+  a links, botões, campos de formulário, `.nxl-link` da sidebar,
+  `.page-link` e `.dropdown-item` — necessário porque o tema Duralux
+  remove o contorno padrão de vários controles. Reverificado depois da
+  aplicação integral do tema (ver
+  [aplicação integral do design system](design-system-full.md)):
+  pressionando `Tab` cinco vezes a partir do painel de indicadores, o
+  elemento focado é o link "Agenda" da sidebar e
+  `getComputedStyle(activeElement).outline` retorna
+  `rgb(52, 84, 209) solid 2px` — o azul primário real do design system.
+  Um link "Ir para o conteúdo" (`.nd-skip-link`) é o primeiro elemento
+  focável de toda página.
 - [x] Toda ação de mudança de estado neste produto (mover card de CRM,
   remarcar consulta, transicionar atendimento, assinar documento, aceitar
   rascunho de IA) é um `<form>`/`<button>` ou `<a href>` real — nunca um
@@ -39,11 +46,24 @@ registro.
 - [x] `<meta name="viewport" content="width=device-width, initial-scale=1">`
   adicionado a `templates/base.html` (ausente até esta sprint — item real
   de acessibilidade/usabilidade móvel corrigido agora).
-- [x] Testado com viewport 390×844 (tamanho de iPhone comum): o cabeçalho
-  de navegação quebra para múltiplas linhas (`@media (max-width: 640px)`
-  em `static/base.css`), o conteúdo principal permanece dentro da largura
-  da tela sem exigir rolagem horizontal, e a tabela de indicadores
-  permanece legível — captura de tela real anexada a este registro.
+- [x] Retestado com viewport 390×844 (tamanho de iPhone comum) depois da
+  aplicação integral do tema: a sidebar sai da tela e passa a abrir pelo
+  hambúrguer com overlay (`.mob-navigation-active`, breakpoint
+  `max-width: 1024px` do próprio tema), os cartões de indicador empilham,
+  e `document.documentElement.scrollWidth === window.innerWidth === 390`
+  — nenhuma rolagem horizontal. Capturas de tela reais anexadas a este
+  registro.
+- [x] **Achado real corrigido nesse teste:** abaixo de 768 px o tema
+  estaciona `.page-header-right-items` fora da tela
+  (`position:fixed; transform:translate(100%)`), a ser revelado por
+  `.page-header-right-open`. Sem um gatilho, as ações da página ("Novo
+  paciente", "Nova reserva", "Exportar CSV"…) ficavam **inalcançáveis no
+  celular**. `templates/base.html` passou a incluir o botão de abertura
+  (visível só abaixo de `md`) e a linha "Voltar"
+  (`.page-header-right-close-toggle`) dentro do painel, ambos acionáveis
+  por teclado; `static/duralux/app.js` faz o toggle. Verificado no
+  navegador: abrir deixa a classe `page-header-right-open` e "Voltar"
+  a remove.
 
 ## Decisões de escopo
 
