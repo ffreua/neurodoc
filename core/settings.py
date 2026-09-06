@@ -113,7 +113,12 @@ CELERY_TASK_ROUTES = {
     'documents.tasks.*': {'queue': 'documents'},
     'reporting.tasks.*': {'queue': 'documents'},
 }
-CELERY_BEAT_SCHEDULE = {}
+CELERY_BEAT_SCHEDULE = {
+    'documents-update-clamav-definitions': {
+        'task': 'documents.tasks.update_clamav_definitions',
+        'schedule': 6 * 60 * 60,
+    },
+}
 CACHES = {'default': {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',
     'LOCATION': f'{REDIS_BASE}/1', 'TIMEOUT': 900,

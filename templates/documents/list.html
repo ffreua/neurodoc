@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Anexos — {{ patient.full_name }}{% endblock %}
+{% block content %}
+<h1>Anexos — {{ patient.full_name }}</h1>
+<ul>
+    {% for a in attachments %}
+    <li>
+        {{ a.original_name }} ({{ a.classification }}) — {{ a.get_scan_status_display }}
+        {% if a.scan_status == 'available' %}
+        <a href="{% url 'documents:download' a.id %}">Baixar</a>
+        <a href="{% url 'documents:preview' a.id %}">Prévia</a>
+        {% endif %}
+        {% if a.scan_error %}— erro: {{ a.scan_error }}{% endif %}
+        <form method="post" action="{% url 'documents:delete' a.id %}" style="display:inline">
+            {% csrf_token %}<button type="submit">Remover</button>
+        </form>
+    </li>
+    {% empty %}
+    <li>Nenhum anexo.</li>
+    {% endfor %}
+</ul>
+<h2>Enviar novo anexo</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Enviar</button>
+</form>
+{% endblock %}

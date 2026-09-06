@@ -1532,27 +1532,27 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S05; contrato de arquivo imutável e autorização.
 
-- [ ] **S06-T01 — Criar Attachment, classes, metadados e quotas.** Dependências: S05. Componente: `documents/models.py`. Requisitos: RF-05.01. **Aceite:** Limites de tamanho/página e classe do arquivo são persistidos.
+- [x] **S06-T01 — Criar Attachment, classes, metadados e quotas.** Dependências: S05. Componente: `documents/models.py`. Requisitos: RF-05.01. **Aceite:** Limites de tamanho/página e classe do arquivo são persistidos.
 
-- [ ] **S06-T02 — Implementar gravação temporária e publicação atômica.** Dependências: S06-T01. Componente: `documents/storage.py`. Requisitos: RF-05.01, RT-10. **Aceite:** Banco só referencia arquivo publicado e nenhum original é sobrescrito.
+- [x] **S06-T02 — Implementar gravação temporária e publicação atômica.** Dependências: S06-T01. Componente: `documents/storage.py`. Requisitos: RF-05.01, RT-10. **Aceite:** Banco só referencia arquivo publicado e nenhum original é sobrescrito.
 
-- [ ] **S06-T03 — Validar extensão, MIME e estrutura de PDF/imagem/DOCX.** Dependências: S06-T02. Componente: `documents/validators.py`. Requisitos: RF-05.02. **Aceite:** Arquivo disfarçado e traversal são recusados antes do processamento.
+- [x] **S06-T03 — Validar extensão, MIME e estrutura de PDF/imagem/DOCX.** Dependências: S06-T02. Componente: `documents/validators.py`. Requisitos: RF-05.02. **Aceite:** Arquivo disfarçado e traversal são recusados antes do processamento.
 
-- [ ] **S06-T04 — Integrar ClamAV local e atualização de definições.** Dependências: S06-T03. Componente: `documents/tasks.py, integrations/antivirus.py`. Requisitos: RF-05.02. **Aceite:** Definição ausente/antiga mantém quarentena com erro visível.
+- [x] **S06-T04 — Integrar ClamAV local e atualização de definições.** Dependências: S06-T03. Componente: `documents/tasks.py, integrations/antivirus.py`. Requisitos: RF-05.02. **Aceite:** Definição ausente/antiga mantém quarentena com erro visível.
 
-- [ ] **S06-T05 — Criar preview local com limites de CPU/memória/páginas.** Dependências: S06-T04. Componente: `documents/preview.py`. Requisitos: RF-05.02. **Aceite:** Arquivo grande não monopoliza worker e preview não executa conteúdo ativo.
+- [x] **S06-T05 — Criar preview local com limites de CPU/memória/páginas.** Dependências: S06-T04. Componente: `documents/preview.py`. Requisitos: RF-05.02. **Aceite:** Arquivo grande não monopoliza worker e preview não executa conteúdo ativo.
 
-- [ ] **S06-T06 — Implementar download e preview por objeto autorizado.** Dependências: S06-T04. Componente: `documents/views.py`. Requisitos: RF-05.03, RT-02. **Aceite:** H-10/H-03 negam URL conhecida de outro tenant.
+- [x] **S06-T06 — Implementar download e preview por objeto autorizado.** Dependências: S06-T04. Componente: `documents/views.py`. Requisitos: RF-05.03, RT-02. **Aceite:** H-10/H-03 negam URL conhecida de outro tenant.
 
-- [ ] **S06-T07 — Implementar classificação, vínculo e data do exame.** Dependências: S06-T06. Componente: `documents/forms.py`. Requisitos: RF-05.01, RF-03.01. **Aceite:** Mudança de paciente/atendimento valida contexto e é auditada.
+- [x] **S06-T07 — Implementar classificação, vínculo e data do exame.** Dependências: S06-T06. Componente: `documents/forms.py`. Requisitos: RF-05.01, RF-03.01. **Aceite:** Mudança de paciente/atendimento valida contexto e é auditada.
 
-- [ ] **S06-T08 — Criar remoção lógica e GC com lock de backup.** Dependências: S06-T02. Componente: `documents/retention.py`. Requisitos: RT-03, RT-10. **Aceite:** GC não remove arquivo referenciado nem atua durante backup.
+- [x] **S06-T08 — Criar remoção lógica e GC com lock de backup.** Dependências: S06-T02. Componente: `documents/retention.py`. Requisitos: RT-03, RT-10. **Aceite:** GC não remove arquivo referenciado nem atua durante backup.
 
-- [ ] **S06-T09 — Implementar OCR local e origem do texto extraído.** Dependências: S06-T05. Componente: `documents/ocr.py`. Requisitos: RF-05.02, RT-04. **Aceite:** OCR identificado permanece local e mantém proveniência de página.
+- [x] **S06-T09 — Implementar OCR local e origem do texto extraído.** Dependências: S06-T05. Componente: `documents/ocr.py`. Requisitos: RF-05.02, RT-04. **Aceite:** OCR identificado permanece local e mantém proveniência de página.
 
-- [ ] **S06-T10 — Homologar arquivos e fechamento da etapa de anexos.** Dependências: S06-T07, S06-T08, S06-T09. Componente: `docs/homologation/attachments.md`. Requisitos: RF-05, RT-03. **Aceite:** H-10 inclui malware sintético permitido, formatos ruins e acesso cruzado.
+- [x] **S06-T10 — Homologar arquivos e fechamento da etapa de anexos.** Dependências: S06-T07, S06-T08, S06-T09. Componente: `docs/homologation/attachments.md`. Requisitos: RF-05, RT-03. **Aceite:** H-10 inclui malware sintético permitido, formatos ruins e acesso cruzado.
 
-- [ ] **Saída de S06:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
+- [x] **Saída de S06:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
 ### S07 — Documentos médicos e assinatura
 
@@ -1858,10 +1858,10 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 
 ### H-10 — Arquivos e processamento
 
-- [ ] Arquivo sintético válido de cada formato percorre quarentena até disponível; tamanho/páginas/MIME inválidos são recusados com mensagem útil.
-- [ ] Preview não executa macros/scripts/referências externas; detector antimalware indisponível/definição inválida mantém quarentena. Usar amostra de verificação autorizada, sem material clínico real.
-- [ ] Download e preview de A falham para B e perfil administrativo sem permissão; path traversal, nome malicioso e parâmetros de preview não expõem volume.
-- [ ] Arquivo referenciado é imutável; GC respeita o lock de backup e retenção; OCR mantém proveniência e não envia identificado a serviço externo.
+- [x] Arquivo sintético válido de cada formato percorre quarentena até disponível; tamanho/páginas/MIME inválidos são recusados com mensagem útil.
+- [x] Preview não executa macros/scripts/referências externas; detector antimalware indisponível/definição inválida mantém quarentena. Usar amostra de verificação autorizada, sem material clínico real.
+- [x] Download e preview de A falham para B e perfil administrativo sem permissão; path traversal, nome malicioso e parâmetros de preview não expõem volume.
+- [x] Arquivo referenciado é imutável; GC respeita o lock de backup e retenção; OCR mantém proveniência e não envia identificado a serviço externo.
 
 ### H-11 — Scanner
 

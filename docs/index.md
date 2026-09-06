@@ -34,6 +34,12 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 - [Homologação de prontuário](homologation/clinical.md) — evidências de H-06/H-07.
 
+## Anexos privados e processamento local (S06)
+
+- [Homologação de anexos](homologation/attachments.md) — evidências de H-10,
+  incluindo detecção real de malware via ClamAV e correção de um bug de
+  configuração (base de definições nunca era lida do volume persistente).
+
 ## Arquitetura
 
 ```mermaid
