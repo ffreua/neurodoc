@@ -14,4 +14,8 @@ urlpatterns = [
     path('<uuid:patient_id>/archive/', views.PatientArchiveView.as_view(), name='archive'),
     path('<uuid:patient_id>/contacts/', views.PatientContactCreateView.as_view(), name='add-contact'),
     path('<uuid:patient_id>/coverage/', views.PatientCoverageCreateView.as_view(), name='add-coverage'),
+    path(
+        '<uuid:patient_id>/medidas/',
+        views.PatientMeasurementCreateView.as_view(), name='add-measurement',
+    ),
 ]

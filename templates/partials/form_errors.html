@@ -1,0 +1,17 @@
+{% comment %}Erros gerais do formulário — os que não pertencem a um campo.
+
+Uso: {% include "partials/form_errors.html" with form=measurement_form %}
+
+Existe porque `partials/field.html` só mostra o erro **do campo**. Um erro
+levantado no `clean()` do formulário ("Informe o peso, a altura, ou os dois",
+"Informe telefone ou e-mail") não pertence a campo nenhum e, sem este bloco,
+não aparecia em lugar algum: o envio voltava para a tela como se nada tivesse
+acontecido, e quem estava usando o sistema não tinha como saber por quê.
+{% endcomment %}
+{% if form.non_field_errors %}
+<div class="alert alert-danger fade show fs-12" role="alert">
+    {% for error in form.non_field_errors %}
+    <span class="d-block">{{ error }}</span>
+    {% endfor %}
+</div>
+{% endif %}

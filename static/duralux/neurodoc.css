@@ -319,3 +319,177 @@ textarea.form-control-sm {
         border: 1px solid #e5e7eb !important;
     }
 }
+
+/* ---- Agenda: grade da semana ------------------------------------------ */
+/*
+ * A grade e um CSS grid: uma coluna de horario mais sete de dia. Cada celula
+ * e um botao quando esta livre, para marcar com um clique.
+ *
+ * A cor carrega o estado, e nao so decora: livre e claro e clicavel;
+ * ocupado usa o tom do estado do agendamento; bloqueado e hachurado, porque
+ * "cinza chapado" se confunde com desabilitado e a hachura le como
+ * "fechado". Passado fica esmaecido, porque oferecer um horario que ja
+ * passou nao ajuda ninguem.
+ */
+.nd-agenda {
+    display: grid;
+    gap: 2px;
+    background: #eef1f5;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 2px;
+    overflow-x: auto;
+    grid-template-columns: 4.5rem repeat(7, minmax(6.5rem, 1fr));
+}
+
+.nd-agenda-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f8f9fa;
+    padding: 6px 8px;
+    text-align: center;
+    border-radius: 4px;
+}
+
+.nd-agenda-head.is-today {
+    background: #ebeefa;
+    box-shadow: inset 0 -2px 0 #3454d1;
+}
+
+.nd-agenda-time {
+    background: #f8f9fa;
+    color: #64748b;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    padding: 6px 8px;
+    text-align: right;
+    border-radius: 4px;
+    white-space: nowrap;
+}
+
+.nd-slot {
+    display: block;
+    width: 100%;
+    min-height: 2.35rem;
+    padding: 4px 6px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: #fff;
+    text-align: left;
+    font: inherit;
+    font-size: 11px;
+    line-height: 1.25;
+    color: #283c50;
+    cursor: default;
+    overflow: hidden;
+}
+
+.nd-slot-empty {
+    background: transparent;
+    min-height: 2.35rem;
+}
+
+button.nd-slot-free {
+    cursor: pointer;
+    border-color: #e5e7eb;
+    color: #94a3b8;
+    transition: background-color .12s ease, border-color .12s ease, color .12s ease;
+}
+
+button.nd-slot-free::before {
+    content: "livre";
+    font-size: 10px;
+}
+
+button.nd-slot-free:hover,
+button.nd-slot-free:focus-visible {
+    background: #ebeefa;
+    border-color: #3454d1;
+    color: #3454d1;
+}
+
+button.nd-slot-free:hover::before,
+button.nd-slot-free:focus-visible::before {
+    content: "+ marcar";
+    font-weight: 600;
+}
+
+.nd-slot-past {
+    background: #f8f9fa;
+    color: #cbd5e1;
+}
+
+.nd-slot-blocked {
+    color: #64748b;
+    background: repeating-linear-gradient(
+        45deg, #f1f3f5, #f1f3f5 5px, #e5e7eb 5px, #e5e7eb 10px
+    );
+}
+
+.nd-slot-busy {
+    cursor: pointer;
+    border-color: rgba(52, 84, 209, .25);
+    background: #ebeefa;
+    color: #283c50;
+}
+
+.nd-slot-busy .nd-slot-name {
+    display: block;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nd-slot-busy.is-continuation {
+    border-top-color: transparent;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+/* Tom por estado do agendamento. */
+.nd-slot-busy[data-status="confirmed"] { background: #dbf5f3; border-color: rgba(61,199,190,.35); }
+.nd-slot-busy[data-status="checked_in"],
+.nd-slot-busy[data-status="in_progress"] { background: #ffebd0; border-color: rgba(255,162,29,.4); }
+.nd-slot-busy[data-status="completed"] { background: #e1fbed; border-color: rgba(23,198,102,.35); }
+.nd-slot-busy[data-overbook="1"] { border-style: dashed; border-color: #ffa21d; }
+
+.nd-agenda-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    font-size: 11px;
+    color: #64748b;
+}
+
+.nd-agenda-legend span.nd-key {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 3px;
+    border: 1px solid #e5e7eb;
+    vertical-align: -2px;
+    margin-right: 4px;
+}
+
+@media (max-width: 991px) {
+    .nd-agenda {
+        grid-template-columns: 3.5rem repeat(7, minmax(5.5rem, 1fr));
+    }
+    .nd-slot { font-size: 10px; }
+}
+
+/* Skin escuro: a grade nao pode ficar branca sobre fundo escuro. */
+html.app-skin-dark .nd-agenda { background: #1b2431; border-color: #2a3547; }
+html.app-skin-dark .nd-agenda-head,
+html.app-skin-dark .nd-agenda-time { background: #202a3a; color: #94a3b8; }
+html.app-skin-dark .nd-slot { background: #182029; color: #cbd5e1; }
+html.app-skin-dark button.nd-slot-free { border-color: #2a3547; color: #64748b; }
+html.app-skin-dark button.nd-slot-free:hover { background: #1e2740; border-color: #3454d1; color: #93a7f5; }
+html.app-skin-dark .nd-slot-past { background: #151c24; color: #3f4c5f; }
+html.app-skin-dark .nd-slot-blocked {
+    background: repeating-linear-gradient(45deg, #1b2431, #1b2431 5px, #232e3d 5px, #232e3d 10px);
+}
+html.app-skin-dark .nd-slot-busy { background: #1e2740; color: #dbe3f4; }

@@ -1,62 +1,137 @@
 {% extends "base.html" %}
 {% load nd %}
-{% block title %}Mesa da secretaria — NeuroDoc{% endblock %}
-{% block page_title %}Mesa da secretaria{% endblock %}
+{% block title %}Balcão — {{ day|date:"d/m/Y" }}{% endblock %}
+{% block page_title %}Balcão do dia{% endblock %}
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
-<li class="breadcrumb-item">Agenda</li>
-<li class="breadcrumb-item">Mesa da secretaria</li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">Balcão — {{ day|date:"d/m/Y" }}</li>
 {% endblock %}
 {% block page_actions %}
-<a class="btn btn-light" href="{% url 'scheduling:day' %}">Ver agenda do dia</a>
-<a class="btn btn-primary" href="{% url 'scheduling:reserve' %}">Nova reserva</a>
+<a class="btn btn-light-primary" href="{% url 'scheduling:week' %}">Ver a grade</a>
 {% endblock %}
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <div class="card stretch stretch-full">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Atendimentos de {{ today|date:"d/m/Y" }}</h5>
-                <span class="badge bg-soft-primary text-primary">{{ appointments|length }} na fila</span>
+
+{% comment %}O balcão é a lista do dia de **todos** os médicos, em ordem de
+horário — diferente da grade, que é de um médico por vez. Aqui a pergunta é
+"quem chega agora", não "que horário posso oferecer".{% endcomment %}
+<div class="card mb-3">
+    <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="d-inline-flex align-items-center gap-1">
+            <a class="btn btn-icon btn-sm btn-light" href="?date={{ prev_day|date:'Y-m-d' }}"
+               aria-label="Dia anterior">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            </a>
+            <a class="btn btn-sm btn-light" href="?date={{ today|date:'Y-m-d' }}">Hoje</a>
+            <a class="btn btn-icon btn-sm btn-light" href="?date={{ next_day|date:'Y-m-d' }}"
+               aria-label="Próximo dia">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+            </a>
+            <span class="fw-bold text-dark ms-2">{{ day|date:"l, d/m/Y" }}</span>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge bg-soft-primary text-primary">{{ counts.total }} na agenda</span>
+            <span class="badge bg-soft-info text-info">{{ counts.confirmed }} confirmado(s)</span>
+            <span class="badge bg-soft-success text-success">{{ counts.arrived }} chegou/atendido</span>
+        </div>
+    </div>
+</div>
+
+{% if pending_registration %}
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-start gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-warning flex-shrink-0 mt-1"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div>
+                <span class="fw-semibold text-dark fs-13">
+                    {{ pending_registration|length }} paciente(s) de hoje com pré-cadastro
+                </span>
+                <span class="d-block fs-12 text-muted">
+                    Foram marcados por telefone com nome e contato. O cadastro completo é pedido
+                    no check-in — o botão "Chegou" leva direto para a ficha.
+                </span>
             </div>
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="bg-gray-100">
-                            <tr class="border-b">
-                                <th class="ps-4" scope="col">Horário</th>
-                                <th scope="col">Paciente</th>
-                                <th scope="col">Contato</th>
-                                <th scope="col">Médico</th>
-                                <th class="text-end pe-4" scope="col">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for appt in appointments %}
-                            <tr>
-                                <td class="ps-4 fw-bold text-dark">{{ appt.starts_at|date:"H:i" }}</td>
-                                <td>
-                                    <a class="fw-semibold text-dark" href="{% url 'patients:detail' appt.patient_id %}">{{ appt.patient.full_name }}</a>
-                                </td>
-                                <td>
-                                    <span class="fs-12 text-muted">
-                                        {% with contact=appt.patient.contacts.first %}
-                                        {% if contact %}{{ contact.phone|default:contact.email }}{% else %}—{% endif %}
-                                        {% endwith %}
-                                    </span>
-                                </td>
-                                <td><span class="fs-12 text-muted">{{ appt.physician_membership.user.get_full_name }}</span></td>
-                                <td class="text-end pe-4">
-                                    <span class="badge bg-soft-{{ appt.status|nd_tone }} text-{{ appt.status|nd_tone }}">{{ appt.get_status_display }}</span>
-                                </td>
-                            </tr>
-                            {% empty %}
-                            <tr><td colspan="5" class="text-center text-muted py-5">Sem pendências hoje.</td></tr>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Pacientes do dia</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Hora</th>
+                        <th scope="col">Paciente</th>
+                        <th scope="col">Médico</th>
+                        <th scope="col">Tipo</th>
+                        <th scope="col">Situação</th>
+                        <th class="text-end pe-4" scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-dark">{{ appointment.starts_at|date:"H:i" }}</td>
+                        <td class="text-wrap">
+                            <a class="fw-semibold text-dark fs-13"
+                               href="{% url 'patients:detail' appointment.patient_id %}">
+                                {{ appointment.patient.full_name }}
+                            </a>
+                            {% if appointment.patient.registration_stage == 'preliminary' %}
+                            <span class="badge bg-soft-warning text-warning ms-1">pré-cadastro</span>
+                            {% endif %}
+                            {% for contact in appointment.patient.contacts.all|slice:":1" %}
+                            <span class="d-block fs-11 text-muted">{{ contact.phone }}</span>
                             {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+                        </td>
+                        <td><span class="fs-12 text-muted">{{ appointment.physician_membership.user.get_full_name }}</span></td>
+                        <td><span class="fs-12">{{ appointment.get_type_display }}</span></td>
+                        <td>
+                            <span class="badge bg-soft-{{ appointment.status|nd_tone }} text-{{ appointment.status|nd_tone }}">
+                                {{ appointment.get_status_display }}
+                            </span>
+                            {% if appointment.is_overbook %}
+                            <span class="badge bg-soft-warning text-warning">encaixe</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                {% if appointment.status == 'scheduled' %}
+                                <form method="post" action="{% url 'scheduling:action' appointment.id 'confirm' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="return_to" value="{% url 'scheduling:desk' %}">
+                                    <button type="submit" class="btn btn-sm btn-light-success" data-nd-busy>Confirmar</button>
+                                </form>
+                                {% endif %}
+                                {% if appointment.status == 'scheduled' or appointment.status == 'confirmed' %}
+                                <form method="post" action="{% url 'scheduling:action' appointment.id 'check-in' %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="return_to" value="{% url 'scheduling:desk' %}">
+                                    <button type="submit" class="btn btn-sm btn-primary" data-nd-busy>Chegou</button>
+                                </form>
+                                {% endif %}
+                                {% if appointment.status == 'checked_in' %}
+                                <a class="btn btn-sm btn-light-primary"
+                                   href="{% url 'clinical:timeline' appointment.patient_id %}">Atender</a>
+                                {% endif %}
+                                <a class="btn btn-sm btn-light" href="{% url 'scheduling:reschedule' appointment.id %}">
+                                    Remarcar
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-5 fs-13">
+                        Nenhum paciente na agenda deste dia.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 </div>

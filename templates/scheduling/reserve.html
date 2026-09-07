@@ -3,7 +3,7 @@
 {% block page_title %}Nova reserva{% endblock %}
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
-<li class="breadcrumb-item"><a href="{% url 'scheduling:day' %}">Agenda</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
 <li class="breadcrumb-item">Nova reserva</li>
 {% endblock %}
 {% block content %}
@@ -14,12 +14,18 @@
                 <h5 class="card-title mb-0">Dados da reserva</h5>
             </div>
             <div class="card-body">
+                <p class="fs-12 text-muted">
+                    O caminho normal é clicar no horário livre da grade da semana, que já sabe o
+                    médico, o horário e a duração. Este formulário serve quando o horário já é
+                    conhecido — o fim continua sendo calculado da duração do tipo.
+                </p>
                 <form method="post" novalidate>
                     {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=form %}
                     {% include "partials/form_fields.html" %}
                     <div class="d-flex align-items-center gap-2 mt-4">
                         <button type="submit" class="btn btn-primary" data-nd-busy>Reservar</button>
-                        <a class="btn btn-light" href="{% url 'scheduling:day' %}">Cancelar</a>
+                        <a class="btn btn-light" href="{% url 'scheduling:week' %}">Cancelar</a>
                     </div>
                 </form>
             </div>

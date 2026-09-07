@@ -36,7 +36,7 @@
                     </ul>
                 </li>
                 <li class="nxl-item nxl-hasmenu {% if nd_section == 'scheduling' %}active nxl-trigger{% endif %}">
-                    <a class="nxl-link" href="{% url 'scheduling:day' %}">
+                    <a class="nxl-link" href="{% url 'scheduling:week' %}">
                         <span class="nxl-micon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                         </span>
@@ -46,10 +46,11 @@
                         </span>
                     </a>
                     <ul class="nxl-submenu {% if nd_section == 'scheduling' %}nxl-menu-visible{% else %}nxl-menu-hidden{% endif %}">
-                        <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:day' %}">Dia</a></li>
                         <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:week' %}">Semana</a></li>
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:day' %}">Dia</a></li>
                         <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:month' %}">Mês</a></li>
-                        <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:desk' %}">Mesa da secretaria</a></li>
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:desk' %}">Balcão do dia</a></li>
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:settings' %}">Configurar horários</a></li>
                     </ul>
                 </li>
                 {% comment %}Documentos médicos pertencem a um atendimento e são

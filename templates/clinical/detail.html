@@ -19,6 +19,10 @@ tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
 <a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
 <a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
 {% if encounter.status != 'finalized' %}
+<button type="button" class="btn btn-light-danger" data-bs-toggle="modal" data-bs-target="#discard-modal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    <span>Descartar</span>
+</button>
 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#finalize-modal">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
     <span>Finalizar atendimento</span>
@@ -562,6 +566,67 @@ digitado em outra.{% endcomment %}
 </div>
 {% endif %}
 {% if encounter.status != 'finalized' %}
+{% comment %}Descartar existe porque abrir um atendimento no paciente errado
+acontece. Só vale para atendimento não finalizado; finalizado é registro
+imutável e a correção lá é adendo. O modal mostra o que se perde antes de
+confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
+<div class="modal fade" id="discard-modal" tabindex="-1" aria-hidden="true" aria-labelledby="discard-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'clinical:discard' encounter.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="discard-modal-title">Descartar este atendimento?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    {% if discard_blockers %}
+                    <div class="alert alert-warning fade show fs-13 mb-0" role="alert">
+                        <strong>Este atendimento não pode ser descartado:</strong>
+                        <ul class="mb-0 mt-2 ps-3">
+                            {% for motivo in discard_blockers %}<li>{{ motivo }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger fade show fs-12" role="alert">
+                        O atendimento sai da história do paciente e <strong>não há como desfazer</strong>.
+                        O log de auditoria guarda quem descartou, quando e o que havia.
+                    </div>
+                    {% if discard_has_content %}
+                    <p class="fs-13 mb-2"><strong>Já há conteúdo registrado aqui:</strong></p>
+                    <ul class="fs-13 mb-3">
+                        {% if discard_summary.tem_historia %}<li>história preenchida</li>{% endif %}
+                        {% if discard_summary.tem_conduta %}<li>conduta preenchida</li>{% endif %}
+                        {% if discard_summary.exame %}<li>{{ discard_summary.exame }} item(ns) de exame</li>{% endif %}
+                        {% if discard_summary.medicacoes %}<li>{{ discard_summary.medicacoes }} medicação(ões)</li>{% endif %}
+                        {% if discard_summary.exames %}<li>{{ discard_summary.exames }} resultado(s) de exame</li>{% endif %}
+                        {% if discard_summary.hipoteses %}<li>{{ discard_summary.hipoteses }} hipótese(s)</li>{% endif %}
+                    </ul>
+                    <label class="form-label fw-semibold" for="discard-reason">
+                        Motivo do descarte <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="discard-reason" name="reason" required
+                           maxlength="255" placeholder="Ex.: atendimento aberto no paciente errado">
+                    <div class="form-text fs-11">
+                        Obrigatório porque há conteúdo. Fica no log de auditoria.
+                    </div>
+                    {% else %}
+                    <p class="fs-13 text-muted mb-0">
+                        Este atendimento está vazio — nada foi registrado nele.
+                    </p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" data-nd-busy
+                            {% if discard_blockers %}disabled{% endif %}>Descartar atendimento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="finalize-modal" tabindex="-1" aria-hidden="true" aria-labelledby="finalize-modal-title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">

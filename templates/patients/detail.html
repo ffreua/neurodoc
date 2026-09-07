@@ -122,6 +122,7 @@ sem caçar em cartões laterais.{% endcomment %}
                 <div class="card-body border-bottom">
                     <form method="post" action="{% url 'patients:add-contact' patient.id %}" novalidate>
                         {% csrf_token %}
+                        {% include "partials/form_errors.html" with form=contact_form %}
                         <div class="row g-3">
                             {% include "partials/field.html" with field=contact_form.name col="col-md-6" %}
                             {% include "partials/field.html" with field=contact_form.relationship col="col-md-6" %}
@@ -199,13 +200,41 @@ sem caçar em cartões laterais.{% endcomment %}
                                 <td class="pe-4 text-wrap">
                                     {% if bmi %}
                                     <span class="fw-semibold text-dark">{{ bmi.value }}</span>
+                                    {% if bmi.band %}
+                                    <span class="badge bg-soft-{{ bmi.tone }} text-{{ bmi.tone }} ms-1">{{ bmi.band }}</span>
+                                    {% endif %}
                                     <span class="d-block fs-11 text-muted">
                                         peso {{ bmi.weight_kg }} kg ({{ bmi.weight_observed_at|date:"d/m/Y" }}) ·
                                         altura {{ bmi.height_m }} m ({{ bmi.height_observed_at|date:"d/m/Y" }})
                                     </span>
                                     {% else %}
-                                    <span class="fs-12 text-muted">peso/altura insuficientes</span>
+                                    <span class="fs-12 text-muted">
+                                        {% if measurement_hint %}{{ measurement_hint }}{% else %}peso e altura não registrados{% endif %}
+                                    </span>
                                     {% endif %}
+                                    {% comment %}Registro rápido, aqui mesmo: peso muda entre
+                                    consultas e é uma medida de acompanhamento, não um campo de
+                                    cadastro que se preenche uma vez.{% endcomment %}
+                                    <button class="btn btn-light-primary btn-sm mt-2 collapsed" type="button"
+                                            data-bs-toggle="collapse" data-bs-target="#measurement-form"
+                                            aria-expanded="false">
+                                        Registrar peso e altura
+                                    </button>
+                                    <div class="collapse {% if measurement_form.errors %}show{% endif %}" id="measurement-form">
+                                        <form method="post" action="{% url 'patients:add-measurement' patient.id %}"
+                                              novalidate class="border rounded-3 p-3 bg-gray-100 mt-2">
+                                            {% csrf_token %}
+                                            {% include "partials/form_errors.html" with form=measurement_form %}
+                                            <div class="row g-2">
+                                                {% include "partials/field.html" with field=measurement_form.weight_kg col="col-6" %}
+                                                {% include "partials/field.html" with field=measurement_form.height_m col="col-6" %}
+                                                {% include "partials/field.html" with field=measurement_form.observed_on col="col-12" %}
+                                            </div>
+                                            <button type="submit" class="btn btn-primary btn-sm mt-2" data-nd-busy>
+                                                Registrar
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             <tr>
@@ -246,6 +275,7 @@ sem caçar em cartões laterais.{% endcomment %}
                 <div class="card-body border-bottom">
                     <form method="post" action="{% url 'patients:add-coverage' patient.id %}" novalidate>
                         {% csrf_token %}
+                        {% include "partials/form_errors.html" with form=coverage_form %}
                         <div class="row g-3">
                             {% include "partials/field.html" with field=coverage_form.plan col="col-12" %}
                             {% include "partials/field.html" with field=coverage_form.member_number col="col-12" %}

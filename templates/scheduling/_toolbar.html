@@ -1,0 +1,46 @@
+{% load nd %}
+{% comment %}Barra da agenda: médico, visão e navegação de data.
+
+O seletor de médico é o primeiro controle porque é o que define tudo o que
+vem depois — horário livre só quer dizer algo dentro da agenda de quem vai
+atender. Trocar de médico ou de visão preserva a data, e vice-versa.
+{% endcomment %}
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+                <label class="fs-11 text-muted mb-0" for="physician-picker">Agenda de</label>
+                <select class="form-select form-select-sm" id="physician-picker" name="physician"
+                        style="min-width:15rem" onchange="this.form.submit()">
+                    {% for option in doctors %}
+                    <option value="{{ option.id }}" {% if doctor and option.id == doctor.id %}selected{% endif %}>
+                        {{ option.user.get_full_name|default:option.user.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if date_param %}<input type="hidden" name="date" value="{{ date_param|date:'Y-m-d' }}">{% endif %}
+                <noscript><button type="submit" class="btn btn-sm btn-light-primary">Ver</button></noscript>
+            </form>
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Visão da agenda">
+                    <a class="btn {% if view_mode == 'day' %}btn-primary{% else %}btn-light{% endif %}"
+                       href="{% url 'scheduling:day' %}?physician={{ doctor.id }}&date={{ date_param|date:'Y-m-d' }}">Dia</a>
+                    <a class="btn {% if view_mode == 'week' %}btn-primary{% else %}btn-light{% endif %}"
+                       href="{% url 'scheduling:week' %}?physician={{ doctor.id }}&date={{ date_param|date:'Y-m-d' }}">Semana</a>
+                    <a class="btn {% if view_mode == 'month' %}btn-primary{% else %}btn-light{% endif %}"
+                       href="{% url 'scheduling:month' %}?physician={{ doctor.id }}&date={{ date_param|date:'Y-m-d' }}">Mês</a>
+                </div>
+                <div class="d-inline-flex align-items-center gap-1">
+                    <a class="btn btn-icon btn-sm btn-light" href="{{ prev_url }}" aria-label="Período anterior">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </a>
+                    <a class="btn btn-sm btn-light" href="{{ today_url }}">Hoje</a>
+                    <a class="btn btn-icon btn-sm btn-light" href="{{ next_url }}" aria-label="Próximo período">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

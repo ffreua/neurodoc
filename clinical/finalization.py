@@ -5,7 +5,7 @@ from audit.services import record_audit_event
 from events.models import OutboxEvent, OutboxEventStatus
 
 from .carry_forward import has_pending_review
-from .models import ClinicalAmendment, Encounter, EncounterStatus
+from .models import CarryForwardItem, ClinicalAmendment, Encounter, EncounterStatus
 
 ENCOUNTER_FINALIZED_TOPIC = 'clinical.encounter_finalized'
 
@@ -86,6 +86,137 @@ def finalize_encounter(context, encounter, actor_membership):
         },
     )
     return encounter
+
+
+def discard_summary(encounter):
+    """O que se perde ao descartar este atendimento.
+
+    A tela mostra isto **antes** de confirmar. Descartar um atendimento
+    aberto por engano é operação legítima; descartar um em que já se
+    escreveu meia consulta, sem saber que havia conteúdo, não é.
+    """
+    return {
+        'tem_historia': bool(encounter.chief_complaint or encounter.hpi
+                             or encounter.personal_history or encounter.family_history),
+        'tem_conduta': bool(encounter.plan_text),
+        'exame': encounter.examination_findings.count(),
+        'medicacoes': encounter.medications.count(),
+        'exames': encounter.exam_results.count(),
+        'hipoteses': encounter.diagnoses.count(),
+    }
+
+
+def has_content(encounter):
+    resumo = discard_summary(encounter)
+    return bool(
+        resumo['tem_historia'] or resumo['tem_conduta']
+        or resumo['exame'] or resumo['medicacoes'] or resumo['exames'] or resumo['hipoteses']
+    )
+
+
+def discard_blockers(encounter):
+    """Motivos que impedem o descarte, em linguagem de quem usa a tela.
+
+    Não é cascata: documento médico emitido, cobrança lançada e dado já
+    trazido para outra consulta são registros de outras naturezas que
+    apontam para este atendimento. Apagar o atendimento por baixo deles
+    deixaria uma receita assinada referindo uma consulta que não existe.
+    Melhor recusar e dizer o porquê.
+    """
+    blockers = []
+    issued = encounter.medical_documents.exclude(status__in=['draft', 'ready_to_sign']).count()
+    if issued:
+        blockers.append(
+            f'{issued} documento(s) médico(s) já emitido(s) a partir deste atendimento. '
+            'Documento assinado não pode referenciar uma consulta descartada.'
+        )
+    receivables = encounter.receivables.count()
+    if receivables:
+        blockers.append(
+            f'{receivables} cobrança(s) lançada(s) para este atendimento. '
+            'Cancele no Financeiro antes de descartar.'
+        )
+    derived = CarryForwardItem.objects.filter(source_encounter=encounter).count()
+    if derived:
+        blockers.append(
+            f'{derived} dado(s) deste atendimento foram levados para outra consulta.'
+        )
+    return blockers
+
+
+@transaction.atomic
+def discard_encounter(context, encounter, actor_membership, reason=''):
+    """Descarta um atendimento que **não** foi finalizado.
+
+    Atendimento finalizado é registro clínico e não se apaga — nem com
+    justificativa: correção lá entra como adendo identificado. Antes da
+    finalização o que existe é rascunho, e um atendimento aberto por engano
+    tem de poder sair da linha do tempo do paciente.
+
+    O que garante que isso não é uma porta para apagar prontuário:
+
+    - só passa quando `is_editable()`, isto é, rascunho ou em andamento;
+    - recusa quando há documento emitido, cobrança ou dado já levado para
+      outra consulta (ver `discard_blockers`);
+    - exige justificativa quando já há conteúdo escrito;
+    - registra no log de auditoria **o que havia** no momento do descarte,
+      com a justificativa. A linha desaparece do prontuário, não do log.
+    """
+    if encounter.status == EncounterStatus.FINALIZED:
+        raise FinalizationError(
+            'Atendimento finalizado não pode ser descartado: o registro é imutável. '
+            'Use um adendo para corrigir.'
+        )
+    if not encounter.is_editable():
+        raise FinalizationError('Este atendimento não pode mais ser descartado.')
+
+    blockers = discard_blockers(encounter)
+    if blockers:
+        raise FinalizationError('Não é possível descartar: ' + ' '.join(blockers))
+
+    resumo = discard_summary(encounter)
+    if has_content(encounter) and not reason.strip():
+        raise FinalizationError(
+            'Este atendimento já tem conteúdo registrado. Escreva o motivo do descarte.'
+        )
+
+    record_audit_event(
+        actor_membership.user_id, context.tenant_id, 'clinical.encounter_discarded',
+        object_type='encounter', object_id=encounter.id, outcome='success',
+        integrity_metadata={
+            'patient_id': str(encounter.patient_id),
+            'occurred_at': encounter.occurred_at.isoformat(),
+            'status': encounter.status,
+            'reason': reason.strip()[:255],
+            'conteudo': resumo,
+        },
+    )
+
+    # As linhas-filhas saem com o atendimento. A ordem importa: `Encounter`
+    # é referenciado por PROTECT em várias delas, então apagar o pai antes
+    # levantaria ProtectedError.
+    encounter.carry_forward_items.all().delete()
+    encounter.examination_findings.all().delete()
+    encounter.diagnoses.all().delete()
+    encounter.amendments.all().delete()
+    encounter.medications.all().delete()
+    for result in encounter.exam_results.all():
+        result.lab_values.all().delete()
+        # O anexo fica: ele é documento do paciente, com retenção própria.
+        # Descartar o registro do exame não é motivo para descartar o laudo.
+        result.attachment = None
+        result.save(update_fields=['attachment'])
+    encounter.exam_results.all().delete()
+    # Rascunho de documento médico e trabalho de IA são derivados deste
+    # atendimento e não existem sem ele.
+    encounter.medical_documents.all().delete()
+    for job in encounter.ai_jobs.all():
+        job.artifacts.all().delete()
+    encounter.ai_jobs.all().delete()
+    # O anexo enviado aqui continua no prontuário do paciente, só perde o
+    # vínculo com a consulta descartada (a FK é SET_NULL).
+    encounter.delete()
+    return resumo
 
 
 @transaction.atomic

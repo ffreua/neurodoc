@@ -155,6 +155,11 @@ class EncounterDetailView(TenantScopedView):
             # O que falta para finalizar, tudo de uma vez: a tela mostra a
             # lista antes do clique em vez de recusar um requisito por vez.
             'finalize_pending': finalization.missing_requirements(encounter),
+            # O modal de descarte mostra o que se perde e por que, quando for
+            # o caso, não se pode descartar.
+            'discard_summary': finalization.discard_summary(encounter),
+            'discard_has_content': finalization.has_content(encounter),
+            'discard_blockers': finalization.discard_blockers(encounter),
             **self._extra_tabs(request, encounter),
         })
 
@@ -472,6 +477,35 @@ class FinalizeEncounterView(TenantScopedView):
             return _blocked(request, encounter, str(exc))
         messages.success(request, 'Atendimento finalizado. O registro agora é imutável.')
         return redirect('clinical:detail', encounter_id=encounter.id)
+
+
+
+class EncounterDiscardView(TenantScopedView):
+    """Descarta um atendimento não finalizado.
+
+    Existe porque abrir um atendimento no paciente errado, ou duas vezes no
+    mesmo, acontece — e a linha ficava na história do paciente para sempre,
+    vazia. Finalizado continua imutável: lá a correção é adendo.
+    """
+
+    def post(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        membership = _doctor_membership(request)
+        if membership is None:
+            return _blocked(
+                request, encounter,
+                'Só um médico com vínculo ativo pode descartar um atendimento.',
+            )
+        patient_id = encounter.patient_id
+        try:
+            finalization.discard_encounter(
+                request.access_context, encounter, membership,
+                reason=request.POST.get('reason', ''),
+            )
+        except finalization.FinalizationError as exc:
+            return _blocked(request, encounter, str(exc))
+        messages.success(request, 'Atendimento descartado.')
+        return redirect('clinical:timeline', patient_id=patient_id)
 
 
 class AmendmentCreateView(TenantScopedView):

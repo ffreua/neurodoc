@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load nd static %}
+{% block title %}Agenda de {{ day|date:"d/m/Y" }}{% endblock %}
+{% block page_title %}Agenda{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">{{ day|date:"d/m/Y" }}</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'scheduling:desk' %}">Balcão do dia</a>
+<a class="btn btn-light-primary" href="{% url 'scheduling:settings' %}?physician={{ doctor.id }}">
+    Configurar horários
+</a>
+{% endblock %}
+{% block content %}
+
+{% if not doctors %}
+<div class="card"><div class="card-body text-center py-5">
+    <h5 class="fw-bold text-dark">Nenhum médico com vínculo ativo</h5>
+</div></div>
+{% else %}
+
+{% include "scheduling/_toolbar.html" %}
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h5 class="card-title mb-0">{{ day|date:"l, d \d\e F \d\e Y" }}</h5>
+            <span class="fs-11 text-muted">{{ doctor.user.get_full_name|default:doctor.user.email }}</span>
+        </div>
+        {% if has_schedule %}
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-soft-success text-success">{{ free }} livre(s)</span>
+            <span class="badge bg-soft-primary text-primary">{{ busy }} ocupado(s)</span>
+        </div>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        {% if not has_schedule %}
+        <div class="text-center py-5">
+            <h6 class="fw-bold text-dark">Sem atendimento neste dia</h6>
+            <p class="fs-13 text-muted mb-0">
+                A grade deste médico não cobre {{ day|date:"l" }}, ou o dia está bloqueado.
+            </p>
+        </div>
+        {% else %}
+        <ul class="list-group list-group-flush">
+            {% for cell in cells %}
+            <li class="list-group-item px-0 d-flex flex-wrap align-items-center gap-3">
+                <span class="fw-bold text-dark fs-14" style="min-width:4rem">
+                    {{ cell.start|date:"H:i" }}
+                </span>
+                {% if cell.status == 'free' %}
+                <button type="button" class="btn btn-sm btn-light-primary" data-nd-book
+                        data-nd-start="{{ cell.start|date:'Y-m-d H:i' }}"
+                        data-nd-iso="{{ cell.start|date:'c' }}"
+                        data-nd-when="{{ cell.start|date:'d/m/Y' }} às {{ cell.start|date:'H:i' }}">
+                    Marcar neste horário
+                </button>
+                {% elif cell.status == 'busy' %}
+                {% if cell.is_start %}
+                <button type="button" class="btn btn-sm btn-light flex-grow-1 text-start"
+                        data-status="{{ cell.appointment.status }}"
+                        data-nd-appointment="{{ cell.appointment.id }}"
+                        data-nd-patient="{{ cell.appointment.patient.full_name }}"
+                        data-nd-patient-id="{{ cell.appointment.patient_id }}"
+                        data-nd-when="{{ cell.appointment.starts_at|date:'d/m/Y H:i' }}"
+                        data-nd-until="{{ cell.appointment.ends_at|date:'H:i' }}"
+                        data-nd-type="{{ cell.appointment.get_type_display }}"
+                        data-nd-status-label="{{ cell.appointment.get_status_display }}"
+                        data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}">
+                    <span class="fw-semibold text-dark">{{ cell.appointment.patient.full_name }}</span>
+                    <span class="d-block fs-11 text-muted">
+                        {{ cell.appointment.get_type_display }} ·
+                        até {{ cell.appointment.ends_at|date:"H:i" }}
+                        {% if cell.appointment.patient.registration_stage == 'preliminary' %}
+                        · pré-cadastro
+                        {% endif %}
+                    </span>
+                </button>
+                <span class="badge bg-soft-{{ cell.appointment.status|nd_tone }} text-{{ cell.appointment.status|nd_tone }}">
+                    {{ cell.appointment.get_status_display }}
+                </span>
+                {% else %}
+                <span class="fs-12 text-muted">— continuação —</span>
+                {% endif %}
+                {% elif cell.status == 'past' %}
+                <span class="fs-12 text-muted">horário já passou</span>
+                {% else %}
+                <span class="badge bg-gray-200 text-dark">{{ cell.reason|default:"fechado" }}</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modals %}
+{% if doctor %}{% include "scheduling/_booking_modals.html" %}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'scheduling/agenda.js' %}"></script>
+{% endblock %}

@@ -63,6 +63,11 @@
                 {% include "partials/field.html" with field=form.identity_number col="col-lg-3 col-md-6" %}
                 {% include "partials/field.html" with field=form.occupation col="col-lg-3 col-md-6" %}
                 {% include "partials/field.html" with field=form.mother_name col="col-lg-6" %}
+                {% comment %}Peso e altura são medidas com data, não campos do
+                paciente: viram `Observation` e alimentam o IMC da ficha. Ficam
+                aqui porque é onde se pergunta, na primeira conversa.{% endcomment %}
+                {% include "partials/field.html" with field=form.weight_kg col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.height_m col="col-lg-3 col-md-6" %}
             </div>
 
             <button class="btn btn-light-primary btn-sm mt-3 collapsed" type="button"

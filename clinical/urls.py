@@ -68,5 +68,6 @@ urlpatterns = [
         views.CarryForwardReviewView.as_view(), name='review-carry-forward',
     ),
     path('<uuid:encounter_id>/finalize/', views.FinalizeEncounterView.as_view(), name='finalize'),
+    path('<uuid:encounter_id>/descartar/', views.EncounterDiscardView.as_view(), name='discard'),
     path('<uuid:encounter_id>/amendments/', views.AmendmentCreateView.as_view(), name='add-amendment'),
 ]

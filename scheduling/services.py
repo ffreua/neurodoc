@@ -134,3 +134,139 @@ def mark_no_show(appointment, actor_id):
     if timezone.now() < appointment.ends_at:
         raise SchedulingError('Cannot mark no-show before the appointment window ends')
     return transition_appointment(appointment, AppointmentStatus.NO_SHOW, actor_id)
+
+
+# --------------------------------------------------------------------------
+# Reserva a partir da grade
+# --------------------------------------------------------------------------
+
+def duration_for(physician_membership_id, appointment_type):
+    """Duração configurada deste tipo para este médico, em minutos."""
+    from .availability import type_durations
+
+    return type_durations(physician_membership_id)[appointment_type]
+
+
+@transaction.atomic
+def reserve_from_grid(
+    context, patient, physician_membership, starts_at, appointment_type,
+    is_overbook=False, override_reason='', override_by=None,
+):
+    """Reserva a partir de um horário da grade.
+
+    O fim é **calculado** da duração do tipo, não digitado: é o que faz uma
+    primeira consulta de 80 minutos ocupar duas células de 40 sem a
+    secretária ter de fazer a conta. Digitar o fim à mão era a porta de
+    entrada de consulta com duração errada.
+
+    Fora de encaixe, confere se o horário cabe na janela do médico
+    (`availability.fits`). A ExclusionConstraint do banco impede
+    sobreposição, mas não sabe nada sobre feriado, férias ou horário fora do
+    expediente — isso é o que esta checagem cobre.
+    """
+    from datetime import timedelta
+
+    from .availability import fits
+
+    minutes = duration_for(physician_membership.id, appointment_type)
+    ends_at = starts_at + timedelta(minutes=minutes)
+
+    if not is_overbook:
+        ok, reason = fits(physician_membership.id, starts_at, ends_at)
+        if not ok:
+            raise SlotUnavailable(reason)
+
+    return reserve_appointment(
+        context, patient, physician_membership, starts_at, ends_at, appointment_type,
+        is_overbook=is_overbook, override_reason=override_reason, override_by=override_by,
+    )
+
+
+@transaction.atomic
+def quick_register_patient(context, name, phone, note=''):
+    """Pré-cadastro de paciente para o agendamento por telefone.
+
+    Grava o mínimo que a secretária tem na ligação — nome e telefone — e
+    marca `registration_stage='preliminary'`. O motivo de a data de
+    nascimento faltar fica **escrito** no próprio cadastro em vez de o campo
+    ficar vazio sem explicação: `Patient.clean()` exige data ou motivo, e a
+    regra continua valendo.
+
+    O cadastro completo é pedido no check-in, quando o paciente está na
+    recepção.
+    """
+    from patients.models import Patient, PatientContact, RegistrationStage
+
+    patient = Patient(
+        tenant_id=context.tenant_id,
+        full_name=name.strip(),
+        birth_date_unknown_reason='Pré-cadastro por telefone; a completar na recepção.',
+        registration_stage=RegistrationStage.PRELIMINARY,
+        administrative_notes=note.strip()[:2000],
+    )
+    patient.full_clean()
+    patient.save()
+
+    digits = ''.join(ch for ch in (phone or '') if ch.isdigit())
+    if digits:
+        contact = PatientContact(
+            tenant_id=context.tenant_id, patient=patient,
+            name=name.strip()[:255], relationship='Próprio paciente',
+            phone=digits[:16], sms_enabled=False, email_enabled=False,
+        )
+        contact.full_clean()
+        contact.save()
+
+    record_audit_event(
+        context.user_id, context.tenant_id, 'patients.patient_pre_registered',
+        object_type='patient', object_id=patient.id, outcome='success',
+    )
+    return patient
+
+
+@transaction.atomic
+def change_appointment_patient(context, appointment, new_patient, reason, actor_id):
+    """Troca o paciente de um horário marcado.
+
+    O horário não muda; muda de quem ele é. Registra o paciente anterior no
+    log, porque "quem estava marcado nesse horário" é pergunta que se faz
+    depois.
+    """
+    if appointment.status not in (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED):
+        raise SchedulingError(
+            'Só é possível trocar o paciente de um horário agendado ou confirmado.'
+        )
+    previous = appointment.patient
+    appointment.patient = new_patient
+    appointment.row_version += 1
+    appointment.full_clean()
+    appointment.save()
+    record_audit_event(
+        actor_id, context.tenant_id, 'scheduling.appointment_patient_changed',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={
+            'previous_patient_id': str(previous.id), 'new_patient_id': str(new_patient.id),
+            'reason': reason[:255],
+        },
+    )
+    invalidate_stale_reminders(appointment)
+    schedule_reminders(appointment)
+    return appointment
+
+
+@transaction.atomic
+def create_block(context, physician_membership, kind, start_at, end_at, reason=''):
+    from .models import ScheduleBlock
+
+    block = ScheduleBlock(
+        tenant_id=context.tenant_id, physician_membership=physician_membership,
+        start_at=start_at, end_at=end_at, kind=kind, reason=reason[:255], override_rule=True,
+    )
+    block.full_clean()
+    block.save()
+    record_audit_event(
+        context.user_id, context.tenant_id, 'scheduling.block_created',
+        object_type='membership', object_id=physician_membership.id, outcome='success',
+        integrity_metadata={'kind': kind, 'start': start_at.isoformat(), 'end': end_at.isoformat()},
+    )
+    return block

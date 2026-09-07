@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load nd static %}
+{% block title %}Agenda{% if doctor %} — {{ doctor.user.get_full_name }}{% endif %}{% endblock %}
+{% block page_title %}Agenda{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Agenda</li>
+<li class="breadcrumb-item">{{ week_start|date:"d/m" }} a {{ week_end|date:"d/m/Y" }}</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'scheduling:desk' %}">Balcão do dia</a>
+<a class="btn btn-light-primary" href="{% url 'scheduling:settings' %}?physician={{ doctor.id }}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6 1.65 1.65 0 0 0 10 3.09V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+    <span>Configurar horários</span>
+</a>
+{% endblock %}
+{% block content %}
+
+{% if not doctors %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <h5 class="fw-bold text-dark">Nenhum médico com vínculo ativo</h5>
+        <p class="fs-13 text-muted mb-0">
+            A agenda é sempre de um médico. Cadastre um médico em Colaboradores para começar.
+        </p>
+    </div>
+</div>
+{% else %}
+
+{% comment %}A barra recebe as URLs prontas do contexto: montar querystring
+dentro do template do Django vira ilegível rápido.{% endcomment %}
+{% include "scheduling/_toolbar.html" %}
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h5 class="card-title mb-0">
+                {{ week_start|date:"d/m" }} a {{ week_end|date:"d/m/Y" }}
+            </h5>
+            <span class="fs-11 text-muted">{{ doctor.user.get_full_name|default:doctor.user.email }}</span>
+        </div>
+        <div class="d-flex flex-wrap align-items-center gap-3">
+            {% if has_schedule %}
+            <span class="badge bg-soft-success text-success">{{ totals.free }} livre(s)</span>
+            <span class="badge bg-soft-primary text-primary">{{ totals.busy }} ocupado(s)</span>
+            <span class="fs-11 text-muted">célula de {{ slot_minutes }} min</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card-body">
+        {% if not has_schedule %}
+        <div class="text-center py-5">
+            <h6 class="fw-bold text-dark">Esta agenda ainda não tem horários publicados</h6>
+            <p class="fs-13 text-muted mb-3">
+                Declare os dias e o horário de atendimento uma vez e a agenda fica disponível
+                para a secretaria pelo período que você escolher.
+            </p>
+            <a class="btn btn-primary btn-sm"
+               href="{% url 'scheduling:settings' %}?physician={{ doctor.id }}">Configurar horários</a>
+        </div>
+        {% else %}
+
+        {% comment %}A grade. Célula livre é um <button> de verdade: chega por
+        Tab, responde a Enter, e o navegador já dá o foco visível.{% endcomment %}
+        <div class="nd-agenda" role="grid" aria-label="Agenda da semana">
+            <div class="nd-agenda-time" role="columnheader"><span class="visually-hidden">Horário</span></div>
+            {% for column in columns %}
+            <div class="nd-agenda-head {% if column.date == today %}is-today{% endif %}" role="columnheader">
+                <span class="d-block fs-11 text-muted text-uppercase">{{ column.date|date:"D" }}</span>
+                <span class="d-block fw-bold text-dark fs-13">{{ column.date|date:"d/m" }}</span>
+                {% if column.total %}
+                <span class="d-block fs-10 text-muted">{{ column.free }}/{{ column.total }} livre</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+
+            {% for hour in times %}
+            <div class="nd-agenda-time" role="rowheader">{{ hour }}</div>
+            {% for column in columns %}
+            {% with cell=column.by_time|nd_get:hour %}
+            {% if not cell %}
+            <div class="nd-slot-empty" role="gridcell"></div>
+            {% elif cell.status == 'free' %}
+            <button type="button" class="nd-slot nd-slot-free" role="gridcell"
+                    data-nd-book
+                    data-nd-start="{{ cell.start|date:'Y-m-d H:i' }}"
+                    data-nd-iso="{{ cell.start|date:'c' }}"
+                    data-nd-when="{{ cell.start|date:'d/m/Y' }} às {{ cell.start|date:'H:i' }}"
+                    aria-label="Marcar {{ cell.start|date:'d/m' }} às {{ cell.start|date:'H:i' }}"></button>
+            {% elif cell.status == 'busy' %}
+            <button type="button" class="nd-slot nd-slot-busy {% if not cell.is_start %}is-continuation{% endif %}"
+                    role="gridcell"
+                    data-status="{{ cell.appointment.status }}"
+                    data-overbook="{% if cell.appointment.is_overbook %}1{% else %}0{% endif %}"
+                    data-nd-appointment="{{ cell.appointment.id }}"
+                    data-nd-patient="{{ cell.appointment.patient.full_name }}"
+                    data-nd-patient-id="{{ cell.appointment.patient_id }}"
+                    data-nd-when="{{ cell.appointment.starts_at|date:'d/m/Y H:i' }}"
+                    data-nd-until="{{ cell.appointment.ends_at|date:'H:i' }}"
+                    data-nd-type="{{ cell.appointment.get_type_display }}"
+                    data-nd-status-label="{{ cell.appointment.get_status_display }}"
+                    data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
+                    aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}">
+                {% if cell.is_start %}
+                <span class="nd-slot-name">{{ cell.appointment.patient.full_name }}</span>
+                <span class="d-block fs-10">
+                    {{ cell.appointment.get_type_display }}
+                    {% if cell.appointment.patient.registration_stage == 'preliminary' %}· pré{% endif %}
+                </span>
+                {% endif %}
+            </button>
+            {% elif cell.status == 'past' %}
+            <div class="nd-slot nd-slot-past" role="gridcell">—</div>
+            {% else %}
+            <div class="nd-slot nd-slot-blocked" role="gridcell" title="{{ cell.reason }}">
+                <span class="d-block text-truncate">{{ cell.reason|default:"fechado" }}</span>
+            </div>
+            {% endif %}
+            {% endwith %}
+            {% endfor %}
+            {% endfor %}
+        </div>
+
+        <div class="nd-agenda-legend mt-3">
+            <span><span class="nd-key" style="background:#fff"></span>Livre — clique para marcar</span>
+            <span><span class="nd-key" style="background:#ebeefa;border-color:rgba(52,84,209,.25)"></span>Agendado</span>
+            <span><span class="nd-key" style="background:#dbf5f3;border-color:rgba(61,199,190,.35)"></span>Confirmado</span>
+            <span><span class="nd-key" style="background:#ffebd0;border-color:rgba(255,162,29,.4)"></span>Chegou / em atendimento</span>
+            <span><span class="nd-key" style="background:#e1fbed;border-color:rgba(23,198,102,.35)"></span>Concluído</span>
+            <span><span class="nd-key" style="background:repeating-linear-gradient(45deg,#f1f3f5,#f1f3f5 4px,#e5e7eb 4px,#e5e7eb 8px)"></span>Fechado (feriado, férias, bloqueio)</span>
+        </div>
+
+        <div class="fs-11 text-muted mt-2">
+            Duração por tipo:
+            {% for item in durations %}
+            <strong>{{ item.label }}</strong> {{ item.minutes }} min{% if item.cells > 1 %} ({{ item.cells }} células){% endif %}{% if not forloop.last %} · {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modals %}
+{% include "scheduling/_booking_modals.html" %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'scheduling/agenda.js' %}"></script>
+{% endblock %}

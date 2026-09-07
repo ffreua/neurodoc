@@ -1,0 +1,426 @@
+{% extends "base.html" %}
+{% load nd static %}
+{% block title %}Horários de atendimento{% endblock %}
+{% block page_title %}Horários de atendimento{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">Horários</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light-primary" href="{% url 'scheduling:week' %}?physician={{ doctor.id }}">
+    Ver a agenda
+</a>
+{% endblock %}
+{% block content %}
+
+{% if not doctor %}
+<div class="card"><div class="card-body text-center py-5">
+    <h5 class="fw-bold text-dark">Nenhum médico com vínculo ativo</h5>
+    <p class="fs-13 text-muted mb-0">Cadastre um médico em Colaboradores para montar a agenda.</p>
+</div></div>
+{% else %}
+
+<div class="card mb-3">
+    <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+            <label class="fs-11 text-muted mb-0" for="doctor-picker">Horários de</label>
+            <select class="form-select form-select-sm" id="doctor-picker" name="physician"
+                    style="min-width:15rem" onchange="this.form.submit()">
+                {% for option in doctors %}
+                <option value="{{ option.id }}" {% if option.id == doctor.id %}selected{% endif %}>
+                    {{ option.user.get_full_name|default:option.user.email }}
+                </option>
+                {% endfor %}
+            </select>
+        </form>
+        {% if coverage.until %}
+        <span class="badge bg-soft-success text-success">
+            Publicada até {{ coverage.until|date:"d/m/Y" }} · ~{{ coverage.slots }} horários
+        </span>
+        {% elif coverage.days %}
+        <span class="badge bg-soft-info text-info">Publicada sem prazo</span>
+        {% else %}
+        <span class="badge bg-soft-warning text-warning">Nenhum horário publicado</span>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xxl-7 col-xl-7">
+        {% comment %}------------------------------------------- grade semanal{% endcomment %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <span class="badge bg-soft-primary text-primary me-2">1</span>Dias e horário
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    Marque os dias que têm o <strong>mesmo</strong> horário e informe a janela uma vez.
+                    Dias com horário diferente entram num segundo envio — por exemplo, segunda e terça
+                    das 8h às 18h, e depois quinta das 8h às 14h.
+                </p>
+                <form method="post" action="{% url 'scheduling:publish-schedule' doctor.id %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=schedule_form %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            {{ schedule_form.weekdays.label }}
+                            <span class="text-danger" aria-hidden="true">*</span>
+                        </label>
+                        <div class="d-flex flex-wrap gap-3">
+                            {% for choice in schedule_form.weekdays %}
+                            <div class="form-check">
+                                {{ choice.tag }}
+                                <label class="form-check-label fs-13" for="{{ choice.id_for_label }}">
+                                    {{ choice.choice_label }}
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% for error in schedule_form.weekdays.errors %}
+                        <div class="invalid-feedback d-block fs-11">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=schedule_form.local_start col="col-lg-3 col-6" %}
+                        {% include "partials/field.html" with field=schedule_form.local_end col="col-lg-3 col-6" %}
+                        {% include "partials/field.html" with field=schedule_form.slot_minutes col="col-lg-3 col-6" %}
+                        {% include "partials/field.html" with field=schedule_form.buffer_minutes col="col-lg-3 col-6" %}
+                        {% include "partials/field.html" with field=schedule_form.starts_on col="col-lg-4 col-md-6" %}
+                        {% include "partials/field.html" with field=schedule_form.horizon col="col-lg-4 col-md-6" %}
+                        {% include "partials/field.html" with field=schedule_form.ends_on col="col-lg-4 col-md-6" %}
+                        {% include "partials/field.html" with field=schedule_form.replace_existing col="col-12" %}
+                    </div>
+                    <div class="alert alert-primary fade show fs-12 mt-3 d-flex align-items-start gap-2" role="alert">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        <span>
+                            A <strong>célula</strong> é o menor bloco da grade. Com célula de
+                            {{ suggested_slot }} min, uma primeira consulta de
+                            {{ durations.0.minutes }} min ocupa
+                            {% widthratio durations.0.minutes suggested_slot 1 %} células, e um retorno
+                            ocupa menos. É o que permite ter um calendário só, com tudo visível de uma vez.
+                        </span>
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-2" data-nd-busy>Publicar agenda</button>
+                </form>
+            </div>
+        </div>
+
+        {% comment %}--------------------------------------- grade já publicada{% endcomment %}
+        <div class="card mb-4">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">Grade em vigor</h5>
+                {% if coverage.weekdays %}
+                <span class="fs-11 text-muted">{{ coverage.weekdays|join:" · " }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-4" scope="col">Dia</th>
+                                <th scope="col">Horário</th>
+                                <th scope="col">Célula</th>
+                                <th scope="col">Vigência</th>
+                                <th class="text-end pe-4" scope="col"><span class="visually-hidden">Ações</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rule in rules %}
+                            <tr>
+                                <td class="ps-4 fw-semibold text-dark">
+                                    {{ weekday_labels|nd_get:rule.weekday }}
+                                </td>
+                                <td><span class="fs-13">{{ rule.local_start|time:"H:i" }} — {{ rule.local_end|time:"H:i" }}</span></td>
+                                <td>
+                                    <span class="fs-12 text-muted">{{ rule.slot_minutes }} min</span>
+                                    {% if rule.buffer_minutes %}
+                                    <span class="d-block fs-10 text-muted">+{{ rule.buffer_minutes }} de intervalo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="fs-12 text-muted">
+                                        {{ rule.starts_on|date:"d/m/Y" }} —
+                                        {% if rule.ends_on %}{{ rule.ends_on|date:"d/m/Y" }}{% else %}sem prazo{% endif %}
+                                    </span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <form method="post" action="{% url 'scheduling:delete-rule' doctor.id rule.id %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-icon btn-sm btn-light-danger" data-nd-busy
+                                                aria-label="Remover este horário">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted py-4 fs-13">
+                                Nenhum horário publicado. Use o formulário acima.
+                            </td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {% comment %}------------------------------------------------ feriados{% endcomment %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <span class="badge bg-soft-primary text-primary me-2">3</span>Feriados no período
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    Os feriados <strong>nacionais</strong> são calculados — inclusive os móveis, que
+                    derivam da Páscoa —, então valem para qualquer ano sem depender de rede.
+                    Estadual e municipal são cadastrados abaixo, porque variam por lei local e não
+                    há como calculá-los.
+                </p>
+                <p class="fs-12 text-muted">
+                    <strong>O bloqueio é sua decisão.</strong> Desmarque o dia em que você vai
+                    atender mesmo sendo feriado.
+                </p>
+                <form method="post" action="{% url 'scheduling:review-holidays' doctor.id %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="range_start" value="{{ holiday_range.start|date:'Y-m-d' }}">
+                    <input type="hidden" name="range_end" value="{{ holiday_range.end|date:'Y-m-d' }}">
+                    <div class="table-responsive border rounded-3">
+                        <table class="table table-hover table-sm align-middle mb-0">
+                            <thead class="bg-gray-100">
+                                <tr class="border-b">
+                                    <th class="ps-3" style="width:6rem" scope="col">Bloquear</th>
+                                    <th scope="col">Data</th>
+                                    <th scope="col">Feriado</th>
+                                    <th class="pe-3" scope="col">Abrangência</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in holidays %}
+                                <tr>
+                                    <td class="ps-3">
+                                        <div class="form-check mb-0">
+                                            <input class="form-check-input" type="checkbox" name="block_dates"
+                                                   value="{{ item.date|date:'Y-m-d' }}"
+                                                   id="holiday-{{ item.date|date:'Ymd' }}"
+                                                   {% if item.blocked %}checked{% endif %}>
+                                            <label class="visually-hidden" for="holiday-{{ item.date|date:'Ymd' }}">
+                                                Bloquear {{ item.date|date:"d/m/Y" }}
+                                            </label>
+                                        </div>
+                                        <input type="hidden" name="name_{{ item.date|date:'Y-m-d' }}" value="{{ item.name }}">
+                                    </td>
+                                    <td>
+                                        <span class="fs-12 fw-semibold text-dark">{{ item.date|date:"d/m/Y" }}</span>
+                                        <span class="d-block fs-10 text-muted">{{ item.date|date:"l" }}</span>
+                                    </td>
+                                    <td class="text-wrap"><span class="fs-12">{{ item.name }}</span></td>
+                                    <td class="pe-3">
+                                        <span class="badge bg-gray-200 text-dark">{{ item.scope_label }}</span>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="4" class="text-center text-muted py-4 fs-12">
+                                    Nenhum feriado cai em dia de atendimento no período publicado.
+                                </td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if holidays %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>
+                            Aplicar decisões de feriado
+                        </button>
+                        {% comment %}Atalho de tela, não decisão: marcar todos é o
+                        caso comum, mas quem confirma é quem clica em aplicar. Nada
+                        vem marcado por conta própria.{% endcomment %}
+                        <button type="button" class="btn btn-light btn-sm" data-nd-holidays-all>
+                            Marcar todos
+                        </button>
+                        <button type="button" class="btn btn-light btn-sm" data-nd-holidays-none>
+                            Desmarcar todos
+                        </button>
+                        <span class="fs-11 text-muted">
+                            Marcado fecha a agenda no dia; desmarcado reabre.
+                        </span>
+                    </div>
+                    {% if unblocked_holidays %}
+                    <div class="alert alert-primary fade show fs-12 mt-3 mb-0" role="alert">
+                        {{ unblocked_holidays }} feriado(s) da lista <strong>não</strong> estão
+                        bloqueados — a agenda segue aberta neles.
+                    </div>
+                    {% endif %}
+                    {% endif %}
+                </form>
+
+                <details class="mt-4">
+                    <summary class="fs-12 text-muted">Cadastrar feriado estadual ou municipal</summary>
+                    <form method="post" action="{% url 'scheduling:add-local-holiday' doctor.id %}" novalidate
+                          class="border rounded-3 p-3 bg-gray-100 mt-2">
+                        {% csrf_token %}
+                        {% include "partials/form_errors.html" with form=holiday_form %}
+                        <div class="row g-3">
+                            {% include "partials/field.html" with field=holiday_form.name col="col-lg-5 col-md-6" %}
+                            {% include "partials/field.html" with field=holiday_form.date col="col-lg-3 col-md-6" %}
+                            {% include "partials/field.html" with field=holiday_form.scope col="col-lg-4 col-md-6" %}
+                            {% include "partials/field.html" with field=holiday_form.state col="col-lg-2 col-md-3" %}
+                            {% include "partials/field.html" with field=holiday_form.city col="col-lg-6 col-md-9" %}
+                            {% include "partials/field.html" with field=holiday_form.recurring col="col-lg-4" %}
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm mt-3" data-nd-busy>
+                            Cadastrar feriado
+                        </button>
+                    </form>
+                </details>
+
+                {% if local_holidays %}
+                <h6 class="fw-bold text-dark fs-13 mt-4 mb-2">Feriados locais cadastrados</h6>
+                <ul class="list-group list-group-flush">
+                    {% for holiday in local_holidays %}
+                    <li class="list-group-item px-0 d-flex align-items-center justify-content-between gap-2">
+                        <span class="fs-12">
+                            <strong>{{ holiday.date|date:"d/m" }}</strong> {{ holiday.name }}
+                            <span class="text-muted">
+                                — {{ holiday.get_scope_display|lower }}{% if holiday.city %} ({{ holiday.city }}){% elif holiday.state %} ({{ holiday.state }}){% endif %}{% if holiday.recurring %} · todos os anos{% endif %}
+                            </span>
+                        </span>
+                        <form method="post" action="{% url 'scheduling:delete-local-holiday' doctor.id holiday.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-icon btn-sm btn-light-danger" data-nd-busy
+                                    aria-label="Remover {{ holiday.name }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path></svg>
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-5 col-xl-5">
+        {% comment %}---------------------------------------- duração por tipo{% endcomment %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <span class="badge bg-soft-primary text-primary me-2">2</span>Duração por tipo
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    Quanto tempo cada tipo de atendimento ocupa. É daqui que sai o fim de cada
+                    consulta marcada — a secretária escolhe o tipo, e o sistema calcula.
+                </p>
+                <form method="post" action="{% url 'scheduling:save-durations' doctor.id %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=duration_form %}
+                    <div class="row g-3">
+                        {% for field in duration_form %}
+                        {% include "partials/field.html" with field=field col="col-6" %}
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Salvar durações</button>
+                </form>
+            </div>
+        </div>
+
+        {% comment %}-------------------------------- bloqueios, férias, extra{% endcomment %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Bloqueios, férias e atendimento extra</h5>
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    Exceção de data prevalece sobre a grade semanal: bloqueio e férias tiram os
+                    horários; atendimento extra acrescenta janela fora da grade.
+                </p>
+                <form method="post" action="{% url 'scheduling:add-block' doctor.id %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=block_form %}
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=block_form.kind col="col-12" %}
+                        {% include "partials/field.html" with field=block_form.start_at col="col-12" %}
+                        {% include "partials/field.html" with field=block_form.end_at col="col-12" %}
+                        {% include "partials/field.html" with field=block_form.reason col="col-12" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Registrar</button>
+                </form>
+
+                {% if blocks %}
+                <h6 class="fw-bold text-dark fs-13 mt-4 mb-2">Próximos</h6>
+                <ul class="list-group list-group-flush">
+                    {% for block in blocks %}
+                    <li class="list-group-item px-0 d-flex align-items-start justify-content-between gap-2">
+                        <span class="fs-12">
+                            <span class="badge bg-soft-{% if block.kind == 'extra_availability' %}success{% else %}warning{% endif %} text-{% if block.kind == 'extra_availability' %}success{% else %}warning{% endif %}">
+                                {{ block.get_kind_display }}
+                            </span>
+                            <span class="d-block mt-1">
+                                {{ block.start_at|date:"d/m/Y H:i" }} — {{ block.end_at|date:"d/m/Y H:i" }}
+                            </span>
+                            {% if block.reason %}
+                            <span class="d-block fs-10 text-muted">{{ block.reason }}</span>
+                            {% endif %}
+                        </span>
+                        <form method="post" action="{% url 'scheduling:delete-block' doctor.id block.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-icon btn-sm btn-light-danger" data-nd-busy
+                                    aria-label="Remover">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path></svg>
+                            </button>
+                        </form>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* "Escolher a data final" é a única opção que precisa do campo de data; nas
+   outras a data é calculada do prazo, e deixar o campo aberto convidaria a
+   preencher os dois de formas que se contradizem. */
+(function () {
+    'use strict';
+    var horizon = document.getElementById('id_horizon');
+    var endsOn = document.getElementById('id_ends_on');
+    if (!horizon || !endsOn) return;
+    var wrapper = endsOn.closest('.col-lg-4') || endsOn.parentElement;
+    function sync() {
+        var custom = horizon.value === 'custom';
+        wrapper.hidden = !custom;
+        endsOn.disabled = !custom;
+    }
+    horizon.addEventListener('change', sync);
+    sync();
+})();
+
+/* Marcar/desmarcar todos os feriados de uma vez: com um ano de horizonte a
+   lista tem mais de dez linhas, e clicar uma a uma para o caso comum
+   ("não atendo em feriado") é trabalho sem propósito. */
+(function () {
+    'use strict';
+    function setAll(value) {
+        document.querySelectorAll('input[name="block_dates"]').forEach(function (box) {
+            box.checked = value;
+        });
+    }
+    var all = document.querySelector('[data-nd-holidays-all]');
+    var none = document.querySelector('[data-nd-holidays-none]');
+    if (all) all.addEventListener('click', function () { setAll(true); });
+    if (none) none.addEventListener('click', function () { setAll(false); });
+})();
+</script>
+{% endblock %}

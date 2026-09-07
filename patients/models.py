@@ -42,6 +42,22 @@ class PatientStatus(models.TextChoices):
     ARCHIVED = 'archived', 'Arquivado'
 
 
+class RegistrationStage(models.TextChoices):
+    """Quão completo está o cadastro.
+
+    `preliminary` existe para o agendamento por telefone: a secretaria tem
+    nome e telefone, e é com isso que precisa marcar o horário. Exigir CPF,
+    endereço e forma de pagamento naquele momento significa ou perder o
+    agendamento ou inventar dados para passar da tela.
+
+    O cadastro é completado quando o paciente chega — é no check-in que a
+    ficha inteira aparece para ser preenchida.
+    """
+
+    PRELIMINARY = 'preliminary', 'Pré-cadastro'
+    COMPLETE = 'complete', 'Cadastro completo'
+
+
 class Insurer(TenantModel):
     name = models.CharField(max_length=255)
     ans_registration = models.CharField(max_length=40, blank=True)
@@ -116,6 +132,9 @@ class Patient(TenantModel):
     )
     administrative_notes = models.TextField(max_length=2000, blank=True)
     status = models.CharField(max_length=40, choices=PatientStatus.choices, default=PatientStatus.ACTIVE)
+    registration_stage = models.CharField(
+        max_length=20, choices=RegistrationStage.choices, default=RegistrationStage.COMPLETE,
+    )
     archived_at = models.DateTimeField(null=True, blank=True)
     archived_reason = models.CharField(max_length=255, blank=True)
 

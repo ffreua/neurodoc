@@ -1,7 +1,9 @@
 import re
+from decimal import Decimal
 
 from django import forms
 
+from base.fields import BrazilianDecimalField
 from base.widgets import HTML5DateInput
 
 from base.validators import is_valid_cpf
@@ -91,6 +93,21 @@ class PatientForm(forms.ModelForm):
     coverage_ends_on = forms.DateField(
         label='Validade', required=False, help_text='Validade da carteirinha.',
         widget=HTML5DateInput(),
+    )
+
+    # Peso e altura não são campos do paciente: são **medidas com data**, e
+    # viram `Observation`. A ficha mostrava o IMC sem que houvesse por onde
+    # informar peso e altura — o cálculo existia e nunca tinha o que calcular.
+    # Ficam opcionais: pesar na primeira consulta não é sempre possível.
+    weight_kg = BrazilianDecimalField(
+        label='Peso', required=False, min_value=Decimal('0.5'), max_value=Decimal('500'),
+        decimal_places=2, help_text='Em quilogramas. Ex.: 82,5',
+        widget=forms.NumberInput(attrs={'placeholder': 'Ex.: 82,5', 'step': '0.1', 'inputmode': 'decimal'}),
+    )
+    height_m = BrazilianDecimalField(
+        label='Altura', required=False, min_value=Decimal('0.3'), max_value=Decimal('2.6'),
+        decimal_places=2, help_text='Em metros. Ex.: 1,75',
+        widget=forms.NumberInput(attrs={'placeholder': 'Ex.: 1,75', 'step': '0.01', 'inputmode': 'decimal'}),
     )
 
     class Meta:
@@ -192,6 +209,31 @@ class PatientForm(forms.ModelForm):
             self.fields['country'].initial = 'BR'
 
         # Preenche o bloco de plano a partir da cobertura vigente ao editar.
+        if self.instance.pk:
+            # Peso e altura vêm da última medida registrada, **também quando o
+            # formulário está vinculado**. Não é só para a tela abrir
+            # preenchida: `changed_data` compara o enviado com o `initial`, e
+            # é isso que impede salvar a ficha sem tocar no peso de gravar uma
+            # segunda medida idêntica na série. Com o `initial` só no caminho
+            # não vinculado, todo salvamento parecia uma medida nova.
+            from .observations import latest_observation
+            from .models import ObservationKind
+
+            last_weight = latest_observation(self.instance, ObservationKind.WEIGHT)
+            last_height = latest_observation(self.instance, ObservationKind.HEIGHT)
+            if last_weight is not None:
+                self.fields['weight_kg'].initial = last_weight.numeric_value
+                self.fields['weight_kg'].help_text = (
+                    f'Última medida: {last_weight.numeric_value} kg em '
+                    f'{last_weight.observed_at.strftime("%d/%m/%Y")}. Alterar registra uma nova.'
+                )
+            if last_height is not None:
+                self.fields['height_m'].initial = last_height.numeric_value
+                self.fields['height_m'].help_text = (
+                    f'Última medida: {last_height.numeric_value} m em '
+                    f'{last_height.observed_at.strftime("%d/%m/%Y")}. Alterar registra uma nova.'
+                )
+
         if self.instance.pk and not self.is_bound:
             coverage = self.instance.coverages.order_by('-starts_on', '-created_at').first()
             if coverage is not None:
@@ -284,6 +326,35 @@ class PatientForm(forms.ModelForm):
             'ends_on': self.cleaned_data.get('coverage_ends_on'),
         }
 
+    @property
+    def measurements(self):
+        """Medidas a **registrar**, como triplas (tipo, valor, unidade).
+
+        Duas regras aqui:
+
+        - devolve só o que foi preenchido — peso sem altura já serve para
+          acompanhar a evolução, e exigir os dois faria perder a medida que
+          existe;
+        - na edição, devolve só o que **mudou**. Peso e altura formam uma
+          série com data; salvar a ficha sem tocar no peso não pode inserir
+          uma segunda medida idêntica, que apareceria como "pesou de novo
+          hoje" e sujaria a evolução.
+        """
+        from .models import ObservationKind
+
+        rows = []
+        for field, kind, unit in (
+            ('weight_kg', ObservationKind.WEIGHT, 'kg'),
+            ('height_m', ObservationKind.HEIGHT, 'm'),
+        ):
+            value = self.cleaned_data.get(field)
+            if not value:
+                continue
+            if self.instance.pk and field not in self.changed_data:
+                continue
+            rows.append((kind, value, unit))
+        return rows
+
 
 class PatientContactForm(forms.ModelForm):
     class Meta:
@@ -312,7 +383,11 @@ class PatientContactForm(forms.ModelForm):
 
 
 class PatientCoverageForm(forms.Form):
-    plan = forms.ModelChoiceField(queryset=None, label='Plano')
+    # `empty_label` explícito: sem ele o Django escreve "---------", que não
+    # diz o que se espera do campo.
+    plan = forms.ModelChoiceField(
+        queryset=None, label='Plano de saúde', empty_label='Selecione o plano',
+    )
     member_number = forms.CharField(label='Matrícula', max_length=60, required=False)
     starts_on = forms.DateField(label='Início da vigência', widget=HTML5DateInput())
     ends_on = forms.DateField(
@@ -328,3 +403,50 @@ class PatientCoverageForm(forms.Form):
             queryset = HealthPlan.objects.filter(tenant_id=tenant_id, active=True).select_related('insurer')
         self.fields['plan'].queryset = queryset
         self.fields['plan'].label_from_instance = lambda plan: f'{plan.insurer.name} — {plan.name}'
+
+
+class PatientMeasurementForm(forms.Form):
+    """Registro rápido de peso e altura na ficha.
+
+    Existe separado do cadastro porque peso é medida de acompanhamento: muda
+    entre consultas e forma uma série com data. `observed_on` permite lançar
+    a medida do dia da consulta quando o registro é feito depois.
+    """
+
+    weight_kg = BrazilianDecimalField(
+        label='Peso (kg)', required=False, min_value=Decimal('0.5'), max_value=Decimal('500'),
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'placeholder': '82,5', 'step': '0.1', 'inputmode': 'decimal'}),
+    )
+    height_m = BrazilianDecimalField(
+        label='Altura (m)', required=False, min_value=Decimal('0.3'), max_value=Decimal('2.6'),
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={'placeholder': '1,75', 'step': '0.01', 'inputmode': 'decimal'}),
+    )
+    observed_on = forms.DateField(
+        label='Data da medida', required=False, widget=HTML5DateInput(),
+        help_text='Em branco, vale hoje.',
+    )
+
+    def clean(self):
+        cleaned = super().clean()
+        if not cleaned.get('weight_kg') and not cleaned.get('height_m'):
+            raise forms.ValidationError('Informe o peso, a altura, ou os dois.')
+        observed_on = cleaned.get('observed_on')
+        if observed_on:
+            from django.utils import timezone
+
+            if observed_on > timezone.now().date():
+                self.add_error('observed_on', 'A medida não pode ser de uma data futura.')
+        return cleaned
+
+    @property
+    def measurements(self):
+        from .models import ObservationKind
+
+        rows = []
+        if self.cleaned_data.get('weight_kg'):
+            rows.append((ObservationKind.WEIGHT, self.cleaned_data['weight_kg'], 'kg'))
+        if self.cleaned_data.get('height_m'):
+            rows.append((ObservationKind.HEIGHT, self.cleaned_data['height_m'], 'm'))
+        return rows

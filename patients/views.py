@@ -12,9 +12,11 @@ from integrations.cep import lookup_cep
 from . import selectors
 from .contacts import create_contact
 from .coverage import add_coverage, set_patient_coverage
-from .forms import PatientContactForm, PatientCoverageForm, PatientForm
+from .forms import (
+    PatientContactForm, PatientCoverageForm, PatientForm, PatientMeasurementForm,
+)
 from .models import Patient, PatientStatus
-from .observations import compute_bmi, age_at
+from .observations import age_at, compute_bmi, missing_measurement_hint, record_observation
 
 
 class TenantScopedView(LoginRequiredMixin, View):
@@ -58,6 +60,7 @@ class PatientCreateView(TenantScopedView):
             coverage_data = form.coverage_data
             # Paciente e carteirinha entram juntos: um cadastro "por plano"
             # sem cobertura faria a cobrança cair em particular.
+            measurements = form.measurements
             with transaction.atomic():
                 patient = form.save(commit=False)
                 patient.tenant_id = request.access_context.tenant_id
@@ -65,6 +68,11 @@ class PatientCreateView(TenantScopedView):
                 patient.save()
                 if coverage_data:
                     set_patient_coverage(request.access_context, patient, **coverage_data)
+                # Peso e altura viram medidas com data (`Observation`), que é
+                # o que o IMC da ficha lê. Sem isto o cálculo existia e nunca
+                # tinha o que calcular.
+                for kind, value, unit in measurements:
+                    record_observation(request.access_context, patient, kind, value, unit)
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_created', object_type='patient',
                 object_id=patient.id, outcome='success',
@@ -85,6 +93,8 @@ def _detail_context(request, patient, **overrides):
         'bmi': compute_bmi(patient),
         'age': age_at(patient.birth_date),
         'contact_form': PatientContactForm(),
+        'measurement_form': PatientMeasurementForm(),
+        'measurement_hint': missing_measurement_hint(patient),
         'coverage_form': PatientCoverageForm(tenant_id=request.access_context.tenant_id),
         'recent_encounters': (
             patient.encounters
@@ -118,11 +128,16 @@ class PatientUpdateView(TenantScopedView):
             updated = form.save(commit=False)
             updated.row_version += 1
             coverage_data = form.coverage_data
+            measurements = form.measurements
             with transaction.atomic():
                 updated.full_clean()
                 updated.save()
                 if coverage_data:
                     set_patient_coverage(request.access_context, updated, **coverage_data)
+                # Só o que mudou: salvar a ficha sem tocar no peso não pode
+                # inserir uma segunda medida idêntica na série.
+                for kind, value, unit in measurements:
+                    record_observation(request.access_context, updated, kind, value, unit)
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_updated', object_type='patient',
                 object_id=updated.id, outcome='success',
@@ -211,6 +226,43 @@ class PatientCoverageCreateView(TenantScopedView):
                 )
                 return redirect('patients:detail', patient_id=patient.id)
         return render(request, 'patients/detail.html', _detail_context(request, patient, coverage_form=form))
+
+
+
+class PatientMeasurementCreateView(TenantScopedView):
+    """Registra peso e/ou altura como medida com data.
+
+    Grava uma `Observation` por medida, e é dela que o IMC da ficha é
+    calculado. Não sobrescreve a anterior: a série é o que permite ver a
+    evolução.
+    """
+
+    def post(self, request, patient_id):
+        patient = selectors.get_patient_or_404(request.access_context, patient_id)
+        form = PatientMeasurementForm(request.POST)
+        if not form.is_valid():
+            return render(
+                request, 'patients/detail.html',
+                _detail_context(request, patient, measurement_form=form),
+            )
+        observed_on = form.cleaned_data.get('observed_on')
+        observed_at = None
+        if observed_on:
+            from datetime import datetime, time
+
+            observed_at = timezone.make_aware(datetime.combine(observed_on, time(12, 0)))
+        with transaction.atomic():
+            for kind, value, unit in form.measurements:
+                record_observation(
+                    request.access_context, patient, kind, value, unit, observed_at=observed_at,
+                )
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'patients.measurement_recorded',
+            object_type='patient', object_id=patient.id, outcome='success',
+            integrity_metadata={kind: str(value) for kind, value, _ in form.measurements},
+        )
+        messages.success(request, 'Medida registrada.')
+        return redirect('patients:detail', patient_id=patient.id)
 
 
 class CepLookupView(TenantScopedView):

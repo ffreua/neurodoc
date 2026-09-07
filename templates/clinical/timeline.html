@@ -46,7 +46,23 @@
                                     <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">{{ encounter.get_status_display }}</span>
                                 </td>
                                 <td class="text-end pe-4">
-                                    <a class="btn btn-sm btn-light-primary" href="{% url 'clinical:detail' encounter.id %}">Abrir atendimento</a>
+                                    <div class="d-inline-flex gap-1">
+                                        <a class="btn btn-sm btn-light-primary" href="{% url 'clinical:detail' encounter.id %}">Abrir atendimento</a>
+                                        <a class="btn btn-sm btn-light" href="{% url 'clinical:summary' encounter.id %}"
+                                           target="_blank" rel="noopener">Resumo</a>
+                                        {% comment %}Descartar aparece aqui porque é daqui que se vê
+                                        o atendimento aberto por engano — sem precisar entrar nele.
+                                        Só para não finalizado.{% endcomment %}
+                                        {% if encounter.status != 'finalized' %}
+                                        <button type="button" class="btn btn-icon btn-sm btn-light-danger"
+                                                data-nd-discard
+                                                data-nd-url="{% url 'clinical:discard' encounter.id %}"
+                                                data-nd-label="{{ encounter.occurred_at|date:'d/m/Y H:i' }}"
+                                                aria-label="Descartar atendimento de {{ encounter.occurred_at|date:'d/m/Y H:i' }}">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </td>
                             </tr>
                             {% empty %}
@@ -59,4 +75,59 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block modals %}
+{% comment %}Um modal só para todas as linhas: o botão clicado diz qual
+atendimento descartar. O motivo é opcional aqui — o servidor exige quando o
+atendimento tem conteúdo, e nesse caso a recusa volta com a explicação.{% endcomment %}
+<div class="modal fade" id="discard-modal" tabindex="-1" aria-hidden="true" aria-labelledby="discard-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="discard-form">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="discard-modal-title">Descartar atendimento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger fade show fs-12" role="alert">
+                        O atendimento sai da história do paciente e <strong>não há como desfazer</strong>.
+                        O log de auditoria guarda quem descartou, quando e o que havia.
+                    </div>
+                    <p class="fs-13 mb-2" id="discard-summary"></p>
+                    <label class="form-label fw-semibold" for="discard-reason">Motivo do descarte</label>
+                    <input type="text" class="form-control" id="discard-reason" name="reason"
+                           maxlength="255" placeholder="Ex.: atendimento aberto no paciente errado">
+                    <div class="form-text fs-11">
+                        Obrigatório quando já há conteúdo registrado no atendimento.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" data-nd-busy>Descartar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+    var modal = document.getElementById('discard-modal');
+    if (!modal) return;
+    var form = document.getElementById('discard-form');
+    var summary = document.getElementById('discard-summary');
+    document.addEventListener('click', function (event) {
+        var trigger = event.target.closest('[data-nd-discard]');
+        if (!trigger) return;
+        form.action = trigger.getAttribute('data-nd-url');
+        summary.textContent = 'Atendimento de ' + trigger.getAttribute('data-nd-label') + '.';
+        window.NeuroDoc.openModal(modal);
+    });
+})();
+</script>
 {% endblock %}

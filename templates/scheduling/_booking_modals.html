@@ -1,0 +1,199 @@
+{% load nd %}
+{% comment %}Modais da agenda: marcar num horário livre e agir sobre um marcado.
+
+Dois modais para toda a grade, e não um por célula: uma semana tem centenas
+de horários, e declarar um modal por célula encheria a página à toa. O botão
+clicado diz qual horário e qual paciente.
+{% endcomment %}
+
+{% comment %}--------------------------------------------- marcar horário{% endcomment %}
+<div class="modal fade" id="book-modal" tabindex="-1" aria-hidden="true" aria-labelledby="book-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'scheduling:quick-book' doctor.id %}" novalidate
+                  id="book-form">
+                {% csrf_token %}
+                <input type="hidden" name="starts_at" id="book-starts-at">
+                <input type="hidden" name="patient_id" id="book-patient-id">
+                <input type="hidden" name="date" id="book-date">
+                <input type="hidden" name="return_to" value="{{ request.path }}">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="book-modal-title">Marcar atendimento</h5>
+                        <span class="fs-11 text-muted" id="book-when"></span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="book-type">Tipo de atendimento</label>
+                        <select class="form-select" name="appointment_type" id="book-type">
+                            {% for item in durations %}
+                            <option value="{{ item.value }}">{{ item.label }} — {{ item.minutes }} min</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-11" id="book-duration-hint"></div>
+                    </div>
+
+                    {% comment %}Paciente já cadastrado vem primeiro: é o caso
+                    do retorno, que é a maioria.{% endcomment %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="book-search">Paciente já cadastrado</label>
+                        <input type="text" class="form-control" id="book-search" name="patient_search"
+                               autocomplete="off" data-nd-patient-search
+                               placeholder="Digite o nome para buscar">
+                        <div class="position-relative">
+                            <div class="list-group position-absolute shadow-sm w-100" id="book-results"
+                                 style="z-index:1060;max-height:14rem;overflow-y:auto" hidden></div>
+                        </div>
+                        <div class="form-text fs-11" id="book-chosen"></div>
+                    </div>
+
+                    <div class="d-flex align-items-center gap-2 my-3">
+                        <hr class="flex-grow-1 my-0">
+                        <span class="fs-11 text-muted">ou faça o pré-cadastro</span>
+                        <hr class="flex-grow-1 my-0">
+                    </div>
+
+                    {% comment %}Pré-cadastro: nome e telefone é o que a
+                    secretária tem na ligação. O cadastro completo é pedido no
+                    check-in, com o paciente na recepção.{% endcomment %}
+                    <div class="row g-2" id="book-new-patient">
+                        <div class="col-7">
+                            <label class="form-label fw-semibold" for="book-new-name">Nome do paciente</label>
+                            <input type="text" class="form-control" id="book-new-name" name="new_name"
+                                   placeholder="Nome completo, como ele falou">
+                        </div>
+                        <div class="col-5">
+                            <label class="form-label fw-semibold" for="book-new-phone">Telefone</label>
+                            <input type="text" class="form-control" id="book-new-phone" name="new_phone"
+                                   inputmode="tel" placeholder="(11) 98888-7777">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold" for="book-note">Observação para a recepção</label>
+                            <input type="text" class="form-control" id="book-note" name="note"
+                                   placeholder="Ex.: primeira vez, indicado pela Dra. Ana">
+                        </div>
+                    </div>
+                    <div class="form-text fs-11 mt-2">
+                        O pré-cadastro guarda só nome e telefone. A ficha completa é pedida no
+                        check-in, quando o paciente chega.
+                    </div>
+
+                    <details class="mt-3">
+                        <summary class="fs-12 text-muted">Encaixe fora da grade</summary>
+                        <div class="border rounded-3 p-3 bg-gray-100 mt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_overbook"
+                                       id="book-overbook" value="on">
+                                <label class="form-check-label fs-13" for="book-overbook">
+                                    Encaixar mesmo assim
+                                </label>
+                            </div>
+                            <label class="form-label fw-semibold mt-2" for="book-override">Justificativa</label>
+                            <input type="text" class="form-control form-control-sm" id="book-override"
+                                   name="override_reason" placeholder="Por que este encaixe">
+                            <div class="form-text fs-11">
+                                O encaixe ignora a grade e pode sobrepor outro horário. Exige justificativa,
+                                que fica no log.
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Marcar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% comment %}--------------------------------- horário já marcado: ações{% endcomment %}
+<div class="modal fade" id="slot-modal" tabindex="-1" aria-hidden="true" aria-labelledby="slot-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="slot-modal-title"></h5>
+                    <span class="fs-11 text-muted" id="slot-when"></span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <span class="badge bg-gray-200 text-dark" id="slot-type"></span>
+                    <span class="badge" id="slot-status"></span>
+                    <span class="badge bg-soft-warning text-warning" id="slot-preliminary" hidden>
+                        Pré-cadastro — completar no check-in
+                    </span>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <a class="btn btn-light-primary btn-sm" id="slot-open-patient">Abrir ficha do paciente</a>
+                    <form method="post" id="slot-checkin-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-primary btn-sm w-100" data-nd-busy>
+                            Registrar chegada (check-in)
+                        </button>
+                    </form>
+                    <form method="post" id="slot-confirm-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-light-success btn-sm w-100" data-nd-busy>
+                            Confirmar com o paciente
+                        </button>
+                    </form>
+                    <a class="btn btn-light btn-sm" id="slot-reschedule">Remarcar</a>
+                    <button type="button" class="btn btn-light btn-sm" id="slot-change-open">
+                        Trocar o paciente deste horário
+                    </button>
+                    <button type="button" class="btn btn-light-danger btn-sm" id="slot-cancel-open">
+                        Cancelar e liberar o horário
+                    </button>
+                </div>
+
+                {% comment %}Trocar paciente e cancelar abrem aqui mesmo em vez
+                de num terceiro modal: modal sobre modal perde o foco e o Esc
+                fecha o errado.{% endcomment %}
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3" id="slot-change-panel" hidden>
+                    <form method="post" id="slot-change-form" novalidate>
+                        {% csrf_token %}
+                        <input type="hidden" name="patient_id" id="change-patient-id">
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <label class="form-label fw-semibold" for="change-search">Novo paciente</label>
+                        <input type="text" class="form-control form-control-sm" id="change-search"
+                               name="patient_search" autocomplete="off" data-nd-patient-search
+                               placeholder="Digite o nome para buscar">
+                        <div class="position-relative">
+                            <div class="list-group position-absolute shadow-sm w-100" id="change-results"
+                                 style="z-index:1060;max-height:12rem;overflow-y:auto" hidden></div>
+                        </div>
+                        <div class="form-text fs-11" id="change-chosen"></div>
+                        <label class="form-label fw-semibold mt-2" for="change-reason">Motivo da troca</label>
+                        <input type="text" class="form-control form-control-sm" id="change-reason"
+                               name="reason" placeholder="Ex.: horário marcado no nome errado">
+                        <button type="submit" class="btn btn-primary btn-sm mt-2" data-nd-busy>Trocar</button>
+                    </form>
+                </div>
+
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3" id="slot-cancel-panel" hidden>
+                    <form method="post" id="slot-cancel-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <label class="form-label fw-semibold" for="cancel-reason">Motivo do cancelamento</label>
+                        <input type="text" class="form-control form-control-sm" id="cancel-reason"
+                               name="reason" placeholder="Ex.: paciente desmarcou por telefone">
+                        <div class="form-text fs-11">
+                            O horário volta a ficar livre e o lembrete pendente é invalidado.
+                        </div>
+                        <button type="submit" class="btn btn-danger btn-sm mt-2" data-nd-busy>
+                            Cancelar atendimento
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

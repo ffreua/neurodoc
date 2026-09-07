@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}Agenda de {{ month_start|date:"F Y" }}{% endblock %}
+{% block page_title %}Agenda{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">{{ month_start|date:"F Y" }}</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light-primary" href="{% url 'scheduling:settings' %}?physician={{ doctor.id }}">
+    Configurar horários
+</a>
+{% endblock %}
+{% block content %}
+
+{% if not doctors %}
+<div class="card"><div class="card-body text-center py-5">
+    <h5 class="fw-bold text-dark">Nenhum médico com vínculo ativo</h5>
+</div></div>
+{% else %}
+
+{% include "scheduling/_toolbar.html" %}
+
+{% comment %}O mês serve para achar a semana, não para marcar: o horário
+individual não cabe legível numa célula de mês. Cada dia leva à semana.{% endcomment %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0 text-capitalize">{{ month_start|date:"F \d\e Y" }}</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0 text-center">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Seg</th>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Ter</th>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Qua</th>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Qui</th>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Sex</th>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Sáb</th>
+                        <th class="fs-11 text-muted fw-normal" scope="col">Dom</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for week in weeks %}
+                    <tr>
+                        {% for day in week %}
+                        <td class="p-1 {% if not day.in_month %}bg-gray-100{% endif %}"
+                            style="height:5.5rem;vertical-align:top">
+                            <a class="d-block text-decoration-none h-100 p-2 rounded-3 {% if day.is_today %}bg-soft-primary{% endif %}"
+                               href="{% url 'scheduling:week' %}?physician={{ doctor.id }}&date={{ day.date|date:'Y-m-d' }}">
+                                <span class="d-block fw-bold {% if day.in_month %}text-dark{% else %}text-muted{% endif %} fs-13">
+                                    {{ day.date|date:"j" }}
+                                </span>
+                                {% if day.blocked %}
+                                <span class="badge bg-gray-200 text-dark fs-10 mt-1">fechado</span>
+                                {% elif day.count %}
+                                <span class="badge bg-soft-primary text-primary fs-10 mt-1">
+                                    {{ day.count }} paciente{{ day.count|pluralize }}
+                                </span>
+                                {% elif day.works %}
+                                <span class="d-block fs-10 text-success mt-1">agenda aberta</span>
+                                {% endif %}
+                            </a>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
