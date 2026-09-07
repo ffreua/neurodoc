@@ -13,6 +13,18 @@ from .chat_models import (  # noqa: F401,E402
 class AIJobKind(models.TextChoices):
     ENCOUNTER_SUMMARY = 'encounter_summary', 'Encounter summary'
     PATIENT_SUMMARY = 'patient_summary', 'Patient summary'
+    DIAGNOSTIC_SUPPORT = 'diagnostic_support', 'Apoio ao raciocínio diagnóstico'
+    LAB_EXTRACTION = 'lab_extraction', 'Leitura de laudo laboratorial'
+    REPORT_TRANSCRIPTION = 'report_transcription', 'Transcrição de laudo'
+
+
+#: Tarefas cuja fonte é um documento anexado, e não o texto do atendimento.
+#: A distinção decide duas coisas: a chave de idempotência (o PDF, não a
+#: versão do prontuário) e a verificação de desatualização — editar a conduta
+#: não invalida a leitura de um laudo.
+DOCUMENT_SOURCED_KINDS = frozenset({
+    AIJobKind.LAB_EXTRACTION, AIJobKind.REPORT_TRANSCRIPTION,
+})
 
 
 class AIJobStatus(models.TextChoices):
@@ -43,6 +55,12 @@ class AIJob(TenantModel):
         'clinical.Encounter', on_delete=models.PROTECT, null=True, blank=True, related_name='ai_jobs',
     )
     kind = models.CharField(max_length=40, choices=AIJobKind.choices)
+    #: Alvo mais específico que o atendimento, quando existe — hoje o
+    #: `{'exam_result_id': ...}` da leitura de laudo. Fica como referência e
+    #: não como chave estrangeira porque o worker precisa reautorizar o
+    #: acesso pelo tenant a cada execução: uma FK daria a impressão de que a
+    #: linha já é um passe livre para o arquivo.
+    target_ref = models.JSONField(default=dict, blank=True)
     source_version = models.PositiveBigIntegerField()
     source_hash = models.CharField(max_length=64, blank=True)
     purpose = models.CharField(max_length=255)

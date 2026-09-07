@@ -113,10 +113,28 @@ digitado em outra.{% endcomment %}
                         type="button" role="tab" aria-selected="true">História</button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-medicacoes"
+                        type="button" role="tab" aria-selected="false">
+                    Medicações em uso
+                    {% if medications %}
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ medications|length }}</span>
+                    {% endif %}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-exame"
                         type="button" role="tab" aria-selected="false">
                     Exame neurológico
                     <span class="badge bg-gray-200 text-dark ms-1">{{ findings|length }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-exames"
+                        type="button" role="tab" aria-selected="false">
+                    Resultados de exames
+                    {% if exam_results %}
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ exam_results|length }}</span>
+                    {% endif %}
                 </button>
             </li>
             <li class="nav-item" role="presentation">
@@ -149,9 +167,13 @@ digitado em outra.{% endcomment %}
                 <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    {% comment %}A queixa principal é uma frase; a história da
+                    doença atual é o texto longo da consulta. A área de digitação
+                    segue essa proporção — um terço contra dois terços — em vez de
+                    dar o mesmo espaço às duas.{% endcomment %}
                     <div class="row g-3">
-                        {% include "partials/field.html" with field=form.chief_complaint col="col-lg-6" %}
-                        {% include "partials/field.html" with field=form.hpi col="col-lg-6" %}
+                        {% include "partials/field.html" with field=form.chief_complaint col="col-lg-4" %}
+                        {% include "partials/field.html" with field=form.hpi col="col-lg-8" %}
                         {% include "partials/field.html" with field=form.personal_history col="col-lg-6" %}
                         {% include "partials/field.html" with field=form.family_history col="col-lg-6" %}
                         {% include "partials/field.html" with field=form.consanguinity_state col="col-lg-3" %}
@@ -161,6 +183,11 @@ digitado em outra.{% endcomment %}
                             {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar história</button>
                 </form>
             </div>
+        </div>
+
+        {# ------------------------------------------------------- Medicações #}
+        <div class="tab-pane fade" id="tab-medicacoes" role="tabpanel">
+            {% include "clinical/_medications.html" %}
         </div>
 
         {# ------------------------------------------------------------- Exame #}
@@ -337,9 +364,16 @@ digitado em outra.{% endcomment %}
             </div>
         </div>
 
+        {# --------------------------------------------- Resultados de exames #}
+        <div class="tab-pane fade" id="tab-exames" role="tabpanel">
+            {% include "clinical/_exam_results.html" %}
+        </div>
+
         {# --------------------------------------------------------- Hipóteses #}
         <div class="tab-pane fade" id="tab-hipoteses" role="tabpanel">
             <div class="card-body">
+                {% include "clinical/_diagnostic_support.html" %}
+
                 {% if encounter.status != 'finalized' %}
                 <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
                       class="border rounded-3 p-3 bg-gray-100 mb-4">

@@ -1,0 +1,105 @@
+{% load nd %}
+{% comment %}Rascunho da leitura do laudo pela IA, aguardando revisão médica.
+
+O que aparece aqui é o que **vai** ser gravado se você aceitar — não o que já
+está no prontuário. Enquanto ninguém aceita, o registro segue vazio.
+{% endcomment %}
+<div class="p-3 bg-soft-info border-bottom">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+        <div class="d-flex align-items-center gap-2">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-info"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span class="fw-bold text-dark fs-13">Rascunho da IA — aguardando sua revisão</span>
+        </div>
+        <span class="fs-10 text-muted">
+            {{ draft.model }} · {{ draft.created_at|date:"d/m/Y H:i" }}
+        </span>
+    </div>
+
+    <p class="fs-12 text-muted mb-3">
+        Confira contra o laudo antes de aceitar. Nada disto está no prontuário ainda.
+    </p>
+
+    {% with data=draft.result %}
+    {% if draft.job.kind == 'lab_extraction' %}
+    <div class="table-responsive border rounded-3 bg-white">
+        <table class="table table-sm align-middle mb-0">
+            <thead class="bg-gray-100">
+                <tr class="border-b">
+                    <th class="ps-3" scope="col">Analito</th>
+                    <th scope="col">Resultado</th>
+                    <th scope="col">Unidade</th>
+                    <th class="pe-3" scope="col">Referência lida do laudo</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in data.analytes %}
+                <tr>
+                    <td class="ps-3 text-wrap"><span class="fs-12 fw-semibold text-dark">{{ item.analyte }}</span></td>
+                    <td><span class="fs-12">{{ item.value_text }}</span></td>
+                    <td><span class="fs-12 text-muted">{{ item.unit|default:"—" }}</span></td>
+                    <td class="pe-3">
+                        <span class="fs-12 text-muted">
+                            {% if item.reference_text %}{{ item.reference_text }}
+                            {% elif item.reference_low != None and item.reference_high != None %}{{ item.reference_low }} – {{ item.reference_high }}
+                            {% elif item.reference_high != None %}até {{ item.reference_high }}
+                            {% elif item.reference_low != None %}a partir de {{ item.reference_low }}
+                            {% else %}<em>não veio no laudo</em>{% endif %}
+                        </span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="text-center text-muted py-4 fs-12">Nenhum analito foi lido.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="border rounded-3 bg-white p-3">
+        {% if data.detected_category %}
+        <span class="badge bg-soft-primary text-primary mb-2">
+            identificado como {{ data.detected_category }}
+        </span>
+        {% endif %}
+        {% if data.exam_name %}
+        <span class="d-block fw-semibold text-dark fs-13 mb-2">{{ data.exam_name }}</span>
+        {% endif %}
+        <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-1">Laudo transcrito</span>
+        <span class="d-block fs-13 nd-prose mb-3">{{ data.report_text|default:"—" }}</span>
+        {% if data.conclusion %}
+        <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-1">Conclusão</span>
+        <span class="d-block fs-13 nd-prose fw-semibold text-dark">{{ data.conclusion }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if data.unreadable_sections %}
+    <div class="alert alert-warning fade show fs-12 mt-3 mb-0" role="alert">
+        <strong>Trecho não lido:</strong> {{ data.unreadable_sections }}
+    </div>
+    {% endif %}
+    {% if data.limitations %}
+    <span class="d-block fs-11 text-muted mt-2">{{ data.limitations }}</span>
+    {% endif %}
+    {% endwith %}
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <form method="post" action="{% url 'clinical:review-exam-draft' encounter.id result.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="accept">
+            <button type="submit" class="btn btn-sm btn-primary" data-nd-busy>
+                Revisei e aceito no prontuário
+            </button>
+        </form>
+        <form method="post" action="{% url 'clinical:review-exam-draft' encounter.id result.id %}"
+              class="d-inline-flex align-items-center gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="reject">
+            <input type="text" name="reason" class="form-control form-control-sm" style="max-width:16rem"
+                   placeholder="Motivo (opcional)">
+            <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Recusar</button>
+        </form>
+    </div>
+    <span class="d-block fs-10 text-muted mt-2">
+        {{ draft.result.disclaimer }}
+    </span>
+</div>

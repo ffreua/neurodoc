@@ -7,33 +7,55 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.services import record_audit_event
-from clinical.models import Encounter
+from clinical.models import ConsanguinityState, Encounter
 from patients.models import Patient
 from tenancy.context import AccessContext
 
 from . import deidentification, privacy_policy
 from .context import AIAuthorizationDenied, build_ai_authorization
-from .graphs import build_summary_graph, build_summary_prompt
-from .models import AIArtifact, AIJob, AIJobStatus
+from .graphs import PROMPT_VERSION, build_graph, build_prompt
+from .models import DOCUMENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus
 from .providers import ProviderUnavailable, get_chat_model
 from .schemas import SCHEMA_VERSION
 from .tools import clinical as clinical_tools
 
 DEFAULT_LIMITS = {'timeout_seconds': 30, 'max_output_chars': 20000}
 
+#: Ler um laudo de dez páginas é mais lento que resumir um atendimento, e o
+#: laudo laboratorial pode devolver duzentos analitos.
+DOCUMENT_LIMITS = {'timeout_seconds': 90, 'max_output_chars': 60000}
+
 
 class JobNotRunnable(Exception):
     pass
 
 
+def _limits_for(kind):
+    return dict(DOCUMENT_LIMITS if kind in DOCUMENT_SOURCED_KINDS else DEFAULT_LIMITS)
+
+
 @transaction.atomic
-def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None):
+def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None, target_ref=None):
+    """Registra o pedido de uma tarefa de IA. Não executa nada.
+
+    A chave de idempotência amarra o pedido à **fonte** dele, e isso muda
+    com o tipo: para resumo e apoio diagnóstico a fonte é a versão do
+    atendimento (mudou o prontuário, é outro pedido); para leitura de laudo
+    a fonte é o documento, e a versão do atendimento fica de fora — se ela
+    entrasse, corrigir uma vírgula na conduta faria a extração do PDF
+    aparecer como desatualizada.
+    """
     authorization = build_ai_authorization(access_context, patient_id, encounter_id)
 
     encounter = Encounter.objects.filter(id=authorization.encounter_id).first() if authorization.encounter_id else None
-    source_version = encounter.row_version if encounter else 0
-    target = authorization.encounter_id or authorization.patient_id
-    idempotency_key = f'{kind}:{target}:{source_version}'
+    target_ref = target_ref or {}
+    if kind in DOCUMENT_SOURCED_KINDS:
+        source_version = 0
+        target = ':'.join(f'{key}={value}' for key, value in sorted(target_ref.items()))
+    else:
+        source_version = encounter.row_version if encounter else 0
+        target = authorization.encounter_id or authorization.patient_id
+    idempotency_key = f'{kind}:{target}:{source_version}'[:150]
 
     job, _ = AIJob.objects.get_or_create(
         tenant_id=access_context.tenant_id, idempotency_key=idempotency_key,
@@ -41,11 +63,20 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
             'user_id': authorization.user_id, 'membership_id': authorization.membership_id,
             'patient_id': authorization.patient_id, 'encounter_id': authorization.encounter_id,
             'kind': kind, 'source_version': source_version, 'purpose': purpose[:255],
+            'target_ref': target_ref,
             'policy_version': privacy_policy.POLICY_VERSION,
             'status': AIJobStatus.QUEUED if settings.AI_ENABLED else AIJobStatus.DISABLED,
-            'limits': DEFAULT_LIMITS,
+            'limits': _limits_for(kind),
         },
     )
+    # Pedido repetido sobre a mesma fonte reaproveita a linha, mas um job que
+    # falhou tem de poder ser tentado de novo: sem isso o médico ficaria preso
+    # a uma falha de rede com o botão inerte e sem explicação.
+    if job.status in (AIJobStatus.FAILED, AIJobStatus.STALE, AIJobStatus.CANCELLED, AIJobStatus.DISABLED):
+        job.status = AIJobStatus.QUEUED if settings.AI_ENABLED else AIJobStatus.DISABLED
+        job.status_detail = ''
+        job.cancel_requested_at = None
+        job.save(update_fields=['status', 'status_detail', 'cancel_requested_at'])
     record_audit_event(
         authorization.user_id, access_context.tenant_id, 'ai.job_created',
         object_type='ai_job', object_id=job.id, outcome='success',
@@ -62,6 +93,76 @@ def _gather_context(authorization, encounter):
     context = {'timeline': timeline, 'examination_findings': findings, 'diagnoses': diagnoses}
     source_refs = [{'type': 'encounter', 'id': str(encounter.id), 'version_or_hash': str(encounter.row_version)}]
     return context, source_refs
+
+
+def _gather_diagnostic_context(authorization, encounter):
+    """Caso completo para o apoio ao raciocínio.
+
+    Mais largo que o do resumo de propósito: medicação em uso, resultado de
+    exame e o exame neurológico com rótulo legível são exatamente o que
+    diferencia uma lista de hipóteses defensável de um chute a partir da
+    queixa. E o exame vem com rótulo, não com o caminho do nó no roteiro.
+    """
+    if encounter is None:
+        return {}, []
+    current = {
+        'data': encounter.occurred_at.isoformat(),
+        'queixa_principal': encounter.chief_complaint,
+        'historia_da_doenca_atual': encounter.hpi,
+        'antecedentes_pessoais': encounter.personal_history,
+        'antecedentes_familiares': encounter.family_history,
+        'conduta_registrada': encounter.plan_text,
+    }
+    # A consanguinidade entra só quando foi de fato informada. O rótulo do
+    # campo é ele próprio um marcador de risco na política de privacidade
+    # (fail-closed, P-06 em aberto): mandá-lo mesmo quando ninguém respondeu
+    # bloquearia o apoio diagnóstico em todo atendimento, para sempre. Quando
+    # há resposta, ela vai e o bloqueio acontece — que é o comportamento
+    # desejado.
+    if encounter.consanguinity_state != ConsanguinityState.NOT_INFORMED:
+        current['consanguinidade'] = encounter.get_consanguinity_state_display()
+        if encounter.consanguinity_details:
+            current['consanguinidade_detalhes'] = encounter.consanguinity_details
+    context = {
+        'atendimento_atual': current,
+        'medicacoes_em_uso': clinical_tools.get_medications(authorization, encounter.id),
+        'exame_neurologico': clinical_tools.get_examination_findings(authorization, encounter.id),
+        'resultados_de_exames': clinical_tools.get_exam_results(authorization),
+        'hipoteses_ja_registradas': clinical_tools.get_diagnoses(authorization, encounter.id),
+        'consultas_anteriores': clinical_tools.get_patient_timeline(authorization, limit=5),
+    }
+    source_refs = [
+        {'type': 'encounter', 'id': str(encounter.id), 'version_or_hash': str(encounter.row_version)},
+    ]
+    return context, source_refs
+
+
+def _gather_document_context(job):
+    """Texto do laudo apontado pelo job, reautorizado pelo tenant.
+
+    Devolve `(texto, source_refs)`. O arquivo em si nunca sai daqui: o que
+    segue para o provedor é este texto, depois de desidentificado.
+    """
+    from clinical.models import ExamResult
+
+    from .documents import attachment_text
+
+    exam_result_id = (job.target_ref or {}).get('exam_result_id')
+    exam_result = ExamResult.objects.filter(
+        tenant_id=job.tenant_id, id=exam_result_id, encounter_id=job.encounter_id,
+    ).select_related('attachment').first()
+    if exam_result is None:
+        raise LookupError('Resultado de exame não encontrado neste atendimento.')
+
+    text, origin, truncated = attachment_text(exam_result.attachment)
+    notes = [f'Origem do texto: {"OCR local" if origin == "ocr" else "camada de texto do PDF"}.']
+    if truncated:
+        notes.append('Documento longo: apenas o início foi lido.')
+    source_refs = [{
+        'type': 'attachment', 'id': str(exam_result.attachment_id),
+        'version_or_hash': exam_result.attachment.sha256,
+    }]
+    return f'{" ".join(notes)}\n\n{text}', source_refs
 
 
 def _previous_artifact(job):
@@ -103,12 +204,27 @@ def run_job(job_id):
         return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_authorization_denied')
 
     encounter = Encounter.objects.filter(id=job.encounter_id).first() if job.encounter_id else None
-    if job.encounter_id and (encounter is None or encounter.row_version != job.source_version):
+    is_document_job = job.kind in DOCUMENT_SOURCED_KINDS
+    if job.encounter_id and encounter is None:
+        return _fail(job, AIJobStatus.FAILED, 'Atendimento não encontrado.', 'ai.job_failed')
+    if job.encounter_id and not is_document_job and encounter.row_version != job.source_version:
         return _fail(job, AIJobStatus.STALE, 'Source changed since the job was queued', 'ai.job_stale')
 
     patient = Patient.objects.filter(id=job.patient_id).first() if job.patient_id else None
-    context, source_refs = _gather_context(authorization, encounter)
-    deidentified_text = deidentification.deidentify_text(json.dumps(context, ensure_ascii=False), patient)
+
+    if is_document_job:
+        try:
+            raw_context, source_refs = _gather_document_context(job)
+        except Exception as exc:
+            return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_failed')
+    elif job.kind == AIJobKind.DIAGNOSTIC_SUPPORT:
+        context, source_refs = _gather_diagnostic_context(authorization, encounter)
+        raw_context = json.dumps(context, ensure_ascii=False, indent=1)
+    else:
+        context, source_refs = _gather_context(authorization, encounter)
+        raw_context = json.dumps(context, ensure_ascii=False)
+
+    deidentified_text = deidentification.deidentify_text(raw_context, patient)
 
     decision = privacy_policy.evaluate_privacy_policy(encounter, deidentified_text)
     if not decision.allowed:
@@ -123,8 +239,8 @@ def run_job(job_id):
     except ProviderUnavailable as exc:
         return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_provider_unavailable')
 
-    prompt = build_summary_prompt(deidentified_text)
-    graph = build_summary_graph(chat_model, max_output_chars=job.limits.get('max_output_chars', 20000))
+    prompt = build_prompt(job.kind, deidentified_text)
+    graph = build_graph(chat_model, job.kind, max_output_chars=job.limits.get('max_output_chars', 20000))
     result_state = graph.invoke({
         'prompt': prompt, 'timeout_seconds': job.limits.get('timeout_seconds', 30),
         'raw_response': None, 'artifact': None, 'error': None,
@@ -137,7 +253,7 @@ def run_job(job_id):
     artifact_data['source_refs'] = source_refs or artifact_data.get('source_refs', [])
     artifact = AIArtifact.objects.create(
         tenant_id=job.tenant_id, job=job, schema_version=SCHEMA_VERSION, provider=settings.AI_PROVIDER,
-        model=settings.AI_MODEL, prompt_version='v1', source_refs=artifact_data['source_refs'],
+        model=settings.AI_MODEL, prompt_version=PROMPT_VERSION, source_refs=artifact_data['source_refs'],
         result=artifact_data, supersedes=_previous_artifact(job),
     )
     job.status = AIJobStatus.SUCCEEDED
@@ -147,6 +263,36 @@ def run_job(job_id):
         object_type='ai_job', object_id=job.id, outcome='success',
     )
     return artifact
+
+
+def request_diagnostic_support(access_context, encounter, purpose='Apoio ao raciocínio diagnóstico'):
+    """Pede a análise do caso para apoio às hipóteses (RF-11.05)."""
+    job = create_job(
+        access_context, AIJobKind.DIAGNOSTIC_SUPPORT, purpose,
+        patient_id=encounter.patient_id, encounter_id=encounter.id,
+    )
+    if job.status == AIJobStatus.QUEUED:
+        from .tasks import run_ai_job
+
+        transaction.on_commit(lambda: run_ai_job.delay(str(job.id)))
+    return job
+
+
+def latest_diagnostic_support(encounter):
+    """Último artefato de apoio diagnóstico deste atendimento, ou None.
+
+    Vem marcado com `is_stale` quando o prontuário mudou depois de gerado:
+    hipótese calculada sobre um caso que já não é este não pode aparecer na
+    tela como se ainda valesse.
+    """
+    job = AIJob.objects.filter(
+        tenant_id=encounter.tenant_id, encounter_id=encounter.id,
+        kind=AIJobKind.DIAGNOSTIC_SUPPORT,
+    ).order_by('-created_at').first()
+    if job is None:
+        return None, None
+    artifact = AIArtifact.objects.filter(job=job).order_by('-created_at').first()
+    return job, artifact
 
 
 def cancel_job(job, actor_id):

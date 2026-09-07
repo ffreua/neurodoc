@@ -1,0 +1,150 @@
+{% load nd %}
+{% comment %}Apoio ao raciocínio diagnóstico (RF-11.05 / PRD 14.4).
+
+A ordenação é **qualitativa** — prioridade maior, intermediária, menor,
+evidência insuficiente — e não probabilidade. O PRD é explícito: "não é
+probabilidade nem nível validado de acurácia". Um percentual saído de um
+modelo de linguagem dentro de um prontuário pareceria medida calibrada sem
+nunca ter sido validado, e o esquema recusa qualquer saída nesse formato.
+
+Cada hipótese vem com o que a apoia e o que a contraria no caso. É a parte
+que faz a lista ser discutível em vez de aceita.
+{% endcomment %}
+<div class="border rounded-3 mb-4">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 p-3 border-bottom bg-gray-100">
+        <div>
+            <span class="fw-bold text-dark fs-13">Apoio da IA ao raciocínio diagnóstico</span>
+            {% if support_artifact %}
+            <span class="d-block fs-10 text-muted">
+                {{ support_artifact.model }} · {{ support_artifact.created_at|date:"d/m/Y H:i" }}
+                {% if support_artifact.stale %} · o prontuário mudou depois desta análise{% endif %}
+            </span>
+            {% endif %}
+        </div>
+        <div class="d-inline-flex align-items-center gap-2">
+            {% if support_job and support_job.status != 'succeeded' %}
+            <span class="badge bg-soft-{{ support_job.status|nd_tone }} text-{{ support_job.status|nd_tone }}">
+                {{ support_job.get_status_display }}
+            </span>
+            {% endif %}
+            <form method="post" action="{% url 'clinical:request-diagnostic-support' encounter.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
+                    {% if support_artifact %}Analisar de novo{% else %}Analisar o caso{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if support_job.status_detail %}
+    <div class="p-3">
+        <div class="alert alert-warning fade show fs-12 mb-0" role="alert">{{ support_job.status_detail }}</div>
+    </div>
+    {% elif support_artifact %}
+    <div class="p-3">
+        {% if support_artifact.stale %}
+        <div class="alert alert-warning fade show fs-12" role="alert">
+            O prontuário foi alterado depois desta análise. Rode de novo antes de usá-la.
+        </div>
+        {% endif %}
+
+        {% if support_hypotheses %}
+        <div class="row g-3">
+            {% for item in support_hypotheses %}
+            <div class="col-lg-6">
+                <div class="border rounded-3 h-100 p-3">
+                    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-2">
+                        <span class="fw-semibold text-dark fs-13">{{ item.label }}</span>
+                        <span class="badge {{ item.priority_badge }} flex-shrink-0">
+                            {{ item.priority_label }}
+                        </span>
+                    </div>
+
+                    {% if item.supporting_evidence %}
+                    <span class="d-block fs-10 text-uppercase text-muted fw-semibold">A favor no caso</span>
+                    <ul class="fs-12 mb-2 ps-3">
+                        {% for point in item.supporting_evidence %}<li>{{ point }}</li>{% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    {% if item.contradictory_evidence %}
+                    <span class="d-block fs-10 text-uppercase text-muted fw-semibold">Contra no caso</span>
+                    <ul class="fs-12 mb-2 ps-3">
+                        {% for point in item.contradictory_evidence %}<li>{{ point }}</li>{% endfor %}
+                    </ul>
+                    {% endif %}
+
+                    {% if item.missing_information %}
+                    <span class="d-block fs-11 text-muted mb-1"><strong>Falta saber:</strong> {{ item.missing_information }}</span>
+                    {% endif %}
+                    {% if item.uncertainty_note %}
+                    <span class="d-block fs-11 text-muted mb-1">{{ item.uncertainty_note }}</span>
+                    {% endif %}
+
+                    {% if encounter.status != 'finalized' %}
+                    <form method="post" action="{% url 'clinical:add-diagnosis-from-ai' encounter.id %}" class="mt-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="label" value="{{ item.label }}">
+                        <button type="submit" class="btn btn-sm btn-light" data-nd-busy>
+                            Registrar como hipótese suspeita
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="fs-13 text-muted mb-0">
+            A análise não sustentou nenhuma hipótese com o material disponível.
+        </p>
+        {% endif %}
+
+        {% if support_steps %}
+        <h6 class="fw-bold text-dark fs-13 mt-4 mb-2">Exames e avaliações sugeridas</h6>
+        <div class="table-responsive border rounded-3">
+            <table class="table table-hover table-sm align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-3" scope="col">Sugestão</th>
+                        <th scope="col">Tipo</th>
+                        <th class="pe-3" scope="col">Por quê</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for step in support_steps %}
+                    <tr>
+                        <td class="ps-3 text-wrap"><span class="fs-12 fw-semibold text-dark">{{ step.label }}</span></td>
+                        <td><span class="fs-11 text-muted">{{ step.category_label }}</span></td>
+                        <td class="pe-3 text-wrap"><span class="fs-12 text-muted">{{ step.rationale|default:"—" }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if support_result.missing_information %}
+        <div class="alert alert-primary fade show fs-12 mt-3 mb-0" role="alert">
+            <strong>Informação que falta no caso:</strong> {{ support_result.missing_information }}
+        </div>
+        {% endif %}
+
+        <div class="alert alert-warning fade show fs-12 mt-3 mb-0" role="alert">
+            <strong>Como ler esta lista.</strong> A prioridade é qualitativa e serve para organizar a
+            investigação — não é probabilidade nem nível validado de acurácia. Nada aqui é diagnóstico:
+            a hipótese que entra no prontuário é a que você registra.
+            {% if support_result.limitations %}<span class="d-block mt-1">{{ support_result.limitations }}</span>{% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="p-3">
+        <p class="fs-13 text-muted mb-0">
+            A IA pode organizar hipóteses a partir da história, do exame neurológico, das medicações em
+            uso e dos resultados de exames deste prontuário, com o que apoia e o que contraria cada
+            uma, além de sugerir exames complementares. As hipóteses saem por prioridade qualitativa,
+            para sua avaliação — nunca como diagnóstico.
+        </p>
+    </div>
+    {% endif %}
+</div>

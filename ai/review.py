@@ -4,7 +4,7 @@ from django.utils import timezone
 from audit.services import record_audit_event
 from clinical.models import Encounter
 
-from .models import AIReviewState
+from .models import DOCUMENT_SOURCED_KINDS, AIReviewState
 
 
 class ArtifactStale(Exception):
@@ -18,6 +18,10 @@ class AlreadyReviewed(Exception):
 def is_stale(artifact):
     job = artifact.job
     if job.encounter_id is None:
+        return artifact.stale
+    if job.kind in DOCUMENT_SOURCED_KINDS:
+        # A fonte é o laudo anexado, não o texto do atendimento: corrigir a
+        # conduta não invalida a leitura de um PDF que não mudou.
         return artifact.stale
     encounter = Encounter.objects.filter(id=job.encounter_id).first()
     return artifact.stale or encounter is None or encounter.row_version != job.source_version

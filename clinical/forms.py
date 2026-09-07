@@ -2,9 +2,11 @@ from decimal import Decimal
 
 from django import forms
 
+from base.widgets import HTML5DateInput
+
 from .models import (
-    ConsanguinityState, DiagnosisCertainty, Encounter, ExaminationDomain,
-    ExaminationState, Side,
+    DiagnosisCertainty, Encounter, ExaminationDomain,
+    ExaminationState, ExamResult, LabValue, Medication, Side,
 )
 
 
@@ -26,12 +28,22 @@ class EncounterForm(forms.ModelForm):
             'finalization_justification': 'Justificativa da finalização',
         }
         widgets = {
-            'chief_complaint': forms.Textarea(attrs={'rows': 3}),
-            'hpi': forms.Textarea(attrs={'rows': 5}),
-            'personal_history': forms.Textarea(attrs={'rows': 3}),
-            'family_history': forms.Textarea(attrs={'rows': 3}),
+            # A queixa principal é uma linha ("cefaleia há 3 meses"); a
+            # história da doença atual é o texto longo da consulta. A área de
+            # digitação segue essa proporção em vez de dar o mesmo espaço às
+            # duas.
+            'chief_complaint': forms.Textarea(attrs={
+                'rows': 2, 'placeholder': 'Em uma frase, o motivo da consulta',
+            }),
+            'hpi': forms.Textarea(attrs={
+                'rows': 10,
+                'placeholder': 'Início, evolução, fatores de melhora e piora, sintomas associados, '
+                               'tratamentos já tentados…',
+            }),
+            'personal_history': forms.Textarea(attrs={'rows': 4}),
+            'family_history': forms.Textarea(attrs={'rows': 4}),
             'consanguinity_details': forms.Textarea(attrs={'rows': 2}),
-            'plan_text': forms.Textarea(attrs={'rows': 5}),
+            'plan_text': forms.Textarea(attrs={'rows': 8}),
         }
 
 
@@ -110,3 +122,108 @@ class DiagnosisForm(forms.Form):
 class AmendmentForm(forms.Form):
     reason = forms.CharField(label='Motivo do adendo', max_length=255)
     text = forms.CharField(label='Texto do adendo', max_length=20000, widget=forms.Textarea(attrs={'rows': 4}))
+
+
+class MedicationForm(forms.ModelForm):
+    class Meta:
+        model = Medication
+        fields = [
+            'name', 'dose', 'route', 'frequency', 'started_on', 'indication',
+            'status', 'prescriber', 'notes',
+        ]
+        labels = {
+            'name': 'Medicamento',
+            'dose': 'Dose',
+            'route': 'Via',
+            'frequency': 'Posologia',
+            'started_on': 'Em uso desde',
+            'indication': 'Indicação',
+            'status': 'Situação',
+            'prescriber': 'Prescritor',
+            'notes': 'Observação',
+        }
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Ex.: Topiramato'}),
+            'dose': forms.TextInput(attrs={'placeholder': 'Ex.: 50 mg'}),
+            'frequency': forms.TextInput(attrs={'placeholder': 'Ex.: 1 comprimido à noite'}),
+            'indication': forms.TextInput(attrs={'placeholder': 'Ex.: profilaxia de migrânea'}),
+            'prescriber': forms.TextInput(attrs={'placeholder': 'Quem prescreveu, se não foi você'}),
+            'started_on': HTML5DateInput(),
+            'notes': forms.Textarea(attrs={
+                'rows': 2, 'placeholder': 'Efeito adverso, aderência, motivo da suspensão…',
+            }),
+        }
+
+
+class ExamResultForm(forms.ModelForm):
+    """Resultado de exame, com o laudo em PDF no mesmo envio.
+
+    O arquivo é opcional: registrar "TSH 4,1 em 12/08" sem ter o PDF em mãos
+    é um caso real e não deve travar o registro.
+    """
+
+    report_file = forms.FileField(
+        label='Laudo em PDF ou imagem', required=False,
+        help_text='Até 25 MB. Passa por verificação de malware antes de ficar disponível.',
+        widget=forms.ClearableFileInput(attrs={'accept': '.pdf,.jpg,.jpeg,.png,.tif,.tiff'}),
+    )
+    run_extraction = forms.BooleanField(
+        label='Pedir à IA para ler o laudo', required=False, initial=True,
+        help_text='Gera um rascunho para sua revisão. Nada entra no prontuário sem você aceitar.',
+    )
+
+    class Meta:
+        model = ExamResult
+        fields = ['category', 'name', 'performed_on', 'service_name', 'report_text', 'conclusion']
+        labels = {
+            'category': 'Tipo de exame',
+            'name': 'Exame',
+            'performed_on': 'Data de realização',
+            'service_name': 'Serviço / laboratório',
+            'report_text': 'Laudo',
+            'conclusion': 'Conclusão',
+        }
+        widgets = {
+            'name': forms.TextInput(attrs={'placeholder': 'Ex.: RM de encéfalo, hemograma, ENMG de MMII'}),
+            'service_name': forms.TextInput(attrs={'placeholder': 'Onde foi realizado'}),
+            'performed_on': HTML5DateInput(),
+            'report_text': forms.Textarea(attrs={
+                'rows': 6, 'placeholder': 'Transcrição do laudo. Pode ficar em branco e ser preenchido '
+                                          'pela leitura do PDF depois da sua revisão.',
+            }),
+            'conclusion': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Impressão diagnóstica do laudo'}),
+        }
+
+
+class LabValueForm(forms.ModelForm):
+    """Um analito lançado à mão.
+
+    A faixa de referência é digitada junto porque é a do laudo em questão:
+    ela muda com laboratório, método, idade e sexo, e o sistema classifica o
+    resultado apenas contra a faixa que veio com ele.
+    """
+
+    class Meta:
+        model = LabValue
+        fields = [
+            'analyte', 'value_text', 'numeric_value', 'unit',
+            'reference_low', 'reference_high', 'reference_text',
+        ]
+        labels = {
+            'analyte': 'Analito',
+            'value_text': 'Resultado',
+            'numeric_value': 'Valor numérico',
+            'unit': 'Unidade',
+            'reference_low': 'Referência mín.',
+            'reference_high': 'Referência máx.',
+            'reference_text': 'Referência (texto)',
+        }
+        help_texts = {
+            'numeric_value': 'Preencha para o sistema comparar com a referência.',
+            'reference_text': 'Quando a referência não é numérica (ex.: “não reagente”).',
+        }
+        widgets = {
+            'analyte': forms.TextInput(attrs={'placeholder': 'Ex.: Vitamina B12'}),
+            'value_text': forms.TextInput(attrs={'placeholder': 'Ex.: 187'}),
+            'unit': forms.TextInput(attrs={'placeholder': 'Ex.: pg/mL'}),
+        }

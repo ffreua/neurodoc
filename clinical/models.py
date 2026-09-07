@@ -222,3 +222,206 @@ class ClinicalAmendment(TenantModel):
 
     def __str__(self):
         return f'Amendment on {self.encounter_id} by {self.author_id}'
+
+
+class MedicationStatus(models.TextChoices):
+    IN_USE = 'in_use', 'Em uso'
+    SUSPENDED = 'suspended', 'Suspenso'
+    FINISHED = 'finished', 'Concluído'
+
+
+class MedicationRoute(models.TextChoices):
+    ORAL = 'oral', 'Oral'
+    SUBLINGUAL = 'sublingual', 'Sublingual'
+    INTRAVENOUS = 'intravenous', 'Intravenosa'
+    INTRAMUSCULAR = 'intramuscular', 'Intramuscular'
+    SUBCUTANEOUS = 'subcutaneous', 'Subcutânea'
+    TOPICAL = 'topical', 'Tópica'
+    INHALED = 'inhaled', 'Inalatória'
+    OTHER = 'other', 'Outra'
+
+
+class Medication(TenantModel):
+    """Medicação em uso registrada neste atendimento.
+
+    Pertence ao atendimento, não ao paciente: o prontuário registra o que
+    estava em uso **naquela consulta**, e é isso que precisa ficar imutável
+    depois de finalizado. A lista da consulta seguinte é trazida pela cópia
+    revisada do atendimento anterior (RF-03.04), e não por referência a uma
+    lista viva, que mudaria o registro passado.
+    """
+
+    encounter = models.ForeignKey(Encounter, on_delete=models.PROTECT, related_name='medications')
+    name = models.CharField(max_length=255)
+    dose = models.CharField(max_length=100, blank=True)
+    route = models.CharField(max_length=20, choices=MedicationRoute.choices, default=MedicationRoute.ORAL)
+    frequency = models.CharField(max_length=100, blank=True)
+    started_on = models.DateField(null=True, blank=True)
+    indication = models.CharField(max_length=255, blank=True)
+    status = models.CharField(max_length=20, choices=MedicationStatus.choices, default=MedicationStatus.IN_USE)
+    prescriber = models.CharField(max_length=255, blank=True)
+    notes = models.TextField(max_length=2000, blank=True)
+
+    class Meta(TenantModel.Meta):
+        ordering = ['name']
+        indexes = [models.Index(fields=['tenant', 'encounter'], name='clinical_medication_idx')]
+
+    def __str__(self):
+        return f'{self.name} {self.dose}'.strip()
+
+
+class ExamCategory(models.TextChoices):
+    LABORATORY = 'laboratory', 'Laboratorial'
+    IMAGING = 'imaging', 'Imagem'
+    NEUROPHYSIOLOGY = 'neurophysiology', 'Neurofisiologia'
+    PATHOLOGY = 'pathology', 'Patologia'
+    GENETICS = 'genetics', 'Genética'
+    OTHER = 'other', 'Outro'
+
+
+class ExtractionStatus(models.TextChoices):
+    NONE = 'none', 'Sem leitura'
+    QUEUED = 'queued', 'Na fila'
+    RUNNING = 'running', 'Processando'
+    READY = 'ready', 'Rascunho para revisão'
+    ACCEPTED = 'accepted', 'Revisado e incorporado'
+    REJECTED = 'rejected', 'Rascunho recusado'
+    FAILED = 'failed', 'Falhou'
+    BLOCKED = 'blocked', 'Bloqueado pela política de privacidade'
+    # Os rótulos são lidos atrás do prefixo "IA:" no crachá da tela, por isso
+    # nenhum deles repete a sigla.
+    DISABLED = 'disabled', 'Desligada'
+
+
+class ExamResult(TenantModel):
+    """Resultado de exame complementar registrado no atendimento.
+
+    O laudo em PDF entra como `documents.Attachment`, então passa pela mesma
+    verificação de malware e pelo mesmo controle de download dos demais
+    anexos — sem um caminho paralelo para arquivo clínico.
+
+    `report_text` é o laudo como fica no prontuário. Quando a IA lê o PDF, o
+    texto **não** é escrito aqui: fica como rascunho no `AIArtifact` até que
+    um médico identificado o revise e aceite (RF-11-B).
+    """
+
+    encounter = models.ForeignKey(Encounter, on_delete=models.PROTECT, related_name='exam_results')
+    patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='exam_results')
+    category = models.CharField(max_length=20, choices=ExamCategory.choices, default=ExamCategory.LABORATORY)
+    name = models.CharField(max_length=255)
+    performed_on = models.DateField(null=True, blank=True)
+    service_name = models.CharField(max_length=255, blank=True)
+    report_text = models.TextField(max_length=20000, blank=True)
+    conclusion = models.TextField(max_length=4000, blank=True)
+    attachment = models.ForeignKey(
+        'documents.Attachment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='exam_results',
+    )
+    extraction_status = models.CharField(
+        max_length=20, choices=ExtractionStatus.choices, default=ExtractionStatus.NONE,
+    )
+    extraction_detail = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        ordering = ['-performed_on', 'name']
+        indexes = [
+            models.Index(fields=['tenant', 'encounter'], name='clinical_examresult_enc_idx'),
+            models.Index(fields=['tenant', 'patient'], name='clinical_examresult_pat_idx'),
+        ]
+
+    @property
+    def is_laboratory(self):
+        return self.category == ExamCategory.LABORATORY
+
+    @property
+    def abnormal_values(self):
+        return [value for value in self.lab_values.all() if value.flag in LabValueFlag.out_of_range()]
+
+    def __str__(self):
+        return f'{self.name} ({self.performed_on})'
+
+
+class LabValueFlag(models.TextChoices):
+    NORMAL = 'normal', 'Dentro da referência'
+    LOW = 'low', 'Abaixo da referência'
+    HIGH = 'high', 'Acima da referência'
+    ABNORMAL = 'abnormal', 'Fora da referência'
+    NO_REFERENCE = 'no_reference', 'Sem referência no laudo'
+
+    @classmethod
+    def out_of_range(cls):
+        return {cls.LOW, cls.HIGH, cls.ABNORMAL}
+
+
+class LabValue(TenantModel):
+    """Um analito de um exame laboratorial, com a referência do próprio laudo.
+
+    A faixa de referência vem do laudo, nunca de uma tabela interna: ela
+    varia com laboratório, método, idade e sexo, e classificar o resultado
+    contra a referência de outra origem seria inventar a interpretação.
+
+    Sem faixa informada o resultado fica `no_reference` — o sistema não
+    adivinha se está normal.
+    """
+
+    exam_result = models.ForeignKey(ExamResult, on_delete=models.CASCADE, related_name='lab_values')
+    order = models.PositiveIntegerField(default=0)
+    analyte = models.CharField(max_length=200)
+    value_text = models.CharField(max_length=100)
+    numeric_value = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    unit = models.CharField(max_length=40, blank=True)
+    reference_low = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    reference_high = models.DecimalField(max_digits=14, decimal_places=4, null=True, blank=True)
+    reference_text = models.CharField(max_length=120, blank=True)
+    flag = models.CharField(max_length=20, choices=LabValueFlag.choices, default=LabValueFlag.NO_REFERENCE)
+    #: 'manual' ou 'ai' — quem leu o laudo. Valor extraído por IA só chega
+    #: aqui depois de revisão médica.
+    source = models.CharField(max_length=10, default='manual')
+
+    class Meta(TenantModel.Meta):
+        ordering = ['order', 'analyte']
+        indexes = [models.Index(fields=['tenant', 'exam_result'], name='clinical_labvalue_idx')]
+
+    def compute_flag(self):
+        if self.numeric_value is None:
+            return LabValueFlag.NO_REFERENCE
+        if self.reference_low is None and self.reference_high is None:
+            return LabValueFlag.NO_REFERENCE
+        if self.reference_low is not None and self.numeric_value < self.reference_low:
+            return LabValueFlag.LOW
+        if self.reference_high is not None and self.numeric_value > self.reference_high:
+            return LabValueFlag.HIGH
+        return LabValueFlag.NORMAL
+
+    @staticmethod
+    def _trim(value):
+        """Decimal sem os zeros do campo.
+
+        `f'{Decimal("12.0000"):g}'` devolve `12.0000` — ao contrário do float,
+        o Decimal preserva as casas que foram declaradas. Sem isto a faixa do
+        laudo aparecia como "150000.0000 – 450000.0000".
+        """
+        text = f'{value:f}'
+        if '.' in text:
+            text = text.rstrip('0').rstrip('.')
+        return text or '0'
+
+    @property
+    def reference_display(self):
+        if self.reference_text:
+            return self.reference_text
+        low, high = self.reference_low, self.reference_high
+        if low is not None and high is not None:
+            return f'{self._trim(low)} – {self._trim(high)}'
+        if high is not None:
+            return f'até {self._trim(high)}'
+        if low is not None:
+            return f'a partir de {self._trim(low)}'
+        return '—'
+
+    def save(self, *args, **kwargs):
+        self.flag = self.compute_flag()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.analyte}: {self.value_text} {self.unit}'.strip()

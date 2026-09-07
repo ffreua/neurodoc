@@ -74,6 +74,17 @@ _BADGE_TONES = {
     'refuted': 'danger',
     'normal': 'success',
     'altered': 'warning',
+    # medicações em uso
+    'in_use': 'success',
+    'suspended': 'warning',
+    'finished': 'secondary',
+    # resultado laboratorial: fora da faixa pede atenção, não é falha do
+    # sistema — `danger` fica reservado para erro de verdade.
+    'low': 'warning',
+    'high': 'warning',
+    'abnormal': 'warning',
+    'no_reference': 'secondary',
+    'blocked': 'danger',
     'not_assessed': 'secondary',
     'not_informed': 'secondary',
     'pending': 'warning',

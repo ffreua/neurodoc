@@ -1,7 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.forms import modelform_factory
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,14 +16,18 @@ from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
 from exams.models import ExamScale
 from exams.recording import (
-    mark_group_normal, record_scale, save_axis, scale_item_code, undo_group_normal,
+    mark_group_normal, record_scale, save_axis, undo_group_normal,
 )
 from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
-from .forms import AmendmentForm, DiagnosisForm, EncounterForm, FindingForm
+from .forms import (
+    AmendmentForm, DiagnosisForm, EncounterForm, ExamResultForm, FindingForm, LabValueForm,
+    MedicationForm,
+)
 from .models import (
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
+    ExamResult, ExtractionStatus, LabValue, Medication,
 )
 
 
@@ -126,7 +130,67 @@ class EncounterDetailView(TenantScopedView):
             'scale_values': scale_values,
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
+            **self._extra_tabs(request, encounter),
         })
+
+    def _extra_tabs(self, request, encounter):
+        """Medicações, resultados de exame e o painel de apoio da IA.
+
+        Os rascunhos da IA vêm junto do resultado a que pertencem: o médico
+        revisa o rascunho olhando o exame, não numa fila de artefatos
+        separada do prontuário.
+        """
+        from ai.extraction import latest_draft
+        from ai.services import latest_diagnostic_support
+
+        medications = list(encounter.medications.all())
+        exam_results = list(
+            encounter.exam_results.select_related('attachment').prefetch_related('lab_values')
+        )
+        for result in exam_results:
+            values = list(result.lab_values.all())
+            result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
+            result.values_in = [v for v in values if v.flag == 'normal']
+            result.values_unknown = [v for v in values if v.flag == 'no_reference']
+            result.draft = (
+                latest_draft(result)
+                if result.extraction_status in (ExtractionStatus.READY, ExtractionStatus.ACCEPTED,
+                                                ExtractionStatus.REJECTED)
+                else None
+            )
+
+        support_job, support_artifact = latest_diagnostic_support(encounter)
+        support_hypotheses, support_steps = [], []
+        if support_artifact is not None:
+            from ai.schemas import PRIORITY_BADGES, PRIORITY_LABELS, STEP_CATEGORY_LABELS
+
+            result = support_artifact.result or {}
+            for item in result.get('hypotheses') or []:
+                priority = item.get('priority', 'insufficient_evidence')
+                support_hypotheses.append({
+                    **item,
+                    'priority_label': PRIORITY_LABELS.get(priority, priority),
+                    'priority_badge': PRIORITY_BADGES.get(priority, 'bg-gray-200 text-dark'),
+                })
+            for step in result.get('suggested_next_steps') or []:
+                category = step.get('category', 'other')
+                support_steps.append({
+                    **step,
+                    'category_label': STEP_CATEGORY_LABELS.get(category, category),
+                })
+
+        return {
+            'medications': medications,
+            'medication_form': MedicationForm(),
+            'exam_results': exam_results,
+            'exam_result_form': ExamResultForm(),
+            'lab_value_form': LabValueForm(),
+            'support_job': support_job,
+            'support_artifact': support_artifact,
+            'support_hypotheses': support_hypotheses,
+            'support_steps': support_steps,
+            'support_result': (support_artifact.result if support_artifact else {}) or {},
+        }
 
 
 class EncounterAutosaveView(TenantScopedView):
@@ -403,6 +467,302 @@ class AmendmentCreateView(TenantScopedView):
             return _blocked(request, encounter, str(exc), anchor='tab-adendos')
         messages.success(request, 'Adendo registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-adendos')
+
+
+class MedicationCreateView(TenantScopedView):
+    def post(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-medicacoes')
+        form = MedicationForm(request.POST)
+        if not form.is_valid():
+            return _blocked(request, encounter, _first_error(form), anchor='tab-medicacoes')
+        medication = form.save(commit=False)
+        medication.tenant_id = request.access_context.tenant_id
+        medication.encounter = encounter
+        medication.save()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.medication_added',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'name': medication.name},
+        )
+        messages.success(request, f'{medication.name} incluído nas medicações em uso.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
+
+
+class MedicationDeleteView(TenantScopedView):
+    def post(self, request, encounter_id, medication_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-medicacoes')
+        medication = get_object_or_404(
+            Medication, tenant_id=request.access_context.tenant_id, encounter=encounter, id=medication_id,
+        )
+        name = medication.name
+        medication.delete()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.medication_removed',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'name': name},
+        )
+        messages.success(request, f'{name} removido das medicações em uso.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
+
+
+class ExamResultCreateView(TenantScopedView):
+    """Registra um resultado de exame e, se houver PDF, pede a leitura à IA.
+
+    O arquivo segue o mesmo caminho de qualquer anexo — quarentena,
+    verificação de malware, publicação — e a leitura pela IA só começa
+    depois disso. Nada do que a IA ler entra no prontuário sem revisão.
+    """
+
+    def post(self, request, encounter_id):
+        from documents.models import AttachmentClassification
+        from documents.storage import QuotaExceeded, receive_upload
+        from documents.tasks import scan_attachment
+        from documents.validators import UploadRejected
+        from tenancy.models import Tenant
+
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        form = ExamResultForm(request.POST, request.FILES)
+        if not form.is_valid():
+            return _blocked(request, encounter, _first_error(form), anchor='tab-exames')
+
+        exam_result = form.save(commit=False)
+        exam_result.tenant_id = request.access_context.tenant_id
+        exam_result.encounter = encounter
+        exam_result.patient = encounter.patient
+
+        uploaded = form.cleaned_data.get('report_file')
+        attachment = None
+        if uploaded is not None:
+            tenant = Tenant.objects.get(id=request.access_context.tenant_id)
+            try:
+                attachment = receive_upload(
+                    request.access_context, tenant, encounter.patient, request.user,
+                    uploaded.read(), uploaded.name, AttachmentClassification.CLINICAL,
+                    encounter=encounter, document_date=form.cleaned_data.get('performed_on'),
+                )
+            except (UploadRejected, QuotaExceeded) as exc:
+                return _blocked(request, encounter, str(exc), anchor='tab-exames')
+            exam_result.attachment = attachment
+
+        exam_result.save()
+        if attachment is not None:
+            scan_attachment.delay(str(attachment.id))
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.exam_result_added',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'name': exam_result.name, 'has_report': attachment is not None},
+        )
+
+        if attachment is not None and form.cleaned_data.get('run_extraction'):
+            from ai.context import AIAuthorizationDenied
+            from ai.extraction import ExtractionUnavailable, request_extraction
+
+            try:
+                job = request_extraction(request.access_context, exam_result)
+            except (ExtractionUnavailable, AIAuthorizationDenied) as exc:
+                messages.warning(request, f'Exame registrado, mas a leitura por IA não foi iniciada: {exc}')
+                return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+            if job.status == 'disabled':
+                messages.warning(
+                    request,
+                    f'{exam_result.name} registrado. A leitura por IA está desligada nesta '
+                    'instalação, então o laudo ficou anexado para transcrição manual.',
+                )
+            else:
+                messages.success(
+                    request,
+                    f'{exam_result.name} registrado. A IA está lendo o laudo; o rascunho aparece '
+                    'aqui para sua revisão em instantes.',
+                )
+        else:
+            messages.success(request, f'{exam_result.name} registrado.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+def _exam_result_or_404(request, encounter, exam_result_id):
+    return get_object_or_404(
+        ExamResult.objects.select_related('attachment'),
+        tenant_id=request.access_context.tenant_id, encounter=encounter, id=exam_result_id,
+    )
+
+
+class ExamResultDeleteView(TenantScopedView):
+    def post(self, request, encounter_id, exam_result_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
+        name = exam_result.name
+        # O anexo não é apagado junto: ele fica no prontuário do paciente,
+        # com o histórico de retenção próprio. Remover o registro do exame
+        # não é motivo para descartar o documento original.
+        exam_result.delete()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.exam_result_removed',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'name': name},
+        )
+        messages.success(request, f'{name} removido dos resultados de exame.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+class LabValueCreateView(TenantScopedView):
+    def post(self, request, encounter_id, exam_result_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
+        form = LabValueForm(request.POST)
+        if not form.is_valid():
+            return _blocked(request, encounter, _first_error(form), anchor='tab-exames')
+        value = form.save(commit=False)
+        value.tenant_id = request.access_context.tenant_id
+        value.exam_result = exam_result
+        value.order = exam_result.lab_values.count()
+        value.source = 'manual'
+        value.save()
+        messages.success(request, f'{value.analyte}: {value.get_flag_display().lower()}.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+class LabValueDeleteView(TenantScopedView):
+    def post(self, request, encounter_id, value_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        value = get_object_or_404(
+            LabValue, tenant_id=request.access_context.tenant_id,
+            exam_result__encounter=encounter, id=value_id,
+        )
+        analyte = value.analyte
+        value.delete()
+        messages.success(request, f'{analyte} removido.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+class ExamResultExtractView(TenantScopedView):
+    """Pede (ou repete) a leitura do laudo pela IA."""
+
+    def post(self, request, encounter_id, exam_result_id):
+        from ai.context import AIAuthorizationDenied
+        from ai.extraction import ExtractionUnavailable, request_extraction
+
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
+        try:
+            job = request_extraction(request.access_context, exam_result)
+        except (ExtractionUnavailable, AIAuthorizationDenied) as exc:
+            return _blocked(request, encounter, str(exc), anchor='tab-exames')
+        if job.status == 'disabled':
+            messages.warning(request, 'A leitura por IA está desligada nesta instalação.')
+        else:
+            messages.success(request, 'Leitura do laudo solicitada. O rascunho aparece aqui para revisão.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+class ExamResultDraftReviewView(TenantScopedView):
+    """Aceita ou recusa o rascunho da IA para um resultado de exame.
+
+    É este passo — e só ele — que transforma leitura de PDF em conteúdo do
+    prontuário (RF-11-B). Enquanto ninguém aceita, o rascunho existe como
+    artefato revisável e o registro segue vazio.
+    """
+
+    def post(self, request, encounter_id, exam_result_id):
+        from ai.extraction import ExtractionUnavailable, accept_draft, latest_draft, reject_draft
+
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
+        artifact = latest_draft(exam_result)
+        if artifact is None:
+            return _blocked(request, encounter, 'Não há rascunho para revisar.', anchor='tab-exames')
+
+        membership = _doctor_membership(request)
+        if membership is None:
+            return _blocked(
+                request, encounter,
+                'Só um médico com vínculo ativo pode revisar o rascunho da IA.', anchor='tab-exames',
+            )
+        action = request.POST.get('action')
+        try:
+            if action == 'accept':
+                accept_draft(artifact, exam_result, membership, request.access_context.user_id)
+                messages.success(request, 'Rascunho revisado e incorporado ao prontuário.')
+            elif action == 'reject':
+                reject_draft(
+                    artifact, exam_result, membership, request.access_context.user_id,
+                    request.POST.get('reason', ''),
+                )
+                messages.success(request, 'Rascunho recusado. Nada foi gravado no prontuário.')
+            else:
+                return _blocked(request, encounter, 'Ação inválida.', anchor='tab-exames')
+        except ExtractionUnavailable as exc:
+            return _blocked(request, encounter, str(exc), anchor='tab-exames')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+class DiagnosticSupportRequestView(TenantScopedView):
+    def post(self, request, encounter_id):
+        from ai.context import AIAuthorizationDenied
+        from ai.services import request_diagnostic_support
+
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        try:
+            job = request_diagnostic_support(request.access_context, encounter)
+        except AIAuthorizationDenied as exc:
+            return _blocked(request, encounter, str(exc), anchor='tab-hipoteses')
+        if job.status == 'disabled':
+            messages.warning(request, 'O apoio por IA está desligado nesta instalação.')
+        elif job.status == 'succeeded':
+            messages.info(request, 'O caso não mudou desde a última análise; o resultado abaixo é dela.')
+        else:
+            messages.success(
+                request,
+                'Análise solicitada. As hipóteses aparecem aqui por nível de prioridade, '
+                'para sua avaliação.',
+            )
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-hipoteses')
+
+
+class DiagnosisFromSupportView(TenantScopedView):
+    """Leva uma hipótese sugerida para a lista do prontuário.
+
+    Entra sempre como `suspected` e com a nota dizendo que a sugestão veio
+    da IA e foi aceita por quem clicou: a hipótese registrada é do médico, e
+    o prontuário guarda de onde ela partiu.
+    """
+
+    def post(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-hipoteses')
+        label = (request.POST.get('label') or '').strip()
+        if not label:
+            return _blocked(request, encounter, 'Hipótese não informada.', anchor='tab-hipoteses')
+        rank = encounter.diagnoses.count() + 1
+        EncounterDiagnosis.objects.create(
+            tenant_id=request.access_context.tenant_id, encounter=encounter,
+            code_snapshot='', description_snapshot=label[:4000],
+            certainty='suspected', rank=rank,
+            physician_note='Sugestão da IA revisada e aceita pelo médico.',
+        )
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.diagnosis_from_ai',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'label': label[:255]},
+        )
+        messages.success(request, f'“{label}” registrada como hipótese.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-hipoteses')
 
 
 class FindingDeleteView(TenantScopedView):

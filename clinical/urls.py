@@ -26,7 +26,41 @@ urlpatterns = [
         '<uuid:encounter_id>/achados/<uuid:finding_id>/remover/',
         views.FindingDeleteView.as_view(), name='delete-finding',
     ),
+    path('<uuid:encounter_id>/medicacoes/', views.MedicationCreateView.as_view(), name='add-medication'),
+    path(
+        '<uuid:encounter_id>/medicacoes/<uuid:medication_id>/remover/',
+        views.MedicationDeleteView.as_view(), name='delete-medication',
+    ),
+    path('<uuid:encounter_id>/exames/', views.ExamResultCreateView.as_view(), name='add-exam-result'),
+    path(
+        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/remover/',
+        views.ExamResultDeleteView.as_view(), name='delete-exam-result',
+    ),
+    path(
+        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/analitos/',
+        views.LabValueCreateView.as_view(), name='add-lab-value',
+    ),
+    path(
+        '<uuid:encounter_id>/analitos/<uuid:value_id>/remover/',
+        views.LabValueDeleteView.as_view(), name='delete-lab-value',
+    ),
+    path(
+        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/ler-laudo/',
+        views.ExamResultExtractView.as_view(), name='extract-exam-result',
+    ),
+    path(
+        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/rascunho/',
+        views.ExamResultDraftReviewView.as_view(), name='review-exam-draft',
+    ),
     path('<uuid:encounter_id>/diagnoses/', views.DiagnosisCreateView.as_view(), name='add-diagnosis'),
+    path(
+        '<uuid:encounter_id>/apoio-diagnostico/',
+        views.DiagnosticSupportRequestView.as_view(), name='request-diagnostic-support',
+    ),
+    path(
+        '<uuid:encounter_id>/hipoteses/da-ia/',
+        views.DiagnosisFromSupportView.as_view(), name='add-diagnosis-from-ai',
+    ),
     path(
         '<uuid:encounter_id>/carry-forward/<uuid:item_id>/review/',
         views.CarryForwardReviewView.as_view(), name='review-carry-forward',

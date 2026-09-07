@@ -260,28 +260,58 @@
         }
     }
 
+    function activateTab(trigger) {
+        var pane = targetOf(trigger);
+        var list = trigger.closest('.nav, .nav-tabs, .nav-pills');
+        if (list) {
+            list.querySelectorAll('.nav-link, .nav-item > a').forEach(function (el) {
+                el.classList.remove('active');
+                el.setAttribute('aria-selected', 'false');
+            });
+        }
+        trigger.classList.add('active');
+        trigger.setAttribute('aria-selected', 'true');
+        if (!pane) return null;
+        var content = pane.parentElement;
+        content.querySelectorAll(':scope > .tab-pane').forEach(function (el) {
+            el.classList.remove('active', 'show');
+        });
+        pane.classList.add('active', 'show');
+        return pane;
+    }
+
+    /* Aba pelo endereço da página.
+     *
+     * O servidor redireciona para `.../#tab-exame` depois de salvar, e sem
+     * isto a pessoa voltava sempre para a primeira aba — o formulário que ela
+     * acabou de enviar sumia da tela. Também mantém o endereço em dia ao
+     * trocar de aba, então recarregar a página não perde o lugar.
+     */
+    function tabFromHash() {
+        var hash = window.location.hash;
+        if (!hash || hash.length < 2) return;
+        var trigger = document.querySelector(
+            '[data-bs-toggle="tab"][data-bs-target="' + hash + '"], ' +
+            '[data-bs-toggle="pill"][data-bs-target="' + hash + '"], ' +
+            '[data-bs-toggle="tab"][href="' + hash + '"]'
+        );
+        if (trigger) activateTab(trigger);
+    }
+
     function initTabs() {
         document.addEventListener('click', function (event) {
             var trigger = event.target.closest('[data-bs-toggle="tab"], [data-bs-toggle="pill"]');
             if (!trigger) return;
             event.preventDefault();
-            var pane = targetOf(trigger);
-            var list = trigger.closest('.nav, .nav-tabs, .nav-pills');
-            if (list) {
-                list.querySelectorAll('.nav-link, .nav-item > a').forEach(function (el) {
-                    el.classList.remove('active');
-                    el.setAttribute('aria-selected', 'false');
-                });
+            var pane = activateTab(trigger);
+            if (pane && pane.id && window.history && window.history.replaceState) {
+                /* replaceState em vez de mudar o hash: atribuir a
+                 * `location.hash` faria o navegador rolar até o painel. */
+                window.history.replaceState(null, '', '#' + pane.id);
             }
-            trigger.classList.add('active');
-            trigger.setAttribute('aria-selected', 'true');
-            if (!pane) return;
-            var content = pane.parentElement;
-            content.querySelectorAll(':scope > .tab-pane').forEach(function (el) {
-                el.classList.remove('active', 'show');
-            });
-            pane.classList.add('active', 'show');
         });
+        tabFromHash();
+        window.addEventListener('hashchange', tabFromHash);
     }
 
     /* ------------------------------------------------------------ collapse */

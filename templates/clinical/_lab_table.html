@@ -1,0 +1,46 @@
+{% load nd %}
+{% comment %}Tabela de analitos. `values` já vem separado por classificação.{% endcomment %}
+<div class="table-responsive border rounded-3">
+    <table class="table table-hover table-sm align-middle mb-0">
+        <thead class="bg-gray-100">
+            <tr class="border-b">
+                <th class="ps-3" scope="col">Analito</th>
+                <th scope="col">Resultado</th>
+                <th scope="col">Referência do laudo</th>
+                <th scope="col">Classificação</th>
+                <th scope="col">Origem</th>
+                <th class="text-end pe-3" scope="col"><span class="visually-hidden">Ações</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for value in values %}
+            <tr>
+                <td class="ps-3 text-wrap"><span class="fw-semibold text-dark fs-12">{{ value.analyte }}</span></td>
+                <td><span class="fs-12">{{ value.value_text }} {{ value.unit }}</span></td>
+                <td><span class="fs-12 text-muted">{{ value.reference_display }}</span></td>
+                <td>
+                    <span class="badge bg-soft-{{ value.flag|nd_tone }} text-{{ value.flag|nd_tone }}">
+                        {{ value.get_flag_display }}
+                    </span>
+                </td>
+                <td>
+                    <span class="fs-10 text-muted">
+                        {% if value.source == 'ai' %}IA revisada{% else %}Lançado à mão{% endif %}
+                    </span>
+                </td>
+                <td class="text-end pe-3">
+                    {% if encounter.status != 'finalized' %}
+                    <form method="post" action="{% url 'clinical:delete-lab-value' encounter.id value.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-icon btn-sm btn-light-danger" data-nd-busy
+                                aria-label="Remover {{ value.analyte }}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                        </button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

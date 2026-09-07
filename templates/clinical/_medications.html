@@ -1,0 +1,95 @@
+{% load nd %}
+{% comment %}Medicações em uso neste atendimento.
+
+A lista é do atendimento, não do paciente: o prontuário registra o que estava
+em uso naquela consulta, e é isso que fica imutável depois de finalizado.
+{% endcomment %}
+<div class="card-body">
+    {% if encounter.status != 'finalized' %}
+    <form method="post" action="{% url 'clinical:add-medication' encounter.id %}" novalidate
+          class="border rounded-3 p-3 bg-gray-100 mb-4">
+        {% csrf_token %}
+        <h6 class="fw-bold text-dark mb-3">Incluir medicação</h6>
+        <div class="row g-3">
+            {% include "partials/field.html" with field=medication_form.name col="col-lg-4 col-md-6" %}
+            {% include "partials/field.html" with field=medication_form.dose col="col-lg-2 col-md-3" %}
+            {% include "partials/field.html" with field=medication_form.route col="col-lg-2 col-md-3" %}
+            {% include "partials/field.html" with field=medication_form.frequency col="col-lg-4 col-md-6" %}
+            {% include "partials/field.html" with field=medication_form.indication col="col-lg-4 col-md-6" %}
+            {% include "partials/field.html" with field=medication_form.started_on col="col-lg-2 col-md-3" %}
+            {% include "partials/field.html" with field=medication_form.status col="col-lg-2 col-md-3" %}
+            {% include "partials/field.html" with field=medication_form.prescriber col="col-lg-4 col-md-6" %}
+            {% include "partials/field.html" with field=medication_form.notes col="col-12" %}
+        </div>
+        <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Incluir medicação</button>
+    </form>
+    {% endif %}
+
+    <div class="table-responsive border rounded-3">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="bg-gray-100">
+                <tr class="border-b">
+                    <th class="ps-4" scope="col">Medicamento</th>
+                    <th scope="col">Posologia</th>
+                    <th scope="col">Indicação</th>
+                    <th scope="col">Em uso desde</th>
+                    <th scope="col">Situação</th>
+                    <th class="text-end pe-4" scope="col"><span class="visually-hidden">Ações</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for medication in medications %}
+                <tr>
+                    <td class="ps-4 text-wrap">
+                        <span class="fw-semibold text-dark">{{ medication.name }}</span>
+                        {% if medication.dose %}
+                        <span class="d-block fs-11 text-muted">{{ medication.dose }} · {{ medication.get_route_display }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-wrap"><span class="fs-12">{{ medication.frequency|default:"—" }}</span></td>
+                    <td class="text-wrap"><span class="fs-12 text-muted">{{ medication.indication|default:"—" }}</span></td>
+                    <td><span class="fs-12 text-muted">{{ medication.started_on|date:"d/m/Y"|default:"—" }}</span></td>
+                    <td>
+                        <span class="badge bg-soft-{{ medication.status|nd_tone }} text-{{ medication.status|nd_tone }}">
+                            {{ medication.get_status_display }}
+                        </span>
+                        {% if medication.prescriber %}
+                        <span class="d-block fs-10 text-muted mt-1">{{ medication.prescriber }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end pe-4">
+                        {% if encounter.status != 'finalized' %}
+                        <form method="post" action="{% url 'clinical:delete-medication' encounter.id medication.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-icon btn-sm btn-light-danger" data-nd-busy
+                                    aria-label="Remover {{ medication.name }}">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+                            </button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% if medication.notes %}
+                <tr class="bg-gray-100">
+                    <td colspan="6" class="ps-4 py-2">
+                        <span class="fs-11 text-muted nd-prose">{{ medication.notes }}</span>
+                    </td>
+                </tr>
+                {% endif %}
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-5 fs-13">
+                        Nenhuma medicação registrada neste atendimento.
+                        {% if encounter.status != 'finalized' %}
+                        <span class="d-block fs-11 mt-1">
+                            Registre também “nenhuma medicação em uso” pela observação, se for o caso —
+                            lista vazia não quer dizer que a pergunta foi feita.
+                        </span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
