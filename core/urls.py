@@ -23,6 +23,7 @@ urlpatterns = [
     path('app/integrations/', include('integrations.urls')),
     path('capture/', include('integrations.capture_urls')),
     path('app/notifications/', include('notifications.urls')),
+    path('app/org/', include('communications.admin_urls')),
     path('d/', include('communications.urls')),
     path('', include('base.urls')),
 ]

@@ -13,8 +13,8 @@ from tenancy.selectors import scope_to_tenant
 
 from . import publishing, services
 from .availability import (
-    appointments_on, available_slots, day_grid, slot_minutes_for, suggested_slot_minutes,
-    type_durations, week_grid,
+    appointments_on, available_slots, day_grid, month_summary, slot_minutes_for,
+    suggested_slot_minutes, type_durations, week_grid,
 )
 from .forms import (
     ChangePatientForm, DoctorChoiceForm, LocalHolidayForm, QuickBookingForm,
@@ -210,54 +210,45 @@ class AgendaMonthView(TenantScopedView):
         grid_start = month_start - timedelta(days=month_start.weekday())
         grid_end = next_month + timedelta(days=(7 - next_month.weekday()) % 7)
 
-        by_date = {}
-        blocked = set()
-        if doctor is not None:
-            from .models import OCCUPYING_STATUSES, Appointment
+        today = timezone.now().date()
+        days = []
+        cursor = grid_start
+        while cursor < grid_end:
+            days.append(cursor)
+            cursor += timedelta(days=1)
 
-            for appointment in Appointment.objects.filter(
-                physician_membership=doctor, status__in=list(OCCUPYING_STATUSES),
-                starts_at__date__gte=grid_start, starts_at__date__lt=grid_end,
-            ):
-                key = timezone.localtime(appointment.starts_at).date()
-                by_date[key] = by_date.get(key, 0) + 1
-            for block in ScheduleBlock.objects.filter(
-                physician_membership=doctor, start_at__date__lt=grid_end,
-                end_at__date__gte=grid_start,
-            ).exclude(kind=ScheduleBlockKind.EXTRA_AVAILABILITY):
-                cursor = timezone.localtime(block.start_at).date()
-                last = timezone.localtime(block.end_at).date()
-                while cursor <= last:
-                    blocked.add(cursor)
-                    cursor += timedelta(days=1)
-
-        weekdays_with_rules = set()
-        if doctor is not None:
-            weekdays_with_rules = set(
-                AvailabilityRule.objects.filter(physician_membership=doctor)
-                .filter(publishing.models_ends_on_ok(grid_start))
-                .values_list('weekday', flat=True)
-            )
+        # A contagem de livres é o que responde "onde tem vaga", que é a
+        # pergunta de quem está remarcando ao telefone. Uma célula com
+        # apenas "2 pacientes" não diz se ainda cabe alguém.
+        summary = month_summary(doctor.id, days) if doctor is not None else {}
 
         weeks, week = [], []
-        cursor = grid_start
-        today = timezone.now().date()
-        while cursor < grid_end:
+        for day in days:
+            counts = summary.get(day, {})
             week.append({
-                'date': cursor,
-                'in_month': cursor.month == month_start.month,
-                'is_today': cursor == today,
-                'count': by_date.get(cursor, 0),
-                'blocked': cursor in blocked,
-                'works': cursor.weekday() in weekdays_with_rules,
+                'date': day,
+                'in_month': day.month == month_start.month,
+                'is_today': day == today,
+                'is_past': day < today,
+                'free': counts.get('free', 0),
+                'booked': counts.get('booked', 0),
+                'blocked': bool(counts.get('blocked')) and not counts.get('free'),
+                'works': counts.get('works', False),
             })
-            cursor += timedelta(days=1)
             if len(week) == 7:
                 weeks.append(week)
                 week = []
+
+        totals = {
+            'free': sum(row.get('free', 0) for day, row in summary.items()
+                        if day.month == month_start.month),
+            'booked': sum(row.get('booked', 0) for day, row in summary.items()
+                          if day.month == month_start.month),
+        }
         return render(request, 'scheduling/agenda_month.html', {
             'doctors': doctors, 'doctor': doctor, 'view_mode': 'month',
             'month_start': month_start, 'weeks': weeks, 'today': today,
+            'totals': totals,
             **_nav_urls(
                 'scheduling:month', doctor, month_start,
                 (month_start - timedelta(days=1)).replace(day=1), next_month,
@@ -607,6 +598,59 @@ class AppointmentActionView(TenantScopedView):
         return _agenda_redirect(request, doctor, day)
 
 
+class SendConfirmationView(TenantScopedView):
+    """Envia a confirmação do horário por SMS ou e-mail.
+
+    Reenvio é permitido: mensagem não chega, e a secretária precisa poder
+    mandar de novo. Cada envio fica registrado como uma entrega própria.
+    """
+
+    def post(self, request, appointment_id, channel):
+        from communications.models import DeliveryChannel
+        from communications.services import NoUsableContact, send_appointment_confirmation
+
+        from .models import Appointment
+
+        if channel not in (DeliveryChannel.SMS, DeliveryChannel.EMAIL):
+            raise Http404
+        appointment = get_object_or_404(
+            scope_to_tenant(Appointment.objects.all(), request.access_context), id=appointment_id,
+        )
+        day = timezone.localtime(appointment.starts_at).date()
+        doctor = appointment.physician_membership
+        try:
+            delivery = send_appointment_confirmation(
+                request.access_context, appointment, channel, request.user.id,
+            )
+        except NoUsableContact as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+
+        label = 'SMS' if channel == DeliveryChannel.SMS else 'E-mail'
+        destino = (
+            delivery.contact.phone if channel == DeliveryChannel.SMS else delivery.contact.email
+        )
+        if delivery.status == 'accepted':
+            messages.success(
+                request, f'{label} de confirmação enviado para {destino}.',
+            )
+        elif delivery.status == 'no_contact':
+            messages.warning(
+                request,
+                f'O canal de {label} está desligado nesta instalação ou nas configurações '
+                'da clínica. Nada foi enviado.',
+            )
+        else:
+            erro = delivery.attempts.order_by('-attempt_number').first()
+            detalhe = f' ({erro.sanitized_error})' if erro and erro.sanitized_error else ''
+            messages.error(
+                request,
+                f'Não foi possível enviar o {label} para {destino}{detalhe}. '
+                'Confira as configurações de mensageria.',
+            )
+        return _agenda_redirect(request, doctor, day)
+
+
 class ChangePatientView(TenantScopedView):
     def post(self, request, appointment_id):
         from .models import Appointment
@@ -639,63 +683,170 @@ class ChangePatientView(TenantScopedView):
 
 
 class RescheduleAppointmentView(TenantScopedView):
-    def get(self, request, appointment_id):
+    """Remarcar olhando o mês, não digitando data e hora.
+
+    Quem remarca está ao telefone com o paciente e precisa **ver** onde há
+    vaga. O formulário anterior pedia dois `datetime` digitados: para saber
+    se 14h de quinta estava livre era preciso sair da tela, olhar a agenda e
+    voltar. Aqui o mês mostra a contagem de livres por dia, clicar num dia
+    lista os horários que **cabem** nesta consulta, e clicar num horário
+    remarca.
+
+    A duração é a da consulta que está sendo remarcada e não é editável:
+    remarcar é mudar o quando, não o quanto.
+    """
+
+    def _appointment(self, request, appointment_id):
         from .models import Appointment
 
-        appointment = get_object_or_404(
-            scope_to_tenant(Appointment.objects.all(), request.access_context), id=appointment_id,
+        return get_object_or_404(
+            scope_to_tenant(
+                Appointment.objects.select_related('patient', 'physician_membership__user'),
+                request.access_context,
+            ),
+            id=appointment_id,
         )
-        day = timezone.localtime(appointment.starts_at).date()
-        return render(request, 'scheduling/reschedule.html', {
+
+    def _context(self, request, appointment, **overrides):
+        current = timezone.localtime(appointment.starts_at)
+        minutes = int((appointment.ends_at - appointment.starts_at).total_seconds() // 60)
+
+        month_ref = _parse_date(request.GET.get('month'), default=current.date().replace(day=1))
+        month_start = month_ref.replace(day=1)
+        next_month = (month_start + timedelta(days=32)).replace(day=1)
+        grid_start = month_start - timedelta(days=month_start.weekday())
+        grid_end = next_month + timedelta(days=(7 - next_month.weekday()) % 7)
+
+        days = []
+        cursor = grid_start
+        while cursor < grid_end:
+            days.append(cursor)
+            cursor += timedelta(days=1)
+
+        doctor_id = appointment.physician_membership_id
+        summary = month_summary(doctor_id, days)
+        today = timezone.now().date()
+
+        selected = None
+        if request.GET.get('date'):
+            selected = _parse_date(request.GET.get('date'))
+
+        weeks, week = [], []
+        for day in days:
+            counts = summary.get(day, {})
+            week.append({
+                'date': day,
+                'in_month': day.month == month_start.month,
+                'is_today': day == today,
+                'is_past': day < today,
+                'is_current': day == current.date(),
+                'is_selected': day == selected,
+                'free': counts.get('free', 0),
+                'booked': counts.get('booked', 0),
+                'works': counts.get('works', False),
+            })
+            if len(week) == 7:
+                weeks.append(week)
+                week = []
+
+        slots = []
+        if selected is not None:
+            slots = [
+                {'start': start, 'end': end}
+                for start, end in available_slots(doctor_id, selected, minutes=minutes)
+            ]
+
+        base = reverse('scheduling:reschedule', args=[appointment.id])
+        previous_month = (month_start - timedelta(days=1)).replace(day=1)
+        context = {
             'appointment': appointment,
+            'current': current,
+            'minutes': minutes,
+            'month_start': month_start,
+            'weeks': weeks,
+            'today': today,
+            'selected_day': selected,
+            'slots': slots,
+            'prev_month_url': f'{base}?month={previous_month.isoformat()}',
+            'next_month_url': f'{base}?month={next_month.isoformat()}',
+            'this_month_url': f'{base}?month={today.replace(day=1).isoformat()}',
+            'day_url_base': base,
             'form': RescheduleAppointmentForm(initial={
                 'starts_at': appointment.starts_at, 'ends_at': appointment.ends_at,
                 'row_version': appointment.row_version,
             }),
-            'slots': available_slots(
-                appointment.physician_membership_id, day,
-                minutes=int((appointment.ends_at - appointment.starts_at).total_seconds() // 60),
-            ),
-            'day': day,
-        })
+        }
+        context.update(overrides)
+        return context
+
+    def get(self, request, appointment_id):
+        appointment = self._appointment(request, appointment_id)
+        return render(request, 'scheduling/reschedule.html', self._context(request, appointment))
 
     def post(self, request, appointment_id):
-        from .models import Appointment
+        from django.forms.fields import DateTimeField
 
-        appointment = get_object_or_404(
-            scope_to_tenant(Appointment.objects.all(), request.access_context), id=appointment_id,
-        )
-        form = RescheduleAppointmentForm(request.POST)
+        from .availability import fits
+
+        appointment = self._appointment(request, appointment_id)
+        doctor = appointment.physician_membership
+        original_day = timezone.localtime(appointment.starts_at).date()
+        minutes = int((appointment.ends_at - appointment.starts_at).total_seconds() // 60)
+
+        # O clique num horário da lista manda apenas o início; o fim vem da
+        # duração da própria consulta. Digitar o fim à mão numa remarcação
+        # seria a chance de encurtar a consulta sem querer.
+        raw_start = request.POST.get('starts_at')
+        raw_end = request.POST.get('ends_at')
+        row_version = request.POST.get('row_version') or appointment.row_version
+        if raw_start and not raw_end:
+            parsed = DateTimeField(required=False).clean(raw_start)
+            if parsed is not None:
+                raw_end = (parsed + timedelta(minutes=minutes)).isoformat()
+
+        form = RescheduleAppointmentForm({
+            'starts_at': raw_start, 'ends_at': raw_end, 'row_version': row_version,
+        })
         if not form.is_valid():
-            return render(request, 'scheduling/reschedule.html', {
-                'appointment': appointment, 'form': form,
-                'day': timezone.localtime(appointment.starts_at).date(),
-            })
-        if form.cleaned_data['row_version'] != appointment.row_version:
+            messages.error(request, next(iter(form.errors.values()))[0])
+            return render(
+                request, 'scheduling/reschedule.html', self._context(request, appointment),
+            )
+
+        if int(form.cleaned_data['row_version']) != appointment.row_version:
             messages.error(
                 request,
-                'Este horário mudou desde que você abriu a tela. Recarregue antes de remarcar.',
+                'Este horário mudou desde que você abriu a tela. Recarregue antes de '
+                'remarcar — outra pessoa pode ter remarcado ou cancelado.',
             )
-            return _agenda_redirect(
-                request, appointment.physician_membership,
-                timezone.localtime(appointment.starts_at).date(),
-            )
+            return redirect('scheduling:reschedule', appointment_id=appointment.id)
+
+        new_start = form.cleaned_data['starts_at']
+        new_end = form.cleaned_data['ends_at']
+        day_param = timezone.localtime(new_start).date().isoformat()
+        back = f'{reverse("scheduling:reschedule", args=[appointment.id])}?date={day_param}'
+
+        ok, reason = fits(doctor.id, new_start, new_end)
+        if not ok:
+            messages.error(request, reason)
+            return redirect(back)
         try:
             services.reschedule_appointment(
-                request.access_context, appointment,
-                form.cleaned_data['starts_at'], form.cleaned_data['ends_at'], request.user.id,
+                request.access_context, appointment, new_start, new_end, request.user.id,
             )
-        except Exception as exc:
-            form.add_error(None, str(exc))
-            return render(request, 'scheduling/reschedule.html', {
-                'appointment': appointment, 'form': form,
-                'day': timezone.localtime(appointment.starts_at).date(),
-            })
+        except Exception:
+            messages.error(
+                request, 'Este horário acabou de ser ocupado por outra reserva. Escolha outro.',
+            )
+            return redirect(back)
+
         local = timezone.localtime(appointment.starts_at)
-        messages.success(request, f'Remarcado para {local.strftime("%d/%m/%Y às %H:%M")}.')
-        return _agenda_redirect(
-            request, appointment.physician_membership, local.date(),
+        messages.success(
+            request,
+            f'{appointment.patient.full_name} remarcado de '
+            f'{original_day.strftime("%d/%m")} para {local.strftime("%d/%m/%Y às %H:%M")}.',
         )
+        return _agenda_redirect(request, doctor, local.date())
 
 
 class ReserveAppointmentView(TenantScopedView):

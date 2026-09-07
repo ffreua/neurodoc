@@ -1,0 +1,50 @@
+{% load nd %}
+{% comment %}Remetente de e-mail de um médico.
+
+Servidor SMTP próprio é opcional: um médico pode querer apenas que o e-mail
+saia no nome dele, pelo servidor da instalação. Só quando há host informado
+é que se abre uma conexão separada.
+
+A senha em branco **não** apaga a senha guardada — reabrir a tela para mudar
+a porta e salvar não pode zerar a credencial.
+{% endcomment %}
+<form method="post" action="{% url 'messaging:save-doctor-email' doctor.id %}" novalidate>
+    {% csrf_token %}
+    {% include "partials/form_errors.html" with form=form %}
+    <div class="row g-3">
+        {% include "partials/field.html" with field=form.from_name col="col-lg-6" %}
+        {% include "partials/field.html" with field=form.from_email col="col-lg-6" %}
+        {% include "partials/field.html" with field=form.reply_to col="col-lg-6" %}
+        {% include "partials/field.html" with field=form.enabled col="col-lg-6" %}
+    </div>
+
+    <details class="mt-3" {% if settings.uses_own_server or form.smtp_host.errors or form.smtp_port.errors or form.smtp_password.errors %}open{% endif %}>
+        <summary class="fs-12 text-muted">Servidor SMTP próprio deste médico</summary>
+        <div class="border rounded-3 p-3 bg-gray-100 mt-2">
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.smtp_host col="col-lg-7" %}
+                {% include "partials/field.html" with field=form.smtp_port col="col-lg-5" %}
+                {% include "partials/field.html" with field=form.smtp_user col="col-lg-7" %}
+                {% include "partials/field.html" with field=form.smtp_password col="col-lg-5" %}
+                {% include "partials/field.html" with field=form.use_tls col="col-lg-6" %}
+                {% include "partials/field.html" with field=form.use_ssl col="col-lg-6" %}
+            </div>
+            {% if settings and settings.has_password %}
+            <div class="form-text fs-11">
+                Senha guardada: <code>{{ settings.smtp_password_hint }}</code>. Em branco, mantém.
+            </div>
+            {% endif %}
+        </div>
+    </details>
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+        <button type="submit" class="btn btn-primary" data-nd-busy>Salvar remetente</button>
+    </div>
+</form>
+{% if settings and settings.uses_own_server %}
+<form method="post" action="{% url 'messaging:test-doctor-email' doctor.id %}" class="mt-2">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-light btn-sm" data-nd-busy>Testar a conexão SMTP</button>
+    <span class="fs-11 text-muted ms-2">Abre a conexão e fecha. Nenhum e-mail é enviado.</span>
+</form>
+{% endif %}

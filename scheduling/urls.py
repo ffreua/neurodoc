@@ -58,5 +58,9 @@ urlpatterns = [
         '<uuid:appointment_id>/trocar-paciente/',
         views.ChangePatientView.as_view(), name='change-patient',
     ),
+    path(
+        '<uuid:appointment_id>/confirmar-por/<str:channel>/',
+        views.SendConfirmationView.as_view(), name='send-confirmation',
+    ),
     path('<uuid:appointment_id>/<str:action>/', views.AppointmentActionView.as_view(), name='action'),
 ]

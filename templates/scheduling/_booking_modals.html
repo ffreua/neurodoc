@@ -146,6 +146,41 @@ clicado diz qual horário e qual paciente.
                         </button>
                     </form>
                     <a class="btn btn-light btn-sm" id="slot-reschedule">Remarcar</a>
+                </div>
+
+                {% comment %}Confirmação por SMS e por e-mail.
+
+                A secretária acabou de falar com o paciente e está confirmando o
+                horário no contato que ele passou. É mensagem transacional,
+                pedida por quem atende — diferente do lembrete automático, que
+                exige opt-in e verificação prévia. Reenvio é permitido: mensagem
+                não chega, e cada envio fica registrado.{% endcomment %}
+                <div class="border-top mt-3 pt-3">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                        Confirmar com o paciente
+                    </span>
+                    <div class="d-flex flex-wrap gap-2">
+                        <form method="post" id="slot-sms-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="return_to" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                                Enviar SMS
+                            </button>
+                        </form>
+                        <form method="post" id="slot-email-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="return_to" value="{{ request.path }}">
+                            <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                                Enviar e-mail
+                            </button>
+                        </form>
+                    </div>
+                    <span class="d-block fs-10 text-muted mt-2" id="slot-contact-hint"></span>
+                </div>
+
+                <div class="d-grid gap-2 mt-3">
                     <button type="button" class="btn btn-light btn-sm" id="slot-change-open">
                         Trocar o paciente deste horário
                     </button>

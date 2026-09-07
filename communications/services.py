@@ -67,12 +67,18 @@ def _record_attempt(delivery, outcome, provider_code='', sanitized_error=''):
     )
 
 
-def _send(delivery, message):
+def _send(delivery, message, subject='Notificação NeuroDoc', physician_membership=None):
     try:
         if delivery.channel == DeliveryChannel.EMAIL:
-            send_email(delivery.contact.email, 'Notificação NeuroDoc', message)
+            send_email(
+                delivery.contact.email, subject, message,
+                physician_membership=physician_membership,
+            )
         else:
-            result = send_sms(delivery.contact.phone, message, refer=str(delivery.id))
+            result = send_sms(
+                delivery.contact.phone, message, refer=str(delivery.id),
+                tenant_id=delivery.tenant_id,
+            )
             delivery.provider_id = str(result.get('id', ''))[:100]
     except SmsChannelDisabled:
         delivery.status = DeliveryStatus.NO_CONTACT
@@ -138,6 +144,128 @@ def deliver_appointment_reminder(appointment, event_version):
                 },
             )
             if created or delivery.status == DeliveryStatus.PENDING:
-                _send(delivery, message)
+                _send(
+                    delivery, message,
+                    physician_membership=appointment.physician_membership,
+                )
             deliveries.append(delivery)
     return deliveries
+
+
+# --------------------------------------------------------------------------
+# Confirmação enviada à mão pela secretaria
+# --------------------------------------------------------------------------
+
+CONFIRMATION_SMS_TEMPLATE = (
+    '{clinic}: consulta com {doctor} em {when}. Confirme respondendo a esta '
+    'mensagem ou ligue para a clinica.'
+)
+CONFIRMATION_EMAIL_SUBJECT = 'Confirmação de consulta'
+CONFIRMATION_EMAIL_TEMPLATE = """Olá, {patient}.
+
+Sua consulta está marcada:
+
+  Data e hora: {when}
+  Profissional: {doctor}
+  Local: {clinic}
+
+Se precisar remarcar ou cancelar, entre em contato com a clínica.
+
+Esta mensagem é apenas uma confirmação de horário e não contém informação clínica.
+"""
+
+
+class NoUsableContact(Exception):
+    pass
+
+
+def confirmation_contacts(appointment, channel):
+    """Contatos que podem receber a confirmação por este canal.
+
+    **Não** exige o opt-in nem a verificação que os lembretes automáticos
+    exigem, e a diferença é deliberada: aqui a secretária acabou de falar
+    com a pessoa e está confirmando o horário no número que ela mesma
+    passou. É mensagem transacional, pedida por quem atende, para quem
+    marcou — não é disparo automático nem comunicação de marketing.
+
+    Exigir verificação prévia inviabilizaria justamente o caso do
+    pré-cadastro por telefone, que é o motivo de o canal existir.
+
+    Continua valendo: contato com validade vencida sai da lista, e a
+    mensagem não leva conteúdo clínico.
+    """
+    field = 'email' if channel == DeliveryChannel.EMAIL else 'phone'
+    return [
+        contact for contact in appointment.patient.contacts.all()
+        if _still_valid(contact) and getattr(contact, field)
+    ]
+
+
+def _confirmation_message(appointment, channel):
+    tenant = appointment.tenant
+    clinic = (tenant.trade_name or tenant.legal_name or 'Clinica')[:40]
+    doctor = (
+        appointment.physician_membership.user.get_full_name()
+        or appointment.physician_membership.user.email
+    )
+    when = timezone.localtime(appointment.starts_at).strftime('%d/%m/%Y às %H:%M')
+    if channel == DeliveryChannel.EMAIL:
+        return CONFIRMATION_EMAIL_TEMPLATE.format(
+            patient=appointment.patient.full_name.split()[0],
+            when=when, doctor=doctor, clinic=clinic,
+        )
+    # SMS tem 160 caracteres: o nome do médico entra encurtado quando
+    # precisa, e a data sem o ano, que a pessoa já sabe.
+    short_when = timezone.localtime(appointment.starts_at).strftime('%d/%m às %H:%M')
+    short_doctor = doctor if len(doctor) <= 24 else doctor.split()[0]
+    text = CONFIRMATION_SMS_TEMPLATE.format(
+        clinic=clinic[:24], doctor=short_doctor, when=short_when,
+    )
+    return text[:160]
+
+
+@transaction.atomic
+def send_appointment_confirmation(context, appointment, channel, actor_id, contact=None):
+    """Envia a confirmação de um horário por SMS ou e-mail.
+
+    Reenvio é permitido de propósito: a mensagem pode não chegar, e a
+    secretária precisa poder mandar de novo. Cada envio é uma `Delivery`
+    própria, numerada — o histórico mostra quantas vezes se tentou, em vez de
+    sobrescrever a tentativa anterior.
+    """
+    from audit.services import record_audit_event
+
+    candidates = [contact] if contact is not None else confirmation_contacts(appointment, channel)
+    candidates = [c for c in candidates if c is not None]
+    if not candidates:
+        campo = 'e-mail' if channel == DeliveryChannel.EMAIL else 'telefone'
+        raise NoUsableContact(
+            f'Nenhum contato deste paciente tem {campo} cadastrado. '
+            'Inclua o contato na ficha do paciente.'
+        )
+
+    target = candidates[0]
+    message = _confirmation_message(appointment, channel)
+    sent = Delivery.objects.filter(
+        appointment=appointment, contact=target, channel=channel,
+        idempotency_key__startswith=f'confirmation:{appointment.id}:',
+    ).count()
+    delivery = Delivery.objects.create(
+        tenant=appointment.tenant, appointment=appointment, contact=target, channel=channel,
+        event_version=appointment.row_version,
+        idempotency_key=f'confirmation:{appointment.id}:{target.id}:{channel}:{sent + 1}',
+    )
+    _send(
+        delivery, message, subject=CONFIRMATION_EMAIL_SUBJECT,
+        physician_membership=appointment.physician_membership,
+    )
+    delivery.refresh_from_db()
+    record_audit_event(
+        actor_id, appointment.tenant_id, 'communications.confirmation_sent',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={
+            'channel': channel, 'contact_id': str(target.id), 'status': delivery.status,
+            'attempt': sent + 1,
+        },
+    )
+    return delivery

@@ -158,6 +158,14 @@ MEDIA_URL = '/private-media-unrouted/'
 PFX_ROOT = Path('/data/signing')
 SIGNING_SESSION_KEY_ROOT = Path('/run/neurodoc-signing')
 PFX_MASTER_KEY = secret('PFX_MASTER_KEY', required=False)
+
+# Chave-mestra dos segredos que a clínica configura pela tela (chave do
+# SMSDEV, senha de SMTP do médico). Separada da do PFX de propósito:
+# comprometer a chave de SMS não deveria dar acesso ao certificado de
+# assinatura. Enquanto não for definida, `base.crypto` cai na do PFX para a
+# instalação existente continuar funcionando, e a tela avisa que estão
+# compartilhadas.
+SECRETS_MASTER_KEY = secret('SECRETS_MASTER_KEY', required=False)
 DATA_UPLOAD_MAX_MEMORY_SIZE = 26214400
 FILE_UPLOAD_MAX_MEMORY_SIZE = 1048576
 SECURE_SSL_REDIRECT = not DEBUG

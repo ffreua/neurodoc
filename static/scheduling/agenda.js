@@ -79,6 +79,9 @@
         var changeChosen = document.getElementById('change-chosen');
         var changePatientId = document.getElementById('change-patient-id');
         var changeSearch = document.getElementById('change-search');
+        var smsForm = document.getElementById('slot-sms-form');
+        var emailForm = document.getElementById('slot-email-form');
+        var contactHint = document.getElementById('slot-contact-hint');
 
         var STATUS_TONE = {
             scheduled: 'bg-soft-primary text-primary',
@@ -108,11 +111,30 @@
             cancelForm.action = '/app/scheduling/' + id + '/cancel/';
             changeForm.action = '/app/scheduling/' + id + '/trocar-paciente/';
             rescheduleLink.href = '/app/scheduling/' + id + '/remarcar/';
+            if (smsForm) smsForm.action = '/app/scheduling/' + id + '/confirmar-por/sms/';
+            if (emailForm) emailForm.action = '/app/scheduling/' + id + '/confirmar-por/email/';
+            if (contactHint) {
+                /* Diz para onde a mensagem vai antes de clicar: mandar
+                 * confirmação para o telefone errado é o tipo de erro que
+                 * só aparece quando o paciente não vem. */
+                var phone = cell.getAttribute('data-nd-phone') || '';
+                var mail = cell.getAttribute('data-nd-email') || '';
+                var parts = [];
+                if (phone) parts.push('SMS para ' + phone);
+                if (mail) parts.push('e-mail para ' + mail);
+                contactHint.textContent = parts.length
+                    ? parts.join(' · ')
+                    : 'Este paciente não tem telefone nem e-mail cadastrado.';
+            }
 
             /* Só faz sentido confirmar quem ainda não confirmou nem chegou. */
             var status = cell.getAttribute('data-status');
             confirmForm.hidden = status !== 'scheduled';
             checkinForm.hidden = ['checked_in', 'in_progress', 'completed', 'no_show'].indexOf(status) !== -1;
+            /* Sem contato, o botão sai da tela: um botão que sempre devolve
+             * erro é pior que a ausência dele. */
+            if (smsForm) smsForm.hidden = !cell.getAttribute('data-nd-phone');
+            if (emailForm) emailForm.hidden = !cell.getAttribute('data-nd-email');
 
             changePanel.hidden = true;
             cancelPanel.hidden = true;

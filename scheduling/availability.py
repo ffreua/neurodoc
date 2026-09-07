@@ -166,7 +166,8 @@ def slot_minutes_for(physician_membership_id, day, rules=None):
     return min(values)
 
 
-def day_grid(physician_membership_id, day, appointments=None, include_cancelled=False):
+def day_grid(physician_membership_id, day, appointments=None, include_cancelled=False,
+             rules=None, blocks=None):
     """A grade do dia, célula por célula, para a tela desenhar.
 
     Cada célula é um dicionário com `start`, `end`, `status` e o que aquele
@@ -183,8 +184,11 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     Célula fora da janela do médico simplesmente não existe na lista — a
     grade da tela desenha o vazio.
     """
-    rules = rules_on(physician_membership_id, day)
-    blocks = blocks_on(physician_membership_id, day)
+    # `rules`/`blocks` podem vir pré-carregados: a visão de mês monta 42
+    # grades, e ir ao banco em cada uma seriam mais de cem consultas para
+    # desenhar um calendário.
+    rules = rules if rules is not None else rules_on(physician_membership_id, day)
+    blocks = blocks if blocks is not None else blocks_on(physician_membership_id, day)
     step = slot_minutes_for(physician_membership_id, day, rules=rules)
     extra = [b for b in blocks if b.kind == ScheduleBlockKind.EXTRA_AVAILABILITY]
     if step is None:
@@ -353,3 +357,77 @@ def fits(physician_membership_id, starts_at, ends_at):
             f'o atendimento deste dia termina às {end_local}.'
         )
     return True, ''
+
+
+def month_summary(physician_membership_id, days):
+    """Contagem de horários livres e ocupados para cada dia da lista.
+
+    Existe para a visão de mês poder responder "onde tem vaga" — que é a
+    pergunta de quem está remarcando ao telefone. Uma célula de mês com
+    apenas "2 pacientes" não diz se ainda cabe alguém.
+
+    Carrega regras, bloqueios e reservas **uma vez** e monta as grades em
+    memória. Chamar `day_grid` por dia seriam mais de cem consultas para
+    desenhar um calendário; assim são três.
+    """
+    if not days:
+        return {}
+    start, end = min(days), max(days)
+    day_start = _combine(start, time.min)
+    day_end = _combine(end, time.min) + timedelta(days=1)
+
+    all_rules = list(
+        AvailabilityRule.objects.filter(
+            physician_membership_id=physician_membership_id, starts_on__lte=end,
+        ).filter(Q(ends_on__isnull=True) | Q(ends_on__gte=start))
+    )
+    all_blocks = list(
+        ScheduleBlock.objects.filter(
+            physician_membership_id=physician_membership_id,
+            start_at__lt=day_end, end_at__gt=day_start,
+        )
+    )
+    all_appointments = list(
+        Appointment.objects.filter(
+            physician_membership_id=physician_membership_id,
+            starts_at__lt=day_end, ends_at__gt=day_start,
+            status__in=list(OCCUPYING_STATUSES),
+        ).select_related('patient')
+    )
+
+    summary = {}
+    for day in days:
+        window_start = _combine(day, time.min)
+        window_end = window_start + timedelta(days=1)
+        rules = [
+            rule for rule in all_rules
+            if rule.weekday == day.weekday() and rule.starts_on <= day
+            and (rule.ends_on is None or rule.ends_on >= day)
+        ]
+        blocks = [
+            block for block in all_blocks
+            if block.start_at < window_end and block.end_at > window_start
+        ]
+        appointments = [
+            appointment for appointment in all_appointments
+            if appointment.starts_at < window_end and appointment.ends_at > window_start
+        ]
+        cells = day_grid(
+            physician_membership_id, day, appointments=appointments,
+            rules=rules, blocks=blocks,
+        )
+        # "Ocupados" conta **pacientes**, não células: uma consulta de 80 min
+        # ocupa duas células e continua sendo um paciente. Contar células
+        # faria a agenda parecer duas vezes mais cheia do que está.
+        summary[day] = {
+            'free': sum(1 for cell in cells if cell['status'] == 'free'),
+            'past': sum(1 for cell in cells if cell['status'] == 'past'),
+            'blocked': sum(1 for cell in cells if cell['status'] == 'blocked'),
+            'booked': len({
+                cell['appointment'].id for cell in cells
+                if cell['status'] == 'busy' and cell['appointment'] is not None
+            }),
+            'total': len(cells),
+            'works': bool(cells),
+        }
+    return summary

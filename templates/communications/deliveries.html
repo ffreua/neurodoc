@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}Entregas recentes{% endblock %}
+{% block page_title %}Entregas recentes{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'messaging:settings' %}">Mensageria</a></li>
+<li class="breadcrumb-item">Entregas</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light-primary" href="{% url 'messaging:settings' %}">Configurar mensageria</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}Sem o conteúdo da mensagem, de propósito: canal, destino, estado
+e quando é o que responde "o SMS não chegou". Guardar o texto aqui faria da
+tela um arquivo de mensagens do paciente, que é outra coisa.{% endcomment %}
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Últimas 100 entregas</h5>
+        <span class="fs-11 text-muted">Sem o texto da mensagem</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Quando</th>
+                        <th scope="col">Canal</th>
+                        <th scope="col">Destino</th>
+                        <th scope="col">Origem</th>
+                        <th scope="col">Estado</th>
+                        <th class="text-end pe-4" scope="col">Tentativas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for delivery in deliveries %}
+                    <tr>
+                        <td class="ps-4 fs-12">{{ delivery.created_at|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="badge bg-gray-200 text-dark">{{ delivery.get_channel_display }}</span>
+                        </td>
+                        <td class="text-wrap">
+                            <span class="fs-12 fw-semibold text-dark">{{ delivery.contact.patient.full_name }}</span>
+                            <span class="d-block fs-11 text-muted">
+                                {% if delivery.channel == 'sms' %}{{ delivery.contact.phone }}
+                                {% else %}{{ delivery.contact.email }}{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="fs-11 text-muted">
+                                {% if delivery.appointment %}
+                                Agenda — {{ delivery.appointment.starts_at|date:"d/m H:i" }}
+                                {% elif delivery.document %}
+                                Documento
+                                {% else %}—{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-soft-{{ delivery.status|nd_tone }} text-{{ delivery.status|nd_tone }}">
+                                {{ delivery.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="text-end pe-4">
+                            <span class="fs-12">{{ delivery.attempts.count }}</span>
+                            {% with last=delivery.attempts.last %}
+                            {% if last.sanitized_error %}
+                            <span class="d-block fs-10 text-danger">{{ last.sanitized_error }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-5 fs-13">
+                        Nenhuma entrega registrada nesta organização.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

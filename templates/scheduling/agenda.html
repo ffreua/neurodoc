@@ -101,6 +101,11 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
                     data-nd-type="{{ cell.appointment.get_type_display }}"
                     data-nd-status-label="{{ cell.appointment.get_status_display }}"
                     data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
+                    {% comment %}Contato do paciente no atributo: o modal precisa
+                    dizer para onde a confirmação vai antes de alguém clicar.{% endcomment %}
+                    {% for contact in cell.appointment.patient.contacts.all|slice:":1" %}
+                    data-nd-phone="{{ contact.phone }}" data-nd-email="{{ contact.email }}"
+                    {% endfor %}
                     aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}">
                 {% if cell.is_start %}
                 <span class="nd-slot-name">{{ cell.appointment.patient.full_name }}</span>

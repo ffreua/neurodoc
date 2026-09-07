@@ -1,30 +1,199 @@
 {% extends "base.html" %}
-{% block title %}Remarcar — Agenda{% endblock %}
-{% block page_title %}Remarcar consulta{% endblock %}
+{% load nd %}
+{% block title %}Remarcar — {{ appointment.patient.full_name }}{% endblock %}
+{% block page_title %}Remarcar atendimento{% endblock %}
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
-<li class="breadcrumb-item"><a href="{% url 'scheduling:day' %}">Agenda</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
 <li class="breadcrumb-item">Remarcar</li>
 {% endblock %}
+{% block page_actions %}
+<a class="btn btn-light"
+   href="{% url 'scheduling:week' %}?physician={{ appointment.physician_membership_id }}&date={{ current|date:'Y-m-d' }}">
+    Voltar para a agenda
+</a>
+{% endblock %}
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-xxl-6 col-xl-8">
-        <div class="card stretch stretch-full">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">{{ appointment.patient.full_name }}</h5>
-                <span class="badge bg-soft-primary text-primary">{{ appointment.starts_at|date:"d/m/Y H:i" }}</span>
+
+{% comment %}Remarcar olhando o mês, não digitando data e hora.
+
+Quem remarca está ao telefone e precisa **ver** onde há vaga. O mês mostra a
+contagem de livres por dia; clicar num dia lista os horários que cabem nesta
+consulta; clicar num horário remarca.
+{% endcomment %}
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0">
+                    {{ appointment.patient.full_name|slice:":1"|upper }}
+                </span>
+                <div>
+                    <a class="fw-bold text-dark fs-14 d-block"
+                       href="{% url 'patients:detail' appointment.patient_id %}">
+                        {{ appointment.patient.full_name }}
+                    </a>
+                    <span class="fs-12 text-muted">
+                        Hoje marcado para <strong>{{ current|date:"l, d/m/Y \à\s H:i" }}</strong>
+                        · {{ appointment.get_type_display }} · {{ minutes }} min
+                        · {{ appointment.physician_membership.user.get_full_name }}
+                    </span>
+                </div>
+            </div>
+            <span class="badge bg-soft-{{ appointment.status|nd_tone }} text-{{ appointment.status|nd_tone }}">
+                {{ appointment.get_status_display }}
+            </span>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-xxl-8 col-xl-7">
+        <div class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0 text-capitalize">{{ month_start|date:"F \d\e Y" }}</h5>
+                <div class="d-inline-flex align-items-center gap-1">
+                    <a class="btn btn-icon btn-sm btn-light" href="{{ prev_month_url }}"
+                       aria-label="Mês anterior">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                    </a>
+                    <a class="btn btn-sm btn-light" href="{{ this_month_url }}">Mês atual</a>
+                    <a class="btn btn-icon btn-sm btn-light" href="{{ next_month_url }}"
+                       aria-label="Próximo mês">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                    </a>
+                </div>
             </div>
             <div class="card-body">
-                <form method="post" novalidate>
-                    {% csrf_token %}
-                    {% include "partials/form_fields.html" %}
-                    <div class="d-flex align-items-center gap-2 mt-4">
-                        <button type="submit" class="btn btn-primary" data-nd-busy>Remarcar</button>
-                        <a class="btn btn-light" href="{% url 'scheduling:day' %}">Cancelar</a>
-                    </div>
-                </form>
+                <p class="fs-12 text-muted">
+                    Escolha o dia; os horários em que cabe uma consulta de
+                    <strong>{{ minutes }} minutos</strong> aparecem ao lado.
+                </p>
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0 text-center">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Seg</th>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Ter</th>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Qua</th>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Qui</th>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Sex</th>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Sáb</th>
+                                <th class="fs-11 text-muted fw-normal" scope="col">Dom</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for week in weeks %}
+                            <tr>
+                                {% for day in week %}
+                                <td class="p-1 {% if not day.in_month %}bg-gray-100{% endif %}"
+                                    style="height:5rem;vertical-align:top">
+                                    {% if day.works and day.free and not day.is_past %}
+                                    {% comment %}Só dia com vaga é clicável: oferecer um dia lotado
+                                    ou já passado só gera um clique que não leva a nada.{% endcomment %}
+                                    <a class="d-block text-decoration-none h-100 p-2 rounded-3 text-start {% if day.is_selected %}bg-soft-primary border border-primary{% elif day.is_today %}bg-soft-info{% endif %}"
+                                       href="{{ day_url_base }}?month={{ month_start|date:'Y-m-d' }}&date={{ day.date|date:'Y-m-d' }}">
+                                        <span class="d-block fw-bold text-dark fs-13">{{ day.date|date:"j" }}</span>
+                                        <span class="d-block fs-10 text-success fw-semibold">
+                                            {{ day.free }} livre{{ day.free|pluralize }}
+                                        </span>
+                                        {% if day.booked %}
+                                        <span class="d-block fs-10 text-muted">{{ day.booked }} agendado{{ day.booked|pluralize }}</span>
+                                        {% endif %}
+                                    </a>
+                                    {% else %}
+                                    <div class="h-100 p-2 text-start">
+                                        <span class="d-block fw-bold fs-13 {% if day.in_month %}text-muted{% else %}text-body-tertiary{% endif %}">
+                                            {{ day.date|date:"j" }}
+                                        </span>
+                                        {% if day.is_current %}
+                                        <span class="badge bg-soft-warning text-warning fs-10">atual</span>
+                                        {% elif day.works and not day.is_past %}
+                                        <span class="d-block fs-10 text-muted">lotado</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                {% endfor %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
+    </div>
+
+    <div class="col-xxl-4 col-xl-5">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    {% if selected_day %}
+                    Horários de {{ selected_day|date:"d/m/Y" }}
+                    {% else %}
+                    Escolha um dia
+                    {% endif %}
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if not selected_day %}
+                <p class="fs-13 text-muted mb-0">
+                    Clique num dia com vaga no calendário. Os horários em que cabe esta consulta
+                    de {{ minutes }} minutos aparecem aqui.
+                </p>
+                {% elif not slots %}
+                <p class="fs-13 text-muted mb-0">
+                    Nenhum horário livre neste dia comporta uma consulta de {{ minutes }} minutos.
+                    Escolha outro dia.
+                </p>
+                {% else %}
+                <div class="d-grid gap-2">
+                    {% for slot in slots %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="starts_at" value="{{ slot.start|date:'c' }}">
+                        <input type="hidden" name="row_version" value="{{ appointment.row_version }}">
+                        <input type="hidden" name="return_to" value="{% url 'scheduling:week' %}">
+                        <button type="submit" class="btn btn-light-primary w-100 d-flex justify-content-between align-items-center"
+                                data-nd-busy>
+                            <span class="fw-bold">{{ slot.start|date:"H:i" }}</span>
+                            <span class="fs-11 text-muted">até {{ slot.end|date:"H:i" }}</span>
+                        </button>
+                    </form>
+                    {% endfor %}
+                </div>
+                <p class="fs-11 text-muted mt-3 mb-0">
+                    Clicar remarca direto. A duração continua a mesma
+                    ({{ minutes }} min) — remarcar muda o quando, não o quanto.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+
+        {% comment %}O campo manual fica recolhido: existe para o caso de
+        encaixe fora da grade, que a lista de horários livres não oferece por
+        definição.{% endcomment %}
+        <details class="mt-3">
+            <summary class="fs-12 text-muted">Informar data e hora à mão</summary>
+            <div class="card mt-2">
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        {% include "partials/form_errors.html" with form=form %}
+                        <div class="row g-3">
+                            {% include "partials/field.html" with field=form.starts_at col="col-12" %}
+                            {% include "partials/field.html" with field=form.ends_at col="col-12" %}
+                        </div>
+                        {{ form.row_version }}
+                        <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Remarcar</button>
+                        <div class="form-text fs-11">
+                            Continua valendo a checagem de disponibilidade: horário fora da grade,
+                            em feriado bloqueado ou já ocupado é recusado.
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </details>
     </div>
 </div>
 {% endblock %}

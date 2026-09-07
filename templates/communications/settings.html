@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}Mensageria — Configurações da clínica{% endblock %}
+{% block page_title %}Mensageria{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Configurações da clínica</li>
+<li class="breadcrumb-item">Mensageria</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'messaging:deliveries' %}">Entregas recentes</a>
+<a class="btn btn-light" href="{% url 'tenancy:collaborators' %}">Colaboradores</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}Área do gestor: a chave da API de SMS e a senha do servidor de
+e-mail são credenciais da organização. Segredo nunca volta para a tela — o
+que se mostra é a máscara, para conferir que a chave gravada é a certa.
+{% endcomment %}
+
+{% if not has_master_key %}
+<div class="alert alert-danger fade show fs-13 d-flex align-items-start gap-2" role="alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+    <span>
+        <strong>Não há chave-mestra de segredos configurada.</strong>
+        Sem ela a chave do SMSDEV e a senha do SMTP não podem ser guardadas cifradas, e por isso
+        não serão aceitas. Defina o segredo <code>SECRETS_MASTER_KEY</code> na instalação.
+    </span>
+</div>
+{% elif shared_master_key %}
+<div class="alert alert-warning fade show fs-12" role="alert">
+    A chave-mestra de segredos está compartilhada com a do certificado de assinatura
+    (<code>PFX_MASTER_KEY</code>). Funciona, mas o recomendado é definir
+    <code>SECRETS_MASTER_KEY</code> em separado: comprometer a chave de SMS não deveria dar
+    acesso ao certificado.
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-xxl-5 col-xl-6">
+        {% comment %}--------------------------------------------------- SMS{% endcomment %}
+        <div class="card">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">SMS (SMSDEV)</h5>
+                {% if sms.sms_enabled and sms.has_api_key %}
+                <span class="badge bg-soft-success text-success">Configurado</span>
+                {% elif sms.has_api_key %}
+                <span class="badge bg-gray-200 text-dark">Chave salva, canal desativado</span>
+                {% else %}
+                <span class="badge bg-soft-warning text-warning">Sem chave</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if not sms_globally_enabled %}
+                <div class="alert alert-warning fade show fs-12" role="alert">
+                    O canal de SMS está desligado nesta instalação (<code>SMS_ENABLED=False</code>).
+                    A chave pode ser salva e testada aqui, mas nenhum SMS sai enquanto isso não
+                    mudar no deploy — e o sistema avisa em vez de fingir que enviou.
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'messaging:save-sms' %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=sms_form %}
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=sms_form.api_key col="col-12" %}
+                        {% include "partials/field.html" with field=sms_form.sms_sender_name col="col-12" %}
+                        {% include "partials/field.html" with field=sms_form.sms_enabled col="col-12" %}
+                    </div>
+                    {% if sms.has_api_key %}
+                    <div class="form-text fs-11">
+                        Chave guardada: <code>{{ sms.sms_api_key_hint }}</code>
+                        {% if sms.updated_by %}
+                        — atualizada por {{ sms.updated_by.user.get_full_name|default:sms.updated_by.user.email }}
+                        em {{ sms.updated_at|date:"d/m/Y H:i" }}
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary" data-nd-busy
+                                {% if not has_master_key %}disabled{% endif %}>Salvar</button>
+                    </div>
+                </form>
+
+                {% if sms.has_api_key %}
+                <form method="post" action="{% url 'messaging:test-sms' %}" class="mt-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light" data-nd-busy>Testar a chave</button>
+                    <span class="fs-11 text-muted ms-2">
+                        Consulta o saldo no provedor. Nenhuma mensagem é enviada.
+                    </span>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-7 col-xl-6">
+        {% comment %}----------------------------------- e-mail por médico{% endcomment %}
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Remetente de e-mail por médico</h5>
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    O e-mail que o paciente recebe deve vir do consultório de quem o atende. Sem
+                    configuração própria, o envio usa o remetente da instalação
+                    (<code>{{ default_from_email }}</code>).
+                </p>
+                {% if not email_globally_enabled %}
+                <div class="alert alert-warning fade show fs-12" role="alert">
+                    O envio de e-mail está desligado nesta instalação
+                    (<code>EMAIL_ENABLED=False</code>): as mensagens ficam em memória e não saem.
+                    A configuração pode ser feita aqui desde já.
+                </div>
+                {% endif %}
+
+                {% for row in doctor_rows %}
+                <details class="border rounded-3 mb-2" {% if email_form_membership and email_form_membership.id == row.doctor.id %}open{% endif %}>
+                    <summary class="p-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                        <span class="fw-semibold text-dark fs-13">
+                            {{ row.doctor.user.get_full_name|default:row.doctor.user.email }}
+                        </span>
+                        <span class="d-inline-flex align-items-center gap-2">
+                            {% if row.settings and row.settings.enabled %}
+                            <span class="badge bg-soft-success text-success">
+                                {{ row.settings.from_email }}
+                            </span>
+                            {% if row.settings.uses_own_server %}
+                            <span class="badge bg-soft-info text-info">servidor próprio</span>
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark">servidor da instalação</span>
+                            {% endif %}
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark">usa o remetente padrão</span>
+                            {% endif %}
+                        </span>
+                    </summary>
+                    <div class="border-top p-3">
+                        {% include "communications/_email_form.html" with doctor=row.doctor form=row.form settings=row.settings %}
+                    </div>
+                </details>
+                {% empty %}
+                <p class="fs-13 text-muted mb-0">
+                    Nenhum médico com vínculo ativo nesta organização.
+                </p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
