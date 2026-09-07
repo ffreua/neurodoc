@@ -68,6 +68,21 @@ def _doctor_membership(request):
     ).first()
 
 
+class DiagnosisLookupView(TenantScopedView):
+    """Autocomplete do CID-10, por código ou por descrição.
+
+    O catálogo é global (não é dado do inquilino), mas o endpoint continua
+    exigindo sessão autenticada: quem não tem vínculo ativo não enumera
+    catálogo nem qualquer outra coisa daqui.
+    """
+
+    def get(self, request):
+        from catalogs.selectors import search_diagnosis_codes
+
+        term = request.GET.get('q', '')
+        return JsonResponse({'results': search_diagnosis_codes(term)})
+
+
 class TimelineView(TenantScopedView):
     def get(self, request, patient_id):
         patient = get_object_or_404(scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id)
@@ -94,7 +109,14 @@ class EncounterCreateView(TenantScopedView):
 class EncounterDetailView(TenantScopedView):
     def get(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        pending_items = encounter.carry_forward_items.filter(review_action='pending').select_related('source_encounter')
+        pending_items = list(
+            encounter.carry_forward_items.filter(review_action='pending')
+            .select_related('source_encounter')
+        )
+        # Rótulo e valor legíveis: a tela mostrava `plan_text` com o dicionário
+        # cru ao lado, e a hipótese como `diagnosis:<uuid>`.
+        for item in pending_items:
+            item.described = cf.describe_item(item)
         findings = list(
             encounter.examination_findings.select_related('template_node')
             .order_by('domain', 'item_code', 'side')
@@ -130,6 +152,9 @@ class EncounterDetailView(TenantScopedView):
             'scale_values': scale_values,
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
+            # O que falta para finalizar, tudo de uma vez: a tela mostra a
+            # lista antes do clique em vez de recusar um requisito por vez.
+            'finalize_pending': finalization.missing_requirements(encounter),
             **self._extra_tabs(request, encounter),
         })
 
@@ -162,7 +187,7 @@ class EncounterDetailView(TenantScopedView):
         support_job, support_artifact = latest_diagnostic_support(encounter)
         support_hypotheses, support_steps = [], []
         if support_artifact is not None:
-            from ai.schemas import PRIORITY_BADGES, PRIORITY_LABELS, STEP_CATEGORY_LABELS
+            from ai.schemas import PRIORITY_LABELS, PRIORITY_TONES, STEP_CATEGORY_LABELS
 
             result = support_artifact.result or {}
             for item in result.get('hypotheses') or []:
@@ -170,7 +195,7 @@ class EncounterDetailView(TenantScopedView):
                 support_hypotheses.append({
                     **item,
                     'priority_label': PRIORITY_LABELS.get(priority, priority),
-                    'priority_badge': PRIORITY_BADGES.get(priority, 'bg-gray-200 text-dark'),
+                    'priority_tone': PRIORITY_TONES.get(priority, 'dark'),
                 })
             for step in result.get('suggested_next_steps') or []:
                 category = step.get('category', 'other')
@@ -467,6 +492,50 @@ class AmendmentCreateView(TenantScopedView):
             return _blocked(request, encounter, str(exc), anchor='tab-adendos')
         messages.success(request, 'Adendo registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-adendos')
+
+
+class EncounterSummaryView(TenantScopedView):
+    """Resumo do caso em uma página, para leitura e impressão.
+
+    Página própria e não um modal: o que se quer é levar o caso para fora da
+    tela — imprimir, salvar em PDF pelo diálogo do navegador, ler ao lado do
+    paciente. Sai sem menu, sem botões e sem formulário, com o cabeçalho de
+    identificação que um documento impresso precisa ter.
+
+    Não é documento assinado: é uma leitura do prontuário. Receita,
+    relatório e encaminhamento continuam saindo pelo fluxo de documentos
+    médicos, com assinatura digital.
+    """
+
+    def get(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        findings = list(
+            encounter.examination_findings.select_related('template_node')
+            .order_by('domain', 'item_code', 'side')
+        )
+        exam_results = list(
+            encounter.exam_results.prefetch_related('lab_values').order_by('-performed_on', 'name')
+        )
+        for result in exam_results:
+            values = list(result.lab_values.all())
+            result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
+            result.values_in_count = sum(1 for v in values if v.flag == 'normal')
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.encounter_summary_viewed',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+        )
+        return render(request, 'clinical/summary.html', {
+            'encounter': encounter,
+            'patient': encounter.patient,
+            'findings_by_domain': group_findings_by_domain(findings),
+            'findings_count': len(findings),
+            'medications': list(encounter.medications.all()),
+            'exam_results': exam_results,
+            'diagnoses': encounter.diagnoses.all().order_by('rank'),
+            'amendments': encounter.amendments.all().order_by('authored_at'),
+            'printed_at': timezone.now(),
+            'printed_by': request.user.get_full_name() or request.user.email,
+        })
 
 
 class MedicationCreateView(TenantScopedView):

@@ -21,6 +21,11 @@
         });
     }
 
+    function closeAll() {
+        forms.forEach(function (form) { form.hidden = true; });
+        if (picker) picker.value = '';
+    }
+
     if (picker) {
         picker.addEventListener('change', function () {
             if (picker.value) {
@@ -28,24 +33,29 @@
                 var form = document.getElementById(picker.value);
                 if (form) form.scrollIntoView({ block: 'nearest' });
             } else {
-                forms.forEach(function (form) { form.hidden = true; });
+                closeAll();
             }
         });
-
-        /* Abre já na primeira escala com valor registrado: reabrir o
-         * atendimento e não ver a escala aplicada dá a impressão de que ela
-         * se perdeu. */
-        var filled = picker.querySelector('option[value]:not([value=""])');
-        var options = Array.prototype.slice.call(picker.options);
-        var marked = options.filter(function (option) {
-            return option.value && option.textContent.indexOf('✓') !== -1;
-        })[0];
-        if (marked) {
-            picker.value = marked.value;
-            show(marked.value);
-        }
-        void filled;
     }
+
+    /* Nenhuma escala abre sozinha ao carregar a página.
+     *
+     * Antes abria a primeira que tivesse valor registrado, e o efeito era o
+     * oposto do pretendido: depois de salvar, a página voltava com aquele
+     * formulário de trinta campos escancarado no meio da aba do exame, como
+     * se ainda houvesse algo a fazer nele. O ✓ no seletor já diz quais
+     * escalas foram aplicadas, e escolher a escala reabre com os valores
+     * marcados. */
+    closeAll();
+
+    /* Botão de fechar dentro de cada formulário: quem abriu para conferir um
+     * escore não deveria ter de voltar ao seletor para sair. */
+    document.addEventListener('click', function (event) {
+        if (!event.target.closest('[data-nd-scale-close]')) return;
+        closeAll();
+        var panel = document.getElementById('scale-picker');
+        if (panel) panel.scrollIntoView({ block: 'nearest' });
+    });
 
     /* ------------------------------------------------------- total ao vivo */
 

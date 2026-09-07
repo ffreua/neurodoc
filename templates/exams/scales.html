@@ -5,7 +5,10 @@ campos no total, contra os ~900 do roteiro, e assim aplicar uma escala não
 custa uma ida ao servidor para carregar o formulário.
 
 Cada escala é um formulário próprio. Enviar sem nenhum item marcado remove a
-escala do atendimento — é como se desfaz uma aplicação equivocada.{% endcomment %}
+escala do atendimento — é como se desfaz uma aplicação equivocada.
+
+Nenhuma abre sozinha: o ✓ no seletor diz quais já foram aplicadas, e escolher
+a escala reabre com os valores marcados.{% endcomment %}
 {% load nd %}
 
 <div class="card mt-4">
@@ -91,11 +94,16 @@ escala do atendimento — é como se desfaz uma aplicação equivocada.{% endcom
             {% endif %}
 
             {% if not exam_readonly %}
-            <div class="d-flex align-items-center gap-2 mt-3">
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                 <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>Salvar escala</button>
+                <button type="button" class="btn btn-light btn-sm" data-nd-scale-close>Fechar</button>
                 <span class="fs-11 text-muted">
                     Enviar sem nenhum item marcado remove esta escala do atendimento.
                 </span>
+            </div>
+            {% else %}
+            <div class="mt-3">
+                <button type="button" class="btn btn-light btn-sm" data-nd-scale-close>Fechar</button>
             </div>
             {% endif %}
         </form>

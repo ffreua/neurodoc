@@ -37,6 +37,11 @@ class DiagnosisCode(TimestampedModel):
     code = models.CharField(max_length=20)
     description = models.TextField(max_length=4000)
     parent_code = models.CharField(max_length=20, blank=True)
+    #: Código e descrição sem acento e em maiúsculas, para a busca da tela.
+    #: Existe como coluna porque este banco não tem a extensão `unaccent` e
+    #: ninguém digita acento procurando "esclerose multipla" com pressa. São
+    #: 14 mil linhas: a varredura sequencial custa menos que a dependência.
+    search_text = models.TextField(blank=True, default='')
     active = models.BooleanField(default=True)
 
     class Meta:
@@ -53,6 +58,11 @@ class ProcedureCode(TimestampedModel):
     code = models.CharField(max_length=20)
     description = models.TextField(max_length=4000)
     parent_code = models.CharField(max_length=20, blank=True)
+    #: Código e descrição sem acento e em maiúsculas, para a busca da tela.
+    #: Existe como coluna porque este banco não tem a extensão `unaccent` e
+    #: ninguém digita acento procurando "esclerose multipla" com pressa. São
+    #: 14 mil linhas: a varredura sequencial custa menos que a dependência.
+    search_text = models.TextField(blank=True, default='')
     active = models.BooleanField(default=True)
 
     class Meta:

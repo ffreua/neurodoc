@@ -5,9 +5,11 @@ from . import views
 app_name = 'clinical'
 
 urlpatterns = [
+    path('cid-lookup/', views.DiagnosisLookupView.as_view(), name='cid-lookup'),
     path('patients/<uuid:patient_id>/timeline/', views.TimelineView.as_view(), name='timeline'),
     path('patients/<uuid:patient_id>/new/', views.EncounterCreateView.as_view(), name='new'),
     path('<uuid:encounter_id>/', views.EncounterDetailView.as_view(), name='detail'),
+    path('<uuid:encounter_id>/resumo/', views.EncounterSummaryView.as_view(), name='summary'),
     path('<uuid:encounter_id>/autosave/', views.EncounterAutosaveView.as_view(), name='autosave'),
     path('<uuid:encounter_id>/findings/', views.FindingUpsertView.as_view(), name='add-finding'),
     path(

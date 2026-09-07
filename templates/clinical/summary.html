@@ -1,0 +1,328 @@
+{% load nd static %}<!doctype html>
+{% comment %}Resumo do atendimento, para leitura e impressão.
+
+Página independente do painel de propósito: abre em janela própria, sem menu
+nem formulário, e o que aparece na tela é o que sai no papel. O estilo é
+embutido porque esta página tem de imprimir igual mesmo aberta fora da
+sessão do painel.
+
+Não é documento assinado — é uma leitura do prontuário. O rodapé diz isso,
+para que uma folha impressa não circule parecendo laudo.{% endcomment %}
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resumo do atendimento — {{ patient.full_name }} — {{ encounter.occurred_at|date:"d/m/Y" }}</title>
+    <style>
+        :root { color-scheme: light; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #f3f4f6;
+            font: 13px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1f2937;
+        }
+        .sheet {
+            max-width: 210mm;
+            margin: 16px auto;
+            padding: 18mm 16mm;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+        }
+        .toolbar {
+            max-width: 210mm;
+            margin: 16px auto 0;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .toolbar button, .toolbar a {
+            font: inherit;
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #1f2937;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .toolbar button.primary { background: #3454d1; border-color: #3454d1; color: #fff; }
+
+        h1 { font-size: 17px; margin: 0 0 2px; }
+        h2 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #6b7280;
+            margin: 22px 0 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        h3 { font-size: 12px; margin: 12px 0 4px; }
+        p { margin: 0 0 6px; }
+        .muted { color: #6b7280; }
+        .prose { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+        .head { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+        .ident { font-size: 12px; color: #4b5563; }
+        .ident span { display: inline-block; margin-right: 14px; }
+
+        .tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+        .tag.ok { border-color: #86efac; background: #f0fdf4; color: #166534; }
+        .tag.warn { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+
+        table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
+        th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #f0f1f3; vertical-align: top; }
+        th { font-size: 11px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        td { font-size: 12px; }
+        .num { white-space: nowrap; }
+
+        .empty { color: #9ca3af; font-size: 12px; font-style: italic; }
+        .foot {
+            margin-top: 26px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none; }
+            .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+            h2 { break-after: avoid; }
+            table, .block { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+<div class="toolbar">
+    <button type="button" class="primary" onclick="window.print()">Imprimir</button>
+    <button type="button" onclick="window.close()">Fechar</button>
+</div>
+
+<div class="sheet">
+    <div class="head">
+        <div>
+            <h1>{{ patient.full_name }}</h1>
+            <div class="ident">
+                <span>Nascimento: {{ patient.birth_date|date:"d/m/Y"|default:"—" }}</span>
+                {% if patient.cpf %}<span>CPF: {{ patient.cpf }}</span>{% endif %}
+                <span>Registro: {{ patient.id|stringformat:"s"|slice:":8" }}</span>
+            </div>
+        </div>
+        <div style="text-align:right">
+            <div><strong>Atendimento</strong></div>
+            <div class="ident">
+                <span>{{ encounter.occurred_at|date:"d/m/Y H:i" }}</span>
+            </div>
+            <div class="ident">
+                <span>{{ encounter.physician_membership.user.get_full_name }}</span>
+            </div>
+            <div style="margin-top:4px">
+                {% if encounter.status == 'finalized' %}
+                <span class="tag ok">Finalizado — registro imutável</span>
+                {% else %}
+                <span class="tag warn">{{ encounter.get_status_display }} — ainda editável</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% comment %}História{% endcomment %}
+    <h2>História</h2>
+    <div class="block">
+        <h3>Queixa principal</h3>
+        {% if encounter.chief_complaint %}
+        <p class="prose">{{ encounter.chief_complaint }}</p>
+        {% else %}<p class="empty">Não registrada.</p>{% endif %}
+
+        <h3>História da doença atual</h3>
+        {% if encounter.hpi %}
+        <p class="prose">{{ encounter.hpi }}</p>
+        {% else %}<p class="empty">Não registrada.</p>{% endif %}
+
+        {% if encounter.personal_history %}
+        <h3>Antecedentes pessoais</h3>
+        <p class="prose">{{ encounter.personal_history }}</p>
+        {% endif %}
+        {% if encounter.family_history %}
+        <h3>Antecedentes familiares</h3>
+        <p class="prose">{{ encounter.family_history }}</p>
+        {% endif %}
+        {% if encounter.consanguinity_state != 'not_informed' %}
+        <h3>Consanguinidade</h3>
+        <p>{{ encounter.get_consanguinity_state_display }}{% if encounter.consanguinity_details %} — {{ encounter.consanguinity_details }}{% endif %}</p>
+        {% endif %}
+    </div>
+
+    {% comment %}Medicações{% endcomment %}
+    <h2>Medicações em uso</h2>
+    <div class="block">
+        {% if medications %}
+        <table>
+            <thead>
+                <tr><th>Medicamento</th><th>Dose e via</th><th>Posologia</th><th>Indicação</th><th>Situação</th></tr>
+            </thead>
+            <tbody>
+                {% for medication in medications %}
+                <tr>
+                    <td><strong>{{ medication.name }}</strong></td>
+                    <td class="num">{{ medication.dose }} {{ medication.get_route_display|lower }}</td>
+                    <td>{{ medication.frequency|default:"—" }}</td>
+                    <td>{{ medication.indication|default:"—" }}</td>
+                    <td>{{ medication.get_status_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Nenhuma medicação registrada neste atendimento.</p>
+        {% endif %}
+    </div>
+
+    {% comment %}Exame neurológico{% endcomment %}
+    <h2>Exame neurológico <span class="muted" style="text-transform:none">({{ findings_count }} item(ns))</span></h2>
+    <div class="block">
+        {% if findings_by_domain %}
+        {% for group in findings_by_domain %}
+        <h3>{{ group.label }}</h3>
+        <table>
+            <tbody>
+                {% for finding in group.findings %}
+                <tr>
+                    <td style="width:38%">
+                        {{ finding.label }}
+                        {% if finding.side != 'not_applicable' %}<span class="muted">({{ finding.get_side_display|lower }})</span>{% endif %}
+                    </td>
+                    <td style="width:24%">{{ finding.qualifier|default:finding.get_state_display }}</td>
+                    <td class="muted">{{ finding.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endfor %}
+        {% else %}
+        <p class="empty">Nenhum item registrado.</p>
+        {% endif %}
+    </div>
+
+    {% comment %}Exames complementares{% endcomment %}
+    <h2>Resultados de exames</h2>
+    <div class="block">
+        {% if exam_results %}
+        {% for result in exam_results %}
+        <h3>
+            {{ result.name }}
+            <span class="muted">
+                — {{ result.get_category_display|lower }}{% if result.performed_on %}, {{ result.performed_on|date:"d/m/Y" }}{% endif %}{% if result.service_name %}, {{ result.service_name }}{% endif %}
+            </span>
+        </h3>
+        {% if result.report_text %}<p class="prose">{{ result.report_text }}</p>{% endif %}
+        {% if result.conclusion %}<p class="prose"><strong>Conclusão:</strong> {{ result.conclusion }}</p>{% endif %}
+        {% if result.values_out %}
+        <table>
+            <thead>
+                <tr><th>Fora da referência</th><th>Resultado</th><th>Referência do laudo</th></tr>
+            </thead>
+            <tbody>
+                {% for value in result.values_out %}
+                <tr>
+                    <td>{{ value.analyte }}</td>
+                    <td class="num">{{ value.value_text }} {{ value.unit }}</td>
+                    <td class="num muted">{{ value.reference_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        {% if result.values_in_count %}
+        <p class="muted" style="font-size:11px">
+            {{ result.values_in_count }} analito(s) dentro da faixa de referência do laudo.
+        </p>
+        {% endif %}
+        {% endfor %}
+        {% else %}
+        <p class="empty">Nenhum resultado de exame registrado.</p>
+        {% endif %}
+    </div>
+
+    {% comment %}Hipóteses{% endcomment %}
+    <h2>Hipóteses diagnósticas</h2>
+    <div class="block">
+        {% if diagnoses %}
+        <table>
+            <thead><tr><th style="width:8%">#</th><th style="width:12%">CID</th><th>Hipótese</th><th style="width:18%">Certeza</th></tr></thead>
+            <tbody>
+                {% for diag in diagnoses %}
+                <tr>
+                    <td>{{ diag.rank }}</td>
+                    <td class="num">{{ diag.code_snapshot|default:"—" }}</td>
+                    <td>
+                        {{ diag.description_snapshot|default:"—" }}
+                        {% if diag.physician_note %}
+                        <span class="muted" style="display:block;font-size:11px">{{ diag.physician_note }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ diag.get_certainty_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="empty">Nenhuma hipótese registrada.</p>
+        {% endif %}
+    </div>
+
+    {% comment %}Conduta{% endcomment %}
+    <h2>Conduta</h2>
+    <div class="block">
+        {% if encounter.plan_text %}
+        <p class="prose">{{ encounter.plan_text }}</p>
+        {% else %}<p class="empty">Não registrada.</p>{% endif %}
+        {% if encounter.finalization_justification %}
+        <h3>Justificativa da finalização</h3>
+        <p class="prose">{{ encounter.finalization_justification }}</p>
+        {% endif %}
+    </div>
+
+    {% comment %}Adendos{% endcomment %}
+    {% if amendments %}
+    <h2>Adendos</h2>
+    <div class="block">
+        {% for amendment in amendments %}
+        <h3>{{ amendment.reason }}</h3>
+        <p class="muted" style="font-size:11px">
+            {{ amendment.authored_at|date:"d/m/Y H:i" }} — {{ amendment.author.user.get_full_name }}
+        </p>
+        <p class="prose">{{ amendment.text }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="foot">
+        <p>
+            Resumo do prontuário gerado em {{ printed_at|date:"d/m/Y H:i" }} por {{ printed_by }}.
+            {% if encounter.status == 'finalized' %}
+            Registro finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }};
+            hash de integridade {{ encounter.content_hash|slice:":16" }}…
+            {% else %}
+            <strong>Atendimento ainda não finalizado</strong> — o conteúdo pode mudar.
+            {% endif %}
+        </p>
+        <p>
+            Este é um resumo do prontuário para leitura, <strong>não é documento assinado</strong>.
+            Receita, relatório e encaminhamento são emitidos com assinatura digital pelo próprio
+            sistema.
+        </p>
+    </div>
+</div>
+</body>
+</html>

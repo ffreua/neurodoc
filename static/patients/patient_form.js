@@ -50,32 +50,49 @@
     var cpf = el('cpf');
     if (cpf) {
         var cpfFeedback = document.createElement('div');
-        cpfFeedback.className = 'invalid-feedback d-block fs-11';
-        cpfFeedback.hidden = true;
+        /* Sem `d-block` no estado de repouso, e a visibilidade é controlada
+         * por essa classe e não pelo atributo `hidden`.
+         *
+         * O motivo importa: `.invalid-feedback` nasce com `display:none`, e
+         * `.d-block` do Bootstrap é `display:block !important` — o
+         * `!important` vence o `hidden` do navegador. Com as duas classes
+         * juntas, `feedback.hidden = true` não escondia nada, e a frase
+         * "CPF inválido" ficava na tela junto do campo marcado como
+         * válido. Era CPF certo com aviso de errado do lado. */
+        cpfFeedback.className = 'invalid-feedback fs-11';
         cpf.insertAdjacentElement('afterend', cpfFeedback);
+
+        function clearCpfFeedback() {
+            cpf.classList.remove('is-invalid', 'is-valid');
+            cpfFeedback.classList.remove('d-block');
+            cpfFeedback.textContent = '';
+        }
 
         cpf.addEventListener('input', function () {
             var caretAtEnd = cpf.selectionStart === cpf.value.length;
             cpf.value = maskCpf(onlyDigits(cpf.value));
             if (caretAtEnd) cpf.setSelectionRange(cpf.value.length, cpf.value.length);
-            cpf.classList.remove('is-invalid', 'is-valid');
-            cpfFeedback.hidden = true;
+            clearCpfFeedback();
         });
 
         cpf.addEventListener('blur', function () {
             var digits = onlyDigits(cpf.value);
             if (!digits) {
-                cpf.classList.remove('is-invalid', 'is-valid');
-                cpfFeedback.hidden = true;
+                clearCpfFeedback();
                 return;
             }
             var ok = isValidCpf(digits);
             cpf.classList.toggle('is-invalid', !ok);
             cpf.classList.toggle('is-valid', ok);
+            if (ok) {
+                cpfFeedback.classList.remove('d-block');
+                cpfFeedback.textContent = '';
+                return;
+            }
             cpfFeedback.textContent = digits.length !== 11
-                ? 'O CPF tem 11 dígitos.'
+                ? 'O CPF tem 11 dígitos. Informe todos.'
                 : 'CPF inválido: os dígitos verificadores não conferem.';
-            cpfFeedback.hidden = ok;
+            cpfFeedback.classList.add('d-block');
         });
     }
 

@@ -69,17 +69,75 @@ def has_pending_review(target_encounter):
     ).exists()
 
 
+#: Rótulo de cada campo copiado, para a tela não exibir `plan_text` nem
+#: `diagnosis:a192554a-…`. O que aparece é o nome do campo no prontuário.
+FIELD_LABELS = {
+    'plan_text': 'Conduta da consulta anterior',
+}
+DIAGNOSIS_LABEL = 'Hipótese da consulta anterior'
+
+
+def describe_item(item):
+    """Rótulo e valor legíveis de um item trazido da consulta anterior.
+
+    A tela mostrava o caminho interno e o dicionário cru — `plan_text` com
+    `{'text': 'TPM 100mg'}` ao lado, e a hipótese como
+    `diagnosis:<uuid>` com `{'rank': 1, 'certainty': 'suspected', …}`. Quem
+    precisa decidir se aceita ou rejeita não tem por que ler o formato de
+    armazenamento; precisa ler o que está sendo copiado.
+    """
+    from .models import DiagnosisCertainty
+
+    value = item.copied_value or {}
+    if item.field_path == 'plan_text':
+        return {'label': FIELD_LABELS['plan_text'], 'value': value.get('text', ''), 'detail': ''}
+    if item.field_path.startswith('diagnosis:'):
+        code = value.get('code_snapshot') or ''
+        description = value.get('description_snapshot') or ''
+        certainty = value.get('certainty') or ''
+        label = DIAGNOSIS_LABEL
+        text = f'{code} — {description}' if code else description
+        detail = DiagnosisCertainty(certainty).label if certainty in DiagnosisCertainty.values else ''
+        if value.get('rank'):
+            detail = f'{detail} · ordem {value["rank"]}'.strip(' ·')
+        return {'label': label, 'value': text, 'detail': detail}
+    # Campo novo, copiado por uma versão mais recente do sistema: mostra o
+    # caminho em vez de esconder que existe algo a revisar.
+    return {'label': FIELD_LABELS.get(item.field_path, item.field_path), 'value': str(value), 'detail': ''}
+
+
+@transaction.atomic
 def review_carry_forward_item(item, action, actor_membership_id):
     from django.utils import timezone
 
-    from .models import ReviewAction
+    from .models import EncounterDiagnosis, ReviewAction
 
     item.review_action = action
     item.reviewed_at = timezone.now()
     item.reviewed_by_id = actor_membership_id
     item.full_clean()
     item.save()
-    if action == ReviewAction.ACCEPTED and item.field_path == 'plan_text':
-        item.target_encounter.plan_text = item.copied_value.get('text', '')
-        item.target_encounter.save(update_fields=['plan_text'])
+
+    if action != ReviewAction.ACCEPTED:
+        return item
+
+    encounter = item.target_encounter
+    value = item.copied_value or {}
+    if item.field_path == 'plan_text':
+        encounter.plan_text = value.get('text', '')
+        encounter.save(update_fields=['plan_text'])
+    elif item.field_path.startswith('diagnosis:'):
+        # Aceitar uma hipótese não fazia nada: o item ficava marcado como
+        # aceito e a hipótese não entrava no atendimento. O aceite existe
+        # justamente para trazê-la.
+        EncounterDiagnosis.objects.get_or_create(
+            tenant_id=encounter.tenant_id, encounter=encounter,
+            code_snapshot=value.get('code_snapshot', ''),
+            description_snapshot=value.get('description_snapshot', ''),
+            defaults={
+                'certainty': value.get('certainty') or 'suspected',
+                'rank': value.get('rank') or (encounter.diagnoses.count() + 1),
+                'physician_note': 'Trazida da consulta anterior e revisada.',
+            },
+        )
     return item

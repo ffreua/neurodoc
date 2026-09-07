@@ -14,26 +14,55 @@ class FinalizationError(Exception):
     pass
 
 
+def missing_requirements(encounter):
+    """Tudo o que falta para finalizar, de uma vez.
+
+    Existe porque a verificação em cascata era hostil: cada tentativa
+    apontava um requisito, e só o próximo aparecia depois de resolver
+    aquele. Quem estava fechando a consulta descobria a lista aos poucos, um
+    erro por clique. Agora a tela mostra a lista inteira **antes** do clique,
+    e a recusa, se acontecer, também vem completa.
+
+    Cada item traz `aba` e `ancora` para a tela poder levar direto ao campo
+    que falta.
+    """
+    pending = []
+    if has_pending_review(encounter):
+        count = encounter.carry_forward_items.filter(review_action='pending').count()
+        pending.append({
+            'texto': f'Revisar os {count} dado(s) trazidos da consulta anterior '
+                     '— aceitar ou rejeitar cada um.',
+            'aba': 'História', 'ancora': 'tab-historia', 'justificavel': False,
+        })
+    justified = bool(encounter.finalization_justification)
+    if not (encounter.chief_complaint or encounter.hpi or justified):
+        pending.append({
+            'texto': 'Preencher a queixa principal ou a história da doença atual.',
+            'aba': 'História', 'ancora': 'tab-historia', 'justificavel': True,
+        })
+    if not (encounter.plan_text or justified):
+        pending.append({
+            'texto': 'Preencher a conduta.',
+            'aba': 'Conduta', 'ancora': 'tab-conduta', 'justificavel': True,
+        })
+    return pending
+
+
 @transaction.atomic
 def finalize_encounter(context, encounter, actor_membership):
     if encounter.status == EncounterStatus.FINALIZED:
         raise FinalizationError('Este atendimento já está finalizado.')
-    if has_pending_review(encounter):
-        raise FinalizationError(
-            'Há dados trazidos da consulta anterior aguardando revisão. '
-            'Aceite ou rejeite cada um antes de finalizar.'
-        )
-    has_history = bool(encounter.chief_complaint or encounter.hpi)
-    has_plan = bool(encounter.plan_text)
-    if not (has_history or encounter.finalization_justification):
-        raise FinalizationError(
-            'Preencha a queixa principal ou a história da doença atual. '
-            'Se não for possível, escreva a justificativa em Conduta.'
-        )
-    if not (has_plan or encounter.finalization_justification):
-        raise FinalizationError(
-            'Preencha a conduta. Se não for possível, escreva a justificativa ao lado dela.'
-        )
+
+    pending = missing_requirements(encounter)
+    if pending:
+        itens = ' '.join(f'({index}) {item["texto"]}' for index, item in enumerate(pending, 1))
+        extra = ''
+        if any(item['justificavel'] for item in pending):
+            extra = (
+                ' Se algo aí não se aplica a esta consulta, escreva o motivo em '
+                '"Justificativa da finalização", na aba Conduta.'
+            )
+        raise FinalizationError(f'Falta para finalizar: {itens}{extra}')
 
     encounter.status = EncounterStatus.FINALIZED
     encounter.finalized_at = timezone.now()

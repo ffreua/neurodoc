@@ -107,16 +107,55 @@ class FindingForm(forms.Form):
 
 
 class DiagnosisForm(forms.Form):
-    diagnosis_code_id = forms.UUIDField(label='Código do catálogo', required=False)
-    code_snapshot = forms.CharField(label='CID', max_length=20, required=False)
-    description_snapshot = forms.CharField(
-        label='Descrição', max_length=4000, required=False, widget=forms.Textarea(attrs={'rows': 2}),
+    """Hipótese diagnóstica, com busca no CID-10.
+
+    A busca é por código **ou** por descrição, porque é assim que se procura
+    de fato: quem sabe que é G40 digita G40, quem está pensando em "epilepsia
+    focal" digita isso. Escolher um resultado preenche código e descrição.
+
+    Nada obriga a usar o catálogo: uma hipótese ainda sem CID pode ser escrita
+    à mão, e é justamente o caso mais comum na primeira consulta. O que não se
+    aceita é hipótese vazia.
+    """
+
+    cid_search = forms.CharField(
+        label='Buscar no CID-10', required=False, max_length=200,
+        help_text='Digite o código (G40) ou parte da descrição (epilepsia focal).',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ex.: G40, enxaqueca, esclerose múltipla…',
+            'autocomplete': 'off', 'data-nd-cid-search': '1',
+        }),
     )
-    certainty = forms.ChoiceField(label='Certeza', choices=DiagnosisCertainty.choices)
+    diagnosis_code_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
+    code_snapshot = forms.CharField(
+        label='CID', max_length=20, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'G43.0'}),
+    )
+    description_snapshot = forms.CharField(
+        label='Hipótese', max_length=4000, required=False,
+        widget=forms.TextInput(attrs={'placeholder': 'Descrição da hipótese'}),
+    )
+    certainty = forms.ChoiceField(
+        label='Certeza', choices=DiagnosisCertainty.choices, initial=DiagnosisCertainty.SUSPECTED,
+    )
     rank = forms.IntegerField(label='Ordem', min_value=1, initial=1)
     physician_note = forms.CharField(
-        label='Nota do médico', max_length=2000, required=False, widget=forms.Textarea(attrs={'rows': 2}),
+        label='Nota do médico', max_length=2000, required=False,
+        widget=forms.Textarea(attrs={
+            'rows': 2, 'placeholder': 'O que sustenta esta hipótese, o que falta investigar…',
+        }),
     )
+
+    def clean(self):
+        cleaned = super().clean()
+        if not (cleaned.get('description_snapshot') or '').strip():
+            # Sem isto dava para gravar uma hipótese em branco, que aparecia no
+            # prontuário como uma linha vazia com um grau de certeza ao lado.
+            self.add_error(
+                'description_snapshot',
+                'Escolha um código no CID-10 ou escreva a hipótese.',
+            )
+        return cleaned
 
 
 class AmendmentForm(forms.Form):

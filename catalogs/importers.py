@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import io
+import unicodedata
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -8,6 +9,17 @@ from django.utils import timezone
 from .models import CatalogRelease, CatalogReleaseStatus, DiagnosisCode, ProcedureCode
 
 MODEL_BY_SYSTEM = {'CID10': DiagnosisCode, 'TUSS': ProcedureCode}
+
+
+def normalize_for_search(text):
+    """Texto sem acento, em maiúsculas, para comparar com o que se digita.
+
+    A mesma função normaliza a linha na importação e o termo na busca — é o
+    que garante que "esclerose multipla" encontre "Esclerose Múltipla". Se as
+    duas normalizações divergirem, a busca passa a mentir em silêncio.
+    """
+    decomposed = unicodedata.normalize('NFKD', text or '')
+    return ''.join(char for char in decomposed if not unicodedata.combining(char)).upper()
 
 
 class DuplicateReleaseVersion(Exception):
@@ -32,7 +44,10 @@ def _parse_rows(content_text):
         if not code or not description:
             errors.append(f'Line {line_number}: code and description are required')
             continue
-        rows.append({'code': code, 'description': description, 'parent_code': parent_code})
+        rows.append({
+            'code': code, 'description': description, 'parent_code': parent_code,
+            'search_text': normalize_for_search(f'{code} {description}'),
+        })
     return rows, errors
 
 

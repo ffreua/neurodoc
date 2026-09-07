@@ -101,15 +101,15 @@ PRIORITY_LABELS = {
     HypothesisPriority.INSUFFICIENT_EVIDENCE: 'Evidência insuficiente',
 }
 
-#: Classe do crachá de cada faixa, já completa. `lower` usa o cinza sólido do
-#: tema em vez de `bg-soft-secondary`, que é quase branco e fazia a faixa
-#: parecer texto solto — quem lia perdia a informação de que aquilo era uma
-#: prioridade declarada.
-PRIORITY_BADGES = {
-    HypothesisPriority.HIGHER: 'bg-soft-primary text-primary',
-    HypothesisPriority.INTERMEDIATE: 'bg-soft-info text-info',
-    HypothesisPriority.LOWER: 'bg-gray-200 text-dark',
-    HypothesisPriority.INSUFFICIENT_EVIDENCE: 'bg-soft-warning text-warning',
+#: Tom contextual de cada faixa, nos mesmos nomes que `base.templatetags.nd`
+#: usa no resto do sistema. `lower` é `dark` — o cinza claro do tema — e não
+#: `secondary`, que no Duralux não define fundo nenhum e faria a faixa
+#: parecer texto solto em vez de crachá.
+PRIORITY_TONES = {
+    HypothesisPriority.HIGHER: 'primary',
+    HypothesisPriority.INTERMEDIATE: 'info',
+    HypothesisPriority.LOWER: 'dark',
+    HypothesisPriority.INSUFFICIENT_EVIDENCE: 'warning',
 }
 
 #: Categoria do exame sugerido em português. O esquema usa o termo em inglês
@@ -142,11 +142,11 @@ class DiagnosticHypothesis(BaseModel):
 
 
 class SuggestedNextStep(BaseModel):
-    """Exame ou conduta investigativa sugerida.
+    """Exame ou avaliação sugerida, com a razão de ser dela.
 
-    `changes_management` existe para separar o exame que muda o que se faz do
-    exame que só confirma o que já se sabe — é a diferença entre uma sugestão
-    útil e uma bateria de pedidos.
+    `rationale` não é enfeite: o prompt pede exame que **muda a conduta**, e é
+    esse campo que permite ao médico julgar se a sugestão faz isso ou se é
+    mais uma linha de uma bateria genérica.
     """
 
     label: str = Field(min_length=1, max_length=300)

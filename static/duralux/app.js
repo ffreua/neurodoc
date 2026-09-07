@@ -599,6 +599,54 @@
         });
     }
 
+    /* ------------------------------------------------ campos que crescem */
+
+    /* A alça de redimensionamento saiu do CSS: arrastar o canto de um campo
+     * não é decisão que o prontuário deva pedir a quem está atendendo, e
+     * cada caixa arrastada deixava a tela um pouco mais torta.
+     *
+     * Em troca, a caixa cresce com o texto. Quem escreve uma história longa
+     * continua vendo o que escreveu — sem arrastar nada, e sem barra de
+     * rolagem dentro do campo.
+     *
+     * O `rows` do formulário passa a ser a altura **mínima**: a caixa nunca
+     * encolhe abaixo dele, então a proporção pensada na tela (queixa curta,
+     * história longa) continua valendo com o campo vazio. */
+    var GROWABLE = 'textarea.form-control, textarea.form-control-sm';
+
+    function autoGrow(area) {
+        /* Campo dentro de aba fechada ou `<details>` recolhido mede zero.
+         * Medir aí gravaria uma altura mínima errada e a caixa apareceria
+         * com uma linha só quando a aba abrisse — então nada é feito até que
+         * o campo esteja de fato na tela. */
+        if (!area.offsetHeight && !area.dataset.ndMinHeight) return;
+        if (!area.dataset.ndMinHeight) {
+            area.dataset.ndMinHeight = String(area.offsetHeight);
+        }
+        var minimum = parseInt(area.dataset.ndMinHeight, 10) || 0;
+        area.style.height = 'auto';
+        area.style.height = Math.max(minimum, area.scrollHeight) + 'px';
+    }
+
+    function growVisible(root) {
+        (root || document).querySelectorAll(GROWABLE).forEach(autoGrow);
+    }
+
+    function initAutoGrow() {
+        growVisible();
+        document.addEventListener('input', function (event) {
+            if (event.target.matches(GROWABLE)) autoGrow(event.target);
+        });
+        /* Abrir aba, accordion ou `<details>` é a primeira vez que aqueles
+         * campos têm altura para medir. */
+        document.addEventListener('click', function (event) {
+            if (!event.target.closest(
+                '[data-bs-toggle="tab"], [data-bs-toggle="pill"], [data-bs-toggle="collapse"], summary'
+            )) return;
+            window.setTimeout(growVisible, 0);
+        });
+    }
+
     function boot() {
         initSkin();
         initSidebar();
@@ -612,6 +660,7 @@
         initCounters();
         initFullScreen();
         initBusyButtons();
+        initAutoGrow();
     }
 
     /* API mínima para telas que precisam abrir um modal por código — o

@@ -274,6 +274,27 @@ button:focus-visible,
     overflow-wrap: anywhere;
 }
 
+/* ---- Campos de texto ------------------------------------------------- */
+/*
+ * Sem alca de redimensionamento. Arrastar o canto de um campo nao e uma
+ * decisao que o prontuario deva pedir a quem esta atendendo, e cada caixa
+ * arrastada deixava a tela um pouco mais torta que a anterior.
+ *
+ * A caixa cresce sozinha conforme o texto (`app.js`, autogrow), entao nada
+ * se perde: quem escreve uma historia longa continua vendo o que escreveu,
+ * sem precisar arrastar nada.
+ */
+textarea.form-control,
+textarea.form-control-sm {
+    resize: none;
+    overflow-y: hidden;
+}
+
+/* Enquanto o JS nao rodou (ou falhou), a caixa nao pode ficar cortada. */
+.no-js textarea.form-control {
+    overflow-y: auto;
+}
+
 /* ---- Print ----------------------------------------------------------- */
 @media print {
     .nxl-navigation,

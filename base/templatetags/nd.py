@@ -52,13 +52,20 @@ def nd_field(field):
     return field.as_widget(attrs={'class': classes})
 
 
-# Every status value the product renders as a badge, mapped to the Duralux
-# contextual colour. Unknown values fall back to the neutral tone rather
-# than guessing a colour that could imply the wrong clinical meaning.
+# Tom neutro do sistema. **Não** é `secondary`: apesar de a classe
+# `bg-soft-secondary` existir no CSS do tema, ela não define fundo algum
+# (medido: `rgba(0, 0, 0, 0)`), então todo crachá neutro aparecia como texto
+# solto e a informação de que aquilo era um estado se perdia. `bg-soft-dark`
+# é o cinza claro de verdade do tema.
+_NEUTRAL_TONE = 'dark'
+
+# Cada valor de estado que o produto mostra como crachá, no tom contextual do
+# Duralux. Valor desconhecido cai no tom neutro em vez de receber uma cor
+# adivinhada, que poderia sugerir a gravidade errada.
 _BADGE_TONES = {
     # patients
     'active': 'success',
-    'archived': 'secondary',
+    'archived': 'dark',
     # scheduling
     'scheduled': 'primary',
     'confirmed': 'info',
@@ -68,7 +75,7 @@ _BADGE_TONES = {
     'cancelled': 'danger',
     'no_show': 'danger',
     # clinical
-    'draft': 'secondary',
+    'draft': 'dark',
     'finalized': 'success',
     'suspected': 'warning',
     'refuted': 'danger',
@@ -77,16 +84,16 @@ _BADGE_TONES = {
     # medicações em uso
     'in_use': 'success',
     'suspended': 'warning',
-    'finished': 'secondary',
+    'finished': 'dark',
     # resultado laboratorial: fora da faixa pede atenção, não é falha do
     # sistema — `danger` fica reservado para erro de verdade.
     'low': 'warning',
     'high': 'warning',
     'abnormal': 'warning',
-    'no_reference': 'secondary',
+    'no_reference': 'dark',
     'blocked': 'danger',
-    'not_assessed': 'secondary',
-    'not_informed': 'secondary',
+    'not_assessed': 'dark',
+    'not_informed': 'dark',
     'pending': 'warning',
     'accepted': 'success',
     'edited': 'info',
@@ -98,27 +105,27 @@ _BADGE_TONES = {
     'signing': 'warning',
     'issued': 'success',
     'failed': 'danger',
-    'expired': 'secondary',
+    'expired': 'dark',
     'revoked': 'danger',
     # finance
     'partial': 'warning',
     'paid': 'success',
     # ai / reporting / capture
-    'disabled': 'secondary',
+    'disabled': 'dark',
     'blocked_privacy': 'danger',
     'queued': 'info',
     'running': 'warning',
     'succeeded': 'success',
-    'stale': 'secondary',
+    'stale': 'dark',
     'ready': 'success',
     'approved': 'success',
-    'retired': 'secondary',
+    'retired': 'dark',
     'paired': 'success',
     'open': 'primary',
-    'closed': 'secondary',
+    'closed': 'dark',
     # communications
     'delivered': 'success',
-    'unknown': 'secondary',
+    'unknown': 'dark',
     'no_contact': 'warning',
     'needs_reconciliation': 'warning',
 }
@@ -127,7 +134,7 @@ _BADGE_TONES = {
 @register.filter
 def nd_tone(value):
     """Duralux contextual colour for a model status value."""
-    return _BADGE_TONES.get(str(value), 'secondary')
+    return _BADGE_TONES.get(str(value), _NEUTRAL_TONE)
 
 
 @register.filter
