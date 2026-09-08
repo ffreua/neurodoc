@@ -1,14 +1,13 @@
 from datetime import datetime, time, timedelta
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views import View
 
 from patients.models import Patient
+from tenancy.permissions import Capability, CapabilityRequiredView, can_configure_agenda_of
 from tenancy.selectors import scope_to_tenant
 
 from . import publishing, services
@@ -27,11 +26,30 @@ from .models import (
 )
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Agenda: marcar, remarcar, cancelar e receber. Os quatro papéis fazem.
+
+    Agenda é trabalho de recepção antes de ser trabalho clínico, e o PRD dá
+    a linha a todos. O que a agenda mostra do paciente é nome, horário e
+    tipo — não é prontuário. Por isso a grade não exige capacidade clínica,
+    e por isso o modal de um horário marcado não pode ganhar conteúdo
+    clínico sem passar a exigi-la.
+    """
+
+    required_capability = Capability.SCHEDULE
+
+
+class ScheduleConfigView(TenantScopedView):
+    """Configurar a grade: quem administra a clínica, ou o próprio médico.
+
+    A capacidade abre a tela; quem decide de **qual** médico é a grade em
+    questão é `_doctor_to_configure_or_404`, por objeto. Só a capacidade
+    deixaria um médico republicar a semana do colega, encerrando regra
+    vigente de quem não está olhando — e o PRD escreve "própria agenda"
+    para o médico exatamente por isso.
+    """
+
+    required_capability = Capability.CONFIGURE_AVAILABILITY
 
 
 def _parse_date(value, default=None):
@@ -72,6 +90,23 @@ def _doctor_or_404(request, membership_id):
     return membership
 
 
+def _doctor_to_configure_or_404(request, membership_id):
+    """O médico cuja grade vai ser alterada, se quem pede puder alterá-la.
+
+    Separado de `_doctor_or_404` de propósito: marcar na agenda de outro
+    médico é o trabalho normal da recepção, e **reconfigurar** a grade dele
+    não é. As duas coisas partem do mesmo `membership_id` na URL, então uma
+    função só para as duas transformaria a primeira permissão na segunda.
+
+    Toda tela de configuração passa por aqui. É o que impede a proteção de
+    valer em oito das nove e faltar na nona.
+    """
+    doctor = _doctor_or_404(request, membership_id)
+    if not can_configure_agenda_of(request.access_context, doctor.id):
+        raise Http404
+    return doctor
+
+
 def _nav_urls(route, doctor, current, previous, following, today):
     """URLs de navegação da barra da agenda, montadas em Python.
 
@@ -86,6 +121,34 @@ def _nav_urls(route, doctor, current, previous, following, today):
         'prev_url': f'{base}?{physician}date={previous.isoformat()}',
         'next_url': f'{base}?{physician}date={following.isoformat()}',
         'today_url': f'{base}?{physician}date={today.isoformat()}',
+    }
+
+
+def _booking_context(doctor, day):
+    """Contexto que o modal de marcação (`_booking_modals.html`) exige.
+
+    Existe como função porque o modal é incluído por mais de uma tela — a
+    grade da semana e a lista do dia — e cada uma montava o próprio
+    contexto. A lista do dia não montava `durations`, e o resultado era um
+    `<select>` de tipo de atendimento **sem nenhuma opção**: a tela abria,
+    o autocomplete funcionava, e o formulário só era rejeitado no servidor,
+    já fora do modal, dizendo que faltava um campo que não dava para
+    preencher.
+
+    Quem inclui o modal chama isto. É a única forma de as duas telas não
+    voltarem a divergir.
+    """
+    step = slot_minutes_for(doctor.id, day) or suggested_slot_minutes(doctor.id)
+    durations = type_durations(doctor.id)
+    return {
+        'durations': [
+            {'value': value, 'label': label, 'minutes': durations[value],
+             'cells': max(1, -(-durations[value] // step)) if step else 1}
+            for value, label in AppointmentType.choices
+        ],
+        'slot_minutes': step,
+        'booking_form': QuickBookingForm(),
+        'change_form': ChangePatientForm(),
     }
 
 
@@ -145,19 +208,10 @@ class AgendaWeekView(TenantScopedView):
             return render(request, 'scheduling/agenda.html', context)
 
         times, columns = week_grid(doctor.id, week_start)
-        durations = type_durations(doctor.id)
-        step = slot_minutes_for(doctor.id, week_start) or suggested_slot_minutes(doctor.id)
         context.update({
             'times': times, 'columns': columns,
-            'durations': [
-                {'value': value, 'label': label, 'minutes': durations[value],
-                 'cells': max(1, -(-durations[value] // step)) if step else 1}
-                for value, label in AppointmentType.choices
-            ],
-            'slot_minutes': step,
+            **_booking_context(doctor, week_start),
             'has_schedule': bool(times),
-            'booking_form': QuickBookingForm(),
-            'change_form': ChangePatientForm(),
             'totals': {
                 'free': sum(column['free'] for column in columns),
                 'busy': sum(column['busy'] for column in columns),
@@ -189,9 +243,8 @@ class AgendaDayView(TenantScopedView):
         cells = day_grid(doctor.id, day)
         context.update({
             'cells': cells,
+            **_booking_context(doctor, day),
             'has_schedule': bool(cells),
-            'booking_form': QuickBookingForm(),
-            'change_form': ChangePatientForm(),
             'free': sum(1 for cell in cells if cell['status'] == 'free'),
             'busy': sum(1 for cell in cells if cell['status'] == 'busy'),
         })
@@ -261,7 +314,7 @@ class AgendaMonthView(TenantScopedView):
 # Configuração da agenda pelo médico
 # --------------------------------------------------------------------------
 
-class ScheduleSettingsView(TenantScopedView):
+class ScheduleSettingsView(ScheduleConfigView):
     """Tela em que o médico monta a própria grade e publica por um período."""
 
     def _context(self, request, doctor, **overrides):
@@ -309,6 +362,10 @@ class ScheduleSettingsView(TenantScopedView):
         doctor = _selected_doctor(request, doctors)
         if doctor is None:
             return render(request, 'scheduling/settings.html', {'doctors': [], 'doctor': None})
+        # Abrir a configuração de outro médico é o primeiro passo de alterá-la,
+        # e a tela já vem com os formulários preenchidos com a grade dele.
+        if not can_configure_agenda_of(request.access_context, doctor.id):
+            raise Http404
         # Feriados nacionais do horizonte, calculados na abertura da tela: são
         # aritmética, não têm custo, e evitam a tela abrir vazia pedindo que
         # alguém rode um comando antes.
@@ -319,11 +376,11 @@ class ScheduleSettingsView(TenantScopedView):
         return render(request, 'scheduling/settings.html', self._context(request, doctor))
 
 
-class ScheduleSettingsSaveView(TenantScopedView):
+class ScheduleSettingsSaveView(ScheduleConfigView):
     """Publica a grade semanal do médico."""
 
     def post(self, request, membership_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         form = WeeklyScheduleForm(request.POST)
         if not form.is_valid():
             return render(
@@ -341,9 +398,9 @@ class ScheduleSettingsSaveView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class TypeDurationSaveView(TenantScopedView):
+class TypeDurationSaveView(ScheduleConfigView):
     def post(self, request, membership_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         form = TypeDurationForm(request.POST)
         if not form.is_valid():
             return render(
@@ -359,9 +416,9 @@ class TypeDurationSaveView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class RuleDeleteView(TenantScopedView):
+class RuleDeleteView(ScheduleConfigView):
     def post(self, request, membership_id, rule_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         rule = get_object_or_404(
             AvailabilityRule, id=rule_id, physician_membership=doctor,
             tenant_id=request.access_context.tenant_id,
@@ -375,9 +432,9 @@ class RuleDeleteView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class BlockCreateView(TenantScopedView):
+class BlockCreateView(ScheduleConfigView):
     def post(self, request, membership_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         form = ScheduleBlockForm(request.POST)
         if not form.is_valid():
             return render(
@@ -393,9 +450,9 @@ class BlockCreateView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class BlockDeleteView(TenantScopedView):
+class BlockDeleteView(ScheduleConfigView):
     def post(self, request, membership_id, block_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         block = get_object_or_404(
             ScheduleBlock, id=block_id, physician_membership=doctor,
             tenant_id=request.access_context.tenant_id,
@@ -405,7 +462,7 @@ class BlockDeleteView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class HolidayReviewView(TenantScopedView):
+class HolidayReviewView(ScheduleConfigView):
     """Aplica as decisões de feriado: o que bloquear e o que atender.
 
     Trabalha como um conjunto de interruptores sobre o período: o que vem
@@ -414,7 +471,7 @@ class HolidayReviewView(TenantScopedView):
     """
 
     def post(self, request, membership_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         start = _parse_date(request.POST.get('range_start'))
         end = _parse_date(request.POST.get('range_end'), default=start + timedelta(days=365))
         chosen = []
@@ -440,9 +497,9 @@ class HolidayReviewView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class LocalHolidayCreateView(TenantScopedView):
+class LocalHolidayCreateView(ScheduleConfigView):
     def post(self, request, membership_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         form = LocalHolidayForm(request.POST)
         if not form.is_valid():
             return render(
@@ -464,9 +521,9 @@ class LocalHolidayCreateView(TenantScopedView):
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
-class LocalHolidayDeleteView(TenantScopedView):
+class LocalHolidayDeleteView(ScheduleConfigView):
     def post(self, request, membership_id, holiday_id):
-        doctor = _doctor_or_404(request, membership_id)
+        doctor = _doctor_to_configure_or_404(request, membership_id)
         holiday = get_object_or_404(
             Holiday, id=holiday_id, tenant_id=request.access_context.tenant_id, source='manual',
         )
@@ -479,6 +536,25 @@ class LocalHolidayDeleteView(TenantScopedView):
 # --------------------------------------------------------------------------
 # Reservas
 # --------------------------------------------------------------------------
+
+def _first_error(form):
+    """A primeira falha do formulário, dizendo **qual** campo falhou.
+
+    O modal da agenda envia e a resposta é um redirect para a grade, então o
+    erro aparece como aviso da página — longe do campo que o causou. Sem o
+    nome do campo, "Este campo é obrigatório." obriga a adivinhar qual, e a
+    janela onde o valor seria digitado já fechou. O rótulo é o que liga o
+    aviso de volta ao campo.
+    """
+    for name, errors in form.errors.items():
+        if not errors:
+            continue
+        if name == '__all__':
+            return errors[0]
+        label = form.fields[name].label or name
+        return f'{label}: {errors[0]}'
+    return 'Não foi possível concluir: confira os dados informados.'
+
 
 def _agenda_redirect(request, doctor, day, anchor=''):
     base = request.POST.get('return_to') or reverse('scheduling:week')
@@ -498,8 +574,7 @@ class QuickBookingView(TenantScopedView):
         doctor = _doctor_or_404(request, membership_id)
         form = QuickBookingForm(request.POST)
         if not form.is_valid():
-            first = next(iter(form.errors.values()))[0]
-            messages.error(request, first)
+            messages.error(request, _first_error(form))
             day = _parse_date(request.POST.get('date'))
             return _agenda_redirect(request, doctor, day)
 
@@ -662,7 +737,7 @@ class ChangePatientView(TenantScopedView):
         doctor = appointment.physician_membership
         form = ChangePatientForm(request.POST)
         if not form.is_valid():
-            messages.error(request, next(iter(form.errors.values()))[0])
+            messages.error(request, _first_error(form))
             return _agenda_redirect(request, doctor, day)
         patient = scope_to_tenant(Patient.objects.all(), request.access_context).filter(
             id=form.cleaned_data['patient_id'],

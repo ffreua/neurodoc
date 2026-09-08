@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Identidade da clínica — NeuroDoc{% endblock %}
+{% block page_title %}Identidade da clínica{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tenancy:team' %}">Equipe</a></li>
+<li class="breadcrumb-item">Identidade</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'tenancy:team' %}">Voltar para a equipe</a>
+{% endblock %}
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-xxl-5 col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Logotipo</h5>
+            </div>
+            <div class="card-body">
+                <div class="border rounded-3 bg-gray-100 d-flex align-items-center justify-content-center p-4 mb-3"
+                     style="min-height:9rem">
+                    {% if profile.has_logo %}
+                    {% comment %}A imagem vem de rota própria: `/data/media` não é
+                    servido pelo servidor web, e o arquivo é o da organização da
+                    sessão — a URL não carrega id de clínica nenhum.{% endcomment %}
+                    <img src="{% url 'tenancy:clinic-logo-file' %}?v={{ profile.logo_updated_at|date:'U' }}"
+                         alt="Logotipo de {{ tenant.trade_name|default:tenant.legal_name }}"
+                         style="max-height:7rem;max-width:100%">
+                    {% else %}
+                    <span class="fs-12 text-muted text-center">
+                        Sem logotipo.<br>Os documentos saem só com o texto do cabeçalho.
+                    </span>
+                    {% endif %}
+                </div>
+
+                <form method="post" action="{% url 'tenancy:clinic-logo' %}" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <label class="form-label fw-semibold" for="logo">Enviar imagem</label>
+                    <input type="file" class="form-control" id="logo" name="logo"
+                           accept="image/png,image/jpeg,image/webp">
+                    <div class="form-text fs-11">
+                        {{ accepted_logo }}, até {{ max_logo_mb }} MB. Prefira PNG com fundo
+                        transparente: é o que fica legível sobre o papel timbrado e na
+                        impressão em preto e branco.
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm mt-3" data-nd-busy>
+                        {% if profile.has_logo %}Substituir logotipo{% else %}Enviar logotipo{% endif %}
+                    </button>
+                </form>
+
+                {% if profile.has_logo %}
+                <form method="post" action="{% url 'tenancy:clinic-logo' %}" class="mt-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="remove">
+                    <button type="submit" class="btn btn-light-danger btn-sm" data-nd-busy>Remover</button>
+                    <span class="d-block form-text fs-11">
+                        Documento já emitido não muda: o logotipo foi desenhado dentro do PDF
+                        na emissão, e um documento assinado não se reescreve.
+                    </span>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-7 col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Cabeçalho do documento</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-light fade show fs-12" role="alert">
+                    <span class="fw-semibold d-block">
+                        {{ tenant.trade_name|default:tenant.legal_name }}
+                    </span>
+                    <span class="d-block">CNPJ {{ tenant.cnpj }}</span>
+                    <span class="fs-11 text-muted">
+                        Razão social e CNPJ vêm do cadastro da organização e não se editam aqui.
+                    </span>
+                </div>
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

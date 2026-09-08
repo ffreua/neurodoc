@@ -138,6 +138,20 @@ def nd_tone(value):
 
 
 @register.filter
+def nd_role(value):
+    """Nome do papel em português.
+
+    `Membership.roles` é um `ArrayField` de strings, então o template recebe
+    `owner`, `secretary` — e não o rótulo do `TextChoices`, que só existe
+    para campo com `choices`. Sem isto a tela da equipe mostra o nome
+    interno do papel para quem está concedendo o papel.
+    """
+    from tenancy.models import Role
+
+    return dict(Role.choices).get(str(value), str(value))
+
+
+@register.filter
 def nd_in_stage(cards, stage_id):
     """The subset of `cards` sitting in one CRM stage.
 

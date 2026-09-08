@@ -115,7 +115,9 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                                     <button type="submit" class="btn btn-sm btn-primary" data-nd-busy>Chegou</button>
                                 </form>
                                 {% endif %}
-                                {% if appointment.status == 'checked_in' %}
+                                {% comment %}"Atender" abre o prontuário, então é botão de
+                                quem atende. No balcão da secretária ele levaria a um 404.{% endcomment %}
+                                {% if appointment.status == 'checked_in' and nd_can.read_clinical %}
                                 <a class="btn btn-sm btn-light-primary"
                                    href="{% url 'clinical:timeline' appointment.patient_id %}">Atender</a>
                                 {% endif %}

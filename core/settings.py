@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'dj_control_room_base', 'dj_celery_panel', 'dj_control_room',
     'base', 'accounts', 'tenancy', 'patients',
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
-    'crm', 'finance', 'ai', 'notifications', 'audit', 'reporting',
+    'finance', 'ai', 'notifications', 'audit', 'reporting',
     'integrations', 'events', 'exams',
 ]
 MIDDLEWARE = [

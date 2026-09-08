@@ -1,14 +1,17 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404
-from django.shortcuts import get_object_or_404, redirect, render
+"""Aceite de convite — a única tela de `tenancy` que não exige sessão.
+
+A administração da organização (equipe, papéis, identidade da clínica)
+mora em `admin_views.py`. Aqui fica o outro lado: a página que a pessoa
+convidada abre a partir do link, antes de ter vínculo, e às vezes antes de
+ter conta.
+"""
+
+from django.shortcuts import redirect, render
 from django.views import View
 
-from accounts.services import revoke_membership
-from audit.services import record_audit_event
-
-from .forms import AcceptInvitationAccountForm, CollaboratorInvitationForm
-from .invitations import issue_invitation, peek_invitation
-from .models import InvitationPurpose, Membership, Role
+from .forms import AcceptInvitationAccountForm
+from .invitations import peek_invitation
+from .models import InvitationPurpose
 from .services import (
     EmailAlreadyRegistered,
     InvalidInvitation,
@@ -16,57 +19,6 @@ from .services import (
     accept_collaborator_invitation_for_user,
     accept_collaborator_invitation_new_user,
 )
-
-
-class OwnerRequiredMixin:
-    def dispatch(self, request, *args, **kwargs):
-        context = request.access_context
-        if context is None or not context.has_role(Role.OWNER):
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
-
-
-class CollaboratorListView(LoginRequiredMixin, OwnerRequiredMixin, View):
-    def get(self, request):
-        memberships = (
-            Membership.objects
-            .filter(tenant_id=request.access_context.tenant_id)
-            .select_related('user')
-            .order_by('user__email')
-        )
-        return render(request, 'tenancy/collaborators.html', {
-            'memberships': memberships, 'form': CollaboratorInvitationForm(),
-        })
-
-    def post(self, request):
-        form = CollaboratorInvitationForm(request.POST)
-        if not form.is_valid():
-            memberships = Membership.objects.filter(tenant_id=request.access_context.tenant_id).select_related('user')
-            return render(request, 'tenancy/collaborators.html', {'memberships': memberships, 'form': form})
-        from .models import Tenant
-
-        tenant = Tenant.objects.get(id=request.access_context.tenant_id)
-        invitation, raw_token = issue_invitation(
-            InvitationPurpose.COLLABORATOR,
-            issued_by=request.user,
-            target_tenant=tenant,
-            email_binding=form.cleaned_data['email'],
-            role_grants=form.cleaned_data['roles'],
-        )
-        record_audit_event(
-            request.user, tenant, 'tenancy.collaborator_invited', object_type='invitation',
-            object_id=invitation.id, outcome='success',
-        )
-        return render(request, 'tenancy/collaborator_invited.html', {'token': raw_token, 'invitation': invitation})
-
-
-class RevokeCollaboratorView(LoginRequiredMixin, OwnerRequiredMixin, View):
-    def post(self, request, membership_id):
-        membership = get_object_or_404(
-            Membership, id=membership_id, tenant_id=request.access_context.tenant_id,
-        )
-        revoke_membership(membership, request.user)
-        return redirect('tenancy:collaborators')
 
 
 class AcceptCollaboratorInvitationView(View):

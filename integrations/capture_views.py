@@ -1,7 +1,6 @@
 import hashlib
 import json
 
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
@@ -9,17 +8,23 @@ from django.views import View
 from documents.storage import QuotaExceeded, receive_upload
 from documents.tasks import scan_attachment
 from documents.validators import UploadRejected
+from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.models import Tenant
 
 from . import capture
 from .models import CaptureDevice, CaptureSession, CaptureUploadRecord
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Captura por celular: parear aparelho e abrir sessão de digitalização.
+
+    O que entra por aqui vira anexo do paciente, então a capacidade é a do
+    cadastro — a mesma de quem anexa pela tela. O que o anexo digitalizado
+    revela depois continua decidido pela classificação dele, em
+    `documents._attachment_or_404`.
+    """
+
+    required_capability = Capability.PATIENT_ADMIN
 
 
 class DevicePairingStartView(TenantScopedView):

@@ -12,6 +12,7 @@
                 <li class="nxl-item nxl-caption">
                     <label>Assistencial</label>
                 </li>
+                {% if nd_can.managerial_dashboard %}
                 <li class="nxl-item {% if nd_section == 'reporting' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'reporting:dashboard' %}">
                         <span class="nxl-micon">
@@ -20,6 +21,8 @@
                         <span class="nxl-mtext">Indicadores</span>
                     </a>
                 </li>
+                {% endif %}
+                {% if nd_can.patient_admin %}
                 <li class="nxl-item nxl-hasmenu {% if nd_section == 'patients' %}active nxl-trigger{% endif %}">
                     <a class="nxl-link" href="{% url 'patients:list' %}">
                         <span class="nxl-micon">
@@ -35,6 +38,8 @@
                         <li class="nxl-item"><a class="nxl-link" href="{% url 'patients:create' %}">Novo paciente</a></li>
                     </ul>
                 </li>
+                {% endif %}
+                {% if nd_can.schedule %}
                 <li class="nxl-item nxl-hasmenu {% if nd_section == 'scheduling' %}active nxl-trigger{% endif %}">
                     <a class="nxl-link" href="{% url 'scheduling:week' %}">
                         <span class="nxl-micon">
@@ -53,9 +58,11 @@
                         <li class="nxl-item"><a class="nxl-link" href="{% url 'scheduling:settings' %}">Configurar horários</a></li>
                     </ul>
                 </li>
+                {% endif %}
                 {% comment %}Documentos médicos pertencem a um atendimento e são
                 abertos a partir dele; o que existe fora do atendimento é a
                 assinatura.{% endcomment %}
+                {% if nd_can.issue_document %}
                 <li class="nxl-item {% if nd_section == 'documents' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'documents:credential-list' %}">
                         <span class="nxl-micon">
@@ -64,18 +71,12 @@
                         <span class="nxl-mtext">Assinatura</span>
                     </a>
                 </li>
+                {% endif %}
 
                 <li class="nxl-item nxl-caption">
                     <label>Administrativo</label>
                 </li>
-                <li class="nxl-item {% if nd_section == 'crm' %}active{% endif %}">
-                    <a class="nxl-link" href="{% url 'crm:board' %}">
-                        <span class="nxl-micon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><rect x="7" y="7" width="3" height="9"></rect><rect x="14" y="7" width="3" height="5"></rect></svg>
-                        </span>
-                        <span class="nxl-mtext">CRM</span>
-                    </a>
-                </li>
+                {% if nd_can.finance %}
                 <li class="nxl-item {% if nd_section == 'finance' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'finance:overview' %}">
                         <span class="nxl-micon">
@@ -84,22 +85,43 @@
                         <span class="nxl-mtext">Financeiro</span>
                     </a>
                 </li>
-                <li class="nxl-item {% if nd_section == 'tenancy' %}active{% endif %}">
-                    <a class="nxl-link" href="{% url 'tenancy:collaborators' %}">
+                {% endif %}
+                {% if nd_can.manage_organization %}
+                <li class="nxl-item nxl-hasmenu {% if nd_section == 'tenancy' %}active nxl-trigger{% endif %}">
+                    <a class="nxl-link" href="{% url 'tenancy:team' %}">
                         <span class="nxl-micon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
                         </span>
-                        <span class="nxl-mtext">Colaboradores</span>
+                        <span class="nxl-mtext">Organização</span>
+                        <span class="nxl-arrow fs-16">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </span>
                     </a>
+                    <ul class="nxl-submenu {% if nd_section == 'tenancy' %}nxl-menu-visible{% else %}nxl-menu-hidden{% endif %}">
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'tenancy:team' %}">Equipe e papéis</a></li>
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'tenancy:clinic' %}">Identidade da clínica</a></li>
+                    </ul>
                 </li>
-                <li class="nxl-item {% if nd_section == 'messaging' %}active{% endif %}">
+                {% endif %}
+                {% if nd_can.manage_integrations %}
+                <li class="nxl-item nxl-hasmenu {% if nd_section == 'messaging' or nd_section == 'ai-admin' %}active nxl-trigger{% endif %}">
                     <a class="nxl-link" href="{% url 'messaging:settings' %}">
                         <span class="nxl-micon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
                         </span>
-                        <span class="nxl-mtext">Mensageria</span>
+                        <span class="nxl-mtext">Integrações</span>
+                        <span class="nxl-arrow fs-16">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                        </span>
                     </a>
+                    <ul class="nxl-submenu {% if nd_section == 'messaging' or nd_section == 'ai-admin' %}nxl-menu-visible{% else %}nxl-menu-hidden{% endif %}">
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'messaging:settings' %}">SMS e e-mail</a></li>
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'ai-admin:settings' %}">Inteligência artificial</a></li>
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'messaging:deliveries' %}">Entregas</a></li>
+                    </ul>
                 </li>
+                {% endif %}
+                {% if nd_can.patient_admin %}
                 <li class="nxl-item {% if nd_section == 'integrations' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'integrations:capture-devices' %}">
                         <span class="nxl-micon">
@@ -108,10 +130,12 @@
                         <span class="nxl-mtext">Captura local</span>
                     </a>
                 </li>
+                {% endif %}
 
                 <li class="nxl-item nxl-caption">
                     <label>Apoio</label>
                 </li>
+                {% if nd_can.clinical_ai %}
                 <li class="nxl-item {% if nd_section == 'ai' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'ai:chat-list' %}">
                         <span class="nxl-micon">
@@ -120,6 +144,7 @@
                         <span class="nxl-mtext">Chat de apoio</span>
                     </a>
                 </li>
+                {% endif %}
                 <li class="nxl-item {% if nd_section == 'notifications' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'notifications:list' %}">
                         <span class="nxl-micon">

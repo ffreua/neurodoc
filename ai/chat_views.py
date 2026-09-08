@@ -1,7 +1,7 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404, HttpResponseForbidden
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
+
+from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import chat_services
 from .cancellation import ConcurrencyLimitExceeded, cancel_message, check_concurrency_limit
@@ -10,11 +10,16 @@ from .rendering import render_markdown
 from .tasks import run_chat_turn
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Chat clínico de IA — a mesma capacidade do prontuário.
+
+    O chat consulta o prontuário para responder. A sessão ser do próprio
+    usuário (`_own_session_or_404`) diz de quem é a conversa, não a que
+    dados ela dá acesso: sem a capacidade clínica, uma secretária abriria
+    uma sessão dela mesma e perguntaria o diagnóstico do paciente.
+    """
+
+    required_capability = Capability.CLINICAL_AI
 
 
 def _own_session_or_404(request, session_id):

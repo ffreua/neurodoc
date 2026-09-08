@@ -1,8 +1,7 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404, HttpResponseForbidden
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
 
+from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.selectors import scope_to_tenant
 
 from . import services
@@ -11,11 +10,16 @@ from .models import AIArtifact, AIJob, AIJobKind
 from .review import AlreadyReviewed, ArtifactStale, accept_artifact, reject_artifact
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """IA sobre atendimento: lê o prontuário, então segue o prontuário.
+
+    Resumir um atendimento é ler o atendimento — o resultado carrega
+    queixa, história e conduta. Deixar a tela aberta a quem não pode ler o
+    prontuário entregaria por resumo exatamente o que a matriz nega por
+    leitura direta, que é a forma mais silenciosa de furar a regra.
+    """
+
+    required_capability = Capability.CLINICAL_AI
 
 
 class EncounterSummaryRequestView(TenantScopedView):

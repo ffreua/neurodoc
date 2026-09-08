@@ -27,11 +27,26 @@ clicado diz qual horário e qual paciente.
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="book-type">Tipo de atendimento</label>
-                        <select class="form-select" name="appointment_type" id="book-type">
+                        {% comment %}`required` para o navegador barrar aqui dentro, com o
+                        campo à vista. Sem isso o formulário sai vazio e a recusa vem do
+                        servidor, como aviso da página, com o modal já fechado.{% endcomment %}
+                        <select class="form-select" name="appointment_type" id="book-type" required>
                             {% for item in durations %}
                             <option value="{{ item.value }}">{{ item.label }} — {{ item.minutes }} min</option>
+                            {% empty %}
+                            <option value="" disabled selected>Durações não configuradas</option>
                             {% endfor %}
                         </select>
+                        {% if not durations %}
+                        {% comment %}Diz o que fazer em vez de deixar um campo mudo: sem
+                        durações não há como calcular o fim do atendimento.{% endcomment %}
+                        <div class="form-text fs-11 text-danger">
+                            Nenhuma duração de atendimento configurada para este médico.
+                            <a href="{% url 'scheduling:settings' %}?physician={{ doctor.id }}">
+                                Configure os horários
+                            </a> antes de marcar.
+                        </div>
+                        {% endif %}
                         <div class="form-text fs-11" id="book-duration-hint"></div>
                     </div>
 

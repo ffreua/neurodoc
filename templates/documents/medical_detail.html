@@ -71,46 +71,149 @@
                     <form method="post" action="{% url 'documents:medical-correction' document.id %}">
                         {% csrf_token %}
                         <input type="hidden" name="kind" value="{{ document.kind }}">
+                        {% comment %}`correction_reason`, e não `reason`.
+
+                        `reason` é o nome do campo "Motivo" do encaminhamento: usar o
+                        mesmo nome aqui fazia o motivo da correção virar o conteúdo do
+                        encaimento corrigido — e, nos outros três tipos, o texto
+                        digitado era descartado sem aviso. Agora vai para a trilha de
+                        auditoria da retificação.{% endcomment %}
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-reason">Motivo da correção</label>
-                            <textarea class="form-control" id="corr-reason" name="reason" rows="2"></textarea>
+                            <textarea class="form-control" id="corr-reason" name="correction_reason" rows="2"
+                                      placeholder="Ex.: dose digitada errada"></textarea>
+                            <div class="form-text fs-11">
+                                Fica registrado no histórico. Não é impresso no documento.
+                            </div>
                         </div>
                         {% if document.kind == 'prescription' %}
                         <div class="mb-3">
+                            <label class="form-label fw-semibold" for="corr-format">Formato da receita</label>
+                            <select class="form-select" id="corr-format" name="prescription_format">
+                                <option value="simple"
+                                    {% if document.content_snapshot.prescription_format != 'special_control' %}selected{% endif %}>
+                                    Receita simples (uma via)
+                                </option>
+                                <option value="special_control"
+                                    {% if document.content_snapshot.prescription_format == 'special_control' %}selected{% endif %}>
+                                    Controle especial (duas vias — farmácia e paciente)
+                                </option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-prescription">Prescrição</label>
-                            <textarea class="form-control" id="corr-prescription" name="prescription_text" rows="4"></textarea>
+                            <textarea class="form-control" id="corr-prescription" name="prescription_text" rows="4">{{ document.content_snapshot.prescription_text }}</textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-instructions">Instruções especiais</label>
-                            <textarea class="form-control" id="corr-instructions" name="special_instructions" rows="2"></textarea>
+                            <textarea class="form-control" id="corr-instructions" name="special_instructions" rows="2">{{ document.content_snapshot.special_instructions }}</textarea>
                         </div>
                         {% elif document.kind == 'report' %}
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-report">Texto do relatório</label>
-                            <textarea class="form-control" id="corr-report" name="report_text" rows="5"></textarea>
+                            <textarea class="form-control" id="corr-report" name="report_text" rows="5">{{ document.content_snapshot.report_text }}</textarea>
                         </div>
                         {% elif document.kind == 'request' %}
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-procedure">Procedimento solicitado</label>
-                            <textarea class="form-control" id="corr-procedure" name="requested_procedure" rows="3"></textarea>
+                            <textarea class="form-control" id="corr-procedure" name="requested_procedure" rows="3">{{ document.content_snapshot.requested_procedure }}</textarea>
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-justification">Justificativa</label>
-                            <textarea class="form-control" id="corr-justification" name="justification" rows="3"></textarea>
+                            <textarea class="form-control" id="corr-justification" name="justification" rows="3">{{ document.content_snapshot.justification }}</textarea>
                         </div>
                         {% elif document.kind == 'referral' %}
                         <div class="mb-3">
                             <label class="form-label fw-semibold" for="corr-specialty">Especialidade</label>
-                            <input type="text" class="form-control" id="corr-specialty" name="referral_specialty">
+                            <input type="text" class="form-control" id="corr-specialty" name="referral_specialty"
+                                   value="{{ document.content_snapshot.referral_specialty }}">
                         </div>
+                        {% comment %}`reason`, e não `justification`: o campo do
+                        encaminhamento é o motivo. Com o nome errado, o motivo nunca
+                        chegava ao servidor e a retificação de encaminhamento não
+                        podia funcionar.{% endcomment %}
                         <div class="mb-3">
-                            <label class="form-label fw-semibold" for="corr-justification">Justificativa</label>
-                            <textarea class="form-control" id="corr-justification" name="justification" rows="3"></textarea>
+                            <label class="form-label fw-semibold" for="corr-referral-reason">Motivo do encaminhamento</label>
+                            <textarea class="form-control" id="corr-referral-reason" name="reason" rows="3">{{ document.content_snapshot.reason }}</textarea>
                         </div>
                         {% endif %}
                         <button type="submit" class="btn btn-primary" data-nd-busy>Gerar correção</button>
                     </form>
                 </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% comment %}Entrega ao paciente.
+
+        O envio dispara sozinho na emissão, pela fila de eventos — e é por ser
+        automático que precisa aparecer aqui. Sem esta lista, o médico não tem
+        como saber se o SMS saiu, se o e-mail voltou, ou se o paciente sequer
+        tinha contato cadastrado; descobre pelo paciente ligando, que é tarde.
+        {% endcomment %}
+        {% if document.status == "issued" %}
+        <div class="card stretch stretch-full mt-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Entrega ao paciente</h5>
+                {% if delivered_ok %}
+                <span class="badge bg-soft-success text-success">Enviado</span>
+                {% else %}
+                <span class="badge bg-soft-warning text-warning">Não entregue</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if deliveries %}
+                <ul class="list-group list-group-flush mb-3">
+                    {% for delivery in deliveries %}
+                    <li class="list-group-item px-0 d-flex flex-wrap align-items-center gap-2">
+                        <span class="badge bg-gray-200 text-dark">
+                            {{ delivery.get_channel_display }}
+                        </span>
+                        <span class="fs-12 text-dark flex-grow-1">
+                            {% if delivery.channel == 'sms' %}
+                            {{ delivery.contact.phone }}
+                            {% else %}
+                            {{ delivery.contact.email }}
+                            {% endif %}
+                            <span class="d-block fs-11 text-muted">
+                                {{ delivery.contact.name }}
+                                {% if delivery.contact.relationship %}
+                                ({{ delivery.contact.relationship }})
+                                {% endif %}
+                                · {{ delivery.created_at|date:"d/m/Y H:i" }}
+                            </span>
+                        </span>
+                        <span class="badge bg-soft-{{ delivery.status|nd_tone }} text-{{ delivery.status|nd_tone }}">
+                            {{ delivery.get_status_display }}
+                        </span>
+                    </li>
+                    {% if delivery.last_error %}
+                    <li class="list-group-item px-0 pt-0 border-0">
+                        <span class="fs-11 text-danger">{{ delivery.last_error }}</span>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="fs-12 text-muted">
+                    Nenhum envio registrado. O documento é enviado automaticamente na
+                    emissão, para os contatos do paciente que estejam autorizados a
+                    receber documento e com telefone ou e-mail verificado.
+                </p>
+                {% endif %}
+
+                {% if is_own_document %}
+                <form method="post" action="{% url 'documents:medical-send' document.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light-primary w-100" data-nd-busy>
+                        {% if deliveries %}Reenviar ao paciente{% else %}Enviar ao paciente{% endif %}
+                    </button>
+                </form>
+                <span class="d-block fs-11 text-muted mt-2">
+                    O paciente recebe um link e precisa dos 4 últimos dígitos do CPF
+                    para abrir. Cada reenvio gera um link novo e invalida o anterior.
+                </span>
+                {% endif %}
             </div>
         </div>
         {% endif %}

@@ -1,13 +1,12 @@
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import transaction
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
-from django.views import View
 
 from audit.services import record_audit_event
 from integrations.cep import lookup_cep
+from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import selectors
 from .contacts import create_contact
@@ -19,11 +18,16 @@ from .models import Patient, PatientStatus
 from .observations import age_at, compute_bmi, missing_measurement_hint, record_observation
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Cadastro do paciente é administrativo, e os quatro papéis o fazem.
+
+    Dados demográficos, contato e convênio não são prontuário: o PRD dá
+    esta linha a dono, médico, secretaria e gestor. O que a ficha do
+    paciente **não** pode fazer é abrir nota clínica, e isso é decidido nas
+    telas do prontuário, não aqui.
+    """
+
+    required_capability = Capability.PATIENT_ADMIN
 
 
 class PatientListView(TenantScopedView):
@@ -39,7 +43,11 @@ class PatientAutocompleteView(TenantScopedView):
         query = request.GET.get('q', '')
         results = selectors.autocomplete_patients(request.access_context, query)
         return JsonResponse({'results': [
-            {'id': str(p.id), 'full_name': p.full_name} for p in results
+            # O número vai junto para a busca da agenda distinguir dois
+            # homônimos — que é exatamente quando escolher o paciente errado
+            # é mais fácil.
+            {'id': str(p.id), 'full_name': p.full_name, 'record_number': p.record_number}
+            for p in results
         ]})
 
 

@@ -11,14 +11,13 @@ caracteres — para o gestor conferir que a chave gravada é a que ele acha que
 """
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
-from django.views import View
 
 from audit.services import record_audit_event
 from base.crypto import SecretUnavailable, encrypt_secret, mask_secret, master_key_available, master_key_is_shared
+from tenancy.permissions import Capability, CapabilityRequiredView
 
 from .email import EmailSendFailed, verify_sender
 from .forms import DoctorEmailSettingsForm, SmsSettingsForm
@@ -26,18 +25,24 @@ from .models import DoctorEmailSettings, MessagingSettings
 from .smsdev import SmsChannelDisabled, SmsSendFailed, check_balance
 
 
-class ManagerRequiredView(LoginRequiredMixin, View):
-    """Só `owner` e `manager` passam.
+class ManagerRequiredView(CapabilityRequiredView):
+    """Credenciais de provedor — só quem administra a operação da clínica.
 
-    A verificação é por papel no vínculo ativo, consultado no banco a cada
-    requisição — e não por algo carregado na sessão no login: um papel
-    revogado tem de deixar de valer imediatamente.
+    A capacidade é `MANAGE_INTEGRATIONS` (`tenancy.permissions`), concedida
+    a `owner` e `manager`. Antes a verificação de papel estava escrita aqui
+    dentro, e era a única do sistema fora de colaboradores: o resultado é a
+    matriz do PRD valendo em duas telas e em nenhuma outra.
+
+    `self.membership` continua carregado porque as gravações registram
+    quem alterou (`updated_by`), o que a capacidade não diz.
     """
+
+    required_capability = Capability.MANAGE_INTEGRATIONS
 
     def dispatch(self, request, *args, **kwargs):
         if request.access_context is None:
             raise Http404
-        from tenancy.models import Membership, MembershipStatus, Role
+        from tenancy.models import Membership, MembershipStatus
 
         self.membership = Membership.objects.filter(
             id=request.access_context.membership_id,
@@ -45,11 +50,6 @@ class ManagerRequiredView(LoginRequiredMixin, View):
             status=MembershipStatus.ACTIVE,
         ).select_related('tenant', 'user').first()
         if self.membership is None:
-            raise Http404
-        roles = set(self.membership.roles or [])
-        if not roles & {Role.OWNER, Role.MANAGER}:
-            # 404 e não 403: quem não administra a clínica não precisa saber
-            # que esta tela existe.
             raise Http404
         return super().dispatch(request, *args, **kwargs)
 
@@ -98,10 +98,14 @@ class MessagingSettingsView(ManagerRequiredView):
             else:
                 form = DoctorEmailSettingsForm(instance=row)
             rows.append({'doctor': doctor, 'settings': row, 'form': form})
+        from .forms import ClinicEmailSettingsForm, EmailTestForm
+
         context = {
             'email_form_membership': failed,
             'sms': sms,
             'sms_form': SmsSettingsForm(instance=sms),
+            'clinic_email_form': ClinicEmailSettingsForm(instance=sms),
+            'email_test_form': EmailTestForm(),
             'doctor_rows': rows,
             'sms_globally_enabled': django_settings.SMS_ENABLED,
             'email_globally_enabled': django_settings.EMAIL_ENABLED,
@@ -278,3 +282,106 @@ class DeliveryLogView(ManagerRequiredView):
             'deliveries': deliveries,
             'settings_url': reverse('messaging:settings'),
         })
+
+
+# --------------------------------------------------------------------------
+# Servidor de e-mail da clínica
+# --------------------------------------------------------------------------
+
+class ClinicEmailSaveView(ManagerRequiredView):
+    """Grava o SMTP da clínica — o remetente padrão de todos os envios."""
+
+    def post(self, request):
+        from .forms import ClinicEmailSettingsForm
+
+        tenant_id = request.access_context.tenant_id
+        row = _sms_settings(tenant_id)
+        form = ClinicEmailSettingsForm(request.POST, instance=row)
+        if not form.is_valid():
+            return render(
+                request, 'communications/settings.html',
+                MessagingSettingsView()._context(request, clinic_email_form=form),
+            )
+        entered = (form.cleaned_data.get('smtp_password') or '').strip()
+        saved = form.save(commit=False)
+        if entered:
+            if not master_key_available():
+                messages.error(
+                    request,
+                    'Não há chave-mestra configurada (SECRETS_MASTER_KEY), então a senha '
+                    'do SMTP não pode ser guardada cifrada. Configure-a antes.',
+                )
+                return redirect('messaging:settings')
+            saved.smtp_password_ciphertext, saved.smtp_password_metadata = encrypt_secret(entered)
+            saved.smtp_password_hint = mask_secret(entered)
+        saved.updated_by = self.membership
+        saved.full_clean()
+        saved.save()
+        record_audit_event(
+            request.user, tenant_id, 'communications.clinic_email_settings_updated',
+            object_type='tenant', object_id=tenant_id, outcome='success',
+            integrity_metadata={
+                'enabled': saved.email_enabled, 'from_email': saved.email_from_address,
+                'own_server': saved.uses_own_smtp, 'password_changed': bool(entered),
+            },
+        )
+        messages.success(request, 'Servidor de e-mail da clínica salvo.')
+        return redirect('messaging:settings')
+
+
+class ClinicEmailTestView(ManagerRequiredView):
+    """Testa a conexão e, se pedido, manda um e-mail de verdade.
+
+    São duas provas diferentes e a distinção importa. Abrir a conexão prova
+    que o servidor aceita a senha. Só o envio real revela remetente recusado
+    por SPF, domínio sem DKIM e caixa que joga tudo em spam — e é aí que o
+    paciente deixa de receber a receita.
+    """
+
+    def post(self, request):
+        from .email import EmailSendFailed, send_test_email, verify_connection
+        from .email import resolve_sender
+        from .forms import EmailTestForm
+
+        tenant_id = request.access_context.tenant_id
+        row = _sms_settings(tenant_id)
+        if not row.email_enabled or not row.email_from_address:
+            messages.warning(
+                request,
+                'Configure e ative o servidor de e-mail da clínica antes de testar.',
+            )
+            return redirect('messaging:settings')
+
+        sender = resolve_sender(tenant_id=tenant_id)
+        if row.uses_own_smtp:
+            try:
+                verify_connection(sender)
+            except EmailSendFailed as exc:
+                messages.error(request, f'A conexão SMTP falhou: {exc}')
+                return redirect('messaging:settings')
+
+        form = EmailTestForm(request.POST)
+        if not form.is_valid():
+            messages.error(
+                request,
+                'Informe um endereço válido para receber o e-mail de teste.',
+            )
+            return redirect('messaging:settings')
+
+        destino = form.cleaned_data['to_email']
+        try:
+            send_test_email(destino, tenant_id=tenant_id, label='da clínica')
+        except EmailSendFailed as exc:
+            messages.error(request, f'O envio falhou: {exc}')
+            return redirect('messaging:settings')
+
+        record_audit_event(
+            request.user, tenant_id, 'communications.clinic_email_tested',
+            object_type='tenant', object_id=tenant_id, outcome='success',
+        )
+        messages.success(
+            request,
+            f'E-mail de teste enviado para {destino}. Confira a caixa de entrada — '
+            'e a de spam, que é onde remetente novo costuma cair.',
+        )
+        return redirect('messaging:settings')

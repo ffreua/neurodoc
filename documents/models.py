@@ -102,6 +102,17 @@ class MedicalDocument(TenantModel):
     status = models.CharField(max_length=40, choices=MedicalDocumentStatus.choices, default=MedicalDocumentStatus.DRAFT)
     issued_at = models.DateTimeField(null=True, blank=True)
     signature_metadata = models.JSONField(default=dict, blank=True)
+    #: Código do QR e da página pública de verificação.
+    #:
+    #: Aleatório, e não derivado do id nem do número do documento: quem
+    #: recebe uma receita não pode, a partir dela, adivinhar o código da
+    #: receita seguinte e conferir o documento de outro paciente. Um
+    #: contador sequencial no QR seria exatamente isso.
+    #:
+    #: Nasce junto com o rascunho porque o QR é desenhado dentro do PDF, e
+    #: o PDF final é montado antes de ser assinado — assinar depois de
+    #: acrescentar qualquer coisa invalidaria a assinatura.
+    validation_token = models.CharField(max_length=64, blank=True, db_index=True)
     replaces_document = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replaced_by',
     )

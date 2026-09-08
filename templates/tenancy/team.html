@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}Equipe — NeuroDoc{% endblock %}
+{% block page_title %}Equipe{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Equipe</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'tenancy:clinic' %}">Identidade da clínica</a>
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#invite-modal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <span>Convidar</span>
+</button>
+{% endblock %}
+{% block content %}
+
+{% comment %}Convites pendentes vêm primeiro: é o que está em aberto e o que
+some da tela se ninguém olhar. A lista da equipe é estado; isto é pendência.
+{% endcomment %}
+{% if invitations %}
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Convites aguardando aceite</h5>
+        <span class="badge bg-soft-warning text-warning">{{ invitations|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+            {% for invitation in invitations %}
+            <li class="list-group-item d-flex flex-wrap align-items-center gap-3">
+                <span class="fw-semibold text-dark flex-grow-1">{{ invitation.email_binding }}</span>
+                <span>
+                    {% for role in invitation.role_grants %}
+                    <span class="badge bg-gray-200 text-dark me-1">{{ role|nd_role }}</span>
+                    {% endfor %}
+                </span>
+                <span class="fs-11 text-muted">
+                    vale até {{ invitation.expires_at|date:"d/m/Y H:i" }}
+                </span>
+                <form method="post" action="{% url 'tenancy:revoke-invitation' invitation.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Cancelar</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">{{ tenant.trade_name|default:tenant.legal_name }}</h5>
+        <span class="badge bg-soft-primary text-primary">
+            {{ rows|length }} vínculo{{ rows|length|pluralize }}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Pessoa</th>
+                        <th scope="col">Papéis</th>
+                        <th scope="col">Situação</th>
+                        <th class="text-end pe-4" scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold">
+                                    {{ row.membership.user.email|slice:":1"|upper }}
+                                </span>
+                                <div>
+                                    <span class="d-block fw-semibold text-dark">
+                                        {{ row.membership.user.get_full_name|default:row.membership.user.email }}
+                                    </span>
+                                    <span class="d-block fs-11 text-muted">{{ row.membership.user.email }}</span>
+                                    {% if row.profile %}
+                                    <span class="d-block fs-11 text-muted">
+                                        CRM {{ row.profile.crm_number }}/{{ row.profile.crm_state }}
+                                        {% if row.profile.rqe %}· RQE {{ row.profile.rqe }}{% endif %}
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            {% for role in row.membership.roles %}
+                            <span class="badge bg-gray-200 text-dark me-1">{{ role|nd_role }}</span>
+                            {% empty %}
+                            <span class="fs-11 text-muted">sem papel</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            <span class="badge bg-soft-{{ row.membership.status|nd_tone }} text-{{ row.membership.status|nd_tone }}">
+                                {{ row.membership.get_status_display }}
+                            </span>
+                            {% comment %}O impedimento de assinar aparece aqui, ao lado do
+                            papel que faz parecer que a pessoa já pode. Sem isto o médico
+                            só descobre na hora de emitir a receita, com o atendimento
+                            finalizado.{% endcomment %}
+                            {% if row.is_doctor %}
+                            {% if row.can_sign %}
+                            <span class="d-block fs-11 text-success mt-1">Assina documento</span>
+                            {% if row.profile.verified_at %}
+                            {% comment %}Quem liberou e quando, na própria linha: é o
+                            que sustenta a validação feita pelo responsável da clínica,
+                            inclusive quando ele valida o próprio registro.{% endcomment %}
+                            <span class="d-block fs-10 text-muted">
+                                validado por
+                                {{ row.profile.verified_by.get_full_name|default:row.profile.verified_by.email|default:"—" }}
+                                em {{ row.profile.verified_at|date:"d/m/Y" }}
+                            </span>
+                            {% endif %}
+                            {% else %}
+                            <span class="d-block fs-11 text-warning mt-1">
+                                Não assina — {{ row.signing_blocker }}
+                            </span>
+                            {% comment %}A ação fica onde o problema é lido.
+
+                            Estava na coluna "Ações", que numa tela de notebook cai
+                            fora da largura visível e só aparece rolando a tabela de
+                            lado — e ninguém rola uma tabela de lado procurando algo
+                            que não sabe que existe. Aqui ela está encostada na frase
+                            que explica por que o médico não assina.{% endcomment %}
+                            {% if row.profile and row.membership.status == 'active' %}
+                            <form method="post" class="mt-2"
+                                  action="{% url 'tenancy:physician-verification' row.membership.id 'validar' %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-success" data-nd-busy>
+                                    Validar CRM e liberar
+                                </button>
+                            </form>
+                            {% elif not row.profile and row.membership.status == 'active' %}
+                            <button type="button" class="btn btn-sm btn-light-primary mt-2"
+                                    data-bs-toggle="modal" data-bs-target="#crm-{{ row.membership.id }}">
+                                Cadastrar registro
+                            </button>
+                            {% endif %}
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
+                                <button type="button" class="btn btn-sm btn-light"
+                                        data-bs-toggle="modal" data-bs-target="#roles-{{ row.membership.id }}">
+                                    Acesso
+                                </button>
+                                {% if row.is_doctor %}
+                                <button type="button" class="btn btn-sm btn-light"
+                                        data-bs-toggle="modal" data-bs-target="#crm-{{ row.membership.id }}">
+                                    Registro
+                                </button>
+                                {% endif %}
+                                {% comment %}Suspender, reativar e revogar saíram da linha
+                                para dentro do modal "Acesso".
+
+                                Cinco botões por linha não cabem na coluna, e o que não
+                                cabe some pela borda direita da tabela — foi assim que a
+                                validação do CRM ficou invisível. Duas ações por linha
+                                cabem; as demais moram onde já se decide o acesso daquela
+                                pessoa, que é o mesmo assunto.{% endcomment %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="text-center text-muted py-5">Nenhum vínculo.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block modals %}
+<div class="modal fade" id="invite-modal" tabindex="-1" aria-hidden="true" aria-labelledby="invite-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'tenancy:team' %}" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="invite-title">Convidar para a equipe</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    {% with form=invite_form %}{% include "partials/form_fields.html" %}{% endwith %}
+                    <div class="form-text fs-11">
+                        O convite gera um link de uso único, válido por 7 dias. Conceder o papel
+                        de médico não libera a assinatura: o registro profissional é cadastrado
+                        depois, na lista da equipe, e passa por validação.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Gerar convite</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% comment %}Um modal por vínculo, e não um só reaproveitado: são poucos
+vínculos por clínica — dezenas, não centenas — e cada formulário precisa vir
+com os papéis atuais daquela pessoa marcados. Preencher isso por JavaScript
+seria mais código para o mesmo resultado.{% endcomment %}
+{% for row in rows %}
+<div class="modal fade" id="roles-{{ row.membership.id }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Acesso de {{ row.membership.user.get_full_name|default:row.membership.user.email }}</h5>
+                    <span class="fs-11 text-muted">
+                        {{ row.membership.get_status_display }} · {{ row.membership.user.email }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <form method="post" action="{% url 'tenancy:membership-roles' row.membership.id %}" novalidate>
+                {% csrf_token %}
+                <div class="modal-body">
+                    {% with form=row.roles_form %}{% include "partials/form_fields.html" %}{% endwith %}
+                    <button type="submit" class="btn btn-primary mt-2" data-nd-busy>Salvar papéis</button>
+                </div>
+            </form>
+
+            {% comment %}Suspender e revogar moram aqui, e não na linha da tabela:
+            é o mesmo assunto — o acesso daquela pessoa — e cinco botões por
+            linha empurravam a coluna para fora da tela.
+
+            Formulários irmãos, porque HTML não aninha formulário.{% endcomment %}
+            <div class="modal-footer d-block border-top">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                    Situação do vínculo
+                </span>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if row.membership.status == 'active' %}
+                    <form method="post" action="{% url 'tenancy:membership-status' row.membership.id 'suspend' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-light-warning" data-nd-busy>Suspender</button>
+                    </form>
+                    {% elif row.membership.status == 'suspended' %}
+                    <form method="post" action="{% url 'tenancy:membership-status' row.membership.id 'reactivate' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-light-success" data-nd-busy>Reativar</button>
+                    </form>
+                    {% endif %}
+                    {% if row.membership.status != 'revoked' %}
+                    <form method="post" action="{% url 'tenancy:membership-status' row.membership.id 'revoke' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Revogar vínculo</button>
+                    </form>
+                    {% endif %}
+                </div>
+                <span class="d-block fs-10 text-muted mt-2">
+                    Suspender tira o acesso e o devolve depois — serve para férias e
+                    afastamento. Revogar encerra o vínculo: devolver o acesso exige
+                    convite novo.
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if row.is_doctor %}
+<div class="modal fade" id="crm-{{ row.membership.id }}" tabindex="-1" aria-hidden="true">
+    {% comment %}`modal-dialog-scrollable` com **um** `.modal-body`.
+
+    Com dois, o Bootstrap torna cada um rolável por conta própria e os dois
+    disputam a altura da janela: o de cima encolhe e corta o próprio conteúdo
+    — foi o que aconteceu com o aviso verde, que aparecia partido ao meio.
+
+    Daí os dois formulários morarem dentro do mesmo corpo, separados por uma
+    linha, cada um com o próprio botão. Irmãos, e não aninhados, porque HTML
+    não aninha formulário — e separados porque são decisões diferentes:
+    salvar corrige um dado digitado errado, validar afirma que o CRM foi
+    conferido junto ao conselho.{% endcomment %}
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title">Registro profissional</h5>
+                    <span class="fs-11 text-muted">
+                        {{ row.membership.user.get_full_name|default:row.membership.user.email }}
+                    </span>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+
+            <div class="modal-body">
+                {% comment %}A conferência vem primeiro: quem abre esta janela com o
+                registro já cadastrado vem para liberar a assinatura.{% endcomment %}
+                {% if row.profile %}
+                <div class="alert alert-{% if row.can_sign %}success{% else %}warning{% endif %} fade show fs-12" role="alert">
+                    {% if row.can_sign %}
+                    Registro validado. Este médico assina documento.
+                    {% else %}
+                    {{ row.signing_blocker }}
+                    {% endif %}
+                </div>
+                {% if row.profile.verified_at %}
+                <span class="d-block fs-11 text-muted mb-3">
+                    Última decisão: {{ row.profile.get_verification_status_display }},
+                    por {{ row.profile.verified_by.get_full_name|default:row.profile.verified_by.email|default:"—" }},
+                    em {{ row.profile.verified_at|date:"d/m/Y H:i" }}.
+                    {% if row.profile.verification_note %}<br>“{{ row.profile.verification_note }}”{% endif %}
+                </span>
+                {% endif %}
+
+                {% if not row.can_sign %}
+                <form method="post"
+                      action="{% url 'tenancy:physician-verification' row.membership.id 'validar' %}">
+                    {% csrf_token %}
+                    <label class="form-label fw-semibold fs-12" for="note-{{ row.membership.id }}">
+                        Como o CRM foi conferido
+                    </label>
+                    <input type="text" class="form-control form-control-sm" name="note"
+                           id="note-{{ row.membership.id }}"
+                           placeholder="Ex.: consultado no portal do CFM">
+                    <button type="submit" class="btn btn-success w-100 mt-2" data-nd-busy>
+                        Validar e liberar a assinatura
+                    </button>
+                </form>
+                {% else %}
+                <form method="post"
+                      action="{% url 'tenancy:physician-verification' row.membership.id 'recusar' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light-danger btn-sm" data-nd-busy>
+                        Revogar a validação
+                    </button>
+                </form>
+                {% endif %}
+                <span class="d-block fs-10 text-muted mt-2">
+                    Validar afirma que o registro foi conferido junto ao conselho. Fica
+                    registrado quem validou e quando, inclusive quando o responsável
+                    valida o próprio registro.
+                </span>
+                <hr class="my-4">
+                {% endif %}
+
+                <form method="post" action="{% url 'tenancy:physician-profile' row.membership.id %}" novalidate>
+                    {% csrf_token %}
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                        Dados do registro
+                    </span>
+                    {% with form=row.profile_form %}{% include "partials/form_fields.html" %}{% endwith %}
+                    <div class="form-text fs-11 mb-3">
+                        Alterar o CRM ou a UF devolve o registro para validação: o que foi
+                        conferido é o número, não a pessoa.
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar dados</button>
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endblock %}

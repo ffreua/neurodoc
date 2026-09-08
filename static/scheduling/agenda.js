@@ -30,14 +30,70 @@
         var bookChosen = document.getElementById('book-chosen');
         var bookNewName = document.getElementById('book-new-name');
 
+        var bookForm = document.getElementById('book-form');
+
         function describeDuration() {
             var option = bookType.options[bookType.selectedIndex];
-            if (!option) return;
+            if (!option || !option.value) {
+                /* Sem tipo escolhido não há duração, e portanto não há fim de
+                 * atendimento a anunciar. O aviso da configuração já está na
+                 * tela; repetir aqui só encheria o espaço. */
+                bookHint.textContent = '';
+                return;
+            }
             bookHint.textContent = 'O fim é calculado da duração deste tipo — ' +
                 option.textContent.replace(/^.*—\s*/, '') + '.';
         }
 
-        bookType.addEventListener('change', describeDuration);
+        bookType.addEventListener('change', function () {
+            bookType.classList.remove('is-invalid');
+            describeDuration();
+        });
+
+        /* Envio bloqueado deixa o botão utilizável de novo.
+         *
+         * `data-nd-busy` (app.js) desabilita o botão e lhe põe um spinner no
+         * `submit`, contando que a página vá embora em seguida. Quando o
+         * envio é barrado aqui, a página fica — e o botão ficaria desabilitado
+         * para sempre, o que é pior do que o campo vazio que se quis impedir.
+         *
+         * O desfazer vai num `setTimeout` porque os dois ouvintes de `submit`
+         * rodam na ordem em que foram registrados, e essa ordem depende de
+         * qual script carregou primeiro: desfazer de imediato pode ser
+         * refeito logo depois. Ao fim da fila, ambos já rodaram. */
+        function releaseBusy(form) {
+            window.setTimeout(function () {
+                form.querySelectorAll('[data-nd-busy]').forEach(function (button) {
+                    button.disabled = false;
+                    delete button.dataset.ndBusyDone;
+                    var spinner = button.querySelector('.spinner-border');
+                    if (spinner) spinner.remove();
+                });
+                /* O campo oculto que `app.js` cria para preservar o valor do
+                 * botão clicado também tem de sair: o envio não aconteceu, e
+                 * deixá-lo para trás mandaria a ação de agora junto com a do
+                 * próximo envio. */
+                form.querySelectorAll('[data-nd-busy-carrier]').forEach(function (field) {
+                    field.remove();
+                });
+            }, 0);
+        }
+
+        /* O formulário é `novalidate`, então o navegador não barra o campo
+         * vazio: sem isto o envio sai, o servidor recusa e o aviso aparece
+         * como mensagem da página — com o modal já fechado, longe do campo
+         * que faltou preencher. O erro tem de aparecer onde se digita. */
+        if (bookForm) {
+            bookForm.addEventListener('submit', function (event) {
+                if (bookType.value) return;
+                event.preventDefault();
+                releaseBusy(bookForm);
+                bookType.classList.add('is-invalid');
+                bookHint.textContent = 'Escolha o tipo de atendimento para calcular o fim.';
+                bookHint.className = 'form-text fs-11 text-danger';
+                bookType.focus();
+            });
+        }
 
         document.addEventListener('click', function (event) {
             var cell = event.target.closest('[data-nd-book]');
@@ -54,6 +110,11 @@
             document.getElementById('book-note').value = '';
             bookChosen.textContent = '';
             bookChosen.className = 'form-text fs-11';
+            /* O erro da abertura anterior não pode sobreviver a esta: já foi
+             * corrigido ou abandonado, e reaparecer num horário novo faria
+             * parecer que o campo continua errado. */
+            bookType.classList.remove('is-invalid');
+            bookHint.className = 'form-text fs-11';
             describeDuration();
             window.NeuroDoc.openModal(bookModal);
             window.setTimeout(function () { bookSearch.focus(); }, 60);

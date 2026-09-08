@@ -1,10 +1,10 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib import messages
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
 
 from audit.services import record_audit_event
 from patients.models import Patient
+from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.selectors import scope_to_tenant
 
 from . import credentials as credentials_services
@@ -12,7 +12,9 @@ from . import document_kinds
 from . import issuance
 from . import signing_sessions
 from .forms import AttachmentUploadForm, CredentialUploadForm, MedicalDocumentForm, SigningSessionStartForm
-from .models import Attachment, AttachmentScanStatus, MedicalDocument, SigningCredential
+from .models import (
+    Attachment, AttachmentClassification, AttachmentScanStatus, MedicalDocument, SigningCredential,
+)
 from .preview import PreviewUnavailable, render_preview_png
 from .retention import soft_delete_attachment
 from .signing import InvalidPfxPassword
@@ -21,11 +23,29 @@ from .tasks import scan_attachment
 from .validators import UploadRejected
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Anexar e listar documento é trabalho administrativo do cadastro.
+
+    O PRD separa as duas coisas: anexar documento administrativo é `A` para
+    dono, secretaria e gestor, mas **visualizar anexo clínico** é `—` para
+    secretaria e gestor. A capacidade da tela é portanto a administrativa; o
+    que protege o conteúdo clínico é a verificação por anexo, em
+    `_attachment_or_404`, porque a classificação é do arquivo e não da tela.
+    """
+
+    required_capability = Capability.PATIENT_ADMIN
+
+
+class ClinicalDocumentView(CapabilityRequiredView):
+    """Documento médico: o conteúdo é clínico, então ler exige o prontuário."""
+
+    required_capability = Capability.READ_CLINICAL
+
+
+class SigningView(CapabilityRequiredView):
+    """Certificado e sessão de assinatura — só médico habilitado."""
+
+    required_capability = Capability.ISSUE_DOCUMENT
 
 
 def _patient_or_404(request, patient_id):
@@ -33,10 +53,26 @@ def _patient_or_404(request, patient_id):
 
 
 def _attachment_or_404(request, attachment_id):
+    """O anexo, se quem pede tiver direito a **este** anexo.
+
+    A verificação é por objeto porque a classificação é do arquivo: a mesma
+    tela lista a carteirinha do convênio e o laudo de ressonância, e só o
+    segundo é prontuário. Sem isto, a secretária que precisa anexar a guia
+    baixaria também o laudo — e o PRD escreve `—` nessa célula.
+
+    404 e não 403: existir ou não o anexo clínico já é informação clínica.
+    """
     attachment = scope_to_tenant(Attachment.objects.all(), request.access_context).filter(
         id=attachment_id, deleted_at=None,
     ).first()
     if attachment is None:
+        raise Http404
+    if (attachment.classification == AttachmentClassification.CLINICAL
+            and not request.access_context.can(Capability.READ_CLINICAL)):
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'documents.clinical_attachment_denied',
+            object_type='attachment', object_id=attachment.id, outcome='denied',
+        )
         raise Http404
     return attachment
 
@@ -142,17 +178,57 @@ def _own_doctor_membership_or_403(request):
     return Membership.objects.filter(id=request.access_context.membership_id).select_related('user').first()
 
 
-class MedicalDocumentListView(TenantScopedView):
+class MedicalDocumentListView(ClinicalDocumentView):
     def get(self, request, encounter_id):
         encounter = _encounter_or_404(request, encounter_id)
         documents = encounter.medical_documents.order_by('-created_at')
         return render(request, 'documents/medical_list.html', {'encounter': encounter, 'documents': documents})
 
 
-class MedicalDocumentCreateView(TenantScopedView):
+class PatientDocumentsView(ClinicalDocumentView):
+    """Tudo o que existe de documento daquele paciente, num lugar só.
+
+    As listas eram por atendimento: para achar a receita de fevereiro era
+    preciso lembrar em qual consulta ela saiu e abrir aquele atendimento.
+    O prontuário é do paciente, não da consulta — e quem procura um
+    documento procura pelo paciente.
+
+    Junta o que o sistema emitiu (receita, laudo, pedido, encaminhamento) e
+    o que entrou de fora (upload e digitalização), porque para quem procura
+    são a mesma coisa: um papel daquele paciente.
+    """
+
+    def get(self, request, patient_id):
+        patient = _patient_or_404(request, patient_id)
+        documents = (
+            MedicalDocument.objects
+            .filter(tenant_id=request.access_context.tenant_id, patient=patient)
+            .select_related('encounter', 'physician__user')
+            .order_by('-created_at')
+        )
+        attachments = (
+            patient.attachments.filter(deleted_at=None)
+            .select_related('encounter')
+            .order_by('-created_at')
+        )
+        return render(request, 'documents/patient_documents.html', {
+            'patient': patient,
+            'documents': documents,
+            'attachments': attachments,
+            'issued_count': sum(1 for d in documents if d.status == 'issued'),
+        })
+
+
+class MedicalDocumentCreateView(ClinicalDocumentView):
     def get(self, request, encounter_id):
-        _encounter_or_404(request, encounter_id)
-        return render(request, 'documents/medical_form.html', {'form': MedicalDocumentForm()})
+        encounter = _encounter_or_404(request, encounter_id)
+        # O atendimento vai para o contexto para a tela saber de quem é o
+        # documento que está sendo criado. Sem ele, a trilha de navegação
+        # dizia "Início › Documentos › Novo" — sem paciente e sem
+        # atendimento, como se o documento não pertencesse a ninguém.
+        return render(request, 'documents/medical_form.html', {
+            'form': MedicalDocumentForm(), 'encounter': encounter,
+        })
 
     def post(self, request, encounter_id):
         encounter = _encounter_or_404(request, encounter_id)
@@ -161,7 +237,8 @@ class MedicalDocumentCreateView(TenantScopedView):
             return HttpResponseForbidden('Only a doctor membership may author a medical document.')
         form = MedicalDocumentForm(request.POST)
         if not form.is_valid():
-            return render(request, 'documents/medical_form.html', {'form': form})
+            return render(request, 'documents/medical_form.html',
+                          {'form': form, 'encounter': encounter})
         kind = form.cleaned_data['kind']
         content_fields = {field: form.cleaned_data[field] for field in document_kinds.all_fields(kind)}
         from tenancy.models import Tenant
@@ -173,11 +250,12 @@ class MedicalDocumentCreateView(TenantScopedView):
             )
         except (ValueError, issuance.MissingPhysicianProfile) as exc:
             form.add_error(None, str(exc))
-            return render(request, 'documents/medical_form.html', {'form': form})
+            return render(request, 'documents/medical_form.html',
+                          {'form': form, 'encounter': encounter})
         return redirect('documents:medical-detail', document_id=document.id)
 
 
-class MedicalDocumentDetailView(TenantScopedView):
+class MedicalDocumentDetailView(ClinicalDocumentView):
     def get(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
@@ -191,10 +269,97 @@ class MedicalDocumentDetailView(TenantScopedView):
             'document': document, 'is_own_document': is_own_document,
             'active_session': active_session, 'credentials': credentials,
             'session_form': SigningSessionStartForm(), 'credential_form': CredentialUploadForm(),
+            **_delivery_context(document),
         })
 
 
-class MedicalDocumentReviewView(TenantScopedView):
+def _delivery_context(document):
+    """O que aconteceu com a entrega deste documento.
+
+    A entrega dispara sozinha na emissão, pela fila de eventos — e é
+    justamente por ser automática que precisa aparecer: sem esta lista, o
+    médico não tem como saber se o SMS saiu, se o e-mail voltou, ou se o
+    paciente sequer tinha contato cadastrado. Descobrir isso pelo paciente
+    ligando é tarde demais.
+    """
+    from communications.models import Delivery
+
+    deliveries = list(
+        Delivery.objects.filter(document=document)
+        .select_related('contact')
+        .prefetch_related('attempts')
+        .order_by('-created_at')
+    )
+    for delivery in deliveries:
+        ultimo = max(delivery.attempts.all(), key=lambda a: a.attempt_number, default=None)
+        delivery.last_error = ultimo.sanitized_error if ultimo else ''
+    return {
+        'deliveries': deliveries,
+        'delivered_ok': any(d.status in ('accepted', 'delivered') for d in deliveries),
+    }
+
+
+class MedicalDocumentSendView(ClinicalDocumentView):
+    """Envia (ou reenvia) o documento ao paciente.
+
+    Reenvio é permitido e não é exceção: mensagem não chega, o paciente
+    troca de telefone, o link expira. Cada envio gera um link novo — o
+    anterior deixa de valer, o que também é a saída quando alguém suspeita
+    que o link foi parar em mãos erradas.
+
+    Só documento emitido: um rascunho enviado ao paciente é um documento
+    sem validade circulando com a cara de válido.
+    """
+
+    def post(self, request, document_id):
+        from communications.services import deliver_document
+
+        document = _medical_document_or_404(request, document_id)
+        if document.status != 'issued':
+            messages.error(
+                request,
+                'Só documento emitido pode ser enviado ao paciente. '
+                'Assine antes de enviar.',
+            )
+            return redirect('documents:medical-detail', document_id=document.id)
+
+        deliveries = deliver_document(document, force_new_link=True)
+        if not deliveries:
+            messages.warning(
+                request,
+                'Nenhum contato do paciente está autorizado e verificado para receber '
+                'documento. Complete o cadastro de contato na ficha dele.',
+            )
+            return redirect('documents:medical-detail', document_id=document.id)
+
+        enviados = [d for d in deliveries if d.status in ('accepted', 'delivered')]
+        falharam = [d for d in deliveries if d.status == 'failed']
+        if enviados and not falharam:
+            messages.success(
+                request, f'Documento enviado em {len(enviados)} canal(is). '
+                'O paciente vai precisar dos 4 últimos dígitos do CPF para abrir.',
+            )
+        elif enviados:
+            messages.warning(
+                request,
+                f'{len(enviados)} envio(s) aceito(s) e {len(falharam)} com falha. '
+                'Confira a lista de entregas abaixo.',
+            )
+        else:
+            messages.error(
+                request,
+                'Nenhum envio foi aceito. Confira as configurações de mensageria '
+                'e a lista de entregas abaixo.',
+            )
+        record_audit_event(
+            request.user, document.tenant_id, 'documents.medicaldocument_sent',
+            object_type='medical_document', object_id=document.id, outcome='success',
+            integrity_metadata={'channels': len(deliveries)},
+        )
+        return redirect('documents:medical-detail', document_id=document.id)
+
+
+class MedicalDocumentReviewView(ClinicalDocumentView):
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
@@ -207,7 +372,7 @@ class MedicalDocumentReviewView(TenantScopedView):
         return redirect('documents:medical-detail', document_id=document.id)
 
 
-class MedicalDocumentDiscardView(TenantScopedView):
+class MedicalDocumentDiscardView(ClinicalDocumentView):
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
@@ -221,7 +386,7 @@ class MedicalDocumentDiscardView(TenantScopedView):
         return redirect('documents:medical-list', encounter_id=encounter_id)
 
 
-class MedicalDocumentSignView(TenantScopedView):
+class MedicalDocumentSignView(SigningView):
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
@@ -239,21 +404,38 @@ class MedicalDocumentSignView(TenantScopedView):
         return redirect('documents:medical-detail', document_id=document.id)
 
 
-class MedicalDocumentCorrectionView(TenantScopedView):
+class MedicalDocumentCorrectionView(ClinicalDocumentView):
     def post(self, request, document_id):
         original = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None or physician_membership.id != original.physician_id:
             return HttpResponseForbidden('Only the authoring physician may correct this document.')
-        form = MedicalDocumentForm(request.POST)
+        # O tipo é o do documento original e não é escolhido de novo:
+        # retificar é corrigir o conteúdo, não trocar uma receita por um
+        # laudo. O formulário abre travado nesse tipo.
+        form = MedicalDocumentForm(request.POST, locked_kind=original.kind)
         if not form.is_valid():
-            return render(request, 'documents/medical_form.html', {'form': form})
+            return render(request, 'documents/medical_form.html', {
+                'form': form, 'correcting': original,
+            })
         content_fields = {field: form.cleaned_data[field] for field in document_kinds.all_fields(original.kind)}
-        new_document = issuance.create_correction(original, request.user.id, content_fields)
+        try:
+            new_document = issuance.create_correction(
+                original, request.user.id, content_fields,
+                reason=request.POST.get('correction_reason', ''),
+            )
+        except ValueError as exc:
+            # A criação recusa conteúdo incompleto e receita de controle
+            # especial sem endereço. Sem este tratamento a recusa subia como
+            # erro 500 e tirava o médico da tela com o texto já digitado.
+            form.add_error(None, str(exc))
+            return render(request, 'documents/medical_form.html', {
+                'form': form, 'correcting': original,
+            })
         return redirect('documents:medical-detail', document_id=new_document.id)
 
 
-class SigningCredentialUploadView(TenantScopedView):
+class SigningCredentialUploadView(SigningView):
     def post(self, request):
         from tenancy.models import Tenant
 
@@ -281,7 +463,7 @@ class SigningCredentialUploadView(TenantScopedView):
         return redirect('documents:credential-list')
 
 
-class SigningCredentialListView(TenantScopedView):
+class SigningCredentialListView(SigningView):
     def get(self, request):
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
@@ -294,7 +476,7 @@ class SigningCredentialListView(TenantScopedView):
         })
 
 
-class SigningCredentialRevokeView(TenantScopedView):
+class SigningCredentialRevokeView(SigningView):
     def post(self, request, credential_id):
         physician_membership = _own_doctor_membership_or_403(request)
         credential = SigningCredential.objects.filter(id=credential_id, physician=physician_membership).first() \
@@ -309,7 +491,7 @@ class SigningCredentialRevokeView(TenantScopedView):
         return redirect('documents:credential-list')
 
 
-class SigningSessionStartView(TenantScopedView):
+class SigningSessionStartView(SigningView):
     def post(self, request):
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
@@ -345,7 +527,7 @@ class SigningSessionStartView(TenantScopedView):
         return redirect('documents:credential-list')
 
 
-class SigningSessionRevokeView(TenantScopedView):
+class SigningSessionRevokeView(SigningView):
     def post(self, request, session_id):
         from .models import SigningSession
 

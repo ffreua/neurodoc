@@ -95,7 +95,51 @@ class HealthPlan(TenantModel):
         return f'{self.insurer.name} — {self.name}'
 
 
+class PatientNumberSequence(TenantModel):
+    """O último número de prontuário emitido por esta clínica.
+
+    Um contador próprio, e não "o maior número em uso mais um".
+
+    A diferença aparece quando um paciente é apagado. Derivar do maior em
+    uso devolve o número do apagado ao próximo cadastro: dois prontuários
+    diferentes, na história da mesma clínica, com o mesmo número — e o
+    primeiro deles possivelmente já impresso em documento entregue.
+    Prontuário é registro permanente; o número de um não volta a ser de
+    outro.
+
+    Também tira uma varredura do caminho: derivar do maior obrigava a ler
+    o número de **todos** os pacientes da clínica a cada cadastro novo.
+    """
+
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant'], name='patients_numbersequence_tenant_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.tenant_id}: {self.last_number}'
+
+
 class Patient(TenantModel):
+    #: Número do prontuário — o identificador que se fala em voz alta.
+    #:
+    #: O sistema já liga tudo ao paciente por chave estrangeira, e é isso
+    #: que garante que o documento de um não apareça no prontuário de
+    #: outro. Este número não acrescenta isolamento nenhum: ele serve às
+    #: pessoas. UUID não se dita ao telefone, não se escreve na aba de uma
+    #: pasta, não se confere em voz alta com o laboratório que ligou
+    #: perguntando de um exame.
+    #:
+    #: Sequencial por clínica, atribuído na criação e imutável depois:
+    #: número de prontuário que muda deixa de servir para o que existe.
+    #:
+    #: **Não é credencial.** É curto e previsível por construção — quem tem
+    #: o 000123 adivinha o 000124. Quem pode ver o prontuário continua
+    #: sendo decidido pela matriz de permissões, nunca por conhecer o
+    #: número.
+    record_number = models.CharField(max_length=20, blank=True, db_index=True)
     full_name = models.CharField(max_length=255)
     birth_date = models.DateField(null=True, blank=True)
     birth_date_unknown_reason = models.CharField(max_length=255, blank=True)
@@ -144,6 +188,11 @@ class Patient(TenantModel):
                 fields=['tenant', 'cpf'], name='patients_patient_tenant_cpf_uniq',
                 condition=models.Q(cpf__isnull=False),
             ),
+            models.UniqueConstraint(
+                fields=['tenant', 'record_number'],
+                name='patients_patient_tenant_record_number_uniq',
+                condition=~models.Q(record_number=''),
+            ),
         ]
         indexes = [
             models.Index(Lower('full_name'), name='patients_patient_name_idx'),
@@ -155,8 +204,25 @@ class Patient(TenantModel):
         if not self.birth_date and not self.birth_date_unknown_reason and not self.estimated_birth_year:
             raise ValidationError({'birth_date': 'Provide a birth date or a reason it is unknown'})
 
+    def save(self, *args, **kwargs):
+        """Atribui o número do prontuário na primeira gravação.
+
+        Aqui, e não nas views, porque paciente nasce por caminhos demais:
+        o cadastro completo, o pré-cadastro que a secretária faz ao
+        telefone, a importação, o `seed_demo`. Um paciente sem número
+        seria um paciente que ninguém acha pelo número — e descobrir isso
+        depois obriga a numerar em lote, o que embaralha a ordem.
+        """
+        if not self.record_number and self.tenant_id:
+            from .numbering import next_record_number
+
+            self.record_number = next_record_number(self.tenant_id)
+            if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+                kwargs['update_fields'] = list(kwargs['update_fields']) + ['record_number']
+        super().save(*args, **kwargs)
+
     def __str__(self):
-        return self.full_name
+        return f'{self.record_number} — {self.full_name}' if self.record_number else self.full_name
 
 
 class PatientContact(TenantModel):

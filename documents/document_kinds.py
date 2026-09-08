@@ -22,7 +22,10 @@ REQUIRED_FIELDS = {
 }
 
 OPTIONAL_FIELDS = {
-    MedicalDocumentKind.PRESCRIPTION: ('special_instructions',),
+    # `prescription_format` decide se a receita sai em uma via ou em duas
+    # (controle especial). Opcional porque a receita simples é o padrão e
+    # não exige escolha — o valor ausente é lido como simples.
+    MedicalDocumentKind.PRESCRIPTION: ('special_instructions', 'prescription_format'),
     MedicalDocumentKind.REPORT: (),
     MedicalDocumentKind.REQUEST: (),
     MedicalDocumentKind.REFERRAL: (),

@@ -1,20 +1,42 @@
 import datetime
 
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
 
 from tenancy.models import Tenant
+from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import operations, patients
 from .models import ReportExport, ReportExportKind, ReportExportStatus
 from .services import request_export
 
 
-class TenantScopedView(LoginRequiredMixin, View):
+class TenantScopedView(CapabilityRequiredView):
+    """Indicadores agregados: faturamento, repasse, falta, perfil da carteira.
+
+    O PRD dá esta linha a dono, médico e gestor, e à secretaria dá "agenda
+    operacional" — que é o balcão, não isto. Faturamento por competência e
+    previsão de repasse ao médico não são número de recepção.
+    """
+
+    required_capability = Capability.MANAGERIAL_DASHBOARD
+
+
+class HomeRedirectMixin:
+    """Sem o dashboard gerencial, a página inicial passa a ser o balcão.
+
+    Recusar com 404 seria correto e inútil: `reporting:dashboard` é o
+    "Início" do sistema, e a secretária cai nele ao entrar e a cada
+    breadcrumb. Um 404 na porta de entrada é defeito de navegação, não
+    proteção — a proteção é não mostrar os números, e mostrar em vez deles
+    a tela que é de fato a dela.
+    """
+
     def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
+        context = request.access_context
+        if context is not None and not context.can(Capability.MANAGERIAL_DASHBOARD):
+            if context.can(Capability.SCHEDULE):
+                return redirect('scheduling:desk')
             raise Http404
         return super().dispatch(request, *args, **kwargs)
 
@@ -26,7 +48,7 @@ def _parse_period(request):
     return datetime.date.fromisoformat(start), datetime.date.fromisoformat(end)
 
 
-class DashboardView(TenantScopedView):
+class DashboardView(HomeRedirectMixin, TenantScopedView):
     """Every number on this page is labeled with its period, unit and n --
     a plain HTML table doubles as its own "tabela alternativa" (RNF-01.09)
     since there is no chart to begin with, consistent with this project's

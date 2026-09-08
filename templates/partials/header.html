@@ -98,12 +98,14 @@
                             </i>
                             <span>Segundo fator (MFA)</span>
                         </a>
+                        {% if nd_can.issue_document %}
                         <a class="dropdown-item" href="{% url 'documents:credential-list' %}">
                             <i>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                             </i>
                             <span>Certificados de assinatura</span>
                         </a>
+                        {% endif %}
                         <a class="dropdown-item" href="{% url 'accounts:tenant-picker' %}">
                             <i>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path></svg>

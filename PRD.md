@@ -18,7 +18,7 @@
 10. [Autenticação, tenancy, auditoria e proteção de dados](#10-autenticação-tenancy-auditoria-e-proteção-de-dados)
 11. [Prontuário e exame neurológico](#11-prontuário-e-exame-neurológico)
 12. [Documentos, assinatura, entrega e scanner](#12-documentos-assinatura-entrega-e-scanner)
-13. [Agenda, CRM, financeiro e indicadores](#13-agenda-crm-financeiro-e-indicadores)
+13. [Agenda, financeiro e indicadores](#13-agenda-financeiro-e-indicadores)
 14. [IA, tools, privacidade e streaming](#14-ia-tools-privacidade-e-streaming)
 15. [Tarefas, eventos e notificações](#15-tarefas-eventos-e-notificações)
 16. [Design system e acessibilidade](#16-design-system-e-acessibilidade)
@@ -30,6 +30,7 @@
 22. [Matriz de rastreabilidade](#22-matriz-de-rastreabilidade)
 23. [Riscos, dependências e fontes](#23-riscos-dependências-e-fontes)
 24. [Anexos operacionais completos](#24-anexos-operacionais-completos)
+25. [Evolução pós-S11 — setembro de 2026](#25-evolução-pós-s11--setembro-de-2026)
 
 ## 1. Visão, objetivos e métricas
 
@@ -363,7 +364,6 @@ Monólito modular Django, PostgreSQL compartilhado, Celery separado para trabalh
 | `scheduling/` | Agenda, disponibilidade e ocupação de slots | AvailabilityRule, ScheduleBlock, Appointment |
 | `documents/` | Arquivos privados, geração, assinatura e entrega autorizada | Attachment, MedicalDocument, SigningCredential, SigningSession |
 | `communications/` | E-mail, SMSDEV, links/códigos e status | Delivery, DeliveryAttempt, DocumentAccessToken |
-| `crm/` | Kanban, etapas e histórico administrativo | CRMStage, CRMCard, CRMTransition |
 | `finance/` | Tabela de valores, lançamentos e recebimentos | FeeSchedule, Receivable, Payment, FinancialAdjustment |
 | `ai/` | Adaptadores, grafos, tools, política de dados e artefatos | AIJob, AIArtifact, ChatSession, ChatMessage |
 | `notifications/` | Caixa interna e leitura de notificações | Notification |
@@ -683,7 +683,7 @@ Primeiro fluxo: software do scanner salva PDF/TIFF em pasta local; agente pequen
 
 Upload atômico com hash, tamanho e sequência; repetição do mesmo hash na mesma sessão gera alerta e evita duplicidade automática. Não consumir um arquivo ainda em gravação: exigir estabilidade de tamanho e renomeação/fechamento quando disponível. Deletar arquivo local após upload é opcional e nunca automático por padrão. Armazenamento e antivírus locais da clínica integram a validação operacional P-08. Durante falha de rede, preservar fila local cifrada e informar que ainda não foi anexado ao prontuário.
 
-## 13. Agenda, CRM, financeiro e indicadores
+## 13. Agenda, financeiro e indicadores
 
 ### 13.1 Agenda e concorrência
 
@@ -1616,11 +1616,11 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 **Dependências:** S04/S08; regras de valores aprovadas pelo produto.
 
-- [x] **S09-T01 — Modelar etapas, cards e transições do CRM.** Dependências: S04. Componente: `crm/models.py`. Requisitos: RF-07.01. **Aceite:** Etapa administrativa é distinta do estado clínico.
+- [~] **S09-T01 — Modelar etapas, cards e transições do CRM.** _Removido em 08/09/2026 — ver seção 25._ Dependências: S04. Componente: `crm/models.py`. Requisitos: RF-07.01. **Aceite:** Etapa administrativa é distinta do estado clínico.
 
-- [x] **S09-T02 — Criar kanban/grid com filtros e ação por teclado.** Dependências: S09-T01. Componente: `crm/views.py, templates/crm/`. Requisitos: RF-07.01. **Aceite:** Cards não exibem diagnósticos e movem por botão.
+- [~] **S09-T02 — Criar kanban/grid com filtros e ação por teclado.** _Removido em 08/09/2026 — ver seção 25._ Dependências: S09-T01. Componente: `crm/views.py, templates/crm/`. Requisitos: RF-07.01. **Aceite:** Cards não exibem diagnósticos e movem por botão.
 
-- [x] **S09-T03 — Integrar agenda por evento explícito e histórico.** Dependências: S09-T02, S08-T01. Componente: `crm/events.py`. Requisitos: RF-07.02. **Aceite:** Mover card não finaliza consulta ou emite documento.
+- [~] **S09-T03 — Integrar agenda por evento explícito e histórico.** _Removido em 08/09/2026 — ver seção 25._ Dependências: S09-T02, S08-T01. Componente: `crm/events.py`. Requisitos: RF-07.02. **Aceite:** Mover card não finaliza consulta ou emite documento.
 
 - [x] **S09-T04 — Modelar tabelas de preço/repasse com vigência.** Dependências: S03-T09. Componente: `finance/models.py`. Requisitos: RF-08.01. **Aceite:** Regra equivalente não tem períodos sobrepostos.
 
@@ -2785,7 +2785,7 @@ INSTALLED_APPS = [
     'dj_control_room_base', 'dj_celery_panel', 'dj_control_room',
     'base', 'accounts', 'tenancy', 'patients',
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
-    'crm', 'finance', 'ai', 'notifications', 'audit', 'reporting',
+    'finance', 'ai', 'notifications', 'audit', 'reporting',
     'integrations', 'events',
 ]
 MIDDLEWARE = [
@@ -4798,3 +4798,314 @@ mkdir -p .runtime
 chmod 700 .runtime
 exec flock -n .runtime/operation.lock python3 -m ops.deploy "$@"
 ```
+
+## 25. Evolução pós-S11 — setembro de 2026
+
+Registro do que foi construído depois do fechamento das sprints S01–S11, com
+as decisões que orientaram cada bloco e as correções feitas no caminho. As
+seções anteriores descrevem o produto pretendido; esta descreve o que o
+código passou a fazer, e onde ele ainda difere do pretendido.
+
+### 25.1 Correções na agenda
+
+**Tipo de atendimento não podia ser escolhido.** `AgendaDayView` incluía o
+modal de marcação (`_booking_modals.html`) sem enviar `durations` ao
+contexto: o `<select>` renderizava sem nenhuma `<option>`. O formulário
+saía sem `appointment_type`, o servidor recusava, e o aviso — "Este campo é
+obrigatório." — aparecia como mensagem da página, já com o modal fechado e
+sem dizer qual campo faltava.
+
+Correções: `_booking_context()` compartilhado pelas telas de semana e dia,
+para as duas não voltarem a divergir; `_first_error()` prefixando o rótulo
+do campo; `{% empty %}` no `<select>` apontando para a configuração de
+horários; e um guard em `agenda.js` que barra o envio **dentro** do modal.
+
+**Botão de envio apagava a própria resposta.** `initBusyButtons`
+(`static/duralux/app.js`) desabilitava todo `[data-nd-busy]` no evento
+`submit`. Um botão de envio com `name` carrega um valor, e o navegador
+monta os dados do formulário **depois** de disparar `submit`, ignorando
+campo desabilitado: o `name` do botão clicado sumia do envio. Era o 404 ao
+trazer ou descartar dado do atendimento anterior. O valor passou a ser
+copiado para campo oculto antes de o botão ser desabilitado.
+
+**Estáticos congelados em desenvolvimento.** `ops/runtime.py` saía cedo de
+`prepare_staticfiles()` quando o `.ready` do volume trazia o `RELEASE_ID`
+corrente. Correto para versão publicada, que é imutável; em
+desenvolvimento o `RELEASE_ID` é fixo em `dev`, e o bundle congelava no
+primeiro `collectstatic` — toda alteração de JS/CSS vinha na imagem e nunca
+era servida. `MUTABLE_RELEASE_IDS` marca os rótulos que não identificam uma
+versão (`dev`, `local`, vazio) e força a recoleta.
+
+### 25.2 Matriz de permissões (PRD seção 4) em código
+
+A matriz existia em prosa. Papel nenhum barrava nada fora de mensageria e
+colaboradores: secretária e gestor alcançavam prontuário, exame
+neurológico, anexo clínico e chat clínico de IA.
+
+`tenancy/permissions.py` declara **capacidades**, não papéis — a tela
+pergunta "posso ler prontuário?" em vez de "sou médico?", porque a resposta
+a "sou médico" não é a mesma em toda tela. `AccessContext` calcula as
+capacidades uma vez por requisição; `CapabilityRequiredView` é a base única
+das telas de `/app/`, e `required_capability = None` passa a ser decisão
+explícita em vez de esquecimento.
+
+Decisões que valem registro:
+
+- **No prontuário a capacidade sai do método HTTP** — GET exige
+  `read_clinical`, POST exige `write_clinical`. Anotar 26 classes à mão
+  garantiria que a 27ª nascesse aberta.
+- **Anexo clínico é verificado por objeto**, não por tela: a mesma lista
+  tem a guia do convênio e o laudo de ressonância. A secretária anexa a
+  guia e não baixa o laudo.
+- **O SSE do chat revalida a capacidade a cada volta do laço.** O PRD exige
+  que mudança de papel corte a entrega de eventos de streaming, e uma
+  conexão SSE vive muito mais que a decisão que a autorizou.
+- **A secretária sem dashboard gerencial é levada ao balcão**, não a um
+  404: `reporting:dashboard` é o "Início" do sistema.
+
+Onde ainda difere do PRD: as células marcadas "A se delegado" são
+concedidas, porque delegação não está modelada e negá-las tiraria da
+secretária o trabalho que ela faz. `PatientAccessGrant` (o escopo "C", por
+paciente) continua não modelado — dentro da clínica, qualquer médico lê
+qualquer paciente.
+
+### 25.3 Administração da organização
+
+`tenancy/admin_views.py`, sob `MANAGE_ORGANIZATION` (hoje só `owner`):
+
+- Alterar papéis de um vínculo existente. Antes só havia revogar e
+  convidar de novo, o que apaga a trilha de quem fez o quê.
+- Suspender, reativar e revogar. Suspender serve a férias e afastamento; o
+  vínculo novo não é o mesmo vínculo.
+- Convites pendentes visíveis, com cancelamento. O token aparecia uma vez e
+  sumia, e o convite valia sete dias sem ninguém poder cancelá-lo.
+- Recusa de convite para quem já tem vínculo — antes o erro estourava
+  depois de o convidado clicar no link.
+- Cada papel explicado no momento em que é concedido.
+- **Ninguém altera o próprio vínculo**: um dono que se revoga deixa a
+  clínica sem quem conceda papel.
+
+**Registro profissional (`PhysicianProfile`) ganhou tela.** Não havia
+nenhuma: `can_practice_clinically()` exige perfil verificado, então um
+médico convidado pelo sistema nunca conseguiria assinar nada e nenhuma tela
+dizia por quê. Cadastrar e validar são ações separadas — gravar corrige um
+telefone digitado errado, validar afirma que o CRM foi conferido junto ao
+conselho e libera receita.
+
+A validação é ato do responsável pela clínica (decisão do produto,
+setembro/2026). Autovalidação não é bloqueada: num consultório com um
+médico só, ele é o próprio responsável. A mitigação é o registro —
+`verified_by`, `verified_at`, nota livre, e a marca `self_verified` na
+auditoria —, visível na linha da equipe. Alterar CRM ou UF devolve o
+registro para validação: o que foi conferido é o número, não a pessoa.
+
+**Identidade da clínica** (`ClinicProfile`): endereço, contato e logotipo,
+que alimentam o timbre dos documentos. O logotipo tem caminho próprio
+(`tenancy/branding.py`), separado de anexos: anexo passa por quarentena,
+antivírus e cota porque vem de fora; logotipo vem de quem administra, é um
+por organização, e substituir o anterior é o certo. O tipo é conferido
+pelos bytes (`magic`), não pela extensão; gravação atômica (`os.replace`),
+porque envio interrompido deixaria meio arquivo no lugar do que funcionava.
+SVG fica de fora: é XML e executa script servido inline.
+
+### 25.4 Provedor de IA por clínica
+
+`ai/models.AIProviderSettings` e `ai/providers/catalog.py`. A configuração
+era só de instalação — uma chave em variável de ambiente valendo para todas
+as clínicas —, o que serve a quem hospeda o sistema para si e não a quem
+hospeda várias: cada clínica tem contrato, fatura e decisão própria sobre
+para onde seus dados vão.
+
+Dez provedores, OpenRouter como padrão: OpenAI, Anthropic, NVIDIA NIM,
+Google Gemini, Groq, Mistral, DeepSeek, xAI e "outro compatível com a API
+da OpenAI" para servidor próprio. Quase todos falam a mesma API em
+endereços diferentes, então é um cliente só; a Anthropic tem ramo próprio.
+
+O modelo é escolhido de lista trazida do provedor, não digitado:
+identificador escrito à mão é a forma mais comum de a IA quebrar em
+produção — o nome está certo hoje, o provedor o aposenta, e o erro aparece
+no meio de um atendimento.
+
+**Listar modelos não valida a chave.** O `/models` de vários provedores é
+público — o do OpenRouter devolve o catálogo inteiro sem credencial. Quem
+prova a credencial é o teste do modelo, que faz uma chamada real com uma
+pergunta fixa e sem dado de paciente.
+
+A proveniência gravada em `AIArtifact` passou a ser o provedor e o modelo
+**usados**, e não os da instalação.
+
+### 25.5 Servidor de e-mail da clínica
+
+`MessagingSettings` ganhou o bloco SMTP. Só existia remetente por médico,
+o que resolve "o e-mail sai no nome de quem atendeu" e não resolve o caso
+comum: a clínica tem uma conta e todo mundo manda por ela — cadastrar o
+SMTP significava repetir servidor, porta, usuário e senha em cada médico.
+
+A ordem do remetente passou a ser **médico → clínica → instalação**
+(`communications.email.resolve_sender`).
+
+O teste manda e-mail de verdade para um endereço digitado, e não só abre a
+conexão: abrir a conexão prova que o servidor aceita a senha; remetente
+recusado por SPF, domínio sem DKIM e caixa que joga tudo em spam só
+aparecem no envio real.
+
+**`mask_secret` passou a ter largura fixa.** A máscara tinha o tamanho do
+segredo, e as quatro colunas de dica têm 40 caracteres: uma chave de IA de
+73 caracteres estourava a coluna e devolvia `DataError` ao gestor. Largura
+fixa também para de vazar o comprimento do segredo.
+
+### 25.6 Documentos: QR, verificação pública e receita em duas vias
+
+**O documento assinado dizia de si mesmo que não valia.** O PDF era
+desenhado na criação do rascunho e a assinatura era aplicada naquele mesmo
+arquivo; como o número só é atribuído na emissão, toda receita, laudo,
+pedido e encaminhamento saía assinado carregando impresso "RASCUNHO SEM
+VALIDADE" e sem número de controle. A ordem passou a ser **número → data →
+estado → desenhar → assinar**: não dá para carimbar depois, porque a
+assinatura PAdES cobre os bytes do arquivo inteiro.
+
+**QR code e página pública de verificação.** Cada documento nasce com
+`validation_token` de 16 caracteres hexadecimais, aleatório e nunca
+derivado do número — uma sequência no QR permitiria, a partir da própria
+receita, montar o código da receita seguinte. O QR é gerado localmente pelo
+reportlab, sem serviço externo e sem dependência nova.
+
+`/verificar/<código>/` é pública: mostra tipo, número, médico, CRM, clínica,
+data e SHA-256, com o nome do paciente mascarado e **nenhum** conteúdo
+clínico. Aceita digitação, porque QR falha — impressão borrada, folha
+amassada, celular sem câmera. Rascunho encontrado dá alerta vermelho, e não
+"não encontrado": alguém está com um papel que saiu do sistema e nunca foi
+assinado.
+
+**Receita simples e de controle especial.** A segunda sai em duas folhas —
+"1ª VIA — RETENÇÃO DA FARMÁCIA" e "2ª VIA — ORIENTAÇÃO AO PACIENTE" —, com
+endereço completo do paciente, citação da Portaria SVS/MS 344/98 e o prazo
+de 30 dias. A emissão é **recusada** se o paciente não tiver endereço
+completo, na criação do rascunho: descobrir isso com o paciente no balcão
+significa que ele volta ao consultório.
+
+**Formulário do documento por tipo.** Renderizava os sete campos de todos os
+tipos ao mesmo tempo, com uma nota no rodapé pedindo que se ignorassem os
+demais. Passou a agrupar por tipo, com o grupo escolhido visível; sem
+JavaScript volta ao comportamento anterior, em vez de esconder tudo.
+
+Dois defeitos vizinhos no formulário de retificação: o ramo de
+encaminhamento renderizava `justification` (campo de pedido de exame) em vez
+de `reason`, tornando a retificação de encaminhamento impossível; e "Motivo
+da correção" usava `name="reason"`, o mesmo do encaminhamento — sobrescrevia
+o conteúdo naquele tipo e era descartado em silêncio nos outros três. O
+motivo passou a `correction_reason` e vai para a auditoria.
+
+### 25.7 Número do prontuário
+
+`Patient.record_number`, sequencial por clínica, atribuído no `save()` para
+alcançar todos os caminhos de criação (cadastro completo, pré-cadastro ao
+telefone, importação, fixtures) e imutável depois.
+
+**Não acrescenta isolamento.** O que liga documento, atendimento e anexo ao
+paciente já é chave estrangeira com escopo por inquilino, verificado entre
+pacientes da mesma clínica. O número serve às pessoas: UUID não se dita ao
+telefone, não se escreve na aba de uma pasta, não se confere com o
+laboratório que ligou. É curto e previsível por construção, e por isso
+nunca é credencial.
+
+`PatientNumberSequence` guarda o contador por clínica, em vez de derivar do
+maior número em uso: derivar devolvia ao próximo cadastro o número de um
+paciente apagado, e dois prontuários com o mesmo número na história da
+clínica é ambiguidade permanente — o número pode já estar impresso numa
+receita entregue.
+
+Aparece na ficha, na lista, no autocomplete da agenda, na busca (aceitando
+`000123` ou `123`) e no PDF.
+
+**Tela de documentos por paciente** (`documents:patient-documents`): reúne o
+que o sistema emitiu e o que entrou por upload ou digitalização. Antes, para
+achar a receita de fevereiro era preciso lembrar em qual consulta ela saiu.
+
+### 25.8 Entrega ao paciente
+
+O segundo fator do link de documento deixou de ser código de uso único e
+passou a ser **os quatro últimos dígitos do CPF** do paciente (decisão do
+produto, setembro/2026).
+
+O que se perde e o que se ganha: perde-se a rotatividade — os quatro
+dígitos são fixos e quem convive com o paciente costuma sabê-los. Ganha-se
+que o paciente abre a receita sem uma segunda mensagem, que é onde o fluxo
+anterior quebrava na prática. A proteção real continua sendo o link: 32
+bytes aleatórios, entregues só a contato autorizado e verificado, com prazo
+de 30 dias e limite de cinco tentativas que trava o token.
+
+Paciente sem CPF cadastrado — em geral criança — responde a data de
+nascimento; sem essa alternativa, o documento de um menor seria entregue e
+impossível de abrir.
+
+A tela do documento oferece **visualizar, imprimir e baixar**. A impressão
+vai para dentro do quadro que exibe o PDF, não para a página em volta, com
+recuo para abrir em nova aba quando o navegador não permite.
+
+Reenvio pela tela do médico gera link novo e **revoga o anterior**: dois
+links vivos para o mesmo documento dobram a superfície, e revogar é a saída
+quando se suspeita que o link vazou. A tela do documento passou a listar as
+entregas, com canal, destino, estado e erro — o envio dispara sozinho na
+emissão, e é por ser automático que precisa aparecer.
+
+### 25.9 Módulo CRM removido
+
+O funil de captação (`crm/`) saiu do produto em 08/09/2026: modelos, telas,
+rotas, item de menu, a ferramenta de IA que o consultava e a semeadura de
+etapas no `seed_demo`. A migração `crm/0002_delete_crm` derrubou as tabelas
+antes de o app sair de `INSTALLED_APPS` — na ordem inversa, elas ficariam
+órfãs no banco sem modelo que as descrevesse.
+
+RF-07.01 e RF-07.02 deixam de ter implementação correspondente. As tarefas
+S09-T01 a S09-T03 ficam marcadas como removidas, e não apagadas: o
+histórico de sprint registra o que foi feito.
+
+### 25.10 Retenção — correção de premissa
+
+A intenção registrada era compactar a cada 3 meses e **excluir em 5 anos,
+"conforme LGPD"**. A premissa está errada e foi corrigida antes de virar
+código.
+
+A LGPD não fixa prazo para prontuário; o art. 16, I abre exceção para
+"cumprimento de obrigação legal ou regulatória". Quem fixa o prazo é a
+**Lei 13.787/2018, art. 6º** — eliminação permitida apenas **após 20 anos**
+do último registro — e a **Resolução CFM 1.821/2007**, que manda guarda
+permanente para prontuário arquivado eletronicamente. Excluir documento
+médico em 5 anos seria destruição de prova antes do prazo legal.
+
+Decisão: **20 anos**, com a compactação trimestral mantida — ela é
+armazenamento, não descarte. A implementação da retenção fica pendente.
+
+### 25.11 Fixtures de demonstração
+
+`seed_demo` passou a criar uma conta por papel — médico não-dono
+(`doctor-b`), secretária (`secretary-a`) e gestor (`manager-a`) —, porque a
+matriz de permissões só é testável com uma de cada; entrar sempre como dono
+esconde exatamente o que se quer conferir.
+
+Os `PhysicianProfile` da demonstração nascem verificados: `doctor-a` estava
+em `pending`, e nesse estado nenhum documento pode ser assinado sem que a
+tela diga o porquê.
+
+A Clínica B deixou de ser uma casca: o mesmo usuário passou a ser
+responsável nela, com grade de horários própria (dias e durações diferentes
+de propósito, para revelar dado vazando entre inquilinos), secretária e um
+segundo paciente. Antes, trocar de organização abria uma agenda vazia sem
+menu de administração — indistinguível, para quem olha, de funcionalidade
+que não chegou àquela clínica.
+
+### 25.12 Pendências
+
+- **G8 — Arquivo e retenção**: compactação trimestral e expurgo aos 20 anos.
+- **G9 — E-mail marketing**: campanhas, taxa de envio por tempo e métricas
+  de entrega.
+- **G10 — Portal de solicitações do paciente**: equivalente Django do
+  `portal-solicitacoes-medica`, com identificação por CPF e data de
+  nascimento, triagem e revisão médica.
+- **`PatientAccessGrant`**: escopo clínico por paciente, ainda não modelado.
+- **Delegação de capacidades**: as células "A se delegado" da seção 4 são
+  hoje concedidas por padrão.
+- **Documentos emitidos antes de 25.6** mantêm o PDF antigo, com tarja de
+  rascunho e sem número. Não foram reescritos de propósito: são arquivos
+  assinados, e reescrevê-los quebra a assinatura. O caminho é a retificação.

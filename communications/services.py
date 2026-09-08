@@ -1,3 +1,5 @@
+import secrets
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
@@ -98,7 +100,20 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
 
 
 @transaction.atomic
-def deliver_document(document):
+def deliver_document(document, force_new_link=False):
+    """Manda o documento aos contatos autorizados do paciente.
+
+    `force_new_link=False` é a entrega automática da emissão, e é
+    idempotente: o evento da fila pode chegar duas vezes, e a segunda não
+    pode mandar um segundo SMS ao paciente.
+
+    `force_new_link=True` é o reenvio pedido por alguém na tela. Ali o
+    contrário é que vale — a mensagem não chegou, ou o link expirou, e
+    repetir é justamente o pedido. Cada reenvio **revoga o link anterior**:
+    dois links vivos para o mesmo documento dobram a superfície e não
+    servem a nada, e revogar é também a saída quando se suspeita que o
+    link foi parar em mãos erradas.
+    """
     contacts = _eligible_document_contacts(document.patient)
     if not contacts:
         _notify_no_contact(document.tenant, 'medical_document', document.id)
@@ -108,6 +123,16 @@ def deliver_document(document):
     for contact in contacts:
         for channel in _channels_for(contact):
             idem_key = f'document:{document.id}:{contact.id}:{channel}'
+            if force_new_link:
+                # Chave nova a cada reenvio: a restrição de unicidade
+                # existe para o evento repetido não duplicar o envio, e
+                # reaproveitá-la aqui faria o reenvio virar um silêncio.
+                #
+                # Sufixo aleatório, e não o relógio. Com precisão de
+                # segundos, dois reenvios dentro do mesmo segundo caíam na
+                # mesma chave: o segundo não enviava nada, não trocava o
+                # link, e a tela ainda dizia que tinha enviado.
+                idem_key = f'{idem_key}:{secrets.token_hex(4)}'
             delivery, created = Delivery.objects.get_or_create(
                 tenant=document.tenant, idempotency_key=idem_key,
                 defaults={
@@ -116,11 +141,29 @@ def deliver_document(document):
                 },
             )
             if created or delivery.status == DeliveryStatus.PENDING:
+                if force_new_link:
+                    access.revoke_previous_tokens(document)
                 token, raw_token = access.create_access_token(document, contact)
                 link = f'{settings.PUBLIC_BASE_URL}/d/{raw_token}/'
-                _send(delivery, f'{DOCUMENT_MESSAGE} {link}')
+                _send(delivery, _document_message(document, link))
             deliveries.append(delivery)
     return deliveries
+
+
+def _document_message(document, link):
+    """O texto que o paciente recebe.
+
+    Sem diagnóstico, sem medicação, sem o tipo do documento: a mensagem
+    aparece na tela bloqueada do celular e é lida por quem estiver por
+    perto. "Documento" basta para a pessoa saber que é dela e clicar.
+
+    Dizer de antemão o que será pedido evita a ligação para a recepção —
+    quem chega ao link já sabe que precisa do CPF em mãos.
+    """
+    return (
+        f'{DOCUMENT_MESSAGE} {link} '
+        'Para abrir, informe os 4 últimos dígitos do CPF do paciente.'
+    )
 
 
 @transaction.atomic

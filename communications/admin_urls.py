@@ -26,5 +26,13 @@ urlpatterns = [
         'mensageria/email/<uuid:membership_id>/testar/',
         admin_views.DoctorEmailTestView.as_view(), name='test-doctor-email',
     ),
+    path(
+        'mensageria/email-da-clinica/',
+        admin_views.ClinicEmailSaveView.as_view(), name='save-clinic-email',
+    ),
+    path(
+        'mensageria/email-da-clinica/testar/',
+        admin_views.ClinicEmailTestView.as_view(), name='test-clinic-email',
+    ),
     path('mensageria/entregas/', admin_views.DeliveryLogView.as_view(), name='deliveries'),
 ]

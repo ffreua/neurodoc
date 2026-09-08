@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from documents.verification import DocumentVerificationView
 from ops.docs import technical_docs
 
 urlpatterns = [
@@ -16,7 +17,6 @@ urlpatterns = [
     path('app/scheduling/', include('scheduling.urls')),
     path('app/clinical/', include('clinical.urls')),
     path('app/documents/', include('documents.urls')),
-    path('app/crm/', include('crm.urls')),
     path('app/finance/', include('finance.urls')),
     path('app/ai/', include('ai.urls')),
     path('app/reporting/', include('reporting.urls')),
@@ -24,6 +24,12 @@ urlpatterns = [
     path('capture/', include('integrations.capture_urls')),
     path('app/notifications/', include('notifications.urls')),
     path('app/org/', include('communications.admin_urls')),
+    path('app/org/', include('ai.admin_urls')),
     path('d/', include('communications.urls')),
+    # Verificação pública de documento — é o destino do QR impresso na
+    # receita. Fica na raiz, e não sob `/app/`, porque quem a abre está na
+    # farmácia e não tem conta neste sistema.
+    path('verificar/', DocumentVerificationView.as_view(), name='verify-document'),
+    path('verificar/<str:token>/', DocumentVerificationView.as_view(), name='verify-document-token'),
     path('', include('base.urls')),
 ]

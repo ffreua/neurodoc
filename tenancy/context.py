@@ -19,9 +19,22 @@ class AccessContext:
     membership_id: uuid.UUID
     permissions: frozenset
     request_id: uuid.UUID
+    #: Capacidades derivadas dos papéis (`tenancy.permissions`). Calculadas
+    #: junto com o contexto, uma vez por requisição, e não a cada `if` de
+    #: view ou template — a alternativa era consultar o vínculo e o perfil
+    #: profissional em cada verificação.
+    capabilities: frozenset = dataclasses.field(default_factory=frozenset)
 
     def has_role(self, role):
         return role in self.permissions
+
+    def can(self, capability):
+        """Se este vínculo tem a capacidade.
+
+        É o que as views e os templates devem perguntar. Perguntar pelo
+        papel espalha a matriz do PRD pelo código e a faz divergir dele.
+        """
+        return capability in self.capabilities
 
 
 def active_membership_for(user, tenant_id):
@@ -54,10 +67,15 @@ def build_access_context(request):
         return None
     if not _hostname_matches_tenant(request, membership.tenant_id):
         return None
+    from .permissions import capabilities_for
+
     return AccessContext(
         user_id=user.id,
         tenant_id=membership.tenant_id,
         membership_id=membership.id,
         permissions=frozenset(membership.roles or []),
         request_id=uuid.uuid4(),
+        capabilities=capabilities_for(
+            membership.roles, clinically_enabled=membership.can_practice_clinically(),
+        ),
     )

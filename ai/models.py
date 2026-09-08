@@ -101,3 +101,68 @@ class AIArtifact(TenantModel):
 
     def __str__(self):
         return f'artifact for job {self.job_id} ({self.review_state})'
+
+
+class AIProviderSettings(TenantModel):
+    """Provedor de IA da clínica, com a chave dela.
+
+    A configuração era só de instalação: uma chave em variável de ambiente
+    valendo para todas as clínicas. Isso serve a quem hospeda o sistema para
+    si, e não a quem hospeda várias — cada clínica tem o próprio contrato
+    com o provedor, a própria fatura e a própria decisão sobre para onde
+    seus dados vão.
+
+    A chave fica **cifrada** no banco (`base.crypto`), pelo mesmo motivo da
+    chave de SMS: em texto claro, um dump entregaria a credencial de IA de
+    todas as clínicas de uma vez.
+
+    O modelo é escolhido de uma lista trazida do provedor, não digitado. Os
+    identificadores mudam — o provedor aposenta o modelo e o nome que estava
+    certo passa a dar erro no meio de um atendimento.
+    """
+
+    provider = models.CharField(max_length=40, default='openrouter')
+    enabled = models.BooleanField(default=False)
+    api_key_ciphertext = models.TextField(blank=True)
+    api_key_metadata = models.JSONField(default=dict, blank=True)
+    api_key_hint = models.CharField(max_length=40, blank=True)
+    #: Endereço da API. Vazio usa o padrão do provedor; preenchido atende
+    #: servidor próprio (Ollama, vLLM) e provedor fora do catálogo.
+    base_url = models.CharField(max_length=255, blank=True)
+    model = models.CharField(max_length=200, blank=True)
+    #: Modelos que o provedor respondeu na última consulta, para a lista da
+    #: tela. Guardados porque consultar o provedor a cada abertura de tela
+    #: deixaria a página refém da latência dele — e a lista muda em semanas,
+    #: não em minutos.
+    available_models = models.JSONField(default=list, blank=True)
+    models_synced_at = models.DateTimeField(null=True, blank=True)
+    updated_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant'], name='ai_providersettings_tenant_uniq'),
+        ]
+
+    @property
+    def has_api_key(self):
+        return bool(self.api_key_ciphertext)
+
+    @property
+    def is_usable(self):
+        """Ligada, com chave e com modelo escolhido.
+
+        As três coisas juntas, porque faltando qualquer uma o pedido falha
+        no provedor em vez de falhar aqui — e a falha lá chega ao médico
+        como erro genérico no meio do atendimento.
+        """
+        return bool(self.enabled and self.api_key_ciphertext and self.model)
+
+    def api_key(self):
+        from base.crypto import decrypt_secret
+
+        return decrypt_secret(self.api_key_ciphertext, self.api_key_metadata)
+
+    def __str__(self):
+        return f'IA {self.provider} ({"ativa" if self.enabled else "inativa"})'

@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Inteligência artificial — NeuroDoc{% endblock %}
+{% block page_title %}Inteligência artificial{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">IA</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'messaging:settings' %}">Mensageria</a>
+{% endblock %}
+{% block content %}
+
+{% if not ai_globally_enabled %}
+<div class="alert alert-warning fade show" role="alert">
+    <span class="fw-semibold d-block">A IA está desligada nesta instalação.</span>
+    <span class="fs-12">
+        `AI_ENABLED=False` desliga o recurso para todas as clínicas, e isso é
+        decisão de quem opera o servidor. O que se configura aqui fica guardado e
+        passa a valer quando a instalação for ligada.
+    </span>
+</div>
+{% endif %}
+
+{% if not has_master_key %}
+<div class="alert alert-danger fade show" role="alert">
+    <span class="fw-semibold d-block">Sem chave-mestra de segredos.</span>
+    <span class="fs-12">
+        Sem `SECRETS_MASTER_KEY` a chave da API não pode ser guardada cifrada, e
+        gravá-la em texto claro entregaria a credencial de IA num dump do banco.
+        Configure a chave-mestra antes.
+    </span>
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-xxl-7 col-lg-7">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Provedor desta clínica</h5>
+                {% if ai.is_usable %}
+                <span class="badge bg-soft-success text-success">Configurada</span>
+                {% else %}
+                <span class="badge bg-gray-200 text-dark">Não configurada</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'ai-admin:save' %}" novalidate id="ai-form">
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+
+                    {% if ai.has_api_key %}
+                    <div class="form-text fs-11 mb-3">
+                        Chave guardada: <code>{{ ai.api_key_hint }}</code>.
+                        O campo em branco mantém esta chave.
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
+                        {% comment %}"Carregar modelos" e "Testar" enviam os mesmos campos,
+                        para rotas diferentes. `formaction` faz isso sem um segundo
+                        formulário — e é o que permite consultar o provedor com a chave
+                        recém-digitada, antes de gravá-la: exigir salvar primeiro
+                        obrigaria a guardar cifrada uma chave que ainda não se sabe se
+                        vale, e a desfazer depois quando não valesse.{% endcomment %}
+                        <button type="submit" class="btn btn-light-primary"
+                                formaction="{% url 'ai-admin:refresh-models' %}" data-nd-busy>
+                            Carregar modelos
+                        </button>
+                        <button type="submit" class="btn btn-light-success"
+                                formaction="{% url 'ai-admin:test' %}" data-nd-busy>
+                            Testar o modelo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-5 col-lg-5">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Situação</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0 d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-muted">Provedor</span>
+                        <span class="fs-12 fw-semibold text-dark text-end">
+                            {{ provider_meta.label|default:ai.provider }}
+                        </span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-muted">Endereço</span>
+                        <span class="fs-11 text-dark text-end text-break">
+                            {{ resolved_base_url|default:"—" }}
+                        </span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-muted">Modelo</span>
+                        <span class="fs-12 fw-semibold text-dark text-end text-break">
+                            {{ ai.model|default:"— não escolhido —" }}
+                        </span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-muted">Modelos na lista</span>
+                        <span class="fs-12 text-dark">
+                            {% if model_count %}
+                            {{ model_count }}
+                            <span class="fs-11 text-muted">
+                                ({{ ai.models_synced_at|date:"d/m/Y H:i" }})
+                            </span>
+                            {% else %}—{% endif %}
+                        </span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-muted">Chave</span>
+                        <span class="fs-12 text-dark">
+                            {% if ai.has_api_key %}<code>{{ ai.api_key_hint }}</code>{% else %}—{% endif %}
+                        </span>
+                    </li>
+                </ul>
+
+                {% if provider_meta.key_url %}
+                <a class="btn btn-light btn-sm w-100 mt-3" target="_blank" rel="noopener"
+                   href="{{ provider_meta.key_url }}">
+                    Onde obter a chave de {{ provider_meta.label }}
+                </a>
+                {% endif %}
+                {% if provider_meta.note %}
+                <span class="d-block fs-11 text-muted mt-2">{{ provider_meta.note }}</span>
+                {% endif %}
+
+                {% comment %}O que a instalação usa fica à vista porque é para onde os
+                dados vão enquanto esta clínica não configurar o próprio provedor.
+                {% endcomment %}
+                <div class="border-top mt-3 pt-3">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                        Sem configuração própria
+                    </span>
+                    <span class="d-block fs-11 text-muted">
+                        Enquanto esta clínica não tiver provedor próprio ativo, os pedidos
+                        de IA saem pela configuração da instalação
+                        (<code>{{ platform_provider }}</code>, modelo
+                        <code>{{ platform_model }}</code>).
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-body">
+        <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+            O que sai desta clínica para o provedor
+        </span>
+        <p class="fs-12 text-muted mb-0">
+            O conteúdo enviado passa antes pela despersonalização e pela política de
+            privacidade do sistema — não é o prontuário cru. Ainda assim, escolher o
+            provedor é escolher para onde esse conteúdo vai: o contrato é entre a
+            clínica e ele. O teste desta tela usa uma pergunta fixa, sem dado de
+            paciente nenhum.
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -87,15 +87,32 @@ def decrypt_secret(ciphertext, metadata):
         ) from exc
 
 
+#: Quantos marcadores a máscara usa, independentemente do tamanho do
+#: segredo. Ver `mask_secret`.
+MASK_WIDTH = 8
+
+
 def mask_secret(value, keep=4):
     """Como o segredo aparece na tela: só os últimos caracteres.
 
     Nunca devolve o valor inteiro. A tela precisa mostrar que **existe** uma
     chave configurada e permitir conferir que é a certa; mostrar a chave
     completa numa tela de navegador não serve a nenhum desses dois fins.
+
+    A máscara tem largura fixa, e não o tamanho do segredo. Por dois
+    motivos, um de correção e outro de sigilo:
+
+    - As colunas que guardam a dica têm 40 caracteres. Uma máscara do
+      tamanho do valor cabia para uma chave de SMS, e estourava a coluna
+      para uma chave de IA, que passa de setenta caracteres — o gestor
+      colava a chave e recebia `DataError` do banco em vez da tela.
+    - O comprimento de um segredo é informação sobre ele. Uma fileira de
+      pontos que cresce com a chave diz de que provedor ela é e quanta
+      entropia tem, sem nenhum ganho para quem só quer conferir se gravou a
+      chave certa.
     """
     if not value:
         return ''
     if len(value) <= keep:
         return '•' * len(value)
-    return '•' * (len(value) - keep) + value[-keep:]
+    return '•' * MASK_WIDTH + value[-keep:]

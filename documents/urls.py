@@ -6,6 +6,10 @@ app_name = 'documents'
 
 urlpatterns = [
     path('patients/<uuid:patient_id>/', views.AttachmentListView.as_view(), name='list'),
+    path(
+        'patients/<uuid:patient_id>/documentos/',
+        views.PatientDocumentsView.as_view(), name='patient-documents',
+    ),
     path('<uuid:attachment_id>/download/', views.AttachmentDownloadView.as_view(), name='download'),
     path('<uuid:attachment_id>/preview/', views.AttachmentPreviewView.as_view(), name='preview'),
     path('<uuid:attachment_id>/delete/', views.AttachmentDeleteView.as_view(), name='delete'),
@@ -16,6 +20,10 @@ urlpatterns = [
     path('medical/<uuid:document_id>/review/', views.MedicalDocumentReviewView.as_view(), name='medical-review'),
     path('medical/<uuid:document_id>/discard/', views.MedicalDocumentDiscardView.as_view(), name='medical-discard'),
     path('medical/<uuid:document_id>/sign/', views.MedicalDocumentSignView.as_view(), name='medical-sign'),
+    path(
+        'medical/<uuid:document_id>/enviar/',
+        views.MedicalDocumentSendView.as_view(), name='medical-send',
+    ),
     path(
         'medical/<uuid:document_id>/correction/',
         views.MedicalDocumentCorrectionView.as_view(), name='medical-correction',

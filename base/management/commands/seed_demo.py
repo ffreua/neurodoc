@@ -76,13 +76,59 @@ class Command(BaseCommand):
                 counts['patients'] += 1
             return patient
 
-        # --- Clinica A: two doctors, one secretary, patients with full data ---
+        from accounts.models import PhysicianProfile
+
+        def get_or_create_physician_profile(user, crm_number, professional_name):
+            """Perfil médico **verificado**.
+
+            `Membership.can_practice_clinically()` exige um `PhysicianProfile`
+            verificado além do papel `doctor`: o papel sozinho não habilita
+            emitir receita ou laudo. Com o perfil em `pending` — o padrão do
+            modelo — o médico entra no sistema, navega e não consegue assinar
+            documento nenhum, sem que a tela diga o porquê.
+
+            Verificar aqui vale porque isto é fixture de demonstração. Em
+            produção a verificação do CRM é ato de quem administra a
+            plataforma, e não algo que o próprio cadastro concede.
+            """
+            profile, created = PhysicianProfile.objects.get_or_create(
+                user=user,
+                defaults={
+                    'professional_name': professional_name, 'crm_number': crm_number,
+                    'crm_state': 'SP',
+                    'professional_email': user.email,
+                    'professional_phone': '+551133330000',
+                    'professional_address': 'Rua Demonstração, 100 — São Paulo/SP (demo)',
+                },
+            )
+            if profile.verification_status != PhysicianProfile.VerificationStatus.VERIFIED:
+                profile.verification_status = PhysicianProfile.VerificationStatus.VERIFIED
+                profile.save(update_fields=['verification_status'])
+            if created:
+                counts['physician_profiles'] = counts.get('physician_profiles', 0) + 1
+            return profile
+
+        # --- Clinica A: two doctors, one secretary, one manager ---
+        #
+        # Os quatro papéis existem aqui de propósito: a matriz de permissões
+        # só é testável com uma conta de cada. Entrar sempre como owner
+        # esconde exatamente o que se quer conferir — o que a secretária
+        # **não** vê, o que o gestor não pode assinar, a agenda que o médico
+        # não-dono não configura.
         tenant_a = get_or_create_tenant(f'{DEMO_MARKER}-a', 'Clinica Demo A Neurologia Ltda', '11444777000161')
         doctor_a = get_or_create_user('doctor-a@demo.neurodoc.local', first_name='Ana', last_name='Neuro')
+        doctor_b = get_or_create_user('doctor-b@demo.neurodoc.local', first_name='Bruno', last_name='Clínico')
         secretary_a = get_or_create_user('secretary-a@demo.neurodoc.local', first_name='Bia', last_name='Secretaria')
+        manager_a = get_or_create_user('manager-a@demo.neurodoc.local', first_name='Célia', last_name='Gestora')
         get_or_create_membership(tenant_a, doctor_a, [Role.OWNER, Role.DOCTOR])
+        get_or_create_membership(tenant_a, doctor_b, [Role.DOCTOR])
         get_or_create_membership(tenant_a, secretary_a, [Role.SECRETARY])
+        get_or_create_membership(tenant_a, manager_a, [Role.MANAGER])
         membership_doctor_a = Membership.objects.get(tenant=tenant_a, user=doctor_a)
+        membership_doctor_b = Membership.objects.get(tenant=tenant_a, user=doctor_b)
+
+        get_or_create_physician_profile(doctor_a, '12345', 'Dra. Ana Neuro')
+        get_or_create_physician_profile(doctor_b, '54321', 'Dr. Bruno Clínico')
 
         adult = get_or_create_patient(
             tenant_a, 'Carlos Adulto da Silva', birth_date=date(1980, 5, 10),
@@ -138,13 +184,39 @@ class Command(BaseCommand):
             )
             counts['coverages'] += 1
 
-        # --- Clinica B: an owner+doctor with a distinct role from the same shared user ---
+        # --- Clinica B: a segunda organização do mesmo usuário ---
+        #
+        # Existe para exercitar a troca de organização, e para isso precisa
+        # ser uma clínica de verdade: com o mesmo usuário como responsável,
+        # com grade publicada e com paciente. Antes ela tinha um paciente,
+        # nenhuma regra de agenda e o usuário só como `doctor` — então
+        # trocar para ela abria uma agenda vazia e sem o menu de
+        # organização, o que se lê como "as funcionalidades não chegaram
+        # aqui" quando na verdade é a organização que está vazia.
+        #
+        # As duas clínicas são deliberadamente diferentes: dias e durações
+        # próprios, e o `manager` só existe na A. É o que revela dado
+        # vazando de um inquilino para o outro — duas cópias iguais
+        # esconderiam exatamente isso.
         tenant_b = get_or_create_tenant(f'{DEMO_MARKER}-b', 'Clinica Demo B Neurocirurgia Ltda', '11444777000242')
-        get_or_create_membership(tenant_b, doctor_a, [Role.DOCTOR])
+        get_or_create_membership(tenant_b, doctor_a, [Role.OWNER, Role.DOCTOR])
+        membership_doctor_a_b = Membership.objects.get(tenant=tenant_b, user=doctor_a)
+        if Role.OWNER not in (membership_doctor_a_b.roles or []):
+            # `get_or_create` não altera o que já existe: a clínica criada
+            # antes desta mudança ficaria sem responsável para sempre.
+            membership_doctor_a_b.roles = [Role.OWNER, Role.DOCTOR]
+            membership_doctor_a_b.save(update_fields=['roles'])
+
+        get_or_create_membership(tenant_b, secretary_a, [Role.SECRETARY])
 
         get_or_create_patient(
             tenant_b, 'Fernanda Exemplo Souza', birth_date=date(1992, 11, 20),
             cpf='93541134780', sex_at_registration=SexAtRegistration.FEMALE,
+        )
+        get_or_create_patient(
+            tenant_b, 'Ricardo Neurocirurgia Demo', birth_date=date(1971, 2, 9),
+            cpf='40364168048', sex_at_registration=SexAtRegistration.MALE,
+            responsible_membership=membership_doctor_a_b, city='Campinas', state='SP',
         )
 
         # --- Multiple dates: a completed visit (with a finalized encounter,
@@ -153,7 +225,6 @@ class Command(BaseCommand):
         # whatever a prior manual smoke test happened to leave behind ---
         from clinical.finalization import finalize_encounter
         from clinical.models import Encounter, EncounterStatus
-        from crm.services import bootstrap_default_stages
         from finance.models import PaymentCategory
         from finance.payments import record_payment
         from finance.pricing import create_fee_schedule
@@ -168,6 +239,34 @@ class Command(BaseCommand):
             defaults={'local_start': timezone.datetime.min.time().replace(hour=9),
                       'local_end': timezone.datetime.min.time().replace(hour=17), 'slot_minutes': 30},
         )
+        # O médico não-dono precisa de grade própria, senão a agenda dele abre
+        # vazia e não dá para exercitar o que ele vê da agenda de outro. Dias
+        # e célula diferentes de propósito: é o que revela troca de médico
+        # feita pela metade, quando a tela mostra a grade de um e os horários
+        # do outro.
+        for weekday in (1, 3):
+            AvailabilityRule.objects.get_or_create(
+                tenant=tenant_a, physician_membership=membership_doctor_b, weekday=weekday,
+                defaults={'local_start': timezone.datetime.min.time().replace(hour=8),
+                          'local_end': timezone.datetime.min.time().replace(hour=14),
+                          'slot_minutes': 20,
+                          # Vale desde antes de hoje para a agenda já abrir com
+                          # horários; publicada a partir de hoje, a semana
+                          # corrente sairia pela metade.
+                          'starts_on': date.today() - timedelta(days=30)},
+            )
+
+        # A Clínica B precisa de grade própria pelo mesmo motivo: trocar de
+        # organização e encontrar a agenda vazia não se distingue, para quem
+        # olha, de uma funcionalidade que não chegou àquela clínica.
+        for weekday in (2, 4):
+            AvailabilityRule.objects.get_or_create(
+                tenant=tenant_b, physician_membership=membership_doctor_a_b, weekday=weekday,
+                defaults={'local_start': timezone.datetime.min.time().replace(hour=13),
+                          'local_end': timezone.datetime.min.time().replace(hour=19),
+                          'slot_minutes': 30,
+                          'starts_on': date.today() - timedelta(days=30)},
+            )
 
         demo_ctx = AccessContext(
             user_id=doctor_a.id, tenant_id=tenant_a.id, membership_id=membership_doctor_a.id,
@@ -229,7 +328,6 @@ class Command(BaseCommand):
             )
             counts['appointments'] += 1
 
-        bootstrap_default_stages(tenant_a)
 
         # --- A synthetic failure: an attachment that failed the malware
         # scan, kept quarantined with a visible (synthetic) error, never

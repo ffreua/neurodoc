@@ -1,17 +1,21 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
 
+from tenancy.permissions import Capability, CapabilityRequiredView
 from .models import Notification
 from .services import mark_read
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Notificações do próprio usuário — qualquer vínculo ativo tem as suas.
+
+    `required_capability = None` é decisão, não esquecimento: a consulta já
+    é filtrada por `user=request.user`, e o que a caixa mostra é o que o
+    sistema mandou para aquela pessoa. Exigir capacidade aqui esconderia do
+    médico o aviso de que a IA terminou, e da secretária o de que uma
+    entrega falhou.
+    """
+
+    required_capability = None
 
 
 class NotificationListView(TenantScopedView):

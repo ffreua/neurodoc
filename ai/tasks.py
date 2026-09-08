@@ -117,7 +117,11 @@ def run_chat_turn(message_id, prompt):
     tenant_id, user_id, job_id = session.tenant_id, session.owner_user_id, str(message.id)
 
     try:
-        chat_model = get_chat_model()
+        # `tenant_id` para o chat usar o provedor **daquela** clínica: a
+        # conversa carrega prontuário, e mandá-la ao provedor da instalação
+        # quando a clínica contratou o próprio enviaria o dado para um
+        # destino que ninguém escolheu.
+        chat_model = get_chat_model(tenant_id=tenant_id)
     except ProviderUnavailable as exc:
         publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': str(exc)})
         fail_assistant_message(message, str(exc))

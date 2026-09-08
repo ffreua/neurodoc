@@ -96,6 +96,76 @@ que se mostra é a máscara, para conferir que a chave gravada é a certa.
     </div>
 
     <div class="col-xxl-7 col-xl-6">
+        {% comment %}------------------------------ e-mail da clínica (padrão)
+
+        Vem antes do bloco por médico de propósito: é o caso comum. A clínica
+        tem uma conta de e-mail e todo mundo manda por ela; o remetente por
+        médico é a exceção, para quando ele quer que saia no nome dele.
+        {% endcomment %}
+        <div class="card mb-4">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Servidor de e-mail da clínica</h5>
+                {% if sms.email_enabled and sms.email_from_address %}
+                <span class="badge bg-soft-success text-success">Ativo</span>
+                {% else %}
+                <span class="badge bg-gray-200 text-dark">Inativo</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    É o remetente padrão de toda mensagem do sistema — confirmação de
+                    horário e entrega de documento. Um médico só precisa de configuração
+                    própria abaixo se quiser que o e-mail dele saia com outro remetente.
+                </p>
+                {% if not email_globally_enabled %}
+                <div class="alert alert-warning fade show fs-12" role="alert">
+                    O envio de e-mail está desligado nesta instalação
+                    (<code>EMAIL_ENABLED=False</code>): as mensagens ficam em memória e não saem.
+                    A configuração pode ser feita aqui desde já.
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'messaging:save-clinic-email' %}" novalidate>
+                    {% csrf_token %}
+                    {% with form=clinic_email_form %}{% include "partials/form_fields.html" %}{% endwith %}
+                    {% if sms.has_smtp_password %}
+                    <div class="form-text fs-11 mb-3">
+                        Senha guardada: <code>{{ sms.smtp_password_hint }}</code>.
+                        O campo em branco mantém esta senha.
+                    </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
+                </form>
+
+                {% if sms.email_enabled and sms.email_from_address %}
+                {% comment %}Teste com envio real, e não só abertura de conexão.
+
+                Abrir a conexão prova que o servidor aceita a senha. Remetente
+                recusado por SPF, domínio sem DKIM e caixa que joga tudo em spam
+                só aparecem num envio de verdade — e é aí que o paciente deixa de
+                receber a receita.{% endcomment %}
+                <form method="post" action="{% url 'messaging:test-clinic-email' %}"
+                      class="border-top mt-3 pt-3" novalidate>
+                    {% csrf_token %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-sm-8">
+                            {% with form=email_test_form %}{% include "partials/form_fields.html" %}{% endwith %}
+                        </div>
+                        <div class="col-sm-4">
+                            <button type="submit" class="btn btn-light-success w-100 mb-3" data-nd-busy>
+                                Enviar teste
+                            </button>
+                        </div>
+                    </div>
+                    <span class="d-block fs-11 text-muted">
+                        Confere a conexão e manda um e-mail de verdade para o endereço
+                        informado. Nenhum dado de paciente é usado.
+                    </span>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
         {% comment %}----------------------------------- e-mail por médico{% endcomment %}
         <div class="card">
             <div class="card-header">
@@ -103,9 +173,9 @@ que se mostra é a máscara, para conferir que a chave gravada é a certa.
             </div>
             <div class="card-body">
                 <p class="fs-12 text-muted">
-                    O e-mail que o paciente recebe deve vir do consultório de quem o atende. Sem
-                    configuração própria, o envio usa o remetente da instalação
-                    (<code>{{ default_from_email }}</code>).
+                    Só para o médico que quiser remetente próprio. Sem isto, o e-mail dele
+                    sai pelo servidor da clínica acima — e, na falta dele, pelo remetente
+                    da instalação (<code>{{ default_from_email }}</code>).
                 </p>
                 {% if not email_globally_enabled %}
                 <div class="alert alert-warning fade show fs-12" role="alert">

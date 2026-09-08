@@ -9,7 +9,10 @@
 {% endblock %}
 {% block page_actions %}
 <a class="btn btn-light" href="{% url 'patients:update' patient.id %}">Editar cadastro</a>
+{% if nd_can.read_clinical %}
 <a class="btn btn-light-primary" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
+{% endif %}
+{% if nd_can.write_clinical %}
 <form method="post" action="{% url 'clinical:new' patient.id %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-primary" data-nd-busy>
@@ -17,6 +20,7 @@
         <span>Novo atendimento</span>
     </button>
 </form>
+{% endif %}
 {% endblock %}
 {% block content %}
 
@@ -43,6 +47,9 @@ sem caçar em cartões laterais.{% endcomment %}
                     {% endif %}
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-3 fs-12 text-muted">
+                    {% if patient.record_number %}
+                    <span class="fw-semibold text-dark">Prontuário {{ patient.record_number }}</span>
+                    {% endif %}
                     <span>{% if age is not None %}{{ age }} anos{% else %}idade desconhecida{% endif %}</span>
                     <span>CPF {{ patient.cpf|default:"não informado" }}</span>
                     <span>{{ patient.get_sex_at_registration_display }}</span>
@@ -53,6 +60,15 @@ sem caçar em cartões laterais.{% endcomment %}
                 </div>
             </div>
             <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                {% comment %}"Documentos" reúne o que foi emitido e o que foi anexado.
+                Antes só havia "Anexos", e o que o médico emitiu ficava dentro do
+                atendimento em que saiu — para achar a receita de fevereiro era
+                preciso lembrar de qual consulta ela era.{% endcomment %}
+                {% if nd_can.read_clinical %}
+                <a class="btn btn-light-primary btn-sm" href="{% url 'documents:patient-documents' patient.id %}">
+                    Documentos
+                </a>
+                {% endif %}
                 <a class="btn btn-light btn-sm" href="{% url 'documents:list' patient.id %}">Anexos</a>
                 {% if patient.status == 'active' %}
                 <button type="button" class="btn btn-light-danger btn-sm" id="archive-open"
@@ -76,7 +92,12 @@ sem caçar em cartões laterais.{% endcomment %}
         <div class="card mb-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Atendimentos recentes</h5>
+                {% comment %}Data, médico e status ficam: a recepção precisa saber
+                quando o paciente foi atendido para marcar o retorno. O que não
+                fica é o caminho para dentro do registro.{% endcomment %}
+                {% if nd_can.read_clinical %}
                 <a class="btn btn-sm btn-light-primary" href="{% url 'clinical:timeline' patient.id %}">Ver prontuário</a>
+                {% endif %}
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -98,7 +119,11 @@ sem caçar em cartões laterais.{% endcomment %}
                                     <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">{{ encounter.get_status_display }}</span>
                                 </td>
                                 <td class="text-end pe-4">
+                                    {% if nd_can.read_clinical %}
                                     <a class="btn btn-sm btn-light-primary" href="{% url 'clinical:detail' encounter.id %}">Abrir</a>
+                                    {% else %}
+                                    <span class="fs-11 text-muted">—</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% empty %}

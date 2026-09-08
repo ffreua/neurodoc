@@ -1,0 +1,61 @@
+{% extends "base_auth.html" %}
+{% block title %}Acesso ao documento{% endblock %}
+{% block tagline %}{{ clinic }}{% endblock %}
+{% block heading %}Seu documento está pronto{% endblock %}
+{% block subheading %}
+{{ kind }} · Para abrir, confirme um dado seu. É a forma de garantir que o
+documento chegue só a quem ele pertence.
+{% endblock %}
+{% block content %}
+
+{% if error %}
+<div class="alert alert-{% if locked %}danger{% else %}warning{% endif %} fade show fs-13" role="alert">
+    <span class="d-block">{{ error }}</span>
+    {% if not locked and attempts_left %}
+    <span class="fs-11">
+        {{ attempts_left }} tentativa{{ attempts_left|pluralize }} restante{{ attempts_left|pluralize }}.
+    </span>
+    {% endif %}
+</div>
+{% endif %}
+
+{% if not locked %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    {% if challenge == 'cpf' %}
+    <label class="form-label fw-semibold" for="answer">
+        Os 4 últimos dígitos do CPF do paciente
+    </label>
+    <input type="text" class="form-control form-control-lg text-center" id="answer" name="answer"
+           inputmode="numeric" autocomplete="off" maxlength="14" placeholder="••••"
+           aria-describedby="answer-help" required>
+    <div class="form-text fs-11" id="answer-help">
+        Pode digitar o CPF inteiro, se preferir — só os quatro últimos dígitos são conferidos.
+    </div>
+    {% else %}
+    {% comment %}Paciente sem CPF cadastrado — em geral criança. Sem esta
+    alternativa, o documento de um menor seria entregue e impossível de abrir.
+    {% endcomment %}
+    <label class="form-label fw-semibold" for="answer">
+        Data de nascimento do paciente
+    </label>
+    <input type="text" class="form-control form-control-lg text-center" id="answer" name="answer"
+           inputmode="numeric" autocomplete="off" maxlength="10" placeholder="dd/mm/aaaa" required>
+    <div class="form-text fs-11">Somente números também funciona: 31122001.</div>
+    {% endif %}
+
+    <button type="submit" class="btn btn-primary w-100 mt-3" data-nd-busy>Abrir documento</button>
+</form>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    Este link é pessoal e tem prazo. Se ele não abrir, ou se você não reconhece
+    este documento, procure a clínica pelos canais de sempre — não responda a
+    esta mensagem.
+</p>
+{% else %}
+<p class="fs-12 text-muted mb-0">
+    Por segurança, este link não aceita mais tentativas. A clínica pode enviar
+    um novo.
+</p>
+{% endif %}
+{% endblock %}

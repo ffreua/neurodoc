@@ -118,6 +118,32 @@ class MessagingSettings(TenantModel):
     #: permitir conferir que é a certa, sem exibi-la.
     sms_api_key_hint = models.CharField(max_length=40, blank=True)
     sms_sender_name = models.CharField(max_length=40, blank=True)
+
+    # ---------------------------------------------------------------- SMTP
+    #
+    # Servidor de e-mail **da clínica**, e não de um médico.
+    #
+    # Só existia o remetente por médico (`DoctorEmailSettings`), o que
+    # resolve "o e-mail sai no nome de quem atendeu" e não resolve o caso
+    # mais comum: a clínica tem uma conta de e-mail, e todo mundo manda por
+    # ela. Sem isto, cadastrar o SMTP era repetir servidor, porta, usuário e
+    # senha em cada médico — e trocar a senha significava editar todos.
+    #
+    # A ordem de escolha do remetente fica: configuração do médico, se ele
+    # tiver uma ativa; senão a da clínica; senão a da instalação.
+    email_enabled = models.BooleanField(default=False)
+    email_from_name = models.CharField(max_length=120, blank=True)
+    email_from_address = models.EmailField(max_length=254, blank=True)
+    email_reply_to = models.EmailField(max_length=254, blank=True)
+    smtp_host = models.CharField(max_length=255, blank=True)
+    smtp_port = models.PositiveIntegerField(null=True, blank=True)
+    smtp_user = models.CharField(max_length=255, blank=True)
+    smtp_password_ciphertext = models.TextField(blank=True)
+    smtp_password_metadata = models.JSONField(default=dict, blank=True)
+    smtp_password_hint = models.CharField(max_length=40, blank=True)
+    smtp_use_tls = models.BooleanField(default=True)
+    smtp_use_ssl = models.BooleanField(default=False)
+
     updated_by = models.ForeignKey(
         'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
@@ -127,9 +153,40 @@ class MessagingSettings(TenantModel):
             models.UniqueConstraint(fields=['tenant'], name='communications_messagingsettings_tenant_uniq'),
         ]
 
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        if self.smtp_use_tls and self.smtp_use_ssl:
+            raise ValidationError({
+                'smtp_use_ssl': 'TLS e SSL são alternativos: escolha um. '
+                                'A porta 587 costuma usar TLS; a 465, SSL.',
+            })
+        if self.email_enabled and not self.email_from_address:
+            raise ValidationError({'email_from_address': 'Informe o e-mail remetente da clínica.'})
+        if self.email_enabled and self.smtp_host and not self.smtp_port:
+            raise ValidationError({'smtp_port': 'Informe a porta do servidor SMTP.'})
+
     @property
     def has_api_key(self):
         return bool(self.sms_api_key_ciphertext)
+
+    @property
+    def has_smtp_password(self):
+        return bool(self.smtp_password_ciphertext)
+
+    @property
+    def uses_own_smtp(self):
+        return bool(self.smtp_host)
+
+    def smtp_password(self):
+        from base.crypto import decrypt_secret
+
+        return decrypt_secret(self.smtp_password_ciphertext, self.smtp_password_metadata)
+
+    def sender_header(self):
+        if self.email_from_name and self.email_from_address:
+            return f'{self.email_from_name} <{self.email_from_address}>'
+        return self.email_from_address
 
     def api_key(self):
         """Chave em claro, para a chamada ao provedor.

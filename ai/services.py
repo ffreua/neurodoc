@@ -165,6 +165,23 @@ def _gather_document_context(job):
     return f'{" ".join(notes)}\n\n{text}', source_refs
 
 
+def _provenance_of(chat_model, tenant_id):
+    """Provedor e modelo que produziram este artefato.
+
+    A clínica tem prioridade porque foi ela que escolheu; a instalação
+    responde por quem não configurou o próprio. O nome do modelo vem do
+    cliente já montado, e não da configuração, para o registro não divergir
+    do que a chamada usou de fato.
+    """
+    from .models import AIProviderSettings
+
+    model_name = getattr(chat_model, 'model_name', None) or getattr(chat_model, 'model', None)
+    row = AIProviderSettings.objects.filter(tenant_id=tenant_id).first()
+    if row is not None and row.is_usable:
+        return row.provider, str(model_name or row.model)
+    return settings.AI_PROVIDER, str(model_name or settings.AI_MODEL)
+
+
 def _previous_artifact(job):
     qs = AIArtifact.objects.filter(job__tenant_id=job.tenant_id, job__kind=job.kind)
     if job.encounter_id:
@@ -235,7 +252,7 @@ def run_job(job_id):
     job.save(update_fields=['source_hash', 'status'])
 
     try:
-        chat_model = get_chat_model()
+        chat_model = get_chat_model(tenant_id=job.tenant_id)
     except ProviderUnavailable as exc:
         return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_provider_unavailable')
 
@@ -251,9 +268,14 @@ def run_job(job_id):
 
     artifact_data = dict(result_state['artifact'])
     artifact_data['source_refs'] = source_refs or artifact_data.get('source_refs', [])
+    # Proveniência é o que foi de fato usado, não o que a instalação tem
+    # configurado. Com provedor por clínica, gravar `settings.AI_PROVIDER`
+    # registraria o provedor errado em toda clínica que informou o seu — e
+    # a revisão do médico depende de saber de onde a sugestão veio.
+    used_provider, used_model = _provenance_of(chat_model, job.tenant_id)
     artifact = AIArtifact.objects.create(
-        tenant_id=job.tenant_id, job=job, schema_version=SCHEMA_VERSION, provider=settings.AI_PROVIDER,
-        model=settings.AI_MODEL, prompt_version=PROMPT_VERSION, source_refs=artifact_data['source_refs'],
+        tenant_id=job.tenant_id, job=job, schema_version=SCHEMA_VERSION, provider=used_provider,
+        model=used_model, prompt_version=PROMPT_VERSION, source_refs=artifact_data['source_refs'],
         result=artifact_data, supersedes=_previous_artifact(job),
     )
     job.status = AIJobStatus.SUCCEEDED

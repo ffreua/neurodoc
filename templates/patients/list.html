@@ -50,6 +50,9 @@
                                             {{ patient.full_name|slice:":1"|upper }}
                                         </span>
                                         <a class="fw-semibold text-dark" href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a>
+                                        {% if patient.record_number %}
+                                        <span class="d-block fs-11 text-muted">Prontuário {{ patient.record_number }}</span>
+                                        {% endif %}
                                     </div>
                                 </td>
                                 <td><span class="fs-12 text-muted">{{ patient.cpf|default:"—" }}</span></td>
@@ -62,7 +65,9 @@
                                     {# .btn is display:flex in Duralux, so siblings need a flex row of their own. #}
                                     <div class="d-inline-flex align-items-center gap-1">
                                         <a class="btn btn-sm btn-light-primary" href="{% url 'patients:detail' patient.id %}">Abrir</a>
+                                        {% if nd_can.read_clinical %}
                                         <a class="btn btn-sm btn-light" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>

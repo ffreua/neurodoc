@@ -79,9 +79,12 @@ class RecoveryCode(TimestampedModel):
 
 class PhysicianProfile(TimestampedModel):
     class VerificationStatus(models.TextChoices):
-        PENDING = 'pending', 'Pending'
-        VERIFIED = 'verified', 'Verified'
-        REJECTED = 'rejected', 'Rejected'
+        # Rótulos em português: aparecem na tela da equipe, onde o
+        # responsável decide sobre o registro. Os valores gravados seguem
+        # em inglês, como o resto do esquema.
+        PENDING = 'pending', 'Aguardando validação'
+        VERIFIED = 'verified', 'Validado'
+        REJECTED = 'rejected', 'Recusado'
 
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='physician_profile')
     professional_name = models.CharField(max_length=255)
@@ -94,6 +97,19 @@ class PhysicianProfile(TimestampedModel):
     verification_status = models.CharField(
         max_length=40, choices=VerificationStatus.choices, default=VerificationStatus.PENDING,
     )
+    #: Quem conferiu o CRM e quando.
+    #:
+    #: A validação é ato do responsável pela clínica, e numa clínica com um
+    #: médico só esse médico é o próprio responsável — ele valida a si
+    #: mesmo. Não dá para impedir sem inviabilizar o consultório solo, então
+    #: o que resta é deixar registrado, e à vista: a tela mostra quem
+    #: liberou a assinatura e em que data. Auditoria em log responde depois;
+    #: isto responde na hora de olhar a equipe.
+    verified_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verification_note = models.CharField(max_length=255, blank=True)
 
     class Meta:
         constraints = [

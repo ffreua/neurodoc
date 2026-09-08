@@ -1,14 +1,13 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.forms import modelform_factory
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.views import View
 
 from audit.services import record_audit_event
 from patients.models import Patient
+from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.selectors import scope_to_tenant
 
 from . import carry_forward as cf
@@ -52,10 +51,27 @@ def _blocked(request, encounter, message, anchor=''):
     url = reverse('clinical:detail', args=[encounter.id])
     return redirect(f'{url}#{anchor}' if anchor else url)
 
-class TenantScopedView(LoginRequiredMixin, View):
+class TenantScopedView(CapabilityRequiredView):
+    """Base do prontuário: ler exige papel médico, escrever exige habilitação.
+
+    A capacidade sai do método HTTP em vez de ser anotada view a view.
+    Neste app a correspondência é exata — toda leitura é GET e todo POST
+    altera o registro clínico — e uma regra derivada não pode ser esquecida
+    na próxima view que alguém acrescentar. Anotar vinte e seis classes à
+    mão garantiria que a vigésima sétima nascesse sem anotação e aberta.
+
+    A separação entre ler e escrever é a do PRD: o papel `doctor` lê o
+    prontuário; finalizar atendimento exige também `PhysicianProfile`
+    verificado. Secretaria e gestor não passam em nenhum dos dois.
+    """
+
+    SAFE_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS'})
+
     def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
+        self.required_capability = (
+            Capability.READ_CLINICAL if request.method in self.SAFE_METHODS
+            else Capability.WRITE_CLINICAL
+        )
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -459,7 +475,15 @@ class CarryForwardReviewView(TenantScopedView):
         item = get_object_or_404(encounter.carry_forward_items, id=item_id)
         action = request.POST.get('action')
         if action not in ('accepted', 'edited', 'rejected'):
-            raise Http404
+            # Recusa legível, e não 404: a URL existe e o item existe — o que
+            # falta é a ação. Um 404 aqui manda quem está atendendo para uma
+            # página de erro sem dizer o que houve, e some com a tela do
+            # atendimento junto.
+            return _blocked(
+                request, encounter,
+                'Não deu para saber se era para trazer ou descartar. Clique de novo no botão.',
+                anchor='carry-forward',
+            )
         membership = _doctor_membership(request)
         cf.review_carry_forward_item(item, action, membership.id if membership else None)
         return redirect('clinical:detail', encounter_id=encounter.id)

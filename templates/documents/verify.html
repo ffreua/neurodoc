@@ -1,0 +1,99 @@
+{% extends "base_auth.html" %}
+{% block title %}Verificação de documento médico{% endblock %}
+{% block card_width %}wd-700{% endblock %}
+{% block heading %}Verificação de documento{% endblock %}
+{% block subheading %}
+Confirme que um documento médico foi mesmo emitido por este sistema. Esta página
+não mostra prescrição, diagnóstico nem qualquer conteúdo clínico.
+{% endblock %}
+{% block content %}
+
+        <form method="post" class="row g-2 align-items-end" novalidate>
+            {% csrf_token %}
+            <div class="col-sm-8">
+                <label class="form-label fw-semibold" for="codigo">Código de verificação</label>
+                <input type="text" class="form-control" id="codigo" name="codigo"
+                       value="{{ codigo }}" autocomplete="off" spellcheck="false"
+                       placeholder="Ex.: 1A2B-3C4D-5E6F-7890">
+            </div>
+            <div class="col-sm-4">
+                <button type="submit" class="btn btn-primary w-100" data-nd-busy>Verificar</button>
+            </div>
+        </form>
+
+        {% if error %}
+        <div class="alert alert-warning fade show fs-13 mt-3 mb-0" role="alert">{{ error }}</div>
+        {% endif %}
+
+        {% if document %}
+        <div class="mt-4">
+            {% if document.issued %}
+            <div class="alert alert-success fade show mb-3" role="alert">
+                <span class="fw-semibold d-block">Documento localizado e emitido.</span>
+                <span class="fs-12">
+                    Foi assinado digitalmente e consta neste sistema com os dados abaixo.
+                </span>
+            </div>
+            {% else %}
+            {% comment %}Rascunho encontrado é resposta importante, e diferente de
+            "não existe": alguém está com um papel que saiu do sistema mas nunca
+            foi assinado. Dizer só "não encontrado" esconderia isso.{% endcomment %}
+            <div class="alert alert-danger fade show mb-3" role="alert">
+                <span class="fw-semibold d-block">Este documento NÃO foi emitido.</span>
+                <span class="fs-12">
+                    O código existe, mas corresponde a um rascunho que nunca foi assinado.
+                    Um documento nessas condições não tem validade — procure o consultório
+                    emissor antes de aceitá-lo.
+                </span>
+            </div>
+            {% endif %}
+
+            {% if document.superseded_by %}
+            <div class="alert alert-warning fade show mb-3" role="alert">
+                <span class="fw-semibold d-block">Existe uma versão mais recente.</span>
+                <span class="fs-12">
+                    Este documento foi retificado. A versão vigente é a de número
+                    {{ document.superseded_by.document_number }}.
+                </span>
+            </div>
+            {% endif %}
+
+            <table class="table table-sm align-middle mb-0">
+                <tbody>
+                    <tr><th scope="row" class="fs-12 text-muted ps-0" style="width:12rem">Tipo</th>
+                        <td class="fs-13 fw-semibold text-dark">{{ document.kind }}</td></tr>
+                    <tr><th scope="row" class="fs-12 text-muted ps-0">Número</th>
+                        <td class="fs-13 text-dark">
+                            {{ document.number|default:"— não emitido —" }}
+                            {% if document.version > 1 %}(versão {{ document.version }}){% endif %}
+                        </td></tr>
+                    <tr><th scope="row" class="fs-12 text-muted ps-0">Paciente</th>
+                        <td class="fs-13 text-dark">{{ document.patient }}</td></tr>
+                    <tr><th scope="row" class="fs-12 text-muted ps-0">Médico</th>
+                        <td class="fs-13 text-dark">
+                            {{ document.physician }}{% if document.crm %} — CRM {{ document.crm }}{% endif %}
+                        </td></tr>
+                    <tr><th scope="row" class="fs-12 text-muted ps-0">Emissor</th>
+                        <td class="fs-13 text-dark">{{ document.clinic }}</td></tr>
+                    <tr><th scope="row" class="fs-12 text-muted ps-0">Emitido em</th>
+                        <td class="fs-13 text-dark">
+                            {{ document.issued_at|date:"d/m/Y H:i"|default:"—" }}
+                        </td></tr>
+                    {% if document.sha256 %}
+                    <tr><th scope="row" class="fs-12 text-muted ps-0">SHA-256 do arquivo</th>
+                        <td class="fs-11 text-dark text-break font-monospace">{{ document.sha256 }}</td></tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <p class="fs-11 text-muted mt-3 mb-0">
+                Esta página confirma a existência e a proveniência do documento neste
+                sistema. A validação criptográfica da assinatura ICP-Brasil deve ser
+                feita no validador do ITI
+                (<a href="https://validar.iti.gov.br" target="_blank" rel="noopener">validar.iti.gov.br</a>)
+                ou em leitor de PDF compatível — o SHA-256 acima permite conferir que o
+                arquivo em mãos é exatamente o que foi assinado.
+            </p>
+        </div>
+        {% endif %}
+{% endblock %}

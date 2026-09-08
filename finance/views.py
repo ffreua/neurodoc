@@ -1,10 +1,9 @@
 import datetime
 
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import Http404, HttpResponseForbidden
+from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.views import View
 
+from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.selectors import scope_to_tenant
 
 from .adjustments import apply_adjustment
@@ -13,11 +12,16 @@ from .payments import balance, net_received, record_payment
 from .selectors import cash_view, competence_view
 
 
-class TenantScopedView(LoginRequiredMixin, View):
-    def dispatch(self, request, *args, **kwargs):
-        if request.access_context is None:
-            raise Http404
-        return super().dispatch(request, *args, **kwargs)
+class TenantScopedView(CapabilityRequiredView):
+    """Financeiro: recebível, pagamento e ajuste.
+
+    O PRD trata financeiro e CRM na mesma linha e a dá aos quatro papéis,
+    com escopo próprio para o médico. Escopo por médico não está modelado
+    aqui; o que a capacidade garante é que a tela exija vínculo com o papel,
+    e não apenas sessão iniciada.
+    """
+
+    required_capability = Capability.FINANCE
 
 
 def _parse_period(request):

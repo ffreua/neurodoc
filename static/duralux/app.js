@@ -585,7 +585,32 @@
      * submitted by an impatient second click. */
     function initBusyButtons() {
         document.querySelectorAll('form').forEach(function (form) {
-            form.addEventListener('submit', function () {
+            form.addEventListener('submit', function (event) {
+                /* Desabilitar o botão clicado apaga o que ele diz.
+                 *
+                 * Um botão de envio com `name` carrega um valor — é assim que
+                 * um formulário com "Trazer" e "Descartar" diz qual dos dois
+                 * foi clicado. O navegador monta os dados do formulário
+                 * **depois** de disparar `submit`, e ignora campo
+                 * desabilitado: desabilitar aqui faz o `name` do botão sumir
+                 * do envio, e o servidor recebe um formulário sem a ação.
+                 *
+                 * Era o 404 ao trazer ou descartar dado do atendimento
+                 * anterior: a URL casava, a view recebia `action` vazio e
+                 * recusava. Como o botão some do envio antes de a requisição
+                 * sair, não havia como ver isso no servidor — só o efeito.
+                 *
+                 * O valor é copiado para um campo oculto antes de o botão ser
+                 * desabilitado, então o envio continua dizendo o que dizia. */
+                var submitter = event.submitter;
+                if (submitter && submitter.name && !submitter.disabled) {
+                    var carrier = document.createElement('input');
+                    carrier.type = 'hidden';
+                    carrier.name = submitter.name;
+                    carrier.value = submitter.value;
+                    carrier.setAttribute('data-nd-busy-carrier', '1');
+                    form.appendChild(carrier);
+                }
                 form.querySelectorAll('[data-nd-busy]').forEach(function (btn) {
                     if (btn.dataset.ndBusyDone) return;
                     btn.dataset.ndBusyDone = '1';

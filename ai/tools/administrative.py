@@ -1,4 +1,3 @@
-from crm.models import CRMCard
 from finance.models import Receivable
 from scheduling.models import Appointment
 
@@ -7,26 +6,6 @@ MAX_ROWS = 20
 
 class ToolScopeError(Exception):
     pass
-
-
-def get_crm_status(authorization):
-    """Administrative-only: stage name, assignee, due date and the free-text
-    administrative summary -- never a diagnosis, and never routed to a
-    clinical encounter's own text fields (CRMCard carries no clinical
-    field to begin with, see crm/models.py).
-    """
-    if authorization.patient_id is None:
-        raise ToolScopeError('Authorization has no patient in scope')
-    card = CRMCard.objects.filter(
-        tenant_id=authorization.tenant_id, patient_id=authorization.patient_id,
-    ).order_by('-created_at').first()
-    if card is None:
-        return None
-    return {
-        'stage': card.stage.name, 'assigned_to': card.assigned_membership_id is not None,
-        'due_at': card.due_at.isoformat() if card.due_at else None,
-        'administrative_summary': card.administrative_summary,
-    }
 
 
 def get_upcoming_appointments(authorization, limit=MAX_ROWS):
