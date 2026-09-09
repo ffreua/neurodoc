@@ -50,13 +50,30 @@ def _channels_for(contact):
     return channels
 
 
-def _notify_no_contact(tenant, target_type, target_id):
-    from notifications.services import notify_role
+def _notify_no_contact(patient, o_que):
+    """Ninguém neste paciente pode receber a mensagem.
 
-    notify_role(
-        tenant, roles=('secretary', 'owner'), kind='delivery_pending_contact',
-        sanitized_title='Entrega pendente — verifique o cadastro de contato do paciente',
-        target_type=target_type, target_id=target_id,
+    O aviso dizia "Entrega pendente — verifique o cadastro de contato do
+    paciente" e apontava para o horário ou o documento. Quem o recebia
+    tinha de adivinhar qual paciente e ir procurá-lo na lista; e o destino,
+    quando existisse, não era onde a correção acontece.
+
+    Agora nomeia o paciente, diz o que ficou por entregar, e leva à ficha
+    — que é onde se cadastra telefone e e-mail.
+
+    Vai para quem administra o cadastro do paciente (`PATIENT_ADMIN`), que
+    é quem pode de fato resolver: a secretária, o gestor, o dono. Por
+    capacidade e não por papel, porque é a capacidade que decide se a ficha
+    abre.
+    """
+    from notifications.services import notify_capability, patient_context
+    from tenancy.permissions import Capability
+
+    notify_capability(
+        patient.tenant, Capability.PATIENT_ADMIN, kind='delivery_pending_contact',
+        sanitized_title=f'Sem contato para entregar: {o_que}',
+        target_type='patient', target_id=patient.id,
+        context=patient_context(patient, pending=o_que),
     )
 
 
@@ -116,7 +133,11 @@ def deliver_document(document, force_new_link=False):
     """
     contacts = _eligible_document_contacts(document.patient)
     if not contacts:
-        _notify_no_contact(document.tenant, 'medical_document', document.id)
+        numero = document.document_number or 'sem número'
+        _notify_no_contact(
+            document.patient,
+            f'{document.get_kind_display().lower()} {numero}',
+        )
         return []
 
     deliveries = []
@@ -170,7 +191,10 @@ def _document_message(document, link):
 def deliver_appointment_reminder(appointment, event_version):
     contacts = _eligible_reminder_contacts(appointment.patient)
     if not contacts:
-        _notify_no_contact(appointment.tenant, 'appointment', appointment.id)
+        from django.utils import timezone as _tz
+
+        quando = _tz.localtime(appointment.starts_at).strftime('%d/%m às %H:%M')
+        _notify_no_contact(appointment.patient, f'lembrete do horário de {quando}')
         return []
 
     when = appointment.starts_at.strftime('%d/%m %H:%M')

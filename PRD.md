@@ -5382,7 +5382,83 @@ inquilino resolvido, e o tema reserva 280px à esquerda para ela — que
 viravam uma faixa vazia no console aberto por um superadministrador sem
 vínculo em clínica nenhuma. `body.nd-no-shell` remove a margem.
 
-### 25.23 Pendências
+### 25.23 Notificações que dizem de quem e levam ao lugar
+
+A caixa avisava que havia algo a fazer e não dizia o quê nem onde. "Entrega
+pendente — verifique o cadastro de contato do paciente" obrigava a
+adivinhar qual paciente e procurá-lo na lista; `target_type` e `target_id`
+estavam gravados desde a S02 e nenhuma tela os usava.
+
+- **O aviso nomeia o caso.** `Notification.context` guarda nome e número de
+  prontuário, capturados na criação. Retrato, e não referência viva: um
+  documento descartado continua legível na caixa de quem o recebeu, e a
+  alternativa seria uma consulta por linha em toda página. O limite é o
+  mesmo de `sanitized_title` — identificação sim, **conteúdo clínico
+  nunca**: esta linha é lida em toda requisição para montar o sino.
+- **O botão leva à resolução, e o verbo é próprio de cada tipo.** O destino
+  é resolvido na leitura (`notifications/targets.py`), e não gravado como
+  URL: rota guardada em banco envelhece junto com as rotas, e o dia em que
+  um caminho muda transforma a caixa numa lista de links quebrados.
+- **Abrir marca como lida e redireciona**, numa ação só — quem abre o que o
+  aviso apontava já leu o aviso. É `POST`: um `GET` que altera estado é
+  disparado por qualquer coisa que pré-carregue endereços, e a caixa se
+  marcaria lida sozinha.
+- **Alvo que sumiu não vira 404.** Marca como lida e diz o que houve.
+- **"Marcar todas como lidas"**, na central e no sino. Escopo por inquilino:
+  quem trabalha em duas clínicas tem duas caixas, e limpar uma não pode
+  apagar o pendente da outra — que é justamente a que não está sendo olhada.
+
+**Destinatário por capacidade, não por papel.** `notify_role` escolhia por
+`roles__overlap`, e o resultado era aviso que quem recebe não pode atender:
+o pedido do portal ia para `('doctor', 'secretary')`, e a fila exige
+capacidade clínica. A secretária ficava sabendo que aquele paciente pediu
+alguma coisa e recebia um botão que responde 404 — as duas coisas erradas
+pelo mesmo motivo. `notify_capability` pergunta a `tenancy.permissions` o
+mesmo que as views perguntam, então a caixa e a tela deixam de divergir. O
+aviso de contato faltando passou a ir para `PATIENT_ADMIN`, que é quem
+conserta a ficha, e a apontar para a **ficha do paciente** — não para o
+horário que não pôde ser lembrado.
+
+**Não lidas primeiro, e `nulls_first` é obrigatório.** No PostgreSQL,
+`ORDER BY` crescente de coluna anulável põe o `NULL` no fim, e `read_at`
+nulo é exatamente a não lida: sem isso a ordenação faz o contrário do que
+se quer. O defeito não aparece em teste de conteúdo — as linhas estão todas
+lá, na ordem errada — e foi encontrado olhando a tela.
+
+### 25.24 Chave-mestra de segredos separada da do certificado
+
+`base.crypto` caía na `PFX_MASTER_KEY` enquanto `SECRETS_MASTER_KEY` não
+existisse. Funcionava, e juntava duas finalidades que não deveriam se
+encontrar: comprometer a chave de SMS dava acesso ao certificado de
+assinatura. A tela de integrações avisava disso desde que o recurso nasceu.
+
+Definir a chave separada **sozinho quebra** o que já estava gravado — a
+chave de SMS, a senha de SMTP e a chave de IA de cada clínica foram
+embrulhadas com a antiga, e a partir do restart nada mais as abre. Por isso
+a correção são duas metades:
+
+- `base.crypto.rewrap_secret` troca a mestra que embrulha a chave de dados.
+  **O valor cifrado não é tocado**: quem o cifra é a chave de dados, e ela
+  não muda. É para isto que o envelope existe — a alternativa seria
+  decifrar e recifrar cada segredo, passando o valor em claro pela memória
+  de um processo em lote.
+- `rotate_secrets_master_key` percorre os quatro lugares onde há segredo
+  embrulhado. Idempotente (o que já abre com a nova é pulado) e tolerante
+  (um segredo ilegível é reportado e não interrompe o lote — parar ali
+  deixaria todos os outros sem rotacionar).
+
+`documents.SigningCredential` fica de fora: o PFX é embrulhado direto pela
+`PFX_MASTER_KEY` e é o dono legítimo dela. A separação existe justamente
+para tirar os outros segredos de perto dele.
+
+**O worker não tinha chave-mestra nenhuma.** Descoberto ao montar a chave
+nova: `compose.yml` dava `PFX_MASTER_KEY` só ao `app`. O worker é quem de
+fato envia — ele lê `MessagingSettings` e chama `decrypt_secret` — e sem a
+mestra levantava `SecretUnavailable` em todo envio assíncrono. Os botões de
+teste, que rodam no processo web, funcionavam: a configuração passava no
+teste e falhava em produção. A chave nova vai ao `app` e ao `worker`.
+
+### 25.25 Pendências
 
 - **`PatientAccessGrant`**: escopo clínico por paciente, ainda não modelado.
 - **Delegação de capacidades**: as células "A se delegado" da seção 4 são

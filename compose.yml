@@ -23,6 +23,7 @@ services:
     - NEURODOC_RABBITMQ_PASSWORD
     - NEURODOC_REDIS_PASSWORD
     - NEURODOC_PFX_MASTER_KEY
+    - NEURODOC_SECRETS_MASTER_KEY
     networks:
     - local
     healthcheck:
@@ -68,6 +69,7 @@ services:
     - NEURODOC_OPENROUTER_API_KEY
     - NEURODOC_OPENAI_API_KEY
     - NEURODOC_ANTHROPIC_API_KEY
+    - NEURODOC_SECRETS_MASTER_KEY
     networks:
     - local
     healthcheck:
@@ -281,3 +283,5 @@ secrets:
     file: ./.secrets/NEURODOC_ANTHROPIC_API_KEY
   NEURODOC_PFX_MASTER_KEY:
     file: ./.secrets/NEURODOC_PFX_MASTER_KEY
+  NEURODOC_SECRETS_MASTER_KEY:
+    file: ./.secrets/NEURODOC_SECRETS_MASTER_KEY

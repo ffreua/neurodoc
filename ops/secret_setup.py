@@ -18,6 +18,14 @@ GENERATED = {
     'NEURODOC_RABBITMQ_PASSWORD', 'NEURODOC_REDIS_PASSWORD',
 }
 
+#: Chaves-mestras. Formato Fernet (32 bytes em base64 urlsafe), geradas —
+#: e **separadas por finalidade**: comprometer a chave que abre os segredos
+#: da clínica não deve dar acesso ao certificado de assinatura.
+FERNET_KEYS = {
+    'NEURODOC_PFX_MASTER_KEY',
+    'NEURODOC_SECRETS_MASTER_KEY',
+}
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -46,7 +54,12 @@ def main():
         for name in names:
             if name in GENERATED:
                 values[name] = secrets.token_hex(32)
-            elif name == 'NEURODOC_PFX_MASTER_KEY':
+            elif name in FERNET_KEYS:
+                # Chave-mestra é gerada, nunca digitada. Digitada, ela cairia
+                # no ramo abaixo e um Enter a deixaria 'DISABLED' — o que,
+                # no caso da SECRETS_MASTER_KEY, devolveria silenciosamente o
+                # compartilhamento com a chave do certificado que ela existe
+                # para desfazer.
                 values[name] = base64.urlsafe_b64encode(secrets.token_bytes(32)).decode()
             elif name == 'CLOUDFLARE_DNS_API_TOKEN' and not args.local:
                 values[name] = getpass.getpass('Cloudflare DNS API token: ')

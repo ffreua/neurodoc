@@ -153,10 +153,21 @@ def run_chat_turn(message_id, prompt):
     finalize_assistant_message(message, full_text, source_refs=[])
     publish_event(tenant_id, user_id, session.id, job_id, 'complete', {'html': rendered_html})
 
-    from notifications.services import notify_user
+    from notifications.services import notify_user, patient_context
+
+    # O paciente da conversa entra no contexto quando existe: o chat de
+    # apoio pode ser sobre um paciente ou uma dúvida geral, e "sua conversa
+    # tem uma nova resposta" nao distingue as duas em quem tem cinco
+    # abertas. O **conteudo** da resposta nao entra, aqui como em nenhum
+    # aviso.
+    contexto = patient_context(session.patient) if session.patient_id else {}
     notify_user(
         session.tenant, user_id, kind='chat_reply_ready',
-        sanitized_title='Sua conversa com a IA tem uma nova resposta',
+        sanitized_title=(
+            f'Resposta da IA sobre {session.patient.full_name}'
+            if session.patient_id else 'Resposta da IA na sua conversa'
+        ),
         target_type='chat_session', target_id=session.id,
+        context=contexto,
     )
     return {'status': 'complete', 'message_id': str(message.id)}

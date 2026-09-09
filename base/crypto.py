@@ -87,6 +87,39 @@ def decrypt_secret(ciphertext, metadata):
         ) from exc
 
 
+def rewrap_secret(metadata, old_key, new_key):
+    """Reembrulha a chave de dados de uma mestra para outra.
+
+    O valor cifrado **não é tocado**: quem o cifra é a chave de dados, e
+    ela não muda. Só o embrulho troca de chave. É por isso que o envelope
+    existe — rotacionar a mestra sem esta separação exigiria decifrar e
+    recifrar cada segredo, o que passa o valor em claro pela memória de
+    um processo em lote e obriga a reescrever colunas grandes.
+
+    Idempotente: se o embrulho já abre com a nova chave, devolve
+    `(metadata, False)` e não faz nada. Rodar a rotação duas vezes é
+    normal — o comando pode ser interrompido no meio.
+    """
+    wrapped = (metadata or {}).get('wrapped_key')
+    if not wrapped:
+        raise SecretUnavailable('Segredo gravado sem a chave de dados embrulhada.')
+    novo = Fernet(new_key.encode() if isinstance(new_key, str) else new_key)
+    try:
+        novo.decrypt(wrapped.encode())
+        return metadata, False
+    except InvalidToken:
+        pass
+    velho = Fernet(old_key.encode() if isinstance(old_key, str) else old_key)
+    try:
+        data_key = velho.decrypt(wrapped.encode())
+    except InvalidToken as exc:
+        raise SecretUnavailable(
+            'O embrulho não abre nem com a chave nova nem com a antiga. '
+            'Este segredo precisa ser informado de novo pela tela.'
+        ) from exc
+    return {**(metadata or {}), 'wrapped_key': novo.encrypt(data_key).decode()}, True
+
+
 #: Quantos marcadores a máscara usa, independentemente do tamanho do
 #: segredo. Ver `mask_secret`.
 MASK_WIDTH = 8

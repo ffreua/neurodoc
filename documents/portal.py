@@ -204,12 +204,21 @@ def submit(request, tenant, patient, kind, requester_name, requester_is_patient,
         object_type='document_request', object_id=pedido.id, outcome='success',
         integrity_metadata={'kind': kind},
     )
-    from notifications.services import notify_role
+    # Por capacidade, e não por papel: a fila exige capacidade clínica, e
+    # avisar a secretária de um pedido que ela não pode abrir a informa de
+    # que aquele paciente pediu alguma coisa e entrega um link que responde
+    # 404.
+    from notifications.services import notify_capability, patient_context
+    from tenancy.permissions import Capability
 
-    notify_role(
-        tenant, roles=('doctor', 'secretary'), kind='portal_request',
-        sanitized_title='Novo pedido no portal do paciente',
+    notify_capability(
+        tenant, Capability.READ_CLINICAL, kind='portal_request',
+        sanitized_title=f'{pedido.get_kind_display()} solicitada no portal',
         target_type='document_request', target_id=pedido.id,
+        context=patient_context(
+            patient,
+            requester=('' if requester_is_patient else requester_name),
+        ),
     )
     clear(request)
     return pedido

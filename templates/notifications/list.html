@@ -5,39 +5,88 @@
 <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
 <li class="breadcrumb-item">Notificações</li>
 {% endblock %}
+{% block page_actions %}
+{% if unread_count %}
+<form method="post" action="{% url 'notifications:mark-all-read' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-light" data-nd-busy>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        <span>Marcar todas como lidas</span>
+    </button>
+</form>
+{% endif %}
+{% endblock %}
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-xxl-8 col-lg-10">
+    <div class="col-xxl-9 col-lg-11">
         <div class="card stretch stretch-full">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Central de notificações</h5>
-                {% if nd_unread_notifications %}
-                <span class="badge bg-soft-danger text-danger">{{ nd_unread_notifications }} não lida{{ nd_unread_notifications|pluralize }}</span>
+                {% if unread_count %}
+                <span class="badge bg-soft-danger text-danger">{{ unread_count }} não lida{{ unread_count|pluralize }}</span>
                 {% else %}
                 <span class="badge bg-soft-success text-success">Tudo lido</span>
                 {% endif %}
             </div>
             <div class="card-body p-0">
+                {% comment %}As não lidas vêm primeiro (ordenação na view). Uma
+                caixa por data enterra o que falta fazer sob o que já foi feito
+                assim que o dia enche.{% endcomment %}
                 <ul class="list-group list-group-flush">
-                    {% for n in notifications %}
-                    <li class="list-group-item chat-single-item d-flex align-items-center justify-content-between gap-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <span class="avatar-text avatar-md {% if n.read_at %}bg-gray-200 text-muted{% else %}bg-soft-primary text-primary{% endif %}">
+                    {% for row in rows %}
+                    <li class="list-group-item d-flex align-items-start justify-content-between gap-3 py-3">
+                        <div class="d-flex align-items-start gap-3">
+                            <span class="avatar-text avatar-md flex-shrink-0 {% if row.obj.read_at %}bg-gray-200 text-muted{% else %}bg-soft-primary text-primary{% endif %}">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                             </span>
                             <div>
-                                <span class="d-block fw-semibold text-dark fs-13">{{ n.sanitized_title }}</span>
-                                <span class="d-block fs-11 text-muted">{{ n.created_at|date:"d/m/Y H:i" }}</span>
+                                <span class="d-block fw-semibold text-dark fs-13">{{ row.obj.sanitized_title }}</span>
+
+                                {% comment %}De quem se trata, em linha própria.
+                                O nome identifica; o que foi escrito no prontuário
+                                nunca entra aqui.{% endcomment %}
+                                {% if row.obj.context.patient %}
+                                <span class="d-block fs-12 text-dark">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                                    {{ row.obj.context.patient }}
+                                    {% if row.obj.context.record_number %}
+                                    <span class="text-muted">· prontuário {{ row.obj.context.record_number }}</span>
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                                {% if row.obj.context.requester %}
+                                <span class="d-block fs-11 text-muted">
+                                    Preenchido por {{ row.obj.context.requester }}, e não pelo paciente.
+                                </span>
+                                {% endif %}
+
+                                <span class="d-block fs-11 text-muted mt-1">{{ row.obj.created_at|date:"d/m/Y H:i" }}</span>
                             </div>
                         </div>
-                        {% if n.read_at %}
-                        <span class="badge bg-gray-200 text-dark flex-shrink-0">lida</span>
-                        {% else %}
-                        <form method="post" action="{% url 'notifications:mark-read' n.id %}" class="flex-shrink-0">
-                            {% csrf_token %}
-                            <button type="submit" class="btn btn-sm btn-light-primary">Marcar como lida</button>
-                        </form>
-                        {% endif %}
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            {% comment %}"Resolver" é POST porque marca como lida
+                            antes de redirecionar, e um GET que altera estado é
+                            disparado por qualquer coisa que pré-carregue
+                            endereços — o navegador faz isso sozinho.{% endcomment %}
+                            {% if row.url %}
+                            <form method="post" action="{% url 'notifications:open' row.obj.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-primary" data-nd-busy>
+                                    {{ row.action }}
+                                </button>
+                            </form>
+                            {% endif %}
+                            {% if row.obj.read_at %}
+                            <span class="badge bg-gray-200 text-dark">lida</span>
+                            {% else %}
+                            <form method="post" action="{% url 'notifications:mark-read' row.obj.id %}">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light" data-nd-busy>
+                                    Marcar como lida
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </li>
                     {% empty %}
                     <li class="list-group-item text-center text-muted py-5">Nenhuma notificação.</li>

@@ -6,6 +6,7 @@ requests. Outside ``/app/`` the processor returns the empty shell so
 public pages (landing, authentication, document access) render without a
 sidebar.
 """
+from django.db.models import F
 from django.urls import Resolver404, resolve
 
 from tenancy.permissions import Capability
@@ -85,7 +86,12 @@ def shell(request):
         name: context.can(name) for name in context.capabilities | _ALL_CAPABILITIES
     }
     data['nd_unread_notifications'] = mine.filter(read_at__isnull=True).count()
-    data['nd_recent_notifications'] = list(mine.order_by('-created_at')[:5])
+    # Não lidas primeiro, como na central. O sino mostra cinco linhas: se
+    # ordenar só por data, cinco avisos lidos hoje escondem o pendente de
+    # ontem — que é justamente o que ainda precisa de alguém.
+    data['nd_recent_notifications'] = list(
+        mine.order_by(F('read_at').asc(nulls_first=True), '-created_at')[:5]
+    )
     data.update(_portal_badge(context))
     return data
 

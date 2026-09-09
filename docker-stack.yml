@@ -30,6 +30,7 @@ services:
       - NEURODOC_RABBITMQ_PASSWORD
       - NEURODOC_REDIS_PASSWORD
       - NEURODOC_PFX_MASTER_KEY
+      - NEURODOC_SECRETS_MASTER_KEY
     networks: [traefik_public, neurodoc_v1_internal]
     healthcheck:
       test: [CMD, python, /app/ops/http_health.py]
@@ -88,6 +89,7 @@ services:
       - NEURODOC_REDIS_PASSWORD
       - NEURODOC_SMTP_PASSWORD
       - NEURODOC_SMSDEV_API_KEY
+      - NEURODOC_SECRETS_MASTER_KEY
       - NEURODOC_OPENROUTER_API_KEY
       - NEURODOC_OPENAI_API_KEY
       - NEURODOC_ANTHROPIC_API_KEY
@@ -283,4 +285,5 @@ secrets:
   NEURODOC_OPENAI_API_KEY: {external: true}
   NEURODOC_ANTHROPIC_API_KEY: {external: true}
   NEURODOC_PFX_MASTER_KEY: {external: true}
+  NEURODOC_SECRETS_MASTER_KEY: {external: true}
   CLOUDFLARE_DNS_API_TOKEN: {external: true}

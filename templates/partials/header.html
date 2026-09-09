@@ -48,19 +48,40 @@
                     <div class="dropdown-menu dropdown-menu-end nxl-h-dropdown nxl-notifications-menu">
                         <div class="d-flex justify-content-between align-items-center notifications-head">
                             <h6 class="fw-bold text-dark mb-0">Notificações</h6>
-                            <a class="fs-11 text-success text-end ms-auto" href="{% url 'notifications:list' %}">
+                            {% comment %}"Marcar todas" fica aqui também: o sino é
+                            onde se percebe que a caixa encheu, e obrigar a abrir a
+                            central para limpá-la é um passo a mais no lugar em que
+                            a pessoa já está.{% endcomment %}
+                            {% if nd_unread_notifications %}
+                            <form method="post" action="{% url 'notifications:mark-all-read' %}" class="ms-auto me-2">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-link p-0 fs-11 text-muted">Marcar todas</button>
+                            </form>
+                            {% endif %}
+                            <a class="fs-11 text-success text-end {% if not nd_unread_notifications %}ms-auto{% endif %}" href="{% url 'notifications:list' %}">
                                 <span>Ver todas</span>
                             </a>
                         </div>
                         {% for item in nd_recent_notifications %}
                         <div class="notifications-item">
-                            <div class="avatar-text avatar-md bg-soft-primary text-primary me-3">
+                            <div class="avatar-text avatar-md {% if item.read_at %}bg-gray-200 text-muted{% else %}bg-soft-primary text-primary{% endif %} me-3">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                             </div>
                             <div class="notifications-desc">
-                                <a class="font-body text-truncate-2-line" href="{% url 'notifications:list' %}">
-                                    <span class="fw-semibold text-dark">{{ item.sanitized_title }}</span>
-                                </a>
+                                {% comment %}Um botão de envio, e não um link: abrir
+                                marca como lida, e um GET que altera estado é
+                                disparado por quem só pré-carrega endereços.
+                                Estilizado como texto para o sino continuar
+                                parecendo uma lista.{% endcomment %}
+                                <form method="post" action="{% url 'notifications:open' item.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-link p-0 text-start font-body text-truncate-2-line border-0">
+                                        <span class="fw-semibold text-dark d-block">{{ item.sanitized_title }}</span>
+                                        {% if item.context.patient %}
+                                        <span class="d-block fs-11 text-dark">{{ item.context.patient }}{% if item.context.record_number %} · {{ item.context.record_number }}{% endif %}</span>
+                                        {% endif %}
+                                    </button>
+                                </form>
                                 <div class="d-flex justify-content-between align-items-center">
                                     <div class="notifications-date text-muted">{{ item.created_at|date:"d/m/Y H:i" }}</div>
                                     {% if not item.read_at %}<span class="badge bg-soft-danger text-danger fs-10">nova</span>{% endif %}

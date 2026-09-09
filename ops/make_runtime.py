@@ -18,6 +18,7 @@ SECRET_MAP = {
     'OPENAI_API_KEY': 'NEURODOC_OPENAI_API_KEY',
     'ANTHROPIC_API_KEY': 'NEURODOC_ANTHROPIC_API_KEY',
     'PFX_MASTER_KEY': 'NEURODOC_PFX_MASTER_KEY',
+    'SECRETS_MASTER_KEY': 'NEURODOC_SECRETS_MASTER_KEY',
 }
 COMMON_KEYS = [
     'DEBUG', 'ALLOWED_HOSTS', 'CSRF_TRUSTED_ORIGINS', 'TIME_ZONE',
@@ -39,11 +40,16 @@ def prepare_runtime(config):
         values['SERVICE_ROLE'] = role
         values['RUN_MIGRATIONS'] = 'True' if role == 'app' else 'False'
         names = list(BASE_SECRETS)
+        # `SECRETS_MASTER_KEY` vai ao app **e** ao worker. O app a usa para
+        # gravar o que o gestor digita; o worker, para decifrar na hora de
+        # enviar. Sem ela no worker, o botao de teste funcionava (sincrono,
+        # no processo web) e o envio de verdade falhava com SecretUnavailable.
         if role == 'app':
-            names += ['DB_OWNER_PASSWORD', 'PFX_MASTER_KEY']
+            names += ['DB_OWNER_PASSWORD', 'PFX_MASTER_KEY', 'SECRETS_MASTER_KEY']
         elif role == 'worker':
             names += ['SMTP_PASSWORD', 'SMSDEV_API_KEY',
-                      'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY']
+                      'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',
+                      'SECRETS_MASTER_KEY']
         for name in names:
             values[f'{name}_FILE'] = f'/run/secrets/{SECRET_MAP[name]}'
         write_env(runtime / f'{role}.env', values)

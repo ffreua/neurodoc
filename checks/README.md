@@ -37,6 +37,7 @@ sai com código 1 listando as falhas quando não passa.
 | Roteiro | Assunto |
 | --- | --- |
 | `check_admin` | Convênios, planos e tabela de honorários — quem pode o quê |
+| `check_chave` | Chave-mestra de segredos separada da do PFX, e a rotação |
 | `check_agenda` | Tipo de atendimento no modal de marcação |
 | `check_bookerr` | Aviso de erro nomeando o campo que falhou |
 | `check_cf` | Itens trazidos do atendimento anterior |
@@ -52,6 +53,8 @@ sai com código 1 listando as falhas quando não passa.
 | `check_isolation` | Documento no prontuário do paciente certo |
 | `check_links` | Nenhum perfil vê link que não consegue abrir |
 | `check_matrix` | A matriz de acesso confere com o PRD seção 4 |
+| `check_notificacoes` | Aviso nomeia o paciente, leva à resolução, e alcança só quem pode agir |
+| `check_convite` | Entrada do superadministrador: link, senha, MFA, console |
 | `check_prontuario` | Número do prontuário e documentos por paciente |
 | `check_roles` | Resposta de cada papel nas telas principais |
 | `check_resto` | Hábitos, confirmação por e-mail, pedido editável, receita, console |
