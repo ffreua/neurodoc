@@ -71,10 +71,15 @@
                         data-nd-status-label="{{ cell.appointment.get_status_display }}"
                         data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                     {% comment %}Contato do paciente no atributo: o modal precisa
-                    dizer para onde a confirmação vai antes de alguém clicar.{% endcomment %}
-                    {% for contact in cell.appointment.patient.contacts.all|slice:":1" %}
-                    data-nd-phone="{{ contact.phone }}" data-nd-email="{{ contact.email }}"
-                    {% endfor %}>
+                    dizer para onde a confirmação vai antes de alguém clicar.
+
+                    O filtro varre todos os contatos, e não só o primeiro: o
+                    telefone pode estar num e o e-mail em outro, e ler só o
+                    primeiro escondia o botão de e-mail de quem tinha
+                    e-mail cadastrado.{% endcomment %}
+                    {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
+                    data-nd-phone="{{ contato.phone }}" data-nd-email="{{ contato.email }}"
+                    {% endwith %}>
                     <span class="fw-semibold text-dark">{{ cell.appointment.patient.full_name }}</span>
                     <span class="d-block fs-11 text-muted">
                         {{ cell.appointment.get_type_display }} ·

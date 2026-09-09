@@ -686,6 +686,76 @@
         initFullScreen();
         initBusyButtons();
         initAutoGrow();
+        initMasks();
+    }
+
+
+    /* -------------------------------------------------------- máscaras
+     *
+     * `data-nd-mask="cpf"` pontua enquanto se digita: 311.515.098-92.
+     *
+     * A pontuação é de apresentação — o servidor sempre reduz a dígitos
+     * antes de comparar (`documents.portal.find_patient`), então a máscara
+     * não muda o que chega. Ela serve a quem digita: onze dígitos corridos
+     * num campo estreito não têm onde a vista se apoiar, e o erro de um
+     * dígito num CPF só aparece como "não encontramos seu cadastro".
+     *
+     * Só formata: não valida dígito verificador, não completa e não
+     * bloqueia o envio. Um campo que se recusa a aceitar o que foi
+     * digitado, sem dizer o porquê, é pior que um campo sem máscara.
+     *
+     * `keepCaret` preserva a posição do cursor contando dígitos, e não
+     * caracteres: sem isso, editar o meio do número joga o cursor para o
+     * fim a cada tecla.
+     */
+    function digitsOnly(value) {
+        return (value || '').replace(/\D/g, '');
+    }
+
+    function formatCpf(digits) {
+        var d = digits.slice(0, 11);
+        if (d.length <= 3) return d;
+        if (d.length <= 6) return d.slice(0, 3) + '.' + d.slice(3);
+        if (d.length <= 9) return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6);
+        return d.slice(0, 3) + '.' + d.slice(3, 6) + '.' + d.slice(6, 9) + '-' + d.slice(9);
+    }
+
+    var MASKS = { cpf: { format: formatCpf, maxDigits: 11 } };
+
+    function applyMask(input, mask) {
+        var before = input.value;
+        var caret = input.selectionStart;
+        /* Quantos dígitos existem à esquerda do cursor. É esse número que
+         * se preserva; a posição em caracteres muda quando um ponto entra. */
+        var digitsBeforeCaret = digitsOnly(before.slice(0, caret)).length;
+        var formatted = mask.format(digitsOnly(before));
+        if (formatted === before) return;
+        input.value = formatted;
+
+        var position = formatted.length;
+        var seen = 0;
+        for (var i = 0; i < formatted.length; i += 1) {
+            if (/\d/.test(formatted[i])) {
+                seen += 1;
+                if (seen === digitsBeforeCaret) { position = i + 1; break; }
+            }
+        }
+        if (digitsBeforeCaret === 0) position = 0;
+        try { input.setSelectionRange(position, position); } catch (e) { /* campo sem seleção */ }
+    }
+
+    function initMasks() {
+        document.querySelectorAll('[data-nd-mask]').forEach(function (input) {
+            var mask = MASKS[input.getAttribute('data-nd-mask')];
+            if (!mask) return;
+            /* `maxlength` sairia errado com a pontuação e cortaria dígito
+             * válido; o corte é feito pelo formatador. */
+            input.removeAttribute('maxlength');
+            applyMask(input, mask);
+            input.addEventListener('input', function () { applyMask(input, mask); });
+            /* Colar um CPF com pontuação diferente da nossa passa pelo
+             * mesmo caminho: o evento `input` dispara depois do `paste`. */
+        });
     }
 
     /* API mínima para telas que precisam abrir um modal por código — o

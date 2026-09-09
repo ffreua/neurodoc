@@ -1,0 +1,137 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Auditoria — NeuroDoc{% endblock %}
+{% block page_title %}Auditoria{% endblock %}
+{% block super_section %}Auditoria{% endblock %}
+{% block super_content %}
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label fw-semibold" for="tenant">Organização</label>
+                <select class="form-select" id="tenant" name="tenant">
+                    <option value="">Todas</option>
+                    {% for t in tenants %}
+                    <option value="{{ t.id }}" {% if filters.tenant == t.id|stringformat:"s" %}selected{% endif %}>
+                        {{ t.trade_name|default:t.legal_name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label fw-semibold" for="actor">Ator</label>
+                <select class="form-select" id="actor" name="actor">
+                    <option value="">Qualquer um</option>
+                    {% for a in actors %}
+                    <option value="{{ a.id }}" {% if filters.actor == a.id|stringformat:"s" %}selected{% endif %}>
+                        {{ a.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label fw-semibold" for="outcome">Desfecho</label>
+                <select class="form-select" id="outcome" name="outcome">
+                    <option value="">Todos</option>
+                    {% for value, label in outcomes %}
+                    <option value="{{ value }}" {% if filters.outcome == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label fw-semibold" for="action">Ação contém</label>
+                <input type="text" class="form-control" id="action" name="action"
+                       value="{{ filters.action }}" placeholder="Ex.: document" autocomplete="off">
+            </div>
+            <div class="col-lg-2 col-md-4">
+                <label class="form-label fw-semibold" for="since">A partir de</label>
+                <input type="date" class="form-control" id="since" name="since" value="{{ filters.since }}">
+            </div>
+            {% comment %}Num `d-flex`: o tema estica o `.btn` de um `<a>` para a
+            largura da coluna, e "Limpar" saía como uma barra sob o "Filtrar".
+            {% endcomment %}
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button type="submit" class="btn btn-primary" data-nd-busy>Filtrar</button>
+                <a class="btn btn-light" href="{% url 'superadmin:audit' %}">Limpar</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Trilha</h5>
+        <span class="badge bg-soft-primary text-primary">
+            {{ rows|length }} de {{ total }}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Quando</th>
+                        <th scope="col">Quem</th>
+                        <th scope="col">Onde</th>
+                        <th scope="col">O quê</th>
+                        <th scope="col">Objeto</th>
+                        <th class="pe-4" scope="col">Desfecho</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in rows %}
+                    <tr>
+                        <td class="ps-4 fs-12 text-muted">{{ event.created_at|date:"d/m/Y H:i:s" }}</td>
+                        <td class="fs-12">
+                            {% if event.actor %}{{ event.actor.email }}
+                            {% else %}<span class="fst-italic text-muted">sistema</span>{% endif %}
+                        </td>
+                        <td class="fs-12 text-muted">
+                            {% if event.tenant %}{{ event.tenant.trade_name|default:event.tenant.legal_name }}
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="fs-12"><code>{{ event.action }}</code></td>
+                        <td class="fs-12 text-muted">
+                            {% if event.object_type %}
+                            {{ event.object_type }}
+                            <span class="d-block fs-11">{{ event.object_id|stringformat:"s"|slice:":8" }}…</span>
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="pe-4">
+                            {% if event.outcome == 'success' %}
+                            <span class="badge bg-soft-success text-success">sucesso</span>
+                            {% elif event.outcome == 'denied' %}
+                            <span class="badge bg-soft-danger text-danger">negado</span>
+                            {% else %}
+                            <span class="badge bg-soft-warning text-warning">erro</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="ps-4 py-4 text-muted">
+                            Nenhum evento com estes filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if total > page_size %}
+<div class="alert alert-warning fade show fs-12 mt-3" role="alert">
+    Mostrando os {{ page_size }} eventos mais recentes de {{ total }}. Estreite os filtros —
+    por organização, ator ou data — para chegar ao que procura.
+</div>
+{% endif %}
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    A trilha registra <strong>o quê</strong> foi feito, nunca o conteúdo. Um evento
+    <code>documents.medicaldocument_created</code> diz que um documento nasceu, quem o criou e
+    quando — e não o que a receita prescreve. O IP de origem é guardado protegido, com o
+    último octeto zerado.
+</p>
+
+{% endblock %}

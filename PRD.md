@@ -5169,7 +5169,220 @@ Equivalente Django do `portal-solicitacoes-medica`
 - **Despublicar não apaga o que já chegou**, e a fila continua alcançável
   pelo menu enquanto houver pedido pendente.
 
-### 25.15 Pendências
+### 25.15 Cadastro de convênios e planos
+
+`patients/plan_views.py`, sob a capacidade nova `MANAGE_HEALTH_PLANS` —
+dono e gestor. Os modelos `Insurer` e `HealthPlan` existiam desde S02 e só
+tinham tela no admin técnico do Django, que é de quem opera o servidor: na
+prática, quem administra a clínica não conseguia cadastrar um convênio, e
+a ficha do paciente oferecia uma lista que ninguém dali podia alimentar.
+
+- **Convênio e plano são dois níveis, não um.** A operadora ("Bradesco
+  Saúde") tem vários planos, e o que carrega carência, coparticipação e
+  valor é o plano. Uma tela só, com os dois misturados, obrigaria a
+  repetir o nome da operadora em cada linha — e a errar a grafia em alguma.
+- **Nada é apagado.** `PatientCoverage` e `FeeSchedule` prendem plano e
+  convênio por `PROTECT`: apagar o plano de um paciente já atendido
+  apagaria o registro de sob qual cobertura ele foi atendido. Sai de
+  circulação desmarcando "aceito pela clínica".
+- **Desativar o convênio desativa os planos dele.** Sem isso a operadora
+  sumia da lista e os planos dela continuavam escolhíveis na ficha — o
+  convênio saía pela porta e voltava pela janela.
+- Convênio duplicado é recusado por nome, sem distinguir maiúscula de
+  minúscula. Duas linhas com o mesmo nome não violam nenhuma restrição de
+  banco, e a consequência aparece longe daqui: a recepção escolhe uma, o
+  financeiro lança na outra, e o relatório mostra a operadora partida em
+  duas.
+
+**A capacidade é separada de `FINANCE`** porque são alturas diferentes:
+lançar um recebimento é operação do dia, criar um convênio muda o cadastro
+que todo paciente novo passa a escolher. A secretária faz a primeira e não
+a segunda.
+
+### 25.16 Valores de consulta e procedimento
+
+`finance/fee_views.py`, sob `MANAGE_FEES` — dono, gestor **e médico**.
+
+O motor já existia: `resolve_price` escolhe a regra mais específica que se
+aplica na data (médico + plano + procedimento, afrouxando até a regra
+geral da clínica), e `create_fee_schedule` recusa duas regras equivalentes
+com vigência sobreposta. Faltava a tela.
+
+- **O médico define o preço dele, e só o dele.** `can_set_fee_for` tem a
+  mesma forma de `can_configure_agenda_of`: a capacidade responde "mexe em
+  tabela de honorário?", não "na de quem?". Um médico que altera o valor
+  do colega muda o que a clínica fatura por um atendimento que não é dele,
+  e o colega descobre no fechamento do mês. A **regra geral** — a que vale
+  para a clínica inteira — é de quem administra, não de um dos médicos.
+- A verificação está no `clean` do formulário, e não só na view: o
+  `<select>` mostra a lista inteira para quem administra, e o mesmo
+  formulário é enviado pelo médico, que vê só o próprio nome e pode trocar
+  o valor no envio.
+- **Campo em branco não é campo esquecido**: é o que faz a regra valer
+  para todos. A tela diz isso antes da tabela, porque a leitura contrária
+  — "faltou preencher" — leva a cadastrar uma regra por médico quando uma
+  só bastaria.
+- **Repasse maior que o valor cheio é recusado.** É a clínica pagando para
+  atender; acontece por digitar os dois campos trocados, e o erro só
+  apareceria no fechamento do mês.
+- Regra de plano **exige** o plano escolhido. Sem ele a regra valeria para
+  todos os convênios ao mesmo tempo — quase nunca o que se quis dizer, e o
+  preço errado só aparece na fatura.
+- **Nada é apagado**: uma regra sai de vigor recebendo data final. O
+  recebimento guarda um retrato do que valia (`fee_snapshot`), e a regra é
+  o que explica de onde aquele retrato veio.
+
+### 25.17 Hábitos e vícios no prontuário
+
+`Encounter.habits_history`, campo próprio na aba História, e não um
+parágrafo dentro de antecedentes pessoais. Em neurologia é pergunta de
+rotina e resposta que muda conduta: álcool e sono explicam crise, tremor e
+cefaleia, e a interação de substância com anticonvulsivante é decisão de
+prescrição. Diluído no texto livre, some na releitura.
+
+Entra em `compute_content_hash` — campo fora do hash muda sem que a versão
+do atendimento mude — e no resumo imprimível. Vai para a IA **só quando
+preenchido**: o rótulo sozinho não informa nada e ocupa contexto.
+
+### 25.18 Confirmação por e-mail na agenda
+
+O botão existia e nunca aparecia para metade dos pacientes.
+
+A célula da agenda lia o **primeiro** contato do paciente e tirava dele o
+telefone e o e-mail (`contacts.all|slice:":1"`). Quando o primeiro contato
+tinha só telefone — que é exatamente o caso do pré-cadastro feito ao
+telefone —, o botão "Enviar e-mail" ficava escondido, ainda que um segundo
+contato tivesse e-mail cadastrado. O servidor teria aceitado o envio:
+`confirmation_contacts` sempre varreu **todos** os contatos. Era a tela
+discordando do que o sistema faz.
+
+O filtro `nd_confirmation_contacts` procura por canal, de forma
+independente — o telefone pode estar num contato e o e-mail em outro — e
+aplica a mesma regra de validade daquela função. `appointments_on` ganhou
+`prefetch_related('patient__contacts')`: a tela já lia os contatos por
+paciente, e era uma consulta por horário marcado.
+
+### 25.19 Máscara de CPF no portal
+
+`data-nd-mask="cpf"` em `static/duralux/app.js`, aplicado ao campo do
+portal de solicitações.
+
+A pontuação é de apresentação — `find_patient` sempre reduziu a dígitos
+antes de comparar —, e serve a quem digita: onze dígitos corridos num
+campo estreito não têm onde a vista se apoiar, e um dígito errado no CPF
+volta como "não encontramos seu cadastro", que é a única resposta que
+aquele formulário pode dar (25.14).
+
+A máscara **só formata**: não valida dígito verificador, não completa e
+não bloqueia o envio. Um campo que se recusa a aceitar o que foi digitado,
+sem dizer o porquê, é pior que um campo sem máscara. O cursor é preservado
+contando dígitos, e não caracteres — sem isso, editar o meio do número
+joga o cursor para o fim a cada tecla.
+
+### 25.20 Pedido do portal editável antes do rascunho
+
+A fila (25.14) tinha um botão só, que criava o rascunho com o texto do
+paciente e mandava o médico corrigir depois — com o rascunho já gravado,
+já com PDF gerado e já contando como pedido atendido. O conteúdo passou a
+vir aberto para reescrita na própria tela de revisão, que é onde a decisão
+acontece.
+
+**O pedido do paciente não é editado.** O que se edita é o rascunho que
+nasce dele. `DocumentRequest.payload` é o registro do que a pessoa pediu, e
+é isso que ele prova; reescrevê-lo faria a fila mostrar as palavras do
+médico atribuídas ao paciente, e sumiria com a diferença entre o que foi
+pedido e o que foi emitido. As duas coisas ficam lado a lado na tela.
+
+A auditoria grava **se** o médico reescreveu (`edited_by_physician`),
+nunca o quê: o conteúdo é clínico e a trilha não guarda texto de
+prontuário. A pergunta que isso responde é "o documento emitido repete o
+que o paciente escreveu, ou passou por revisão?".
+
+O formato da receita também é do médico, não do paciente: quem pediu
+"controle especial" no portal descreveu o que precisa, e a modalidade é
+decisão de quem assina.
+
+### 25.21 Identificação do comprador e do fornecedor
+
+O Receituário de Controle Especial (25.6) saía com as duas vias e sem o
+quadro do **Anexo XVII da Portaria SVS/MS 344/98** — o campo em que a
+farmácia identifica quem comprou e quem dispensou. Sem ele a via retida
+não registra a dispensação, que é a razão de ela ser retida.
+
+- **Sai em branco**, para ser preenchido à mão no balcão. Não é o sistema
+  que sabe quem vai comprar: o comprador pode ser o paciente, um familiar
+  ou um cuidador, e quem confere o documento de identidade dele é o
+  farmacêutico no ato. Preencher com os dados do paciente afirmaria, num
+  papel que fica retido, que foi ele quem comprou.
+- **Nas duas vias.** A 1ª responde à fiscalização sanitária; a 2ª é a prova
+  do paciente de que a compra ocorreu, e sem o quadro ela não registra nada
+  sobre a dispensação.
+- **Antes da assinatura do médico**, não depois: quem preenche o quadro é o
+  balconista, e o que fecha o documento é a assinatura de quem o emitiu.
+  Invertido, a receita terminaria com campos em branco embaixo da
+  assinatura, como se ela os cobrisse.
+- A receita simples não leva o quadro.
+
+O modelo veio de uma receita emitida pelo portal PHP em uso
+(`receita_duas_vias.pdf`, fornecido em 09/09/2026 e descartado depois de
+transcrito).
+
+### 25.22 Console da instalação
+
+`ops/superadmin.py`, em `/instalacao/`. Quem opera o servidor precisa
+responder a perguntas que nenhuma tela da clínica responde: quantas
+organizações existem, quem tem conta, se a fila está andando, se o banco
+responde, e — a principal — quem fez o quê no sistema inteiro.
+
+**Só leitura, e nenhum conteúdo clínico.** É a decisão que governa o
+recurso. A tentação óbvia seria dar ao superadministrador uma visão de
+tudo, prontuário incluído; e um sistema em que o sigilo médico depende da
+disciplina de quem hospeda o servidor não é um sistema com sigilo médico.
+Auditar é saber *quem fez o quê*, não ler o que foi escrito — e
+`AuditEvent` foi desenhado assim desde o começo: guarda ação, ator,
+organização, objeto e desfecho, e nunca texto de prontuário. A trilha
+mostra `documents.medicaldocument_created` com o identificador do
+documento, não a receita.
+
+- **Fora de `/app/`.** Aquele prefixo significa "dentro de uma clínica", e
+  `TenantMiddleware` devolve 404 ali para quem não tem vínculo — que é
+  justamente o caso de quem só opera o servidor. Fica ao lado de `/admin/`
+  e `/technical-docs/`, que se protegem sozinhos pela mesma razão. A
+  sessão é a mesma: quem entra por `/accounts/login/` chega aqui sem
+  segundo login.
+- **`is_superuser` mais MFA verificada**, a mesma exigência dos painéis
+  técnicos. Um console que lê a trilha de todas as clínicas atrás só de
+  senha estaria a uma credencial roubada de distância do histórico delas.
+  A verificação está na própria base das views, e não confiada ao
+  middleware dos painéis: aquele cobre só os prefixos `/admin/dj-*`, e uma
+  tela nova sob outro caminho nasceria desprotegida.
+- **Chaves e senhas não aparecem**, nem mascaradas — só se estão
+  configuradas. Um console que exibisse credencial transformaria a sessão
+  do superadministrador na chave-mestra de todas as integrações.
+- A tela de usuários **atravessa organizações**, e é o único lugar do
+  sistema que atravessa. Sem ela não há como responder "esta pessoa tem
+  acesso a quais clínicas?", que é a pergunta que se faz quando alguém sai
+  da equipe.
+- O que exige escrita — criar conta, redefinir senha, corrigir dado —
+  continua no admin técnico do Django, que registra cada alteração em
+  `LogEntry`. Este console não duplica aquilo; aponta para lá.
+
+`create_superadmin` cria ou **promove** uma conta. Promover é o caso comum:
+quem opera o servidor costuma já ter vínculo de médico ou dono numa
+clínica, e criar uma segunda conta para o mesmo humano quebra a leitura da
+trilha — os dois conjuntos de eventos passam a ser de pessoas diferentes.
+A conta nasce com e-mail confirmado, porque `build_access_context` bloqueia
+`/app/` para quem não confirmou e o superadministrador não tem convite de
+onde vir uma confirmação. O comando **não** configura MFA: um segundo fator
+gerado por comando de servidor, e impresso no terminal, não é um segundo
+fator.
+
+**Página sem barra lateral.** `base.html` só inclui a barra quando há
+inquilino resolvido, e o tema reserva 280px à esquerda para ela — que
+viravam uma faixa vazia no console aberto por um superadministrador sem
+vínculo em clínica nenhuma. `body.nd-no-shell` remove a margem.
+
+### 25.23 Pendências
 
 - **`PatientAccessGrant`**: escopo clínico por paciente, ainda não modelado.
 - **Delegação de capacidades**: as células "A se delegado" da seção 4 são

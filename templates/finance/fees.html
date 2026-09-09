@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% block title %}Valores de consulta e procedimento — NeuroDoc{% endblock %}
+{% block page_title %}Valores{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Valores</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'finance:overview' %}">Financeiro</a>
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#fee-modal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <span>Novo valor</span>
+</button>
+{% endblock %}
+{% block content %}
+
+<div class="alert alert-light fade show fs-13" role="alert">
+    <span class="fw-semibold d-block">A regra mais específica vence a mais geral.</span>
+    Ao cobrar, o sistema procura primeiro um valor para <em>aquele médico, aquele plano e
+    aquele procedimento</em> e vai afrouxando até a regra geral da clínica. Deixar um campo
+    em branco é o que faz a regra valer para todos — não é campo esquecido.
+    {% if not is_administrative %}
+    <span class="d-block mt-2 text-muted">
+        Você define o valor das próprias consultas. A regra geral da clínica é de quem a administra.
+    </span>
+    {% endif %}
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Tabela de honorários</h5>
+        <span class="badge bg-soft-primary text-primary">
+            {{ rows|length }} regra{{ rows|length|pluralize }}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Médico</th>
+                        <th scope="col">Pagamento</th>
+                        <th scope="col">Procedimento</th>
+                        <th class="text-end" scope="col">Valor cheio</th>
+                        <th class="text-end" scope="col">Repasse</th>
+                        <th scope="col">Vigência</th>
+                        <th class="text-end pe-4" scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr {% if row.is_past %}class="text-muted"{% endif %}>
+                        <td class="ps-4">
+                            {% if row.obj.physician %}
+                            <span class="fw-semibold text-dark">
+                                {{ row.obj.physician.user.get_full_name|default:row.obj.physician.user.email }}
+                            </span>
+                            {% else %}
+                            <span class="fst-italic">Todos os médicos</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {{ row.obj.get_payment_category_display }}
+                            {% if row.obj.plan %}
+                            <span class="d-block text-muted">
+                                {{ row.obj.plan.insurer.name }} — {{ row.obj.plan.name }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {% if row.obj.procedure %}
+                            {{ row.obj.procedure.code }}
+                            <span class="d-block text-muted">{{ row.obj.procedure.description|truncatechars:44 }}</span>
+                            {% else %}<span class="fst-italic text-muted">Consulta</span>{% endif %}
+                        </td>
+                        <td class="text-end fw-semibold text-dark">R$ {{ row.obj.gross_amount }}</td>
+                        <td class="text-end">R$ {{ row.obj.doctor_share_amount }}</td>
+                        <td class="fs-12">
+                            {{ row.obj.effective_from|date:"d/m/Y" }}
+                            {% if row.obj.effective_to %}
+                            até {{ row.obj.effective_to|date:"d/m/Y" }}
+                            {% else %}
+                            <span class="text-muted">em diante</span>
+                            {% endif %}
+                            {% if row.is_current %}
+                            <span class="badge bg-soft-success text-success ms-1">Em vigor</span>
+                            {% elif row.is_future %}
+                            <span class="badge bg-soft-warning text-warning ms-1">Futura</span>
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark ms-1">Encerrada</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if row.can_edit and not row.is_past %}
+                            <button type="button" class="btn btn-sm btn-light-danger"
+                                    data-nd-fee-close
+                                    data-id="{{ row.obj.id }}"
+                                    data-from="{{ row.obj.effective_from|date:'d/m/Y' }}">
+                                Encerrar
+                            </button>
+                            {% else %}
+                            <span class="fs-11 text-muted">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="ps-4 py-4 text-muted">
+                            Nenhum valor cadastrado. Enquanto não houver, o sistema não consegue
+                            gerar cobrança de consulta.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    Valores não são apagados: uma regra sai de vigor recebendo data final. O recebimento já
+    gerado guarda o retrato do que valia quando foi criado, e é a regra que explica de onde
+    aquele retrato veio.
+</p>
+
+{% comment %}------------------------------------------------- modal: novo valor{% endcomment %}
+<div class="modal fade" id="fee-modal" tabindex="-1" aria-hidden="true" aria-labelledby="fee-modal-title">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'fees:new' %}" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="fee-modal-title">Novo valor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger fs-12">{{ form.non_field_errors.0 }}</div>
+                    {% endif %}
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.physician col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.payment_category col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.plan col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.procedure col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.gross_amount col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.doctor_share_amount col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.effective_from col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.effective_to col="col-md-6" %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% comment %}--------------------------------------------------- modal: encerrar{% endcomment %}
+<div class="modal fade" id="close-modal" tabindex="-1" aria-hidden="true" aria-labelledby="close-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="close-form" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="close-modal-title">Encerrar valor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fs-12 text-muted" id="close-hint"></p>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=close_form.effective_to col="col-12" %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-light-danger" data-nd-busy>Encerrar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    'use strict';
+    var api = window.NeuroDoc || {};
+
+    document.querySelectorAll('[data-nd-fee-close]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            var form = document.getElementById('close-form');
+            form.action = '/app/org/valores/' + button.getAttribute('data-id') + '/encerrar/';
+            document.getElementById('close-hint').textContent =
+                'Esta regra vale desde ' + button.getAttribute('data-from') +
+                '. Ela para de valer depois da data escolhida, e continua na tabela como encerrada.';
+            if (api.openModal) api.openModal(document.getElementById('close-modal'));
+        });
+    });
+
+    /* Cadastro recusado reabre o modal com os erros: a pagina volta com o
+     * modal fechado, e o unico sinal do que faltou ficaria escondido. */
+    {% if form.errors %}
+    if (api.openModal) api.openModal(document.getElementById('fee-modal'));
+    {% endif %}
+})();
+</script>
+{% endblock %}

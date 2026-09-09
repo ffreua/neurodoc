@@ -3,7 +3,11 @@
 <head>
     {% include "partials/head.html" %}
 </head>
-<body{% block body_attrs %}{% endblock %}>
+{% comment %}`nd-no-shell` quando nao ha barra lateral: o tema reserva
+280px a esquerda para ela, e sem a classe essa margem vira uma faixa
+vazia. Acontece no console da instalacao aberto por quem nao tem
+vinculo em clinica nenhuma.{% endcomment %}
+<body class="{% if not request.access_context %}nd-no-shell{% endif %}"{% block body_attrs %}{% endblock %}>
 <a class="nd-skip-link" href="#nd-main">Ir para o conteúdo</a>
 
 {% if request.access_context %}

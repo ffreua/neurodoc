@@ -210,3 +210,34 @@ def nd_scale_value(finding, item_code):
     scores = (getattr(finding, 'value_json', None) or {}).get('scores') or {}
     value = scores.get(item_code)
     return '' if value is None else str(value)
+
+
+@register.filter
+def nd_confirmation_contacts(patient):
+    """Telefone e e-mail utilizáveis deste paciente, de contatos diferentes.
+
+    A agenda lia o **primeiro** contato e tirava dele o telefone e o
+    e-mail. Quando o primeiro contato tinha só telefone — que é o caso do
+    pré-cadastro feito ao telefone —, o botão "Enviar e-mail" nunca
+    aparecia, ainda que um segundo contato tivesse e-mail cadastrado. O
+    servidor aceitaria o envio: `communications.services.confirmation_contacts`
+    varre todos os contatos. Era a tela discordando do que o sistema faz.
+
+    A regra aqui é a mesma daquela função — contato com validade vencida
+    não conta — e a busca é independente por canal, porque o telefone pode
+    estar num contato e o e-mail em outro.
+    """
+    from django.utils import timezone
+
+    agora = timezone.now()
+    phone = email = ''
+    for contact in patient.contacts.all():
+        if contact.valid_until is not None and contact.valid_until <= agora:
+            continue
+        if not phone and contact.phone:
+            phone = contact.phone
+        if not email and contact.email:
+            email = contact.email
+        if phone and email:
+            break
+    return {'phone': phone, 'email': email}

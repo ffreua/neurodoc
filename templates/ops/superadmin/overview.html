@@ -1,0 +1,175 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Instalação — NeuroDoc{% endblock %}
+{% block page_title %}Instalação{% endblock %}
+{% block super_section %}Visão geral{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="/admin/">Admin técnico</a>
+<a class="btn btn-light" href="/admin/dj-celery-panel/">Painel do Celery</a>
+{% endblock %}
+{% block super_content %}
+
+<div class="row g-4 mb-4">
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="fs-11 text-uppercase text-muted fw-semibold d-block mb-2">Organizações</span>
+                <h3 class="fw-bold text-dark mb-0">{{ counts.tenants }}</h3>
+                <span class="fs-12 text-muted">{{ counts.memberships }} vínculo(s) ativo(s)</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="fs-11 text-uppercase text-muted fw-semibold d-block mb-2">Contas</span>
+                <h3 class="fw-bold text-dark mb-0">{{ counts.users }}</h3>
+                <span class="fs-12 text-muted">em todas as organizações</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="fs-11 text-uppercase text-muted fw-semibold d-block mb-2">Pacientes</span>
+                <h3 class="fw-bold text-dark mb-0">{{ counts.patients }}</h3>
+                <span class="fs-12 text-muted">{{ counts.documents }} documento(s) emitido(s)</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-3 col-md-6">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="fs-11 text-uppercase text-muted fw-semibold d-block mb-2">Auditoria (24h)</span>
+                <h3 class="fw-bold text-dark mb-0">{{ counts.audit_day }}</h3>
+                {% comment %}A negação vem destacada: uma sequência delas do mesmo
+                ator é tentativa de alcançar o que não lhe compete, e ela se perde
+                no meio de milhares de eventos bem-sucedidos.{% endcomment %}
+                {% if counts.audit_denied_day %}
+                <a class="fs-12 text-danger fw-semibold"
+                   href="{% url 'superadmin:audit' %}?outcome=denied">
+                    {{ counts.audit_denied_day }} negação(ões) — ver
+                </a>
+                {% else %}
+                <span class="fs-12 text-muted">nenhuma negação</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header"><h5 class="card-title mb-0">Serviços</h5></div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Banco de dados</span>
+                        {% if database.ok %}
+                        <span class="text-end">
+                            <span class="badge bg-soft-success text-success">responde</span>
+                            <span class="d-block fs-11 text-muted">
+                                {{ database.version }} · {{ database.size_mb }} MB
+                            </span>
+                        </span>
+                        {% else %}
+                        <span class="text-end">
+                            <span class="badge bg-soft-danger text-danger">falhou</span>
+                            <span class="d-block fs-11 text-danger">{{ database.error }}</span>
+                        </span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Redis</span>
+                        {% if redis.ok %}
+                        <span class="badge bg-soft-success text-success">responde</span>
+                        {% else %}
+                        <span class="badge bg-soft-danger text-danger">falhou</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Fila de mensagens</span>
+                        {% if broker.ok %}
+                        <span class="badge bg-soft-success text-success">responde</span>
+                        {% else %}
+                        <span class="badge bg-soft-danger text-danger">falhou</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Celery</span>
+                        {% if celery.ok %}
+                        <span class="text-end">
+                            <span class="badge bg-soft-success text-success">
+                                {{ celery.workers|length }} worker(s)
+                            </span>
+                            <span class="d-block fs-11 text-muted">
+                                {{ celery.active }} em execução · {{ celery.scheduled }} agendada(s)
+                            </span>
+                        </span>
+                        {% else %}
+                        <span class="text-end">
+                            <span class="badge bg-soft-warning text-warning">sem resposta</span>
+                            <span class="d-block fs-11 text-muted">
+                                Nenhum worker respondeu no tempo da consulta.
+                            </span>
+                        </span>
+                        {% endif %}
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header"><h5 class="card-title mb-0">Configuração desta instalação</h5></div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Versão publicada</span>
+                        <code class="fs-12">{{ release_id }}</code>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Endereço público</span>
+                        <code class="fs-12">{{ public_base_url }}</code>
+                    </li>
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Modo de depuração</span>
+                        {% if debug %}
+                        <span class="badge bg-soft-danger text-danger">ligado</span>
+                        {% else %}
+                        <span class="badge bg-gray-200 text-dark">desligado</span>
+                        {% endif %}
+                    </li>
+                    {% for rotulo, ligado in flags %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>{{ rotulo }}</span>
+                        {% if ligado %}
+                        <span class="badge bg-soft-success text-success">sim</span>
+                        {% else %}
+                        <span class="badge bg-gray-200 text-dark">não</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="p-3">
+                    <span class="fs-11 text-muted d-block">
+                        Estes são os interruptores da <strong>instalação</strong>, definidos em
+                        variável de ambiente. Cada clínica tem os próprios provedores de e-mail,
+                        SMS e IA, configurados na área dela; desligado aqui, nada sai em
+                        nenhuma clínica.
+                    </span>
+                    <span class="fs-11 text-muted d-block mt-2">
+                        Chaves e senhas não aparecem aqui, nem mascaradas — só se estão
+                        configuradas.
+                    </span>
+                    {% if docs_enabled %}
+                    <a class="btn btn-sm btn-light mt-3" href="/technical-docs/">Documentação técnica</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

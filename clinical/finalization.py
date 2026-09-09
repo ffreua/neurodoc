@@ -97,7 +97,8 @@ def discard_summary(encounter):
     """
     return {
         'tem_historia': bool(encounter.chief_complaint or encounter.hpi
-                             or encounter.personal_history or encounter.family_history),
+                             or encounter.personal_history or encounter.family_history
+                             or encounter.habits_history),
         'tem_conduta': bool(encounter.plan_text),
         'exame': encounter.examination_findings.count(),
         'medicacoes': encounter.medications.count(),

@@ -493,3 +493,23 @@ html.app-skin-dark .nd-slot-blocked {
     background: repeating-linear-gradient(45deg, #1b2431, #1b2431 5px, #232e3d 5px, #232e3d 10px);
 }
 html.app-skin-dark .nd-slot-busy { background: #1e2740; color: #dbe3f4; }
+
+
+/* Pagina sem barra lateral.
+
+   `base.html` so inclui a barra quando ha inquilino resolvido, e o tema
+   reserva 280px a esquerda para ela em `.nxl-container`. Sem a barra,
+   aquela margem vira uma faixa vazia do lado esquerdo da tela — que e o
+   que acontece no console da instalacao aberto por um superadministrador
+   sem vinculo em clinica nenhuma.
+
+   Tambem some o deslocamento do topo, que existe para o cabecalho fixo. */
+body.nd-no-shell .nxl-container {
+    margin-left: 0;
+    top: 0;
+    min-height: 100vh;
+}
+body.nd-no-shell .nxl-content {
+    max-width: 1320px;
+    margin: 0 auto;
+}

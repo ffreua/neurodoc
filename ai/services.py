@@ -119,6 +119,12 @@ def _gather_diagnostic_context(authorization, encounter):
     # bloquearia o apoio diagnóstico em todo atendimento, para sempre. Quando
     # há resposta, ela vai e o bloqueio acontece — que é o comportamento
     # desejado.
+    # Hábitos e vícios só entram quando foram preenchidos. Sem resposta, o
+    # rótulo sozinho não informa nada e ainda ocupa o contexto; com
+    # resposta, ele muda conduta — álcool, sono e outras substâncias
+    # explicam crise e interagem com anticonvulsivante.
+    if encounter.habits_history:
+        current['habitos_e_vicios'] = encounter.habits_history
     if encounter.consanguinity_state != ConsanguinityState.NOT_INFORMED:
         current['consanguinidade'] = encounter.get_consanguinity_state_display()
         if encounter.consanguinity_details:

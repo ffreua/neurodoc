@@ -32,6 +32,15 @@ class Encounter(TenantModel):
     hpi = models.TextField(max_length=20000, blank=True)
     personal_history = models.TextField(max_length=20000, blank=True)
     family_history = models.TextField(max_length=20000, blank=True)
+    #: Hábitos e vícios — tabagismo, álcool, outras substâncias, sono,
+    #: atividade física.
+    #:
+    #: Campo próprio, e não um parágrafo dentro de antecedentes pessoais,
+    #: porque em neurologia ele é pergunta de rotina e resposta que muda
+    #: conduta: álcool e sono explicam crise, tremor e cefaleia, e a
+    #: interação de substância com anticonvulsivante é decisão de
+    #: prescrição. Diluído no meio do texto livre, some na releitura.
+    habits_history = models.TextField(max_length=20000, blank=True)
     consanguinity_state = models.CharField(
         max_length=40, choices=ConsanguinityState.choices, default=ConsanguinityState.NOT_INFORMED,
     )
@@ -60,6 +69,7 @@ class Encounter(TenantModel):
     def compute_content_hash(self):
         payload = '|'.join([
             self.chief_complaint, self.hpi, self.personal_history, self.family_history,
+            self.habits_history,
             self.consanguinity_state, self.consanguinity_details, self.plan_text,
         ])
         return hashlib.sha256(payload.encode()).hexdigest()

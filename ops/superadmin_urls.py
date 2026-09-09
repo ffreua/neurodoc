@@ -1,0 +1,25 @@
+"""Rotas do console do superadministrador, sob `/instalacao/`.
+
+**Fora de `/app/`.** Aquele prefixo significa "dentro de uma clínica":
+`TenantMiddleware` resolve a organização corrente ali e devolve 404 a quem
+não tem vínculo nenhum — que é exatamente o caso de quem só opera o
+servidor. Um console de instalação montado sob `/app/` só funcionaria para
+um superadministrador que também fosse funcionário de alguma clínica, o
+que é coincidência e não regra.
+
+Mesma sessão, porém: quem entra por `/accounts/login/` chega aqui sem
+segundo login. O que exige escrita continua em `/admin/`, para onde estas
+telas apontam.
+"""
+from django.urls import path
+
+from . import superadmin
+
+app_name = 'superadmin'
+
+urlpatterns = [
+    path('', superadmin.OverviewView.as_view(), name='overview'),
+    path('organizacoes/', superadmin.TenantsView.as_view(), name='tenants'),
+    path('usuarios/', superadmin.UsersView.as_view(), name='users'),
+    path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
+]

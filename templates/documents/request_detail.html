@@ -22,7 +22,7 @@ recurso mais facilita.{% endcomment %}
 </div>
 
 <div class="row g-4">
-    <div class="col-lg-7">
+    <div class="col-lg-5">
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">{{ req.get_kind_display }}</h5>
@@ -45,7 +45,7 @@ recurso mais facilita.{% endcomment %}
         </div>
     </div>
 
-    <div class="col-lg-5">
+    <div class="col-lg-7">
         <div class="card mb-4">
             <div class="card-header"><h5 class="card-title mb-0">Origem</h5></div>
             <div class="card-body fs-13">
@@ -70,15 +70,31 @@ recurso mais facilita.{% endcomment %}
         <div class="card mb-4">
             <div class="card-header"><h5 class="card-title mb-0">Atender</h5></div>
             <div class="card-body">
+                {% comment %}O texto vem preenchido com o que o paciente escreveu e
+                fica aberto para reescrita. O pedido em si, à esquerda, não muda:
+                ele é o registro do que foi pedido, e é comparando os dois que se vê
+                a diferença entre o que a pessoa pediu e o que foi emitido.
+                {% endcomment %}
                 <p class="fs-12 text-muted">
-                    Cria um <strong>rascunho</strong> do documento com o texto do paciente como
-                    ponto de partida. Nada é assinado agora: você revisa, corrige e assina na
-                    tela do documento.
+                    O conteúdo abaixo já veio do pedido e <strong>pode ser reescrito
+                    agora</strong>. Ao salvar, nasce um rascunho — sem número, com tarja —
+                    que você revisa e assina na tela do documento. O pedido original
+                    permanece como o paciente escreveu.
                 </p>
-                <form method="post" action="{% url 'documents:request-action' req.id 'rascunho' %}">
+                <form method="post" action="{% url 'documents:request-action' req.id 'rascunho' %}"
+                      novalidate>
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>
-                        Criar rascunho a partir do pedido
+                    {% comment %}Marcador de que o conteúdo veio deste formulário. O
+                    campo `kind` é travado no servidor e, por ser `disabled`, não é
+                    enviado pelo navegador — não serve como sinal.{% endcomment %}
+                    <input type="hidden" name="conteudo_revisado" value="1">
+                    <div class="row g-3">
+                        {% for field in draft_fields %}
+                        {% include "partials/field.html" with field=field col="col-12" %}
+                        {% endfor %}
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 mt-3" data-nd-busy>
+                        Gerar rascunho
                     </button>
                 </form>
             </div>

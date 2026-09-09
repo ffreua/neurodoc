@@ -10,6 +10,12 @@ urlpatterns = [
     path('admin/dj-celery-panel/', include('dj_celery_panel.urls')),
     path('admin/dj-control-room/', include('dj_control_room.urls')),
     path('admin/', admin.site.urls),
+    # Console do superadministrador. Fora de `/app/` de propósito: aquele
+    # prefixo significa "dentro de uma clínica", e `TenantMiddleware`
+    # devolve 404 ali para quem não tem vínculo — que é justamente o caso
+    # de quem opera o servidor. Fica ao lado de `/admin/` e
+    # `/technical-docs/`, que se protegem sozinhos pela mesma razão.
+    path('instalacao/', include('ops.superadmin_urls')),
     path('technical-docs/', technical_docs, name='technical-docs-index'),
     path('technical-docs/<path:path>', technical_docs, name='technical-docs'),
     path('accounts/', include('accounts.urls')),
@@ -26,6 +32,8 @@ urlpatterns = [
     path('app/notifications/', include('notifications.urls')),
     path('app/org/', include('communications.admin_urls')),
     path('app/org/', include('ai.admin_urls')),
+    path('app/org/', include('patients.admin_urls')),
+    path('app/org/', include('finance.admin_urls')),
     path('d/', include('communications.urls')),
     # Verificação pública de documento — é o destino do QR impresso na
     # receita. Fica na raiz, e não sob `/app/`, porque quem a abre está na

@@ -14,7 +14,7 @@ class EncounterForm(forms.ModelForm):
     class Meta:
         model = Encounter
         fields = [
-            'chief_complaint', 'hpi', 'personal_history', 'family_history',
+            'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
             'consanguinity_state', 'consanguinity_details', 'plan_text', 'finalization_justification',
         ]
         labels = {
@@ -22,6 +22,7 @@ class EncounterForm(forms.ModelForm):
             'hpi': 'História da doença atual',
             'personal_history': 'Antecedentes pessoais',
             'family_history': 'Antecedentes familiares',
+            'habits_history': 'Hábitos e vícios',
             'consanguinity_state': 'Consanguinidade',
             'consanguinity_details': 'Detalhes da consanguinidade',
             'plan_text': 'Conduta',
@@ -42,6 +43,10 @@ class EncounterForm(forms.ModelForm):
             }),
             'personal_history': forms.Textarea(attrs={'rows': 4}),
             'family_history': forms.Textarea(attrs={'rows': 4}),
+            'habits_history': forms.Textarea(attrs={
+                'rows': 4,
+                'placeholder': 'Tabagismo, álcool, outras substâncias, sono, atividade física…',
+            }),
             'consanguinity_details': forms.Textarea(attrs={'rows': 2}),
             'plan_text': forms.Textarea(attrs={'rows': 8}),
         }

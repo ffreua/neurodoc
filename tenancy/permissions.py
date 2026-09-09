@@ -69,6 +69,21 @@ class Capability:
     #: Financeiro e CRM.
     FINANCE = 'finance'
 
+    #: Convênios e planos de saúde da clínica. Separada de `FINANCE`
+    #: porque são coisas de altura diferente: lançar um recebimento é
+    #: operação do dia, e criar um convênio muda o cadastro que todo
+    #: paciente novo passa a escolher e a que toda tabela de honorário se
+    #: refere. Quem faz a primeira não faz necessariamente a segunda.
+    MANAGE_HEALTH_PLANS = 'manage_health_plans'
+
+    #: Tabela de honorários — o valor da consulta e do procedimento.
+    #:
+    #: Inclui o médico, e essa é a razão de não ser `MANAGE_HEALTH_PLANS`:
+    #: quem define quanto custa a própria consulta é quem a realiza. Ter a
+    #: capacidade não basta — o médico só mexe na regra que é dele, e isso
+    #: é verificado por objeto em `can_set_fee_for`.
+    MANAGE_FEES = 'manage_fees'
+
     #: Indicadores agregados da clínica. A secretaria fica de fora: o que
     #: ela precisa do dia está no balcão, e agregado gerencial não é o
     #: escopo dela.
@@ -85,12 +100,14 @@ _ADMINISTRATIVE = {
         Capability.MANAGE_ORGANIZATION, Capability.MANAGE_INTEGRATIONS,
         Capability.PATIENT_ADMIN, Capability.SCHEDULE,
         Capability.CONFIGURE_AVAILABILITY, Capability.FINANCE,
+        Capability.MANAGE_HEALTH_PLANS, Capability.MANAGE_FEES,
         Capability.MANAGERIAL_DASHBOARD,
     }),
     Role.MANAGER: frozenset({
         Capability.MANAGE_INTEGRATIONS,
         Capability.PATIENT_ADMIN, Capability.SCHEDULE,
         Capability.CONFIGURE_AVAILABILITY, Capability.FINANCE,
+        Capability.MANAGE_HEALTH_PLANS, Capability.MANAGE_FEES,
         Capability.MANAGERIAL_DASHBOARD,
     }),
     Role.SECRETARY: frozenset({
@@ -100,6 +117,7 @@ _ADMINISTRATIVE = {
     Role.DOCTOR: frozenset({
         Capability.PATIENT_ADMIN, Capability.SCHEDULE,
         Capability.CONFIGURE_AVAILABILITY, Capability.FINANCE,
+        Capability.MANAGE_FEES,
         Capability.MANAGERIAL_DASHBOARD,
     }),
 }
@@ -178,4 +196,29 @@ def can_configure_agenda_of(context, physician_membership_id):
     administrative = {Role.OWNER, Role.MANAGER, Role.SECRETARY}
     if administrative & set(context.permissions):
         return True
+    return str(context.membership_id) == str(physician_membership_id)
+
+
+def can_set_fee_for(context, physician_membership_id):
+    """Se este vínculo pode criar ou encerrar honorário daquele médico.
+
+    Mesma forma de `can_configure_agenda_of`, e pelo mesmo motivo: a
+    capacidade responde "mexe em tabela de honorário?", e não "na de
+    quem?". Quem administra a clínica — dono e gestor — define o preço de
+    qualquer um, inclusive a regra geral que vale para todos
+    (`physician_membership_id` nulo). O médico define o dele.
+
+    Um médico que altera o valor da consulta do colega muda o que a clínica
+    fatura por um atendimento que não é dele, e o colega descobre no
+    fechamento do mês.
+    """
+    if context is None or not context.can(Capability.MANAGE_FEES):
+        return False
+    administrative = {Role.OWNER, Role.MANAGER}
+    if administrative & set(context.permissions):
+        return True
+    if physician_membership_id is None:
+        # Regra geral, que vale para a clínica inteira: é decisão de quem
+        # administra, não de um dos médicos.
+        return False
     return str(context.membership_id) == str(physician_membership_id)

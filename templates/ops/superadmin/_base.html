@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% comment %}Casca comum das telas do superadministrador.
+
+Estende `base.html` para reaproveitar o cabeçalho, o tema e o menu da
+aplicação — quem entra aqui entrou pela porta normal e não deve ser
+teleportado para outra identidade visual. A faixa de aviso no topo existe
+porque estas telas atravessam organizações: sair de uma tela da clínica
+para uma tela da instalação inteira sem que nada mude na página é como se
+perde a noção de onde se está.
+{% endcomment %}
+{% block breadcrumb %}
+{% comment %}"Início" só quando há clínica escolhida: um superadministrador
+sem vínculo nenhum receberia 404 ao clicar, porque `/app/` exige inquilino
+resolvido.{% endcomment %}
+{% if request.access_context %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+{% endif %}
+<li class="breadcrumb-item"><a href="{% url 'superadmin:overview' %}">Instalação</a></li>
+<li class="breadcrumb-item">{% block super_section %}{% endblock %}</li>
+{% endblock %}
+{% block content %}
+
+<div class="alert alert-dark fade show fs-12 d-flex flex-wrap align-items-center gap-2" role="alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+    <span class="fw-semibold">Console da instalação.</span>
+    <span class="flex-grow-1">
+        Estas telas atravessam todas as organizações e são <strong>somente de leitura</strong>.
+        Nenhum conteúdo clínico aparece aqui — auditar é saber quem fez o quê, não ler o que
+        foi escrito.
+    </span>
+</div>
+
+<ul class="nav nav-pills gap-1 mb-4">
+    <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'overview' %}active{% endif %}"
+           href="{% url 'superadmin:overview' %}">Visão geral</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'tenants' %}active{% endif %}"
+           href="{% url 'superadmin:tenants' %}">Organizações</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'users' %}active{% endif %}"
+           href="{% url 'superadmin:users' %}">Usuários</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'audit' %}active{% endif %}"
+           href="{% url 'superadmin:audit' %}">Auditoria</a>
+    </li>
+</ul>
+
+{% block super_content %}{% endblock %}
+
+{% endblock %}

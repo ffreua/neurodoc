@@ -109,10 +109,13 @@ def blocks_on(physician_membership_id, day):
 
 def appointments_on(physician_membership_id, day, include_all=False):
     start, end = day_bounds(day)
+    # `patient__contacts` vem junto porque a agenda mostra, em cada
+    # horário marcado, para onde a confirmação por SMS e por e-mail
+    # seria enviada. Sem o prefetch é uma consulta por paciente na tela.
     queryset = Appointment.objects.filter(
         physician_membership_id=physician_membership_id,
         starts_at__lt=end, ends_at__gt=start,
-    ).select_related('patient')
+    ).select_related('patient').prefetch_related('patient__contacts')
     if not include_all:
         queryset = queryset.filter(status__in=list(OCCUPYING_STATUSES))
     return list(queryset.order_by('starts_at'))

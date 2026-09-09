@@ -23,7 +23,11 @@ quem decide o que emitir é o médico.
     <div class="mb-3">
         <label class="form-label fw-semibold" for="cpf">CPF do paciente</label>
         <input type="text" class="form-control" id="cpf" name="cpf" inputmode="numeric"
-               autocomplete="off" spellcheck="false" placeholder="Somente números" required>
+               autocomplete="off" spellcheck="false" placeholder="000.000.000-00"
+               data-nd-mask="cpf" required>
+        <span class="fs-11 text-muted">
+            Digite só os números — a pontuação aparece sozinha.
+        </span>
     </div>
     <div class="mb-3">
         <label class="form-label fw-semibold" for="birth_date">Data de nascimento do paciente</label>

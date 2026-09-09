@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}Convênios e planos — NeuroDoc{% endblock %}
+{% block page_title %}Convênios e planos{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Convênios e planos</li>
+{% endblock %}
+{% block page_actions %}
+<button type="button" class="btn btn-light" data-bs-toggle="modal" data-bs-target="#insurer-modal">
+    Novo convênio
+</button>
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#plan-modal"
+        {% if not has_insurer %}disabled title="Cadastre um convênio antes."{% endif %}>
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    <span>Novo plano</span>
+</button>
+{% endblock %}
+{% block content %}
+
+{% comment %}O que o paciente tem é um plano, não uma operadora — e é o plano
+que carrega carência, coparticipação e valor. Por isso a lista de planos vem
+primeiro e a de convênios fica abaixo, como o cadastro de apoio que é.
+{% endcomment %}
+
+{% if not has_insurer %}
+<div class="alert alert-primary fade show fs-13" role="alert">
+    <span class="fw-semibold d-block">Ainda não há convênio cadastrado.</span>
+    Comece pelo convênio — a operadora — e depois cadastre os planos dela. Enquanto
+    não houver nenhum, a ficha do paciente só oferece "Particular".
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Planos</h5>
+        <span class="badge bg-soft-primary text-primary">
+            {{ plans|length }} plano{{ plans|length|pluralize }}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Convênio</th>
+                        <th scope="col">Plano</th>
+                        <th scope="col">Segmentação</th>
+                        <th scope="col">Pacientes</th>
+                        <th scope="col">Situação</th>
+                        <th class="text-end pe-4" scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in plans %}
+                    <tr>
+                        <td class="ps-4 text-muted">{{ plan.insurer.name }}</td>
+                        <td class="fw-semibold text-dark">{{ plan.name }}</td>
+                        <td class="fs-12 text-muted">{{ plan.get_kind_display }}</td>
+                        <td>
+                            {% if plan.coverage_count %}
+                            <span class="badge bg-gray-200 text-dark">{{ plan.coverage_count }}</span>
+                            {% else %}<span class="fs-12 text-muted">—</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if plan.active %}
+                            <span class="badge bg-soft-success text-success">Aceito</span>
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark">Não aceito</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <button type="button" class="btn btn-sm btn-light-primary"
+                                    data-nd-plan-edit
+                                    data-id="{{ plan.id }}"
+                                    data-insurer="{{ plan.insurer_id }}"
+                                    data-name="{{ plan.name }}"
+                                    data-kind="{{ plan.kind }}"
+                                    data-active="{% if plan.active %}1{% endif %}"
+                                    data-notes="{{ plan.administrative_notes }}">
+                                Editar
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="ps-4 py-4 text-muted">
+                            Nenhum plano cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Convênios</h5>
+        <span class="badge bg-soft-primary text-primary">
+            {{ insurers|length }} convênio{{ insurers|length|pluralize }}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Convênio</th>
+                        <th scope="col">ANS</th>
+                        <th scope="col">Planos</th>
+                        <th scope="col">Pacientes</th>
+                        <th scope="col">Situação</th>
+                        <th class="text-end pe-4" scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for insurer in insurers %}
+                    <tr>
+                        <td class="ps-4 fw-semibold text-dark">{{ insurer.name }}</td>
+                        <td class="fs-12 text-muted">{{ insurer.ans_registration|default:"—" }}</td>
+                        <td class="fs-12">
+                            {{ insurer.active_plan_count }} aceito{{ insurer.active_plan_count|pluralize }}
+                            {% if insurer.plan_count != insurer.active_plan_count %}
+                            <span class="text-muted">de {{ insurer.plan_count }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if insurer.coverage_count %}
+                            <span class="badge bg-gray-200 text-dark">{{ insurer.coverage_count }}</span>
+                            {% else %}<span class="fs-12 text-muted">—</span>{% endif %}
+                        </td>
+                        <td>
+                            {% if insurer.active %}
+                            <span class="badge bg-soft-success text-success">Aceito</span>
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark">Não aceito</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <button type="button" class="btn btn-sm btn-light-primary"
+                                    data-nd-insurer-edit
+                                    data-id="{{ insurer.id }}"
+                                    data-name="{{ insurer.name }}"
+                                    data-ans="{{ insurer.ans_registration }}"
+                                    data-active="{% if insurer.active %}1{% endif %}">
+                                Editar
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="ps-4 py-4 text-muted">Nenhum convênio cadastrado.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    Convênio e plano não são apagados. Um plano já usado guarda sob qual cobertura o
+    paciente foi atendido, e apagá-lo apagaria esse registro. Para tirar de circulação,
+    desmarque <em>Aceito pela clínica</em>: some das listas de escolha e continua legível
+    onde já foi usado.
+</p>
+
+{% comment %}------------------------------------------------ modal: convênio{% endcomment %}
+<div class="modal fade" id="insurer-modal" tabindex="-1" aria-hidden="true" aria-labelledby="insurer-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'health-plans:insurer-new' %}" id="insurer-form" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="insurer-modal-title">Novo convênio</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=insurer_form.name col="col-12" %}
+                        {% include "partials/field.html" with field=insurer_form.ans_registration col="col-md-6" %}
+                        {% include "partials/field.html" with field=insurer_form.active col="col-md-6" %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% comment %}--------------------------------------------------- modal: plano{% endcomment %}
+<div class="modal fade" id="plan-modal" tabindex="-1" aria-hidden="true" aria-labelledby="plan-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'health-plans:plan-new' %}" id="plan-form" novalidate>
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="plan-modal-title">Novo plano</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=plan_form.insurer col="col-md-6" %}
+                        {% include "partials/field.html" with field=plan_form.name col="col-md-6" %}
+                        {% include "partials/field.html" with field=plan_form.kind col="col-md-8" %}
+                        {% include "partials/field.html" with field=plan_form.active col="col-md-4" %}
+                        {% include "partials/field.html" with field=plan_form.administrative_notes col="col-12" %}
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+/* Editar reaproveita o modal de cadastro: os campos sao os mesmos, e um
+ * segundo modal so para editar seria a mesma tela duplicada — que diverge
+ * da primeira na proxima mudanca de campo. */
+(function () {
+    'use strict';
+    var api = window.NeuroDoc || {};
+
+    function open(id) {
+        var modal = document.getElementById(id);
+        if (modal && api.openModal) api.openModal(modal);
+    }
+
+    function bind(selector, formId, titleId, title, url, fields) {
+        document.querySelectorAll(selector).forEach(function (button) {
+            button.addEventListener('click', function () {
+                var form = document.getElementById(formId);
+                form.action = url(button.getAttribute('data-id'));
+                document.getElementById(titleId).textContent = title;
+                Object.keys(fields).forEach(function (inputId) {
+                    var el = document.getElementById(inputId);
+                    if (!el) return;
+                    var value = button.getAttribute(fields[inputId]);
+                    if (el.type === 'checkbox') el.checked = value === '1';
+                    else el.value = value || '';
+                });
+                open(formId === 'insurer-form' ? 'insurer-modal' : 'plan-modal');
+            });
+        });
+    }
+
+    bind('[data-nd-insurer-edit]', 'insurer-form', 'insurer-modal-title', 'Editar convenio',
+         function (id) { return '/app/org/convenios/' + id + '/salvar/'; },
+         {'id_name': 'data-name', 'id_ans_registration': 'data-ans', 'id_active': 'data-active'});
+
+    bind('[data-nd-plan-edit]', 'plan-form', 'plan-modal-title', 'Editar plano',
+         function (id) { return '/app/org/convenios/planos/' + id + '/salvar/'; },
+         {'id_insurer': 'data-insurer', 'id_name': 'data-name', 'id_kind': 'data-kind',
+          'id_active': 'data-active', 'id_administrative_notes': 'data-notes'});
+
+    /* Cadastro recusado reabre o modal com os erros. Sem isto a pagina
+     * volta com o modal fechado e o unico sinal do que faltou fica
+     * escondido atras de um botao que a pessoa acabou de fechar. */
+    {% if insurer_form.errors %}open('insurer-modal');{% endif %}
+    {% if plan_form.errors %}open('plan-modal');{% endif %}
+})();
+</script>
+{% endblock %}

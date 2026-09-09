@@ -74,5 +74,10 @@ def render(document):
             copies=SPECIAL_COPIES,
             # Endereço do paciente é obrigatório nesta modalidade.
             include_address=True,
+            # Quadro de identificação do comprador e do fornecedor, do
+            # Anexo XVII da Portaria SVS/MS 344/98. Sai em branco, para o
+            # balconista preencher no ato da dispensação — ver
+            # `_control_identification_block`.
+            control_identification=True,
         )
     return build_pdf(document, TITLE, body)

@@ -157,6 +157,10 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         <h3>Antecedentes familiares</h3>
         <p class="prose">{{ encounter.family_history }}</p>
         {% endif %}
+        {% if encounter.habits_history %}
+        <h3>Hábitos e vícios</h3>
+        <p class="prose">{{ encounter.habits_history }}</p>
+        {% endif %}
         {% if encounter.consanguinity_state != 'not_informed' %}
         <h3>Consanguinidade</h3>
         <p>{{ encounter.get_consanguinity_state_display }}{% if encounter.consanguinity_details %} — {{ encounter.consanguinity_details }}{% endif %}</p>

@@ -275,7 +275,122 @@ def _signature_footer(document):
     return [KeepTogether([table])]
 
 
-def _one_copy(document, title, body_flowables, clinic, via_label='', include_address=False):
+# --------------------------------------------------- receituário de controle
+#
+# O quadro de identificação do comprador e do fornecedor, exigido pelo
+# Anexo XVII da Portaria SVS/MS nº 344/1998 na Notificação de Receita e no
+# Receituário de Controle Especial.
+#
+# Sai **em branco**, para ser preenchido à mão no balcão da farmácia. Não é
+# o sistema que sabe quem vai comprar: o comprador pode ser o paciente, um
+# familiar ou um cuidador, e quem confere o documento de identidade dele é
+# o farmacêutico no ato da dispensação. Preencher com os dados do paciente
+# afirmaria, num papel que fica retido, que foi ele quem comprou — o que
+# nem sempre é verdade e não é o sistema que pode atestar.
+#
+# Vai nas **duas** vias. A 1ª fica retida na farmácia e é a que responde à
+# fiscalização sanitária; a 2ª é a prova do paciente de que a compra
+# ocorreu, e sem o quadro ela não registra nada sobre a dispensação.
+
+CONTROL_BOX_LABEL = ParagraphStyle(
+    'ControlBoxLabel', parent=STYLES['Normal'], fontName='Helvetica-Bold',
+    fontSize=6.5, leading=8, textColor=colors.HexColor('#333333'),
+)
+CONTROL_FIELD = ParagraphStyle(
+    'ControlField', parent=STYLES['Normal'], fontSize=7, leading=15,
+    textColor=colors.HexColor('#111111'),
+)
+
+#: Altura das linhas de preenchimento. Precisa caber letra de mão adulta:
+#: uma linha de 8pt obriga quem escreve a espremer, e endereço espremido
+#: em receita retida é endereço ilegível na fiscalização.
+_WRITE_LINE = 0.72 * cm
+
+
+def _control_identification_block():
+    """Os dois quadros lado a lado, com as linhas de preenchimento.
+
+    Numa tabela aninhada, e não em parágrafos com sublinhado: as duas
+    colunas têm alturas iguais e bordas próprias, e é a borda que faz o
+    balconista enxergar dois quadros em vez de um bloco de texto.
+    """
+    def campo(texto):
+        return Paragraph(texto, CONTROL_FIELD)
+
+    comprador = Table(
+        [
+            [campo('Nome:'), ''],
+            [campo('Ident.:'), campo('Órg. Emissor:')],
+            [campo('End.:'), ''],
+            [campo('Cidade:'), campo('UF:')],
+            [campo('Telefone:'), ''],
+        ],
+        colWidths=[4.7 * cm, 3.1 * cm],
+        rowHeights=[_WRITE_LINE] * 5,
+    )
+    comprador.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('SPAN', (0, 0), (1, 0)),
+        ('SPAN', (0, 2), (1, 2)),
+        ('SPAN', (0, 4), (1, 4)),
+        ('LINEBELOW', (0, 0), (-1, -1), 0.4, colors.HexColor('#999999')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
+
+    # O lado do fornecedor tem menos campos e mais espaço por campo: a
+    # assinatura do farmacêutico e o carimbo da farmácia ocupam área, e
+    # espreme-los faz o carimbo cobrir a data.
+    fornecedor = Table(
+        [
+            [campo('Assinatura do farmacêutico:')],
+            [''],
+            [campo('Data:  ____ / ____ / ________')],
+            [campo('Carimbo da farmácia / drogaria:')],
+            [''],
+        ],
+        colWidths=[7.8 * cm],
+        rowHeights=[0.42 * cm, _WRITE_LINE, _WRITE_LINE, 0.42 * cm, _WRITE_LINE],
+    )
+    fornecedor.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
+        ('LINEBELOW', (0, 1), (0, 1), 0.4, colors.HexColor('#999999')),
+        ('LINEBELOW', (0, 2), (0, 2), 0.4, colors.HexColor('#999999')),
+        ('LINEBELOW', (0, 4), (0, 4), 0.4, colors.HexColor('#999999')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 1),
+    ]))
+
+    quadro = Table(
+        [
+            [Paragraph('IDENTIFICAÇÃO DO COMPRADOR', CONTROL_BOX_LABEL),
+             Paragraph('IDENTIFICAÇÃO DO FORNECEDOR', CONTROL_BOX_LABEL)],
+            [comprador, fornecedor],
+        ],
+        colWidths=[8.3 * cm, 8.3 * cm],
+    )
+    quadro.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('BOX', (0, 0), (0, -1), 0.6, colors.HexColor('#666666')),
+        ('BOX', (1, 0), (1, -1), 0.6, colors.HexColor('#666666')),
+        ('LINEBELOW', (0, 0), (-1, 0), 0.6, colors.HexColor('#666666')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#f0f0f0')),
+        ('LEFTPADDING', (0, 0), (-1, -1), 4),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 4),
+        ('TOPPADDING', (0, 0), (-1, 0), 3),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 3),
+        ('TOPPADDING', (0, 1), (-1, 1), 2),
+        ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
+    ]))
+    # `KeepTogether` porque o quadro partido entre duas páginas deixa
+    # metade dos campos numa folha que não é a que a farmácia retém.
+    return [KeepTogether([quadro])]
+
+
+def _one_copy(document, title, body_flowables, clinic, via_label='', include_address=False,
+              control_identification=False):
     story = []
     if via_label:
         story.append(Paragraph(via_label, VIA_STYLE))
@@ -290,13 +405,21 @@ def _one_copy(document, title, body_flowables, clinic, via_label='', include_add
     story.append(Spacer(1, 0.5 * cm))
     story.extend(body_flowables)
     story.append(Spacer(1, 1 * cm))
+    if control_identification:
+        # Antes da assinatura do medico, e nao depois: quem preenche o
+        # quadro e o balconista, e o que fecha o documento e a assinatura
+        # de quem o emitiu. Invertido, a receita terminaria com campos em
+        # branco embaixo da assinatura, como se ela os cobrisse.
+        story.extend(_control_identification_block())
+        story.append(Spacer(1, 0.5 * cm))
     story.append(HRFlowable(width='100%', thickness=0.5))
     story.append(Spacer(1, 0.3 * cm))
     story.extend(_signature_footer(document))
     return story
 
 
-def build_pdf(document, title, body_flowables, copies=(), include_address=False):
+def build_pdf(document, title, body_flowables, copies=(), include_address=False,
+              control_identification=False):
     """Monta o PDF. `copies` são os rótulos das vias, quando há mais de uma.
 
     Uma via por página, e não duas metades na mesma folha: a farmácia retém
@@ -330,6 +453,7 @@ def build_pdf(document, title, body_flowables, copies=(), include_address=False)
         story.extend(_one_copy(
             document, title, flowables_for_copy(), clinic,
             via_label=label, include_address=include_address,
+            control_identification=control_identification,
         ))
 
     doc.build(story)

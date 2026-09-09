@@ -18,7 +18,8 @@ from django.utils import timezone
 from audit.services import record_audit_event
 from tenancy.selectors import scope_to_tenant
 
-from . import issuance
+from . import document_kinds, issuance
+from .forms import MedicalDocumentForm
 from .models import DocumentRequest, DocumentRequestKind, DocumentRequestStatus
 from .views import ClinicalDocumentView, _own_doctor_membership_or_403
 
@@ -60,14 +61,63 @@ class DocumentRequestQueueView(ClinicalDocumentView):
         })
 
 
+def _draft_form(pedido, data=None):
+    """O conteúdo do documento a ser criado, aberto para edição.
+
+    O médico precisava aceitar o texto do paciente como veio: o único
+    botão criava o rascunho e só depois, na tela do documento, dava para
+    corrigir — com o rascunho já gravado, já com PDF gerado e já contando
+    como pedido atendido. Corrigir aqui é mais barato e é onde a decisão
+    de fato acontece.
+
+    **O pedido do paciente não é editado.** O que se edita é o rascunho
+    que nasce dele. `DocumentRequest.payload` é o registro do que a pessoa
+    pediu, e é isso que ele prova; reescrevê-lo faria a fila mostrar as
+    palavras do médico atribuídas ao paciente, e sumiria com a diferença
+    entre o que foi pedido e o que foi emitido.
+    """
+    kind, formato = REQUEST_TO_DOCUMENT.get(pedido.kind, (None, None))
+    if kind is None:
+        return None
+    initial = {'kind': kind}
+    initial.update(_content_from_request(pedido, kind, formato))
+    if data is not None:
+        return MedicalDocumentForm(data, locked_kind=kind)
+    return MedicalDocumentForm(initial=initial, locked_kind=kind)
+
+
+#: Quais campos do formulário aparecem em cada tipo de pedido. O
+#: formulário declara os sete campos de todos os tipos, e mostrá-los todos
+#: obrigaria a dizer "ignore os demais" — o mesmo defeito já corrigido na
+#: tela de emissão.
+DRAFT_FIELDS = {
+    'prescription': ('prescription_format', 'prescription_text', 'special_instructions'),
+    'report': ('report_text',),
+    'request': ('requested_procedure', 'justification'),
+    'referral': ('referral_specialty', 'reason'),
+}
+
+
+def _draft_context(request, pedido, form=None):
+    kind, _ = REQUEST_TO_DOCUMENT.get(pedido.kind, (None, None))
+    form = form if form is not None else _draft_form(pedido)
+    fields = []
+    if form is not None:
+        fields = [form[name] for name in DRAFT_FIELDS.get(kind, ())]
+    return {
+        'req': pedido,
+        'items': _readable_payload(pedido),
+        'can_draft': _own_doctor_membership_or_403(request) is not None,
+        'draft_form': form,
+        'draft_fields': fields,
+    }
+
+
 class DocumentRequestDetailView(ClinicalDocumentView):
     def get(self, request, request_id):
         pedido = _request_or_404(request, request_id)
-        return render(request, 'documents/request_detail.html', {
-            'req': pedido,
-            'items': _readable_payload(pedido),
-            'can_draft': _own_doctor_membership_or_403(request) is not None,
-        })
+        return render(request, 'documents/request_detail.html',
+                      _draft_context(request, pedido))
 
 
 class DocumentRequestActionView(ClinicalDocumentView):
@@ -134,11 +184,34 @@ class DocumentRequestActionView(ClinicalDocumentView):
                 chief_complaint='Registro aberto a partir de pedido no portal do paciente.',
             )
 
+        # O conteúdo vem do formulário, e não mais direto do pedido: o
+        # médico corrige antes de o rascunho existir. Se nada foi enviado
+        # — envio antigo, JavaScript desligado — cai no texto do paciente,
+        # que era o comportamento anterior.
+        form = _draft_form(pedido, data=request.POST) if request.POST.get('conteudo_revisado') else None
+        if form is not None:
+            if not form.is_valid():
+                messages.error(request, 'Confira o conteúdo do documento antes de gerar o rascunho.')
+                return render(request, 'documents/request_detail.html',
+                              _draft_context(request, pedido, form=form))
+            conteudo = {
+                name: form.cleaned_data.get(name) or ''
+                for name in document_kinds.all_fields(kind)
+            }
+            # O formato da receita não é escolha do paciente: quem pediu
+            # "receita de controle especial" no portal descreveu o que
+            # precisa, e é o médico quem decide a modalidade. O campo vem
+            # do formulário, com o do pedido como valor inicial.
+            if kind == 'prescription' and not conteudo.get('prescription_format'):
+                conteudo['prescription_format'] = formato or 'simple'
+        else:
+            conteudo = _content_from_request(pedido, kind, formato)
+
         tenant = Tenant.objects.get(id=pedido.tenant_id)
         try:
             documento = issuance.create_draft(
                 tenant, pedido.patient, encounter, physician, request.user.id,
-                kind, _content_from_request(pedido, kind, formato),
+                kind, conteudo,
             )
         except (ValueError, issuance.MissingPhysicianProfile) as exc:
             messages.error(request, str(exc))
@@ -151,15 +224,26 @@ class DocumentRequestActionView(ClinicalDocumentView):
         pedido.save(update_fields=[
             'status', 'resulting_document', 'reviewed_by', 'reviewed_at',
         ])
+        # Registra **se** o médico reescreveu, nunca o quê: o conteúdo é
+        # clínico e a trilha de auditoria não guarda texto de prontuário.
+        # A pergunta que isto responde é "o documento emitido repete o que
+        # o paciente escreveu, ou passou por revisão?".
+        original = _content_from_request(pedido, kind, formato)
+        alterado = any(
+            (conteudo.get(campo) or '').strip() != (original.get(campo) or '').strip()
+            for campo in document_kinds.all_fields(kind)
+        )
         record_audit_event(
             request.user, pedido.tenant_id, 'documents.portal_request_drafted',
             object_type='document_request', object_id=pedido.id, outcome='success',
-            integrity_metadata={'document': str(documento.id)},
+            integrity_metadata={'document': str(documento.id), 'edited_by_physician': alterado},
         )
         messages.success(
             request,
-            'Rascunho criado a partir do pedido. Revise o conteúdo antes de assinar: '
-            'o texto veio do paciente e ninguém o conferiu ainda.',
+            'Rascunho criado. Revise o conteúdo antes de assinar.'
+            if alterado else
+            'Rascunho criado com o texto do paciente, sem alteração. Revise o conteúdo '
+            'antes de assinar: ninguém o conferiu ainda.',
         )
         return redirect('documents:medical-detail', document_id=documento.id)
 
