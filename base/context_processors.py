@@ -31,6 +31,16 @@ def _section(request):
     return match.namespace or ''
 
 
+def _view_name(request):
+    """Nome da rota atual, para o menu distinguir irmãos do mesmo app.
+
+    `documents` responde tanto pela assinatura quanto pela fila do portal;
+    sem isto, abrir a fila acende o item errado no menu lateral.
+    """
+    match = getattr(request, 'resolver_match', None)
+    return getattr(match, 'url_name', '') or ''
+
+
 def _initials(user):
     parts = [p for p in (user.first_name, user.last_name) if p]
     if parts:
@@ -43,6 +53,9 @@ def shell(request):
     context = getattr(request, 'access_context', None)
     data = {
         'nd_section': _section(request),
+        'nd_view': _view_name(request),
+        'nd_portal_requests': 0,
+        'nd_portal_visible': False,
         'nd_tenant': None,
         'nd_roles': [],
         'nd_unread_notifications': 0,
@@ -73,4 +86,33 @@ def shell(request):
     }
     data['nd_unread_notifications'] = mine.filter(read_at__isnull=True).count()
     data['nd_recent_notifications'] = list(mine.order_by('-created_at')[:5])
+    data.update(_portal_badge(context))
     return data
+
+
+def _portal_badge(context):
+    """Quantos pedidos do portal esperam revisão, e se o item aparece.
+
+    O menu só existe para quem pode abrir prontuário, e só quando há o que
+    ver: portal publicado, ou fila com pedido pendente. A segunda condição
+    importa porque despublicar o portal não apaga o que já chegou — sem
+    ela, os pedidos recebidos ficariam sem porta de entrada no dia em que a
+    clínica desligasse o formulário.
+
+    A contagem custa um `COUNT` com índice em (tenant, status) e só roda
+    para quem tem a capacidade clínica.
+    """
+    if not context.can(Capability.READ_CLINICAL):
+        return {'nd_portal_requests': 0, 'nd_portal_visible': False}
+
+    from documents.models import DocumentRequest, DocumentRequestStatus
+    from tenancy.models import ClinicProfile
+
+    abertos = DocumentRequest.objects.filter(
+        tenant_id=context.tenant_id,
+        status__in=[DocumentRequestStatus.RECEIVED, DocumentRequestStatus.IN_REVIEW],
+    ).count()
+    visivel = abertos > 0 or ClinicProfile.objects.filter(
+        tenant_id=context.tenant_id, patient_portal_enabled=True,
+    ).exists()
+    return {'nd_portal_requests': abertos, 'nd_portal_visible': visivel}

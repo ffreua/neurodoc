@@ -33,6 +33,7 @@ urlpatterns = [
 
     # Identidade da clínica.
     path('app/org/clinica/', admin_views.ClinicProfileView.as_view(), name='clinic'),
+    path('app/org/clinica/portal/', admin_views.ClinicPortalView.as_view(), name='clinic-portal'),
     path('app/org/clinica/logotipo/', admin_views.ClinicLogoView.as_view(), name='clinic-logo'),
     path(
         'app/org/clinica/logotipo.img',

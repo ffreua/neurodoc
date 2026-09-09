@@ -36,3 +36,25 @@ def update_clamav_definitions():
     except DefinitionUpdateFailed as exc:
         return {'status': 'failed', 'error': str(exc)}
     return {'status': 'updated'}
+
+
+@shared_task(name='documents.tasks.compact_archive', expires=6 * 60 * 60)
+def compact_archive_task():
+    """Compactação trimestral do arquivo morto.
+
+    Agendada pelo `crontab` do beat para a madrugada do primeiro dia de
+    cada trimestre: é trabalho de disco pesado e não deve disputar E/S com
+    o atendimento. Nada é apagado sem o SHA-256 conferir — ver
+    `documents.archive`.
+
+    Falha em silêncio quando há backup em andamento, e tenta de novo no
+    trimestre seguinte: adiar a compactação por três meses custa disco;
+    mexer nos arquivos durante a cópia custa o backup.
+    """
+    from .archive import compact
+    from .retention import BackupInProgress
+
+    try:
+        return compact(dry_run=False)
+    except BackupInProgress as exc:
+        return {'skipped': True, 'reason': str(exc)}

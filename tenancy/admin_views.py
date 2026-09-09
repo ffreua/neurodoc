@@ -14,6 +14,7 @@ misturaria a tela que exige ser dono com a tela que qualquer um abre.
 from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
@@ -23,7 +24,8 @@ from audit.services import record_audit_event
 
 from . import branding
 from .forms import (
-    ClinicProfileForm, CollaboratorInvitationForm, MembershipRolesForm, PhysicianProfileForm,
+    ClinicPortalForm, ClinicProfileForm, CollaboratorInvitationForm, MembershipRolesForm,
+    PhysicianProfileForm,
 )
 from .invitations import issue_invitation
 from .models import (
@@ -450,6 +452,10 @@ class ClinicProfileView(OrgAdminView):
             'tenant': self.membership.tenant,
             'profile': profile,
             'form': ClinicProfileForm(instance=profile),
+            'portal_form': ClinicPortalForm(instance=profile),
+            'portal_url': request.build_absolute_uri(
+                reverse('portal:identify', args=[self.membership.tenant.slug])
+            ),
             'max_logo_mb': branding.MAX_LOGO_BYTES // (1024 * 1024),
             'accepted_logo': ', '.join(
                 mime.split('/')[1].upper() for mime in branding.ALLOWED_LOGO_MIMES
@@ -476,6 +482,51 @@ class ClinicProfileView(OrgAdminView):
             object_type='tenant', object_id=self.tenant_id, outcome='success',
         )
         messages.success(request, 'Identidade da clínica salva.')
+        return redirect('tenancy:clinic')
+
+
+class ClinicPortalView(ClinicProfileView):
+    """Liga e desliga o portal público de solicitações.
+
+    Ação própria, com registro próprio na auditoria: publicar o portal é
+    abrir um endereço na internet que aceita CPF e data de nascimento de
+    pacientes, e quem responde por isso precisa aparecer na trilha com
+    nome e data.
+    """
+
+    def post(self, request):
+        profile = clinic_profile_for(self.tenant_id)
+        antes = profile.patient_portal_enabled
+        form = ClinicPortalForm(request.POST, instance=profile)
+        if not form.is_valid():
+            return render(request, 'tenancy/clinic.html',
+                          self._context(request, portal_form=form))
+        saved = form.save(commit=False)
+        saved.tenant_id = self.tenant_id
+        saved.updated_by = self.membership
+        saved.full_clean()
+        saved.save()
+        record_audit_event(
+            request.user, self.membership.tenant,
+            'tenancy.patient_portal_enabled' if saved.patient_portal_enabled
+            else 'tenancy.patient_portal_disabled',
+            object_type='tenant', object_id=self.tenant_id, outcome='success',
+            integrity_metadata={'was_enabled': antes},
+        )
+        if saved.patient_portal_enabled and not antes:
+            messages.success(
+                request,
+                'Portal publicado. O endereço já responde a qualquer pessoa — divulgue-o '
+                'aos pacientes e acompanhe a fila em Solicitações do portal.',
+            )
+        elif antes and not saved.patient_portal_enabled:
+            messages.success(
+                request,
+                'Portal despublicado. Os pedidos já recebidos continuam na fila; o '
+                'endereço deixa de aceitar novos.',
+            )
+        else:
+            messages.success(request, 'Configuração do portal salva.')
         return redirect('tenancy:clinic')
 
 

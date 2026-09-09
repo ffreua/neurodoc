@@ -16,6 +16,7 @@ Duas fontes, nesta ordem:
 """
 
 from documents.models import AttachmentOcrPage, AttachmentScanStatus
+from documents.storage import local_path
 
 #: Abaixo disto a camada de texto não é confiável: é o PDF que só tem a
 #: imagem digitalizada e alguns caracteres de metadado.
@@ -68,7 +69,11 @@ def attachment_text(attachment):
     source = 'text_layer'
     text = ''
     if attachment.original_name.lower().endswith('.pdf'):
-        text = _pdf_text_layer(attachment.storage_key)
+        # `caminho`, e não `source`: `source` logo abaixo é a origem do
+        # texto ('text_layer' ou 'ocr'), e reaproveitar o nome faria o
+        # caminho do arquivo virar essa origem.
+        with local_path(attachment) as caminho:
+            text = _pdf_text_layer(caminho)
 
     if len(text.strip()) < MIN_TEXT_LAYER_CHARS:
         ocr = _ocr_text(attachment)

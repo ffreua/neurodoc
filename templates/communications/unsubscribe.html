@@ -1,0 +1,51 @@
+{% extends "base_auth.html" %}
+{% block title %}Descadastro de comunicações{% endblock %}
+{% block tagline %}{{ clinic|default:"NeuroDoc" }}{% endblock %}
+{% block heading %}
+{% if invalid %}Link inválido{% elif done %}Pronto{% else %}Descadastrar{% endif %}
+{% endblock %}
+{% block content %}
+
+{% if invalid %}
+<p class="fs-13 text-muted mb-0">
+    Este link não é válido. Se você quer parar de receber comunicações, use o
+    link do rodapé de uma mensagem recente ou fale com a clínica.
+</p>
+
+{% elif done %}
+<div class="alert alert-success fade show fs-13" role="alert">
+    Você não receberá mais comunicações de divulgação de {{ clinic }}.
+</div>
+{% comment %}A distinção precisa ficar explícita: descadastrar-se da
+divulgação não é sair do prontuário nem deixar de receber a confirmação do
+horário — e quem clica aqui muitas vezes acha que é.{% endcomment %}
+<p class="fs-12 text-muted mb-0">
+    Isto vale só para mensagens de divulgação. As mensagens do seu atendimento —
+    confirmação de horário e entrega de documento — continuam sendo enviadas,
+    porque fazem parte do cuidado. Seu cadastro e seu prontuário não são
+    afetados.
+</p>
+
+{% elif already %}
+<p class="fs-13 text-muted mb-0">
+    Você já está descadastrado das comunicações de divulgação de {{ clinic }}.
+    Nada a fazer.
+</p>
+
+{% else %}
+<p class="fs-13 text-muted">
+    Confirme para parar de receber mensagens de divulgação de {{ clinic }}.
+</p>
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>
+        Não quero mais receber
+    </button>
+</form>
+<p class="fs-11 text-muted mt-3 mb-0">
+    Mensagens sobre o seu atendimento — confirmação de horário e entrega de
+    documento — continuam chegando. Elas fazem parte do cuidado, não são
+    divulgação.
+</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Nova campanha — NeuroDoc{% endblock %}
+{% block page_title %}Nova campanha{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'messaging:campaigns' %}">Campanhas</a></li>
+<li class="breadcrumb-item">Nova</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'messaging:campaigns' %}">Cancelar</a>
+{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xxl-8 col-xl-10">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Mensagem</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <button type="submit" class="btn btn-primary" data-nd-busy>
+                        Criar e montar a lista
+                    </button>
+                    <span class="d-block fs-11 text-muted mt-2">
+                        Criar não envia. A lista é montada com quem consentiu, e o
+                        disparo é um segundo passo, na tela seguinte.
+                    </span>
+                </form>
+            </div>
+        </div>
+
+        {% comment %}O rodapé mostrado antes de escrever, e não depois de enviar:
+        quem sabe o que já vai junto não escreve o link de descadastro à mão nem
+        repete o aviso de que a mensagem é de divulgação.{% endcomment %}
+        <div class="card mt-4">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                    O que sai em toda mensagem
+                </span>
+                <pre class="fs-11 text-muted bg-gray-100 p-3 rounded-3 mb-2" style="white-space:pre-wrap">[seu texto]
+
+---
+Você recebeu esta mensagem porque autorizou [clínica] a enviar comunicações.
+Para não receber mais, acesse: [link individual de descadastro]
+Esta é uma mensagem de divulgação. Para assuntos do seu atendimento, use os
+canais de sempre da clínica.</pre>
+                <span class="d-block fs-11 text-muted">
+                    O rodapé é acrescentado no envio e não é editável — é ele que
+                    torna a revogação tão fácil quanto o consentimento.
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

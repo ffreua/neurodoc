@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views
+from . import request_views, views
 
 app_name = 'documents'
 
@@ -27,6 +27,16 @@ urlpatterns = [
     path(
         'medical/<uuid:document_id>/correction/',
         views.MedicalDocumentCorrectionView.as_view(), name='medical-correction',
+    ),
+
+    path('solicitacoes/', request_views.DocumentRequestQueueView.as_view(), name='request-queue'),
+    path(
+        'solicitacoes/<uuid:request_id>/',
+        request_views.DocumentRequestDetailView.as_view(), name='request-detail',
+    ),
+    path(
+        'solicitacoes/<uuid:request_id>/<str:action>/',
+        request_views.DocumentRequestActionView.as_view(), name='request-action',
     ),
 
     path('signing/credentials/', views.SigningCredentialListView.as_view(), name='credential-list'),

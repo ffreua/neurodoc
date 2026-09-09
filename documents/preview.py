@@ -2,6 +2,7 @@ import subprocess
 import tempfile
 from pathlib import Path
 
+from .storage import local_path
 from .models import AttachmentScanStatus
 
 PREVIEW_TIMEOUT_SECONDS = 15
@@ -21,13 +22,15 @@ def render_preview_png(attachment):
     if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
         raise PreviewUnavailable('Attachment is not available')
     extension = attachment.original_name.rsplit('.', 1)[-1].lower()
-    with tempfile.TemporaryDirectory() as tmp:
+    # `local_path` porque `pdftoppm` e o PIL recebem caminho, e o arquivo
+    # pode estar comprimido no arquivo morto.
+    with tempfile.TemporaryDirectory() as tmp, local_path(attachment) as source_path:
         out_prefix = str(Path(tmp) / 'preview')
         if extension == 'pdf':
             try:
                 subprocess.run(
                     ['pdftoppm', '-png', '-f', '1', '-l', '1', '-r', str(PREVIEW_DPI),
-                     attachment.storage_key, out_prefix],
+                     source_path, out_prefix],
                     check=True, capture_output=True, timeout=PREVIEW_TIMEOUT_SECONDS,
                 )
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as exc:
@@ -39,7 +42,7 @@ def render_preview_png(attachment):
         if extension in ('jpg', 'jpeg', 'png', 'tiff', 'tif'):
             from PIL import Image
 
-            with Image.open(attachment.storage_key) as image:
+            with Image.open(source_path) as image:
                 image.thumbnail((800, 800))
                 out_path = Path(tmp) / 'thumb.png'
                 image.convert('RGB').save(out_path, format='PNG')

@@ -54,7 +54,15 @@ def prepare_document_and_run(self, job_id):
     from documents.models import AttachmentScanStatus
     from documents.ocr import OcrError, run_ocr
 
+    from documents.storage import local_path
+
     from .documents import MIN_TEXT_LAYER_CHARS, _ocr_text, _pdf_text_layer
+
+    def _text_layer_of(att):
+        """Camada de texto do PDF, descomprimindo se preciso."""
+        with local_path(att) as caminho:
+            return _pdf_text_layer(caminho)
+
     from .extraction import sync_exam_result_status
     from .models import AIJobStatus
 
@@ -89,7 +97,7 @@ def prepare_document_and_run(self, job_id):
     # e rasterizar cem páginas à toa custa minutos de worker.
     needs_ocr = (
         attachment.original_name.lower().endswith('.pdf')
-        and len(_pdf_text_layer(attachment.storage_key).strip()) < MIN_TEXT_LAYER_CHARS
+        and len(_text_layer_of(attachment).strip()) < MIN_TEXT_LAYER_CHARS
     ) or not attachment.original_name.lower().endswith('.pdf')
     if needs_ocr and len(_ocr_text(attachment).strip()) < MIN_TEXT_LAYER_CHARS:
         try:

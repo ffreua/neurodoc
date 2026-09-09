@@ -4,6 +4,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 import environ
+from celery.schedules import crontab
 
 from ops.env import read_env, secret
 
@@ -116,6 +117,15 @@ CELERY_TASK_ROUTES = {
     'reporting.tasks.*': {'queue': 'documents'},
 }
 CELERY_BEAT_SCHEDULE = {
+    # Compactação do arquivo morto: 03h do dia 1 de janeiro, abril, julho e
+    # outubro. `crontab` e não intervalo em segundos porque "a cada 90 dias"
+    # a partir do último reinício do beat cairia em qualquer hora do dia —
+    # e isto é trabalho de disco que não deve disputar E/S com o
+    # atendimento.
+    'documents-compact-archive': {
+        'task': 'documents.tasks.compact_archive',
+        'schedule': crontab(minute=0, hour=3, day_of_month=1, month_of_year='1,4,7,10'),
+    },
     'documents-update-clamav-definitions': {
         'task': 'documents.tasks.update_clamav_definitions',
         'schedule': 6 * 60 * 60,

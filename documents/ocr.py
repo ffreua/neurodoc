@@ -4,6 +4,7 @@ from pathlib import Path
 
 from django.db import transaction
 
+from .storage import local_path
 from .models import Attachment, AttachmentOcrPage, AttachmentScanStatus, MAX_ATTACHMENT_PAGES
 
 OCR_TIMEOUT_SECONDS = 30
@@ -42,14 +43,14 @@ def run_ocr(attachment: Attachment):
     extension = attachment.original_name.rsplit('.', 1)[-1].lower()
     AttachmentOcrPage.objects.filter(attachment=attachment).delete()
     pages = []
-    with tempfile.TemporaryDirectory() as tmp:
+    with tempfile.TemporaryDirectory() as tmp, local_path(attachment) as source_path:
         if extension == 'pdf':
             try:
-                image_paths = _rasterize_pdf_pages(attachment.storage_key, tmp)
+                image_paths = _rasterize_pdf_pages(source_path, tmp)
             except (subprocess.CalledProcessError, subprocess.TimeoutExpired, FileNotFoundError) as exc:
                 raise OcrError(str(exc)) from exc
         else:
-            image_paths = [Path(attachment.storage_key)]
+            image_paths = [Path(source_path)]
         for page_number, image_path in enumerate(image_paths, start=1):
             text = _tesseract_text(image_path)
             page = AttachmentOcrPage.objects.create(

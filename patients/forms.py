@@ -357,6 +357,31 @@ class PatientForm(forms.ModelForm):
 
 
 class PatientContactForm(forms.ModelForm):
+    """Contato do paciente, com o consentimento de divulgação à parte.
+
+    `accepts_marketing` é um campo do formulário e não do modelo porque o
+    modelo guarda **quando** o consentimento foi dado, não um sim/não: a
+    data é o que se demonstra depois, e um booleano perderia a informação
+    ao ser desmarcado e remarcado.
+    """
+
+    accepts_marketing = forms.BooleanField(
+        label='Autoriza receber comunicações de divulgação da clínica',
+        required=False,
+        help_text='Diferente de "aceita e-mail", que vale para as mensagens do '
+                  'atendimento. Constar de uma lista de divulgação de clínica '
+                  'revela condição de saúde, e a LGPD (art. 11, I) exige '
+                  'consentimento específico para isso. Marque só se a pessoa '
+                  'autorizou de forma expressa.',
+    )
+    marketing_opt_in_evidence = forms.CharField(
+        label='Como o consentimento foi obtido', required=False, max_length=255,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ex.: assinou o termo no balcão em 12/03/2026',
+        }),
+        help_text='Obrigatório quando a autorização é marcada.',
+    )
+
     class Meta:
         model = PatientContact
         fields = [
@@ -375,11 +400,59 @@ class PatientContactForm(forms.ModelForm):
             'authority_evidence': 'Comprovação da representação',
         }
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['accepts_marketing'].initial = (
+                self.instance.marketing_opt_in_at is not None
+                and self.instance.marketing_opt_out_at is None
+            )
+            self.fields['marketing_opt_in_evidence'].initial = (
+                self.instance.marketing_opt_in_evidence
+            )
+
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get('phone') and not cleaned.get('email'):
             raise forms.ValidationError('Informe telefone ou e-mail.')
+        if cleaned.get('accepts_marketing'):
+            if not (cleaned.get('email') or '').strip():
+                self.add_error(
+                    'accepts_marketing',
+                    'Divulgação vai por e-mail; informe o endereço ou desmarque.',
+                )
+            if not (cleaned.get('marketing_opt_in_evidence') or '').strip():
+                self.add_error(
+                    'marketing_opt_in_evidence',
+                    'Registre como o consentimento foi obtido. Consentimento sem '
+                    'procedência não se demonstra depois.',
+                )
         return cleaned
+
+    def save(self, commit=True):
+        """Traduz o sim/não da tela em datas.
+
+        Marcar registra a data e limpa a revogação; desmarcar registra a
+        revogação e **preserva** a data original — apagá-la apagaria também
+        a prova de que o consentimento existiu quando as mensagens
+        anteriores foram enviadas.
+        """
+        from django.utils import timezone
+
+        contato = super().save(commit=False)
+        quer = self.cleaned_data.get('accepts_marketing')
+        contato.marketing_opt_in_evidence = (
+            self.cleaned_data.get('marketing_opt_in_evidence') or ''
+        )
+        if quer:
+            if contato.marketing_opt_in_at is None:
+                contato.marketing_opt_in_at = timezone.now()
+            contato.marketing_opt_out_at = None
+        elif contato.marketing_opt_in_at is not None and contato.marketing_opt_out_at is None:
+            contato.marketing_opt_out_at = timezone.now()
+        if commit:
+            contato.save()
+        return contato
 
 
 class PatientCoverageForm(forms.Form):

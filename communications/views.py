@@ -108,8 +108,9 @@ class DocumentAccessFileView(View):
         attachment = token.document.signed_pdf_attachment
         if attachment is None or attachment.scan_status != AttachmentScanStatus.AVAILABLE:
             return HttpResponse(status=404)
-        with open(attachment.storage_key, 'rb') as fh:
-            content = fh.read()
+        from documents.storage import read_bytes
+
+        content = read_bytes(attachment)
 
         baixar = request.GET.get('baixar') == '1'
         disposition = 'attachment' if baixar else 'inline'
@@ -127,3 +128,51 @@ class DocumentAccessFileView(View):
             object_type='medical_document', object_id=token.document_id, outcome='success',
         )
         return response
+
+
+class UnsubscribeView(View):
+    """Descadastro em um clique, sem conta e sem senha.
+
+    A LGPD (art. 8º, §5º) manda que revogar o consentimento seja tão fácil
+    quanto dá-lo. Exigir login, ou pedir para "responder este e-mail
+    escrevendo SAIR", é obstruir a revogação.
+
+    O `GET` confirma antes de agir: cliente de e-mail que pré-carrega links
+    descadastraria a pessoa sem ela ter clicado. Um botão a mais é barato;
+    descadastrar alguém que não pediu é perder o consentimento que a
+    clínica tinha.
+    """
+
+    template_name = 'communications/unsubscribe.html'
+
+    def _contact(self, token):
+        from patients.models import PatientContact
+
+        if not token or len(token) < 20:
+            return None
+        return PatientContact.objects.filter(
+            marketing_unsubscribe_token=token,
+        ).select_related('tenant').first()
+
+    def get(self, request, token):
+        contact = self._contact(token)
+        if contact is None:
+            return render(request, self.template_name, {'invalid': True}, status=404)
+        return render(request, self.template_name, {
+            'token': token,
+            'clinic': contact.tenant.trade_name or contact.tenant.legal_name,
+            'already': contact.marketing_opt_out_at is not None,
+        })
+
+    def post(self, request, token):
+        from .marketing import unsubscribe
+
+        contact = self._contact(token)
+        if contact is None:
+            return render(request, self.template_name, {'invalid': True}, status=404)
+        unsubscribe(contact, source='link')
+        return render(request, self.template_name, {
+            'token': token,
+            'clinic': contact.tenant.trade_name or contact.tenant.legal_name,
+            'done': True,
+        })

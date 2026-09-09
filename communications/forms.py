@@ -173,3 +173,61 @@ class EmailTestForm(forms.Form):
             'placeholder': 'seu-email@exemplo.com', 'autocomplete': 'off',
         }),
     )
+
+
+class MarketingCampaignForm(forms.ModelForm):
+    """Campanha de comunicação em massa.
+
+    O rodapé com o link de descadastro **não** é campo: é acrescentado no
+    envio. Quem escreve não deve poder removê-lo por esquecimento nem por
+    escolha — é ele que torna a revogação tão fácil quanto o consentimento.
+    """
+
+    class Meta:
+        from .models import MarketingCampaign
+
+        model = MarketingCampaign
+        fields = ['subject', 'body_text', 'per_minute']
+        labels = {
+            'subject': 'Assunto',
+            'body_text': 'Mensagem',
+            'per_minute': 'Envios por minuto',
+        }
+        help_texts = {
+            'subject': 'Aparece na caixa de entrada. Sem conteúdo clínico e sem o '
+                       'nome de quem recebe.',
+            'body_text': 'Texto simples. O rodapé com o link de descadastro é '
+                         'acrescentado automaticamente em toda mensagem.',
+            'per_minute': 'Comece baixo. Provedor que recebe um lote grande de um '
+                          'remetente novo trata as mensagens seguintes como spam, e '
+                          'recuperar a reputação de um domínio leva semanas.',
+        }
+        widgets = {
+            'subject': forms.TextInput(attrs={'placeholder': 'Ex.: Campanha de vacinação 2026'}),
+            'body_text': forms.Textarea(attrs={'rows': 12}),
+            'per_minute': forms.NumberInput(attrs={'min': 1, 'inputmode': 'numeric'}),
+        }
+
+    def clean_per_minute(self):
+        from .marketing import MAX_PER_MINUTE
+
+        valor = self.cleaned_data['per_minute']
+        if valor < 1:
+            raise forms.ValidationError('Informe ao menos 1 envio por minuto.')
+        if valor > MAX_PER_MINUTE:
+            raise forms.ValidationError(
+                f'O máximo é {MAX_PER_MINUTE} por minuto. Acima disso um erro de '
+                'configuração vira problema de reputação antes de alguém perceber.'
+            )
+        return valor
+
+    def clean_body_text(self):
+        texto = self.cleaned_data['body_text']
+        if 'descadastr' in texto.lower() or 'unsubscribe' in texto.lower():
+            # Aviso, não recusa: o texto pode citar o assunto legitimamente.
+            # O que não pode é a pessoa achar que precisa escrever o link.
+            self.add_error(None, forms.ValidationError(
+                'O link de descadastro é acrescentado automaticamente no rodapé — '
+                'não é preciso escrevê-lo. Confira se o texto não vai duplicá-lo.',
+            ))
+        return texto

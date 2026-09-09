@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Solicitações do portal — NeuroDoc{% endblock %}
+{% block page_title %}Solicitações do portal{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Solicitações do portal</li>
+{% endblock %}
+{% block content %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Aguardando revisão</h5>
+        <span class="badge bg-soft-warning text-warning">{{ open_requests|length }} em aberto</span>
+    </div>
+    <div class="card-body p-0">
+        {% if open_requests %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Paciente</th>
+                        <th scope="col">Pedido</th>
+                        <th scope="col">Quem preencheu</th>
+                        <th scope="col">Recebido</th>
+                        <th class="text-end pe-4" scope="col">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in open_requests %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="fw-semibold text-dark d-block">{{ req.patient.full_name }}</span>
+                            {% if req.patient.record_number %}
+                            <span class="fs-11 text-muted">Prontuário {{ req.patient.record_number }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ req.get_kind_display }}</td>
+                        <td>
+                            {% if req.requester_is_patient %}
+                            <span class="fs-12 text-muted">O próprio paciente</span>
+                            {% else %}
+                            <span class="fs-12">{{ req.requester_name }}</span>
+                            <span class="badge bg-soft-info text-info fs-10">terceiro</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12 text-muted">{{ req.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-end pe-4">
+                            <a class="btn btn-sm btn-light-primary"
+                               href="{% url 'documents:request-detail' req.id %}">Revisar</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted fs-13 mb-0 p-4">Nenhuma solicitação aguardando revisão.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Já respondidas</h5>
+    </div>
+    <div class="card-body p-0">
+        {% if closed_requests %}
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Paciente</th>
+                        <th scope="col">Pedido</th>
+                        <th scope="col">Desfecho</th>
+                        <th scope="col">Por</th>
+                        <th class="pe-4" scope="col">Quando</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for req in closed_requests %}
+                    <tr>
+                        <td class="ps-4">{{ req.patient.full_name }}</td>
+                        <td class="fs-12">{{ req.get_kind_display }}</td>
+                        <td>
+                            {% if req.resulting_document_id %}
+                            <a class="badge bg-soft-success text-success"
+                               href="{% url 'documents:medical-detail' req.resulting_document_id %}">
+                                Atendida — ver documento
+                            </a>
+                            {% else %}
+                            <span class="badge bg-soft-danger text-danger">Recusada</span>
+                            <span class="fs-11 text-muted d-block">{{ req.review_note }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12 text-muted">{{ req.reviewed_by.user.full_name|default:"—" }}</td>
+                        <td class="fs-12 text-muted pe-4">{{ req.reviewed_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted fs-13 mb-0 p-4">Nada respondido ainda.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

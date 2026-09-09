@@ -385,3 +385,181 @@ class ClinicEmailTestView(ManagerRequiredView):
             'e a de spam, que é onde remetente novo costuma cair.',
         )
         return redirect('messaging:settings')
+
+
+# --------------------------------------------------------------------------
+# Comunicação em massa
+# --------------------------------------------------------------------------
+
+class CampaignListView(ManagerRequiredView):
+    """Campanhas da clínica e o tamanho da base que consentiu."""
+
+    def get(self, request):
+        from .marketing import eligible_contacts
+        from .models import MarketingCampaign
+
+        tenant_id = request.access_context.tenant_id
+        campanhas = list(
+            MarketingCampaign.objects.filter(tenant_id=tenant_id)
+            .select_related('created_by__user')
+            .order_by('-created_at')[:50]
+        )
+        from patients.models import PatientContact
+
+        consentiram = eligible_contacts(tenant_id).count()
+        descadastrados = PatientContact.objects.filter(
+            tenant_id=tenant_id, marketing_opt_out_at__isnull=False,
+        ).count()
+        com_email = PatientContact.objects.filter(
+            tenant_id=tenant_id,
+        ).exclude(email='').count()
+        return render(request, 'communications/campaigns.html', {
+            'campaigns': campanhas,
+            'consented': consentiram,
+            'unsubscribed': descadastrados,
+            'with_email': com_email,
+            'without_consent': max(0, com_email - consentiram - descadastrados),
+        })
+
+
+class CampaignCreateView(ManagerRequiredView):
+    def get(self, request):
+        from .forms import MarketingCampaignForm
+
+        return render(request, 'communications/campaign_form.html', {
+            'form': MarketingCampaignForm(),
+        })
+
+    def post(self, request):
+        from .forms import MarketingCampaignForm
+        from .marketing import build_recipients
+
+        form = MarketingCampaignForm(request.POST)
+        if not form.is_valid():
+            return render(request, 'communications/campaign_form.html', {'form': form})
+        campaign = form.save(commit=False)
+        campaign.tenant_id = request.access_context.tenant_id
+        campaign.created_by = self.membership
+        campaign.save()
+        total = build_recipients(campaign)
+        record_audit_event(
+            request.user, campaign.tenant_id, 'communications.campaign_created',
+            object_type='marketing_campaign', object_id=campaign.id, outcome='success',
+            integrity_metadata={'recipients': total},
+        )
+        if not total:
+            messages.warning(
+                request,
+                'A campanha foi criada, mas nenhum contato consentiu em receber '
+                'comunicação em massa. Registre o consentimento na ficha do paciente '
+                'antes de disparar.',
+            )
+        else:
+            messages.success(request, f'Campanha criada com {total} destinatário(s).')
+        return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+
+
+class CampaignDetailView(ManagerRequiredView):
+    def _campaign(self, request, campaign_id):
+        from .models import MarketingCampaign
+
+        return get_object_or_404(
+            MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
+        )
+
+    def get(self, request, campaign_id):
+        from .models import RecipientStatus
+
+        campaign = self._campaign(request, campaign_id)
+        falhas = list(
+            campaign.recipients.filter(status=RecipientStatus.FAILED)
+            .select_related('contact__patient')[:50]
+        )
+        pulados = list(
+            campaign.recipients.filter(status=RecipientStatus.SKIPPED)
+            .select_related('contact__patient')[:50]
+        )
+        return render(request, 'communications/campaign_detail.html', {
+            'campaign': campaign, 'counts': campaign.counts,
+            'delivery_rate': campaign.delivery_rate,
+            'failed': falhas, 'skipped': pulados,
+        })
+
+
+class CampaignActionView(ManagerRequiredView):
+    """Disparar, pausar e retomar."""
+
+    def post(self, request, campaign_id, action):
+        from .marketing import CampaignBlocked, pause, start
+        from .models import CampaignStatus, MarketingCampaign
+
+        campaign = get_object_or_404(
+            MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
+        )
+        if action == 'pausar':
+            pause(campaign, request.user)
+            messages.success(
+                request,
+                'Campanha pausada. Quem já recebeu não recebe de novo ao retomar.',
+            )
+            return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+
+        if action not in ('disparar', 'retomar'):
+            raise Http404
+        try:
+            start(campaign, request.user)
+        except CampaignBlocked as exc:
+            messages.error(request, str(exc))
+            return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+        messages.success(
+            request,
+            f'Envio iniciado, {campaign.per_minute} mensagem(ns) por minuto. '
+            'Acompanhe a taxa de entrega nesta tela.',
+        )
+        return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+
+
+class CampaignTestView(ManagerRequiredView):
+    """Manda a campanha para um endereço só, antes do disparo.
+
+    Ver a mensagem como ela chega é a única forma de perceber o assunto
+    cortado, o link quebrado e o rodapé duplicado — e, depois de mil
+    pessoas receberem, não há como desfazer.
+    """
+
+    def post(self, request, campaign_id):
+        from .email import EmailSendFailed, send_email
+        from .forms import EmailTestForm
+        from .models import MarketingCampaign
+
+        campaign = get_object_or_404(
+            MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
+        )
+        form = EmailTestForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, 'Informe um endereço válido para o teste.')
+            return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+
+        destino = form.cleaned_data['to_email']
+        tenant = self.membership.tenant
+        nome = tenant.trade_name or tenant.legal_name
+        corpo = (
+            f'{campaign.body_text}\n\n'
+            '---\n'
+            f'Você recebeu esta mensagem porque autorizou {nome} a enviar comunicações.\n'
+            'Para não receber mais, acesse: (link de descadastro, individual por contato)\n'
+            'Esta é uma mensagem de divulgação. Para assuntos do seu atendimento, '
+            'use os canais de sempre da clínica.\n'
+        )
+        try:
+            send_email(destino, f'[TESTE] {campaign.subject}', corpo,
+                       tenant_id=campaign.tenant_id)
+        except EmailSendFailed as exc:
+            messages.error(request, f'O envio de teste falhou: {exc}')
+            return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+        messages.success(
+            request,
+            f'Teste enviado para {destino}. O rodapé real traz o link de descadastro '
+            'próprio de cada contato.',
+        )
+        return redirect('messaging:campaign-detail', campaign_id=campaign.id)

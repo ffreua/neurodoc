@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}{{ campaign.subject }} — NeuroDoc{% endblock %}
+{% block page_title %}Campanha{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'messaging:campaigns' %}">Campanhas</a></li>
+<li class="breadcrumb-item">{{ campaign.subject|truncatechars:40 }}</li>
+{% endblock %}
+{% block page_actions %}
+<span class="badge bg-soft-{{ campaign.status|nd_tone }} text-{{ campaign.status|nd_tone }} fs-12 px-3 py-2">
+    {{ campaign.get_status_display }}
+</span>
+{% endblock %}
+{% block content %}
+
+<div class="row g-4">
+    <div class="col-xxl-8 col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ campaign.subject }}</h5>
+            </div>
+            <div class="card-body">
+                <pre class="fs-13 text-dark mb-0" style="white-space:pre-wrap">{{ campaign.body_text }}</pre>
+            </div>
+        </div>
+
+        {% if failed %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Recusadas pelo servidor</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for row in failed %}
+                    <li class="list-group-item d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-dark">{{ row.email }}</span>
+                        <span class="fs-11 text-danger">{{ row.detail }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if skipped %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Não enviadas</h5>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for row in skipped %}
+                    <li class="list-group-item d-flex justify-content-between gap-2">
+                        <span class="fs-12 text-dark">{{ row.email }}</span>
+                        <span class="fs-11 text-muted">{{ row.detail }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-xxl-4 col-lg-5">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Entrega</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush mb-3">
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="fs-12 text-muted">Destinatários</span>
+                        <span class="fs-12 fw-semibold text-dark">{{ counts.total }}</span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="fs-12 text-muted">Na fila</span>
+                        <span class="fs-12 text-dark">{{ counts.pending|default:0 }}</span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="fs-12 text-muted">Aceitas pelo servidor</span>
+                        <span class="fs-12 text-success fw-semibold">{{ counts.sent|default:0 }}</span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="fs-12 text-muted">Recusadas</span>
+                        <span class="fs-12 text-danger">{{ counts.failed|default:0 }}</span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="fs-12 text-muted">Não enviadas</span>
+                        <span class="fs-12 text-dark">{{ counts.skipped|default:0 }}</span>
+                    </li>
+                    <li class="list-group-item px-0 d-flex justify-content-between">
+                        <span class="fs-12 text-muted">Ritmo</span>
+                        <span class="fs-12 text-dark">{{ campaign.per_minute }}/min</span>
+                    </li>
+                </ul>
+
+                {% if delivery_rate is not None %}
+                <div class="border rounded-3 p-3 bg-gray-100">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Taxa de entrega</span>
+                    <h4 class="fw-bold text-dark mb-0">{% widthratio delivery_rate 1 100 %}%</h4>
+                    {% comment %}O que este número é e o que não é. Aberto contra
+                    entregue é a confusão mais comum, e ela leva a decisões erradas
+                    sobre o texto da campanha.{% endcomment %}
+                    <span class="d-block fs-11 text-muted mt-1">
+                        Proporção que o servidor de e-mail aceitou, entre as já
+                        processadas. Não mede abertura: rastrear quando e de onde um
+                        paciente lê a mensagem seria vigilância sobre dado de saúde.
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Ações</h5>
+            </div>
+            <div class="card-body d-flex flex-column gap-2">
+                {% if campaign.status == 'draft' %}
+                <form method="post" action="{% url 'messaging:campaign-action' campaign.id 'disparar' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Disparar</button>
+                </form>
+                {% elif campaign.status == 'sending' %}
+                <form method="post" action="{% url 'messaging:campaign-action' campaign.id 'pausar' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light-warning w-100" data-nd-busy>Pausar</button>
+                </form>
+                <span class="fs-11 text-muted">
+                    Atualize a página para acompanhar. O envio segue no ritmo definido.
+                </span>
+                {% elif campaign.status == 'paused' %}
+                <form method="post" action="{% url 'messaging:campaign-action' campaign.id 'retomar' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Retomar</button>
+                </form>
+                <span class="fs-11 text-muted">Quem já recebeu não recebe de novo.</span>
+                {% else %}
+                <span class="fs-12 text-muted">
+                    Campanha concluída em {{ campaign.finished_at|date:"d/m/Y H:i" }}.
+                </span>
+                {% endif %}
+
+                {% if campaign.status == 'draft' %}
+                <form method="post" action="{% url 'messaging:campaign-test' campaign.id %}"
+                      class="border-top pt-3 mt-2" novalidate>
+                    {% csrf_token %}
+                    <label class="form-label fw-semibold fs-12" for="test-to">Enviar teste para</label>
+                    <input type="email" class="form-control form-control-sm" id="test-to"
+                           name="to_email" placeholder="seu-email@exemplo.com" autocomplete="off">
+                    <button type="submit" class="btn btn-light-success btn-sm w-100 mt-2" data-nd-busy>
+                        Enviar teste
+                    </button>
+                    <span class="d-block fs-11 text-muted mt-2">
+                        Ver a mensagem como ela chega é a única forma de perceber o
+                        assunto cortado ou o texto quebrado — e, depois de a campanha
+                        sair, não há como desfazer.
+                    </span>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

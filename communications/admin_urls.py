@@ -35,4 +35,14 @@ urlpatterns = [
         admin_views.ClinicEmailTestView.as_view(), name='test-clinic-email',
     ),
     path('mensageria/entregas/', admin_views.DeliveryLogView.as_view(), name='deliveries'),
+
+    # Comunicação em massa.
+    path('campanhas/', admin_views.CampaignListView.as_view(), name='campaigns'),
+    path('campanhas/nova/', admin_views.CampaignCreateView.as_view(), name='campaign-new'),
+    path('campanhas/<uuid:campaign_id>/', admin_views.CampaignDetailView.as_view(), name='campaign-detail'),
+    path('campanhas/<uuid:campaign_id>/testar/', admin_views.CampaignTestView.as_view(), name='campaign-test'),
+    path(
+        'campanhas/<uuid:campaign_id>/<str:action>/',
+        admin_views.CampaignActionView.as_view(), name='campaign-action',
+    ),
 ]

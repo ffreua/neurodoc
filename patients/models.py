@@ -240,9 +240,58 @@ class PatientContact(TenantModel):
     legal_authority = models.BooleanField(default=False)
     authority_evidence = models.CharField(max_length=255, blank=True)
 
+    # ------------------------------------------------ comunicação em massa
+    #
+    # Consentimento **próprio**, separado de tudo o mais neste modelo.
+    #
+    # `email_enabled` e `authorized_for_documents` autorizam mensagem
+    # transacional: a confirmação do horário que a pessoa marcou, a receita
+    # que ela pediu. Comunicação em massa é outra coisa e não se deduz
+    # daquelas: quem autorizou receber a própria receita não autorizou
+    # receber divulgação.
+    #
+    # E o dado aqui é sensível por natureza. Constar de uma lista de
+    # pacientes de uma clínica de neurologia revela condição de saúde — é
+    # dado sensível pela LGPD (art. 5º, II), e o art. 11, I exige
+    # consentimento **específico e destacado** para tratá-lo. Um caixa de
+    # seleção junto com outros dez não é destacado.
+    marketing_opt_in_at = models.DateTimeField(null=True, blank=True)
+    #: Como o consentimento foi obtido — "assinou no balcão em 12/03",
+    #: "marcou no formulário do site". Sem isso o consentimento é uma data
+    #: sem procedência, e não se demonstra o que não se sabe.
+    marketing_opt_in_evidence = models.CharField(max_length=255, blank=True)
+    marketing_opt_out_at = models.DateTimeField(null=True, blank=True)
+    #: Token do link de descadastro. Aleatório e por contato, para o
+    #: descadastro ser um clique — exigir que a pessoa faça login para parar
+    #: de receber e-mail é obstruir a revogação, que a LGPD garante ser tão
+    #: fácil quanto o consentimento (art. 8º, §5º).
+    marketing_unsubscribe_token = models.CharField(max_length=64, blank=True, db_index=True)
+
+    @property
+    def accepts_marketing(self):
+        """Se este contato pode receber comunicação em massa hoje.
+
+        Exige as quatro coisas juntas: e-mail, consentimento dado,
+        consentimento não revogado e contato ainda válido. Qualquer uma
+        faltando, o contato fica de fora — e a campanha registra por quê.
+        """
+        from django.utils import timezone
+
+        if not self.email or self.marketing_opt_in_at is None:
+            return False
+        if self.marketing_opt_out_at is not None:
+            return False
+        return self.valid_until is None or self.valid_until > timezone.now()
+
     def clean(self):
         if not self.phone and not self.email:
             raise ValidationError('A contact needs a phone or an e-mail')
+        if self.marketing_opt_in_at and not self.marketing_opt_in_evidence:
+            raise ValidationError({
+                'marketing_opt_in_evidence':
+                    'Registre como o consentimento foi obtido. Consentimento sem '
+                    'procedência não se demonstra depois.',
+            })
         if self.authorized_for_documents and not self.relationship:
             raise ValidationError({'relationship': 'A delivery contact needs a registered relationship'})
         if self.legal_authority and not self.authority_evidence:

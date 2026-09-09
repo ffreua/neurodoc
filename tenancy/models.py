@@ -148,6 +148,17 @@ class ClinicProfile(TenantModel):
     email = models.EmailField(max_length=254, blank=True)
     website = models.URLField(max_length=255, blank=True)
 
+    #: Portal público de solicitações do paciente.
+    #:
+    #: Desligado por padrão, e por clínica. Ligar publica um endereço que
+    #: qualquer pessoa alcança e que aceita CPF e data de nascimento — não
+    #: é algo que deva existir para uma clínica que não pediu.
+    patient_portal_enabled = models.BooleanField(default=False)
+    #: Aviso que a clínica quer exibir no portal: prazo de atendimento,
+    #: o que o portal não substitui, orientações da primeira consulta.
+    #: Fica com a clínica porque o prazo é dela.
+    patient_portal_notice = models.TextField(blank=True)
+
     updated_by = models.ForeignKey(
         'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

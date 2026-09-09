@@ -1,6 +1,10 @@
+import gzip
 import hashlib
+import io
 import os
+import tempfile
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
 
 from django.conf import settings
@@ -11,6 +15,11 @@ from .models import Attachment, AttachmentClassification, AttachmentScanStatus
 from .validators import validate_upload
 
 DEFAULT_TENANT_QUOTA_BYTES = 5 * 1024 * 1024 * 1024  # 5 GiB, overridable via Tenant.settings
+
+#: Sufixo do arquivo comprimido. Fica no `storage_key` porque é o que
+#: permite saber, olhando só a linha do banco, se o arquivo no disco está
+#: comprimido — sem abrir o disco para descobrir.
+COMPRESSED_SUFFIX = '.gz'
 
 
 class QuotaExceeded(Exception):
@@ -104,7 +113,61 @@ def reject_and_discard(attachment, reason):
 def open_for_read(attachment):
     if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
         raise PermissionError('Attachment is not available')
+    if is_compressed(attachment):
+        return io.BytesIO(read_bytes(attachment))
     return open(attachment.storage_key, 'rb')
+
+
+def is_compressed(attachment):
+    return bool(attachment.storage_key) and attachment.storage_key.endswith(COMPRESSED_SUFFIX)
+
+
+def read_bytes(attachment):
+    """Os bytes do arquivo, comprimido ou não.
+
+    Existe porque o arquivo passou a poder estar comprimido no disco
+    (`documents.archive`), e havia seis lugares abrindo `storage_key`
+    direto — a tela de download, o link do paciente, a pré-visualização, o
+    OCR e duas rotinas da IA. Um caminho de leitura só é o que faz a
+    compressão ser invisível para todos eles.
+
+    O que sai daqui são sempre os bytes originais: o mesmo SHA-256 que foi
+    gravado na emissão, e no caso do documento assinado os mesmos bytes que
+    a assinatura cobre.
+    """
+    if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
+        raise PermissionError('Attachment is not available')
+    if not attachment.storage_key:
+        raise FileNotFoundError('Attachment has no stored file')
+    if is_compressed(attachment):
+        with gzip.open(attachment.storage_key, 'rb') as fh:
+            return fh.read()
+    with open(attachment.storage_key, 'rb') as fh:
+        return fh.read()
+
+
+@contextmanager
+def local_path(attachment):
+    """Um caminho de arquivo real, para ferramenta externa.
+
+    `pdftoppm`, o OCR e a extração de texto recebem um caminho, não bytes.
+    Quando o arquivo está comprimido, o conteúdo é escrito num temporário
+    que some ao fim do bloco — e é por isso que isto é um gerenciador de
+    contexto, e não uma função que devolve um caminho: sem o fim do bloco
+    não haveria momento certo para apagar o temporário.
+    """
+    if not is_compressed(attachment):
+        yield attachment.storage_key
+        return
+    content = read_bytes(attachment)
+    suffix = Path(attachment.original_name).suffix or '.bin'
+    handle = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
+    try:
+        handle.write(content)
+        handle.close()
+        yield handle.name
+    finally:
+        Path(handle.name).unlink(missing_ok=True)
 
 
 def store_generated_attachment(tenant, patient, uploaded_by, content, original_name,

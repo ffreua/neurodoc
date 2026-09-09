@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}Comunicação em massa — NeuroDoc{% endblock %}
+{% block page_title %}Comunicação em massa{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Campanhas</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'messaging:settings' %}">Mensageria</a>
+<a class="btn btn-primary" href="{% url 'messaging:campaign-new' %}">Nova campanha</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}A base que consentiu vem antes das campanhas, e não depois.
+
+É o número que decide se faz sentido escrever alguma coisa — e é o que
+costuma surpreender: uma clínica com mil pacientes cadastrados pode ter
+doze que autorizaram divulgação. Descobrir isso depois de escrever a
+campanha é descobrir tarde.{% endcomment %}
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Podem receber</span>
+                <h3 class="fw-bold text-dark mb-0">{{ consented }}</h3>
+                <span class="fs-11 text-muted">contatos com consentimento registrado e não revogado</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Sem consentimento</span>
+                <h3 class="fw-bold text-dark mb-0">{{ without_consent }}</h3>
+                <span class="fs-11 text-muted">têm e-mail, mas nunca autorizaram divulgação</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Descadastrados</span>
+                <h3 class="fw-bold text-dark mb-0">{{ unsubscribed }}</h3>
+                <span class="fs-11 text-muted">pediram para não receber mais</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="alert alert-light fade show fs-12" role="alert">
+    <span class="fw-semibold d-block">Quem entra numa campanha</span>
+    Só o contato que autorizou receber divulgação, com o consentimento registrado
+    na ficha do paciente. Autorização para receber a própria receita ou a
+    confirmação do horário <strong>não</strong> vale aqui: constar da lista de
+    pacientes de uma clínica já revela condição de saúde, e a LGPD exige
+    consentimento específico e destacado para esse dado (art. 11, I).
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Campanhas</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Assunto</th>
+                        <th scope="col">Situação</th>
+                        <th scope="col">Destinatários</th>
+                        <th scope="col">Taxa de entrega</th>
+                        <th class="text-end pe-4" scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for campaign in campaigns %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="d-block fw-semibold text-dark">{{ campaign.subject }}</span>
+                            <span class="d-block fs-11 text-muted">
+                                {{ campaign.created_at|date:"d/m/Y H:i" }}
+                                {% if campaign.created_by %}
+                                · {{ campaign.created_by.user.get_full_name|default:campaign.created_by.user.email }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge bg-soft-{{ campaign.status|nd_tone }} text-{{ campaign.status|nd_tone }}">
+                                {{ campaign.get_status_display }}
+                            </span>
+                        </td>
+                        <td class="fs-12 text-dark">{{ campaign.counts.total }}</td>
+                        <td class="fs-12 text-dark">
+                            {% if campaign.delivery_rate is not None %}
+                            {% widthratio campaign.delivery_rate 1 100 %}%
+                            {% else %}—{% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <a class="btn btn-sm btn-light"
+                               href="{% url 'messaging:campaign-detail' campaign.id %}">Abrir</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4 fs-12">
+                            Nenhuma campanha criada.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

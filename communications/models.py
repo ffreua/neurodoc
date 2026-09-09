@@ -274,3 +274,122 @@ class DoctorEmailSettings(TenantModel):
 
     def __str__(self):
         return f'e-mail de {self.physician_membership_id} ({self.from_email or "sem remetente"})'
+
+
+class CampaignStatus(models.TextChoices):
+    DRAFT = 'draft', 'Rascunho'
+    SENDING = 'sending', 'Enviando'
+    PAUSED = 'paused', 'Pausada'
+    SENT = 'sent', 'Concluída'
+    CANCELLED = 'cancelled', 'Cancelada'
+
+
+class MarketingCampaign(TenantModel):
+    """Comunicação em massa da clínica, com registro do que saiu.
+
+    Existe sob restrições que não são detalhe de implementação:
+
+    - **Só vai para quem consentiu.** A lista de destinatários é congelada
+      na criação a partir dos contatos com `marketing_opt_in_at`, e o
+      consentimento é reconferido no instante do envio — alguém que se
+      descadastrou entre a criação e o disparo não recebe.
+    - **Toda mensagem leva link de descadastro.** Não é opção da tela: é
+      acrescentado no envio, e uma campanha sem ele não sai.
+    - **Ritmo controlado.** `per_minute` limita quantos e-mails saem por
+      minuto, para não derrubar o servidor SMTP nem queimar a reputação do
+      domínio — provedor que recebe mil mensagens de uma vez de um
+      remetente novo trata as próximas como spam.
+
+    O que **não** se mede aqui é abertura. Pixel de rastreamento numa
+    mensagem a paciente registraria quando e de onde ele leu, o que é
+    vigilância sobre dado de saúde para responder a uma pergunta de
+    marketing. A taxa medida é a de **entrega** — o que o servidor aceitou
+    e o que ele recusou —, que é o que responde "a mensagem saiu?".
+    """
+
+    subject = models.CharField(max_length=200)
+    body_text = models.TextField()
+    status = models.CharField(max_length=20, choices=CampaignStatus.choices, default=CampaignStatus.DRAFT)
+    #: Mensagens por minuto. O padrão é conservador de propósito: é mais
+    #: fácil aumentar depois de ver o servidor aguentando do que recuperar
+    #: um domínio marcado como spam.
+    per_minute = models.PositiveSmallIntegerField(default=20)
+    created_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(TenantModel.Meta):
+        indexes = [
+            models.Index(fields=['tenant', 'status'], name='comm_campaign_status_idx'),
+        ]
+
+    @property
+    def counts(self):
+        rows = self.recipients.values_list('status', flat=True)
+        total = 0
+        by_status = {}
+        for value in rows:
+            total += 1
+            by_status[value] = by_status.get(value, 0) + 1
+        return {'total': total, **by_status}
+
+    @property
+    def delivery_rate(self):
+        """Proporção aceita pelo servidor, entre as já processadas.
+
+        Divide pelo que foi tentado, e não pelo total: uma campanha no meio
+        do envio mostraria taxa caindo à medida que avança, o que faria o
+        número parecer um problema quando é só progresso.
+        """
+        counts = self.counts
+        enviadas = counts.get(RecipientStatus.SENT, 0)
+        falhas = counts.get(RecipientStatus.FAILED, 0)
+        processadas = enviadas + falhas
+        if not processadas:
+            return None
+        return enviadas / processadas
+
+    def __str__(self):
+        return f'{self.subject} ({self.get_status_display()})'
+
+
+class RecipientStatus(models.TextChoices):
+    PENDING = 'pending', 'Na fila'
+    SENT = 'sent', 'Aceita pelo servidor'
+    FAILED = 'failed', 'Recusada'
+    SKIPPED = 'skipped', 'Não enviada'
+
+
+class MarketingRecipient(TenantModel):
+    """Um destinatário de uma campanha, com o que aconteceu com ele.
+
+    Uma linha por contato, criada quando a campanha é montada. É o que
+    permite responder depois "esta pessoa recebeu?" sem depender de log do
+    servidor de e-mail, e é o que impede o reenvio de duplicar mensagem:
+    quem já está `sent` não é processado de novo.
+    """
+
+    campaign = models.ForeignKey(MarketingCampaign, on_delete=models.CASCADE, related_name='recipients')
+    contact = models.ForeignKey('patients.PatientContact', on_delete=models.PROTECT, related_name='+')
+    #: Cópia do endereço no momento do envio. O contato pode mudar de
+    #: e-mail depois, e o registro tem de dizer para onde a mensagem foi de
+    #: fato — não para onde iria hoje.
+    email = models.EmailField(max_length=254)
+    status = models.CharField(max_length=20, choices=RecipientStatus.choices, default=RecipientStatus.PENDING)
+    sent_at = models.DateTimeField(null=True, blank=True)
+    detail = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(
+                fields=['campaign', 'contact'], name='comm_marketingrecipient_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['campaign', 'status'], name='comm_recipient_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.email} ({self.status})'

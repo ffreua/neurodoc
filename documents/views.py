@@ -18,7 +18,7 @@ from .models import (
 from .preview import PreviewUnavailable, render_preview_png
 from .retention import soft_delete_attachment
 from .signing import InvalidPfxPassword
-from .storage import QuotaExceeded, receive_upload
+from .storage import QuotaExceeded, read_bytes, receive_upload
 from .tasks import scan_attachment
 from .validators import UploadRejected
 
@@ -124,7 +124,7 @@ class AttachmentDownloadView(TenantScopedView):
             request.user, request.access_context.tenant_id, 'documents.attachment_downloaded',
             object_type='attachment', object_id=attachment.id, outcome='success',
         )
-        response = HttpResponse(open(attachment.storage_key, 'rb').read(), content_type=attachment.mime)
+        response = HttpResponse(read_bytes(attachment), content_type=attachment.mime)
         response['Content-Disposition'] = f'attachment; filename="{attachment.original_name}"'
         response['Cache-Control'] = 'private, no-store'
         return response

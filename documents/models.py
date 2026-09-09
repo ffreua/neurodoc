@@ -172,3 +172,74 @@ class SigningSession(TenantModel):
 
     def __str__(self):
         return f'session {self.id} ({self.physician_id})'
+
+
+class DocumentRequestKind(models.TextChoices):
+    PRESCRIPTION_SIMPLE = 'prescription_simple', 'Receita simples'
+    PRESCRIPTION_SPECIAL = 'prescription_special', 'Receita de controle especial'
+    REPORT = 'report', 'Relatório médico'
+    EXAMS = 'exams', 'Pedido de exames'
+
+
+class DocumentRequestStatus(models.TextChoices):
+    RECEIVED = 'received', 'Recebida'
+    IN_REVIEW = 'in_review', 'Em revisão'
+    FULFILLED = 'fulfilled', 'Atendida'
+    DECLINED = 'declined', 'Recusada'
+
+
+class DocumentRequest(TenantModel):
+    """Pedido feito pelo paciente no portal público.
+
+    É **pedido**, não documento. Nada aqui vale como receita, laudo ou
+    encaminhamento: o paciente descreve o que precisa, e o médico decide o
+    que emitir — inclusive não emitir. A distinção não é formalidade; um
+    sistema em que o paciente escreve a própria prescrição e o sistema a
+    imprime não é um prontuário.
+
+    O conteúdo fica em `payload` porque cada tipo pede coisas diferentes —
+    lista de medicações, finalidade do relatório, exames — e colunas
+    separadas para cada uma deixariam a tabela com metade dos campos
+    sempre vazios.
+
+    O consentimento de tratamento dos dados é registrado no ato: quem
+    preencheu confirmou, quando, e sob qual versão do aviso.
+    """
+
+    patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='document_requests')
+    kind = models.CharField(max_length=40, choices=DocumentRequestKind.choices)
+    #: Quem preencheu. O paciente costuma ser, mas filho e cuidador também
+    #: pedem — e saber quem pediu importa quando o conteúdo estranha.
+    requester_name = models.CharField(max_length=255)
+    requester_is_patient = models.BooleanField(default=True)
+    payload = models.JSONField(default=dict, blank=True)
+
+    status = models.CharField(
+        max_length=20, choices=DocumentRequestStatus.choices, default=DocumentRequestStatus.RECEIVED,
+    )
+    reviewed_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    review_note = models.CharField(max_length=500, blank=True)
+    #: O documento que nasceu deste pedido, quando nasceu.
+    resulting_document = models.ForeignKey(
+        MedicalDocument, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+
+    privacy_ack_at = models.DateTimeField(null=True, blank=True)
+    privacy_notice_version = models.CharField(max_length=20, blank=True)
+    #: IP protegido, como no resto do sistema — nunca em texto claro.
+    origin_ip_protected = models.CharField(max_length=64, blank=True)
+
+    class Meta(TenantModel.Meta):
+        indexes = [
+            models.Index(fields=['tenant', 'status'], name='documents_request_status_idx'),
+        ]
+
+    @property
+    def is_open(self):
+        return self.status in (DocumentRequestStatus.RECEIVED, DocumentRequestStatus.IN_REVIEW)
+
+    def __str__(self):
+        return f'{self.get_kind_display()} — {self.patient_id} ({self.status})'

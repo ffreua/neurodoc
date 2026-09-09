@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Solicitação de {{ req.patient.full_name }} — NeuroDoc{% endblock %}
+{% block page_title %}Revisar solicitação{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'documents:request-queue' %}">Solicitações do portal</a></li>
+<li class="breadcrumb-item">{{ req.patient.full_name }}</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'documents:request-queue' %}">Voltar à fila</a>
+<a class="btn btn-light-primary" href="{% url 'patients:detail' req.patient.id %}">Abrir prontuário</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}O aviso vem antes do conteúdo, e não depois: o texto abaixo foi
+escrito pelo paciente, e lê-lo como se fosse anamnese é o erro que este
+recurso mais facilita.{% endcomment %}
+<div class="alert alert-warning fade show fs-13" role="alert">
+    <span class="fw-semibold d-block">Este texto foi escrito pelo paciente.</span>
+    Não é anamnese nem prescrição: é o que ele diz precisar. Confira no prontuário
+    antes de emitir qualquer documento.
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">{{ req.get_kind_display }}</h5>
+                <span class="badge bg-soft-warning text-warning">{{ req.get_status_display }}</span>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm align-middle mb-0">
+                    <tbody>
+                        {% for rotulo, valor in items %}
+                        <tr>
+                            <th class="text-muted fw-medium wd-200">{{ rotulo|default:"—" }}</th>
+                            <td class="text-dark">{{ valor|default:"—"|linebreaksbr }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td class="text-muted">Sem conteúdo informado.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Origem</h5></div>
+            <div class="card-body fs-13">
+                <p class="mb-1"><span class="text-muted">Paciente:</span>
+                    <span class="fw-semibold text-dark">{{ req.patient.full_name }}</span></p>
+                {% if req.patient.record_number %}
+                <p class="mb-1"><span class="text-muted">Prontuário:</span> {{ req.patient.record_number }}</p>
+                {% endif %}
+                <p class="mb-1"><span class="text-muted">Preenchido por:</span>
+                    {% if req.requester_is_patient %}o próprio paciente
+                    {% else %}{{ req.requester_name }} (terceiro){% endif %}</p>
+                <p class="mb-1"><span class="text-muted">Recebido em:</span>
+                    {{ req.created_at|date:"d/m/Y H:i" }}</p>
+                <p class="mb-0"><span class="text-muted">Aceite de privacidade:</span>
+                    {{ req.privacy_ack_at|date:"d/m/Y H:i"|default:"—" }}
+                    <span class="fs-11 text-muted">({{ req.privacy_notice_version|default:"—" }})</span></p>
+            </div>
+        </div>
+
+        {% if req.is_open %}
+        {% if can_draft %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Atender</h5></div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    Cria um <strong>rascunho</strong> do documento com o texto do paciente como
+                    ponto de partida. Nada é assinado agora: você revisa, corrige e assina na
+                    tela do documento.
+                </p>
+                <form method="post" action="{% url 'documents:request-action' req.id 'rascunho' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>
+                        Criar rascunho a partir do pedido
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Recusar</h5></div>
+            <div class="card-body">
+                <form method="post" action="{% url 'documents:request-action' req.id 'recusar' %}">
+                    {% csrf_token %}
+                    <label class="form-label fw-semibold fs-13" for="note">Motivo</label>
+                    <textarea class="form-control mb-3" id="note" name="note" rows="3"
+                              placeholder="Ex.: a medicação precisa de reavaliação em consulta."></textarea>
+                    <span class="fs-11 text-muted d-block mb-3">
+                        Fica registrado no pedido e na auditoria. A clínica avisa o paciente
+                        pelos canais habituais.
+                    </span>
+                    <button type="submit" class="btn btn-light-danger w-100" data-nd-busy>
+                        Recusar solicitação
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-light fs-13 mb-0" role="alert">
+            Você pode ler a solicitação, mas só um vínculo médico pode atendê-la ou recusá-la.
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Desfecho</h5></div>
+            <div class="card-body fs-13">
+                <p class="mb-1"><span class="text-muted">Situação:</span>
+                    {{ req.get_status_display }}</p>
+                <p class="mb-1"><span class="text-muted">Por:</span>
+                    {{ req.reviewed_by.user.full_name|default:"—" }}
+                    em {{ req.reviewed_at|date:"d/m/Y H:i" }}</p>
+                {% if req.review_note %}
+                <p class="mb-1"><span class="text-muted">Motivo:</span> {{ req.review_note }}</p>
+                {% endif %}
+                {% if req.resulting_document_id %}
+                <a class="btn btn-sm btn-light-primary mt-2"
+                   href="{% url 'documents:medical-detail' req.resulting_document_id %}">
+                    Abrir o documento gerado
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

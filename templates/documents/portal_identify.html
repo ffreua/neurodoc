@@ -1,0 +1,61 @@
+{% extends "base_auth.html" %}
+{% block title %}Solicitações — {{ clinic_name }}{% endblock %}
+{% block card_width %}wd-550{% endblock %}
+{% block tagline %}{{ clinic_name }}{% endblock %}
+{% block heading %}Solicitar receita, relatório ou pedido de exames{% endblock %}
+{% block subheading %}
+Para começar, confirme quem é o paciente. Esta página não mostra prontuário,
+resultado de exame nem histórico — ela serve para <strong>pedir</strong>, e
+quem decide o que emitir é o médico.
+{% endblock %}
+{% block content %}
+
+{% if notice %}
+<div class="alert alert-primary fade show fs-13" role="alert">{{ notice|linebreaksbr }}</div>
+{% endif %}
+
+{% if error %}
+<div class="alert alert-warning fade show fs-13" role="alert">{{ error }}</div>
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="mb-3">
+        <label class="form-label fw-semibold" for="cpf">CPF do paciente</label>
+        <input type="text" class="form-control" id="cpf" name="cpf" inputmode="numeric"
+               autocomplete="off" spellcheck="false" placeholder="Somente números" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label fw-semibold" for="birth_date">Data de nascimento do paciente</label>
+        <input type="date" class="form-control" id="birth_date" name="birth_date" required>
+        <span class="fs-11 text-muted">
+            Se quem está preenchendo é um familiar ou cuidador, use mesmo assim os
+            dados do paciente. Você se identifica na próxima etapa.
+        </span>
+    </div>
+
+    {% comment %}O aceite fica no formulário, e não num rodapé: a base legal do
+    tratamento destes dados é o consentimento específico do titular (LGPD art.
+    11, I), e consentimento presumido por navegação não é consentimento.
+    A versão aceita fica gravada no pedido.{% endcomment %}
+    <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" value="1" id="privacy_ack" name="privacy_ack" required>
+        <label class="form-check-label fs-12" for="privacy_ack">
+            Estou ciente de que os dados informados aqui, incluindo dados de saúde,
+            serão tratados por <strong>{{ clinic_name }}</strong> com a finalidade de
+            atender a esta solicitação, e ficarão guardados no prontuário pelo prazo
+            legal. Posso pedir acesso, correção ou informações sobre esse tratamento
+            diretamente à clínica.
+            <span class="text-muted d-block">Versão do aviso: {{ privacy_version }}</span>
+        </label>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Continuar</button>
+</form>
+
+<p class="fs-11 text-muted mt-4 mb-0">
+    Em caso de urgência, não use este formulário: procure atendimento ou ligue
+    para a clínica. Os pedidos feitos aqui são lidos em horário de expediente.
+</p>
+
+{% endblock %}

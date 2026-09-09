@@ -5095,14 +5095,82 @@ segundo paciente. Antes, trocar de organização abria uma agenda vazia sem
 menu de administração — indistinguível, para quem olha, de funcionalidade
 que não chegou àquela clínica.
 
-### 25.12 Pendências
+### 25.12 Arquivo e retenção
 
-- **G8 — Arquivo e retenção**: compactação trimestral e expurgo aos 20 anos.
-- **G9 — E-mail marketing**: campanhas, taxa de envio por tempo e métricas
-  de entrega.
-- **G10 — Portal de solicitações do paciente**: equivalente Django do
-  `portal-solicitacoes-medica`, com identificação por CPF e data de
-  nascimento, triagem e revisão médica.
+Compactação e expurgo do que já foi enviado ao paciente
+(`documents/archive.py`, `documents/storage.py`).
+
+- **Compactação aos 90 dias.** `compact_attachment` recomprime o arquivo em
+  `gzip` nível 9, confere o SHA-256 do conteúdo descomprimido contra o
+  original e só então apaga o arquivo antigo. Sem a conferência, um erro de
+  escrita trocaria um PDF íntegro por um `.gz` corrompido sem ninguém notar
+  até o dia em que alguém pedisse a segunda via.
+- **Leitura unificada.** `storage.read_bytes` e `storage.local_path`
+  descomprimem quando preciso, de modo que nenhum chamador precise saber se
+  aquele anexo já passou pela compactação. Arquivos abaixo de 4 KB não são
+  tocados: o cabeçalho do `gzip` custaria mais do que economiza.
+- **Expurgo aos 20 anos, não aos 5.** A premissa inicial (LGPD, 5 anos)
+  estava errada e foi corrigida antes de virar código — ver 25.10. O
+  comando `retention_report` lista o que vence, e o expurgo permanece
+  manual: apagar prontuário é decisão do responsável técnico, não de um
+  `cron`.
+
+### 25.13 Comunicação em massa
+
+Campanhas por e-mail (`communications/marketing.py`), com as salvaguardas
+que as tornam admissíveis.
+
+- **Consentimento antes da lista.** `eligible_contacts` só devolve contato
+  com `marketing_opt_in_at` preenchido e sem `marketing_opt_out_at`. O
+  consentimento guarda também a procedência (`marketing_opt_in_evidence`) —
+  provar consentimento exige saber *como* ele foi dado.
+- **Lista congelada na criação.** `build_recipients` grava os destinatários
+  no momento em que a campanha nasce. Uma lista recalculada no disparo
+  incluiria quem se cadastrou depois de a campanha ser aprovada.
+- **Rodapé não editável.** `_body_with_footer` acrescenta a todas as
+  mensagens a razão pela qual a pessoa recebeu, o link de descadastro e a
+  separação explícita entre divulgação e atendimento.
+- **Descadastro em um clique, sem conta.** `POST` em
+  `/descadastrar/<token>/`; o `GET` apenas pede confirmação, porque cliente
+  de e-mail pré-carrega links e descadastraria sozinho. O opt-in original
+  **não** é apagado: ele é a prova de que o envio foi legítimo.
+- **Ritmo por minuto**, teto de 120, e recusa de disparo quando a clínica
+  não tem servidor de e-mail próprio configurado.
+
+### 25.14 Portal de solicitações do paciente
+
+Equivalente Django do `portal-solicitacoes-medica`
+(`documents/portal.py`, `portal_views.py`, `request_views.py`).
+
+- **Publicação por clínica, desligada por padrão.**
+  `ClinicProfile.patient_portal_enabled`. Enquanto desligado,
+  `/solicitacoes/<slug>/` responde 404 — a diferença entre "não existe" e
+  "existe e está fechado" já seria informação sobre a clínica.
+- **A identificação não pode virar oráculo de CPF.** CPF **e** data de
+  nascimento juntos; resposta idêntica para CPF inexistente, data errada e
+  CPF inválido; limite de 8 tentativas por IP por 15 minutos. Um formulário
+  que respondesse "encontrado"/"não encontrado" permitiria, com uma lista
+  de CPFs, descobrir quem é paciente de uma clínica de neurologia — e isso
+  é dado de saúde.
+- **O portal não mostra prontuário.** Ele aceita pedido. Não lista receitas
+  anteriores nem confirma nada sobre o tratamento; para isso existe o link
+  do documento, que tem prova de identidade própria.
+- **Sessão de 30 minutos, encerrada no envio.** O computador compartilhado
+  não fica com uma identificação viva capaz de pedir receita em nome de
+  alguém.
+- **Consentimento versionado.** `privacy_notice_version` fica gravado no
+  pedido: demonstrar consentimento exige saber *a que* a pessoa consentiu.
+  O IP de origem é guardado protegido, como no resto do sistema.
+- **Pedido nunca é documento.** `DocumentRequest` entra numa fila que exige
+  capacidade clínica. O médico recusa com motivo registrado, ou gera um
+  **rascunho** — que nasce sem número, com a tarja de rascunho, e segue o
+  fluxo normal de revisão e assinatura. O texto do paciente é copiado como
+  ponto de partida e a tela avisa, antes do conteúdo, quem o escreveu.
+- **Despublicar não apaga o que já chegou**, e a fila continua alcançável
+  pelo menu enquanto houver pedido pendente.
+
+### 25.15 Pendências
+
 - **`PatientAccessGrant`**: escopo clínico por paciente, ainda não modelado.
 - **Delegação de capacidades**: as células "A se delegado" da seção 4 são
   hoje concedidas por padrão.

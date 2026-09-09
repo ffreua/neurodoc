@@ -146,6 +146,39 @@ class ClinicProfileForm(forms.ModelForm):
         return (self.cleaned_data.get('state') or '').upper()
 
 
+class ClinicPortalForm(forms.ModelForm):
+    """Publicação do portal de solicitações.
+
+    Separado do cabeçalho do documento porque as duas telas fazem coisas de
+    natureza diferente. Trocar o CEP corrige uma impressão; ligar o portal
+    publica na internet um endereço que aceita CPF e data de nascimento de
+    pacientes. Misturar as duas coisas num botão "Salvar" só faz a segunda
+    acontecer por acidente.
+    """
+
+    class Meta:
+        model = ClinicProfile
+        fields = ['patient_portal_enabled', 'patient_portal_notice']
+        labels = {
+            'patient_portal_enabled': 'Publicar o portal de solicitações',
+            'patient_portal_notice': 'Aviso exibido no portal',
+        }
+        help_texts = {
+            'patient_portal_enabled': 'Enquanto estiver desligado, o endereço responde '
+                                      'como inexistente — nem a existência da clínica é '
+                                      'confirmada a quem o acessa.',
+            'patient_portal_notice': 'Prazo de resposta, o que este canal não atende, '
+                                     'orientações. Aparece antes do formulário.',
+        }
+        widgets = {
+            'patient_portal_notice': forms.Textarea(attrs={
+                'rows': 3,
+                'placeholder': 'Ex.: pedidos são respondidos em até 3 dias úteis. '
+                               'Este canal não atende urgências.',
+            }),
+        }
+
+
 class AcceptInvitationAccountForm(forms.Form):
     email = forms.EmailField(label='E-mail')
     password = forms.CharField(label='Senha', widget=forms.PasswordInput)

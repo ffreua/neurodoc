@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.urls import include, path
 
+from communications.views import UnsubscribeView
 from documents.verification import DocumentVerificationView
 from ops.docs import technical_docs
 
@@ -29,7 +30,11 @@ urlpatterns = [
     # Verificação pública de documento — é o destino do QR impresso na
     # receita. Fica na raiz, e não sob `/app/`, porque quem a abre está na
     # farmácia e não tem conta neste sistema.
+    # Descadastro de comunicação em massa — público, um clique, sem conta.
+    path('descadastrar/<str:token>/', UnsubscribeView.as_view(), name='marketing-unsubscribe'),
     path('verificar/', DocumentVerificationView.as_view(), name='verify-document'),
     path('verificar/<str:token>/', DocumentVerificationView.as_view(), name='verify-document-token'),
+    # Portal de solicitações do paciente — público, por clínica.
+    path('solicitacoes/', include('documents.portal_urls')),
     path('', include('base.urls')),
 ]

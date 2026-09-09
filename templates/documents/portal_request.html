@@ -1,0 +1,150 @@
+{% extends "base_auth.html" %}
+{% block title %}Solicitação — {{ clinic_name }}{% endblock %}
+{% block card_width %}wd-700{% endblock %}
+{% block tagline %}{{ clinic_name }}{% endblock %}
+{% block heading %}O que você precisa?{% endblock %}
+{% block subheading %}
+Paciente identificado: <strong>{{ patient.full_name }}</strong>.
+Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e vindas.
+{% endblock %}
+{% block content %}
+
+{% if error %}
+<div class="alert alert-warning fade show fs-13" role="alert">{{ error }}</div>
+{% endif %}
+
+<form method="post" novalidate id="portal-form">
+    {% csrf_token %}
+
+    <div class="mb-4">
+        <label class="form-label fw-semibold" for="kind">Tipo de solicitação</label>
+        <select class="form-select" id="kind" name="kind" required>
+            <option value="">Selecione…</option>
+            {% for value, label in kinds %}
+            <option value="{{ value }}">{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div class="mb-4">
+        <label class="form-label fw-semibold">Quem está preenchendo</label>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="requester" id="req-self"
+                   value="self" checked>
+            <label class="form-check-label" for="req-self">O próprio paciente</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="requester" id="req-other" value="other">
+            <label class="form-check-label" for="req-other">Familiar, cuidador ou responsável</label>
+        </div>
+        <input type="text" class="form-control mt-2" name="requester_name" id="requester_name"
+               placeholder="Nome de quem está preenchendo" hidden>
+    </div>
+
+    {% comment %}Cada tipo mostra só os seus campos. O agrupamento é por
+    atributo, e não por uma cadeia de condições no template, porque a mesma
+    regra precisa valer para o JS que esconde e para a leitura de quem
+    mantém isto depois.{% endcomment %}
+    <div data-portal-kind="prescription_simple prescription_special" hidden>
+        <h6 class="fw-bold text-dark">Medicações</h6>
+        <p class="fs-12 text-muted">
+            Escreva exatamente como está na caixa e como você usa. Se não souber a
+            dose, escreva o que sabe — o médico confere no prontuário.
+        </p>
+        <div id="med-rows">
+            <div class="row g-2 mb-2 med-row">
+                <div class="col-sm-5">
+                    <input type="text" class="form-control" name="med_name" placeholder="Nome do medicamento">
+                </div>
+                <div class="col-sm-3">
+                    <input type="text" class="form-control" name="med_dose" placeholder="Dose (ex.: 50 mg)">
+                </div>
+                <div class="col-sm-4">
+                    <input type="text" class="form-control" name="med_usage" placeholder="Como usa (ex.: 1 cp à noite)">
+                </div>
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-light-primary mb-4" id="add-med">
+            + Adicionar medicação
+        </button>
+        <div class="alert alert-warning fade show fs-12" data-portal-kind="prescription_special" hidden>
+            A receita de controle especial (tarja preta e alguns de tarja vermelha)
+            exige o endereço completo no cadastro e só pode ser retirada na clínica
+            ou enviada conforme orientação da equipe.
+        </div>
+    </div>
+
+    <div data-portal-kind="report" hidden>
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="purpose">Finalidade do relatório</label>
+            <select class="form-select" id="purpose" name="purpose">
+                <option value="">Selecione…</option>
+                {% for p in purposes %}
+                <option value="{{ p }}">{{ p }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="mb-4">
+            <label class="form-label fw-semibold" for="content">O que precisa constar</label>
+            <textarea class="form-control" id="content" name="content" rows="5"
+                      placeholder="Ex.: quem pediu o relatório, para qual instituição, e o que ela exige que esteja escrito."></textarea>
+        </div>
+    </div>
+
+    <div data-portal-kind="exams" hidden>
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="exams">Exames necessários</label>
+            <textarea class="form-control" id="exams" name="exams" rows="4"
+                      placeholder="Um exame por linha."></textarea>
+        </div>
+        <div class="mb-4">
+            <label class="form-label fw-semibold" for="exam_note">Observação (opcional)</label>
+            <textarea class="form-control" id="exam_note" name="exam_note" rows="3"
+                      placeholder="Ex.: convênio exige guia específica, ou o laboratório pediu repetição."></textarea>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Enviar solicitação</button>
+</form>
+
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    var form = document.getElementById('portal-form');
+    if (!form) { return; }
+
+    // Mostra apenas os blocos do tipo escolhido. Sem isto, o paciente vê
+    // campos de relatorio ao pedir receita e preenche o que nao sera lido.
+    var groups = form.querySelectorAll('[data-portal-kind]');
+    var kind = document.getElementById('kind');
+    function sync() {
+        var atual = kind.value;
+        groups.forEach(function (g) {
+            var aceita = g.getAttribute('data-portal-kind').split(' ');
+            g.hidden = aceita.indexOf(atual) === -1;
+        });
+    }
+    kind.addEventListener('change', sync);
+    sync();
+
+    var nome = document.getElementById('requester_name');
+    form.querySelectorAll('input[name="requester"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            nome.hidden = (form.querySelector('input[name="requester"]:checked').value !== 'other');
+        });
+    });
+
+    var rows = document.getElementById('med-rows');
+    var add = document.getElementById('add-med');
+    if (add) {
+        add.addEventListener('click', function () {
+            if (rows.querySelectorAll('.med-row').length >= 20) { return; }
+            var copia = rows.querySelector('.med-row').cloneNode(true);
+            copia.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+            rows.appendChild(copia);
+        });
+    }
+})();
+</script>
+{% endblock %}

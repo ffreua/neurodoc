@@ -87,5 +87,45 @@
             </div>
         </div>
     </div>
+
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Portal de solicitações do paciente</h5>
+                {% if profile.patient_portal_enabled %}
+                <span class="badge bg-soft-success text-success">Publicado</span>
+                {% else %}
+                <span class="badge bg-soft-secondary text-secondary">Não publicado</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13 text-muted">
+                    Um endereço público onde o paciente pede receita, relatório ou exames.
+                    Ele se identifica com CPF e data de nascimento, descreve o que precisa,
+                    e o pedido entra numa fila que o médico revisa. O portal
+                    <strong>não mostra prontuário</strong> e nada emitido sai dele sem que
+                    um médico assine.
+                </p>
+
+                {% if profile.patient_portal_enabled %}
+                <div class="alert alert-light fade show fs-12" role="alert">
+                    <span class="fw-semibold d-block">Endereço para divulgar aos pacientes</span>
+                    <code class="fs-13">{{ portal_url }}</code>
+                </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'tenancy:clinic-portal' %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" with form=portal_form %}
+                    <button type="submit" class="btn btn-primary" data-nd-busy>
+                        Salvar configuração do portal
+                    </button>
+                    <a class="btn btn-light ms-2" href="{% url 'documents:request-queue' %}">
+                        Ver a fila de solicitações
+                    </a>
+                </form>
+            </div>
+        </div>
+    </div>
 </div>
 {% endblock %}
