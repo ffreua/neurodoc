@@ -49,10 +49,25 @@ call_command('create_superadmin', EMAIL, '--first-name', 'Descartavel',
 texto = saida.getvalue()
 user = User.objects.get(email=EMAIL)
 print('conta criada | senha utilizavel:', user.has_usable_password())
-if user.has_usable_password():
-    falhas.append('--invite deixou uma senha utilizavel na conta')
+# Utilizavel de proposito: uma senha aleatoria que ninguem viu impede o
+# login igual a uma inutilizavel, e — ao contrario dela — nao e descartada
+# em silencio pelo `PasswordResetForm`. Sem isso, perdido o link do
+# convite, a conta ficaria sem caminho de volta.
+if not user.has_usable_password():
+    falhas.append('--invite deixou a conta sem senha utilizavel: o "Esqueci minha senha" '
+                  'descarta essas contas em silencio')
 if '/accounts/reset/' not in texto:
     falhas.append('o comando nao imprimiu o link de definicao de senha')
+
+# --- 0. "Esqueci minha senha" alcanca a conta recem-convidada ---
+from django.contrib.auth.forms import PasswordResetForm
+
+formulario = PasswordResetForm({'email': EMAIL})
+formulario.is_valid()
+encontrados = list(formulario.get_users(EMAIL))
+print('"Esqueci minha senha" encontra a conta ->', bool(encontrados))
+if not encontrados:
+    falhas.append('o formulario de recuperacao nao encontra a conta convidada')
 
 uid = urlsafe_base64_encode(force_bytes(user.pk))
 token = default_token_generator.make_token(user)

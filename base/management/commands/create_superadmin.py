@@ -18,16 +18,25 @@ propósito: um segundo fator gerado por comando de servidor, e impresso no
 terminal, não é um segundo fator. Configure-o em `/accounts/mfa/setup/`,
 depois de entrar.
 
-Sobre a senha: `--invite` é o modo preferido. Ele deixa a conta **sem
-senha utilizável** e imprime um link de definição de senha, de uso único e
-com prazo. Senha digitada em linha de comando fica no histórico do shell,
-na lista de processos enquanto o comando roda, e — quando alguém opera o
-servidor por uma sessão registrada — na transcrição dela. Para a conta que
-lê a trilha de auditoria de todas as clínicas, isso é caro demais para a
-conveniência que compra.
+Sobre a senha: `--invite` é o modo preferido. Ele grava uma senha
+aleatória que ninguém vê e imprime um link de definição de senha, de uso
+único e com prazo. Senha digitada em linha de comando fica no histórico do
+shell, na lista de processos enquanto o comando roda, e — quando alguém
+opera o servidor por uma sessão registrada — na transcrição dela. Para a
+conta que lê a trilha de auditoria de todas as clínicas, isso é caro
+demais para a conveniência que compra.
+
+**Aleatória, e não `set_unusable_password()`.** As duas impedem o login
+igualmente; a diferença aparece depois. `PasswordResetForm` do Django
+descarta em silêncio todo usuário cujo `has_usable_password()` é falso —
+ou seja, a conta criada com senha inutilizável não consegue usar o
+"Esqueci minha senha", e o formulário responde "enviamos um e-mail" sem
+ter enviado nada. Perdido o link do convite, a conta ficava sem caminho de
+volta, e sem nada na tela que dissesse isso.
 """
 
 import getpass
+import secrets
 
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
@@ -54,7 +63,7 @@ class Command(BaseCommand):
         )
         parser.add_argument(
             '--invite', action='store_true',
-            help='Não define senha: deixa a conta sem senha utilizável e imprime um '
+            help='Não pede senha: grava uma aleatória que ninguém vê e imprime um '
                  'link de definição de senha, de uso único e com prazo. É o modo '
                  'preferido — ver o cabeçalho deste arquivo.',
         )
@@ -79,7 +88,10 @@ class Command(BaseCommand):
                 last_name=options['last_name'],
             )
             if convite:
-                user.set_unusable_password()
+                # Aleatória e descartada, nunca inutilizável: ver o cabeçalho.
+                # É o que mantém o "Esqueci minha senha" funcionando para
+                # esta conta se o link do convite se perder.
+                user.set_password(secrets.token_urlsafe(48))
             else:
                 senha = options['password'] or getpass.getpass('Senha: ')
                 if not senha:
@@ -125,6 +137,10 @@ class Command(BaseCommand):
             self.stdout.write(
                 f'  Uso único, vale {dias} dia(s), e deixa de valer assim que a senha '
                 'for definida.'
+            )
+            self.stdout.write(
+                '  Perdido o link, "Esqueci minha senha" em /accounts/password-reset/ '
+                'gera outro.'
             )
 
         self.stdout.write('')
