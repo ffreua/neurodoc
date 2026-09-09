@@ -1,5 +1,5 @@
 from django.contrib.auth import views as auth_views
-from django.urls import path
+from django.urls import path, reverse_lazy
 
 from . import views
 
@@ -14,9 +14,22 @@ urlpatterns = [
     path('select-organization/', views.TenantPickerView.as_view(), name='tenant-picker'),
     path('verify-email/<str:token>/', views.VerifyEmailView.as_view(), name='verify-email'),
     path('verify-email/resend/', views.ResendVerificationEmailView.as_view(), name='verify-email-resend'),
+    # `success_url` explícito nas duas views abaixo.
+    #
+    # As views prontas do Django apontam para `password_reset_done` e
+    # `password_reset_complete` **sem namespace**, e estas rotas vivem sob
+    # `app_name = 'accounts'`. O `reverse` interno então não resolve, e o
+    # erro só aparece depois de a pessoa enviar o formulário — com a senha
+    # já gravada, no caso do `confirm`: a redefinição funcionava e
+    # terminava em 500, o que é indistinguível de ter falhado.
     path(
         'password-reset/',
-        auth_views.PasswordResetView.as_view(template_name='accounts/password_reset.html'),
+        auth_views.PasswordResetView.as_view(
+            template_name='accounts/password_reset.html',
+            email_template_name='accounts/email/password_reset_email.txt',
+            subject_template_name='accounts/email/password_reset_subject.txt',
+            success_url=reverse_lazy('accounts:password_reset_done'),
+        ),
         name='password_reset',
     ),
     path(
@@ -26,7 +39,10 @@ urlpatterns = [
     ),
     path(
         'reset/<uidb64>/<token>/',
-        auth_views.PasswordResetConfirmView.as_view(template_name='accounts/password_reset_confirm.html'),
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name='accounts/password_reset_confirm.html',
+            success_url=reverse_lazy('accounts:password_reset_complete'),
+        ),
         name='password_reset_confirm',
     ),
     path(

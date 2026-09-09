@@ -3,8 +3,43 @@
 {% block heading %}Nenhuma organização ativa{% endblock %}
 {% block subheading %}Sua conta não tem vínculo ativo com nenhuma organização.{% endblock %}
 {% block content %}
+
+{% comment %}Para quem opera o servidor, esta tela era um beco sem saída.
+
+O console da instalação vive fora de `/app/` justamente porque quem opera o
+servidor pode não ter vínculo em clínica nenhuma — e é exatamente essa
+pessoa que cai aqui depois de entrar. Sem o atalho abaixo, a única ação
+oferecida seria "Sair".
+
+A MFA vem antes: o console e os painéis técnicos exigem o segundo fator, e
+descobrir isso depois de clicar num link que devolve 404 não explica nada.
+{% endcomment %}
+{% if request.user.is_superuser %}
+<div class="alert alert-primary fade show fs-13" role="alert">
+    <span class="fw-semibold d-block">Você administra esta instalação.</span>
+    O console fica fora da área das clínicas — é por isso que não há organização
+    a escolher aqui.
+</div>
+{% if not request.user.is_verified %}
+<a class="btn btn-primary w-100 mb-2" href="{% url 'accounts:mfa-setup' %}">
+    Configurar a verificação em duas etapas
+</a>
+<p class="fs-11 text-muted">
+    O console e os painéis técnicos só respondem com o segundo fator configurado.
+    Um console que lê a trilha de auditoria de todas as clínicas atrás apenas de
+    senha estaria a uma credencial roubada de distância do histórico delas.
+</p>
+{% else %}
+<a class="btn btn-primary w-100 mb-2" href="{% url 'superadmin:overview' %}">
+    Abrir o console da instalação
+</a>
+{% endif %}
+<hr class="my-3">
+{% else %}
 <p class="fs-13 text-muted">Peça um convite a quem administra sua clínica, ou
 procure o suporte se isso parecer incorreto.</p>
+{% endif %}
+
 <form method="post" action="{% url 'accounts:logout' %}">
     {% csrf_token %}
     <button type="submit" class="btn btn-light-danger w-100">Sair</button>

@@ -144,6 +144,16 @@ class MFASetupView(LoginRequiredMixin, View):
         code = request.POST.get('code', '').strip()
         if mfa.confirm_device(device, code):
             codes = mfa.generate_recovery_codes(request.user)
+            # A sessão passa a valer como verificada aqui mesmo.
+            #
+            # O código que a pessoa acabou de digitar **é** o segundo fator:
+            # ela provou a posse do dispositivo neste mesmo pedido. Sem esta
+            # linha, a sessão continuava sem `is_verified()` e tudo o que
+            # exige MFA — o console da instalação, os painéis técnicos, o
+            # admin — seguia devolvendo 404 até um novo login. O efeito para
+            # quem acabou de configurar o segundo fator é a coisa que ele
+            # existe para abrir continuar fechada, sem dizer por quê.
+            django_otp_login(request, device)
             record_audit_event(request.user, None, 'accounts.mfa_enabled', outcome='success')
             return render(request, 'accounts/mfa_recovery_codes.html', {'codes': codes})
         return render(request, 'accounts/mfa_setup.html', {
