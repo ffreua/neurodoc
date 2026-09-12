@@ -210,11 +210,21 @@ DEFAULT_EXCEPTION_REPORTER_FILTER = 'base.logging.NoPostDataExceptionReporterFil
 SMS_ENABLED = env.bool('SMS_ENABLED', default=False)
 SMSDEV_API_KEY = secret('SMSDEV_API_KEY', required=(SMS_ENABLED and env('SERVICE_ROLE', default='app') == 'worker'))
 AI_ENABLED = env.bool('AI_ENABLED', default=False)
-AI_PROVIDER = env('AI_PROVIDER', default='openrouter')
-AI_MODEL = env('AI_MODEL', default='z-ai/glm-5.3-flash')
-OPENROUTER_API_KEY = secret('OPENROUTER_API_KEY', required=False)
-OPENAI_API_KEY = secret('OPENAI_API_KEY', required=False)
-ANTHROPIC_API_KEY = secret('ANTHROPIC_API_KEY', required=False)
+AI_PROVIDER = env('AI_PROVIDER', default='nvidia')
+AI_MODEL = env('AI_MODEL', default='nvidia/llama-3.3-nemotron-super-49b-v1.5')
+# Chave do provedor **da instalação**, resolvida pelo nome dele.
+#
+# Uma só, e derivada, em vez de uma constante por provedor. Havia três
+# (`OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`), e era esse
+# trio que limitava o padrão da instalação a três dos dez provedores do
+# catálogo — acrescentar um exigia editar settings, o mapa de getters e o
+# `docker-stack.yml`, e esquecer qualquer um dos três dava "Unknown AI
+# provider" para uma configuração que a tela oferecia.
+#
+# Assim, habilitar um provedor novo como padrão é gravar o secret com o
+# nome dele e apontar `AI_PROVIDER`. A chave da **clínica** não passa por
+# aqui: fica cifrada no banco (`ai.models.AIProviderSettings`).
+AI_API_KEY = secret(f'{AI_PROVIDER.upper()}_API_KEY', required=False)
 NEURODOC_DEMO_ALLOWED = env.bool('NEURODOC_DEMO_ALLOWED', default=False)
 NEURODOC_RECOVERY_MODE = env.bool('NEURODOC_RECOVERY_MODE', default=False)
 NEURODOC_DOCS_ENABLED = env.bool('NEURODOC_DOCS_ENABLED', default=True)

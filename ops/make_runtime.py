@@ -17,6 +17,7 @@ SECRET_MAP = {
     'OPENROUTER_API_KEY': 'NEURODOC_OPENROUTER_API_KEY',
     'OPENAI_API_KEY': 'NEURODOC_OPENAI_API_KEY',
     'ANTHROPIC_API_KEY': 'NEURODOC_ANTHROPIC_API_KEY',
+    'NVIDIA_API_KEY': 'NEURODOC_NVIDIA_API_KEY',
     'PFX_MASTER_KEY': 'NEURODOC_PFX_MASTER_KEY',
     'SECRETS_MASTER_KEY': 'NEURODOC_SECRETS_MASTER_KEY',
 }
@@ -49,6 +50,7 @@ def prepare_runtime(config):
         elif role == 'worker':
             names += ['SMTP_PASSWORD', 'SMSDEV_API_KEY',
                       'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',
+                      'NVIDIA_API_KEY',
                       'SECRETS_MASTER_KEY']
         for name in names:
             values[f'{name}_FILE'] = f'/run/secrets/{SECRET_MAP[name]}'

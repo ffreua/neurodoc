@@ -1,18 +1,35 @@
+"""Qual modelo de IA atende esta chamada: o da clínica, senão o da instalação.
+
+Os dois caminhos montam o cliente **pelo catálogo** (`catalog.PROVIDERS`).
+Eles não faziam isso: o caminho da clínica passou a usar o catálogo quando
+os dez provedores foram cadastrados, e o da instalação ficou preso a um
+mapa de três — `openrouter`, `openai`, `anthropic` —, cada um num módulo
+próprio que repetia a mesma montagem com outro nome de chave.
+
+O efeito era um defeito silencioso de configuração: `AI_PROVIDER=nvidia`
+no `.env` levantava "Unknown AI provider", ainda que a NVIDIA estivesse
+no catálogo e funcionasse perfeitamente quando uma clínica a escolhia pela
+tela. Quem hospeda o sistema para si — e é para essa pessoa que existe o
+padrão da instalação — não alcançava sete dos dez provedores.
+
+Com uma montagem só, acrescentar provedor ao catálogo passa a valer nos
+dois caminhos de uma vez, que é o que já se esperava do catálogo.
+"""
+
 from django.conf import settings
 
-from .anthropic_provider import get_chat_model as _anthropic_chat_model
 from .base import ProviderUnavailable
 from .catalog import ANTHROPIC_NATIVE, PROVIDERS, provider_kind, resolve_base_url
-from .openai_provider import get_chat_model as _openai_chat_model
-from .openrouter import get_chat_model as _openrouter_chat_model
-
-_GETTERS = {
-    'openrouter': _openrouter_chat_model,
-    'openai': _openai_chat_model,
-    'anthropic': _anthropic_chat_model,
-}
 
 REQUEST_TIMEOUT_SECONDS = 60
+
+#: Limitação conhecida das rotas compatíveis com a API da OpenAI, e a razão
+#: de `ai/graphs.py` validar a resposta contra o schema Pydantic por conta
+#: própria: agregadores como o OpenRouter intermediam modelos de vários
+#: fabricantes, e o suporte a JSON estruturado e a chamada de ferramenta
+#: varia conforme o modelo por baixo — não é garantido que se comporte como
+#: o da OpenAI. Depender da imposição do lado do provedor faria a saída
+#: inválida passar em silêncio num modelo e falhar em outro.
 
 
 def _tenant_settings(tenant_id):
@@ -24,14 +41,32 @@ def _tenant_settings(tenant_id):
     return row if row is not None and row.is_usable else None
 
 
-def _model_from_tenant_settings(row):
-    """Cliente montado com a configuração daquela clínica.
+def _build(provider, model, api_key, base_url=''):
+    """O cliente de chat, para qualquer provedor do catálogo.
 
-    Um cliente só para quase todos os provedores: OpenRouter, NVIDIA, Groq,
-    Mistral, Gemini e servidor próprio falam a API da OpenAI em endereços
-    diferentes, e `langchain_openai` aceita `base_url`. A Anthropic tem API
-    própria e por isso um ramo próprio.
+    Quase todos expõem a API da OpenAI em outro endereço, o que permite um
+    cliente só com `base_url` trocado. A Anthropic tem API própria e por
+    isso um ramo próprio — é a única exceção, e é do catálogo que se
+    descobre qual é qual.
     """
+    if provider_kind(provider) == ANTHROPIC_NATIVE:
+        from langchain_anthropic import ChatAnthropic
+
+        return ChatAnthropic(
+            model=model, api_key=api_key, timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+
+    from langchain_openai import ChatOpenAI
+
+    return ChatOpenAI(
+        model=model, api_key=api_key,
+        base_url=resolve_base_url(provider, base_url),
+        timeout=REQUEST_TIMEOUT_SECONDS,
+    )
+
+
+def _model_from_tenant_settings(row):
+    """Cliente montado com a configuração daquela clínica."""
     from base.crypto import SecretUnavailable
 
     try:
@@ -42,20 +77,40 @@ def _model_from_tenant_settings(row):
         # credencial e reportar o erro dele em vez do erro real.
         raise ProviderUnavailable(f'Chave de IA da clínica indisponível: {exc}') from exc
 
-    if provider_kind(row.provider) == ANTHROPIC_NATIVE:
-        from langchain_anthropic import ChatAnthropic
+    return _build(row.provider, row.model, api_key, row.base_url)
 
-        return ChatAnthropic(
-            model=row.model, api_key=api_key, timeout=REQUEST_TIMEOUT_SECONDS,
+
+def installation_secret_name(provider):
+    """O secret que carrega a chave deste provedor na instalação.
+
+    Derivado do identificador do provedor, e não de um mapa à parte: um
+    mapa se desatualiza em relação ao catálogo, e a forma de descobrir isso
+    seria a mesma que motivou este módulo — alguém configurando um provedor
+    que a tela oferece e o servidor recusa.
+    """
+    return f'NEURODOC_{provider.upper()}_API_KEY'
+
+
+def _installation_model():
+    """O padrão da instalação: provedor, modelo e chave do `.env`/secrets.
+
+    Vale para toda clínica que não configurou a sua. A mensagem de erro
+    nomeia o secret que falta, porque "chave não configurada" sozinho manda
+    quem opera o servidor procurar em três lugares.
+    """
+    provider = settings.AI_PROVIDER
+    if provider not in PROVIDERS:
+        conhecidos = ', '.join(sorted(PROVIDERS))
+        raise ProviderUnavailable(
+            f'AI_PROVIDER={provider!r} não está no catálogo. Conhecidos: {conhecidos}.'
         )
-
-    from langchain_openai import ChatOpenAI
-
-    return ChatOpenAI(
-        model=row.model, api_key=api_key,
-        base_url=resolve_base_url(row.provider, row.base_url),
-        timeout=REQUEST_TIMEOUT_SECONDS,
-    )
+    api_key = settings.AI_API_KEY
+    if not api_key:
+        raise ProviderUnavailable(
+            f'Nenhuma chave de IA configurada para o provedor da instalação '
+            f'({provider}). Grave o secret {installation_secret_name(provider)}.'
+        )
+    return _build(provider, settings.AI_MODEL, api_key)
 
 
 def get_chat_model(provider=None, tenant_id=None):
@@ -70,17 +125,21 @@ def get_chat_model(provider=None, tenant_id=None):
     Trocar de provedor segue sendo ato explícito, nunca substituição
     silenciosa quando um falha (RT-04).
     """
+    if not settings.AI_ENABLED:
+        raise ProviderUnavailable('AI_ENABLED=False')
     row = _tenant_settings(tenant_id)
     if row is not None and provider is None:
-        if not settings.AI_ENABLED:
-            raise ProviderUnavailable('AI_ENABLED=False')
         return _model_from_tenant_settings(row)
-
-    provider = provider or settings.AI_PROVIDER
-    getter = _GETTERS.get(provider)
-    if getter is None:
-        raise ProviderUnavailable(f'Unknown AI provider: {provider}')
-    return getter()
+    if provider is not None:
+        # Provedor pedido explicitamente pelo chamador continua usando a
+        # credencial da instalação: é assim que ele era atendido antes, e
+        # não há chave de clínica para um provedor que ela não escolheu.
+        if provider != settings.AI_PROVIDER:
+            raise ProviderUnavailable(
+                f'Provedor {provider!r} pedido explicitamente, mas a instalação só '
+                f'tem credencial para {settings.AI_PROVIDER!r}.'
+            )
+    return _installation_model()
 
 
 def active_provider_label(tenant_id=None):
@@ -92,4 +151,5 @@ def active_provider_label(tenant_id=None):
 
 __all__ = [
     'get_chat_model', 'ProviderUnavailable', 'active_provider_label',
+    'installation_secret_name',
 ]

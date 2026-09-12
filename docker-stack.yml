@@ -93,6 +93,7 @@ services:
       - NEURODOC_OPENROUTER_API_KEY
       - NEURODOC_OPENAI_API_KEY
       - NEURODOC_ANTHROPIC_API_KEY
+      - NEURODOC_NVIDIA_API_KEY
     networks: [neurodoc_v1_internal, neurodoc_v1_egress]
     healthcheck:
       test: [CMD, python, /app/ops/celery_health.py, worker]
@@ -284,6 +285,7 @@ secrets:
   NEURODOC_OPENROUTER_API_KEY: {external: true}
   NEURODOC_OPENAI_API_KEY: {external: true}
   NEURODOC_ANTHROPIC_API_KEY: {external: true}
+  NEURODOC_NVIDIA_API_KEY: {external: true}
   NEURODOC_PFX_MASTER_KEY: {external: true}
   NEURODOC_SECRETS_MASTER_KEY: {external: true}
   CLOUDFLARE_DNS_API_TOKEN: {external: true}

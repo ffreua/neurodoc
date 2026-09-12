@@ -83,6 +83,11 @@ PRD; é a referência operacional viva gerada a partir dele.
   inválida/probabilidade numérica, e um bug real corrigido no dispatcher de
   outbox (só suportava um consumidor por tópico). P-06/P-09 em aberto.
 
+- [Provedor de IA padrão da instalação](homologation/ai-installation-default.md) —
+  o padrão da instalação passa a alcançar os dez provedores do catálogo, e
+  não três; NVIDIA NIM com Nemotron como padrão desta instalação, sem
+  atropelar a clínica que configurou a sua.
+
 ## Chat persistente e streaming (S12)
 
 - [Homologação de chat](homologation/chat.md) — evidências de H-18: sessões
