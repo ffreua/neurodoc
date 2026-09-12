@@ -1,0 +1,12 @@
+# Fim de linha dos scripts de shell.
+#
+# `core.autocrlf=true` e o padrao do Git no Windows: o blob fica com LF e a
+# copia de trabalho volta com CRLF a cada checkout. O compose local monta
+# estes arquivos da copia de trabalho direto dentro dos conteineres, e
+# `/bin/sh` em Linux nao aceita CRLF -- `set -eu` vira "Illegal option -" e
+# o servico nao sobe, com uma mensagem que nao diz nada sobre fim de linha.
+# Na VPS o clone ja sai com LF; isto protege quem edita ou clona no Windows.
+*.sh text eol=lf
+ops/entrypoint.sh text eol=lf
+ops/infra_entrypoint.sh text eol=lf
+ops/postgres_init.sh text eol=lf

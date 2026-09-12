@@ -170,10 +170,23 @@ def wait_for_stack(timeout):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-build', action='store_true')
+    parser.add_argument(
+        '--check', action='store_true',
+        help='Roda so o preflight e sai, sem git pull, build, push ou stack deploy. '
+             'Serve para conferir a VPS antes de publicar: sem isto, a unica forma '
+             'de descobrir que falta um secret, um rotulo de no ou uma entrada de '
+             'ALLOWED_HOSTS e comecar um deploy de verdade.',
+    )
     parser.add_argument('--synced', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
     config = configuration()
     preflight(config)
+    if args.check:
+        # Depois do preflight e antes de tudo o mais. O preflight ja recusou
+        # o que houvesse de errado; chegar aqui e a resposta.
+        print('Preflight aprovado: configuracao, Swarm, redes, secrets, tmpfs e '
+              'repositorio estao como o deploy exige.')
+        return
     if not args.synced:
         run(['git', 'pull', '--ff-only'])
         options = ['--skip-build'] if args.skip_build else []

@@ -3,8 +3,9 @@ from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 DEMO_MARKER = 'demo-clinica'
@@ -230,7 +231,7 @@ class Command(BaseCommand):
         from finance.pricing import create_fee_schedule
         from finance.receivables import create_receivable_for_encounter
         from scheduling.models import AppointmentType, AvailabilityRule
-        from scheduling.services import reserve_appointment
+        from scheduling.services import SchedulingError, reserve_appointment
         from tenancy.context import AccessContext
         import uuid as uuid_module
 
@@ -308,24 +309,51 @@ class Command(BaseCommand):
                 if receivable is not None:
                     record_payment(receivable, receivable.charged_amount, 'pix', doctor_a.id)
 
+        def reserve_demo_slot(patient, starts_at, minutes, appointment_type):
+            """Reserva um horario de demonstracao, e desiste se ele ja estiver ocupado.
+
+            As duas datas abaixo sao moveis: derivam de `date.today()`, entao
+            uma semente rodada na quarta e outra rodada no sabado miram
+            celulas diferentes da agenda. A guarda por `starts_at` exato so
+            reconhece o que esta semente criou -- horario ocupado por outra
+            coisa (um roteiro de `checks/` interrompido, um teste manual)
+            cai na restricao de sobreposicao, e a excecao derruba a
+            transacao inteira: nenhum paciente, nenhum atendimento, nenhum
+            catalogo. Uma sobra de smoke test apagava toda a semeadura.
+
+            O horario e ilustrativo; a falta dele nao invalida o resto. Por
+            isso aqui se desiste, e o comando diz quantos horarios ficaram
+            de fora, em vez de fingir que semeou tudo.
+            """
+            if Appointment.objects.filter(
+                tenant=tenant_a, patient=patient, starts_at=starts_at,
+            ).exists():
+                return None
+            try:
+                # Savepoint proprio: sem ele, a violacao da restricao marca a
+                # transacao externa como quebrada no PostgreSQL, e o `except`
+                # pegaria a excecao so para o proximo `INSERT` falhar com
+                # "current transaction is aborted".
+                with transaction.atomic():
+                    return reserve_appointment(
+                        demo_ctx, patient, membership_doctor_a, starts_at,
+                        starts_at + timedelta(minutes=minutes), appointment_type,
+                    )
+            except (SchedulingError, ValidationError, IntegrityError):
+                counts['appointments_skipped'] = counts.get('appointments_skipped', 0) + 1
+                return None
+
         past_monday = _next_monday(date.today() - timedelta(days=10))
         no_show_starts_at = timezone.make_aware(timezone.datetime.combine(past_monday, timezone.datetime.min.time().replace(hour=10)))
-        if not Appointment.objects.filter(tenant=tenant_a, patient=minor, starts_at=no_show_starts_at).exists():
-            no_show_appt = reserve_appointment(
-                demo_ctx, minor, membership_doctor_a, no_show_starts_at,
-                no_show_starts_at + timedelta(minutes=30), AppointmentType.FIRST_VISIT,
-            )
+        no_show_appt = reserve_demo_slot(minor, no_show_starts_at, 30, AppointmentType.FIRST_VISIT)
+        if no_show_appt is not None:
             no_show_appt.status = AppointmentStatus.NO_SHOW
             no_show_appt.save(update_fields=['status'])
             counts['appointments'] += 1
 
         future_monday = _next_monday(date.today() + timedelta(days=7))
         upcoming_starts_at = timezone.make_aware(timezone.datetime.combine(future_monday, timezone.datetime.min.time().replace(hour=11)))
-        if not Appointment.objects.filter(tenant=tenant_a, patient=adult, starts_at=upcoming_starts_at).exists():
-            reserve_appointment(
-                demo_ctx, adult, membership_doctor_a, upcoming_starts_at,
-                upcoming_starts_at + timedelta(minutes=30), AppointmentType.FOLLOW_UP,
-            )
+        if reserve_demo_slot(adult, upcoming_starts_at, 30, AppointmentType.FOLLOW_UP) is not None:
             counts['appointments'] += 1
 
 

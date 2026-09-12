@@ -34,6 +34,36 @@ não dependem de infraestrutura real. Os itens 7–10 dependem de um cluster
 Swarm real (mesmo que de nó único) e **não foram exercitados** nesta
 execução — ficam bloqueados por P-02.
 
+## Conferir antes de publicar (`scripts/deploy.sh --check`)
+
+`--check` roda o preflight inteiro e **para ali**: sem `git pull`, sem build,
+sem push e sem `docker stack deploy`. Existe porque, sem ele, a única forma de
+descobrir que falta um secret, o rótulo `neurodoc_data` no nó, uma entrada em
+`ALLOWED_HOSTS` ou o `tmpfs` de `/run/neurodoc-signing` era começar uma
+publicação de verdade — que já teria construído e empurrado uma imagem antes
+de a primeira dessas condições ser lida.
+
+```bash
+cd /srv/neurodoc
+scripts/deploy.sh --check
+```
+
+Saída esperada: `Preflight aprovado: ...`. Qualquer outra coisa é a primeira
+condição que falhou, na ordem da lista acima — o preflight recusa na primeira
+e não continua, então corrigir e repetir é o ciclo normal no provisionamento.
+
+Rodá-lo na máquina de desenvolvimento falha logo no primeiro item (`DEBUG=False`),
+o que é o esperado: o preflight descreve a produção, não o ambiente local.
+
+## Registro da release (`docs/releases/`)
+
+`NEURODOC_RELEASE_APPROVED=True` é uma trava declarativa: o preflight só
+verifica que alguém a ligou. O que responde "esta versão foi homologada por
+quem, com base em quê?" é `docs/releases/<SHA>.md`, criado a partir de
+`docs/releases/TEMPLATE.md` e **commitado antes** de ligar a flag — o
+preflight recusa repositório com mudança rastreada não commitada, então o
+registro entra na mesma árvore que vai ao ar.
+
 ## Publicação e HTTPS
 
 O roteador Traefik (`docker-stack.yml`) usa `Host` + `HostRegexp` para o
