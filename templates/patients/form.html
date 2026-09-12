@@ -35,7 +35,18 @@
 </div>
 {% endif %}
 
-<form method="post" novalidate id="patient-form" data-cep-url="{% url 'patients:cep-lookup' %}">
+{% comment %}A fotografia fica antes, e fora, do formulário do cadastro: o
+bloco traz um `<form>` próprio quando o paciente já existe, e HTML não
+aninha formulários. Os campos se ligam ao formulário certo por `form=`.
+{% endcomment %}
+{% include "patients/_photo_card.html" %}
+
+{% comment %}`enctype="multipart/form-data"` por causa do campo de
+fotografia do cadastro novo. Sem ele o navegador envia apenas os nomes dos
+campos de arquivo, o servidor recebe `request.FILES` vazio, e o paciente
+seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
+<form method="post" novalidate id="patient-form" enctype="multipart/form-data"
+      data-cep-url="{% url 'patients:cep-lookup' %}">
     {% csrf_token %}
     {% if patient %}<input type="hidden" name="row_version" value="{{ patient.row_version }}">{% endif %}
     {% if duplicates %}<input type="hidden" name="confirm_duplicate" value="1">{% endif %}
@@ -187,4 +198,5 @@
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'patients/patient_form.js' %}"></script>
+<script src="{% static 'patients/photo.js' %}"></script>
 {% endblock %}

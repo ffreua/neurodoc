@@ -29,9 +29,30 @@ sem caçar em cartões laterais.{% endcomment %}
 <div class="card mb-4">
     <div class="card-body">
         <div class="d-flex flex-wrap align-items-center gap-3">
+            {% comment %}Fotografia quando há; a inicial do nome quando não.
+            A imagem cai para a inicial também quando o arquivo sumiu — o
+            endereço responde 404 e o `onerror` troca de volta, porque uma
+            ficha com um ícone de imagem quebrada no lugar do rosto se lê
+            como cadastro corrompido.{% endcomment %}
+            {% if patient.has_photo %}
+            {% comment %}`avatar-xl` dá o tamanho; `avatar-text` fica de fora
+            de propósito, porque ela força `width:auto!important` e a foto
+            sairia no tamanho natural do arquivo. `object-fit` inline porque
+            o tema traz Bootstrap 5.2, e a utilitária `object-fit-*` só
+            existe a partir da 5.3.{% endcomment %}
+            <img class="avatar-xl flex-shrink-0 rounded-circle" style="object-fit: cover;"
+                 src="{% url 'patients:photo-file' patient.id %}?v={{ patient.photo_updated_at|date:'U' }}"
+                 alt="Fotografia de {{ patient.full_name }}"
+                 onerror="this.remove();document.getElementById('nd-patient-initial').classList.remove('d-none');">
+            <span id="nd-patient-initial"
+                  class="avatar-text avatar-xl bg-soft-primary text-primary fw-bold fs-4 flex-shrink-0 d-none">
+                {{ patient.full_name|slice:":1"|upper }}
+            </span>
+            {% else %}
             <span class="avatar-text avatar-xl bg-soft-primary text-primary fw-bold fs-4 flex-shrink-0">
                 {{ patient.full_name|slice:":1"|upper }}
             </span>
+            {% endif %}
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                     <h4 class="fw-bold text-dark mb-0">{{ patient.full_name }}</h4>

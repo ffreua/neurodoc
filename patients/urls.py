@@ -12,6 +12,11 @@ urlpatterns = [
     path('<uuid:patient_id>/', views.PatientDetailView.as_view(), name='detail'),
     path('<uuid:patient_id>/edit/', views.PatientUpdateView.as_view(), name='update'),
     path('<uuid:patient_id>/archive/', views.PatientArchiveView.as_view(), name='archive'),
+    path('<uuid:patient_id>/foto/', views.PatientPhotoView.as_view(), name='photo'),
+    # `.img` e nao `.jpg`: o formato guardado varia com o que foi enviado,
+    # e uma extensao na rota que mentisse sobre o conteudo seria a primeira
+    # coisa a confundir quem depurasse um retrato que nao abre.
+    path('<uuid:patient_id>/foto.img', views.PatientPhotoFileView.as_view(), name='photo-file'),
     path('<uuid:patient_id>/contacts/', views.PatientContactCreateView.as_view(), name='add-contact'),
     path('<uuid:patient_id>/coverage/', views.PatientCoverageCreateView.as_view(), name='add-coverage'),
     path(

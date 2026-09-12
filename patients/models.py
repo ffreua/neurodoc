@@ -175,6 +175,24 @@ class Patient(TenantModel):
         'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True, related_name='responsible_patients',
     )
     administrative_notes = models.TextField(max_length=2000, blank=True)
+
+    # ------------------------------------------------------- fotografia
+    #
+    # Uma por paciente, guardada fora do banco (`patients.photo`), com o
+    # caminho gravado aqui em vez de derivado do id. A extensão varia com o
+    # formato enviado, e derivar o caminho obrigaria a tentar `.png`,
+    # `.jpg` e `.webp` a cada leitura — três acessos ao disco para exibir
+    # um retrato, e um bug calado no dia em que um quarto formato entrar.
+    #
+    # Não é anexo de prontuário: ver o cabeçalho de `patients/photo.py`.
+    # O consentimento do paciente para a fotografia é colhido em papel,
+    # fora do sistema (decisão do produto, setembro/2026); o que fica aqui
+    # é quem enviou e quando, pela trilha de auditoria.
+    photo_path = models.CharField(max_length=500, blank=True)
+    photo_mime = models.CharField(max_length=100, blank=True)
+    photo_bytes = models.PositiveIntegerField(default=0)
+    photo_updated_at = models.DateTimeField(null=True, blank=True)
+
     status = models.CharField(max_length=40, choices=PatientStatus.choices, default=PatientStatus.ACTIVE)
     registration_stage = models.CharField(
         max_length=20, choices=RegistrationStage.choices, default=RegistrationStage.COMPLETE,
@@ -220,6 +238,18 @@ class Patient(TenantModel):
             if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
                 kwargs['update_fields'] = list(kwargs['update_fields']) + ['record_number']
         super().save(*args, **kwargs)
+
+    @property
+    def has_photo(self):
+        """Só o que o cadastro afirma — não confere o disco.
+
+        É lido no cabeçalho da ficha e no do atendimento, em toda abertura
+        de tela. Conferir o arquivo aqui seria um acesso a disco por
+        renderização para responder a uma pergunta que quase sempre é
+        "sim". Quem lê os bytes (`photo.read_photo`) devolve `None`
+        quando o arquivo sumiu, e a tela cai na inicial do nome.
+        """
+        return bool(self.photo_path)
 
     def __str__(self):
         return f'{self.record_number} — {self.full_name}' if self.record_number else self.full_name

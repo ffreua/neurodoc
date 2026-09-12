@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.db import transaction
-from django.http import HttpResponse, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 
@@ -8,6 +8,7 @@ from audit.services import record_audit_event
 from integrations.cep import lookup_cep
 from tenancy.permissions import Capability, CapabilityRequiredView
 
+from . import photo as photo_storage
 from . import selectors
 from .contacts import create_contact
 from .coverage import add_coverage, set_patient_coverage
@@ -51,20 +52,79 @@ class PatientAutocompleteView(TenantScopedView):
         ]})
 
 
+def _photo_context(request=None):
+    """O que o bloco da fotografia precisa saber, num lugar só.
+
+    O limite em MB sai de `photo.MAX_PHOTO_BYTES` em vez de estar escrito
+    no template: um número repetido na tela e no validador vira mentira no
+    dia em que um dos dois mudar, e a mentira aparece como "envie uma
+    versão menor" para um arquivo que já está dentro do limite anunciado.
+
+    `photo_capture_value` devolve a captura ao formulário que volta com
+    aviso. Campo de arquivo o navegador esvazia sempre; este é oculto, e
+    por isso a foto tirada pela câmera sobrevive ao re-render.
+    """
+    return {
+        'max_photo_mb': photo_storage.MAX_PHOTO_BYTES // (1024 * 1024),
+        'photo_capture_value': (request.POST.get('photo_capture', '') if request is not None else ''),
+    }
+
+
+def _incoming_photo(request):
+    """Bytes da fotografia enviada neste POST, ou None quando não veio nenhuma.
+
+    Duas origens, um resultado: o arquivo escolhido (`photo`) e a captura
+    da câmera (`photo_capture`, uma data URL). A captura ganha quando as
+    duas vêm juntas — o fluxo da câmera termina numa prévia na tela, então
+    quem capturou **viu** o que está mandando, e o JS limpa o campo de
+    arquivo ao capturar. A regra está aqui também porque o navegador não é
+    de confiança para garantir o que o JS combinou.
+
+    Levanta `PhotoRejected`. Quem chama valida **antes** de abrir a
+    transação do cadastro: descobrir que o arquivo é um PDF renomeado
+    depois de gravar o paciente obrigaria a desfazer a gravação, e a
+    alternativa — gravar o paciente e engolir a foto — salvaria o cadastro
+    sem o retrato sem dizer nada a ninguém.
+    """
+    capture = photo_storage.decode_capture(request.POST.get('photo_capture'))
+    if capture is not None:
+        photo_storage.validate_photo(capture)
+        return capture
+    uploaded = request.FILES.get('photo')
+    if uploaded is None:
+        return None
+    content = uploaded.read()
+    photo_storage.validate_photo(content)
+    return content
+
+
 class PatientCreateView(TenantScopedView):
     def get(self, request):
         form = PatientForm(tenant_id=request.access_context.tenant_id)
-        return render(request, 'patients/form.html', {'form': form, 'duplicates': []})
+        return render(request, 'patients/form.html',
+                      {'form': form, 'duplicates': [], **_photo_context()})
 
     def post(self, request):
         form = PatientForm(request.POST, tenant_id=request.access_context.tenant_id)
         duplicates = []
-        if form.is_valid():
+        photo_error = None
+        incoming_photo = None
+        try:
+            incoming_photo = _incoming_photo(request)
+        except photo_storage.PhotoRejected as exc:
+            photo_error = str(exc)
+        if form.is_valid() and photo_error is None:
             duplicates = selectors.find_possible_duplicates(
                 request.access_context, form.cleaned_data['full_name'], form.cleaned_data.get('birth_date'),
             )
             if duplicates and not request.POST.get('confirm_duplicate'):
-                return render(request, 'patients/form.html', {'form': form, 'duplicates': duplicates})
+                # `_photo_context(request)` devolve a captura ao formulário.
+                # Este é o re-render mais comum do cadastro, e sem ele quem
+                # tirou a foto pela câmera a perderia ao confirmar a
+                # duplicidade — o cadastro seguiria sem retrato, calado.
+                return render(request, 'patients/form.html', {
+                    'form': form, 'duplicates': duplicates, **_photo_context(request),
+                })
             coverage_data = form.coverage_data
             # Paciente e carteirinha entram juntos: um cadastro "por plano"
             # sem cobertura faria a cobrança cair em particular.
@@ -81,12 +141,29 @@ class PatientCreateView(TenantScopedView):
                 # tinha o que calcular.
                 for kind, value, unit in measurements:
                     record_observation(request.access_context, patient, kind, value, unit)
+                if incoming_photo is not None:
+                    # Por último de propósito. `store_photo` escreve no
+                    # disco, e disco não entra em rollback: se a cobertura
+                    # ou a medida estourassem depois, o arquivo ficaria
+                    # órfão numa pasta cujo paciente nunca existiu, sem
+                    # nada que o alcançasse para apagar.
+                    photo_storage.store_photo(patient, incoming_photo)
+                    patient.save(update_fields=photo_storage.PHOTO_FIELDS)
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_created', object_type='patient',
                 object_id=patient.id, outcome='success',
             )
+            if incoming_photo is not None:
+                record_audit_event(
+                    request.user, request.access_context.tenant_id, 'patients.patient_photo_updated',
+                    object_type='patient', object_id=patient.id, outcome='success',
+                    integrity_metadata={'mime': patient.photo_mime, 'bytes': patient.photo_bytes},
+                )
             return redirect('patients:detail', patient_id=patient.id)
-        return render(request, 'patients/form.html', {'form': form, 'duplicates': duplicates})
+        return render(request, 'patients/form.html', {
+            'form': form, 'duplicates': duplicates, 'photo_error': photo_error,
+            **_photo_context(request),
+        })
 
 
 def _detail_context(request, patient, **overrides):
@@ -124,7 +201,8 @@ class PatientUpdateView(TenantScopedView):
     def get(self, request, patient_id):
         patient = selectors.get_patient_or_404(request.access_context, patient_id)
         form = PatientForm(instance=patient, tenant_id=request.access_context.tenant_id)
-        return render(request, 'patients/form.html', {'form': form, 'patient': patient, 'duplicates': []})
+        return render(request, 'patients/form.html',
+                      {'form': form, 'patient': patient, 'duplicates': [], **_photo_context()})
 
     def post(self, request, patient_id):
         patient = selectors.get_patient_or_404(request.access_context, patient_id)
@@ -151,7 +229,108 @@ class PatientUpdateView(TenantScopedView):
                 object_id=updated.id, outcome='success',
             )
             return redirect('patients:detail', patient_id=updated.id)
-        return render(request, 'patients/form.html', {'form': form, 'patient': patient, 'duplicates': []})
+        return render(request, 'patients/form.html', {
+            'form': form, 'patient': patient, 'duplicates': [], **_photo_context(request),
+        })
+
+
+class PatientPhotoView(TenantScopedView):
+    """Envia, substitui ou remove a fotografia de quem já está cadastrado.
+
+    Rota própria, e não um campo do formulário do cadastro, por duas
+    razões que se somam:
+
+    - **`row_version`.** O cadastro usa versão de linha para recusar edição
+      concorrente com 409. Trocar o retrato não é editar o cadastro: fazer
+      a foto passar por ali obrigaria quem só quer atualizar a foto a
+      carregar a versão inteira da ficha, e daria conflito quando duas
+      pessoas mexessem em coisas diferentes do mesmo paciente.
+    - **O arquivo não sobrevive ao re-render.** Quando o cadastro volta com
+      aviso de duplicidade ou erro de campo, o navegador não repovoa
+      `<input type="file">` — a foto escolhida sumiria calada. Aqui o
+      envio tem efeito imediato e não depende de o resto do formulário
+      estar válido.
+
+    No cadastro **novo** não há paciente a que anexar o arquivo, e por isso
+    lá a foto viaja no POST principal (`PatientCreateView`). As duas
+    entradas gravam pela mesma `photo.store_photo`.
+    """
+
+    def post(self, request, patient_id):
+        patient = selectors.get_patient_or_404(request.access_context, patient_id)
+
+        if request.POST.get('action') == 'remove':
+            if not patient.has_photo:
+                messages.info(request, 'Este paciente não tem fotografia.')
+                return redirect('patients:update', patient_id=patient.id)
+            photo_storage.discard_photo(patient)
+            patient.save(update_fields=photo_storage.PHOTO_FIELDS)
+            record_audit_event(
+                request.user, request.access_context.tenant_id, 'patients.patient_photo_removed',
+                object_type='patient', object_id=patient.id, outcome='success',
+            )
+            messages.success(request, 'Fotografia removida.')
+            return redirect('patients:update', patient_id=patient.id)
+
+        try:
+            content = _incoming_photo(request)
+        except photo_storage.PhotoRejected as exc:
+            messages.error(request, str(exc))
+            return redirect('patients:update', patient_id=patient.id)
+        if content is None:
+            messages.error(request, 'Escolha um arquivo de imagem ou use a câmera.')
+            return redirect('patients:update', patient_id=patient.id)
+
+        photo_storage.store_photo(patient, content)
+        # `update_fields` com os campos da foto: sem isso, uma gravação
+        # completa levaria junto o que estivesse carregado na instância e
+        # desfaria, por cima, uma edição do cadastro salva entre o carregar
+        # desta tela e o envio da foto.
+        patient.save(update_fields=photo_storage.PHOTO_FIELDS)
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'patients.patient_photo_updated',
+            object_type='patient', object_id=patient.id, outcome='success',
+            integrity_metadata={'mime': patient.photo_mime, 'bytes': patient.photo_bytes},
+        )
+        messages.success(
+            request,
+            'Fotografia atualizada. A autorização do paciente para o uso da imagem '
+            'é colhida em papel — guarde o termo assinado junto ao prontuário.',
+        )
+        return redirect('patients:update', patient_id=patient.id)
+
+
+class PatientPhotoFileView(TenantScopedView):
+    """Serve a fotografia de um paciente da organização da sessão.
+
+    O paciente é resolvido por `get_patient_or_404`, que filtra pelo
+    inquilino do contexto: um id de outra clínica responde 404 aqui pelo
+    mesmo caminho que responde na ficha. É por isso que a rota pode
+    receber `patient_id` — o que ela **não** recebe é `tenant_id`, que
+    transformaria este endereço num enumerador de retratos de toda a
+    instalação. `/data/media` não é servido pelo servidor web exatamente
+    para que esta seja a única porta.
+
+    Arquivo ausente é 404, não 500: ver `photo.read_photo`.
+    """
+
+    def get(self, request, patient_id):
+        patient = selectors.get_patient_or_404(request.access_context, patient_id)
+        content = photo_storage.read_photo(patient)
+        if content is None:
+            raise Http404
+        response = HttpResponse(content, content_type=patient.photo_mime)
+        # Privado e curto: a imagem identifica um paciente, e não pode
+        # ficar num cache compartilhado. Cinco minutos bastam para a
+        # mesma tela não rebaixar a imagem a cada navegação, e a troca
+        # aparece na hora porque a URL carrega `?v=<atualizada em>`.
+        response['Cache-Control'] = 'private, max-age=300'
+        response['X-Content-Type-Options'] = 'nosniff'
+        # Conteúdo enviado por usuário, servido do domínio da clínica:
+        # impede que o arquivo seja interpretado como página se alguém
+        # abrir o endereço direto.
+        response['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'"
+        return response
 
 
 class PatientArchiveView(TenantScopedView):

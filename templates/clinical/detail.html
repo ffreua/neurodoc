@@ -40,9 +40,24 @@ tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
 <div class="card mb-4">
     <div class="card-body py-3">
         <div class="d-flex flex-wrap align-items-center gap-3">
+            {% comment %}O retrato aqui confirma, antes de escrever, que o
+            atendimento está sendo lançado na ficha certa — que é o erro
+            que nenhuma validação pega, porque os dois cadastros são
+            válidos.{% endcomment %}
+            {% if encounter.patient.has_photo %}
+            <img class="avatar-md flex-shrink-0 rounded-circle" style="object-fit: cover;"
+                 src="{% url 'patients:photo-file' encounter.patient_id %}?v={{ encounter.patient.photo_updated_at|date:'U' }}"
+                 alt="Fotografia de {{ encounter.patient.full_name }}"
+                 onerror="this.remove();document.getElementById('nd-encounter-initial').classList.remove('d-none');">
+            <span id="nd-encounter-initial"
+                  class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0 d-none">
+                {{ encounter.patient.full_name|slice:":1"|upper }}
+            </span>
+            {% else %}
             <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0">
                 {{ encounter.patient.full_name|slice:":1"|upper }}
             </span>
+            {% endif %}
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <a class="fw-bold text-dark fs-14" href="{% url 'patients:detail' encounter.patient_id %}">

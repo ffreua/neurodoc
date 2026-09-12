@@ -1,0 +1,137 @@
+{% comment %}
+Bloco da fotografia do paciente.
+
+Renderiza de dois jeitos, porque são duas interações diferentes:
+
+- **Paciente já cadastrado** (`patient`): é um `<form>` próprio, que posta
+  em `patients:photo` e tem efeito imediato. Fica **fora** do formulário do
+  cadastro — HTML não aninha formulários, e trocar o retrato não deve
+  incrementar o `row_version` da ficha nem depender de o resto do
+  formulário estar válido.
+- **Cadastro novo**: não existe paciente a que anexar o arquivo, então os
+  campos viajam no POST do cadastro. Isso exige `enctype="multipart/form-data"`
+  no formulário principal — sem ele o navegador manda só os nomes dos
+  campos e o arquivo some sem erro nenhum.
+
+O cartão fica **sempre fora** do `<form>` do cadastro, e os campos se ligam
+ao formulário certo pelo atributo `form=`. HTML não aninha formulários: com
+o cartão por dentro, o `<form>` da foto do paciente já cadastrado seria
+descartado pelo navegador na análise do documento, e o botão de enviar
+passaria a submeter o cadastro inteiro — gravando a ficha quando a pessoa
+só quis trocar o retrato.
+{% endcomment %}
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Fotografia do paciente</h5>
+        <span class="fs-11 text-muted">Opcional</span>
+    </div>
+    <div class="card-body">
+        {% if photo_error %}
+        <div class="alert alert-danger fade show" role="alert">{{ photo_error }}</div>
+        {% endif %}
+
+        {% comment %}O consentimento é colhido em papel, fora do sistema
+        (decisão do produto, setembro/2026). O aviso fica aqui, e não num
+        rodapé, porque é aqui que a pessoa está prestes a guardar a imagem
+        de alguém.{% endcomment %}
+        <div class="alert alert-warning fade show d-flex gap-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            <div class="fs-12">
+                <strong>Colha a autorização por escrito.</strong>
+                O sistema não guarda esse consentimento — o termo assinado
+                pelo paciente (ou pelo responsável legal, quando for menor)
+                fica em papel, junto ao prontuário. Sem ele, não envie a foto.
+            </div>
+        </div>
+
+        <div class="row g-3 align-items-start">
+            <div class="col-lg-3 col-md-4 text-center">
+                <div class="nd-photo-preview-wrap">
+                    {% comment %}`max-height` porque foto de celular costuma
+                    vir em retrato 3:4: sem o limite, a prévia estica o
+                    cartão e empurra o resto do cadastro para baixo da
+                    dobra. `contain` mostra a imagem inteira — cortar aqui
+                    esconderia justamente o que a pessoa quer conferir antes
+                    de gravar.{% endcomment %}
+                    <img id="nd-photo-preview" style="max-height: 200px; object-fit: contain;"
+                         class="img-fluid rounded border {% if not patient.has_photo %}d-none{% endif %}"
+                         alt="Fotografia de {{ patient.full_name|default:'o paciente' }}"
+                         {% if patient.has_photo %}src="{% url 'patients:photo-file' patient.id %}?v={{ patient.photo_updated_at|date:'U' }}"{% endif %}>
+                    <div id="nd-photo-empty"
+                         class="avatar-text avatar-xl bg-soft-primary text-primary fw-bold fs-4 mx-auto {% if patient.has_photo %}d-none{% endif %}">
+                        {{ patient.full_name|slice:":1"|upper|default:"?" }}
+                    </div>
+                </div>
+                {% if patient.has_photo %}
+                <div class="fs-11 text-muted mt-2">
+                    Atualizada em {{ patient.photo_updated_at|date:"d/m/Y H:i" }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-9 col-md-8">
+                <label class="form-label fw-semibold" for="photo">Enviar imagem</label>
+                <input type="file" class="form-control" id="photo" name="photo"
+                       accept="image/png,image/jpeg,image/webp"
+                       form="{% if patient %}patient-photo-form{% else %}patient-form{% endif %}">
+                <div class="form-text">
+                    PNG, JPEG ou WebP, até {{ max_photo_mb }} MB.
+                </div>
+
+                {% comment %}A captura vai num campo oculto, e não num
+                `<input type="file">`, por uma razão prática: quando o
+                cadastro volta com aviso de duplicidade, o navegador
+                esvazia todo campo de arquivo — a captura sobreviveria ao
+                re-render e o arquivo escolhido, não.{% endcomment %}
+                <input type="hidden" id="nd-photo-capture" name="photo_capture"
+                       value="{{ photo_capture_value|default:'' }}"
+                       form="{% if patient %}patient-photo-form{% else %}patient-form{% endif %}">
+
+                <div class="d-flex flex-wrap gap-2 mt-3">
+                    <button type="button" class="btn btn-light-primary btn-sm" id="nd-photo-camera-open">
+                        Usar a câmera
+                    </button>
+                    {% if patient %}
+                    <button type="submit" class="btn btn-primary btn-sm" form="patient-photo-form" data-nd-busy>
+                        {% if patient.has_photo %}Substituir fotografia{% else %}Enviar fotografia{% endif %}
+                    </button>
+                    {% if patient.has_photo %}
+                    {% comment %}Mesmo formulário dos demais: o botão carrega
+                    `action=remove` no próprio envio. `initBusyButtons`
+                    (`static/duralux/app.js`) copia `name`/`value` para um
+                    campo oculto antes de desabilitar o botão — sem isso o
+                    navegador montaria os dados sem a ação, e remover
+                    viraria um envio sem arquivo.{% endcomment %}
+                    <button type="submit" class="btn btn-light-danger btn-sm" form="patient-photo-form"
+                            name="action" value="remove" data-nd-busy>
+                        Remover fotografia
+                    </button>
+                    {% endif %}
+                    {% endif %}
+                </div>
+
+                {% comment %}A câmera só existe em contexto seguro (HTTPS ou
+                localhost) e depende de permissão. Os três erros são
+                nomeados pelo JS aqui dentro, porque um botão que não faz
+                nada é o pior dos desfechos.{% endcomment %}
+                <div id="nd-photo-camera" class="d-none mt-3">
+                    <video id="nd-photo-video" class="img-fluid rounded border w-100" playsinline muted
+                           style="max-width: 320px;"></video>
+                    <div class="d-flex flex-wrap gap-2 mt-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="nd-photo-shoot">Capturar</button>
+                        <button type="button" class="btn btn-light btn-sm" id="nd-photo-camera-close">Fechar câmera</button>
+                    </div>
+                </div>
+                <div id="nd-photo-camera-error" class="alert alert-warning fade show mt-3 d-none fs-12" role="alert"></div>
+                <canvas id="nd-photo-canvas" class="d-none"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if patient %}
+<form method="post" id="patient-photo-form" action="{% url 'patients:photo' patient.id %}"
+      enctype="multipart/form-data">
+    {% csrf_token %}
+</form>
+{% endif %}
