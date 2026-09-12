@@ -42,6 +42,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 - [Planos e limites](homologation/plan-limits.md) — quatro planos, override
   por clínica, e a trava valendo nas seis portas por onde paciente e médico
   entram. Rebaixar congela: nada some.
+- [Convites com plano e console comercial](homologation/plan-invitations.md) —
+  o código de convite carrega o plano contratado; o console ganha emissão de
+  convite e troca de plano, as duas únicas escritas que ele tem.
 
 ## Agenda e trabalho da secretaria (S04)
 

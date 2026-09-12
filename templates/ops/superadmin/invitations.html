@@ -1,0 +1,187 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Convites — NeuroDoc{% endblock %}
+{% block page_title %}Convites de plataforma{% endblock %}
+{% block super_section %}Convites{% endblock %}
+{% block super_content %}
+
+{% if emitido %}
+{% comment %}O token aparece uma vez, e só aqui. Guardamos o hash, nunca o
+valor: um convite legível na tela depois de emitido seria um convite
+legível por quem tivesse acesso de leitura ao banco. Perdido o token,
+revoga-se e emite-se outro — que é mais barato que a alternativa.
+{% endcomment %}
+<div class="card mb-4 border border-primary">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Convite emitido</h5>
+    </div>
+    <div class="card-body">
+        <p class="fs-13 text-muted">
+            Este código aparece <strong>uma única vez</strong>. Copie agora — o
+            sistema guarda apenas o hash, e não há como exibi-lo de novo.
+        </p>
+        <div class="input-group mb-2">
+            <input class="form-control font-monospace" id="nd-token" readonly value="{{ emitido }}">
+            <button class="btn btn-primary" type="button"
+                    onclick="navigator.clipboard.writeText(document.getElementById('nd-token').value);this.textContent='Copiado';">
+                Copiar
+            </button>
+        </div>
+        <p class="fs-12 text-muted mb-0">
+            Quem recebe entra em <code>{{ request.scheme }}://{{ request.get_host }}/</code>,
+            informa o código e cria a organização já no plano contratado.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Emitir convite</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{% url 'superadmin:invitations' %}" class="row g-3 align-items-end">
+            {% csrf_token %}
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label" for="plan">Plano contratado <span class="text-danger">*</span></label>
+                <select class="form-select" id="plan" name="plan" required>
+                    {% for plan in plans %}
+                    <option value="{{ plan.code }}">
+                        {{ plan.label }} — {{ plan.patients }} pacientes, {{ plan.doctors }} médicos
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-lg-2 col-md-3">
+                <label class="form-label" for="patient_limit_override">Pacientes</label>
+                <input class="form-control" id="patient_limit_override" type="number" min="0"
+                       name="patient_limit_override" placeholder="usa o plano">
+            </div>
+            <div class="col-lg-2 col-md-3">
+                <label class="form-label" for="doctor_limit_override">Médicos</label>
+                <input class="form-control" id="doctor_limit_override" type="number" min="0"
+                       name="doctor_limit_override" placeholder="usa o plano">
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <label class="form-label" for="email_binding">Vincular ao e-mail</label>
+                <input class="form-control" id="email_binding" type="email" name="email_binding"
+                       placeholder="opcional">
+            </div>
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label" for="ttl_days">Validade (dias)</label>
+                <input class="form-control" id="ttl_days" type="number" min="1" max="90"
+                       name="ttl_days" value="7">
+            </div>
+            <div class="col-lg-10">
+                <label class="form-label" for="plan_note">Motivo / referência</label>
+                <input class="form-control" id="plan_note" name="plan_note"
+                       placeholder="Ex.: contrato assinado em 09/2026, condição de piloto">
+            </div>
+            <div class="col-lg-2">
+                <button class="btn btn-primary w-100" type="submit" data-nd-busy>Emitir</button>
+            </div>
+            <div class="col-12">
+                <p class="fs-11 text-muted mb-0">
+                    Limite em branco usa o do plano. Vincular a um e-mail impede que o
+                    código seja usado por outra pessoa, caso ele vaze no caminho.
+                    O motivo é copiado para a organização criada — é o que responde
+                    "por que esta clínica tem este plano?" quando alguém perguntar depois.
+                </p>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Pendentes</h5>
+        <span class="badge bg-soft-primary text-primary">{{ pending|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Plano</th>
+                        <th scope="col">Limites</th>
+                        <th scope="col">Vinculado a</th>
+                        <th scope="col">Emitido por</th>
+                        <th scope="col">Expira</th>
+                        <th class="pe-4" scope="col"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in pending %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="badge bg-soft-primary text-primary">{{ row.plan_label }}</span>
+                            {% if row.obj.plan_note %}
+                            <span class="fs-11 text-muted d-block">{{ row.obj.plan_note }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">{{ row.patients }} pacientes · {{ row.doctors }} médicos</td>
+                        <td class="fs-12 text-muted">{{ row.obj.email_binding|default:"qualquer e-mail" }}</td>
+                        <td class="fs-12 text-muted">{{ row.obj.issued_by.email|default:"—" }}</td>
+                        <td class="fs-12 text-muted">{{ row.obj.expires_at|date:"d/m/Y H:i" }}</td>
+                        <td class="pe-4">
+                            <form method="post" action="{% url 'superadmin:revoke-invitation' row.obj.id %}">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-light-danger" type="submit" data-nd-busy>Revogar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="ps-4 py-4 text-muted">Nenhum convite pendente.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Usados, expirados e revogados</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Plano</th>
+                        <th scope="col">Situação</th>
+                        <th scope="col">Usado por</th>
+                        <th class="pe-4" scope="col">Emitido em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in history %}
+                    <tr>
+                        <td class="ps-4 fs-12">{{ row.plan_label }}</td>
+                        <td class="fs-12">
+                            {% if row.obj.consumed_at %}
+                            <span class="badge bg-soft-success text-success">usado</span>
+                            {% elif row.obj.revoked_at %}
+                            <span class="badge bg-gray-200 text-dark">revogado</span>
+                            {% else %}
+                            <span class="badge bg-soft-warning text-warning">expirado</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12 text-muted">{{ row.obj.consumed_by.email|default:"—" }}</td>
+                        <td class="pe-4 fs-12 text-muted">{{ row.obj.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="4" class="ps-4 py-4 text-muted">Nada ainda.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    Convite já usado não pode ser revogado: revogá-lo não desfaria a organização
+    criada, e daria a impressão de ter desfeito. Para mudar o que já existe, use
+    a troca de plano em <a href="{% url 'superadmin:tenants' %}">Organizações</a>.
+</p>
+
+{% endblock %}

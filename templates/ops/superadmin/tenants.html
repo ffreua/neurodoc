@@ -18,38 +18,122 @@
                         <th scope="col">CNPJ</th>
                         <th scope="col">Endereço</th>
                         <th scope="col">Plano</th>
-                        <th scope="col">Equipe</th>
                         <th scope="col">Pacientes</th>
+                        <th scope="col">Médicos</th>
                         <th class="pe-4" scope="col">Situação</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for tenant in rows %}
+                    {% for row in rows %}
                     <tr>
                         <td class="ps-4">
                             <span class="fw-semibold text-dark d-block">
-                                {{ tenant.trade_name|default:tenant.legal_name }}
+                                {{ row.obj.trade_name|default:row.obj.legal_name }}
                             </span>
-                            {% if tenant.trade_name %}
-                            <span class="fs-11 text-muted">{{ tenant.legal_name }}</span>
+                            {% if row.obj.trade_name %}
+                            <span class="fs-11 text-muted">{{ row.obj.legal_name }}</span>
+                            {% endif %}
+                            {% if row.obj.plan_note %}
+                            <span class="fs-11 text-muted d-block">{{ row.obj.plan_note }}</span>
                             {% endif %}
                         </td>
-                        <td class="fs-12 text-muted">{{ tenant.cnpj|default:"—" }}</td>
-                        <td class="fs-12"><code>/{{ tenant.slug }}</code></td>
-                        <td class="fs-12">{{ tenant.plan|default:"—" }}</td>
-                        <td>
-                            <a class="badge bg-gray-200 text-dark text-decoration-none"
-                               href="{% url 'superadmin:users' %}">{{ tenant.member_count }}</a>
+                        <td class="fs-12 text-muted">{{ row.obj.cnpj|default:"—" }}</td>
+                        <td class="fs-12"><code>/{{ row.obj.slug }}</code></td>
+                        <td class="fs-12">
+                            <span class="badge bg-soft-primary text-primary">{{ row.patients.plan_label }}</span>
                         </td>
-                        <td><span class="badge bg-gray-200 text-dark">{{ tenant.patient_count }}</span></td>
-                        <td class="pe-4">
-                            {% if tenant.status == 'active' %}
-                            <span class="badge bg-soft-success text-success">{{ tenant.status }}</span>
+                        {% comment %}Uso ao lado do limite, e não só a contagem: é
+                        o que torna a troca de plano uma decisão em vez de um
+                        palpite. Rebaixar para um teto abaixo do uso é legítimo —
+                        nada some, a clínica só para de crescer —, mas quem
+                        confirma precisa ver que é isso que vai acontecer.
+                        {% endcomment %}
+                        <td class="fs-12">
+                            <span class="fw-semibold text-dark">{{ row.patients.usage }}</span>
+                            {% if row.patients.unlimited %}
+                            <span class="text-muted">/ ilimitado</span>
                             {% else %}
-                            <span class="badge bg-soft-warning text-warning">{{ tenant.status }}</span>
+                            <span class="text-muted">/ {{ row.patients.limit }}</span>
+                            {% if row.patients.blocked %}
+                            <span class="badge bg-soft-warning text-warning ms-1">cheio</span>
+                            {% elif row.patients.warning %}
+                            <span class="badge bg-soft-warning text-warning ms-1">{{ row.patients.percent }}%</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            <span class="fw-semibold text-dark">{{ row.doctors.usage }}</span>
+                            {% if row.doctors.unlimited %}
+                            <span class="text-muted">/ ilimitado</span>
+                            {% else %}
+                            <span class="text-muted">/ {{ row.doctors.limit }}</span>
+                            {% if row.doctors.blocked %}
+                            <span class="badge bg-soft-warning text-warning ms-1">cheio</span>
+                            {% endif %}
+                            {% endif %}
+                        </td>
+                        <td class="pe-4">
+                            {% if row.obj.status == 'active' %}
+                            <span class="badge bg-soft-success text-success">{{ row.obj.status }}</span>
+                            {% else %}
+                            <span class="badge bg-soft-warning text-warning">{{ row.obj.status }}</span>
                             {% endif %}
                             <a class="btn btn-sm btn-light-primary ms-2"
-                               href="{% url 'superadmin:audit' %}?tenant={{ tenant.id }}">Trilha</a>
+                               href="{% url 'superadmin:audit' %}?tenant={{ row.obj.id }}">Trilha</a>
+                            <button class="btn btn-sm btn-light ms-1" type="button"
+                                    data-bs-toggle="collapse" data-bs-target="#plano-{{ row.obj.id }}">
+                                Plano
+                            </button>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="plano-{{ row.obj.id }}">
+                        <td colspan="7" class="ps-4 bg-gray-100">
+                            <form method="post" action="{% url 'superadmin:tenant-plan' row.obj.id %}"
+                                  class="row g-2 align-items-end py-3">
+                                {% csrf_token %}
+                                <div class="col-md-2">
+                                    <label class="form-label fs-11">Plano</label>
+                                    <select class="form-select form-select-sm" name="plan">
+                                        {% for plan in plans %}
+                                        <option value="{{ plan.code }}" {% if plan.code == row.obj.plan %}selected{% endif %}>
+                                            {{ plan.label }} ({{ plan.patients }}/{{ plan.doctors }})
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fs-11">Pacientes (opcional)</label>
+                                    <input class="form-control form-control-sm" type="number" min="0"
+                                           name="patient_limit_override"
+                                           value="{{ row.obj.patient_limit_override|default_if_none:'' }}"
+                                           placeholder="usa o plano">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label fs-11">Médicos (opcional)</label>
+                                    <input class="form-control form-control-sm" type="number" min="0"
+                                           name="doctor_limit_override"
+                                           value="{{ row.obj.doctor_limit_override|default_if_none:'' }}"
+                                           placeholder="usa o plano">
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label fs-11">Motivo <span class="text-danger">*</span></label>
+                                    <input class="form-control form-control-sm" name="plan_note" required
+                                           value="{{ row.obj.plan_note }}"
+                                           placeholder="Ex.: contrato assinado em 09/2026">
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-sm btn-primary w-100" type="submit" data-nd-busy>
+                                        Salvar plano
+                                    </button>
+                                </div>
+                                <div class="col-12">
+                                    <p class="fs-11 text-muted mb-0 mt-1">
+                                        Campo de limite em branco usa o do plano; <code>0</code> é um limite
+                                        de verdade e bloqueia. Rebaixar não apaga nada — a clínica mantém o
+                                        que já cadastrou e para de crescer.
+                                    </p>
+                                </div>
+                            </form>
                         </td>
                     </tr>
                     {% empty %}
@@ -62,7 +146,9 @@
 </div>
 
 <p class="fs-11 text-muted mt-3 mb-0">
-    Contagens, e não conteúdo. Para alterar dados de uma organização, use o
+    Contagens, e nunca conteúdo clínico. O plano é a única coisa que se altera
+    daqui, porque é ato comercial sobre a organização e não sobre paciente
+    nenhum; cada troca exige motivo e vai para a trilha. Para o resto, use o
     <a href="/admin/tenancy/tenant/">admin técnico</a> — que registra cada alteração.
 </p>
 

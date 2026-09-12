@@ -20,6 +20,15 @@ app_name = 'superadmin'
 urlpatterns = [
     path('', superadmin.OverviewView.as_view(), name='overview'),
     path('organizacoes/', superadmin.TenantsView.as_view(), name='tenants'),
+    path(
+        'organizacoes/<uuid:tenant_id>/plano/',
+        superadmin.TenantPlanView.as_view(), name='tenant-plan',
+    ),
+    path('convites/', superadmin.InvitationsView.as_view(), name='invitations'),
+    path(
+        'convites/<uuid:invitation_id>/revogar/',
+        superadmin.InvitationRevokeView.as_view(), name='revoke-invitation',
+    ),
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
     path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
 ]

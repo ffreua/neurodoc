@@ -230,6 +230,27 @@ class Invitation(TimestampedModel):
     role_grants = ArrayField(
         models.CharField(max_length=40, choices=Role.choices), default=list, blank=True,
     )
+    # ---------------------------------------------------- o que foi vendido
+    #
+    # O convite de plataforma carrega o plano contratado. Antes, todo
+    # convite criava a clínica em `free`, com o plano escrito na linha de
+    # `accept_platform_invitation` — quem vendesse o Completo teria de
+    # corrigir o plano à mão depois, e ninguém saberia dizer se o cliente
+    # está no plano certo sem perguntar a quem vendeu.
+    #
+    # Vale só para `purpose='platform'`: convite de colaborador entra numa
+    # clínica que já tem plano, e mudá-lo pela porta do convite seria uma
+    # forma silenciosa de alterar contrato.
+    plan = models.CharField(
+        max_length=40, choices=PlanCode.choices, default=PlanCode.FREE,
+    )
+    patient_limit_override = models.PositiveIntegerField(null=True, blank=True)
+    doctor_limit_override = models.PositiveIntegerField(null=True, blank=True)
+    #: Por que este convite tem o plano que tem. Copiado para o
+    #: `plan_note` da organização no aceite, que é onde a pergunta é feita
+    #: depois — o convite some da vista assim que é consumido.
+    plan_note = models.CharField(max_length=255, blank=True)
+
     expires_at = models.DateTimeField()
     consumed_at = models.DateTimeField(null=True, blank=True)
     consumed_by = models.ForeignKey(

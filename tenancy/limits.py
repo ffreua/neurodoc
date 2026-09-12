@@ -127,6 +127,25 @@ def _resolve(override, from_plan):
     return from_plan if override is None else override
 
 
+def granted_limits(plan, patient_override=None, doctor_override=None):
+    """Os limites que esta combinação concede, como (pacientes, médicos).
+
+    Serve a quem ainda não tem organização: o convite, que promete um
+    plano antes de a clínica existir, e a tela que mostra o que ele
+    promete. A mesma resolução de `patient_limit`/`doctor_limit`, para o
+    que o convite anuncia e o que a organização recebe não divergirem.
+    """
+    return (
+        _resolve(patient_override, max_patients(plan)),
+        _resolve(doctor_override, max_doctors(plan)),
+    )
+
+
+def describe_limit(value):
+    """"ilimitado" ou o número, para a tela não repetir esse `if`."""
+    return 'ilimitado' if value is None else str(value)
+
+
 def patient_limit(tenant):
     tenant = resolve_tenant(tenant)
     return _resolve(tenant.patient_limit_override, max_patients(tenant.plan))

@@ -19,9 +19,17 @@ identificador do documento, e não a receita. Para ler o prontuário de um
 paciente continua sendo preciso ter vínculo clínico naquela clínica, o que
 aparece na própria trilha.
 
-O que exige escrita — criar usuário, mudar senha, corrigir dado — continua
-no admin técnico do Django (`/admin/`), que já registra cada alteração em
-`LogEntry`. Este console não duplica aquilo; ele aponta para lá.
+**Duas escritas, e so duas** (setembro/2026): emitir convite de plataforma
+e mudar o plano de uma organizacao. As duas sao atos comerciais sobre a
+instalacao, nao sobre pacientes, e nao existem em nenhuma outra tela -
+quem vende e quem opera o servidor. Cada uma exige motivo e grava
+`AuditEvent`.
+
+O resto do que exige escrita - criar usuario, mudar senha, corrigir dado -
+continua no admin tecnico do Django (`/admin/`), que ja registra cada
+alteracao em `LogEntry`. Este console nao duplica aquilo; ele aponta para
+la. E nenhuma das duas escritas toca em prontuario, que e a linha que o
+arquivo inteiro protege.
 
 Acesso: `is_superuser` **e** MFA verificada, a mesma exigência dos painéis
 técnicos (`base.middleware.TechnicalPanelMFAMiddleware`). Um console que
@@ -30,11 +38,12 @@ credencial roubada de distância do histórico de todas as clínicas.
 """
 
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.db.models import Count, Q
 from django.http import Http404
-from django.shortcuts import render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
@@ -174,20 +183,124 @@ class OverviewView(SuperAdminView):
 # ---------------------------------------------------------------- organizações
 
 class TenantsView(SuperAdminView):
-    def get(self, request):
-        from tenancy.models import MembershipStatus, Tenant
+    """As organizacoes da instalacao, com uso contra limite do plano.
 
-        linhas = (
-            Tenant.objects.annotate(
-                member_count=Count(
-                    'membership', filter=Q(membership__status=MembershipStatus.ACTIVE), distinct=True,
-                ),
-                patient_count=Count('patient', distinct=True),
-            ).order_by('legal_name')
-        )
+    O uso ao lado do limite e o que torna a troca de plano uma decisao em
+    vez de um palpite: rebaixar uma clinica para um teto abaixo do que ela
+    ja usa e legitimo - nada some, ela so para de crescer -, mas e preciso
+    **ver** que e isso que vai acontecer antes de confirmar.
+    """
+
+    def get(self, request):
+        from tenancy import limits
+        from tenancy.models import MembershipStatus, Tenant
+        from tenancy.plans import PLANS, PUBLIC_ORDER
+
+        linhas = []
+        for tenant in Tenant.objects.annotate(
+            member_count=Count(
+                'membership', filter=Q(membership__status=MembershipStatus.ACTIVE), distinct=True,
+            ),
+        ).order_by('legal_name'):
+            linhas.append({
+                'obj': tenant,
+                'patients': limits.patient_status(tenant),
+                'doctors': limits.doctor_status(tenant),
+            })
         context = _nav('tenants')
-        context['rows'] = list(linhas)
+        context['rows'] = linhas
+        context['plans'] = [
+            {'code': str(code), 'label': PLANS[code]['label'],
+             'patients': limits.describe_limit(PLANS[code]['max_patients']),
+             'doctors': limits.describe_limit(PLANS[code]['max_doctors'])}
+            for code in PUBLIC_ORDER
+        ]
         return render(request, 'ops/superadmin/tenants.html', context)
+
+
+class TenantPlanView(SuperAdminView):
+    """Troca o plano de uma organizacao que ja existe.
+
+    Exige motivo escrito. Um plano trocado sem motivo e indistinguivel de
+    um erro seis meses depois, e a pergunta que se faz entao - "por que
+    esta clinica tem 1.200 pacientes?" - nao tem outra fonte: o e-mail que
+    combinou se perdeu, e quem combinou pode nao estar mais aqui.
+
+    Nunca apaga nem esconde nada. Rebaixar abaixo do uso corrente e
+    permitido e **congela**: os registros continuam acessiveis, e o
+    sistema apenas recusa o proximo. E a regra da Entrega 1, e ela vale
+    daqui tambem.
+    """
+
+    def post(self, request, tenant_id):
+        from audit.services import record_audit_event
+        from tenancy.models import Tenant
+        from tenancy.plans import PLANS
+
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        plano = request.POST.get('plan', '')
+        motivo = (request.POST.get('plan_note') or '').strip()
+
+        if plano not in PLANS:
+            messages.error(request, 'Plano desconhecido.')
+            return redirect('superadmin:tenants')
+        if not motivo:
+            messages.error(
+                request,
+                'Escreva o motivo da troca. E o que responde "por que esta clinica '
+                'tem este plano?" quando alguem perguntar depois.',
+            )
+            return redirect('superadmin:tenants')
+
+        def _inteiro(campo):
+            """Vazio e nulo (usa o plano); zero e zero.
+
+            `int(valor or 0)` transformaria o campo em branco em zero, que
+            e um limite legitimo - e travaria a clinica inteira por um
+            campo que a pessoa so nao preencheu.
+            """
+            bruto = (request.POST.get(campo) or '').strip()
+            if not bruto:
+                return None
+            valor = int(bruto)
+            if valor < 0:
+                raise ValueError('Limite nao pode ser negativo.')
+            return valor
+
+        try:
+            pacientes = _inteiro('patient_limit_override')
+            medicos = _inteiro('doctor_limit_override')
+        except ValueError:
+            messages.error(request, 'Os limites devem ser numeros inteiros, ou ficar em branco.')
+            return redirect('superadmin:tenants')
+
+        anterior = {
+            'plan': tenant.plan,
+            'patient_limit_override': tenant.patient_limit_override,
+            'doctor_limit_override': tenant.doctor_limit_override,
+        }
+        tenant.plan = plano
+        tenant.patient_limit_override = pacientes
+        tenant.doctor_limit_override = medicos
+        tenant.plan_note = motivo[:255]
+        tenant.full_clean()
+        tenant.save(update_fields=[
+            'plan', 'patient_limit_override', 'doctor_limit_override', 'plan_note', 'updated_at',
+        ])
+        record_audit_event(
+            request.user, tenant, 'tenancy.tenant_plan_changed',
+            object_type='tenant', object_id=tenant.id, outcome='success',
+            integrity_metadata={
+                'from': anterior,
+                'to': {'plan': tenant.plan,
+                       'patient_limit_override': tenant.patient_limit_override,
+                       'doctor_limit_override': tenant.doctor_limit_override},
+                # O motivo entra na trilha: e administrativo, nunca clinico.
+                'note': tenant.plan_note,
+            },
+        )
+        messages.success(request, f'Plano de {tenant.legal_name} atualizado.')
+        return redirect('superadmin:tenants')
 
 
 # -------------------------------------------------------------------- usuários
@@ -274,6 +387,150 @@ class AuditView(SuperAdminView):
             },
         })
         return render(request, 'ops/superadmin/audit.html', context)
+
+
+# ------------------------------------------------------------------ convites
+
+class InvitationsView(SuperAdminView):
+    """Convites de plataforma: emitir, ver os pendentes, revogar.
+
+    O convite de plataforma e o unico caminho para uma organizacao nascer,
+    e agora ele carrega o plano contratado. Emitir era so um comando de
+    linha (`issue_platform_invitation`), o que serve a quem esta com uma
+    sessao aberta no servidor e nao a quem acabou de fechar uma venda pelo
+    telefone.
+
+    **O token aparece uma vez.** Guardamos o hash, nunca o valor: um
+    convite legivel na tela depois de emitido seria um convite legivel por
+    quem tivesse acesso de leitura ao banco. Perdido o token, revoga-se e
+    emite-se outro - que e mais barato do que a alternativa.
+    """
+
+    def get(self, request, emitido=None):
+        from tenancy.limits import describe_limit, granted_limits
+        from tenancy.models import Invitation, InvitationPurpose
+        from tenancy.plans import PLANS, PUBLIC_ORDER
+
+        agora = timezone.now()
+        pendentes = (
+            Invitation.objects
+            .filter(purpose=InvitationPurpose.PLATFORM, consumed_at__isnull=True,
+                    revoked_at__isnull=True, expires_at__gt=agora)
+            .select_related('issued_by').order_by('-created_at')
+        )
+        usados = (
+            Invitation.objects
+            .filter(purpose=InvitationPurpose.PLATFORM)
+            .exclude(consumed_at__isnull=True, revoked_at__isnull=True, expires_at__gt=agora)
+            .select_related('issued_by', 'consumed_by').order_by('-created_at')[:25]
+        )
+
+        def _linha(invitation):
+            pacientes, medicos = granted_limits(
+                invitation.plan, invitation.patient_limit_override,
+                invitation.doctor_limit_override,
+            )
+            return {
+                'obj': invitation,
+                'plan_label': PLANS.get(invitation.plan, {}).get('label', invitation.plan),
+                'patients': describe_limit(pacientes),
+                'doctors': describe_limit(medicos),
+            }
+
+        context = _nav('invitations')
+        context.update({
+            'pending': [_linha(i) for i in pendentes],
+            'history': [_linha(i) for i in usados],
+            'plans': [
+                {'code': str(code), 'label': PLANS[code]['label'],
+                 'patients': describe_limit(PLANS[code]['max_patients']),
+                 'doctors': describe_limit(PLANS[code]['max_doctors'])}
+                for code in PUBLIC_ORDER
+            ],
+            'emitido': emitido,
+        })
+        return render(request, 'ops/superadmin/invitations.html', context)
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from tenancy.invitations import issue_invitation
+        from tenancy.models import InvitationPurpose
+        from tenancy.plans import PLANS
+
+        plano = request.POST.get('plan', '')
+        if plano not in PLANS:
+            messages.error(request, 'Escolha um plano.')
+            return redirect('superadmin:invitations')
+
+        def _inteiro(campo):
+            # Vazio e nulo (usa o plano); zero e zero. Ver `TenantPlanView`.
+            bruto = (request.POST.get(campo) or '').strip()
+            if not bruto:
+                return None
+            valor = int(bruto)
+            if valor < 0:
+                raise ValueError
+            return valor
+
+        try:
+            pacientes = _inteiro('patient_limit_override')
+            medicos = _inteiro('doctor_limit_override')
+            dias = int((request.POST.get('ttl_days') or '7').strip())
+        except ValueError:
+            messages.error(request, 'Limites e prazo devem ser numeros inteiros.')
+            return redirect('superadmin:invitations')
+        if not 1 <= dias <= 90:
+            messages.error(request, 'O prazo deve ficar entre 1 e 90 dias.')
+            return redirect('superadmin:invitations')
+
+        invitation, raw_token = issue_invitation(
+            InvitationPurpose.PLATFORM, issued_by=request.user,
+            email_binding=(request.POST.get('email_binding') or '').strip(),
+            ttl_days=dias, plan=plano,
+            patient_limit_override=pacientes, doctor_limit_override=medicos,
+            plan_note=(request.POST.get('plan_note') or '').strip(),
+        )
+        record_audit_event(
+            request.user, None, 'tenancy.platform_invitation_issued',
+            object_type='invitation', object_id=invitation.id, outcome='success',
+            integrity_metadata={
+                'plan': invitation.plan,
+                'patient_limit_override': invitation.patient_limit_override,
+                'doctor_limit_override': invitation.doctor_limit_override,
+                'email_binding': invitation.email_binding,
+            },
+        )
+        # O token vai para a tela uma vez, pelo `get` abaixo - e nao pela
+        # sessao nem por `messages`, que o gravariam em Redis e no cookie.
+        return self.get(request, emitido=raw_token)
+
+
+class InvitationRevokeView(SuperAdminView):
+    def post(self, request, invitation_id):
+        from audit.services import record_audit_event
+        from tenancy.models import Invitation, InvitationPurpose
+
+        invitation = get_object_or_404(
+            Invitation, id=invitation_id, purpose=InvitationPurpose.PLATFORM,
+        )
+        if invitation.consumed_at is not None:
+            # Revogar o que ja virou clinica nao desfaz a clinica, e daria a
+            # impressao de que desfez. Para mexer no que ja existe, o
+            # caminho e a troca de plano em Organizacoes.
+            messages.error(
+                request,
+                'Este convite ja foi usado. Revoga-lo nao altera a organizacao criada - '
+                'para isso, mude o plano dela em Organizacoes.',
+            )
+            return redirect('superadmin:invitations')
+        invitation.revoked_at = timezone.now()
+        invitation.save(update_fields=['revoked_at', 'updated_at'])
+        record_audit_event(
+            request.user, None, 'tenancy.platform_invitation_revoked',
+            object_type='invitation', object_id=invitation.id, outcome='success',
+        )
+        messages.success(request, 'Convite revogado.')
+        return redirect('superadmin:invitations')
 
 
 def _is_iso_date(value):

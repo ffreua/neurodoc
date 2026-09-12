@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Invitation, InvitationPurpose
+from .plans import DEFAULT_PLAN, PLANS
 
 DEFAULT_TTL_DAYS = 7
 
@@ -16,9 +17,22 @@ def hash_token(raw_token):
 def issue_invitation(
     purpose, issued_by=None, target_tenant=None, email_binding='',
     role_grants=None, ttl_days=DEFAULT_TTL_DAYS,
+    plan=None, patient_limit_override=None, doctor_limit_override=None,
+    plan_note='',
 ):
+    """Emite um convite. O de plataforma carrega o plano contratado.
+
+    `plan` só faz sentido para `purpose='platform'`, que é o que cria uma
+    organização nova. Convite de colaborador entra numa clínica que já tem
+    plano, e deixá-lo alterar isso seria uma forma silenciosa de mudar
+    contrato — por isso os três campos são ignorados nesse caso, em vez de
+    aceitos e sem efeito.
+    """
     if purpose == InvitationPurpose.COLLABORATOR and target_tenant is None:
         raise ValueError('Collaborator invitations require a target tenant')
+    plataforma = purpose == InvitationPurpose.PLATFORM
+    if plataforma and plan is not None and plan not in PLANS:
+        raise ValueError(f'Plano desconhecido: {plan}')
     raw_token = secrets.token_urlsafe(32)
     invitation = Invitation.objects.create(
         token_hash=hash_token(raw_token),
@@ -28,6 +42,10 @@ def issue_invitation(
         role_grants=role_grants or [],
         expires_at=timezone.now() + timezone.timedelta(days=ttl_days),
         issued_by=issued_by,
+        plan=(plan or DEFAULT_PLAN) if plataforma else DEFAULT_PLAN,
+        patient_limit_override=patient_limit_override if plataforma else None,
+        doctor_limit_override=doctor_limit_override if plataforma else None,
+        plan_note=(plan_note or '')[:255] if plataforma else '',
     )
     return invitation, raw_token
 

@@ -51,7 +51,14 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
         trade_name=trade_name,
         cnpj=re.sub(r'\D', '', cnpj),
         slug=_unique_slug(trade_name or legal_name),
-        plan='free',
+        # O plano vem do convite, e não escrito aqui. Com `'free'` fixo,
+        # quem vendesse o Completo teria de corrigir o plano à mão depois
+        # de o cliente entrar — e ninguém saberia dizer se ele está no
+        # plano certo sem perguntar a quem vendeu.
+        plan=invitation.plan,
+        patient_limit_override=invitation.patient_limit_override,
+        doctor_limit_override=invitation.doctor_limit_override,
+        plan_note=invitation.plan_note,
     )
     tenant.full_clean()
     tenant.save()
