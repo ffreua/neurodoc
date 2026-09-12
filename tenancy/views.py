@@ -11,6 +11,7 @@ from django.views import View
 
 from .forms import AcceptInvitationAccountForm
 from .invitations import peek_invitation
+from .limits import PlanLimitReached
 from .models import InvitationPurpose
 from .services import (
     EmailAlreadyRegistered,
@@ -47,6 +48,12 @@ class AcceptCollaboratorInvitationView(View):
                 accept_collaborator_invitation_for_user(token, request.user)
             except (InvalidInvitation, InvitationEmailMismatch):
                 return render(request, 'onboarding/invitation_invalid.html', status=400)
+            except PlanLimitReached as limite:
+                # A clínica encheu entre a emissão e o aceite. Quem está na
+                # tela não pode resolver isso, então a mensagem manda falar
+                # com a clínica em vez de sugerir uma ação que não existe.
+                return render(request, 'tenancy/invitation_limit_reached.html',
+                              {'limite': limite, 'invitation': invitation}, status=409)
             return redirect('accounts:login')
         form = AcceptInvitationAccountForm(request.POST)
         if not form.is_valid():
@@ -63,4 +70,7 @@ class AcceptCollaboratorInvitationView(View):
         except EmailAlreadyRegistered:
             form.add_error('email', 'Este e-mail já possui conta. Faça login para aceitar o convite.')
             return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})
+        except PlanLimitReached as limite:
+            return render(request, 'tenancy/invitation_limit_reached.html',
+                          {'limite': limite, 'invitation': invitation}, status=409)
         return redirect('accounts:login')

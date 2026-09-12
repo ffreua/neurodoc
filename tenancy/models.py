@@ -8,6 +8,8 @@ from django.db.models.functions import Lower
 from base.models import TenantModel, TimestampedModel
 from base.validators import is_valid_cnpj
 
+from .plans import PLANS, PlanCode
+
 
 SLUG_RE = re.compile(r'^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$')
 RESERVED_SLUGS = {'app', 'admin', 'api', 'static', 'health', 'technical-docs', 'www'}
@@ -31,7 +33,29 @@ class Tenant(TimestampedModel):
     cnpj = models.CharField(max_length=14, unique=True)
     slug = models.SlugField(max_length=63, unique=True)
     status = models.CharField(max_length=40, choices=TenantStatus.choices, default=TenantStatus.ACTIVE)
-    plan = models.CharField(max_length=40, default='free')
+
+    # ------------------------------------------------------------- plano
+    #
+    # O catálogo vive em `tenancy/plans.py`, em código: um plano é o
+    # registro do que foi vendido a alguém, e numa tabela baixar um limite
+    # alteraria em silêncio o direito de quem já contratou.
+    #
+    # O que varia por cliente são os dois *override* abaixo, e não o plano.
+    # Nulo significa "usa o plano"; preenchido, vale o valor. É assim que a
+    # clínica que negociou 1.200 pacientes continua no Básico em vez de
+    # virar um quinto plano — e é assim que a clínica-sede fica irrestrita,
+    # como `custom` sem override, e não como uma exceção codificada por
+    # e-mail que ninguém vê na tela nem na trilha.
+    plan = models.CharField(
+        max_length=40, choices=PlanCode.choices, default=PlanCode.FREE,
+    )
+    patient_limit_override = models.PositiveIntegerField(null=True, blank=True)
+    doctor_limit_override = models.PositiveIntegerField(null=True, blank=True)
+    #: Por que esta clínica tem o plano e os limites que tem — contrato,
+    #: cortesia, piloto. É o que responde à pergunta um ano depois, quando
+    #: quem combinou já não lembra e o e-mail se perdeu.
+    plan_note = models.CharField(max_length=255, blank=True)
+
     timezone = models.CharField(max_length=64, default='America/Sao_Paulo')
     settings = models.JSONField(default=dict, blank=True)
 
@@ -42,6 +66,8 @@ class Tenant(TimestampedModel):
             raise ValidationError({'slug': 'Reserved slug'})
         if not is_valid_cnpj(self.cnpj or ''):
             raise ValidationError({'cnpj': 'Invalid CNPJ'})
+        if self.plan not in PLANS:
+            raise ValidationError({'plan': f'Plano desconhecido: {self.plan}'})
 
     def __str__(self):
         return self.legal_name

@@ -35,6 +35,14 @@ PRD; é a referência operacional viva gerada a partir dele.
   de CEP dos Correios e bloco de plano de saúde; inclui um bug real de datas
   que apagava valores ao editar.
 
+## Planos e oferta comercial
+
+- [Especificação: planos, limites, convites e página de vendas](specs/2026-09-12-planos-e-limites.md) —
+  as dez decisões, com a alternativa recusada e o motivo.
+- [Planos e limites](homologation/plan-limits.md) — quatro planos, override
+  por clínica, e a trava valendo nas seis portas por onde paciente e médico
+  entram. Rebaixar congela: nada some.
+
 ## Agenda e trabalho da secretaria (S04)
 
 - [Homologação de agenda](homologation/scheduling.md) — evidências de H-12.

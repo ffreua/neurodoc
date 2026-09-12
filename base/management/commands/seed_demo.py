@@ -33,6 +33,7 @@ class Command(BaseCommand):
         )
         from scheduling.models import Appointment, AppointmentStatus
         from tenancy.models import Membership, MembershipStatus, Role, Tenant, TenantStatus
+        from tenancy.plans import PlanCode
 
         counts = {'tenants': 0, 'users': 0, 'memberships': 0, 'patients': 0, 'contacts': 0, 'observations': 0, 'coverages': 0}
 
@@ -48,15 +49,30 @@ class Command(BaseCommand):
             user.save(update_fields=['email_verified_at'])
             return user
 
-        def get_or_create_tenant(slug, legal_name, cnpj):
+        def get_or_create_tenant(slug, legal_name, cnpj, plan):
+            """Cria a clínica de demonstração no plano indicado.
+
+            As duas ficam em planos diferentes de propósito, como já ficam
+            em dias e durações de agenda diferentes: um limite igual nas
+            duas não revelaria cota vazando de um inquilino para o outro.
+
+            O plano é ajustado também quando a clínica já existe. Antes
+            desta mudança toda clínica nascia `free`, e `get_or_create` não
+            altera o que já está lá — a demonstração ficaria com as duas no
+            limite de 50 pacientes e 1 médico, o que bloquearia a própria
+            semeadura que tenta criar dois médicos na Clínica A.
+            """
             tenant, created = Tenant.objects.get_or_create(
                 slug=slug, defaults={
                     'legal_name': legal_name, 'cnpj': cnpj,
-                    'status': TenantStatus.ACTIVE, 'plan': 'free',
+                    'status': TenantStatus.ACTIVE, 'plan': plan,
                 },
             )
             if created:
                 counts['tenants'] += 1
+            elif tenant.plan != plan:
+                tenant.plan = plan
+                tenant.save(update_fields=['plan'])
             return tenant
 
         def get_or_create_membership(tenant, user, roles):
@@ -116,7 +132,10 @@ class Command(BaseCommand):
         # esconde exatamente o que se quer conferir — o que a secretária
         # **não** vê, o que o gestor não pode assinar, a agenda que o médico
         # não-dono não configura.
-        tenant_a = get_or_create_tenant(f'{DEMO_MARKER}-a', 'Clinica Demo A Neurologia Ltda', '11444777000161')
+        tenant_a = get_or_create_tenant(
+            f'{DEMO_MARKER}-a', 'Clinica Demo A Neurologia Ltda', '11444777000161',
+            PlanCode.COMPLETE,
+        )
         doctor_a = get_or_create_user('doctor-a@demo.neurodoc.local', first_name='Ana', last_name='Neuro')
         doctor_b = get_or_create_user('doctor-b@demo.neurodoc.local', first_name='Bruno', last_name='Clínico')
         secretary_a = get_or_create_user('secretary-a@demo.neurodoc.local', first_name='Bia', last_name='Secretaria')
@@ -199,7 +218,10 @@ class Command(BaseCommand):
         # próprios, e o `manager` só existe na A. É o que revela dado
         # vazando de um inquilino para o outro — duas cópias iguais
         # esconderiam exatamente isso.
-        tenant_b = get_or_create_tenant(f'{DEMO_MARKER}-b', 'Clinica Demo B Neurocirurgia Ltda', '11444777000242')
+        tenant_b = get_or_create_tenant(
+            f'{DEMO_MARKER}-b', 'Clinica Demo B Neurocirurgia Ltda', '11444777000242',
+            PlanCode.BASIC,
+        )
         get_or_create_membership(tenant_b, doctor_a, [Role.OWNER, Role.DOCTOR])
         membership_doctor_a_b = Membership.objects.get(tenant=tenant_b, user=doctor_a)
         if Role.OWNER not in (membership_doctor_a_b.roles or []):

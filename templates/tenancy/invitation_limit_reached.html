@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Convite não pôde ser aceito — NeuroDoc{% endblock %}
+{% block page_title %}Convite não pôde ser aceito{% endblock %}
+{% block content %}
+{% comment %}Quem está nesta tela é o convidado, e ele não pode resolver
+nada: o plano é da clínica. Por isso a mensagem manda falar com quem
+convidou, e não oferece um botão de ampliar plano que ele não tem como
+acionar.{% endcomment %}
+<div class="card">
+    <div class="card-body">
+        <h5 class="fw-bold text-dark">A clínica está no limite de médicos do plano</h5>
+        <p class="fs-13 text-muted mb-3">{{ limite.message }}</p>
+        <p class="fs-12 text-muted mb-0">
+            O convite continua válido. Avise quem o enviou: assim que a clínica
+            ampliar o plano, ou liberar uma vaga, o mesmo link volta a funcionar.
+        </p>
+    </div>
+</div>
+{% endblock %}

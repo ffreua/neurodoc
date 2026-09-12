@@ -57,6 +57,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_matrix` | A matriz de acesso confere com o PRD seção 4 |
 | `check_notificacoes` | Aviso nomeia o paciente, leva à resolução, e alcança só quem pode agir |
 | `check_convite` | Entrada do superadministrador: link, senha, MFA, console |
+| `check_planos` | Limites de plano nas seis portas, e o que acontece ao rebaixar |
 | `check_prontuario` | Número do prontuário e documentos por paciente |
 | `check_roles` | Resposta de cada papel nas telas principais |
 | `check_resto` | Hábitos, confirmação por e-mail, pedido editável, receita, console |

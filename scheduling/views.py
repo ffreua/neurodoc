@@ -7,6 +7,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from patients.models import Patient
+from tenancy.limits import PlanLimitReached
 from tenancy.permissions import Capability, CapabilityRequiredView, can_configure_agenda_of
 from tenancy.selectors import scope_to_tenant
 
@@ -589,10 +590,17 @@ class QuickBookingView(TenantScopedView):
                 messages.error(request, 'Paciente não encontrado nesta organização.')
                 return _agenda_redirect(request, doctor, day)
         else:
-            patient = services.quick_register_patient(
-                request.access_context, form.cleaned_data['new_name'],
-                form.cleaned_data.get('new_phone', ''), note=form.cleaned_data.get('note', ''),
-            )
+            # Pré-cadastro ao telefone também ocupa vaga do plano. A
+            # mensagem vem pronta de `PlanLimitReached` — escrevê-la aqui a
+            # faria divergir da do cadastro completo no primeiro ajuste.
+            try:
+                patient = services.quick_register_patient(
+                    request.access_context, form.cleaned_data['new_name'],
+                    form.cleaned_data.get('new_phone', ''), note=form.cleaned_data.get('note', ''),
+                )
+            except PlanLimitReached as limite:
+                messages.error(request, limite.message())
+                return _agenda_redirect(request, doctor, day)
 
         try:
             appointment = services.reserve_from_grid(

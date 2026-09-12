@@ -6,6 +6,7 @@ from django.utils import timezone
 
 from audit.services import record_audit_event
 from integrations.cep import lookup_cep
+from tenancy.limits import PlanLimitReached, assert_can_add_patient, patient_status
 from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import photo as photo_storage
@@ -36,7 +37,13 @@ class PatientListView(TenantScopedView):
         query = request.GET.get('q', '')
         page = request.GET.get('page', 1)
         patients = selectors.list_patients(request.access_context, query=query, page=page)
-        return render(request, 'patients/list.html', {'patients': patients, 'query': query})
+        return render(request, 'patients/list.html', {
+            'patients': patients, 'query': query,
+            # O aviso aparece a partir de 80% da cota. O bloqueio não pode
+            # ser a primeira notícia: quem o descobre com o paciente no
+            # balcão não tem o que fazer naquele momento.
+            'limite': patient_status(request.access_context.tenant_id),
+        })
 
 
 class PatientAutocompleteView(TenantScopedView):
@@ -105,6 +112,16 @@ class PatientCreateView(TenantScopedView):
                       {'form': form, 'duplicates': [], **_photo_context()})
 
     def post(self, request):
+        # Antes de validar o formulário: recusar depois de a pessoa
+        # preencher trinta campos é pior, e o limite não depende de nada do
+        # que ela digitou. A verificação se repete dentro da transação, que
+        # é onde ela vale contra duas recepcionistas cadastrando ao mesmo
+        # tempo.
+        try:
+            assert_can_add_patient(request.access_context.tenant_id)
+        except PlanLimitReached as limite:
+            return render(request, 'patients/limit_reached.html',
+                          {'limite': limite}, status=409)
         form = PatientForm(request.POST, tenant_id=request.access_context.tenant_id)
         duplicates = []
         photo_error = None
@@ -130,6 +147,10 @@ class PatientCreateView(TenantScopedView):
             # sem cobertura faria a cobrança cair em particular.
             measurements = form.measurements
             with transaction.atomic():
+                # De novo, e agora valendo. A verificação de cima evita o
+                # preenchimento perdido; esta é a que impede duas
+                # recepcionistas de passarem juntas pela última vaga.
+                assert_can_add_patient(request.access_context.tenant_id)
                 patient = form.save(commit=False)
                 patient.tenant_id = request.access_context.tenant_id
                 patient.full_clean()

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Limite do plano — NeuroDoc{% endblock %}
+{% block page_title %}Limite do plano atingido{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:list' %}">Pacientes</a></li>
+<li class="breadcrumb-item">Limite do plano</li>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <div class="d-flex gap-3">
+            <span class="avatar-text avatar-xl bg-soft-warning text-warning flex-shrink-0">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </span>
+            <div>
+                <h5 class="fw-bold text-dark">Não há vaga para mais um paciente</h5>
+                <p class="fs-13 text-muted mb-3">{{ limite.message }}</p>
+
+                {% comment %}O que já existe continua existindo, e dizer isso
+                aqui importa: quem vê "limite atingido" numa tela de saúde
+                precisa saber, na mesma frase, que nenhum prontuário sumiu.
+                {% endcomment %}
+                <div class="alert alert-light-info fade show fs-12" role="alert">
+                    Nenhum paciente foi arquivado, apagado ou escondido. Todo o
+                    histórico continua acessível — o plano limita quantos cadastros
+                    <strong>novos</strong> a clínica comporta, nunca o que já foi
+                    registrado.
+                </div>
+
+                <p class="fs-12 text-muted mb-3">
+                    Duas saídas imediatas: arquivar um paciente que não é mais
+                    acompanhado libera uma vaga; ampliar o plano resolve de vez.
+                </p>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="mailto:contato@neurodoc.app.br?subject=Ampliar%20plano%20-%20NeuroDoc">
+                        Falar sobre o plano
+                    </a>
+                    <a class="btn btn-light" href="{% url 'patients:list' %}">Voltar aos pacientes</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

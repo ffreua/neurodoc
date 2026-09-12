@@ -194,8 +194,16 @@ def quick_register_patient(context, name, phone, note=''):
 
     O cadastro completo é pedido no check-in, quando o paciente está na
     recepção.
+
+    **O limite do plano vale aqui também.** Este é o segundo caminho pelo
+    qual nasce paciente, e o que se esquece: a secretária cria cadastro
+    marcando horário, sem nunca abrir a tela de cadastro. Deixá-lo de fora
+    faria a cota valer só pela porta da frente.
     """
     from patients.models import Patient, PatientContact, RegistrationStage
+    from tenancy.limits import assert_can_add_patient
+
+    assert_can_add_patient(context.tenant_id)
 
     patient = Patient(
         tenant_id=context.tenant_id,

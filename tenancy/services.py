@@ -68,6 +68,20 @@ class InvitationEmailMismatch(Exception):
     pass
 
 
+def _assert_doctor_vacancy(invitation):
+    """O convite traz o papel médico? Então a clínica precisa ter vaga.
+
+    A emissão já conferiu (`tenancy/admin_views.py`), e esta é a
+    verificação que vale: entre emitir e aceitar cabem sete dias, e a
+    última vaga pode ter sido ocupada nesse meio-tempo. Sem ela, o convite
+    emitido sob o limite de ontem entraria acima do limite de hoje.
+    """
+    from .limits import assert_can_add_doctor
+
+    if Role.DOCTOR in (invitation.role_grants or []):
+        assert_can_add_doctor(invitation.target_tenant)
+
+
 @transaction.atomic
 def accept_collaborator_invitation_for_user(token, user):
     """Adds a Membership to an already-authenticated user's own account.
@@ -80,6 +94,7 @@ def accept_collaborator_invitation_for_user(token, user):
         raise InvalidInvitation(token)
     if invitation.email_binding and invitation.email_binding != user.email:
         raise InvitationEmailMismatch(token)
+    _assert_doctor_vacancy(invitation)
     membership, created = Membership.objects.get_or_create(
         tenant=invitation.target_tenant, user=user,
         defaults={
@@ -107,6 +122,7 @@ def accept_collaborator_invitation_new_user(token, email, password):
         raise InvitationEmailMismatch(token)
     if User.objects.filter(email=email).exists():
         raise EmailAlreadyRegistered(email)
+    _assert_doctor_vacancy(invitation)
     user = User.objects.create_user(email=email, password=password)
     membership = Membership.objects.create(
         tenant=invitation.target_tenant, user=user, roles=invitation.role_grants,

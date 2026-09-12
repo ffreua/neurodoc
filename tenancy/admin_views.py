@@ -28,6 +28,7 @@ from .forms import (
     PhysicianProfileForm,
 )
 from .invitations import issue_invitation
+from .limits import PlanLimitReached, assert_can_add_doctor
 from .models import (
     ClinicProfile, Invitation, InvitationPurpose, Membership, MembershipStatus, Role, Tenant,
 )
@@ -171,6 +172,18 @@ class TeamView(OrgAdminView):
             return render(request, 'tenancy/team.html', self._context(request, invite_form=form))
 
         tenant = Tenant.objects.get(id=self.tenant_id)
+        if Role.DOCTOR in form.cleaned_data['roles']:
+            # Conferido aqui, e de novo no aceite. Esta é a que evita o
+            # constrangimento: sem ela, o convidado descobriria o limite
+            # depois de clicar no link, e quem pode resolvê-lo é o dono da
+            # clínica, não ele. A do aceite continua sendo a autoritativa —
+            # a última vaga pode ter sido tomada nesse meio-tempo.
+            try:
+                assert_can_add_doctor(tenant)
+            except PlanLimitReached as limite:
+                form.add_error('roles', limite.message())
+                return render(request, 'tenancy/team.html',
+                              self._context(request, invite_form=form))
         invitation, raw_token = issue_invitation(
             InvitationPurpose.COLLABORATOR, issued_by=request.user, target_tenant=tenant,
             email_binding=email, role_grants=form.cleaned_data['roles'],
@@ -198,6 +211,16 @@ class MembershipRolesView(OrgAdminView):
             return redirect('tenancy:team')
 
         previous = list(membership.roles or [])
+        # Ganhar o papel de médico ocupa vaga do plano; perdê-lo, libera.
+        # A conta é sobre o **ganho**: um vínculo que já era médico e está
+        # só trocando de secretaria para gestora não deve ser recusado por
+        # uma cota que ele próprio já ocupa.
+        if Role.DOCTOR in form.cleaned_data['roles'] and Role.DOCTOR not in previous:
+            try:
+                assert_can_add_doctor(self.tenant_id)
+            except PlanLimitReached as limite:
+                messages.error(request, limite.message())
+                return redirect('tenancy:team')
         membership.roles = form.cleaned_data['roles']
         membership.row_version += 1
         membership.save(update_fields=['roles', 'row_version', 'updated_at'])
@@ -266,6 +289,15 @@ class MembershipStatusView(OrgAdminView):
                 'envie um convite novo.',
             )
             return redirect('tenancy:team')
+        # Reativar um vínculo médico volta a ocupar vaga. Suspender libera
+        # — é o que permite a clínica no limite acomodar quem volta de
+        # férias sem revogar o vínculo de ninguém, que apagaria a trilha.
+        if target == MembershipStatus.ACTIVE and Role.DOCTOR in (membership.roles or []):
+            try:
+                assert_can_add_doctor(self.tenant_id)
+            except PlanLimitReached as limite:
+                messages.error(request, limite.message())
+                return redirect('tenancy:team')
         membership.status = target
         if target == MembershipStatus.ACTIVE and membership.activated_at is None:
             membership.activated_at = timezone.now()
