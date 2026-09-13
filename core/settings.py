@@ -188,8 +188,22 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 1048576
 SECURE_SSL_REDIRECT = not DEBUG
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SECURE_REDIRECT_EXEMPT = [r'^health/$']
-SECURE_HSTS_SECONDS = 0
-# Enable after staging validation: 31536000, then includeSubDomains if all aliases use TLS.
+# HSTS: ligado por configuracao, e nao por commit.
+#
+# Zero e o padrao de proposito. HSTS diz ao navegador "nunca mais fale com
+# este dominio em HTTP", e ele **guarda isso**: ligar antes de o HTTPS
+# estar comprovadamente funcionando deixa o site inalcancavel para quem ja
+# visitou, e nao ha como voltar atras no navegador dessa pessoa.
+#
+# O caminho e ligar depois do primeiro deploy, com o certificado emitido e
+# o dominio respondendo -- e por isso a variavel esta no `.env`, para essa
+# virada nao exigir uma nova imagem.
+#
+# Valor recomendado depois da validacao: 31536000 (um ano). Sub-dominios
+# so quando todos os aliases tiverem TLS proprio.
+SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=0)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False)
+SECURE_HSTS_PRELOAD = False
 SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'

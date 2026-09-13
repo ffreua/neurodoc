@@ -15,7 +15,20 @@ from ops.make_runtime import make_traefik, prepare_runtime
 
 
 STACK = 'neurodoc_v1'
-REGISTRY = 'ghcr.io/pycodebr/scsi_v1'
+
+#: Registry de onde o Swarm puxa a imagem da aplicacao.
+#:
+#: Era uma constante em codigo, apontando para `ghcr.io/pycodebr/scsi_v1`
+#: -- o repositorio de **outro** projeto, herdado do esqueleto. Quem
+#: publicasse o NeuroDoc num dominio proprio nao teria permissao de escrita
+#: la, e o deploy pararia no `docker push` depois de ja ter construido a
+#: imagem.
+#:
+#: Virou configuracao, e nao um `sed` no arquivo: o PRD (P-02) pede que o
+#: registry nao seja renomeado unilateralmente, e uma variavel de ambiente
+#: deixa a escolha com quem opera a instalacao, registrada no `.env` dela,
+#: sem tocar no codigo versionado.
+DEFAULT_REGISTRY = 'ghcr.io/pycodebr/scsi_v1'
 SERVICES = ['app', 'celery_worker', 'celery_beat', 'db', 'rabbitmq', 'redis', 'traefik']
 IMAGE_KEYS = ['PYTHON_IMAGE', 'POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE']
 
@@ -47,7 +60,18 @@ def inspect_network(name, internal):
         raise RuntimeError(f'Invalid network isolation: {name}')
 
 
+def registry(config):
+    """O registry desta instalacao, com o historico como padrao."""
+    return (config.get('REGISTRY') or '').strip() or DEFAULT_REGISTRY
+
+
 def preflight(config):
+    alvo = registry(config)
+    if '/' not in alvo or ':' in alvo.split('/')[-1]:
+        raise RuntimeError(
+            f'REGISTRY invalido: {alvo!r}. Use `host/namespace/repositorio`, '
+            'sem tag -- a tag e o SHA do commit, posta pelo proprio deploy.'
+        )
     if config['DEBUG'] != 'False':
         raise RuntimeError('Production requires DEBUG=False')
     if config['NEURODOC_RELEASE_APPROVED'] != 'True':
@@ -209,7 +233,7 @@ def main():
         release = run(['git', 'rev-parse', 'HEAD'])
         if not re.fullmatch(r'[a-f0-9]{40}', release):
             raise RuntimeError('Invalid Git commit identifier')
-        tag = f'{REGISTRY}:{release}'
+        tag = f'{registry(config)}:{release}'
         published = subprocess.run(['docker', 'manifest', 'inspect', tag],
                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         if published.returncode != 0:
