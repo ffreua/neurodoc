@@ -27,6 +27,7 @@ class Command(BaseCommand):
         from accounts.models import User
         from catalogs.importers import activate_release, import_catalog
         from catalogs.models import CatalogRelease
+        from exams.provisioning import ensure_default_template
         from patients.models import (
             HealthPlan, HealthPlanKind, Insurer, ObservationKind, Patient, PatientCoverage,
             SexAtRegistration,
@@ -73,6 +74,13 @@ class Command(BaseCommand):
             elif tenant.plan != plan:
                 tenant.plan = plan
                 tenant.save(update_fields=['plan'])
+            # O roteiro de exame vem junto, como vem em qualquer clínica
+            # criada pelo sistema. Sem isto, a demonstração recém-semeada
+            # abre o exame neurológico num aviso pedindo um comando de
+            # terminal -- e foi assim que ele foi parar nas capturas do
+            # manual.
+            if ensure_default_template(tenant.id) is not None:
+                counts['roteiros'] = counts.get('roteiros', 0) + 1
             return tenant
 
         def get_or_create_membership(tenant, user, roles):

@@ -312,9 +312,17 @@ digitado em outra.{% endcomment %}
                 {% include "exams/scales.html" %}
 
                 {% else %}
-                <div class="alert alert-warning fade show fs-13" role="alert">
-                    Nenhum roteiro de exame publicado nesta organização. Instale o roteiro padrão
-                    com <code>manage.py install_exam_template</code> ou use o registro avulso abaixo.
+                {% comment %}Estado raro: toda organização recebe o roteiro padrão
+                ao ser criada. Se ele não está aqui, alguém o despublicou — e a
+                mensagem fala com quem está atendendo, não com um administrador de
+                servidor. O comando de terminal que ficava nesta linha pedia ao
+                médico algo que ele não tem como fazer.{% endcomment %}
+                <div class="alert alert-soft-warning fade show fs-13" role="alert">
+                    Esta organização está sem roteiro de exame publicado. Registre os
+                    achados pelo campo avulso abaixo — eles entram no prontuário do mesmo
+                    jeito — e avise o suporte em
+                    <a href="mailto:contato@neurodoc.app.br">contato@neurodoc.app.br</a>
+                    para restabelecer o roteiro completo.
                 </div>
                 {% endif %}
 

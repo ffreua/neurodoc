@@ -65,6 +65,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_planos` | Limites de plano nas seis portas, e o que acontece ao rebaixar |
 | `check_prontuario` | Número do prontuário e documentos por paciente |
 | `check_roles` | Resposta de cada papel nas telas principais |
+| `check_roteiro` | A clínica nasce com o roteiro de exame instalado |
 | `check_resto` | Hábitos, confirmação por e-mail, pedido editável, receita, console |
 | `check_secretary` | A secretária trabalha, e não passa do que lhe compete |
 | `check_super` | O console da instalação por dentro, e o que ele não mostra |

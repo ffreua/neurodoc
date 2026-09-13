@@ -48,10 +48,18 @@ def apagar_organizacoes(cnpjs, emails):
     isto fora de um banco de demonstracao.
     """
     from audit.models import AuditEvent
+    from exams.models import ExamNode, ExamScale, ExamScaleItem, ExamTemplate
     from tenancy.models import Membership
 
     Membership.objects.filter(tenant__cnpj__in=cnpjs).delete()
     AuditEvent.objects.filter(tenant__cnpj__in=cnpjs).delete()
+    # A organizacao nasce com o roteiro de exame e as escalas (veja
+    # `exams/provisioning.py`), e `ExamScale.tenant` tambem e `PROTECT`.
+    # Ordem importa: no depende de template, item depende de escala.
+    ExamNode.objects.filter(tenant__cnpj__in=cnpjs).delete()
+    ExamTemplate.objects.filter(tenant__cnpj__in=cnpjs).delete()
+    ExamScaleItem.objects.filter(tenant__cnpj__in=cnpjs).delete()
+    ExamScale.objects.filter(tenant__cnpj__in=cnpjs).delete()
     Tenant.objects.filter(cnpj__in=cnpjs).delete()
     User.objects.filter(email__in=emails).delete()
 

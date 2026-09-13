@@ -37,6 +37,7 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     failed signup never burns a one-time invite.
     """
     from accounts.models import User
+    from exams.provisioning import ensure_default_template
 
     invitation = consume_invitation(token, consumed_by=None, expected_purpose=InvitationPurpose.PLATFORM)
     if invitation is None:
@@ -68,6 +69,9 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     )
     invitation.consumed_by = user
     invitation.save(update_fields=['consumed_by'])
+    # A clínica nasce pronta para atender: sem isto, o primeiro exame
+    # neurológico abre num aviso pedindo um comando de terminal.
+    ensure_default_template(tenant.id)
     return user, tenant, membership
 
 
