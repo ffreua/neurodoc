@@ -240,6 +240,24 @@ services:
       start_period: 30s
       retries: 5
     restart: on-failure:10
+  mailpit:
+    image: axllent/mailpit:v1.21
+    restart: on-failure:10
+    networks:
+    - local
+    ports:
+    - 127.0.0.1:8025:8025
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: '1'
+      MP_SMTP_AUTH_ALLOW_INSECURE: '1'
+    healthcheck:
+      test:
+      - CMD
+      - /mailpit
+      - readyz
+      interval: 15s
+      timeout: 5s
+      retries: 5
 networks:
   local:
     driver: bridge

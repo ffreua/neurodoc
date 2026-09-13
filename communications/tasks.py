@@ -33,3 +33,41 @@ def run_campaign_batch(campaign_id):
         if campaign.status == CampaignStatus.SENDING:
             run_campaign_batch.apply_async((str(campaign.id),), countdown=60)
     return resultado
+
+
+@shared_task(
+    name='communications.tasks.deliver_installation_email',
+    autoretry_for=(OSError,), retry_backoff=True, retry_backoff_max=600,
+    max_retries=5, retry_jitter=True,
+)
+def deliver_installation_email(dados):
+    """Fala com o servidor SMTP da instalação. Roda no worker.
+
+    É o outro lado de `communications.mail_backend.WorkerEmailBackend`:
+    a view enfileira, e a entrega acontece aqui, onde existe saída para a
+    internet e onde a senha do SMTP está disponível.
+
+    A conexão é pedida **explicitamente** pelo backend SMTP, e não pelo
+    padrão das configurações. Sem isso, o worker leria `EMAIL_BACKEND`,
+    encontraria o backend que enfileira, e a mensagem daria voltas na fila
+    para sempre.
+
+    `OSError` cobre a família de falhas de rede e de `smtplib` (que herda
+    de `OSError`): servidor fora do ar, recusa temporária, nome que não
+    resolve. Repetir com espera crescente é o certo aí — a alternativa é
+    perder um e-mail de confirmação de conta porque o SMTP piscou.
+    """
+    from django.core.mail import EmailMultiAlternatives, get_connection
+
+    mensagem = EmailMultiAlternatives(
+        subject=dados['subject'], body=dados['body'],
+        from_email=dados['from_email'], to=dados['to'],
+        cc=dados.get('cc') or None, bcc=dados.get('bcc') or None,
+        reply_to=dados.get('reply_to') or None,
+    )
+    for conteudo, tipo in dados.get('alternatives') or []:
+        mensagem.attach_alternative(conteudo, tipo)
+
+    conexao = get_connection(backend='django.core.mail.backends.smtp.EmailBackend')
+    enviadas = conexao.send_messages([mensagem])
+    return {'enviadas': enviadas}

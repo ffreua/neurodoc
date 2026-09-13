@@ -16,6 +16,16 @@ from django.conf import settings as dj_settings
 from django.test import Client
 
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
+# A caixa em memoria, independentemente do que o ambiente diga.
+#
+# Este roteiro afirma sobre `mail.outbox`, que so existe no backend
+# `locmem`. Com o envio ligado (Mailpit no ambiente local), o backend
+# padrao passa a ser o que enfileira, a caixa fica vazia e o roteiro
+# falharia por configuracao do ambiente -- nao por regressao.
+#
+# `send_mail` le `EMAIL_BACKEND` a cada chamada, entao fixar aqui basta.
+dj_settings.EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+
 
 from django.core import mail
 from django_otp.plugins.otp_totp.models import TOTPDevice

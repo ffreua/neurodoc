@@ -61,6 +61,8 @@ sai com código 1 listando as falhas quando não passa.
 | `check_ajuda` | Manual e FAQ públicos, e nenhuma captura faltando ou órfã |
 | `check_chatbot` | O que o chat manda ao provedor, e o que ele nunca manda |
 | `check_codigos` | Busca de CID-10 e TUSS, incluindo a abreviação da tabela |
+| `check_email` | O web enfileira, o worker entrega: conta e senha chegam |
+| `check_inativacao` | Suspender congela, encerrar fecha, e nada e apagado |
 | `check_convite_plano` | Convite carregando o plano, e o console que emite e troca |
 | `check_planos` | Limites de plano nas seis portas, e o que acontece ao rebaixar |
 | `check_prontuario` | Número do prontuário e documentos por paciente |

@@ -199,8 +199,19 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 EMAIL_ENABLED = env.bool('EMAIL_ENABLED', default=False)
+# Ligado, o e-mail sai pela fila -- nunca pelo SMTP daqui.
+#
+# Em producao o processo `app` nao tem saida para a internet: quem esta em
+# `neurodoc_v1_egress` e o worker (`docker-stack.yml`). Falar com o SMTP
+# dentro da requisicao funcionava em desenvolvimento e travaria dez
+# segundos no `EMAIL_TIMEOUT` em producao, em todo cadastro e em toda
+# recuperacao de senha. Veja `communications/mail_backend.py`.
+#
+# Quem entrega e `communications.tasks.deliver_installation_email`, que
+# pede o backend SMTP **explicitamente** -- ler esta variavel la faria a
+# mensagem voltar para a fila indefinidamente.
 EMAIL_BACKEND = (
-    'django.core.mail.backends.smtp.EmailBackend' if EMAIL_ENABLED
+    'communications.mail_backend.WorkerEmailBackend' if EMAIL_ENABLED
     else 'django.core.mail.backends.locmem.EmailBackend'
 )
 EMAIL_HOST = env('EMAIL_HOST', default='smtp.example.invalid')
