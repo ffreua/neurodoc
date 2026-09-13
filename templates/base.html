@@ -84,6 +84,38 @@ header, sidebar e container enquanto um modal está aberto (body.modal-open), e
 um modal declarado lá dentro sairia borrado junto com o fundo.{% endcomment %}
 {% block modals %}{% endblock %}
 
+{% comment %}Confirmação de ação destrutiva, uma só para todo o produto.
+
+Fica aqui, fora de `.nxl-container`, pela mesma razão do bloco acima: o tema
+desfoca o container enquanto um modal está aberto.
+
+Um modal por ação seria a mesma caixa repetida em cada tela, divergindo no
+primeiro ajuste de texto. Quem precisa dela põe `data-nd-confirm="pergunta"`
+no formulário; `static/duralux/app.js` faz o resto.
+
+Sem JavaScript o formulário envia direto, sem a pergunta. É deliberado: a
+alternativa seria um botão que não faz nada, e a confirmação é uma cortesia
+contra o clique acidental — nunca o controle de permissão, que está no
+servidor.{% endcomment %}
+<div class="modal fade" id="nd-confirm-modal" tabindex="-1" aria-hidden="true"
+     aria-labelledby="nd-confirm-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nd-confirm-title">Confirmar</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body">
+                <p class="fs-13 text-muted mb-0" id="nd-confirm-text"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="nd-confirm-ok">Confirmar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="{% static 'duralux/app.js' %}"></script>
 {% block scripts %}{% endblock %}
 </body>

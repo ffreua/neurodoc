@@ -19,20 +19,22 @@ que se mostra é a máscara, para conferir que a chave gravada é a certa.
 {% endcomment %}
 
 {% if not has_master_key %}
-<div class="alert alert-danger fade show fs-13 d-flex align-items-start gap-2" role="alert">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+{% comment %}Impedimento real: sem a chave-mestra, a credencial nao pode ser
+guardada cifrada e o formulario a recusa. Quem administra a clinica precisa
+saber por que o botao nao aceita -- o que ela nao precisa e do nome do
+secret, que ela nao tem como definir. Esse detalhe fica no console da
+instalacao, que e de quem pode agir.
+
+O aviso de chave-mestra compartilhada saiu daqui inteiro: e recomendacao de
+infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
+<div class="alert alert-light-warning fade show fs-13 d-flex align-items-start gap-2" role="alert">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
     <span>
-        <strong>Não há chave-mestra de segredos configurada.</strong>
-        Sem ela a chave do SMSDEV e a senha do SMTP não podem ser guardadas cifradas, e por isso
-        não serão aceitas. Defina o segredo <code>SECRETS_MASTER_KEY</code> na instalação.
+        <strong>Guarda de credenciais ainda nao liberada.</strong>
+        A chave do SMS e a senha do e-mail so podem ser salvas quando a
+        administracao do sistema concluir a configuracao de seguranca.
+        Fale com o suporte antes de cadastra-las.
     </span>
-</div>
-{% elif shared_master_key %}
-<div class="alert alert-warning fade show fs-12" role="alert">
-    A chave-mestra de segredos está compartilhada com a do certificado de assinatura
-    (<code>PFX_MASTER_KEY</code>). Funciona, mas o recomendado é definir
-    <code>SECRETS_MASTER_KEY</code> em separado: comprometer a chave de SMS não deveria dar
-    acesso ao certificado.
 </div>
 {% endif %}
 
@@ -52,11 +54,15 @@ que se mostra é a máscara, para conferir que a chave gravada é a certa.
             </div>
             <div class="card-body">
                 {% if not sms_globally_enabled %}
-                <div class="alert alert-warning fade show fs-12" role="alert">
-                    O canal de SMS está desligado nesta instalação (<code>SMS_ENABLED=False</code>).
-                    A chave pode ser salva e testada aqui, mas nenhum SMS sai enquanto isso não
-                    mudar no deploy — e o sistema avisa em vez de fingir que enviou.
-                </div>
+                {% comment %}Discreto, e sem nome de variavel de ambiente. Some
+                sozinho quando o canal e ligado. Nao pode sumir antes disso: quem
+                cadastra a chave e aperta "testar" precisa saber por que nada
+                chegou, senao procura o defeito no proprio celular.{% endcomment %}
+                <p class="fs-12 text-muted border-start border-3 ps-2 mb-3">
+                    O envio de SMS ainda nao foi liberado pela administracao do sistema.
+                    Voce pode cadastrar e conferir a chave agora; as mensagens passam a
+                    sair assim que o canal for ativado.
+                </p>
                 {% endif %}
 
                 <form method="post" action="{% url 'messaging:save-sms' %}" novalidate>
@@ -118,11 +124,11 @@ que se mostra é a máscara, para conferir que a chave gravada é a certa.
                     própria abaixo se quiser que o e-mail dele saia com outro remetente.
                 </p>
                 {% if not email_globally_enabled %}
-                <div class="alert alert-warning fade show fs-12" role="alert">
-                    O envio de e-mail está desligado nesta instalação
-                    (<code>EMAIL_ENABLED=False</code>): as mensagens ficam em memória e não saem.
-                    A configuração pode ser feita aqui desde já.
-                </div>
+                <p class="fs-12 text-muted border-start border-3 ps-2 mb-3">
+                    O envio de e-mail ainda nao foi liberado pela administracao do sistema.
+                    A configuracao pode ser feita agora e passa a valer assim que o canal
+                    for ativado.
+                </p>
                 {% endif %}
 
                 <form method="post" action="{% url 'messaging:save-clinic-email' %}" novalidate>
@@ -178,11 +184,11 @@ que se mostra é a máscara, para conferir que a chave gravada é a certa.
                     da instalação (<code>{{ default_from_email }}</code>).
                 </p>
                 {% if not email_globally_enabled %}
-                <div class="alert alert-warning fade show fs-12" role="alert">
-                    O envio de e-mail está desligado nesta instalação
-                    (<code>EMAIL_ENABLED=False</code>): as mensagens ficam em memória e não saem.
-                    A configuração pode ser feita aqui desde já.
-                </div>
+                <p class="fs-12 text-muted border-start border-3 ps-2 mb-3">
+                    O envio de e-mail ainda nao foi liberado pela administracao do sistema.
+                    A configuracao pode ser feita agora e passa a valer assim que o canal
+                    for ativado.
+                </p>
                 {% endif %}
 
                 {% for row in doctor_rows %}

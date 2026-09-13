@@ -241,6 +241,73 @@ try:
 except NoApplicableFeeSchedule as exc:
     falhas.append(f'nenhuma regra se aplicou: {exc}')
 
+# ------------------------------------------------- exclusao de plano
+#
+# Excluir so vale para plano que nunca foi usado. Havendo cobertura de
+# paciente ou tabela de valores, apagar apagaria o registro de sob qual
+# cobertura alguem foi atendido -- e isso e historia clinica, nao
+# cadastro. A saida para o plano em uso e desmarcar "Aceito pela clinica".
+print()
+print('=== exclusao de plano ===')
+
+from patients.models import PatientCoverage
+
+tenant_obj = Tenant.objects.get(slug=TENANT)
+
+descartavel = HealthPlan.objects.create(
+    tenant=tenant_obj, insurer=Insurer.objects.filter(tenant=tenant_obj).first(),
+    name='Plano Digitado Errado (check)',
+)
+r = dono.post(f'/app/org/convenios/planos/{descartavel.id}/excluir/', follow=True)
+sumiu = not HealthPlan.objects.filter(id=descartavel.id).exists()
+print(f'  plano sem uso        -> {r.status_code}  excluido={sumiu}')
+if not sumiu:
+    falhas.append('plano que nunca foi usado nao pode ser excluido')
+
+em_uso = None
+for candidato in HealthPlan.objects.filter(tenant=tenant_obj):
+    if PatientCoverage.objects.filter(plan=candidato).exists():
+        em_uso = candidato
+        break
+
+if em_uso is None:
+    print('  (nenhum plano em uso na demonstracao -- nao da para provar aqui)')
+else:
+    r = dono.post(f'/app/org/convenios/planos/{em_uso.id}/excluir/', follow=True)
+    corpo = r.content.decode()
+    resistiu = HealthPlan.objects.filter(id=em_uso.id).exists()
+    util = 'paciente(s)' in corpo and 'Aceito pela' in corpo
+    print(f'  plano em uso         -> {r.status_code}  resistiu={resistiu}  recusa util={util}')
+    if not resistiu:
+        falhas.append('um plano em uso foi excluido, e com ele o registro de cobertura')
+    if not util:
+        falhas.append('a recusa nao diz quem prende o plano nem oferece a saida')
+
+# O botao so aparece para o que pode ser apagado: oferecer o que sera
+# negado e pior do que nao oferecer.
+corpo = dono.get('/app/org/convenios/').content.decode()
+na_tela = corpo.count('/excluir/')
+sem_uso = sum(
+    1 for pl in HealthPlan.objects.filter(tenant=tenant_obj)
+    if not PatientCoverage.objects.filter(plan=pl).exists()
+    and not FeeSchedule.objects.filter(plan=pl).exists()
+)
+print(f'  botoes na tela={na_tela}  planos sem uso={sem_uso}  confere={na_tela == sem_uso}')
+if na_tela != sem_uso:
+    falhas.append(f'a tela oferece {na_tela} exclusoes para {sem_uso} planos elegiveis')
+
+# Secretaria nao administra convenio: a capacidade e MANAGE_HEALTH_PLANS.
+outro = HealthPlan.objects.create(
+    tenant=tenant_obj, insurer=Insurer.objects.filter(tenant=tenant_obj).first(),
+    name='Plano Alvo Da Secretaria (check)',
+)
+r = secretaria.post(f'/app/org/convenios/planos/{outro.id}/excluir/')
+sobreviveu = HealthPlan.objects.filter(id=outro.id).exists()
+print(f'  secretaria excluindo -> {r.status_code}  plano sobreviveu={sobreviveu}')
+if not sobreviveu:
+    falhas.append('a secretaria conseguiu excluir um plano')
+criados['plans'].append(outro.id)
+
 # ---------------------------------------------------------------- limpeza
 FeeSchedule.objects.filter(id__in=criados['fees']).delete()
 HealthPlan.objects.filter(id__in=criados['plans']).delete()

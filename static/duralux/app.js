@@ -700,6 +700,7 @@
         initCounters();
         initFullScreen();
         initBusyButtons();
+        initConfirm();
         initAutoGrow();
         initMasks();
     }
@@ -771,6 +772,51 @@
             /* Colar um CPF com pontuação diferente da nossa passa pelo
              * mesmo caminho: o evento `input` dispara depois do `paste`. */
         });
+    }
+
+    /* ------------------------------------------ confirmação de ação destrutiva
+     *
+     * `data-nd-confirm="pergunta"` num `<form>`: o envio para, a pergunta
+     * aparece no modal único de `base.html`, e o formulário só segue se a
+     * pessoa confirmar.
+     *
+     * Intercepta no `submit`, e não no clique do botão: formulário também é
+     * enviado por Enter dentro de um campo, e um `click` perderia esse
+     * caminho — que é justamente o do envio acidental.
+     */
+    function initConfirm() {
+        var modal = document.getElementById('nd-confirm-modal');
+        var texto = document.getElementById('nd-confirm-text');
+        var ok = document.getElementById('nd-confirm-ok');
+        if (!modal || !texto || !ok) return;
+        var pendente = null;
+
+        document.addEventListener('submit', function (event) {
+            var form = event.target;
+            if (!form.matches || !form.matches('[data-nd-confirm]')) return;
+            if (form.dataset.ndConfirmed === '1') return;   /* já passou pela pergunta */
+            event.preventDefault();
+            pendente = form;
+            texto.textContent = form.getAttribute('data-nd-confirm') || 'Confirmar esta ação?';
+            openModal(modal);
+        }, true);
+
+        ok.addEventListener('click', function () {
+            if (!pendente) return;
+            var form = pendente;
+            pendente = null;
+            /* A marca impede o laço: o `requestSubmit` abaixo dispara `submit`
+             * de novo, e sem ela a pergunta reapareceria para sempre. */
+            form.dataset.ndConfirmed = '1';
+            closeModal(modal);
+            if (form.requestSubmit) {
+                form.requestSubmit();
+            } else {
+                form.submit();
+            }
+        });
+
+        modal.addEventListener('nd:closed', function () { pendente = null; });
     }
 
     /* API mínima para telas que precisam abrir um modal por código — o

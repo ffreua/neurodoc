@@ -11,23 +11,23 @@
 {% block content %}
 
 {% if not ai_globally_enabled %}
-<div class="alert alert-warning fade show" role="alert">
-    <span class="fw-semibold d-block">A IA está desligada nesta instalação.</span>
-    <span class="fs-12">
-        `AI_ENABLED=False` desliga o recurso para todas as clínicas, e isso é
-        decisão de quem opera o servidor. O que se configura aqui fica guardado e
-        passa a valer quando a instalação for ligada.
-    </span>
-</div>
+{% comment %}Sem o nome da variavel de ambiente: quem administra a clinica nao
+a define, e o console da instalacao ja mostra essa flag a quem define. O aviso
+some sozinho quando o recurso e ligado.{% endcomment %}
+<p class="fs-12 text-muted border-start border-3 ps-2 mb-3">
+    O apoio de inteligencia artificial ainda nao foi liberado pela administracao
+    do sistema. O que voce configurar aqui fica guardado e passa a valer assim que
+    o recurso for ativado.
+</p>
 {% endif %}
 
 {% if not has_master_key %}
-<div class="alert alert-danger fade show" role="alert">
-    <span class="fw-semibold d-block">Sem chave-mestra de segredos.</span>
-    <span class="fs-12">
-        Sem `SECRETS_MASTER_KEY` a chave da API não pode ser guardada cifrada, e
-        gravá-la em texto claro entregaria a credencial de IA num dump do banco.
-        Configure a chave-mestra antes.
+<div class="alert alert-light-warning fade show fs-13" role="alert">
+    <strong>Guarda de credenciais ainda nao liberada.</strong>
+    <span class="d-block fs-12">
+        A chave da API so pode ser salva quando a administracao do sistema
+        concluir a configuracao de seguranca -- guarda-la sem isso deixaria a
+        credencial legivel para quem tivesse acesso ao banco. Fale com o suporte.
     </span>
 </div>
 {% endif %}

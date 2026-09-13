@@ -25,4 +25,8 @@ urlpatterns = [
         'convenios/planos/<uuid:plan_id>/salvar/',
         plan_views.HealthPlanUpdateView.as_view(), name='plan-save',
     ),
+    path(
+        'convenios/planos/<uuid:plan_id>/excluir/',
+        plan_views.HealthPlanDeleteView.as_view(), name='plan-delete',
+    ),
 ]
