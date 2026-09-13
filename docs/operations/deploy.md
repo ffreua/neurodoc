@@ -1,5 +1,11 @@
 # Deploy — primeira publicação e rollout
 
+> **Procurando o passo a passo?** Este documento descreve o
+> *mecanismo*. Para publicar de fato, do zero — VPS, DNS na
+> Cloudflare, chave SSH, Swarm, segredos, certificado e
+> atualizações —, siga [`primeiro-deploy.md`](primeiro-deploy.md),
+> escrito para quem nunca administrou um servidor.
+
 P-02 (VPS real) segue **pendente**: nenhuma publicação em origem real, nenhum
 certificado wildcard e nenhum deploy Swarm foram executados nesta etapa. Este
 documento descreve o mecanismo já implementado (`ops/deploy.py`,
