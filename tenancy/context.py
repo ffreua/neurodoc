@@ -1,7 +1,7 @@
 import dataclasses
 import uuid
 
-from .models import Membership, MembershipStatus, TenantDomain
+from .models import Membership, MembershipStatus, TenantDomain, TenantStatus
 
 
 @dataclasses.dataclass(frozen=True)
@@ -19,6 +19,11 @@ class AccessContext:
     membership_id: uuid.UUID
     permissions: frozenset
     request_id: uuid.UUID
+    #: Estado comercial da organização (`TenantStatus`). Vem junto do
+    #: contexto porque o vínculo já traz o tenant por `select_related`:
+    #: perguntar "esta clínica está congelada?" não deve custar uma
+    #: consulta a cada requisição, e muito menos ser esquecido.
+    tenant_status: str = TenantStatus.ACTIVE
     #: Capacidades derivadas dos papéis (`tenancy.permissions`). Calculadas
     #: junto com o contexto, uma vez por requisição, e não a cada `if` de
     #: view ou template — a alternativa era consultar o vínculo e o perfil
@@ -27,6 +32,16 @@ class AccessContext:
 
     def has_role(self, role):
         return role in self.permissions
+
+    @property
+    def tenant_is_read_only(self):
+        """Clínica congelada: lê tudo, não escreve nada.
+
+        Quem responde por isto é o middleware, que recusa método inseguro.
+        A propriedade existe para a **tela**: um botão de salvar que só
+        falha quando clicado é pior do que botão nenhum.
+        """
+        return self.tenant_status == TenantStatus.SUSPENDED
 
     def can(self, capability):
         """Se este vínculo tem a capacidade.
@@ -42,6 +57,7 @@ def active_membership_for(user, tenant_id):
         return None
     return (
         Membership.objects
+        .select_related('tenant')
         .filter(tenant_id=tenant_id, user_id=user.id, status=MembershipStatus.ACTIVE)
         .first()
     )
@@ -75,6 +91,7 @@ def build_access_context(request):
         membership_id=membership.id,
         permissions=frozenset(membership.roles or []),
         request_id=uuid.uuid4(),
+        tenant_status=membership.tenant.status,
         capabilities=capabilities_for(
             membership.roles, clinically_enabled=membership.can_practice_clinically(),
         ),

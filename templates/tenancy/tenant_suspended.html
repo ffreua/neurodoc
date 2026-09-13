@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% comment %}Tentativa de escrita numa organização congelada.
+
+Esta herda `base.html`, ao contrário da tela de encerramento: aqui a
+navegação **funciona**. Tudo que é leitura continua aberto, e devolver a
+pessoa a uma tela sem barra lateral a faria pensar que perdeu o sistema
+inteiro quando perdeu só o botão de salvar.
+{% endcomment %}
+{% block title %}Organização suspensa — NeuroDoc{% endblock %}
+{% block page_title %}Organização suspensa{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Organização suspensa</li>
+{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body p-4">
+                <span class="avatar-text avatar-lg bg-soft-warning text-warning mb-3">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                </span>
+                <h5 class="fw-bold text-dark">Esta alteração não pôde ser salva</h5>
+                <p class="fs-13 text-muted">
+                    A organização está <strong>suspensa</strong>: o sistema continua
+                    aberto para consulta, impressão e exportação, mas não aceita
+                    criar nem alterar registros enquanto durar a suspensão.
+                </p>
+                <p class="fs-13 text-muted mb-0">
+                    Nada foi apagado, e nada do que você já registrou se perdeu. Para
+                    reativar, fale com
+                    <a href="mailto:contato@neurodoc.app.br">contato@neurodoc.app.br</a>.
+                </p>
+                <div class="d-flex flex-wrap gap-2 mt-4">
+                    <a class="btn btn-primary" href="{% url 'reporting:dashboard' %}">Voltar ao início</a>
+                    <a class="btn btn-light" href="{% url 'patients:list' %}">Ver pacientes</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

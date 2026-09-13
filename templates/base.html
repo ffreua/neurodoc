@@ -51,6 +51,24 @@ vinculo em clinica nenhuma.{% endcomment %}
         </div>
 
         <div class="main-content" id="nd-main">
+            {% comment %}Clínica congelada: o aviso fica em toda tela, e não
+            só naquela em que a pessoa tentou salvar. Descobrir a suspensão
+            ao perder o que acabou de digitar é a pior forma de descobrir.
+
+            Não é dispensável (sem `alert-dismissible`): o estado dura
+            enquanto durar, e um aviso que some com um clique reaparece
+            como surpresa na próxima tela.{% endcomment %}
+            {% if request.access_context.tenant_is_read_only %}
+            <div class="alert alert-soft-warning d-flex align-items-center gap-2 fs-13" role="alert">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <span>
+                    <strong>Organização suspensa.</strong> Consulta, impressão e
+                    exportação seguem funcionando; criar e alterar registros está
+                    bloqueado até a reativação. Nada foi apagado.
+                </span>
+            </div>
+            {% endif %}
+
             {% if messages %}
             <div class="row">
                 <div class="col-12">

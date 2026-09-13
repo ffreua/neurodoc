@@ -1,0 +1,43 @@
+{% extends "base_auth.html" %}
+{% comment %}Organização encerrada: a porta está fechada.
+
+Fora de `base.html` de propósito — a barra lateral do sistema levaria a
+telas que respondem 403 uma a uma, e oferecer navegação que não funciona é
+pior do que não oferecer nenhuma.
+
+O texto diz três coisas, nesta ordem, porque é a ordem em que a pessoa do
+outro lado precisa delas: que o prontuário **não foi apagado**, o que
+fazer para obtê-lo, e como sair para outra clínica se ela tiver uma.
+{% endcomment %}
+{% block title %}Organização encerrada — NeuroDoc{% endblock %}
+{% block card_width %}wd-500{% endblock %}
+{% block heading %}Esta organização foi encerrada{% endblock %}
+{% block subheading %}O acesso ao sistema está desativado para esta clínica.{% endblock %}
+{% block content %}
+
+<div class="alert alert-soft-primary fs-13" role="alert">
+    <strong>Os registros não foram apagados.</strong> O prontuário tem guarda
+    legal de vinte anos, e continua armazenado com a mesma proteção de
+    sempre — encerrar o contrato fecha o acesso, não destrói o arquivo.
+</div>
+
+<p class="fs-13 text-muted">
+    Para solicitar a exportação dos registros da clínica, ou para reativar o
+    acesso, escreva para
+    <a href="mailto:contato@neurodoc.app.br">contato@neurodoc.app.br</a>
+    informando o CNPJ da organização.
+</p>
+
+<div class="d-flex flex-wrap gap-2 mt-4">
+    <a class="btn btn-primary" href="{% url 'accounts:tenant-picker' %}">
+        Escolher outra organização
+    </a>
+    {% comment %}Sair é POST (Django 5 recusa GET em LogoutView); um link
+    aqui devolveria 405 a quem já está numa tela de erro.{% endcomment %}
+    <form method="post" action="{% url 'accounts:logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light">Sair da conta</button>
+    </form>
+</div>
+
+{% endblock %}

@@ -23,8 +23,34 @@ class Role(models.TextChoices):
 
 
 class TenantStatus(models.TextChoices):
-    ACTIVE = 'active', 'Active'
-    SUSPENDED = 'suspended', 'Suspended'
+    """Em que pé está a relação comercial com a organização.
+
+    Três estados, porque os dois motivos de desligar uma clínica são
+    diferentes e pedem consequências diferentes.
+
+    `SUSPENDED` é a falta de pagamento: a clínica **congela**. Todo mundo
+    continua entrando, lendo prontuário, imprimindo e exportando; nada é
+    criado nem alterado. É o estado que se desfaz sozinho quando a fatura é
+    paga, e é o único compatível com a guarda do prontuário — cortar o
+    acesso do médico ao registro dos próprios pacientes por causa de um
+    boleto atrasado transformaria uma questão comercial num problema de
+    assistência.
+
+    `CLOSED` é a rescisão: ninguém entra mais. O dado **continua no banco**
+    — o prontuário tem guarda de vinte anos e não é do sistema decidir
+    apagá-lo —, mas a porta fecha, e a tela diz a quem recorrer para pedir
+    a exportação.
+
+    Nenhum dos dois apaga nada, nunca. Reativar é trocar o estado de volta.
+    """
+
+    ACTIVE = 'active', 'Ativa'
+    SUSPENDED = 'suspended', 'Suspensa (somente leitura)'
+    CLOSED = 'closed', 'Encerrada'
+
+
+#: Os estados em que a organização não aceita escrita.
+INACTIVE_STATUSES = frozenset({TenantStatus.SUSPENDED, TenantStatus.CLOSED})
 
 
 class Tenant(TimestampedModel):
@@ -56,8 +82,33 @@ class Tenant(TimestampedModel):
     #: quem combinou já não lembra e o e-mail se perdeu.
     plan_note = models.CharField(max_length=255, blank=True)
 
+    # ------------------------------------------------- estado comercial
+    #
+    # Mesma razão do `plan_note`: um estado sem motivo escrito é
+    # indistinguível de um erro seis meses depois, e a pergunta que se faz
+    # então — "por que esta clínica está suspensa?" — não tem outra fonte.
+    #: Por que a organização está no estado em que está. Exigido ao mudar.
+    status_note = models.CharField(max_length=255, blank=True)
+    #: Quando o estado mudou pela última vez. A trilha guarda o evento
+    #: completo; isto existe para a tela poder dizer "suspensa desde"
+    #: sem varrer a auditoria a cada linha da listagem.
+    status_changed_at = models.DateTimeField(null=True, blank=True)
+
     timezone = models.CharField(max_length=64, default='America/Sao_Paulo')
     settings = models.JSONField(default=dict, blank=True)
+
+    @property
+    def is_active(self):
+        return self.status == TenantStatus.ACTIVE
+
+    @property
+    def is_read_only(self):
+        """Congelada: lê tudo, não escreve nada."""
+        return self.status == TenantStatus.SUSPENDED
+
+    @property
+    def is_closed(self):
+        return self.status == TenantStatus.CLOSED
 
     def clean(self):
         if not SLUG_RE.fullmatch(self.slug or ''):

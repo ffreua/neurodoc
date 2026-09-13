@@ -72,18 +72,81 @@
                             {% endif %}
                             {% endif %}
                         </td>
+                        {% comment %}O rótulo legível, e não o valor do banco: a
+                        coluna mostrava `suspended` em inglês, que é o nome da
+                        constante e não o que a pessoa precisa ler.{% endcomment %}
                         <td class="pe-4">
                             {% if row.obj.status == 'active' %}
-                            <span class="badge bg-soft-success text-success">{{ row.obj.status }}</span>
+                            <span class="badge bg-soft-success text-success">Ativa</span>
+                            {% elif row.obj.status == 'suspended' %}
+                            <span class="badge bg-soft-warning text-warning">Suspensa</span>
                             {% else %}
-                            <span class="badge bg-soft-warning text-warning">{{ row.obj.status }}</span>
+                            <span class="badge bg-soft-danger text-danger">Encerrada</span>
                             {% endif %}
-                            <a class="btn btn-sm btn-light-primary ms-2"
-                               href="{% url 'superadmin:audit' %}?tenant={{ row.obj.id }}">Trilha</a>
-                            <button class="btn btn-sm btn-light ms-1" type="button"
-                                    data-bs-toggle="collapse" data-bs-target="#plano-{{ row.obj.id }}">
-                                Plano
-                            </button>
+                            {% if row.obj.status != 'active' and row.obj.status_changed_at %}
+                            <span class="fs-11 text-muted d-block mt-1">
+                                desde {{ row.obj.status_changed_at|date:"d/m/Y" }}
+                                {% if row.obj.status_note %}— {{ row.obj.status_note }}{% endif %}
+                            </span>
+                            {% endif %}
+                            <div class="d-flex flex-wrap gap-1 mt-2">
+                                <a class="btn btn-sm btn-light-primary"
+                                   href="{% url 'superadmin:audit' %}?tenant={{ row.obj.id }}">Trilha</a>
+                                <button class="btn btn-sm btn-light" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#plano-{{ row.obj.id }}">
+                                    Plano
+                                </button>
+                                <button class="btn btn-sm btn-light" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#estado-{{ row.obj.id }}">
+                                    Estado
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% comment %}Suspender e encerrar são desligamentos
+                    diferentes, e a escolha fica explícita na tela em vez de
+                    num botão só chamado "inativar": suspensa congela (lê,
+                    imprime, exporta; não escreve) e encerrada fecha a porta.
+                    Nenhuma das duas apaga coisa alguma — e o texto abaixo do
+                    formulário diz isso onde a decisão é tomada, não num
+                    manual que ninguém abre nessa hora.{% endcomment %}
+                    <tr class="collapse" id="estado-{{ row.obj.id }}">
+                        <td colspan="7" class="ps-4 bg-gray-100">
+                            <form method="post" action="{% url 'superadmin:tenant-status' row.obj.id %}"
+                                  class="row g-2 align-items-end py-3"
+                                  data-nd-confirm="Confirma a mudança de estado desta organização? Nenhum registro é apagado.">
+                                {% csrf_token %}
+                                <div class="col-md-3">
+                                    <label class="form-label fs-11">Estado</label>
+                                    <select class="form-select form-select-sm" name="status">
+                                        {% for estado in statuses %}
+                                        <option value="{{ estado.code }}" {% if estado.code == row.obj.status %}selected{% endif %}>
+                                            {{ estado.label }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-7">
+                                    <label class="form-label fs-11">Motivo <span class="text-danger">*</span></label>
+                                    <input class="form-control form-control-sm" name="status_note" required
+                                           value="{{ row.obj.status_note }}"
+                                           placeholder="Ex.: fatura de 08/2026 em aberto há 40 dias">
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-sm btn-primary w-100" type="submit" data-nd-busy>
+                                        Aplicar
+                                    </button>
+                                </div>
+                                <div class="col-12">
+                                    <p class="fs-11 text-muted mb-0 mt-1">
+                                        <strong>Suspensa:</strong> todos continuam entrando, lendo,
+                                        imprimindo e exportando; criar e alterar fica bloqueado.
+                                        <strong>Encerrada:</strong> ninguém entra, e a tela explica a
+                                        quem pedir a exportação. Em nenhum dos dois o dado é apagado —
+                                        o prontuário tem guarda de vinte anos.
+                                    </p>
+                                </div>
+                            </form>
                         </td>
                     </tr>
                     <tr class="collapse" id="plano-{{ row.obj.id }}">

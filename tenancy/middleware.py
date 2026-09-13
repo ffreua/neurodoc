@@ -1,7 +1,24 @@
 from django.contrib.auth.views import redirect_to_login
 from django.http import Http404
+from django.shortcuts import render
 
 from .context import build_access_context
+from .models import TenantStatus
+
+#: Métodos que só leem. A regra da organização congelada é sobre escrita,
+#: e o verbo é o critério certo: a alternativa seria marcar view por view,
+#: e a view esquecida é justamente a que ninguém percebe.
+SAFE_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE'})
+
+#: Caminhos que continuam abertos numa clínica congelada, apesar de
+#: escreverem. Marcar uma notificação como lida é estado do **usuário**,
+#: não da clínica: trancá-lo encheria o sino de avisos que a pessoa não
+#: tem como baixar, sem proteger dado nenhum.
+#:
+#: Entrar, sair e trocar de organização não aparecem aqui porque vivem em
+#: `/accounts/`, fora do alcance deste middleware — quem está numa clínica
+#: congelada continua tendo como sair dela.
+ALWAYS_ALLOWED_PREFIXES = ('/app/notifications/',)
 
 
 class TenantMiddleware:
@@ -31,4 +48,24 @@ class TenantMiddleware:
         if context is None:
             raise Http404
         request.access_context = context
+
+        # ------------------------------------------ organização inativa
+        #
+        # Encerrada: a porta fecha, e a tela **explica**. Um 404 aqui seria
+        # tecnicamente suficiente e humanamente inútil: quem está do outro
+        # lado é um médico cuja clínica foi desligada, e ele precisa saber
+        # que o prontuário continua guardado e a quem pedir a exportação.
+        if context.tenant_status == TenantStatus.CLOSED:
+            return render(request, 'tenancy/tenant_closed.html', status=403)
+
+        # Suspensa: congela. Ler segue livre; escrever é recusado aqui, num
+        # lugar só, e não em cada view -- a view que esquecesse a
+        # verificação seria a que ninguém testaria.
+        if (
+            context.tenant_status == TenantStatus.SUSPENDED
+            and request.method not in SAFE_METHODS
+            and not request.path_info.startswith(ALWAYS_ALLOWED_PREFIXES)
+        ):
+            return render(request, 'tenancy/tenant_suspended.html', status=403)
+
         return self.get_response(request)

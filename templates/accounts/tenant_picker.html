@@ -13,9 +13,25 @@
             <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold">
                 {{ m.tenant.legal_name|slice:":1"|upper }}
             </span>
+            {% comment %}O estado da organização aparece aqui, antes do clique.
+            Quem tem duas clínicas e uma suspensa precisa saber qual é qual
+            enquanto escolhe — descobrir depois de entrar, ao perder o que
+            digitou, é descobrir tarde.{% endcomment %}
             <span class="flex-grow-1">
-                <span class="d-block fw-semibold text-dark">{{ m.tenant.trade_name|default:m.tenant.legal_name }}</span>
-                <span class="d-block fs-11 text-muted">{{ m.roles|join:", " }}</span>
+                <span class="d-block fw-semibold text-dark">
+                    {{ m.tenant.trade_name|default:m.tenant.legal_name }}
+                    {% if m.tenant.status == 'suspended' %}
+                    <span class="badge bg-soft-warning text-warning ms-1">suspensa</span>
+                    {% elif m.tenant.status == 'closed' %}
+                    <span class="badge bg-soft-danger text-danger ms-1">encerrada</span>
+                    {% endif %}
+                </span>
+                <span class="d-block fs-11 text-muted">
+                    {{ m.roles|join:", " }}
+                    {% if m.tenant.status == 'suspended' %}— somente leitura
+                    {% elif m.tenant.status == 'closed' %}— acesso desativado
+                    {% endif %}
+                </span>
             </span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
         </button>

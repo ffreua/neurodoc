@@ -87,6 +87,26 @@ def _record_attempt(delivery, outcome, provider_code='', sanitized_error=''):
 
 
 def _send(delivery, message, subject='Notificação NeuroDoc', physician_membership=None):
+    # Clínica desligada não fala com paciente em nome dela.
+    #
+    # Quase tudo que envia nasce de um POST, e o middleware já recusa POST
+    # numa organização suspensa. O que escapa é o que foi enfileirado
+    # **antes** do desligamento — uma campanha em lotes, um lembrete
+    # agendado — e continuaria saindo por dias, assinado por uma clínica
+    # que já não tem acesso ao próprio sistema.
+    #
+    # Os dois canais passam por aqui, então a verificação é uma só.
+    from tenancy.models import Tenant, TenantStatus
+
+    ativa = Tenant.objects.filter(
+        id=delivery.tenant_id, status=TenantStatus.ACTIVE,
+    ).exists()
+    if not ativa:
+        delivery.status = DeliveryStatus.NO_CONTACT
+        delivery.save(update_fields=['status'])
+        _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error='tenant_inactive')
+        return
+
     try:
         if delivery.channel == DeliveryChannel.EMAIL:
             send_email(

@@ -193,7 +193,7 @@ class TenantsView(SuperAdminView):
 
     def get(self, request):
         from tenancy import limits
-        from tenancy.models import MembershipStatus, Tenant
+        from tenancy.models import MembershipStatus, Tenant, TenantStatus
         from tenancy.plans import PLANS, PUBLIC_ORDER
 
         linhas = []
@@ -209,6 +209,9 @@ class TenantsView(SuperAdminView):
             })
         context = _nav('tenants')
         context['rows'] = linhas
+        context['statuses'] = [
+            {'code': str(code), 'label': rotulo} for code, rotulo in TenantStatus.choices
+        ]
         context['plans'] = [
             {'code': str(code), 'label': PLANS[code]['label'],
              'patients': limits.describe_limit(PLANS[code]['max_patients']),
@@ -300,6 +303,70 @@ class TenantPlanView(SuperAdminView):
             },
         )
         messages.success(request, f'Plano de {tenant.legal_name} atualizado.')
+        return redirect('superadmin:tenants')
+
+
+class TenantStatusView(SuperAdminView):
+    """Suspende, encerra ou reativa uma organizacao. Nunca apaga.
+
+    Sao dois desligamentos diferentes, e a diferenca importa:
+
+    `suspended` e a falta de pagamento. A clinica **congela** -- todo mundo
+    continua entrando, lendo prontuario, imprimindo e exportando, e nada e
+    criado nem alterado. Cortar o acesso do medico ao registro dos proprios
+    pacientes por um boleto atrasado transformaria uma questao comercial num
+    problema de assistencia, e o prontuario tem guarda de vinte anos que nao
+    e do sistema decidir interromper.
+
+    `closed` e a rescisao. A porta fecha e a tela explica a quem recorrer.
+    O dado **continua no banco**: encerrar contrato nao e apagar arquivo.
+
+    Exige motivo escrito, como a troca de plano. "Por que esta clinica esta
+    suspensa?" seis meses depois nao tem outra fonte -- o e-mail que
+    combinou se perdeu, e quem combinou pode nao estar mais aqui.
+    """
+
+    def post(self, request, tenant_id):
+        from django.utils import timezone
+
+        from audit.services import record_audit_event
+        from tenancy.models import Tenant, TenantStatus
+
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        estado = request.POST.get('status', '')
+        motivo = (request.POST.get('status_note') or '').strip()
+
+        if estado not in TenantStatus.values:
+            messages.error(request, 'Estado desconhecido.')
+            return redirect('superadmin:tenants')
+        if estado == tenant.status:
+            messages.info(request, f'{tenant.legal_name} ja esta neste estado.')
+            return redirect('superadmin:tenants')
+        if not motivo:
+            messages.error(
+                request,
+                'Escreva o motivo. E o que responde "por que esta clinica esta '
+                'assim?" quando alguem perguntar depois.',
+            )
+            return redirect('superadmin:tenants')
+
+        anterior = tenant.status
+        tenant.status = estado
+        tenant.status_note = motivo[:255]
+        tenant.status_changed_at = timezone.now()
+        tenant.full_clean()
+        tenant.save(update_fields=['status', 'status_note', 'status_changed_at', 'updated_at'])
+        record_audit_event(
+            request.user, tenant, 'tenancy.tenant_status_changed',
+            object_type='tenant', object_id=tenant.id, outcome='success',
+            integrity_metadata={
+                'from': anterior, 'to': tenant.status,
+                # O motivo entra na trilha: e administrativo, nunca clinico.
+                'note': tenant.status_note,
+            },
+        )
+        rotulo = dict(TenantStatus.choices)[estado]
+        messages.success(request, f'{tenant.legal_name}: {rotulo}.')
         return redirect('superadmin:tenants')
 
 
