@@ -124,6 +124,14 @@ if paciente.record_number not in body:
     failures.append('a tela de documentos nao mostra o numero do prontuario')
 
 print('=== 7. a tela so mostra os documentos DAQUELE paciente ===')
+# A pergunta e se **o documento** do outro aparece, e por isso o que se
+# procura no corpo e a identidade dele -- o id e o texto que so ele tem.
+#
+# Antes procurava-se o nome do outro paciente, e isso acusava falso: ha
+# homonimos no banco de demonstracao (os roteiros de permissao deixam
+# varios "Teste Permissao Secretaria"), entao o nome do outro e, as vezes,
+# tambem o nome do paciente da tela -- e ele aparece no cabecalho e na
+# trilha de navegacao, como deve.
 outro_paciente = Patient.objects.filter(tenant=tenant_a).exclude(id=paciente.id).first()
 enc2 = Encounter.objects.filter(tenant=tenant_a, patient=outro_paciente).first()
 if enc2 is None:
@@ -134,9 +142,13 @@ doc2 = issuance.create_draft(tenant_a, outro_paciente, enc2, doctor_m, doctor_m.
                              MedicalDocumentKind.REPORT, {'report_text': 'MARCADOR DO OUTRO'})
 criados.append(doc2)
 body = doctor.get(f'/app/documents/patients/{paciente.id}/documentos/').content.decode()
-print('  aparece o nome do outro paciente:', outro_paciente.full_name in body)
-if outro_paciente.full_name in body:
+vazou = str(doc2.id) in body or 'MARCADOR DO OUTRO' in body
+print('  aparece o documento do outro paciente:', vazou)
+print('  continua mostrando o documento deste:', str(doc.id) in body)
+if vazou:
     failures.append('a tela de documentos misturou pacientes')
+if str(doc.id) not in body:
+    failures.append('a tela de documentos deixou de mostrar o documento do proprio paciente')
 
 print('=== 8. a secretaria nao abre a tela de documentos ===')
 code = secretary.get(f'/app/documents/patients/{paciente.id}/documentos/').status_code
