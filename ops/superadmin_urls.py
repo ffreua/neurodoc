@@ -29,6 +29,7 @@ urlpatterns = [
         'convites/<uuid:invitation_id>/revogar/',
         superadmin.InvitationRevokeView.as_view(), name='revoke-invitation',
     ),
+    path('leads/', superadmin.LeadsView.as_view(), name='leads'),
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
     path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
 ]

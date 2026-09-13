@@ -1,30 +1,314 @@
-{% extends "base_auth.html" %}
-{% block title %}NeuroDoc{% endblock %}
-{% block heading %}Atendimento longitudinal em neurologia{% endblock %}
-{% block subheading %}Prontuário, agenda, documentos assinados e gestão da clínica em um só lugar.{% endblock %}
+{% extends "base_public.html" %}
+{% load static %}
+{% block title %}NeuroDoc — prontuário para neurologia e neurocirurgia{% endblock %}
 {% block content %}
-<ul class="list-group list-group-flush mb-4">
-    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
-        <span class="fw-semibold text-dark">Free</span>
-        <span class="badge bg-soft-success text-success">Disponível com convite</span>
-    </li>
-    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
-        <span class="fw-semibold text-dark">Profissional</span>
-        <span class="badge bg-gray-200 text-dark">Em breve</span>
-    </li>
-    <li class="list-group-item d-flex align-items-center justify-content-between px-0">
-        <span class="fw-semibold text-dark">Clínica</span>
-        <span class="badge bg-gray-200 text-dark">Em breve</span>
-    </li>
-</ul>
 
-<h6 class="fw-bold text-dark mb-3" id="invite-form">Tenho um convite</h6>
-<form method="post" novalidate>
-    {% csrf_token %}
-    {% include "partials/form_fields.html" %}
-    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Continuar com o convite</button>
-</form>
-<div class="text-center mt-4">
-    <a class="fs-12 fw-semibold" href="{% url 'accounts:login' %}">Já tenho conta — entrar</a>
-</div>
+{% comment %}
+Página de vendas.
+
+**Sem depoimento e sem estatística inventados**, de propósito. Depoimento
+fabricado de médico é falso testemunho sobre produto de saúde, e um
+contador em zero anuncia que não há clientes. Quando houver clínicas no
+piloto, os números entram medidos.
+
+**Sem preço**, nesta versão: preço errado em página pública é pior que
+preço ausente. Cada plano leva ao formulário de contato.
+
+Os limites dos planos vêm de `tenancy.plans`, pela view — nunca escritos
+aqui. Anunciar "até 500 pacientes" enquanto o servidor corta em 400 seria
+descoberto pelo cliente, no dia em que ele batesse o limite.
+{% endcomment %}
+
+<!-- ------------------------------------------------------------- hero -->
+<section class="nd-hero">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <span class="badge bg-soft-primary text-primary mb-3">Neurologia e neurocirurgia</span>
+                <h1 class="nd-hero-title">O prontuário que entende o exame neurológico.</h1>
+                <p class="nd-hero-lead">
+                    Agenda, prontuário estruturado, roteiro de exame em árvore, escalas
+                    funcionais, documentos assinados digitalmente e entrega ao paciente.
+                    Feito por um neurologista para o consultório de neurologia.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary btn-lg" href="#planos">Ver os planos</a>
+                    <a class="btn btn-outline-secondary btn-lg" href="#contato">Falar com a gente</a>
+                </div>
+                <p class="fs-12 text-muted mt-3 mb-0">
+                    O plano gratuito não pede cartão de crédito.
+                </p>
+            </div>
+            <div class="col-lg-6">
+                <div class="card nd-hero-card">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-dark mb-3">O que o sistema faz hoje</h6>
+                        <ul class="nd-tick list-unstyled mb-0">
+                            <li>Roteiro de exame neurológico com 387 itens e 14 escalas pontuadas</li>
+                            <li>Receita simples e de controle especial, em duas vias</li>
+                            <li>Assinatura digital PAdES com QR de verificação pública</li>
+                            <li>Agenda por médico, com confirmação por e-mail e SMS</li>
+                            <li>Portal onde o paciente pede receita sem criar conta</li>
+                            <li>Apoio de IA que o médico revisa antes de aceitar</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- -------------------------------------------------- problema e solução -->
+<section class="nd-section bg-white">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card h-100 border-0 bg-gray-100">
+                    <div class="card-body">
+                        <h5 class="fw-bold text-dark mb-3">Como costuma ser</h5>
+                        <ul class="nd-cross list-unstyled mb-0 fs-13">
+                            <li>O exame neurológico vira um parágrafo de texto corrido que ninguém relê</li>
+                            <li>A receita sai do Word, é impressa e assinada à caneta</li>
+                            <li>O paciente liga para pedir a segunda via, e alguém procura na pasta</li>
+                            <li>Cada médico tem a própria planilha de agenda</li>
+                            <li>O que foi perguntado na consulta passada se perde até a próxima</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100 border-0" style="background: var(--bs-primary-bg-subtle, #eef2ff);">
+                    <div class="card-body">
+                        <h5 class="fw-bold text-dark mb-3">Como fica</h5>
+                        <ul class="nd-tick list-unstyled mb-0 fs-13">
+                            <li>Exame estruturado por eixo, com "tudo normal" por grupo e achado destacado</li>
+                            <li>Documento assinado digitalmente, com verificação pública por QR</li>
+                            <li>O paciente pede pelo portal; o médico revisa e emite</li>
+                            <li>Uma agenda só, com grade por médico e bloqueio de sobreposição</li>
+                            <li>O atendimento anterior vem junto, para revisar em vez de redigitar</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ----------------------------------------------------- funcionalidades -->
+<section class="nd-section">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold text-dark">O que está pronto</h2>
+            <p class="text-muted fs-14 mb-0">
+                Tudo abaixo existe no produto e foi homologado. Nada aqui é promessa.
+            </p>
+        </div>
+        <div class="row g-4">
+            {% for item in recursos %}
+            <div class="col-lg-4 col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-dark">{{ item.titulo }}</h6>
+                        <p class="fs-13 text-muted mb-0">{{ item.texto }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- ------------------------------------------------------------ planos -->
+<section class="nd-section bg-white" id="planos">
+    <div class="container">
+        <div class="text-center mb-5">
+            <h2 class="fw-bold text-dark">Planos</h2>
+            <p class="text-muted fs-14 mb-0">
+                Escolha um e fale com a gente. Ainda não há pagamento on-line —
+                o acesso é liberado por um código de convite.
+            </p>
+        </div>
+        <div class="row g-4">
+            {% for plan in plans %}
+            <div class="col-lg-3 col-md-6">
+                <div class="card h-100 {% if plan.highlight %}border border-primary nd-plan-highlight{% endif %}">
+                    {% if plan.highlight %}
+                    <div class="card-header bg-primary text-white text-center py-2">
+                        <span class="fs-11 fw-bold text-uppercase">Mais completo</span>
+                    </div>
+                    {% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="fw-bold text-dark">{{ plan.label }}</h5>
+                        <p class="fs-12 text-muted">{{ plan.summary }}</p>
+
+                        <div class="nd-plan-limits mb-3">
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">Pacientes</span>
+                                <span class="fw-bold text-dark">
+                                    {% if plan.max_patients %}até {{ plan.max_patients }}{% else %}ilimitado{% endif %}
+                                </span>
+                            </div>
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">Médicos</span>
+                                <span class="fw-bold text-dark">
+                                    {% if plan.max_doctors %}{{ plan.max_doctors }}{% else %}ilimitado{% endif %}
+                                </span>
+                            </div>
+                        </div>
+
+                        <ul class="nd-tick list-unstyled fs-12 mb-4">
+                            {% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}
+                        </ul>
+
+                        <a class="btn {% if plan.highlight %}btn-primary{% else %}btn-outline-secondary{% endif %} mt-auto"
+                           href="#contato" data-nd-plan="{{ plan.code }}">
+                            {% if plan.contact_only %}Falar sobre condições{% else %}Quero este plano{% endif %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="fs-11 text-muted text-center mt-4 mb-0">
+            O limite de pacientes conta quem está ativo — arquivar um paciente que
+            não é mais acompanhado libera uma vaga, e o histórico dele continua
+            inteiro. Mudar de plano nunca apaga nada do que já foi registrado.
+        </p>
+    </div>
+</section>
+
+<!-- --------------------------------------------------------------- FAQ -->
+<section class="nd-section" id="faq">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold text-dark text-center mb-5">Perguntas frequentes</h2>
+                <div class="accordion" id="nd-faq">
+                    {% for item in faq %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                    type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq-{{ forloop.counter }}">
+                                {{ item.pergunta }}
+                            </button>
+                        </h2>
+                        <div id="faq-{{ forloop.counter }}"
+                             class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                             data-bs-parent="#nd-faq">
+                            <div class="accordion-body fs-13 text-muted">{{ item.resposta }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ----------------------------------------------------------- contato -->
+<section class="nd-section bg-white" id="contato">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-7">
+                {% if enviado %}
+                <div class="card border border-success">
+                    <div class="card-body text-center py-5">
+                        <h4 class="fw-bold text-dark">Recebemos, {{ lead_nome }}.</h4>
+                        <p class="fs-14 text-muted mb-0">
+                            Seu pedido foi registrado e vamos responder no e-mail que você
+                            informou. Se preferir adiantar, escreva para
+                            <a href="mailto:{{ leads_email }}">{{ leads_email }}</a>.
+                        </p>
+                    </div>
+                </div>
+                {% else %}
+                <h2 class="fw-bold text-dark text-center">Fale com a gente</h2>
+                <p class="text-muted fs-14 text-center mb-4">
+                    Conte o tamanho do seu consultório e devolvemos o código de acesso
+                    com o plano combinado.
+                </p>
+                <div class="card">
+                    <div class="card-body">
+                        <form method="post" novalidate id="nd-lead-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="lead">
+
+                            {% if lead_form.non_field_errors %}
+                            <div class="alert alert-danger fade show" role="alert">
+                                {% for error in lead_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                            </div>
+                            {% endif %}
+
+                            {% comment %}Campo-armadilha: invisível para pessoa, preenchido
+                            por robô que completa tudo. `aria-hidden` e `tabindex="-1"`
+                            para que leitor de tela e navegação por teclado também o
+                            pulem — senão ele deixa de ser invisível justamente para
+                            quem depende deles.{% endcomment %}
+                            <div class="d-none" aria-hidden="true">
+                                <label for="website">Não preencha este campo</label>
+                                <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
+                            </div>
+
+                            <div class="row g-3">
+                                {% include "partials/field.html" with field=lead_form.name col="col-md-6" %}
+                                {% include "partials/field.html" with field=lead_form.email col="col-md-6" %}
+                                {% include "partials/field.html" with field=lead_form.phone col="col-md-6" %}
+                                {% include "partials/field.html" with field=lead_form.clinic_name col="col-md-6" %}
+                                {% include "partials/field.html" with field=lead_form.message col="col-12" %}
+                            </div>
+
+                            <input type="hidden" name="plan" id="nd-lead-plan"
+                                   value="{{ lead_form.plan.value|default:'' }}">
+
+                            <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mt-4">
+                                <p class="fs-11 text-muted mb-0" style="max-width: 26rem;">
+                                    Ao enviar, você concorda que usemos estes dados para responder
+                                    ao seu pedido. Não enviamos divulgação sem seu aceite, e você
+                                    pode pedir a exclusão a qualquer momento por
+                                    <a href="mailto:{{ leads_email }}">{{ leads_email }}</a>.
+                                </p>
+                                <button type="submit" class="btn btn-primary btn-lg" data-nd-busy>Enviar pedido</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ------------------------------------------------------------ convite -->
+<section class="nd-section" id="convite">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-5">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="fw-bold text-dark">Já tenho um código</h5>
+                        <p class="fs-12 text-muted">
+                            Recebeu um código de convite? Ele cria sua clínica já no plano
+                            combinado.
+                        </p>
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+                            {% include "partials/form_fields.html" %}
+                            <button type="submit" class="btn btn-primary w-100" data-nd-busy>
+                                Continuar com o convite
+                            </button>
+                        </form>
+                        <div class="text-center mt-3">
+                            <a class="fs-12 fw-semibold" href="{% url 'accounts:login' %}">
+                                Já tenho conta — entrar
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script src="{% static 'onboarding/landing.js' %}"></script>
 {% endblock %}

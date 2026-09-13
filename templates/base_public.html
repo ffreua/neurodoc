@@ -1,0 +1,90 @@
+{% load static %}<!DOCTYPE html>
+{% comment %}Shell da página pública de vendas.
+
+Separado de `base_auth.html` de propósito. Aquele é o cartão estreito do
+tema Duralux, desenhado para formulário de autenticação: uma coluna de
+450px centrada. A página de vendas é larga, tem seções de largura total e
+precisa de rodapé — espremê-la naquele cartão obrigaria a desfazer o
+layout do tema dentro do template, que é como um tema deixa de ser tema.
+
+Sem barra lateral e sem cabeçalho de aplicação: quem lê esta página ainda
+não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
+{% endcomment %}
+<html lang="pt-br">
+<head>
+    {% include "partials/head.html" %}
+    <link rel="stylesheet" href="{% static 'onboarding/landing.css' %}">
+</head>
+<body class="nd-public">
+
+<nav class="nd-public-nav">
+    <div class="container d-flex align-items-center justify-content-between">
+        <a class="nd-auth-brand mb-0" href="{% url 'onboarding:landing' %}">
+            <span class="brand-mark" aria-hidden="true">N</span>
+            <span class="brand-name">NeuroDoc</span>
+        </a>
+        <div class="d-flex align-items-center gap-3">
+            <a class="fs-13 fw-semibold d-none d-md-inline" href="#planos">Planos</a>
+            <a class="fs-13 fw-semibold d-none d-md-inline" href="#faq">Dúvidas</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">Entrar</a>
+            <a class="btn btn-sm btn-primary" href="#contato">Falar com a gente</a>
+        </div>
+    </div>
+</nav>
+
+{% if messages %}
+<div class="container mt-3">
+    {% for message in messages %}
+    <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'warning' %}alert-warning{% elif message.tags == 'success' %}alert-success{% else %}alert-primary{% endif %} alert-dismissible fade show" role="alert">
+        <span>{{ message }}</span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Fechar"></button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% block content %}{% endblock %}
+
+<footer class="nd-public-footer">
+    <div class="container">
+        <div class="row g-4 align-items-start">
+            <div class="col-md-6">
+                <a class="nd-auth-brand mb-2" href="{% url 'onboarding:landing' %}">
+                    <span class="brand-mark" aria-hidden="true">N</span>
+                    <span class="brand-name">NeuroDoc</span>
+                </a>
+                <p class="fs-12 text-muted mb-0" style="max-width: 32rem;">
+                    Sistema de prontuário e gestão para consultórios de neurologia e
+                    neurocirurgia. Os dados clínicos ficam sob sigilo médico: quem
+                    hospeda o sistema não lê prontuário de ninguém.
+                </p>
+            </div>
+            <div class="col-md-3">
+                <h6 class="fs-12 fw-bold text-dark text-uppercase">Produto</h6>
+                <ul class="list-unstyled fs-12 mb-0">
+                    <li><a href="#planos">Planos</a></li>
+                    <li><a href="#faq">Perguntas frequentes</a></li>
+                    <li><a href="{% url 'verify-document' %}">Verificar um documento</a></li>
+                </ul>
+            </div>
+            <div class="col-md-3">
+                <h6 class="fs-12 fw-bold text-dark text-uppercase">Contato</h6>
+                <ul class="list-unstyled fs-12 mb-0">
+                    <li><a href="mailto:{{ leads_email }}">{{ leads_email }}</a></li>
+                    <li><a href="{% url 'accounts:login' %}">Entrar na minha clínica</a></li>
+                </ul>
+            </div>
+        </div>
+        <hr class="my-4">
+        <p class="fs-11 text-muted mb-0">
+            O apoio de inteligência artificial do NeuroDoc é ferramenta de redação e
+            organização, revisada pelo médico responsável antes de qualquer uso — não
+            emite diagnóstico nem substitui avaliação clínica.
+        </p>
+    </div>
+</footer>
+
+<script src="{% static 'duralux/app.js' %}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

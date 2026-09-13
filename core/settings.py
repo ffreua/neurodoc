@@ -207,6 +207,13 @@ SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 ADMINS = [(f'ops-{i}', addr) for i, addr in enumerate(env.list('ALERT_ADMIN_EMAILS', default=[]))]
 MANAGERS = ADMINS
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'base.logging.NoPostDataExceptionReporterFilter'
+# Destinatario dos pedidos de contato da pagina de vendas.
+#
+# Fixo na configuracao, nunca um campo do formulario: formulario publico
+# que aceita destinatario do cliente e um relay aberto -- qualquer um
+# mandaria mensagem com o remetente do dominio da clinica para qualquer
+# endereco, e o dominio pagaria a reputacao.
+LEADS_EMAIL = env('LEADS_EMAIL', default='contato@neurodoc.app.br')
 SMS_ENABLED = env.bool('SMS_ENABLED', default=False)
 SMSDEV_API_KEY = secret('SMSDEV_API_KEY', required=(SMS_ENABLED and env('SERVICE_ROLE', default='app') == 'worker'))
 AI_ENABLED = env.bool('AI_ENABLED', default=False)

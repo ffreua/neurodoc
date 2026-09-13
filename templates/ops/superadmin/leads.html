@@ -1,0 +1,86 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Leads — NeuroDoc{% endblock %}
+{% block page_title %}Pedidos de contato{% endblock %}
+{% block super_section %}Leads{% endblock %}
+{% block super_content %}
+
+{% if sem_aviso %}
+{% comment %}O aviso por e-mail pode falhar sem que o lead se perca — é a
+razão de ele ser gravado antes de enviado. Esta é a única tela onde isso
+aparece: quem preencheu o formulário viu "recebemos", e viu certo.
+{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>{{ sem_aviso }} pedido(s) não geraram e-mail de aviso.</strong>
+    O registro está aqui de qualquer forma — confira a coluna de erro e a
+    configuração de SMTP da instalação.
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Últimos pedidos</h5>
+        <span class="badge bg-soft-primary text-primary">{{ total }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Quem</th>
+                        <th scope="col">Clínica</th>
+                        <th scope="col">Plano</th>
+                        <th scope="col">Mensagem</th>
+                        <th scope="col">Aviso</th>
+                        <th class="pe-4" scope="col">Recebido</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="fw-semibold text-dark d-block">{{ row.obj.name }}</span>
+                            <a class="fs-11" href="mailto:{{ row.obj.email }}">{{ row.obj.email }}</a>
+                            {% if row.obj.phone %}
+                            <span class="fs-11 text-muted d-block">{{ row.obj.phone }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12 text-muted">{{ row.obj.clinic_name|default:"—" }}</td>
+                        <td class="fs-12">
+                            {% if row.plan_label %}
+                            <span class="badge bg-soft-primary text-primary">{{ row.plan_label }}</span>
+                            {% else %}
+                            <span class="text-muted">não indicado</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12 text-muted" style="max-width: 22rem;">
+                            {{ row.obj.message|default:"—"|truncatechars:180 }}
+                        </td>
+                        <td class="fs-12">
+                            {% if row.obj.notified_at %}
+                            <span class="badge bg-soft-success text-success">enviado</span>
+                            {% elif row.obj.notify_error %}
+                            <span class="badge bg-soft-warning text-warning">falhou</span>
+                            <span class="fs-11 text-muted d-block">{{ row.obj.notify_error|truncatechars:60 }}</span>
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark">pendente</span>
+                            {% endif %}
+                        </td>
+                        <td class="pe-4 fs-12 text-muted">{{ row.obj.created_at|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="ps-4 py-4 text-muted">Nenhum pedido ainda.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    Só leitura. Responder e negociar acontece no e-mail; quando o negócio fechar,
+    emita o convite com o plano em <a href="{% url 'superadmin:invitations' %}">Convites</a>.
+    Um estado de funil que ninguém atualiza é pior que estado nenhum — a tela
+    passaria a mentir.
+</p>
+
+{% endblock %}

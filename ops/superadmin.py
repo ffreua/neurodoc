@@ -533,6 +533,39 @@ class InvitationRevokeView(SuperAdminView):
         return redirect('superadmin:invitations')
 
 
+# --------------------------------------------------------------------- leads
+
+class LeadsView(SuperAdminView):
+    """Pedidos de contato vindos da pagina de vendas.
+
+    So leitura, como quase todo o console. Marcar como contatado ou
+    descartado seria uma terceira escrita, e ela nao se justifica ainda:
+    quem opera esta instalacao responde os leads pelo proprio e-mail, e um
+    estado que ninguem atualiza e pior do que estado nenhum -- a tela
+    passaria a mentir.
+
+    `notify_error` aparece na linha de proposito. E o unico lugar onde se
+    descobre que o e-mail de aviso nao saiu: quem preencheu o formulario
+    viu "recebemos", e viu certo, porque o pedido esta aqui.
+    """
+
+    def get(self, request):
+        from tenancy.models import Lead
+        from tenancy.plans import PLANS
+
+        linhas = []
+        for lead in Lead.objects.order_by('-created_at')[:PAGE_SIZE]:
+            linhas.append({
+                'obj': lead,
+                'plan_label': PLANS.get(lead.plan, {}).get('label', '') if lead.plan else '',
+            })
+        context = _nav('leads')
+        context['rows'] = linhas
+        context['total'] = Lead.objects.count()
+        context['sem_aviso'] = Lead.objects.exclude(notify_error='').count()
+        return render(request, 'ops/superadmin/leads.html', context)
+
+
 def _is_iso_date(value):
     try:
         timezone.datetime.fromisoformat(value)

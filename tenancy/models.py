@@ -274,3 +274,53 @@ class Invitation(TimestampedModel):
 
     def __str__(self):
         return f'{self.purpose} invitation ({self.id})'
+
+
+class LeadStatus(models.TextChoices):
+    NEW = 'new', 'Novo'
+    CONTACTED = 'contacted', 'Contatado'
+    CONVERTED = 'converted', 'Convertido'
+    DISCARDED = 'discarded', 'Descartado'
+
+
+class Lead(TimestampedModel):
+    """Pedido de contato vindo da pagina publica de vendas.
+
+    Fica em `tenancy` porque um lead e a pre-historia de um inquilino: ele
+    vira `Invitation` e depois `Tenant`, e quem o le e quem opera a
+    instalacao, no mesmo console. O app `crm` foi removido do produto em
+    08/09/2026 (PRD 25.9), e nao se ressuscita um funil inteiro para
+    guardar sete campos.
+
+    Herda de `TimestampedModel` e nao de `TenantModel` de proposito: no
+    momento em que o pedido chega, a organizacao ainda nao existe -- e
+    justamente o que a pessoa esta pedindo.
+
+    Os servicos (limite por IP, aviso por e-mail) ficam em
+    `tenancy/leads.py`, como `patients` separa `models.py` de `photo.py`.
+    """
+
+    name = models.CharField(max_length=255)
+    email = models.EmailField(max_length=254)
+    phone = models.CharField(max_length=32, blank=True)
+    clinic_name = models.CharField(max_length=255, blank=True)
+    #: Codigo do plano de interesse. `CharField` livre e nao `choices`: o
+    #: lead e um retrato do que a pessoa clicou naquele dia, e um plano
+    #: aposentado nao pode invalidar um pedido antigo.
+    plan = models.CharField(max_length=40, blank=True)
+    message = models.TextField(max_length=2000, blank=True)
+    status = models.CharField(max_length=20, choices=LeadStatus.choices, default=LeadStatus.NEW)
+    #: IP de origem, como no resto do sistema -- serve a investigar abuso,
+    #: nao a identificar a pessoa.
+    source_ip = models.GenericIPAddressField(null=True, blank=True)
+    #: Versao do aviso de privacidade aceita no envio. Demonstrar
+    #: consentimento exige saber **a que** se consentiu, e o texto muda.
+    privacy_notice_version = models.CharField(max_length=20, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    notify_error = models.CharField(max_length=255, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['-created_at'], name='tenancy_lead_recent_idx')]
+
+    def __str__(self):
+        return f'{self.name} <{self.email}>'

@@ -44,6 +44,10 @@ resolvido.{% endcomment %}
            href="{% url 'superadmin:invitations' %}">Convites</a>
     </li>
     <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'leads' %}active{% endif %}"
+           href="{% url 'superadmin:leads' %}">Leads</a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link {% if nav_active == 'users' %}active{% endif %}"
            href="{% url 'superadmin:users' %}">Usuários</a>
     </li>

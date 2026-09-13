@@ -1,0 +1,113 @@
+/* Página pública de vendas.
+ *
+ * Só o que o tema Duralux não traz: ele foi desenhado para painel
+ * administrativo, e não tem seção de largura total, hero nem lista com
+ * marca de conferido. Tudo aqui usa as variáveis do próprio tema
+ * (`--bs-primary`, `--bs-gray-*`), para a página não virar um segundo
+ * sistema de cores que envelhece em separado.
+ */
+
+.nd-public {
+    background: #fff;
+    margin: 0;
+}
+
+.nd-public-nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: .875rem 0;
+    background: rgba(255, 255, 255, .92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--bs-gray-200, #e9ecef);
+}
+
+.nd-section {
+    padding: 4.5rem 0;
+}
+
+.nd-hero {
+    padding: 4.5rem 0 4rem;
+    background: linear-gradient(180deg, var(--bs-gray-100, #f8f9fa) 0%, #fff 100%);
+}
+
+.nd-hero-title {
+    font-size: clamp(1.9rem, 4vw, 2.9rem);
+    font-weight: 700;
+    line-height: 1.15;
+    color: var(--bs-dark, #283c50);
+    margin-bottom: 1rem;
+}
+
+.nd-hero-lead {
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--bs-secondary, #64748b);
+    margin-bottom: 1.75rem;
+}
+
+.nd-hero-card {
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    box-shadow: 0 18px 40px rgba(40, 60, 80, .08);
+}
+
+/* Listas com marca. O `::before` evita uma imagem por item e mantém a
+ * marca alinhada ao texto quando a linha quebra. */
+.nd-tick li,
+.nd-cross li {
+    position: relative;
+    padding-left: 1.6rem;
+    margin-bottom: .6rem;
+    line-height: 1.5;
+}
+
+.nd-tick li::before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-weight: 700;
+    color: var(--bs-success, #17c666);
+}
+
+.nd-cross li::before {
+    content: "×";
+    position: absolute;
+    left: 0;
+    top: -.1rem;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--bs-secondary, #64748b);
+}
+
+.nd-plan-limits {
+    padding: .75rem;
+    border-radius: .5rem;
+    background: var(--bs-gray-100, #f8f9fa);
+}
+
+/* O plano em destaque cresce um pouco — mas só onde há espaço. No celular
+ * os cartões empilham, e um deles maior que os outros só desalinharia a
+ * coluna. */
+@media (min-width: 992px) {
+    .nd-plan-highlight {
+        transform: translateY(-.75rem);
+        box-shadow: 0 18px 40px rgba(52, 84, 209, .16);
+    }
+}
+
+.nd-public-footer {
+    padding: 3rem 0 2rem;
+    background: var(--bs-gray-100, #f8f9fa);
+    border-top: 1px solid var(--bs-gray-200, #e9ecef);
+}
+
+.nd-public-footer a {
+    color: var(--bs-secondary, #64748b);
+    text-decoration: none;
+    line-height: 2;
+}
+
+.nd-public-footer a:hover {
+    color: var(--bs-primary, #3454d1);
+}
