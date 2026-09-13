@@ -176,6 +176,47 @@ for rotulo, ok in itens.items():
     if not ok:
         falhas.append(f'a tela do chat perdeu: {rotulo}')
 
+print('=== 11. apagar: so o dono, e a trilha guarda o fato sem o texto ===')
+from audit.models import AuditEvent
+
+descartavel = nova_sessao(paciente, 'conversa a apagar')
+chat_services.post_user_message(descartavel, 'SEGREDO DA CONVERSA')
+resp = chat_services.start_assistant_message(descartavel)
+chat_services.finalize_assistant_message(resp, 'RESPOSTA SECRETA')
+
+outro = User.objects.get(email='doctor-b@demo.neurodoc.local')
+alheio = Client()
+alheio.force_login(outro)
+sa = alheio.session
+sa['tenant_id'] = str(tenant_a.id)
+sa.save()
+r = alheio.post(f'/app/ai/chat/{descartavel.id}/apagar/')
+sobreviveu = ChatSession.objects.filter(id=descartavel.id).exists()
+print(f'  conversa alheia -> {r.status_code}  sobreviveu={sobreviveu}')
+if r.status_code != 404 or not sobreviveu:
+    falhas.append('um medico apagou a conversa de outro')
+
+r = c.post(f'/app/ai/chat/{descartavel.id}/apagar/', follow=True)
+sumiu = not ChatSession.objects.filter(id=descartavel.id).exists()
+sem_mensagens = ChatMessage.objects.filter(session_id=descartavel.id).count() == 0
+print(f'  o dono apaga -> {r.status_code}  sumiu={sumiu}  mensagens={0 if sem_mensagens else "sobraram"}')
+if not sumiu or not sem_mensagens:
+    falhas.append('apagar a conversa deixou a sessao ou as mensagens para tras')
+
+evento = AuditEvent.objects.filter(action='ai.chat_session_deleted').order_by('-created_at').first()
+meta = str(evento.integrity_metadata if evento else '')
+vazou = 'SEGREDO' in meta or 'SECRETA' in meta
+print(f'  trilha registrou={evento is not None}  texto vazou para a trilha={vazou}')
+if evento is None:
+    falhas.append('apagar a conversa nao gerou evento de auditoria')
+if vazou:
+    falhas.append('a trilha guardou o texto da conversa apagada')
+
+# O prontuario nao e afetado: conversa de apoio nao e registro clinico.
+if not Patient.objects.filter(id=paciente.id).exists():
+    falhas.append('apagar a conversa afetou o paciente')
+print(f'  paciente intacto={Patient.objects.filter(id=paciente.id).exists()}')
+
 # limpeza
 from ai.chat_models import ChatMessage
 

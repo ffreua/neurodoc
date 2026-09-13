@@ -276,6 +276,12 @@ ARTICLES = [
              'anonimização completa: evite digitar dados identificáveis que não '
              'estejam no cadastro.',
              '', ''),
+            ('Terminada a conversa, **Arquivar** tira da lista e guarda tudo — é o '
+             'caminho normal, porque a conversa é material de revisão. **Apagar** '
+             'remove a conversa e as mensagens de vez, para o caso da conversa aberta '
+             'por engano; o prontuário do paciente não é afetado, e o registro de que '
+             'a conversa existiu fica na trilha, sem o conteúdo.',
+             '', ''),
         ],
     },
     {

@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -151,4 +152,60 @@ class ChatSessionArchiveView(TenantScopedView):
         session = _own_session_or_404(request, session_id)
         session.status = ChatSessionStatus.ARCHIVED
         session.save(update_fields=['status', 'updated_at'])
+        return redirect('ai:chat-list')
+
+
+class ChatSessionDeleteView(TenantScopedView):
+    """Apaga a conversa e as mensagens dela, de vez.
+
+    Arquivar continua sendo o caminho normal -- a conversa e material de
+    revisao, e o produto mede sugestao aceita, editada e rejeitada. Apagar
+    existe para o outro caso, que tambem e real: a conversa aberta por
+    engano, a pergunta escrita no lugar errado, o teste que ficou.
+
+    **O conteudo some; o registro de que ela existiu, nao.** A trilha grava
+    quem apagou, quando, quantas mensagens e qual paciente estava em
+    escopo -- nunca o texto. E a mesma linha do resto do sistema: auditar e
+    saber quem fez o que, nao guardar o que foi escrito.
+
+    Isto nao e prontuario. Conversa de apoio nao entra no registro clinico
+    do paciente: o que entra e o que o medico aceitou e escreveu no
+    atendimento, e isso vive em `clinical`, intocado por esta tela.
+
+    `ChatMessage.ai_job` e `PROTECT`: a mensagem que nasceu de um job de IA
+    prende o job. O job e apagado junto, porque ele existe **para** aquela
+    mensagem -- deixar o job orfao guardaria metadado de uma conversa que o
+    usuario pediu para apagar.
+    """
+
+    def post(self, request, session_id):
+        from django.db import transaction
+
+        from audit.services import record_audit_event
+
+        from .models import AIJob
+
+        session = _own_session_or_404(request, session_id)
+        rotulo = session.title or 'sem titulo'
+        total = session.messages.count()
+        paciente_id = session.patient_id
+
+        with transaction.atomic():
+            jobs = list(
+                session.messages.filter(ai_job__isnull=False)
+                .values_list('ai_job_id', flat=True)
+            )
+            session.messages.all().delete()
+            if jobs:
+                AIJob.objects.filter(id__in=jobs).delete()
+            session.delete()
+
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'ai.chat_session_deleted',
+            object_type='chat_session', object_id=session_id, outcome='success',
+            # Quantidade e escopo, nunca o texto: a trilha nao guarda
+            # conteudo de conversa, aqui como em nenhum outro lugar.
+            integrity_metadata={'messages': total, 'patient_id': str(paciente_id) if paciente_id else None},
+        )
+        messages.success(request, f'Conversa "{rotulo}" apagada.')
         return redirect('ai:chat-list')

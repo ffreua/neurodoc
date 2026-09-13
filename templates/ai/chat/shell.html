@@ -85,11 +85,22 @@ assunto exigia voltar. É a forma de todo aplicativo de mensagens porque
                     {% endif %}
                 </span>
             </div>
-            <form method="post" action="{% url 'ai:chat-archive' session.id %}" class="flex-shrink-0"
-                  data-nd-confirm="Arquivar esta conversa? Ela sai da lista e nada é apagado.">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-sm btn-light">Arquivar</button>
-            </form>
+            {% comment %}Arquivar e apagar lado a lado, com pesos diferentes:
+            arquivar é a ação comum e tem o botão neutro; apagar é
+            irreversível e leva a cor de alerta e uma confirmação que diz o
+            que se perde.{% endcomment %}
+            <div class="d-flex gap-2 flex-shrink-0">
+                <form method="post" action="{% url 'ai:chat-archive' session.id %}"
+                      data-nd-confirm="Arquivar esta conversa? Ela sai da lista e nada é apagado.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light">Arquivar</button>
+                </form>
+                <form method="post" action="{% url 'ai:chat-delete' session.id %}"
+                      data-nd-confirm="Apagar esta conversa e todas as mensagens dela? Isto não pode ser desfeito. O prontuário do paciente não é afetado — só esta conversa.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger">Apagar</button>
+                </form>
+            </div>
         </header>
 
         <div class="nd-chat-messages" id="messages">

@@ -13,6 +13,7 @@ urlpatterns = [
     path('chat/', chat_views.ChatSessionListView.as_view(), name='chat-list'),
     path('chat/<uuid:session_id>/', chat_views.ChatSessionDetailView.as_view(), name='chat-session-detail'),
     path('chat/<uuid:session_id>/arquivar/', chat_views.ChatSessionArchiveView.as_view(), name='chat-archive'),
+    path('chat/<uuid:session_id>/apagar/', chat_views.ChatSessionDeleteView.as_view(), name='chat-delete'),
     path('chat/<uuid:session_id>/messages/', chat_views.ChatMessageCreateView.as_view(), name='chat-message-create'),
     path(
         'chat/<uuid:session_id>/messages/<uuid:message_id>/cancel/',
