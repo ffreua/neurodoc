@@ -20,6 +20,28 @@ que ele existe.
 
 from django.db import models
 
+#: Meses numa assinatura. Existe como constante porque o preco anual e o
+#: mensal precisam **derivar um do outro**: dois numeros escritos a mao
+#: divergem na primeira mudanca de preco, e a pagina passa a prometer uma
+#: conta que nao fecha.
+MESES_NO_ANO = 12
+
+
+def brl(centavos):
+    """Formata em reais, no formato brasileiro: `R$ 1.896,00`.
+
+    Em centavos, e nao em float: `158.00 * 12` em ponto flutuante devolve
+    `1895.9999999999998`, e preco e a ultima coisa que deve depender de
+    arredondamento de binario.
+
+    `None` e "nao ha preco de tabela" -- o Personalizado -- e nao zero.
+    """
+    if centavos is None:
+        return ''
+    inteiro, resto = divmod(int(centavos), 100)
+    milhar = f'{inteiro:,}'.replace(',', '.')
+    return f'R$ {milhar},{resto:02d}'
+
 
 class PlanCode(models.TextChoices):
     FREE = 'free', 'Gratuito'
@@ -44,21 +66,25 @@ PLANS = {
         'label': 'Gratuito',
         'max_patients': 50,
         'max_doctors': 1,
+        # `price_monthly` em centavos. Zero é grátis; `None` é "não há
+        # preço de tabela", que é coisa diferente e só o Personalizado tem.
+        'price_monthly': 0,
         'summary': 'Para o consultório que está começando ou quer conhecer o sistema.',
         'features': [
             'Prontuário estruturado e roteiro de exame neurológico',
             'Agenda e cadastro de pacientes',
             'Documentos assinados com verificação pública',
-            'Sem cartão de crédito',
+            'Sem cartão de crédito, sem prazo para acabar',
         ],
         'highlight': False,
         'contact_only': False,
     },
     PlanCode.BASIC: {
         'label': 'Básico',
-        'max_patients': 500,
+        'max_patients': 3500,
         'max_doctors': 2,
-        'summary': 'Para o consultório com dois médicos e carteira em formação.',
+        'price_monthly': 15800,
+        'summary': 'Para o consultório com dois médicos e carteira consolidada.',
         'features': [
             'Tudo do Gratuito',
             'Dois médicos com agenda própria',
@@ -70,8 +96,9 @@ PLANS = {
     },
     PlanCode.COMPLETE: {
         'label': 'Completo',
-        'max_patients': 3000,
+        'max_patients': 12000,
         'max_doctors': 5,
+        'price_monthly': 26200,
         'summary': 'Para a clínica com equipe e volume de atendimento consolidado.',
         'features': [
             'Tudo do Básico',
@@ -88,11 +115,14 @@ PLANS = {
         # None é ilimitado. Ver o cabeçalho deste módulo.
         'max_patients': None,
         'max_doctors': None,
+        # Aqui `None` não é grátis: é "não há preço de tabela". A tela
+        # precisa dizer isso, e não estampar um zero.
+        'price_monthly': None,
         'summary': 'Para quem precisa de outro tamanho, ou de condições próprias.',
         'features': [
             'Limites combinados caso a caso',
             'Quantos médicos a clínica tiver',
-            'Condições definidas em conversa',
+            'Valores de acordo com o que for fechado',
         ],
         'highlight': False,
         'contact_only': True,
@@ -135,6 +165,65 @@ def max_doctors(code):
     return plan_config(code)['max_doctors']
 
 
+def pricing(code):
+    """O preço de um plano, já formatado, nos três jeitos que a tela usa.
+
+    O anual **deriva** do mensal (`MESES_NO_ANO`), e não é um segundo
+    número escrito à mão: dois números independentes divergem na primeira
+    mudança de preço, e a página passa a prometer uma conta que não fecha.
+
+    Três estados, e a tela precisa distinguir os três:
+
+    - grátis (`0`): não há cobrança;
+    - com preço de tabela: mensal, anual e a equivalência;
+    - sem preço de tabela (`None`): o Personalizado, combinado caso a caso.
+    """
+    centavos = plan_config(code).get('price_monthly')
+    if centavos is None:
+        return {
+            'free': False, 'quoted': False,
+            'monthly': '', 'annual': '', 'note': 'Valores de acordo com o que for fechado.',
+        }
+    if centavos == 0:
+        return {
+            'free': True, 'quoted': True,
+            'monthly': 'Grátis', 'annual': '',
+            'note': 'Sem cobrança e sem prazo. É por onde dá para conhecer o sistema '
+                    'antes de contratar.',
+        }
+    return {
+        'free': False, 'quoted': True,
+        'monthly': brl(centavos),
+        'annual': brl(centavos * MESES_NO_ANO),
+        'note': 'Pagamento anual.',
+    }
+
+
 def public_plans():
-    """Os planos da página de vendas, na ordem, já com o código junto."""
-    return [dict(PLANS[code], code=str(code)) for code in PUBLIC_ORDER]
+    """Os planos da página de vendas, na ordem, já com código e preço."""
+    return [
+        dict(PLANS[code], code=str(code), price=pricing(code))
+        for code in PUBLIC_ORDER
+    ]
+
+
+def plan_choices():
+    """Opções para o menu do formulário de contato.
+
+    Sai daqui, e não de uma lista escrita no formulário: acrescentar um
+    plano deve aparecer no menu sem que ninguém precise lembrar de uma
+    segunda lista. O rótulo carrega o preço porque é o que a pessoa acabou
+    de ler nos cartões logo acima.
+    """
+    opcoes = [('', 'Selecione o plano de interesse')]
+    for code in PUBLIC_ORDER:
+        preco = pricing(code)
+        rotulo = PLANS[code]['label']
+        if preco['free']:
+            rotulo += ' — grátis'
+        elif preco['quoted']:
+            rotulo += f' — {preco["monthly"]}/mês, pago anualmente'
+        else:
+            rotulo += ' — valores a combinar'
+        opcoes.append((str(code), rotulo))
+    return opcoes

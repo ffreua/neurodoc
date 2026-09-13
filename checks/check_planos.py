@@ -54,8 +54,8 @@ def entrar(email, tenant=None):
 print('=== 1. o catalogo confere com a especificacao ===')
 esperado = {
     PlanCode.FREE: (50, 1),
-    PlanCode.BASIC: (500, 2),
-    PlanCode.COMPLETE: (3000, 5),
+    PlanCode.BASIC: (3500, 2),
+    PlanCode.COMPLETE: (12000, 5),
     PlanCode.CUSTOM: (None, None),
 }
 for code, (pac, med) in esperado.items():

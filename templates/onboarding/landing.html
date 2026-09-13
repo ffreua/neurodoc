@@ -127,6 +127,16 @@ descoberto pelo cliente, no dia em que ele batesse o limite.
                 Escolha um e fale com a gente. Ainda não há pagamento on-line —
                 o acesso é liberado por um código de convite.
             </p>
+            {% comment %}A regra de cobrança fica **acima** dos cartões, e não
+            numa nota de rodapé: "pago anualmente" muda o que a pessoa está
+            lendo em cada preço abaixo, e ler isso depois é ler de novo.
+            {% endcomment %}
+            <p class="fs-13 text-muted mt-3 mb-0">
+                Os planos pagos são cobrados <strong>uma vez por ano</strong>. Não há
+                mensalidade avulsa — o valor mensal abaixo é a referência do que o
+                plano custa por mês dentro do pagamento anual. Antes de contratar,
+                dá para usar o <strong>plano Gratuito</strong> sem prazo e sem cartão.
+            </p>
         </div>
         <div class="row g-4">
             {% for plan in plans %}
@@ -140,6 +150,25 @@ descoberto pelo cliente, no dia em que ele batesse o limite.
                     <div class="card-body d-flex flex-column">
                         <h5 class="fw-bold text-dark">{{ plan.label }}</h5>
                         <p class="fs-12 text-muted">{{ plan.summary }}</p>
+
+                        {% comment %}Três estados, e não dois: grátis, com preço de
+                        tabela, e sem preço de tabela. Tratar o Personalizado como
+                        "R$ 0,00" seria a simplificação errada — ele não é grátis, é
+                        combinado.{% endcomment %}
+                        <div class="nd-plan-price mb-3">
+                            {% if plan.price.free %}
+                            <span class="d-block fs-24 fw-bold text-dark lh-1">Grátis</span>
+                            <span class="d-block fs-11 text-muted mt-1">sem prazo, sem cartão</span>
+                            {% elif plan.price.quoted %}
+                            <span class="d-block fs-24 fw-bold text-dark lh-1">{{ plan.price.annual }}</span>
+                            <span class="d-block fs-11 text-muted mt-1">
+                                por ano — equivale a <strong>{{ plan.price.monthly }}/mês</strong>
+                            </span>
+                            {% else %}
+                            <span class="d-block fs-20 fw-bold text-dark lh-1">Sob medida</span>
+                            <span class="d-block fs-11 text-muted mt-1">valores conforme o que for fechado</span>
+                            {% endif %}
+                        </div>
 
                         <div class="nd-plan-limits mb-3">
                             <div class="d-flex justify-content-between fs-13">
@@ -296,11 +325,14 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
                                 {% include "partials/field.html" with field=lead_form.email col="col-md-6" %}
                                 {% include "partials/field.html" with field=lead_form.phone col="col-md-6" %}
                                 {% include "partials/field.html" with field=lead_form.clinic_name col="col-md-6" %}
+                                {% comment %}O plano deixou de ser campo oculto. Escondido,
+                                ele só era preenchido por quem chegava pelo botão de um
+                                cartão; quem rolava a página até aqui mandava o pedido sem
+                                dizer o que queria, e a resposta começava por uma pergunta
+                                que a tela podia ter feito.{% endcomment %}
+                                {% include "partials/field.html" with field=lead_form.plan col="col-md-6" %}
                                 {% include "partials/field.html" with field=lead_form.message col="col-12" %}
                             </div>
-
-                            <input type="hidden" name="plan" id="nd-lead-plan"
-                                   value="{{ lead_form.plan.value|default:'' }}">
 
                             <div class="d-flex align-items-center justify-content-between flex-wrap gap-3 mt-4">
                                 <p class="fs-11 text-muted mb-0" style="max-width: 26rem;">

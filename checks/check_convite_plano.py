@@ -230,13 +230,13 @@ r = console.post(f'/instalacao/organizacoes/{tenant2.id}/plano/', {
 }, follow=True)
 tenant2.refresh_from_db()
 print(f'  com motivo -> plano={tenant2.plan} override_pacientes={tenant2.patient_limit_override}')
-print(f'  limite efetivo={limits.patient_limit(tenant2)} (3000 esperado, nao 0)')
+print(f'  limite efetivo={limits.patient_limit(tenant2)} (12000 esperado, nao 0)')
 if tenant2.plan != PlanCode.COMPLETE:
     falhas.append('a troca de plano com motivo nao gravou')
 if tenant2.patient_limit_override is not None:
     falhas.append('campo em branco virou um numero em vez de nulo')
-if limits.patient_limit(tenant2) != 3000:
-    falhas.append(f'limite efetivo saiu {limits.patient_limit(tenant2)}, esperado 3000')
+if limits.patient_limit(tenant2) != 12000:
+    falhas.append(f'limite efetivo saiu {limits.patient_limit(tenant2)}, esperado 12000')
 
 print('=== 9. a troca vai para a trilha, com o de-para ===')
 evento = AuditEvent.objects.filter(action='tenancy.tenant_plan_changed').order_by('-created_at').first()

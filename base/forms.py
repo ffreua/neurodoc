@@ -5,6 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 
 from base.validators import validate_cnpj
 from tenancy.models import Tenant
+from tenancy.plans import plan_choices
 
 
 class InvitationCodeForm(forms.Form):
@@ -70,7 +71,31 @@ class LeadForm(forms.Form):
         label='Clinica ou consultorio', max_length=255, required=False,
         widget=forms.TextInput(attrs={'placeholder': 'Ex.: Clinica Neuro Paulista'}),
     )
-    plan = forms.CharField(required=False, widget=forms.HiddenInput())
+    #: Plano de interesse. Era um campo escondido, preenchido so quando a
+    #: pessoa chegava pelo botao de um cartao; quem rolava a pagina ate o
+    #: formulario mandava o pedido sem dizer o que queria, e a resposta
+    #: comecava por uma pergunta que a tela podia ter feito.
+    #:
+    #: As opcoes saem de `tenancy.plans`, e nao de uma lista aqui: um plano
+    #: novo aparece no menu sem ninguem lembrar de uma segunda lista.
+    #:
+    #: Continua opcional -- exigir a escolha para responder a um "quanto
+    #: custa?" seria barrar justamente quem ainda nao sabe.
+    #: `CharField` com widget de menu, e **nao** `ChoiceField`.
+    #:
+    #: A diferenca e o que acontece com um valor que nao esta na lista.
+    #: `ChoiceField` recusa o formulario inteiro -- e um codigo de plano
+    #: antigo, vindo de uma pagina que ficou aberta ou em cache depois de
+    #: renomearmos um plano, custaria o lead. Lead perdido e a unica falha
+    #: desta tela que ninguem percebe: quem preencheu ve a mesma mensagem
+    #: de sucesso.
+    #:
+    #: O menu guia quem esta olhando; o servidor nunca recusa por causa
+    #: dele. Valor desconhecido vira "nao indicado" em `clean_plan`.
+    plan = forms.CharField(
+        label='Plano de interesse', required=False,
+        widget=forms.Select(choices=plan_choices),
+    )
     message = forms.CharField(
         label='O que voce precisa', max_length=2000, required=False,
         widget=forms.Textarea(attrs={
@@ -89,10 +114,14 @@ class LeadForm(forms.Form):
     def clean_plan(self):
         """Plano desconhecido vira vazio, e nao erro.
 
-        O campo e oculto e vem do botao que a pessoa clicou. Se ele
-        chegar adulterado, recusar o formulario puniria quem nao fez nada
-        -- e o plano e informacao de interesse, nao compromisso. Vazio le-se
-        como "nao indicado".
+        O campo virou um menu visivel, mas a regra do servidor nao mudou e
+        nao deve mudar: recusar o formulario por causa dele puniria quem
+        nao fez nada. O caso real nao e adulteracao -- e uma pagina que
+        ficou aberta, ou em cache, com o codigo de um plano que desde
+        entao foi renomeado.
+
+        Plano e informacao de interesse, nao compromisso. Vazio le-se como
+        "nao indicado", e o lead chega.
         """
         from tenancy.plans import PLANS
 

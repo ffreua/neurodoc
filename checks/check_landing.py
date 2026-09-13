@@ -211,6 +211,58 @@ print(f'  perguntas no FAQ={len(FAQ)}')
 if len(FAQ) < 5:
     falhas.append('o FAQ ficou curto demais para servir')
 
+print('=== 9b. o preco da pagina fecha com a conta ===')
+# A pagina mostra o anual e diz a quanto equivale por mes. Sao dois
+# numeros que precisam concordar -- e a forma de eles divergirem e alguem
+# escrever o anual a mao depois de mudar o mensal.
+from tenancy.plans import MESES_NO_ANO, PLANS, PUBLIC_ORDER, brl, pricing, plan_choices
+
+corpo_landing = Client().get('/').content.decode()
+for code in PUBLIC_ORDER:
+    preco = pricing(code)
+    centavos = PLANS[code].get('price_monthly')
+    if not preco['quoted'] or preco['free']:
+        continue
+    esperado_anual = brl(centavos * MESES_NO_ANO)
+    confere = preco['annual'] == esperado_anual
+    na_pagina = preco['annual'] in corpo_landing and preco['monthly'] in corpo_landing
+    print(f'  {str(code):10} {preco["monthly"]}/mes -> {preco["annual"]}/ano  '
+          f'conta_fecha={confere}  na_pagina={na_pagina}')
+    if not confere:
+        falhas.append(f'{code}: o anual anunciado nao e o mensal vezes {MESES_NO_ANO}')
+    if not na_pagina:
+        falhas.append(f'{code}: o preco nao aparece na pagina de vendas')
+
+# Gratuito e Personalizado sao os dois casos que nao sao "um preco".
+gratuito = pricing('free')
+personalizado = pricing('custom')
+print(f'  gratuito e gratis={gratuito["free"]}  personalizado sem tabela={not personalizado["quoted"]}')
+if not gratuito['free']:
+    falhas.append('o plano Gratuito deixou de ser gratuito')
+if personalizado['quoted']:
+    falhas.append('o Personalizado ganhou preco de tabela: ele e combinado caso a caso')
+if 'Sob medida' not in corpo_landing:
+    falhas.append('a pagina nao diz que o Personalizado tem valores a combinar')
+
+# A regra de cobranca precisa estar escrita onde o preco e lido.
+for trecho in ['uma vez por ano', 'plano Gratuito']:
+    if trecho not in corpo_landing:
+        falhas.append(f'a pagina nao explica: {trecho!r}')
+print(f'  explica cobranca anual={"uma vez por ano" in corpo_landing}  '
+      f'convida ao gratuito={"plano Gratuito" in corpo_landing}')
+
+print('=== 9c. o menu de plano do formulario ===')
+# Todo plano publico tem de aparecer no menu: acrescentar um plano e
+# esquecer o menu deixaria o lead sem como pedir o que acabou de ler.
+opcoes = dict(plan_choices())
+faltando = [str(c) for c in PUBLIC_ORDER if str(c) not in opcoes]
+print(f'  opcoes={len(opcoes)}  planos ausentes={faltando or "nenhum"}')
+if faltando:
+    falhas.append(f'planos fora do menu de contato: {faltando}')
+if 'id="id_plan"' not in corpo_landing:
+    falhas.append('o formulario nao tem o menu de plano')
+print(f'  menu renderizado na pagina={"id_plan" in corpo_landing}')
+
 print('=== 10. a tela de leads do console exige MFA ===')
 def superadmin_descartavel():
     """Um superadministrador **do roteiro**, nunca a conta de uma pessoa.
