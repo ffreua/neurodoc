@@ -350,6 +350,21 @@
      * última classe é o que desfoca o resto da tela. */
     function openModal(modal) {
         if (!modal || modal.classList.contains('show')) return;
+        /* O modal precisa ser filho do body.
+         *
+         * O tema desfoca `.nxl-header`, `.nxl-navigation`, `.page-header` e
+         * `.nxl-container` enquanto `body.modal-open` esta ligado. Um modal
+         * declarado dentro do conteudo da pagina mora em `.nxl-container`, e
+         * por isso sai borrado junto com o fundo -- a tela parece quebrada e
+         * o console do navegador nao diz nada, porque nada quebrou.
+         *
+         * `base.html` tem `{% block modals %}` fora do container justamente
+         * para isso, e a correcao certa e usa-lo. Mover aqui e a rede de
+         * seguranca: uma tela nova que esqueca o bloco continua funcionando,
+         * em vez de reencontrar este defeito meses depois. */
+        if (modal.parentNode !== document.body) {
+            document.body.appendChild(modal);
+        }
         var backdrop = document.createElement('div');
         backdrop.className = 'modal-backdrop fade show';
         backdrop.dataset.ndFor = modal.id || '';

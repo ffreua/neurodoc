@@ -165,7 +165,13 @@ primeiro e a de convênios fica abaixo, como o cadastro de apoio que é.
     desmarque <em>Aceito pela clínica</em>: some das listas de escolha e continua legível
     onde já foi usado.
 </p>
-
+{% endblock %}
+{% comment %}Os modais vao no bloco proprio, fora de `.nxl-container`.
+O tema desfoca header, barra lateral e container enquanto um modal esta
+aberto (`body.modal-open`), e um modal declarado dentro do conteudo sai
+borrado junto com o fundo -- que e como a tela parecia quebrada sem
+nada no console do navegador.{% endcomment %}
+{% block modals %}
 {% comment %}------------------------------------------------ modal: convênio{% endcomment %}
 <div class="modal fade" id="insurer-modal" tabindex="-1" aria-hidden="true" aria-labelledby="insurer-modal-title">
     <div class="modal-dialog modal-dialog-centered">
@@ -219,8 +225,8 @@ primeiro e a de convênios fica abaixo, como o cadastro de apoio que é.
         </div>
     </div>
 </div>
-
 {% endblock %}
+
 {% block scripts %}
 <script>
 /* Editar reaproveita o modal de cadastro: os campos sao os mesmos, e um
