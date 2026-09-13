@@ -86,6 +86,13 @@ def prepare_release():
             cursor.execute('SELECT pg_advisory_unlock(%s)', [MIGRATION_LOCK])
         connection.close()
     prepare_staticfiles()
+    # Catalogo clinico: a instalacao nova sobe com CID-10, e nao esperando
+    # que alguem lembre de um comando. Guardado por estado -- se ja houver
+    # release ativo, nao faz nada -- entao repetir a subida nao repete a
+    # importacao. Ver `catalogs/provisioning.py`.
+    from catalogs.provisioning import ensure_cid10
+
+    ensure_cid10()
 
 
 #: Rótulos de versão que não identificam uma versão. Uma versão publicada

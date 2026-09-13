@@ -1,0 +1,725 @@
+# Primeiro deploy, do zero, passo a passo
+
+Este documento assume que você **nunca administrou um servidor**. Cada
+comando vem com o que ele faz e como saber se deu certo. Siga na ordem;
+nenhum passo depende de um posterior.
+
+Onde aparecer `SEU-USUARIO-GITHUB`, `SEU-IP` ou algo em MAIÚSCULAS entre
+sinais de menor/maior, troque pelo seu valor.
+
+> **Regra de ouro:** se a saída de um comando não for a descrita, **pare**
+> e resolva antes de seguir. Um passo pulado aqui aparece três passos
+> adiante como um erro que não tem relação aparente com a causa.
+
+---
+
+## 0. O que você vai precisar
+
+| Item | Onde | Custo aproximado |
+| --- | --- | --- |
+| Domínio `neurodoc.app.br` | já é seu (Registro.br) | — |
+| Conta Cloudflare | cloudflare.com | grátis |
+| VPS | Hostinger | ~R$ 60–120/mês |
+| Conta GitHub | github.com | grátis |
+
+**Tamanho da VPS.** Os limites de memória declarados no `docker-stack.yml`
+somam cerca de **9 GiB** e 5,5 vCPU com duas réplicas da aplicação.
+Limites são teto, não reserva — o uso real é menor —, mas escolher abaixo
+disso significa que um pico derruba um serviço. Recomendado:
+
+- **Mínimo real:** 4 vCPU / 8 GB RAM / 100 GB disco
+- **Confortável:** 4 vCPU / 16 GB RAM / 200 GB disco (Hostinger KVM 4)
+
+Sistema operacional: **Ubuntu 24.04 LTS**. Não escolha painel de controle
+(nem Plesk, nem hPanel com aplicativos): eles instalam um servidor web que
+vai disputar as portas 80 e 443 com o nosso.
+
+---
+
+## 1. Criar a chave SSH no seu computador
+
+A chave SSH substitui a senha para entrar no servidor. São dois arquivos:
+um **privado** (fica só com você, nunca sai da sua máquina) e um
+**público** (você entrega ao servidor).
+
+Abra o **PowerShell** no Windows e rode:
+
+```powershell
+ssh-keygen -t ed25519 -C "fernando@neurodoc" -f $env:USERPROFILE\.ssh\neurodoc
+```
+
+Ele pergunta uma *passphrase*. **Digite uma** e guarde — é a senha que
+protege a chave caso alguém copie o arquivo do seu computador. (Você a
+digitará ao conectar; o Windows pode memorizá-la, veja abaixo.)
+
+Resultado: dois arquivos em `C:\Users\<você>\.ssh\`:
+
+- `neurodoc` — a chave **privada**. Nunca envie a ninguém, nunca coloque
+  no Git, nunca cole num chat.
+- `neurodoc.pub` — a chave **pública**. Esta sim vai para o servidor.
+
+Veja o conteúdo da pública (você vai colar isso na Hostinger):
+
+```powershell
+Get-Content $env:USERPROFILE\.ssh\neurodoc.pub
+```
+
+Sai uma linha só, começando com `ssh-ed25519 AAAA...`. Copie inteira.
+
+**Para não digitar a passphrase toda vez**, ligue o agente do Windows:
+
+```powershell
+Get-Service ssh-agent | Set-Service -StartupType Automatic
+Start-Service ssh-agent
+ssh-add $env:USERPROFILE\.ssh\neurodoc
+```
+
+---
+
+## 2. Criar a VPS na Hostinger
+
+1. Entre no painel da Hostinger → **VPS** → **Comprar/Gerenciar**.
+2. Escolha o plano (veja o passo 0) e a localização **mais próxima do
+   Brasil** disponível (São Paulo, se houver).
+3. Em sistema operacional, escolha **Ubuntu 24.04 LTS** puro — sem painel.
+4. Na etapa de **chave SSH**, cole a linha `ssh-ed25519 AAAA...` que você
+   copiou. Se a Hostinger só oferecer senha de root nessa tela, aceite a
+   senha e adicione a chave no passo 3.
+5. Anote o **endereço IP** que a Hostinger mostrar. Ele será o `SEU-IP`
+   daqui em diante.
+
+Teste a entrada, no PowerShell:
+
+```powershell
+ssh -i $env:USERPROFILE\.ssh\neurodoc root@SEU-IP
+```
+
+Na primeira vez ele pergunta se confia no servidor: responda `yes`. Se
+aparecer um prompt como `root@srv123:~#`, você está dentro.
+
+---
+
+## 3. Primeiro acesso: deixar o servidor seguro
+
+Todos os comandos desta seção rodam **dentro do servidor** (depois do
+`ssh`).
+
+### 3.1 Atualizar o sistema
+
+```bash
+apt update && apt upgrade -y
+```
+
+### 3.2 Criar um usuário que não é root
+
+Trabalhar como `root` o tempo todo é como usar uma serra sem proteção:
+funciona até o dia em que não funciona.
+
+```bash
+adduser --disabled-password --gecos "" neurodocops
+usermod -aG sudo neurodocops
+mkdir -p /home/neurodocops/.ssh
+cp /root/.ssh/authorized_keys /home/neurodocops/.ssh/authorized_keys
+chown -R neurodocops:neurodocops /home/neurodocops/.ssh
+chmod 700 /home/neurodocops/.ssh
+chmod 600 /home/neurodocops/.ssh/authorized_keys
+```
+
+> Se a Hostinger não colocou sua chave (você entrou com senha), crie o
+> arquivo à mão: `nano /home/neurodocops/.ssh/authorized_keys`, cole a
+> linha `ssh-ed25519 ...`, salve com `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+Permita que ele use `sudo` sem digitar senha (ele não tem senha):
+
+```bash
+echo 'neurodocops ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/neurodocops
+chmod 440 /etc/sudoers.d/neurodocops
+```
+
+**Abra outro PowerShell** (não feche o atual) e teste:
+
+```powershell
+ssh -i $env:USERPROFILE\.ssh\neurodoc neurodocops@SEU-IP
+```
+
+Só siga quando isso funcionar. Se você desligar o acesso de root no passo
+seguinte sem ter testado este, fica sem como entrar.
+
+### 3.3 Desligar senha e acesso direto de root
+
+```bash
+sudo sed -i 's/^#*PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
+sudo sed -i 's/^#*PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+sudo systemctl restart ssh
+```
+
+### 3.4 Firewall
+
+Só três portas abertas: SSH, HTTP e HTTPS.
+
+```bash
+sudo apt install -y ufw
+sudo ufw allow 22/tcp
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw --force enable
+sudo ufw status
+```
+
+Deve listar as três portas como `ALLOW`.
+
+### 3.5 Fuso horário
+
+```bash
+sudo timedatectl set-timezone America/Sao_Paulo
+```
+
+---
+
+## 4. Instalar o Docker
+
+```bash
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker neurodocops
+```
+
+**Saia e entre de novo** (`exit`, depois o `ssh` outra vez) para o grupo
+valer. Confirme:
+
+```bash
+docker version
+```
+
+Deve mostrar `Client` e `Server` sem erro de permissão.
+
+---
+
+## 5. Cloudflare: DNS e o token do certificado
+
+O certificado HTTPS é emitido por **desafio de DNS**: o Traefik cria um
+registro temporário no seu domínio para provar à Let's Encrypt que o
+domínio é seu. Por isso ele precisa de um token da Cloudflare — e por isso
+funciona mesmo antes de o site estar no ar.
+
+### 5.1 Apontar o domínio para a Cloudflare
+
+1. Em cloudflare.com, **Add a site** → digite `neurodoc.app.br`.
+2. Escolha o plano **Free**.
+3. A Cloudflare mostra **dois servidores de nomes** (algo como
+   `ana.ns.cloudflare.com` e `bob.ns.cloudflare.com`). Copie os dois.
+4. Entre no **Registro.br**, abra o domínio `neurodoc.app.br` → **Alterar
+   servidores DNS** → substitua pelos dois da Cloudflare → salve.
+5. A propagação leva de minutos a algumas horas. A Cloudflare avisa por
+   e-mail quando o domínio estiver ativo.
+
+### 5.2 Criar os registros
+
+No painel da Cloudflare, em **DNS → Records**, crie dois:
+
+| Tipo | Nome | Conteúdo | Proxy |
+| --- | --- | --- | --- |
+| A | `@` | `SEU-IP` | **Proxied** (nuvem laranja) |
+| A | `*` | `SEU-IP` | **Proxied** (nuvem laranja) |
+
+O `*` (curinga) atende os subdomínios por clínica. Deixe os dois
+**Proxied**: é assim que a Cloudflare esconde o IP do servidor e filtra
+tráfego hostil antes de ele chegar em você.
+
+### 5.3 Modo de SSL
+
+Em **SSL/TLS → Overview**, escolha **Full (strict)**.
+
+Qualquer outro modo ou quebra (Off, Flexible) ou aceita certificado
+inválido (Full). *Strict* é o que exige que o certificado do seu servidor
+seja de verdade — que é justamente o que vamos emitir.
+
+### 5.4 O token de API
+
+1. Cloudflare → canto superior direito → **My Profile** → **API Tokens**.
+2. **Create Token** → modelo **Edit zone DNS** → **Use template**.
+3. Em *Zone Resources*, escolha **Include → Specific zone →
+   neurodoc.app.br**.
+4. **Continue to summary** → **Create Token**.
+5. **Copie o token agora.** A Cloudflare não o mostra de novo.
+
+Guarde-o num lugar seguro: ele vira um segredo do Docker no passo 7.
+
+---
+
+## 6. Preparar o Swarm
+
+De volta ao servidor, como `neurodocops`.
+
+### 6.1 Ligar o modo Swarm
+
+```bash
+docker swarm init --advertise-addr SEU-IP
+```
+
+### 6.2 Marcar o nó como o que guarda os dados
+
+O sistema exige esse rótulo para saber onde os volumes de dados vivem.
+Num servidor só, é este mesmo — mas o rótulo tem de estar lá.
+
+```bash
+docker node update --label-add neurodoc_data=true $(docker node ls -q)
+docker node inspect self --format '{{ .Spec.Labels }}'
+```
+
+Deve imprimir `map[neurodoc_data:true]`.
+
+### 6.3 Criar as três redes
+
+A separação é o coração da segurança da instalação: **só o worker alcança
+a internet**. O processo web não alcança — e é por isso que um e-mail sai
+pela fila, e não de dentro da requisição.
+
+```bash
+docker network create --driver overlay --attachable traefik_public
+docker network create --driver overlay --internal neurodoc_v1_internal
+docker network create --driver overlay --attachable neurodoc_v1_egress
+```
+
+Confira o isolamento (o do meio **tem** de dizer `true`):
+
+```bash
+for n in traefik_public neurodoc_v1_internal neurodoc_v1_egress; do
+  echo -n "$n interna="; docker network inspect $n --format '{{.Internal}}'
+done
+```
+
+Esperado: `false`, `true`, `false`.
+
+### 6.4 A pasta das chaves de assinatura, em memória
+
+As chaves de sessão de assinatura digital **não podem tocar o disco**.
+
+```bash
+sudo mkdir -p /run/neurodoc-signing
+sudo mount -t tmpfs -o size=16m,mode=0700 tmpfs /run/neurodoc-signing
+echo 'tmpfs /run/neurodoc-signing tmpfs size=16m,mode=0700 0 0' | sudo tee -a /etc/fstab
+findmnt -n -o FSTYPE -T /run/neurodoc-signing
+```
+
+A última linha deve imprimir `tmpfs`. A linha no `/etc/fstab` faz isso
+sobreviver a um reinício do servidor.
+
+---
+
+## 7. Os segredos
+
+Segredo do Docker é um arquivo que só os serviços autorizados enxergam.
+São quinze. **Nenhum deles aparece em arquivo de configuração nem no Git.**
+
+### 7.1 Os que são gerados aleatoriamente
+
+Cole este bloco inteiro no terminal do servidor:
+
+```bash
+for s in NEURODOC_DJANGO_SECRET_KEY NEURODOC_DB_ADMIN_PASSWORD \
+         NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD \
+         NEURODOC_RABBITMQ_PASSWORD NEURODOC_REDIS_PASSWORD \
+         NEURODOC_PFX_MASTER_KEY NEURODOC_SECRETS_MASTER_KEY; do
+  openssl rand -base64 48 | tr -d '\n' | docker secret create "$s" -
+done
+```
+
+> `NEURODOC_PFX_MASTER_KEY` e `NEURODOC_SECRETS_MASTER_KEY` cifram os
+> certificados de assinatura e as credenciais que as clínicas digitam.
+> **Perder essas duas significa perder o acesso ao que elas cifram** — e
+> não há como recuperar. Elas entram no seu backup de segredos (passo 15).
+
+### 7.2 Os que você fornece
+
+```bash
+# Token da Cloudflare (passo 5.4)
+printf '%s' 'COLE-O-TOKEN-AQUI' | docker secret create CLOUDFLARE_DNS_API_TOKEN -
+
+# Senha do seu servidor de e-mail
+printf '%s' 'SUA-SENHA-SMTP' | docker secret create NEURODOC_SMTP_PASSWORD -
+
+# Chave do SMSDEV
+printf '%s' 'SUA-CHAVE-SMSDEV' | docker secret create NEURODOC_SMSDEV_API_KEY -
+
+# Chave da NVIDIA (IA padrão do sistema)
+printf '%s' 'SUA-CHAVE-NVIDIA' | docker secret create NEURODOC_NVIDIA_API_KEY -
+```
+
+### 7.3 Os que você não usa (mas o stack exige)
+
+O sistema aceita outros provedores de IA. Você não precisa deles, mas os
+segredos têm de existir — a palavra `DISABLED` é lida como "desligado":
+
+```bash
+for s in NEURODOC_OPENROUTER_API_KEY NEURODOC_OPENAI_API_KEY NEURODOC_ANTHROPIC_API_KEY; do
+  printf 'DISABLED' | docker secret create "$s" -
+done
+```
+
+### 7.4 Conferir
+
+```bash
+docker secret ls --format '{{.Name}}' | sort
+```
+
+Devem aparecer **quinze** nomes. Se faltar um, o deploy recusa e diz qual.
+
+---
+
+## 8. Trazer o código
+
+### 8.1 Chave SSH do servidor para o GitHub
+
+```bash
+ssh-keygen -t ed25519 -C "neurodoc-vps" -f ~/.ssh/github -N ""
+cat ~/.ssh/github.pub
+```
+
+Copie a linha e, no GitHub: **Settings → SSH and GPG keys → New SSH key**,
+cole e salve. Configure o SSH para usá-la:
+
+```bash
+cat >> ~/.ssh/config <<'EOF'
+Host github.com
+  IdentityFile ~/.ssh/github
+  IdentitiesOnly yes
+EOF
+chmod 600 ~/.ssh/config
+ssh -T git@github.com
+```
+
+A última linha responde `Hi <seu-usuario>! You've successfully
+authenticated...` — é o esperado (ela diz que o GitHub não dá shell).
+
+### 8.2 Clonar
+
+```bash
+sudo apt install -y git python3-venv python3-pip
+cd /opt
+sudo git clone git@github.com:SEU-USUARIO-GITHUB/neurodoc.git
+sudo chown -R neurodocops:neurodocops /opt/neurodoc
+cd /opt/neurodoc
+python3 -m venv .venv-ops
+.venv-ops/bin/pip install pyyaml
+```
+
+> O `.venv-ops` existe só para o script de deploy poder ler YAML. A
+> aplicação roda dentro do contêiner, com as dependências próprias.
+
+---
+
+## 9. Entrar no registry de imagens
+
+A imagem construída é publicada no **GitHub Container Registry** (grátis
+para repositórios privados). Isso dá reprodutibilidade e volta atrás: cada
+versão publicada fica identificada pelo commit.
+
+1. No GitHub: **Settings → Developer settings → Personal access tokens →
+   Tokens (classic) → Generate new token**.
+2. Marque **`write:packages`** (ele marca `read:packages` junto).
+3. Gere e copie o token.
+
+No servidor:
+
+```bash
+printf '%s' 'COLE-O-TOKEN-DO-GITHUB' | docker login ghcr.io -u SEU-USUARIO-GITHUB --password-stdin
+```
+
+Deve responder `Login Succeeded`.
+
+---
+
+## 10. O arquivo `.env` de produção
+
+```bash
+cd /opt/neurodoc
+cp .env.example .env
+nano .env
+```
+
+O `.env.example` é a **base**, versionada, com todas as chaves. O `.env`
+fica só nesta máquina e **sobrescreve** o que você mudar. O deploy recusa
+qualquer chave que exista só no `.env` — chave nova entra primeiro no
+exemplo, onde aparece num diff.
+
+Altere estas linhas:
+
+```
+REGISTRY=ghcr.io/SEU-USUARIO-GITHUB/neurodoc
+ACME_EMAIL=contato@neurodoc.app.br
+EMAIL_ENABLED=True
+EMAIL_HOST=<servidor SMTP do seu provedor>
+EMAIL_PORT=587
+EMAIL_HOST_USER=<usuário SMTP>
+SMS_ENABLED=True
+AI_ENABLED=True
+BACKUP_AGE_RECIPIENT=<ver passo 15; deixe CHANGE_ME por ora>
+```
+
+**Deixe como está**, por enquanto:
+
+```
+ACME_DIRECTORY=https://acme-staging-v02.api.letsencrypt.org/directory
+NEURODOC_RELEASE_APPROVED=False
+SECURE_HSTS_SECONDS=0
+```
+
+Os três mudam adiante, em momentos específicos. O de certificado aponta
+para o **ambiente de teste** da Let's Encrypt de propósito: o ambiente de
+verdade bloqueia o domínio por uma semana depois de cinco falhas seguidas,
+e a primeira tentativa de alguém raramente acerta de primeira.
+
+Salve: `Ctrl+O`, `Enter`, `Ctrl+X`.
+
+---
+
+## 11. Registrar a homologação
+
+O deploy recusa publicar sem um registro dizendo que aquela versão foi
+conferida. É uma trava deliberada contra publicar de madrugada sem ter
+olhado nada.
+
+```bash
+cd /opt/neurodoc
+git rev-parse HEAD          # anote o SHA
+cp docs/releases/TEMPLATE.md docs/releases/$(git rev-parse HEAD).md
+nano docs/releases/$(git rev-parse HEAD).md
+```
+
+Preencha o que o modelo pede e salve. Depois, no `.env`:
+
+```
+NEURODOC_RELEASE_APPROVED=True
+```
+
+---
+
+## 12. Conferir antes de publicar
+
+```bash
+cd /opt/neurodoc
+.venv-ops/bin/python -m ops.deploy --check
+```
+
+Ele roda **toda** a verificação e para antes de construir ou publicar
+qualquer coisa. Resposta esperada:
+
+```
+Preflight aprovado: configuracao, Swarm, redes, secrets, tmpfs e
+repositorio estao como o deploy exige.
+```
+
+Se der erro, a mensagem diz exatamente o que falta. Os mais comuns:
+
+| Mensagem | O que fazer |
+| --- | --- |
+| `Configure the ACME account email` | Passo 10: `ACME_EMAIL` ainda é `CHANGE_ME` |
+| `Release homologation has not been recorded` | Passo 11 |
+| `The persistent-data node label is missing` | Passo 6.2 |
+| `Invalid network isolation` | Passo 6.3, rede criada sem `--internal` |
+| `Signing session keys must reside on tmpfs` | Passo 6.4 |
+| `docker secret inspect` falhou | Passo 7, falta um segredo |
+| `Commit or resolve tracked changes` | `git status` e resolva |
+
+---
+
+## 13. Publicar
+
+```bash
+cd /opt/neurodoc
+.venv-ops/bin/python -m ops.deploy
+```
+
+Ele vai, nesta ordem: puxar o código, construir a imagem, publicá-la no
+registry, criar os volumes, escrever a configuração do Traefik, subir o
+stack e **esperar cada serviço ficar saudável**. Leva de 10 a 25 minutos
+na primeira vez (a construção da imagem é o mais demorado).
+
+Acompanhe, se quiser, de outro terminal:
+
+```bash
+watch docker service ls
+```
+
+Quando terminar sem erro, teste:
+
+```bash
+curl -k -I https://neurodoc.app.br
+```
+
+Deve responder `HTTP/2 200`. O `-k` está aí porque o certificado ainda é
+o de teste — o navegador vai reclamar dele, e está certo.
+
+### Se algo falhar
+
+```bash
+docker service ps neurodoc_v1_app --no-trunc     # o que aconteceu
+docker service logs neurodoc_v1_app --tail 100   # por quê
+```
+
+O deploy tem volta automática: se uma versão nova não ficar saudável, o
+Swarm volta para a anterior sozinho.
+
+---
+
+## 14. Trocar para o certificado de verdade
+
+Só depois de o passo 13 ter funcionado e o site responder.
+
+```bash
+cd /opt/neurodoc
+nano .env
+```
+
+Troque:
+
+```
+ACME_DIRECTORY=https://acme-v02.api.letsencrypt.org/directory
+```
+
+Publique de novo:
+
+```bash
+.venv-ops/bin/python -m ops.deploy
+```
+
+Aguarde uns dois minutos e abra `https://neurodoc.app.br` no navegador.
+Agora tem de aparecer o **cadeado**, sem aviso nenhum.
+
+> O sistema guarda os dois certificados em arquivos separados
+> (`acme-staging.json` e `acme.json`), então trocar não apaga o de teste
+> nem confunde um com o outro.
+
+---
+
+## 15. Depois de no ar
+
+### 15.1 Sua conta de superadministrador
+
+```bash
+cd /opt/neurodoc
+docker exec $(docker ps -q -f name=neurodoc_v1_app | head -1) \
+  python manage.py create_superadmin seu@email.com \
+  --first-name Fernando --last-name Freua --invite
+```
+
+Ele imprime um link de definição de senha, de uso único. Abra, defina a
+senha, e **em seguida configure a MFA** em `/accounts/mfa/setup/` — o
+console `/instalacao/` não abre sem ela. É deliberado: um console que lê a
+trilha de todas as clínicas não pode estar a uma senha roubada de
+distância.
+
+### 15.2 Encher a tabela TUSS
+
+O CID-10 é importado sozinho na primeira subida (14.233 códigos). A TUSS
+vem de uma API externa, e **só o worker alcança a internet**:
+
+```bash
+docker exec $(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) \
+  python manage.py sync_tuss
+```
+
+Leva alguns minutos. Depois disso ela se atualiza sozinha, aos domingos às
+4h.
+
+### 15.3 Ligar o HSTS
+
+HSTS diz ao navegador "deste domínio, nunca mais aceite HTTP". O navegador
+**guarda** isso — por isso só se liga depois que o HTTPS provou funcionar.
+
+Confirme que `https://neurodoc.app.br` abre com cadeado, e então:
+
+```bash
+nano .env      # SECURE_HSTS_SECONDS=31536000
+.venv-ops/bin/python -m ops.deploy
+```
+
+### 15.4 Backups
+
+O repositório traz as unidades do systemd:
+
+```bash
+sudo cp ops/neurodoc-backup.service ops/neurodoc-backup.timer /etc/systemd/system/
+sudo cp ops/neurodoc-signing-cleanup.service ops/neurodoc-signing-cleanup.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer
+systemctl list-timers | grep neurodoc
+```
+
+**Além disso, guarde os segredos fora do servidor.** Um backup do banco
+sem as chaves-mestras é um backup que não abre:
+
+```bash
+docker secret ls --format '{{.Name}}'
+```
+
+Os valores não podem ser lidos de volta do Docker — anote-os no momento em
+que os criou (passo 7), num gerenciador de senhas. Se não anotou, apague e
+recrie os segredos **antes** de ter dados de verdade no sistema.
+
+### 15.5 Conferir o e-mail
+
+```bash
+docker exec $(docker ps -q -f name=neurodoc_v1_app | head -1) \
+  python manage.py testar_email seu@email.com
+```
+
+Ele imprime a configuração e diz por onde a mensagem saiu. Se não chegar,
+olhe o log do worker — é ele quem fala com o SMTP:
+
+```bash
+docker service logs neurodoc_v1_celery_worker --tail 50
+```
+
+---
+
+## 16. Publicar uma atualização
+
+Depois que tudo estiver no ar, atualizar é isto:
+
+```bash
+cd /opt/neurodoc
+git rev-parse HEAD                                    # anote o SHA novo
+cp docs/releases/TEMPLATE.md docs/releases/<SHA>.md   # registre a homologação
+nano docs/releases/<SHA>.md
+git add docs/releases/ && git commit -m "Registro da release <SHA>"
+.venv-ops/bin/python -m ops.deploy --check            # confira
+.venv-ops/bin/python -m ops.deploy                    # publique
+```
+
+O que acontece por baixo:
+
+- as duas réplicas da aplicação são trocadas **uma de cada vez**, a nova
+  subindo antes de a antiga sair — ninguém vê o site fora do ar;
+- as migrações de banco rodam sob trava, uma vez só, mesmo com duas
+  réplicas subindo juntas;
+- se a versão nova não ficar saudável, o Swarm **volta sozinho** para a
+  anterior.
+
+Mudança de banco que apaga coluna exige procedimento de manutenção: o
+preflight recusa enquanto `NEURODOC_SCHEMA_CHANGE` não for `expand`. É
+proposital — apagar coluna com a versão antiga ainda rodando derruba o
+site.
+
+### Voltar atrás de propósito
+
+```bash
+docker service rollback neurodoc_v1_app
+```
+
+Ver também `docs/operations/rollback.md`.
+
+---
+
+## Resumo dos comandos do dia a dia
+
+| Para quê | Comando |
+| --- | --- |
+| Ver se está tudo de pé | `docker service ls` |
+| Ver o que houve com um serviço | `docker service ps neurodoc_v1_app --no-trunc` |
+| Ler o log | `docker service logs neurodoc_v1_app --tail 100 -f` |
+| Publicar atualização | `.venv-ops/bin/python -m ops.deploy` |
+| Conferir sem publicar | `.venv-ops/bin/python -m ops.deploy --check` |
+| Voltar atrás | `docker service rollback neurodoc_v1_app` |
+| Testar e-mail | `manage.py testar_email <endereço>` |
+| Atualizar a TUSS | `manage.py sync_tuss` (no worker) |

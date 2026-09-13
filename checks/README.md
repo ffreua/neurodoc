@@ -52,6 +52,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_g10` | Portal de solicitações e a fila do médico |
 | `check_hint` | Máscara de segredo com largura fixa |
 | `check_ia_padrao` | Provedor de IA padrão da instalação, e a precedência da clínica |
+| `check_instalacao` | Instalacao nova: do zero ao primeiro paciente (exige banco vazio) |
 | `check_isolation` | Documento no prontuário do paciente certo |
 | `check_links` | Nenhum perfil vê link que não consegue abrir |
 | `check_matrix` | A matriz de acesso confere com o PRD seção 4 |

@@ -36,16 +36,33 @@ Sem autenticação, conferido na especificação OpenAPI publicada
 (`securityDefinitions` vazio) e por chamada real.
 """
 
+import logging
 import time
 from dataclasses import dataclass
 
 import requests
+
+logger = logging.getLogger(__name__)
 
 BASE_URL = 'https://consulta-ocl.apps.sa-1a.mendixcloud.com/rest/oclservice'
 
 #: Generoso: isto roda no worker, numa tarefa periódica, sem ninguém
 #: esperando na tela. O aperto é o da busca, e a busca não passa por aqui.
 REQUEST_TIMEOUT_SECONDS = 30
+
+#: Quantas vezes insistir na **mesma** pagina antes de desistir da tabela.
+#:
+#: Nao e zelo excessivo: a API da ANS falha no meio de um download longo.
+#: Numa execucao real ela nao respondeu na pagina 187 de umas 600, e como o
+#: download e tudo-ou-nada -- de proposito, para nao gravar meia tabela --,
+#: as 186 paginas ja baixadas foram descartadas. Sem repetir a pagina, uma
+#: tabela desse tamanho tem chance real de **nunca** terminar.
+PAGE_ATTEMPTS = 4
+
+#: Espera entre as tentativas da mesma pagina, em segundos, crescendo.
+#: Crescente porque a falha costuma ser o servidor sob carga: insistir no
+#: mesmo ritmo piora o que se quer que melhore.
+RETRY_BACKOFF_SECONDS = (2, 5, 15)
 
 #: A tabela de procedimentos e eventos em saúde — a que se consulta ao
 #: escrever um pedido de exame. As outras atendem faturamento hospitalar
@@ -111,6 +128,49 @@ def _parse_page(payload):
     return entradas
 
 
+def _fetch_page(http, table, pagina):
+    """Uma página, insistindo antes de desistir da tabela inteira.
+
+    A falha que se espera aqui é passageira — servidor sob carga, conexão
+    que caiu — e ela custa caro: como o download só grava no fim, desistir
+    na página 187 joga fora 186 páginas. Insistir três vezes com espera
+    crescente é barato perto disso.
+
+    O que **não** se repete é resposta em formato inesperado: isso não é
+    instabilidade, é a API ter mudado, e repetir só adia a descoberta.
+    """
+    ultima = None
+    for tentativa in range(PAGE_ATTEMPTS):
+        try:
+            resposta = http.get(
+                f'{BASE_URL}/ANS/concepts/{table}',
+                params={'page': str(pagina)},
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                headers={'Accept': 'application/json'},
+            )
+            resposta.raise_for_status()
+            return _parse_page(resposta.json())
+        except ValueError as exc:
+            raise TussUnavailable(
+                f'A ANS respondeu num formato inesperado na página {pagina}.'
+            ) from exc
+        except (requests.Timeout, requests.RequestException) as exc:
+            ultima = exc
+            if tentativa < PAGE_ATTEMPTS - 1:
+                espera = RETRY_BACKOFF_SECONDS[min(tentativa, len(RETRY_BACKOFF_SECONDS) - 1)]
+                logger.warning(
+                    'tuss: pagina %s da tabela %s falhou (%s); nova tentativa em %ss',
+                    pagina, table, type(exc).__name__, espera,
+                )
+                time.sleep(espera)
+
+    motivo = 'não respondeu a tempo' if isinstance(ultima, requests.Timeout) else 'falhou'
+    raise TussUnavailable(
+        f'A ANS {motivo} na página {pagina} da tabela {table}, '
+        f'mesmo após {PAGE_ATTEMPTS} tentativas.'
+    ) from ultima
+
+
 def fetch_table(table=DEFAULT_TABLE, session=None):
     """Baixa a tabela inteira, página a página. Levanta `TussUnavailable`.
 
@@ -124,27 +184,7 @@ def fetch_table(table=DEFAULT_TABLE, session=None):
     vistos = set()
     pagina = 1
     while pagina <= MAX_PAGES:
-        try:
-            resposta = http.get(
-                f'{BASE_URL}/ANS/concepts/{table}',
-                params={'page': str(pagina)},
-                timeout=REQUEST_TIMEOUT_SECONDS,
-                headers={'Accept': 'application/json'},
-            )
-            resposta.raise_for_status()
-            lote = _parse_page(resposta.json())
-        except requests.Timeout as exc:
-            raise TussUnavailable(
-                f'A ANS não respondeu a tempo na página {pagina} da tabela {table}.'
-            ) from exc
-        except requests.RequestException as exc:
-            raise TussUnavailable(
-                f'Falha ao consultar a tabela {table} da ANS na página {pagina}.'
-            ) from exc
-        except ValueError as exc:
-            raise TussUnavailable(
-                f'A ANS respondeu num formato inesperado na página {pagina}.'
-            ) from exc
+        lote = _fetch_page(http, table, pagina)
 
         if not lote:
             break

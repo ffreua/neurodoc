@@ -154,7 +154,18 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
 {% endblock %}
 
 {% block modals %}
-{% include "scheduling/_booking_modals.html" %}
+{% comment %}Sem médico não há modal de marcação.
+
+O corpo da página já trata esse caso — mostra "Nenhum médico com vínculo
+ativo" —, mas o bloco de modais ficava fora dessa guarda, e o
+`{% url 'scheduling:quick-book' doctor.id %}` recebia vazio: `NoReverseMatch`,
+ou seja, 500 na agenda. É o estado de **toda clínica recém-criada**, antes
+de o primeiro registro profissional ser verificado — a primeira tela que o
+cliente novo abre depois de cadastrar a equipe.
+
+`agenda_day.html` já tinha a guarda; esta não. Defeito que só aparece em
+instalação limpa.{% endcomment %}
+{% if doctor %}{% include "scheduling/_booking_modals.html" %}{% endif %}
 {% endblock %}
 
 {% block scripts %}
