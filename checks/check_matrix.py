@@ -10,7 +10,7 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 
 from accounts.models import User
 from clinical.models import Encounter
-from documents.models import Attachment, AttachmentClassification
+from documents.models import Attachment, AttachmentClassification, AttachmentScanStatus
 from patients.models import Patient
 from tenancy.models import Membership
 
@@ -21,8 +21,16 @@ doctor_a = Membership.objects.get(user__email='doctor-a@demo.neurodoc.local', te
 doctor_b = Membership.objects.get(user__email='doctor-b@demo.neurodoc.local', tenant__slug=TENANT)
 patient = Patient.objects.filter(tenant__slug=TENANT).first()
 encounter = Encounter.objects.filter(tenant__slug=TENANT).first()
+# Um anexo clinico que de fato **abre**.
+#
+# Sem o filtro de `scan_status`, o unico anexo clinico de um banco recem
+# semeado e o rejeitado que `seed_demo` cria de proposito (a demonstracao
+# de quarentena). Baixa-lo responde 404 -- corretamente, porque anexo
+# reprovado no antivirus nao se entrega --, e o roteiro lia isso como
+# "doctor-b nao tem permissao". Acusava o produto por fazer a coisa certa.
 clinical_att = Attachment.objects.filter(
-    tenant__slug=TENANT, classification=AttachmentClassification.CLINICAL, deleted_at=None,
+    tenant__slug=TENANT, classification=AttachmentClassification.CLINICAL,
+    deleted_at=None, scan_status=AttachmentScanStatus.AVAILABLE,
 ).first()
 
 # (rotulo, url, {perfil: esperado})

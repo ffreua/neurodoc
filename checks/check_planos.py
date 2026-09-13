@@ -89,12 +89,31 @@ if not zero_vale:
 print('=== 4. o aviso comeca em 80%, e nao antes ===')
 ativos = Patient.objects.filter(tenant=tenant_a, status=PatientStatus.ACTIVE).count()
 print(f'  pacientes ativos na clinica A: {ativos}')
-for limite, espera_aviso in [(ativos * 2, False), (int(ativos / 0.85) + 1, True)]:
-    com_limite(pacientes=limite, plano=PlanCode.COMPLETE)
-    st = limits.patient_status(tenant_a)
-    print(f'  limite={limite:4} uso={st.usage} {st.percent:3}% aviso={st.warning} bloqueado={st.blocked}')
-    if st.warning != espera_aviso:
-        failures.append(f'com limite {limite} ({st.percent}%), aviso={st.warning}, esperado {espera_aviso}')
+
+# A fronteira e testada com numeros sinteticos, e nao mexendo no limite da
+# clinica. Com poucos pacientes ativos nao existe limite inteiro que caia
+# entre 80% e 100%: com 3 pacientes, o limite teria de estar em (3, 3.75] --
+# e 4 da 75%. O roteiro acusava um defeito que era aritmetica dele.
+# A fronteira e `>= 80%`: 79% nao avisa, 80% avisa. O caso de 79 estava
+# escrito como `True` na primeira versao deste roteiro -- e o roteiro
+# acusava o produto por acertar.
+for uso, limite, espera in [(79, 100, False), (80, 100, True), (95, 100, True),
+                            (75, 100, False), (3, 4, False), (100, 100, False)]:
+    st = limits.LimitStatus('patients', uso, limite, 'Teste')
+    print(f'  uso={uso:3}/{limite:3} = {st.percent:3}%  aviso={st.warning}  bloqueado={st.blocked}')
+    if st.warning != espera:
+        failures.append(f'{uso}/{limite} ({st.percent}%): aviso={st.warning}, esperado {espera}')
+# Cheio nao e aviso: e bloqueio.
+cheio = limits.LimitStatus('patients', 100, 100, 'Teste')
+if cheio.warning or not cheio.blocked:
+    failures.append('no limite exato, o estado deveria ser bloqueado e nao aviso')
+
+# E na clinica de verdade: com o dobro do uso, nao avisa.
+com_limite(pacientes=max(ativos * 2, 2), plano=PlanCode.COMPLETE)
+st = limits.patient_status(tenant_a)
+print(f'  clinica real: {st.usage}/{st.limit} = {st.percent}% aviso={st.warning}')
+if st.warning:
+    failures.append('avisou com a clinica na metade da cota')
 
 print('=== 5. no limite, as DUAS portas recusam ===')
 com_limite(pacientes=ativos, plano=PlanCode.COMPLETE)

@@ -259,8 +259,19 @@ class Command(BaseCommand):
 
         AvailabilityRule.objects.get_or_create(
             tenant=tenant_a, physician_membership=membership_doctor_a, weekday=0,
+            # `starts_on` nao tem default no modelo, e e obrigatorio. Esta
+            # chamada o omitia e as outras tres nao -- um banco que ja tinha
+            # a regra nunca executava este ramo, entao o defeito so aparecia
+            # numa instalacao nova. Ou seja: a semeadura estava quebrada
+            # justamente para quem instalava o sistema pela primeira vez.
+            #
+            # Vale desde antes de hoje pelo mesmo motivo das outras: grade
+            # publicada a partir de hoje faz a semana corrente abrir pela
+            # metade.
             defaults={'local_start': timezone.datetime.min.time().replace(hour=9),
-                      'local_end': timezone.datetime.min.time().replace(hour=17), 'slot_minutes': 30},
+                      'local_end': timezone.datetime.min.time().replace(hour=17),
+                      'slot_minutes': 30,
+                      'starts_on': date.today() - timedelta(days=30)},
         )
         # O médico não-dono precisa de grade própria, senão a agenda dele abre
         # vazia e não dá para exercitar o que ele vê da agenda de outro. Dias
@@ -396,24 +407,44 @@ class Command(BaseCommand):
             )
             counts['attachments'] += 1
 
-        # --- Sample (non-official) catalog release, so patients app has real
-        # DiagnosisCode/ProcedureCode rows to reference in later sprints ---
+        # --- Catalogo de amostra: so quando nao ha catalogo de verdade ---
+        #
+        # A amostra existe para que os apps tenham alguma linha de
+        # `DiagnosisCode`/`ProcedureCode` a que se referir num banco recem
+        # criado. Sao 10 codigos de CID e 6 de TUSS.
+        #
+        # **Ela nunca pode vencer um catalogo real.** Ate aqui, a guarda era
+        # "a release SAMPLE-2026 ja existe?", e ela `activate_release`
+        # incondicionalmente: num banco onde a amostra ja estava, o ramo era
+        # pulado e tudo funcionava; num banco novo, a semeadura rodava
+        # **depois** da importacao do CID-10 oficial e rebaixava 14.233
+        # codigos para 10, marcando o catalogo de verdade como
+        # `superseded`.
+        #
+        # O sintoma era uma busca que nao acha "doenca parkinson" numa
+        # instalacao recem montada -- justamente onde ninguem desconfia do
+        # catalogo. A guarda passou a ser sobre o que **esta ativo**, que e
+        # a pergunta certa: fixture nao e catalogo.
+        from catalogs.models import CatalogReleaseStatus
+
         sample_dir = Path(settings.BASE_DIR) / 'catalogs' / 'sample_data'
-        if not CatalogRelease.objects.filter(system='CID10', version='SAMPLE-2026').exists():
-            content = (sample_dir / 'cid10_sample.csv').read_text(encoding='utf-8')
-            _, release = import_catalog(
-                'CID10', 'SAMPLE-2026', content,
-                license_note='Subconjunto sintético para desenvolvimento; não é o catálogo oficial CID-10.',
-                dry_run=False,
-            )
-            activate_release(release)
-        if not CatalogRelease.objects.filter(system='TUSS', version='SAMPLE-2026').exists():
-            content = (sample_dir / 'tuss_sample.csv').read_text(encoding='utf-8')
-            _, release = import_catalog(
-                'TUSS', 'SAMPLE-2026', content,
-                license_note='Subconjunto sintético para desenvolvimento; não é a tabela TUSS oficial.',
-                dry_run=False,
-            )
+        amostras = [
+            ('CID10', 'cid10_sample.csv',
+             'Subconjunto sintético para desenvolvimento; não é o catálogo oficial CID-10.'),
+            ('TUSS', 'tuss_sample.csv',
+             'Subconjunto sintético para desenvolvimento; não é a tabela TUSS oficial.'),
+        ]
+        for sistema, arquivo, nota in amostras:
+            if CatalogRelease.objects.filter(
+                system=sistema, status=CatalogReleaseStatus.ACTIVE,
+            ).exists():
+                counts['catalogos_preservados'] = counts.get('catalogos_preservados', 0) + 1
+                continue
+            if CatalogRelease.objects.filter(system=sistema, version='SAMPLE-2026').exists():
+                continue
+            content = (sample_dir / arquivo).read_text(encoding='utf-8')
+            _, release = import_catalog(sistema, 'SAMPLE-2026', content,
+                                        license_note=nota, dry_run=False)
             activate_release(release)
 
         self.stdout.write(self.style.SUCCESS(f'seed_demo complete: {counts}'))
