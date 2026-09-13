@@ -202,7 +202,34 @@ if len(FAQ) < 5:
     falhas.append('o FAQ ficou curto demais para servir')
 
 print('=== 10. a tela de leads do console exige MFA ===')
-superadmin = User.objects.filter(is_superuser=True, is_active=True).first()
+def superadmin_descartavel():
+    """Um superadministrador **do roteiro**, nunca a conta de uma pessoa.
+
+    `force_login` grava `last_login`, e `last_login` entra no hash de
+    `default_token_generator`: logar numa conta invalida o link de
+    definicao de senha pendente dela. Pegar "o primeiro superusuario"
+    funcionava enquanto havia contas de teste no banco; num banco limpo,
+    a unica conta com `is_superuser` e a de quem opera o sistema -- e o
+    roteiro passava a derrubar o link dessa pessoa.
+    """
+    from accounts.models import User as _User
+    from django.utils import timezone as _tz
+
+    conta, criada = _User.objects.get_or_create(
+        email='check-superadmin@example.invalid',
+        defaults={'is_active': True, 'is_staff': True, 'is_superuser': True},
+    )
+    if criada:
+        conta.set_password('CheckS3nha!2026')
+    conta.is_staff = True
+    conta.is_superuser = True
+    conta.is_active = True
+    conta.email_verified_at = conta.email_verified_at or _tz.now()
+    conta.save()
+    return conta
+
+
+superadmin = superadmin_descartavel()
 sem_mfa = Client()
 sem_mfa.force_login(superadmin)
 r = sem_mfa.get('/instalacao/leads/')
