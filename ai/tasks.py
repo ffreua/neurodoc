@@ -3,6 +3,7 @@ from celery import shared_task
 from .chat_models import ChatMessage
 from .chat_services import fail_assistant_message, finalize_assistant_message
 from .models import AIJob, AIJobStatus
+from .context import AIAuthorizationDenied
 from .providers import ProviderUnavailable, get_chat_model
 from .rendering import render_markdown
 from .services import JobNotRunnable, run_job
@@ -112,6 +113,47 @@ def prepare_document_and_run(self, job_id):
     return run_ai_job(str(job.id))
 
 
+def _build_chat_messages(session, user_text):
+    """Monta o que vai ao provedor nesta volta da conversa.
+
+    Reconstroi a autorizacao a partir do dono da sessao e do paciente
+    dela, revalidando contra o banco -- `build_ai_authorization` recusa
+    vinculo inativo e paciente de outro inquilino.
+
+    Sessao sem paciente segue sem autorizacao clinica: nao ha prontuario a
+    consultar, e o prompt diz isso ao modelo em vez de deixa-lo supor.
+    """
+    from types import SimpleNamespace
+
+    from .chat_prompt import build_chat_prompt
+    from .context import build_ai_authorization
+
+    autorizacao = None
+    if session.patient_id:
+        contexto = SimpleNamespace(
+            tenant_id=session.tenant_id,
+            user_id=session.owner_user_id,
+            membership_id=_membership_id_of(session),
+        )
+        autorizacao = build_ai_authorization(contexto, patient_id=session.patient_id)
+
+    mensagens, _ = build_chat_prompt(session, user_text, authorization=autorizacao)
+    return mensagens
+
+
+def _membership_id_of(session):
+    """O vinculo do dono da sessao nesta clinica, revalidado agora."""
+    from tenancy.models import Membership, MembershipStatus
+
+    vinculo = Membership.objects.filter(
+        tenant_id=session.tenant_id, user_id=session.owner_user_id,
+        status=MembershipStatus.ACTIVE,
+    ).first()
+    if vinculo is None:
+        raise AIAuthorizationDenied('Vinculo inativo nesta organizacao')
+    return vinculo.id
+
+
 @shared_task(name='ai.tasks.run_chat_turn', expires=600)
 def run_chat_turn(message_id, prompt):
     """Streams the reply token-by-token into the Redis Stream keyed by
@@ -119,10 +161,31 @@ def run_chat_turn(message_id, prompt):
     persists the final, sanitized content to Postgres regardless of
     whether any SSE client was even connected to see the stream live --
     the result must survive a Redis restart/TTL expiry untouched.
+
+    O que vai ao provedor e montado **aqui**, e nao na view: instrucao de
+    sistema, dados do prontuario do paciente da sessao, historico da
+    conversa e a pergunta -- tudo desidentificado (`ai/chat_prompt.py`).
+
+    Ate a versao anterior, `prompt` era a mensagem digitada e nada mais. O
+    modelo respondia de memoria sobre um paciente que nunca viu, sem
+    historico e sem passar pela desidentificacao que o caminho de analise
+    ja aplicava.
+
+    A autorizacao e **reconstruida do banco aqui dentro**, e nao recebida
+    pronta: entre enfileirar e executar cabe uma revogacao de vinculo, e
+    e esta a ultima chance de recusar antes de o prontuario sair.
     """
-    message = ChatMessage.objects.select_related('session').get(id=message_id)
+    message = ChatMessage.objects.select_related('session', 'session__patient').get(id=message_id)
     session = message.session
     tenant_id, user_id, job_id = session.tenant_id, session.owner_user_id, str(message.id)
+
+    try:
+        prompt = _build_chat_messages(session, prompt)
+    except AIAuthorizationDenied as exc:
+        aviso = f'Acesso revogado antes de a resposta comecar: {exc}'
+        publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': aviso})
+        fail_assistant_message(message, aviso)
+        return {'status': 'denied', 'reason': str(exc)}
 
     try:
         # `tenant_id` para o chat usar o provedor **daquela** clínica: a

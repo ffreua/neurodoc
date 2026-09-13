@@ -29,17 +29,72 @@ def _own_session_or_404(request, session_id):
     )
 
 
+def _sessions_of(request):
+    """As conversas do proprio usuario, da mais recente para a mais antiga.
+
+    Do **proprio**: a conversa carrega prontuario, e a lista de sessoes de
+    um medico dita a outro ja seria informacao sobre quem ele atende.
+    """
+    from .chat_models import ChatSessionStatus
+
+    return (
+        ChatSession.objects
+        .filter(tenant_id=request.access_context.tenant_id,
+                owner_user_id=request.access_context.user_id,
+                status=ChatSessionStatus.ACTIVE)
+        .select_related('patient')
+        .order_by('-last_message_at', '-created_at')
+    )
+
+
+def _shell(request, session=None, **overrides):
+    """O contexto do layout de duas colunas.
+
+    Lista e conversa compartilham a mesma tela -- como num aplicativo de
+    mensagens. Antes eram duas paginas, e abrir uma conversa fazia a lista
+    desaparecer: para trocar de assunto era preciso voltar.
+    """
+    contexto = {
+        'sessions': _sessions_of(request),
+        'session': session,
+        'rendered_messages': [],
+    }
+    if session is not None:
+        contexto['rendered_messages'] = [
+            {'message': m,
+             'html': render_markdown(m.content) if m.role != ChatMessageRole.USER else None}
+            for m in session.messages.order_by('sequence')
+        ]
+    contexto.update(overrides)
+    return contexto
+
+
 class ChatSessionListView(TenantScopedView):
     def get(self, request):
-        sessions = ChatSession.objects.filter(
-            tenant_id=request.access_context.tenant_id, owner_user_id=request.access_context.user_id,
-        ).order_by('-last_message_at', '-created_at')
-        return render(request, 'ai/chat/list.html', {'sessions': sessions})
+        return render(request, 'ai/chat/shell.html', _shell(request))
 
     def post(self, request):
-        patient_id = request.POST.get('patient_id') or None
+        """Cria a conversa. Paciente vem do autocomplete, nao digitado.
+
+        O campo pedia o UUID do paciente, escrito a mao. Ninguem sabe o
+        UUID de um paciente -- na pratica o campo ficava vazio, e toda
+        conversa nascia sem prontuario, que e justamente o caso em que a
+        IA nao tem o que consultar.
+        """
+        patient_id = (request.POST.get('patient_id') or '').strip() or None
+        if patient_id:
+            # O paciente e resolvido no escopo do inquilino: um id de outra
+            # clinica nao vira sessao, e `create_session` receberia None.
+            from patients.models import Patient
+
+            existe = Patient.objects.filter(
+                tenant_id=request.access_context.tenant_id, id=patient_id,
+            ).exists()
+            if not existe:
+                patient_id = None
         session = chat_services.create_session(
-            request.access_context, patient_id=patient_id, title=request.POST.get('title', ''),
+            request.access_context, patient_id=patient_id,
+            title=(request.POST.get('title') or '').strip(),
         )
         return redirect('ai:chat-session-detail', session_id=session.id)
 
@@ -47,12 +102,7 @@ class ChatSessionListView(TenantScopedView):
 class ChatSessionDetailView(TenantScopedView):
     def get(self, request, session_id):
         session = _own_session_or_404(request, session_id)
-        messages = session.messages.order_by('sequence')
-        rendered = [
-            {'message': m, 'html': render_markdown(m.content) if m.role != ChatMessageRole.USER else None}
-            for m in messages
-        ]
-        return render(request, 'ai/chat/detail.html', {'session': session, 'rendered_messages': rendered})
+        return render(request, 'ai/chat/shell.html', _shell(request, session=session))
 
 
 class ChatMessageCreateView(TenantScopedView):
@@ -67,6 +117,12 @@ class ChatMessageCreateView(TenantScopedView):
             return HttpResponseForbidden(str(exc))
 
         chat_services.post_user_message(session, content)
+        # A primeira pergunta vira o titulo. O campo era opcional e ficava
+        # vazio, e a lista virava uma coluna de "Sem titulo" -- que e uma
+        # lista pela qual nao se navega.
+        if not session.title:
+            session.title = content[:80] + ('…' if len(content) > 80 else '')
+            session.save(update_fields=['title', 'updated_at'])
         assistant_message = chat_services.start_assistant_message(session)
         run_chat_turn.delay(str(assistant_message.id), content)
         return redirect('ai:chat-session-detail', session_id=session.id)
@@ -78,3 +134,21 @@ class ChatMessageCancelView(TenantScopedView):
         message = get_object_or_404(session.messages, id=message_id)
         cancel_message(message, request.user.id)
         return redirect('ai:chat-session-detail', session_id=session.id)
+
+
+class ChatSessionArchiveView(TenantScopedView):
+    """Arquiva a conversa. Nao apaga.
+
+    A conversa carrega o que o medico perguntou e o que a IA respondeu, e
+    isso e material de revisao -- o proprio produto registra que sugestao
+    aceita, editada ou rejeitada e medida separadamente. Apagar levaria
+    junto a evidencia de qual foi a sugestao.
+    """
+
+    def post(self, request, session_id):
+        from .chat_models import ChatSessionStatus
+
+        session = _own_session_or_404(request, session_id)
+        session.status = ChatSessionStatus.ARCHIVED
+        session.save(update_fields=['status', 'updated_at'])
+        return redirect('ai:chat-list')

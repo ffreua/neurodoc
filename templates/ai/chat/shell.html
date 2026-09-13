@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}{% if session %}{{ session.title|default:"Conversa" }}{% else %}Chat de apoio{% endif %} — NeuroDoc{% endblock %}
+{% block page_title %}Chat de apoio{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Chat de apoio</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'catalogs:search' %}">Buscar CID-10</a>
+<a class="btn btn-light" href="{% url 'catalogs:search' %}?aba=tuss">Buscar TUSS</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}Duas colunas numa tela só — lista de conversas à esquerda,
+conversa à direita.
+
+Eram duas páginas: abrir uma conversa fazia a lista sumir, e trocar de
+assunto exigia voltar. É a forma de todo aplicativo de mensagens porque
+é como a tarefa funciona: quem conversa sobre um caso lembra de outro.
+{% endcomment %}
+<div class="nd-chat">
+
+    <!-- --------------------------------------------------- conversas -->
+    <aside class="nd-chat-aside">
+        <div class="nd-chat-aside-top">
+            <button type="button" class="btn btn-primary w-100" data-bs-toggle="modal"
+                    data-bs-target="#nova-conversa-modal">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                Nova conversa
+            </button>
+            <input type="search" class="form-control form-control-sm mt-2" id="nd-chat-filtro"
+                   placeholder="Filtrar conversas" autocomplete="off">
+        </div>
+
+        <nav class="nd-chat-list" id="nd-chat-list" aria-label="Suas conversas">
+            {% for s in sessions %}
+            <a class="nd-chat-item {% if session and s.id == session.id %}active{% endif %}"
+               href="{% url 'ai:chat-session-detail' s.id %}"
+               data-nd-busca="{{ s.title|default:'sem titulo'|lower }} {{ s.patient.full_name|default:''|lower }}">
+                <span class="nd-chat-item-title">{{ s.title|default:"Sem título" }}</span>
+                <span class="nd-chat-item-meta">
+                    {% if s.patient %}
+                    <span class="badge bg-soft-primary text-primary">{{ s.patient.full_name|truncatechars:22 }}</span>
+                    {% endif %}
+                    <span>{{ s.last_message_at|date:"d/m H:i"|default:"nova" }}</span>
+                </span>
+            </a>
+            {% empty %}
+            <p class="fs-12 text-muted text-center py-4 px-3 mb-0">
+                Nenhuma conversa ainda. Comece por “Nova conversa”.
+            </p>
+            {% endfor %}
+        </nav>
+    </aside>
+
+    <!-- ----------------------------------------------------- conversa -->
+    <section class="nd-chat-main">
+        {% if not session %}
+        <div class="nd-chat-empty">
+            <span class="avatar-text avatar-xl bg-soft-primary text-primary mb-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </span>
+            <h5 class="fw-bold text-dark">Apoio para escrever e organizar</h5>
+            <p class="fs-13 text-muted" style="max-width: 30rem;">
+                Abra uma conversa ligada a um paciente e a IA passa a responder com
+                base no prontuário <strong>dele</strong> — atendimentos, exames,
+                medicações e diagnósticos registrados. Sem paciente, ela ajuda com
+                redação e dúvidas gerais.
+            </p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                    data-bs-target="#nova-conversa-modal">Começar uma conversa</button>
+        </div>
+
+        {% else %}
+        <header class="nd-chat-head">
+            <div class="min-width-0">
+                <h6 class="fw-bold text-dark mb-0 text-truncate">{{ session.title|default:"Conversa" }}</h6>
+                <span class="fs-11 text-muted">
+                    {% if session.patient %}
+                    Prontuário de
+                    <a href="{% url 'patients:detail' session.patient_id %}">{{ session.patient.full_name }}</a>
+                    {% else %}
+                    Sem paciente — a IA não consulta prontuário nesta conversa
+                    {% endif %}
+                </span>
+            </div>
+            <form method="post" action="{% url 'ai:chat-archive' session.id %}" class="flex-shrink-0"
+                  data-nd-confirm="Arquivar esta conversa? Ela sai da lista e nada é apagado.">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-light">Arquivar</button>
+            </form>
+        </header>
+
+        <div class="nd-chat-messages" id="messages">
+            {% for item in rendered_messages %}
+            <div class="nd-msg nd-msg-{{ item.message.role }} message {{ item.message.role }}"
+                 data-message-id="{{ item.message.id }}" data-state="{{ item.message.state }}">
+                <div class="nd-msg-bubble">
+                    {% if item.html %}
+                    <div class="rendered nd-prose">{{ item.html|safe }}</div>
+                    {% else %}
+                    <div class="rendered nd-prose">{{ item.message.content }}</div>
+                    {% endif %}
+
+                    {% if item.message.state == "streaming" %}
+                    <div class="live nd-prose" id="live-{{ item.message.id }}"
+                         data-stream-url="{% url 'ai:chat-stream' session.id item.message.id %}"></div>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <span class="spinner-border spinner-border-sm text-primary" role="status" aria-hidden="true"></span>
+                        <form method="post" action="{% url 'ai:chat-message-cancel' session.id item.message.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-light-danger">Parar</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="nd-chat-empty">
+                <p class="fs-13 text-muted text-center mb-0" style="max-width: 28rem;">
+                    {% if session.patient %}
+                    Pergunte sobre o histórico de {{ session.patient.full_name }}, peça um resumo,
+                    ou use a conversa para redigir. A IA responde a partir do que está registrado —
+                    e diz quando não encontra.
+                    {% else %}
+                    Escreva sua pergunta. Esta conversa não está ligada a um paciente, então a IA
+                    ajuda com redação e dúvidas gerais.
+                    {% endif %}
+                </p>
+            </div>
+            {% endfor %}
+        </div>
+
+        <footer class="nd-chat-composer">
+            {% comment %}O aviso fica junto do campo, e não num rodapé de página:
+            é aqui que a pessoa está prestes a aceitar o que foi respondido.
+            {% endcomment %}
+            <p class="fs-11 text-muted mb-2">
+                A IA responde a partir do prontuário registrado e do que você escreveu, e
+                diz quando não encontra. <strong>Revise antes de usar</strong> — ela não dá
+                diagnóstico nem prescreve conduta.
+            </p>
+            <form method="post" action="{% url 'ai:chat-message-create' session.id %}" id="nd-chat-form">
+                {% csrf_token %}
+                <div class="nd-chat-input">
+                    <textarea class="form-control" id="chat-content" name="content" rows="1"
+                              placeholder="Escreva sua pergunta — Enter envia, Shift+Enter quebra linha"
+                              data-nd-autogrow></textarea>
+                    <button type="submit" class="btn btn-primary" data-nd-busy aria-label="Enviar">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    </button>
+                </div>
+            </form>
+        </footer>
+        {% endif %}
+    </section>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+<div class="modal fade" id="nova-conversa-modal" tabindex="-1" aria-hidden="true"
+     aria-labelledby="nova-conversa-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'ai:chat-list' %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="nova-conversa-title">Nova conversa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    {% comment %}Busca por nome, e não o UUID digitado à mão que
+                    havia antes. Ninguém sabe o UUID de um paciente: na prática o
+                    campo ficava vazio, e toda conversa nascia sem prontuário —
+                    justamente o caso em que a IA não tem o que consultar.
+                    {% endcomment %}
+                    <label class="form-label fw-semibold" for="nd-chat-paciente">Paciente</label>
+                    <input type="text" class="form-control" id="nd-chat-paciente"
+                           autocomplete="off" placeholder="Digite o nome ou o nº do prontuário"
+                           data-url="{% url 'patients:autocomplete' %}">
+                    <input type="hidden" name="patient_id" id="nd-chat-paciente-id">
+                    <div class="list-group mt-1 d-none" id="nd-chat-paciente-lista"></div>
+                    <div class="form-text fs-11">
+                        Opcional. Com paciente, a IA consulta o prontuário dele — e só o dele.
+                        Sem paciente, ela ajuda com redação e dúvidas gerais.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Criar conversa</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<link rel="stylesheet" href="{% static 'ai/chat.css' %}">
+<script src="{% static 'ai/chat.js' %}"></script>
+<script src="{% static 'ai/chat-shell.js' %}"></script>
+{% endblock %}

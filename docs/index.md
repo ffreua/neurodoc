@@ -103,6 +103,11 @@ PRD; é a referência operacional viva gerada a partir dele.
   não três; NVIDIA NIM com Nemotron como padrão desta instalação, sem
   atropelar a clínica que configurou a sua.
 
+- [Chat de apoio — prompt, prontuário e layout](homologation/chatbot.md) —
+  o chat passa a mandar instrução de sistema, prontuário do paciente da sessão
+  e histórico, desidentificados, num layout de duas colunas. Quatro lacunas
+  encontradas no que existia.
+
 ## Chat persistente e streaming (S12)
 
 - [Homologação de chat](homologation/chat.md) — evidências de H-18: sessões
