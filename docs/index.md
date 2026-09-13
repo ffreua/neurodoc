@@ -35,6 +35,10 @@ PRD; é a referência operacional viva gerada a partir dele.
   de CEP dos Correios e bloco de plano de saúde; inclui um bug real de datas
   que apagava valores ao editar.
 
+- [Busca de códigos — CID-10 e TUSS](homologation/code-search.md) — uma tela,
+  duas abas; espelho da TUSS alimentado pelo worker, e por que a consulta ao
+  vivo não funcionaria em produção.
+
 ## Planos e oferta comercial
 
 - [Especificação: planos, limites, convites e página de vendas](specs/2026-09-12-planos-e-limites.md) —

@@ -5,6 +5,10 @@
 <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
 <li class="breadcrumb-item">Chat de apoio</li>
 {% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'catalogs:search' %}">Buscar CID-10</a>
+<a class="btn btn-light" href="{% url 'catalogs:search' %}?aba=tuss">Buscar TUSS</a>
+{% endblock %}
 {% block content %}
 <div class="row g-4">
     <div class="col-xxl-8 col-lg-7">

@@ -26,6 +26,7 @@ urlpatterns = [
     path('app/documents/', include('documents.urls')),
     path('app/finance/', include('finance.urls')),
     path('app/ai/', include('ai.urls')),
+    path('app/codigos/', include('catalogs.urls')),
     path('app/reporting/', include('reporting.urls')),
     path('app/integrations/', include('integrations.urls')),
     path('capture/', include('integrations.capture_urls')),

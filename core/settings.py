@@ -117,6 +117,13 @@ CELERY_TASK_ROUTES = {
     'reporting.tasks.*': {'queue': 'documents'},
 }
 CELERY_BEAT_SCHEDULE = {
+    # Espelho da TUSS: domingo, 04h. A tabela muda por resolucao normativa
+    # -- semanas ou meses --, entao semanal sobra; o que nao pode e nunca
+    # atualizar. Roda no worker, que e quem tem saida para a internet.
+    'sync-tuss': {
+        'task': 'catalogs.tasks.sync_tuss',
+        'schedule': crontab(hour=4, minute=0, day_of_week=0),
+    },
     # Compactação do arquivo morto: 03h do dia 1 de janeiro, abril, julho e
     # outubro. `crontab` e não intervalo em segundos porque "a cada 90 dias"
     # a partir do último reinício do beat cairia em qualquer hora do dia —

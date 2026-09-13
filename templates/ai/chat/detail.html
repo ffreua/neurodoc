@@ -11,6 +11,8 @@
 {% if session.patient %}
 <a class="btn btn-light" href="{% url 'patients:detail' session.patient_id %}">{{ session.patient.full_name }}</a>
 {% endif %}
+<a class="btn btn-light" href="{% url 'catalogs:search' %}">Buscar CID-10</a>
+<a class="btn btn-light" href="{% url 'catalogs:search' %}?aba=tuss">Buscar TUSS</a>
 <a class="btn btn-light" href="{% url 'ai:chat-list' %}">Todas as sessões</a>
 {% endblock %}
 {% block content %}

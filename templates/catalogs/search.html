@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Busca de códigos — NeuroDoc{% endblock %}
+{% block page_title %}Busca de códigos{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Busca de códigos</li>
+{% endblock %}
+{% block content %}
+
+<div class="card">
+    <div class="card-header p-0 border-bottom">
+        {% comment %}Abas, e não duas telas: é a mesma tarefa — descobrir o
+        código para escrever num pedido, num laudo ou numa hipótese. Separadas,
+        o médico teria de lembrar qual das duas abas do navegador tinha qual.
+        {% endcomment %}
+        <ul class="nav nav-tabs px-3 pt-2 border-0" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if aba == 'cid' %}active{% endif %}" type="button"
+                        data-bs-toggle="tab" data-bs-target="#aba-cid" role="tab">
+                    CID-10
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if aba == 'tuss' %}active{% endif %}" type="button"
+                        data-bs-toggle="tab" data-bs-target="#aba-tuss" role="tab">
+                    TUSS
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content">
+
+            <!-- ------------------------------------------------------ CID -->
+            <div class="tab-pane fade {% if aba == 'cid' %}show active{% endif %}" id="aba-cid" role="tabpanel">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <p class="fs-12 text-muted mb-0">
+                        Classificação Internacional de Doenças, décima revisão. Procure pelo
+                        código (<code>G40</code>, <code>G40.0</code>) ou por parte do nome
+                        (<code>epilepsia</code>). Acento é opcional.
+                    </p>
+                    {% if cid_release %}
+                    <span class="badge bg-gray-200 text-dark flex-shrink-0">
+                        Versão {{ cid_release.version }} · {{ cid_total }} códigos
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="input-group mb-3">
+                    <span class="input-group-text">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </span>
+                    <input class="form-control form-control-lg" id="nd-cid-q" type="search"
+                           autocomplete="off" placeholder="Ex.: G40, epilepsia, esclerose multipla"
+                           value="{% if aba == 'cid' %}{{ termo }}{% endif %}"
+                           data-url="{% url 'catalogs:cid-search' %}">
+                </div>
+
+                <div id="nd-cid-status" class="fs-12 text-muted mb-2"></div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 d-none" id="nd-cid-table">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-3" scope="col" style="width: 8rem;">Código</th>
+                                <th scope="col">Descrição</th>
+                                <th class="pe-3 text-end" scope="col" style="width: 6rem;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="nd-cid-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ----------------------------------------------------- TUSS -->
+            <div class="tab-pane fade {% if aba == 'tuss' %}show active{% endif %}" id="aba-tuss" role="tabpanel">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <p class="fs-12 text-muted mb-0">
+                        Terminologia Unificada da Saúde Suplementar, tabela 22 — procedimentos
+                        e eventos em saúde. Procure pelo código ou por parte do nome.
+                    </p>
+                    {% if tuss_release %}
+                    <span class="badge bg-gray-200 text-dark flex-shrink-0">
+                        {{ tuss_release.version }} · {{ tuss_total }} procedimentos
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% comment %}A procedência está escrita porque a tabela é
+                sincronizada, não digitada: quem vê um código faltando precisa
+                saber de quando é a cópia antes de concluir que o sistema erra.
+                {% endcomment %}
+                {% if tuss_sample %}
+                <div class="alert alert-light-warning fade show fs-12" role="alert">
+                    <strong>Esta instalação ainda usa a tabela de amostra</strong>, com pouquíssimos
+                    procedimentos — não é a tabela da ANS. Peça ao administrador do sistema para
+                    executar a sincronização.
+                </div>
+                {% elif tuss_release %}
+                <p class="fs-11 text-muted border-start border-3 ps-2 mb-3">
+                    Cópia da tabela da ANS sincronizada em
+                    {{ tuss_release.imported_at|date:"d/m/Y" }}, atualizada semanalmente. A busca
+                    funciona mesmo com a internet fora; procedimento com vigência encerrada
+                    aparece com marca, em vez de sumir — some-lo esconderia por que a operadora
+                    glosou um código usado até o mês passado.
+                </p>
+                {% else %}
+                <div class="alert alert-light-warning fade show fs-12" role="alert">
+                    <strong>A tabela TUSS ainda não foi sincronizada</strong> nesta instalação.
+                    Peça ao administrador do sistema para executá-la.
+                </div>
+                {% endif %}
+
+                <div class="input-group mb-3">
+                    <span class="input-group-text">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </span>
+                    <input class="form-control form-control-lg" id="nd-tuss-q" type="search"
+                           autocomplete="off" placeholder="Ex.: eletroencefalograma, consulta, 10101012"
+                           value="{% if aba == 'tuss' %}{{ termo }}{% endif %}"
+                           data-url="{% url 'catalogs:tuss-search' %}">
+                </div>
+
+                <div id="nd-tuss-status" class="fs-12 text-muted mb-2"></div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 d-none" id="nd-tuss-table">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-3" scope="col" style="width: 9rem;">Código</th>
+                                <th scope="col">Descrição</th>
+                                <th scope="col" style="width: 10rem;">Vigência</th>
+                                <th class="pe-3 text-end" scope="col" style="width: 6rem;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="nd-tuss-rows"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    Copiar leva código e descrição juntos. O registro clínico guarda o texto do
+    momento em que foi escrito — se a tabela mudar depois, o que já está no
+    prontuário não muda junto.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'catalogs/search.js' %}"></script>
+{% endblock %}
