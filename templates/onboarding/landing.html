@@ -177,6 +177,47 @@ descoberto pelo cliente, no dia em que ele batesse o limite.
     </div>
 </section>
 
+<!-- --------------------------------------------------------- manual -->
+{% comment %}O manual entra **antes** do FAQ e antes do contato: quem está
+decidindo quer ver o sistema funcionando, e um manual público com as telas
+reais responde isso melhor do que qualquer parágrafo de venda. Também serve
+a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
+<section class="nd-section bg-white">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6">
+                <h2 class="fw-bold text-dark">Veja o sistema por dentro antes de decidir</h2>
+                <p class="fs-14 text-muted">
+                    O manual de uso é público: cada processo explicado passo a passo, com as
+                    telas reais ao lado — cadastrar paciente, marcar na agenda, escrever o
+                    prontuário, emitir e assinar um documento, entregar ao paciente.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="{% url 'onboarding:help' %}">Abrir o manual</a>
+                    <a class="btn btn-outline-secondary" href="{% url 'onboarding:help-faq' %}">
+                        Perguntas frequentes
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="row g-3">
+                    {% for item in manual_destaques %}
+                    <div class="col-6">
+                        <a class="card h-100 text-decoration-none nd-help-card"
+                           href="{% url 'onboarding:help-article' item.slug %}">
+                            <div class="card-body py-3">
+                                <h6 class="fw-bold text-dark fs-13 mb-1">{{ item.title }}</h6>
+                                <p class="fs-11 text-muted mb-0">{{ item.summary|truncatechars:64 }}</p>
+                            </div>
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- --------------------------------------------------------------- FAQ -->
 <section class="nd-section" id="faq">
     <div class="container">

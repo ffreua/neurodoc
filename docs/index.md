@@ -39,6 +39,10 @@ PRD; é a referência operacional viva gerada a partir dele.
   duas abas; espelho da TUSS alimentado pelo worker, e por que a consulta ao
   vivo não funcionaria em produção.
 
+- [Central de ajuda: manual e perguntas de uso](homologation/help-center.md) —
+  doze processos com 25 capturas das telas reais, público e ligado à página
+  inicial; o roteiro impede que o manual aponte para imagem que não existe.
+
 ## Planos e oferta comercial
 
 - [Especificação: planos, limites, convites e página de vendas](specs/2026-09-12-planos-e-limites.md) —

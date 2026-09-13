@@ -111,3 +111,72 @@
 .nd-public-footer a:hover {
     color: var(--bs-primary, #3454d1);
 }
+
+/* --------------------------------------------------------------- ajuda */
+
+.nd-help-card {
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    transition: box-shadow .14s linear, transform .14s linear;
+}
+
+.nd-help-card:hover {
+    box-shadow: 0 12px 28px rgba(40, 60, 80, .1);
+    transform: translateY(-2px);
+}
+
+.nd-help-article { padding: 3rem 0 4rem; }
+
+/* O índice acompanha a rolagem: o manual é lido saltando entre processos,
+ * e rolar de volta ao topo a cada salto quebra a leitura. */
+.nd-help-nav {
+    position: sticky;
+    top: 5.5rem;
+}
+
+.nd-help-nav a { text-decoration: none; }
+.nd-help-nav a:hover { color: var(--bs-primary, #3454d1); }
+
+.nd-help-step {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2.25rem;
+}
+
+.nd-help-step-number {
+    flex: 0 0 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--bs-primary, #3454d1);
+    background: var(--bs-gray-100, #f8f9fa);
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+}
+
+.nd-help-step-body { flex: 1; min-width: 0; }
+.nd-help-step-body p { line-height: 1.7; color: var(--bs-body-color, #4b5563); }
+
+.nd-help-figure {
+    margin: 1rem 0 0;
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    border-radius: .6rem;
+    overflow: hidden;
+    background: var(--bs-gray-100, #f8f9fa);
+}
+
+.nd-help-figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+}
+
+.nd-help-figure figcaption {
+    padding: .5rem .75rem;
+    font-size: .7rem;
+    color: var(--bs-secondary, #64748b);
+    border-top: 1px solid var(--bs-gray-200, #e9ecef);
+    background: #fff;
+}

@@ -1,0 +1,109 @@
+{% extends "base_public.html" %}
+{% load static %}
+{% block title %}Ajuda — NeuroDoc{% endblock %}
+{% block content %}
+
+<section class="nd-hero">
+    <div class="container">
+        <div class="row">
+            <div class="col-lg-8">
+                <span class="badge bg-soft-primary text-primary mb-3">Central de ajuda</span>
+                <h1 class="nd-hero-title">Como usar o NeuroDoc</h1>
+                <p class="nd-hero-lead">
+                    O manual de cada processo do sistema, passo a passo e com as telas ao
+                    lado. Tudo aqui descreve o que existe no produto — nenhum passo fala de
+                    função que ainda não chegou.
+                </p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-primary" href="{% url 'onboarding:help-article' articles.0.slug %}">
+                        Começar pelo início
+                    </a>
+                    <a class="btn btn-outline-secondary" href="{% url 'onboarding:help-faq' %}">
+                        Perguntas frequentes
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="nd-section bg-white">
+    <div class="container">
+        <h2 class="fw-bold text-dark mb-1">O manual, por processo</h2>
+        <p class="text-muted fs-14 mb-5">
+            Cada artigo cobre uma tarefa do começo ao fim. Leia na ordem na primeira
+            vez; depois, volte direto ao que precisar.
+        </p>
+        <div class="row g-4">
+            {% for article in articles %}
+            <div class="col-lg-4 col-md-6">
+                <a class="card h-100 text-decoration-none nd-help-card"
+                   href="{% url 'onboarding:help-article' article.slug %}">
+                    <div class="card-body d-flex flex-column">
+                        <span class="badge bg-gray-200 text-dark align-self-start mb-2 fs-11">
+                            {{ article.audience }}
+                        </span>
+                        <h6 class="fw-bold text-dark">
+                            <span class="text-muted">{{ forloop.counter }}.</span> {{ article.title }}
+                        </h6>
+                        <p class="fs-12 text-muted mb-0">{{ article.summary }}</p>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="nd-section" id="perguntas">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold text-dark text-center mb-1">Perguntas de quem já usa</h2>
+                <p class="text-muted fs-14 text-center mb-5">
+                    As que mais chegam no dia a dia.
+                </p>
+                <div class="accordion" id="nd-faq-uso">
+                    {% for item in faq|slice:":6" %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                    type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#uso-{{ forloop.counter }}">
+                                {{ item.pergunta }}
+                            </button>
+                        </h2>
+                        <div id="uso-{{ forloop.counter }}"
+                             class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                             data-bs-parent="#nd-faq-uso">
+                            <div class="accordion-body fs-13 text-muted">{{ item.resposta }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="text-center mt-4">
+                    <a class="btn btn-light" href="{% url 'onboarding:help-faq' %}">
+                        Ver todas as perguntas
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="nd-section bg-white">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-7 text-center">
+                <h5 class="fw-bold text-dark">Não achou o que procurava?</h5>
+                <p class="fs-13 text-muted">
+                    Escreva para <a href="mailto:{{ leads_email }}">{{ leads_email }}</a> descrevendo
+                    o que você estava tentando fazer e o que apareceu na tela. Quanto mais
+                    concreto, mais rápido respondemos.
+                </p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

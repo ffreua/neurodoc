@@ -58,6 +58,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_notificacoes` | Aviso nomeia o paciente, leva à resolução, e alcança só quem pode agir |
 | `check_convite` | Entrada do superadministrador: link, senha, MFA, console |
 | `check_landing` | Página de vendas, formulário de contato e a tela de leads |
+| `check_ajuda` | Manual e FAQ públicos, e nenhuma captura faltando ou órfã |
 | `check_chatbot` | O que o chat manda ao provedor, e o que ele nunca manda |
 | `check_codigos` | Busca de CID-10 e TUSS, incluindo a abreviação da tabela |
 | `check_convite_plano` | Convite carregando o plano, e o console que emite e troca |

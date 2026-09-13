@@ -1,0 +1,51 @@
+{% extends "base_public.html" %}
+{% block title %}Perguntas frequentes — Ajuda do NeuroDoc{% endblock %}
+{% block content %}
+
+<section class="nd-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <a class="fs-12 fw-semibold d-block mb-3" href="{% url 'onboarding:help' %}">
+                    ← Central de ajuda
+                </a>
+                <h1 class="fw-bold text-dark mb-1" style="font-size: 1.9rem;">Perguntas frequentes</h1>
+                <p class="fs-14 text-muted mb-5">
+                    O que mais chega de quem já usa o sistema no dia a dia. Para o passo a
+                    passo de cada processo, veja <a href="{% url 'onboarding:help' %}">o manual</a>.
+                </p>
+
+                <div class="accordion" id="nd-faq-completo">
+                    {% for item in faq %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
+                                    type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#q-{{ forloop.counter }}">
+                                {{ item.pergunta }}
+                            </button>
+                        </h2>
+                        <div id="q-{{ forloop.counter }}"
+                             class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
+                             data-bs-parent="#nd-faq-completo">
+                            <div class="accordion-body fs-13 text-muted">{{ item.resposta }}</div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div class="card mt-5">
+                    <div class="card-body text-center">
+                        <h6 class="fw-bold text-dark">Sua dúvida não está aqui?</h6>
+                        <p class="fs-13 text-muted mb-0">
+                            Escreva para <a href="mailto:{{ leads_email }}">{{ leads_email }}</a>
+                            contando o que você estava tentando fazer e o que apareceu na tela.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

@@ -10,6 +10,7 @@ from tenancy.models import InvitationPurpose
 from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
 
 from .content import FAQ, RECURSOS
+from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 
 
@@ -39,6 +40,9 @@ class LandingView(View):
             'plans': public_plans(),
             'recursos': RECURSOS,
             'faq': FAQ,
+            # Quatro artigos do manual, para a pagina mostrar que ele existe
+            # sem virar um indice dentro da pagina de vendas.
+            'manual_destaques': HELP_ARTICLES[1:5],
             'leads_email': settings.LEADS_EMAIL,
             'enviado': False,
         }

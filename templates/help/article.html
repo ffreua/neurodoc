@@ -1,0 +1,76 @@
+{% extends "base_public.html" %}
+{% load static %}
+{% block title %}{{ article.title }} — Ajuda do NeuroDoc{% endblock %}
+{% block content %}
+
+<section class="nd-help-article">
+    <div class="container">
+        <div class="row g-5">
+
+            {% comment %}Índice fixo à esquerda: o manual é lido saltando entre
+            processos, e voltar ao índice a cada salto quebra a leitura.
+            {% endcomment %}
+            <div class="col-lg-3 d-none d-lg-block">
+                <div class="nd-help-nav">
+                    <a class="fs-12 fw-semibold d-block mb-3" href="{% url 'onboarding:help' %}">
+                        ← Central de ajuda
+                    </a>
+                    <ol class="list-unstyled fs-12 mb-0">
+                        {% for item in articles %}
+                        <li class="mb-2">
+                            <a class="{% if item.slug == article.slug %}fw-bold text-dark{% else %}text-muted{% endif %}"
+                               href="{% url 'onboarding:help-article' item.slug %}">
+                                {{ forloop.counter }}. {{ item.title }}
+                            </a>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                    <hr class="my-3">
+                    <a class="fs-12 text-muted" href="{% url 'onboarding:help-faq' %}">Perguntas frequentes</a>
+                </div>
+            </div>
+
+            <div class="col-lg-9">
+                <span class="badge bg-gray-200 text-dark mb-2 fs-11">{{ article.audience }}</span>
+                <h1 class="fw-bold text-dark mb-2" style="font-size: 1.9rem;">{{ article.title }}</h1>
+                <p class="fs-14 text-muted mb-5">{{ article.summary }}</p>
+
+                {% for passo in passos %}
+                <div class="nd-help-step">
+                    <div class="nd-help-step-number">{{ forloop.counter }}</div>
+                    <div class="nd-help-step-body">
+                        {% comment %}Já convertido de Markdown pela view, e
+                        escapado antes da conversão — HTML escrito no manual vira
+                        texto inerte, não markup.{% endcomment %}
+                        <div class="fs-14 nd-prose">{{ passo.texto|safe }}</div>
+                        {% if passo.imagem %}
+                        {% comment %}`loading="lazy"` porque um artigo tem até cinco
+                        capturas de tela cheia, e quem abre pelo celular não deve
+                        baixar todas para ler o primeiro passo.{% endcomment %}
+                        <figure class="nd-help-figure">
+                            <img src="{% static 'help/'|add:passo.imagem %}" alt="{{ passo.legenda }}" loading="lazy">
+                            {% if passo.legenda %}<figcaption>{{ passo.legenda }}</figcaption>{% endif %}
+                        </figure>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <nav class="d-flex flex-wrap justify-content-between gap-2 mt-5 pt-4 border-top">
+                    {% if anterior %}
+                    <a class="btn btn-light" href="{% url 'onboarding:help-article' anterior.slug %}">
+                        ← {{ anterior.title }}
+                    </a>
+                    {% else %}<span></span>{% endif %}
+                    {% if proximo %}
+                    <a class="btn btn-primary" href="{% url 'onboarding:help-article' proximo.slug %}">
+                        {{ proximo.title }} →
+                    </a>
+                    {% endif %}
+                </nav>
+            </div>
+        </div>
+    </div>
+</section>
+
+{% endblock %}
