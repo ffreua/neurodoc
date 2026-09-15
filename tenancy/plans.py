@@ -26,6 +26,41 @@ from django.db import models
 #: conta que nao fecha.
 MESES_NO_ANO = 12
 
+#: Desconto de lancamento, em pontos percentuais.
+#:
+#: O que esta escrito em `price_monthly` e o que a clinica **paga**. O
+#: preco de tabela -- o valor riscado -- e derivado daqui, e nao um
+#: segundo numero guardado a mao.
+#:
+#: A direcao importa e foi escolhida: deriva-se o **caro a partir do
+#: barato**, porque o barato e o que sera cobrado de fato e o unico que
+#: aparece na fatura. O contrario (guardar a tabela e calcular o cobrado)
+#: faria o valor da fatura depender de arredondamento.
+#:
+#: E o percentual e a fonte, e nao consequencia: a pagina **anuncia** "20%
+#: de desconto", entao esse numero precisa fechar com a subtracao que o
+#: leitor pode fazer na tela. Guardar o preco de tabela e chamar a
+#: diferenca de 20% seria a forma de anunciar um desconto que nao existe --
+#: um preco de tabela 20% mais caro que o cobrado e, visto do outro lado,
+#: 16,7% de desconto, e nao 20%.
+#:
+#: Zero desliga a promocao em todo lugar: some o valor riscado, some o
+#: selo, e o preco passa a ser so o preco.
+DESCONTO_PROMOCIONAL = 20
+
+
+def sem_desconto(centavos):
+    """O preco de tabela do qual `centavos` e o valor ja com desconto.
+
+    Em centavos e com arredondamento explicito (meio para cima), porque o
+    resultado vai impresso numa pagina publica: `float` aqui produziria
+    `R$ 197,49999...` num dia qualquer, dependendo do preco.
+    """
+    if not centavos or not DESCONTO_PROMOCIONAL:
+        return centavos
+    restante = 100 - DESCONTO_PROMOCIONAL
+    return (int(centavos) * 100 + restante // 2) // restante
+
 
 def brl(centavos):
     """Formata em reais, no formato brasileiro: `R$ 1.896,00`.
@@ -177,24 +212,43 @@ def pricing(code):
     - grátis (`0`): não há cobrança;
     - com preço de tabela: mensal, anual e a equivalência;
     - sem preço de tabela (`None`): o Personalizado, combinado caso a caso.
+
+    Quando há promoção (`DESCONTO_PROMOCIONAL`), o mesmo dicionário traz o
+    preço **de tabela** — `list_monthly`, `list_annual` — e a economia no
+    ano. Todos derivados do que se cobra, e não guardados ao lado dele:
+    dois preços escritos à mão divergem na primeira mudança, e o valor
+    riscado é justamente o que ninguém confere depois.
     """
     centavos = plan_config(code).get('price_monthly')
     if centavos is None:
         return {
-            'free': False, 'quoted': False,
+            'free': False, 'quoted': False, 'promo': False,
             'monthly': '', 'annual': '', 'note': 'Valores de acordo com o que for fechado.',
         }
     if centavos == 0:
         return {
-            'free': True, 'quoted': True,
+            'free': True, 'quoted': True, 'promo': False,
             'monthly': 'Grátis', 'annual': '',
             'note': 'Sem cobrança e sem prazo. É por onde dá para conhecer o sistema '
                     'antes de contratar.',
         }
+    anual = centavos * MESES_NO_ANO
+    tabela_mensal = sem_desconto(centavos)
+    # O anual de tabela sai do mensal de tabela pelo mesmo caminho que o
+    # anual cobrado sai do mensal cobrado. Dividir o anual cobrado
+    # diretamente daria o mesmo numero quase sempre e um centavo de
+    # diferenca quando nao desse -- e essa diferenca apareceria como "o
+    # riscado nao bate com 12x o riscado" na unica tela que a mostra.
+    tabela_anual = tabela_mensal * MESES_NO_ANO
     return {
         'free': False, 'quoted': True,
+        'promo': bool(DESCONTO_PROMOCIONAL),
         'monthly': brl(centavos),
-        'annual': brl(centavos * MESES_NO_ANO),
+        'annual': brl(anual),
+        'discount': DESCONTO_PROMOCIONAL,
+        'list_monthly': brl(tabela_mensal),
+        'list_annual': brl(tabela_anual),
+        'saving_annual': brl(tabela_anual - anual),
         'note': 'Pagamento anual.',
     }
 

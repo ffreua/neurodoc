@@ -32,12 +32,16 @@ class LandingView(View):
     """
 
     def _context(self, **overrides):
-        from tenancy.plans import public_plans
+        from tenancy.plans import DESCONTO_PROMOCIONAL, public_plans
 
         context = {
             'form': InvitationCodeForm(),
             'lead_form': LeadForm(),
             'plans': public_plans(),
+            # O percentual da promocao vai separado dos cartoes porque a
+            # pagina o anuncia uma vez, em prosa, acima deles. Zero
+            # apaga a frase e os valores riscados de uma vez so.
+            'desconto_promocional': DESCONTO_PROMOCIONAL,
             'recursos': RECURSOS,
             'faq': FAQ,
             # Quatro artigos do manual, para a pagina mostrar que ele existe

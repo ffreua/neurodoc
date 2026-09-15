@@ -11,12 +11,12 @@ fabricado de médico é falso testemunho sobre produto de saúde, e um
 contador em zero anuncia que não há clientes. Quando houver clínicas no
 piloto, os números entram medidos.
 
-**Sem preço**, nesta versão: preço errado em página pública é pior que
-preço ausente. Cada plano leva ao formulário de contato.
-
-Os limites dos planos vêm de `tenancy.plans`, pela view — nunca escritos
-aqui. Anunciar "até 500 pacientes" enquanto o servidor corta em 400 seria
-descoberto pelo cliente, no dia em que ele batesse o limite.
+Os limites **e os preços** dos planos vêm de `tenancy.plans`, pela view —
+nunca escritos aqui. Isso inclui o valor riscado da promoção e o
+percentual de desconto: são derivados do preço cobrado, e não um segundo
+número guardado ao lado dele. Anunciar "até 500 pacientes" enquanto o
+servidor corta em 400 seria descoberto pelo cliente, no dia em que ele
+batesse o limite.
 {% endcomment %}
 
 <!-- ------------------------------------------------------------- hero -->
@@ -137,6 +137,21 @@ descoberto pelo cliente, no dia em que ele batesse o limite.
                 plano custa por mês dentro do pagamento anual. Antes de contratar,
                 dá para usar o <strong>plano Gratuito</strong> sem prazo e sem cartão.
             </p>
+            {% comment %}A promoção é anunciada por extenso aqui, e não só pelo
+            selo no cartão: "de/por" sozinho não diz sobre o quê o desconto
+            incide, e essa é a primeira pergunta de quem vai pagar um ano
+            adiantado.
+
+            O percentual vem da view. Escrito aqui, ele continuaria dizendo
+            "20%" no dia em que o desconto mudasse — e seria a única frase da
+            página a discordar dos preços logo abaixo dela.{% endcomment %}
+            {% if desconto_promocional %}
+            <p class="fs-13 text-muted mt-2 mb-0">
+                Os valores abaixo são de <strong>lançamento</strong>: já estão com
+                <strong>{{ desconto_promocional }}% de desconto</strong> sobre o preço
+                de tabela, que é o valor riscado em cada cartão.
+            </p>
+            {% endif %}
         </div>
         <div class="row g-4">
             {% for plan in plans %}
@@ -154,16 +169,40 @@ descoberto pelo cliente, no dia em que ele batesse o limite.
                         {% comment %}Três estados, e não dois: grátis, com preço de
                         tabela, e sem preço de tabela. Tratar o Personalizado como
                         "R$ 0,00" seria a simplificação errada — ele não é grátis, é
-                        combinado.{% endcomment %}
+                        combinado.
+
+                        O valor riscado e o percentual vêm de `tenancy.plans`, como
+                        o resto: um "de R$ ..." escrito aqui sobreviveria à próxima
+                        mudança de preço, e passaria a anunciar um desconto que não
+                        é mais o que a clínica recebe.{% endcomment %}
                         <div class="nd-plan-price mb-3">
                             {% if plan.price.free %}
                             <span class="d-block fs-24 fw-bold text-dark lh-1">Grátis</span>
                             <span class="d-block fs-11 text-muted mt-1">sem prazo, sem cartão</span>
                             {% elif plan.price.quoted %}
+                            {% if plan.price.promo %}
+                            <span class="badge bg-soft-success text-success fs-10 mb-2">
+                                Promoção de lançamento — {{ plan.price.discount }}% de desconto
+                            </span>
+                            <span class="d-block fs-12 text-muted lh-1 mb-1">
+                                de <s>{{ plan.price.list_annual }}</s> por ano
+                            </span>
+                            {% endif %}
                             <span class="d-block fs-24 fw-bold text-dark lh-1">{{ plan.price.annual }}</span>
                             <span class="d-block fs-11 text-muted mt-1">
-                                por ano — equivale a <strong>{{ plan.price.monthly }}/mês</strong>
+                                por ano — equivale a <strong>{{ plan.price.monthly }}/mês</strong>{% if plan.price.promo %},
+                                no lugar de <s>{{ plan.price.list_monthly }}/mês</s>{% endif %}
                             </span>
+                            {% comment %}Sem "no primeiro ano" nem "por ano": o prazo
+                            da promoção não está definido, e inventar um aqui seria a
+                            página prometer um prazo que ninguém combinou. O valor
+                            cobrado já é anual, então a economia sem qualificador não
+                            é ambígua.{% endcomment %}
+                            {% if plan.price.promo %}
+                            <span class="d-block fs-11 fw-bold text-success mt-1">
+                                Você economiza {{ plan.price.saving_annual }}
+                            </span>
+                            {% endif %}
                             {% else %}
                             <span class="d-block fs-20 fw-bold text-dark lh-1">Sob medida</span>
                             <span class="d-block fs-11 text-muted mt-1">valores conforme o que for fechado</span>
