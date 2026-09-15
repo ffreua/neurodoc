@@ -113,8 +113,25 @@ if 'secretary-a@demo.neurodoc.local' not in corpo:
 # A afirmacao do recurso e que auditar e saber quem fez o que, e nao ler o
 # que foi escrito. Se um texto de prontuario aparecer numa destas telas, a
 # afirmacao e falsa.
-enc = Encounter.objects.exclude(chief_complaint='').first()
-paciente = Patient.objects.first()
+# A agulha precisa ser longa o bastante para significar alguma coisa.
+#
+# Era `Encounter.objects.exclude(chief_complaint='').first()`, e isso pegava
+# o que outros roteiros deixam para tras: encontros de montagem com queixa
+# de uma letra -- 'x', 'y', 'iso'. Procurar 'y' no HTML de qualquer pagina
+# acha sempre, e o roteiro passou a acusar vazamento de prontuario no
+# console em quatro rotas onde nao havia vazamento nenhum.
+#
+# Acusacao falsa de vazamento clinico e pior do que nenhuma verificacao:
+# manda procurar defeito inexistente numa area sensivel, e ensina a ignorar
+# o alarme -- justamente o alarme que deve ser levado a serio quando tocar.
+MINIMO_AGULHA = 12
+enc = next((e for e in Encounter.objects.exclude(chief_complaint='')
+            if len(e.chief_complaint) >= MINIMO_AGULHA), None)
+if enc is None:
+    print(f'  AVISO: nenhum atendimento com queixa de {MINIMO_AGULHA}+ caracteres; '
+          'a busca por vazamento clinico nao foi exercitada. Rode seed_demo.')
+paciente = next((p for p in Patient.objects.all()
+                 if len(p.full_name or '') >= MINIMO_AGULHA), None)
 vazamentos = []
 for rota in rotas:
     corpo = client.get(rota).content.decode(errors='replace')

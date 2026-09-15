@@ -103,7 +103,19 @@ if not dados['results']:
     failures.append('o autocomplete nao acha por numero')
 
 print('=== 6. tela de documentos do paciente ===')
+# Endereco preenchido e **montagem**, nao afirmacao: o documento o imprime
+# no cabecalho. `seed_demo` nao preenche endereco, entao procurar um e usar
+# o resultado dependia de sobra de outra execucao -- num banco recem-semeado
+# vinha `None`, e o `create` abaixo estourava com "patient_id nao pode ser
+# nulo", apontando para o encontro quando a causa era o paciente.
 paciente = Patient.objects.filter(tenant=tenant_a).exclude(street='').first()
+if paciente is None:
+    paciente = Patient.objects.filter(tenant=tenant_a).order_by('record_number').first()
+    if paciente is None:
+        raise SystemExit('FALHA: a clinica de demonstracao esta sem pacientes; rode seed_demo.')
+    paciente.street, paciente.number = 'Rua das Acácias', '100'
+    paciente.district, paciente.city, paciente.state = 'Centro', 'São Paulo', 'SP'
+    paciente.save(update_fields=['street', 'number', 'district', 'city', 'state'])
 enc = Encounter.objects.filter(tenant=tenant_a, patient=paciente).first()
 if enc is None:
     enc = Encounter.objects.create(

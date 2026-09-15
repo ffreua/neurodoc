@@ -21,7 +21,32 @@ failures = []
 
 tenant = Tenant.objects.get(slug=TENANT)
 doctor_m = Membership.objects.get(user__email='doctor-a@demo.neurodoc.local', tenant=tenant)
-patient = Patient.objects.filter(tenant=tenant).exclude(street='').first()
+def paciente_com_endereco(tenant):
+    """Um paciente com endereco preenchido, criando a condicao se preciso.
+
+    O roteiro precisa de endereco porque o documento medico o imprime no
+    cabecalho. `seed_demo` **nao** preenche endereco, entao procurar um e
+    usar o resultado era depender de sobra de outra execucao: num banco
+    recem-semeado a busca devolvia `None`, e o `Encounter.objects.create`
+    abaixo estourava com "patient_id nao pode ser nulo" -- um erro que
+    aponta para o encontro quando a causa e o paciente, tres linhas antes.
+
+    Preparar a condicao aqui e o certo: isto e montagem, nao afirmacao. O
+    que o roteiro julga vem depois, e continua intacto.
+    """
+    achado = Patient.objects.filter(tenant=tenant).exclude(street='').first()
+    if achado is not None:
+        return achado
+    achado = Patient.objects.filter(tenant=tenant).order_by('record_number').first()
+    if achado is None:
+        raise SystemExit('FALHA: a clinica de demonstracao esta sem pacientes; rode seed_demo.')
+    achado.street, achado.number = 'Rua das Acácias', '100'
+    achado.district, achado.city, achado.state = 'Centro', 'São Paulo', 'SP'
+    achado.save(update_fields=['street', 'number', 'district', 'city', 'state'])
+    return achado
+
+
+patient = paciente_com_endereco(tenant)
 encounter = Encounter.objects.filter(tenant=tenant, patient=patient).first()
 if encounter is None:
     encounter = Encounter.objects.create(

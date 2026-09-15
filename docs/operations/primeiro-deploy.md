@@ -313,16 +313,52 @@ São quinze. **Nenhum deles aparece em arquivo de configuração nem no Git.**
 
 ### 7.1 Os que são gerados aleatoriamente
 
-Cole este bloco inteiro no terminal do servidor:
+São **dois** blocos, e eles não são intercambiáveis. Os seis primeiros
+podem ser qualquer texto aleatório; as duas chaves-mestras têm um formato
+obrigatório, e o texto aleatório comum **não serve**.
+
+Primeiro bloco — senhas e a chave do Django. Cole inteiro:
 
 ```bash
 for s in NEURODOC_DJANGO_SECRET_KEY NEURODOC_DB_ADMIN_PASSWORD \
          NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD \
-         NEURODOC_RABBITMQ_PASSWORD NEURODOC_REDIS_PASSWORD \
-         NEURODOC_PFX_MASTER_KEY NEURODOC_SECRETS_MASTER_KEY; do
+         NEURODOC_RABBITMQ_PASSWORD NEURODOC_REDIS_PASSWORD; do
   openssl rand -base64 48 | tr -d '\n' | docker secret create "$s" -
 done
 ```
+
+Segundo bloco — as duas chaves-mestras de cifragem. Cole inteiro:
+
+```bash
+for s in NEURODOC_PFX_MASTER_KEY NEURODOC_SECRETS_MASTER_KEY; do
+  k=$(openssl rand -base64 32 | tr -d '\n' | tr '+/' '-_')
+  echo "$s: ${#k} caracteres (tem de ser 44)"
+  printf '%s' "$k" | docker secret create "$s" -
+done
+unset k
+```
+
+Ele imprime o tamanho **antes** de criar cada segredo. As duas linhas têm
+de dizer `44 caracteres`. Se disserem outra coisa, pare: o comando foi
+digitado errado.
+
+**Por que o segundo comando é diferente.** Essas duas chaves alimentam o
+Fernet, que exige exatamente 32 bytes em base64 *url-safe* — 44 caracteres.
+O comando do primeiro bloco produz 48 bytes em base64 comum, 64 caracteres,
+e o Fernet recusa com `Fernet key must be 32 url-safe base64-encoded bytes`.
+
+E essa recusa **não aparece no deploy**: o sistema sobe normalmente, fica
+saudável e serve o site. Ela aparece semanas depois, na primeira vez que
+alguém salvar a senha do e-mail de uma clínica ou enviar um certificado de
+assinatura — com o sistema já em uso, e sem nada indicando que a causa foi
+um comando digitado no primeiro dia. O `tr '+/' '-_'` é o que converte o
+base64 comum em url-safe; o `-base64 32` é o que acerta o tamanho.
+
+> O Docker **não deixa ler um segredo de volta**, nem para conferir. Por
+> isso o passo 15.4 pede que você os anote num gerenciador de senhas no
+> momento em que os cria. Se errar uma das duas chaves-mestras e só
+> descobrir depois, a correção é apagar e recriar o segredo — o que é
+> indolor **antes** de haver dado cifrado, e impossível depois.
 
 > `NEURODOC_PFX_MASTER_KEY` e `NEURODOC_SECRETS_MASTER_KEY` cifram os
 > certificados de assinatura e as credenciais que as clínicas digitam.
@@ -335,8 +371,9 @@ done
 # Token da Cloudflare (passo 5.4)
 printf '%s' 'COLE-O-TOKEN-AQUI' | docker secret create CLOUDFLARE_DNS_API_TOKEN -
 
-# Senha do seu servidor de e-mail
-printf '%s' 'SUA-SENHA-SMTP' | docker secret create NEURODOC_SMTP_PASSWORD -
+# Senha da caixa contato@neurodoc.app.br, na Hostinger.
+# É a MESMA senha com que você entra no webmail dessa conta.
+printf '%s' 'SUA-SENHA-DO-EMAIL' | docker secret create NEURODOC_SMTP_PASSWORD -
 
 # Chave do SMSDEV
 printf '%s' 'SUA-CHAVE-SMSDEV' | docker secret create NEURODOC_SMSDEV_API_KEY -
@@ -442,19 +479,42 @@ fica só nesta máquina e **sobrescreve** o que você mudar. O deploy recusa
 qualquer chave que exista só no `.env` — chave nova entra primeiro no
 exemplo, onde aparece num diff.
 
+**O e-mail já vem configurado** no `.env.example`, com a conta desta
+instalação na Hostinger — você não precisa mexer em nada disso:
+
+```
+EMAIL_ENABLED=True
+EMAIL_HOST=smtp.hostinger.com
+EMAIL_PORT=465
+EMAIL_HOST_USER=contato@neurodoc.app.br
+EMAIL_USE_TLS=False
+EMAIL_USE_SSL=True
+DEFAULT_FROM_EMAIL=contato@neurodoc.app.br
+LEADS_EMAIL=contato@neurodoc.app.br
+ALERT_ADMIN_EMAILS=contato@neurodoc.app.br
+```
+
+A **senha** dessa caixa não fica aqui: ela é o segredo
+`NEURODOC_SMTP_PASSWORD`, criado no passo 7.2. Arquivo de configuração
+entra no Git; segredo do Docker, não.
+
+`imap.hostinger.com` e `pop.hostinger.com` não aparecem em lugar nenhum
+porque o sistema **só envia** e-mail — ele nunca lê caixa de entrada.
+Esses dois servidores servem para você ler `contato@neurodoc.app.br` no
+celular ou no webmail, e não têm nada a ver com o servidor.
+
 Altere estas linhas:
 
 ```
-REGISTRY=ghcr.io/SEU-USUARIO-GITHUB/neurodoc
-ACME_EMAIL=contato@neurodoc.app.br
-EMAIL_ENABLED=True
-EMAIL_HOST=<servidor SMTP do seu provedor>
-EMAIL_PORT=587
-EMAIL_HOST_USER=<usuário SMTP>
+REGISTRY=ghcr.io/ffreua/neurodoc
 SMS_ENABLED=True
 AI_ENABLED=True
 BACKUP_AGE_RECIPIENT=<ver passo 15; deixe CHANGE_ME por ora>
 ```
+
+`REGISTRY` já aponta para `ghcr.io/ffreua/neurodoc`. Confira que é o seu
+usuário do GitHub: é para lá que a imagem é enviada, e você precisa ter
+permissão de escrita.
 
 **Deixe como está**, por enquanto:
 
@@ -664,12 +724,36 @@ docker exec $(docker ps -q -f name=neurodoc_v1_app | head -1) \
   python manage.py testar_email seu@email.com
 ```
 
-Ele imprime a configuração e diz por onde a mensagem saiu. Se não chegar,
-olhe o log do worker — é ele quem fala com o SMTP:
+Ele imprime a configuração antes de tentar. Confira estas linhas:
+
+```
+  servidor ............ smtp.hostinger.com:465
+  TLS (STARTTLS) ...... False
+  SSL implicito ....... True
+  cifragem em uso ..... SSL implicito
+  usuário ............. contato@neurodoc.app.br
+  remetente ........... contato@neurodoc.app.br
+```
+
+E depois `1 mensagem(ns) enfileirada(s) para o worker`. A entrega é do
+worker, então a mensagem chega alguns segundos depois. Se não chegar:
 
 ```bash
 docker service logs neurodoc_v1_celery_worker --tail 50
 ```
+
+Os três erros que aparecem aí, e o que cada um quer dizer:
+
+| No log | Causa | O que fazer |
+| --- | --- | --- |
+| `authentication failed` | senha errada no segredo | Apague e recrie `NEURODOC_SMTP_PASSWORD` (passo 7.2), depois `docker service update --force neurodoc_v1_celery_worker` |
+| `sender ... not allowed` / `not owned` | o `From` não é a caixa autenticada | `DEFAULT_FROM_EMAIL` tem de ser `contato@neurodoc.app.br` |
+| a tarefa fica repetindo, sem erro claro | cifragem trocada para a porta | `EMAIL_PORT=465` exige `EMAIL_USE_SSL=True` e `EMAIL_USE_TLS=False` |
+
+> **A senha só chega ao worker na próxima subida dele.** Segredo do Docker
+> é entregue ao contêiner quando ele nasce; trocar o segredo não mexe em
+> quem já está de pé. Depois de recriar o segredo, force a troca com
+> `docker service update --force neurodoc_v1_celery_worker`.
 
 ---
 

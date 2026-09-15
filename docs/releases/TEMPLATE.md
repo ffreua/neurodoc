@@ -6,7 +6,7 @@
 | Data da homologação | `<AAAA-MM-DD>` |
 | Responsável que assinou | `<nome e papel>` |
 | Ambiente homologado | `<local / staging ACME / produção>` |
-| Imagem publicada | `ghcr.io/pycodebr/scsi_v1:<SHA>@sha256:<digest>` |
+| Imagem publicada | `ghcr.io/ffreua/neurodoc:<SHA>@sha256:<digest>` |
 
 ## Gates de homologação (seção 21 do PRD)
 

@@ -232,7 +232,43 @@ EMAIL_HOST = env('EMAIL_HOST', default='smtp.example.invalid')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = secret('SMTP_PASSWORD', required=(EMAIL_ENABLED and env('SERVICE_ROLE', default='app') == 'worker'))
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
+# Duas formas de cifrar a conversa com o SMTP, e elas nao sao
+# intercambiaveis -- e por isso ha duas variaveis, e nao uma.
+#
+# STARTTLS (`EMAIL_USE_TLS`): conecta em claro na porta 587 e pede para
+# subir para TLS. SSL implicito (`EMAIL_USE_SSL`): a conexao ja nasce
+# cifrada, na porta 465.
+#
+# Errar isso nao da erro de configuracao: da **espera**. Pedir STARTTLS
+# numa porta 465 deixa o cliente aguardando um banner que nunca vem, ate
+# o `EMAIL_TIMEOUT` de dez segundos -- e o sintoma que chega ao suporte e
+# "o e-mail nao sai", sem nada no log dizendo por que. Por isso as duas
+# combinacoes impossiveis levantam aqui, na subida do processo, onde a
+# mensagem diz o que fazer:
+# Os dois padroes sao `False` -- "nao configurado", e nao um palpite. Um
+# padrao verdadeiro aqui escolheria a cifragem no lugar de quem instala, e
+# a escolha errada e silenciosa. O `.env.example` traz os valores reais
+# desta instalacao, e a checagem abaixo recusa deixar o campo em branco
+# quando o envio esta ligado.
+EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=False)
+EMAIL_USE_SSL = env.bool('EMAIL_USE_SSL', default=False)
+if EMAIL_USE_TLS and EMAIL_USE_SSL:
+    raise ValueError(
+        'EMAIL_USE_TLS e EMAIL_USE_SSL sao alternativos: ligue apenas um. '
+        'Porta 587 usa EMAIL_USE_TLS=True; porta 465 usa EMAIL_USE_SSL=True.'
+    )
+if EMAIL_ENABLED and not EMAIL_USE_TLS and not EMAIL_USE_SSL and EMAIL_PORT in (465, 587):
+    raise ValueError(
+        f'EMAIL_PORT={EMAIL_PORT} sem cifragem. Ligue EMAIL_USE_SSL=True para a '
+        'porta 465, ou EMAIL_USE_TLS=True para a 587. Enviar credencial de SMTP '
+        'em claro entrega a senha da conta de e-mail a quem estiver na rede.'
+    )
+if EMAIL_ENABLED and EMAIL_PORT == 465 and EMAIL_USE_TLS:
+    raise ValueError(
+        'EMAIL_PORT=465 com EMAIL_USE_TLS=True nao conecta: a 465 e SSL '
+        'implicito, e o pedido de STARTTLS fica esperando um banner que nunca '
+        'chega, ate o timeout. Use EMAIL_USE_SSL=True e EMAIL_USE_TLS=False.'
+    )
 EMAIL_TIMEOUT = 10
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)

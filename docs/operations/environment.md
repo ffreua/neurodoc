@@ -81,8 +81,9 @@ conjunto de pacotes de topo com resolução completa em menos de um minuto.
 | `redis:8.10.1` | Cache/result backend/eventos transitórios |
 | `traefik:v3.7.12` | Proxy/TLS |
 
-Em produção, cada imagem de aplicação é publicada em
-`ghcr.io/pycodebr/scsi_v1` com a tag do SHA Git completo, e o stack recebe o
+Em produção, cada imagem de aplicação é publicada no registry configurado
+em `REGISTRY` (`.env`) — nesta instalação, `ghcr.io/ffreua/neurodoc` — com a
+tag do SHA Git completo, e o stack recebe o
 **digest** confirmado pelo registry — nunca a tag `latest`. Isso depende do
 acesso GHCR de P-02; nenhuma imagem foi publicada nesta execução.
 

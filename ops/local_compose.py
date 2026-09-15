@@ -20,8 +20,11 @@ config.update(DEBUG='True', ALLOWED_HOSTS='localhost,127.0.0.1',
 # O Mailpit aceita qualquer coisa e nao entrega a ninguem: e a diferenca
 # entre testar a recuperacao de senha e mandar e-mail sem querer para o
 # endereco de um paciente que estava no banco de demonstracao.
+# O Mailpit nao cifra nada: as duas formas de TLS ficam desligadas aqui,
+# explicitamente. Herdar o `EMAIL_USE_SSL=True` da Hostinger faria o
+# ambiente local tentar SSL implicito contra um servidor em texto puro.
 config.update(EMAIL_HOST='mailpit', EMAIL_PORT='1025',
-              EMAIL_USE_TLS='False', EMAIL_HOST_USER='')
+              EMAIL_USE_TLS='False', EMAIL_USE_SSL='False', EMAIL_HOST_USER='')
 
 if config['EMAIL_ENABLED'] == 'True':
     # O worker exige a senha do SMTP quando o envio esta ligado

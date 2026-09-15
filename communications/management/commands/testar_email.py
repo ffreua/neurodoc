@@ -38,7 +38,15 @@ class Command(BaseCommand):
         self.stdout.write(f'  EMAIL_ENABLED ....... {settings.EMAIL_ENABLED}')
         self.stdout.write(f'  backend ............. {settings.EMAIL_BACKEND}')
         self.stdout.write(f'  servidor ............ {settings.EMAIL_HOST}:{settings.EMAIL_PORT}')
-        self.stdout.write(f'  TLS ................. {settings.EMAIL_USE_TLS}')
+        # As duas linhas, e nao so o TLS. A causa mais comum de "nao sai
+        # e-mail" numa instalacao nova e cifragem trocada para a porta, e um
+        # diagnostico que mostra so metade do par manda procurar no lugar
+        # errado.
+        cifragem = ('STARTTLS' if settings.EMAIL_USE_TLS
+                    else 'SSL implicito' if settings.EMAIL_USE_SSL else 'NENHUMA')
+        self.stdout.write(f'  TLS (STARTTLS) ...... {settings.EMAIL_USE_TLS}')
+        self.stdout.write(f'  SSL implicito ....... {settings.EMAIL_USE_SSL}')
+        self.stdout.write(f'  cifragem em uso ..... {cifragem}')
         self.stdout.write(f'  usuário ............. {settings.EMAIL_HOST_USER or "(sem autenticação)"}')
         # Nunca a senha: só se ela existe. Um comando de diagnóstico que
         # imprime credencial vira credencial em log de terminal.

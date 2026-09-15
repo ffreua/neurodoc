@@ -35,22 +35,61 @@ from tenancy.plans import PlanCode
 
 falhas = []
 
+#: Como se reconhece o que **este** roteiro criou.
+#:
+#: Existe porque a limpeza precisa distinguir "sobra da minha execucao
+#: anterior" de "o banco de demonstracao". Sem essa distincao, a limpeza
+#: apagava tudo -- ver o comentario de `banco_povoado`.
+MARCA_LEGAL = 'Clinica Nova Neurologia Ltda'
+
+
+def residuo():
+    return Tenant.objects.filter(legal_name=MARCA_LEGAL)
+
+
+def banco_povoado():
+    """Ha dado que nao e deste roteiro?
+
+    A ordem entre esta pergunta e a limpeza foi invertida, e era um defeito
+    grave: `limpar_residuo()` rodava **antes** da guarda e apagava toda
+    organizacao do banco -- inclusive as duas da demonstracao -- para so
+    entao o roteiro dizer "PULADO: exige banco vazio". Rodar a suite
+    inteira destruia a demonstracao no meio do caminho, e os roteiros
+    seguintes falhavam procurando paciente que tinha acabado de ser
+    apagado por este aqui. O sintoma aparecia longe da causa: `check_
+    isolation` e `check_prontuario` acusavam defeito de produto que nao
+    existia.
+    """
+    return (Tenant.objects.exclude(legal_name=MARCA_LEGAL).exists()
+            or Patient.objects.exclude(tenant__legal_name=MARCA_LEGAL).exists())
+
 
 def limpar_residuo():
-    """Apaga o que uma execucao interrompida tenha deixado.
+    """Apaga o que uma execucao interrompida **deste roteiro** deixou.
 
     Limpar so no fim nao basta: a execucao que aborta no meio deixa a
     clinica e o usuario para tras, e a proxima falha em
     `EmailAlreadyRegistered` -- uma mensagem que nao tem relacao nenhuma
     com o que se esta verificando.
+
+    So alcanca a organizacao marcada por `MARCA_LEGAL`. Apagar por
+    `Tenant.objects.all()` era o caminho para destruir o banco de quem
+    rodasse isto sem ler.
     """
     from audit.models import AuditEvent
     from exams.models import ExamNode, ExamScale, ExamScaleItem, ExamTemplate
+    from scheduling.models import AvailabilityRule, Appointment, ScheduleBlock
     from tenancy.models import Invitation
 
     from patients.models import PatientNumberSequence
 
-    for t in Tenant.objects.all():
+    for t in residuo():
+        # Agenda primeiro: `AvailabilityRule.physician_membership` e
+        # PROTECT, entao apagar o vinculo antes levanta ProtectedError e
+        # deixa a limpeza pela metade.
+        Appointment.objects.filter(tenant=t).delete()
+        ScheduleBlock.objects.filter(tenant=t).delete()
+        AvailabilityRule.objects.filter(tenant=t).delete()
         Patient.objects.filter(tenant=t).delete()
         PatientNumberSequence.objects.filter(tenant=t).delete()
         ExamNode.objects.filter(tenant=t).delete()
@@ -60,16 +99,22 @@ def limpar_residuo():
         AuditEvent.objects.filter(tenant=t).delete()
         Membership.objects.filter(tenant=t).delete()
         t.delete()
+    # Estas duas continuam amplas, e agora podem ser: so se chega aqui
+    # depois de `banco_povoado()` ter dito que nao ha organizacao nem
+    # paciente alheio. O convite de plataforma nasce sem vinculo de
+    # e-mail, entao filtra-lo por endereco nao acharia nada.
     Invitation.objects.all().delete()
     User.objects.filter(is_superuser=False).delete()
 
 
-limpar_residuo()
-
-if Tenant.objects.exists() or Patient.objects.exists():
+# A guarda vem **antes** da limpeza. Ver `banco_povoado`.
+if banco_povoado():
     print('PULADO: este roteiro exige banco vazio (instalacao nova), e ha dado '
-          'no banco. Os demais roteiros e que rodam contra a demonstracao.')
+          'no banco. Os demais roteiros e que rodam contra a demonstracao. '
+          'Nada foi apagado.')
     raise SystemExit(0)
+
+limpar_residuo()
 
 print('=== 0. ponto de partida ===')
 print(f'  organizacoes={Tenant.objects.count()}  pacientes={Patient.objects.count()}  '
