@@ -746,14 +746,41 @@ Os três erros que aparecem aí, e o que cada um quer dizer:
 
 | No log | Causa | O que fazer |
 | --- | --- | --- |
-| `authentication failed` | senha errada no segredo | Apague e recrie `NEURODOC_SMTP_PASSWORD` (passo 7.2), depois `docker service update --force neurodoc_v1_celery_worker` |
+| `authentication failed` | senha errada no segredo | Troque a senha (receita abaixo) |
 | `sender ... not allowed` / `not owned` | o `From` não é a caixa autenticada | `DEFAULT_FROM_EMAIL` tem de ser `contato@neurodoc.app.br` |
 | a tarefa fica repetindo, sem erro claro | cifragem trocada para a porta | `EMAIL_PORT=465` exige `EMAIL_USE_SSL=True` e `EMAIL_USE_TLS=False` |
 
-> **A senha só chega ao worker na próxima subida dele.** Segredo do Docker
-> é entregue ao contêiner quando ele nasce; trocar o segredo não mexe em
-> quem já está de pé. Depois de recriar o segredo, force a troca com
-> `docker service update --force neurodoc_v1_celery_worker`.
+### 15.6 Trocar a senha do e-mail
+
+Um segredo do Docker é **imutável**: não existe "editar". Trocar é apagar
+e criar de novo — e o Docker **recusa apagar um segredo que algum serviço
+está usando**. Por isso a ordem abaixo tem quatro passos, e pular o
+primeiro devolve `secret is in use by the following service`.
+
+```bash
+cd /opt/neurodoc
+
+# 1. Solta o segredo do worker (ele reinicia sem a senha; o e-mail para
+#    de sair por alguns segundos, e nada se perde — a fila segura).
+docker service update --secret-rm NEURODOC_SMTP_PASSWORD neurodoc_v1_celery_worker
+
+# 2. Agora o Docker deixa apagar.
+docker secret rm NEURODOC_SMTP_PASSWORD
+
+# 3. Cria de novo, com a senha nova.
+printf '%s' 'NOVA-SENHA-DO-EMAIL' | docker secret create NEURODOC_SMTP_PASSWORD -
+
+# 4. Republica: o stack reata o segredo ao worker, como está no
+#    docker-stack.yml. --skip-build reaproveita a imagem já publicada.
+.venv-ops/bin/python -m ops.deploy --skip-build
+```
+
+Confira com `manage.py testar_email` (passo 15.5).
+
+> **Por que o passo 4 e não `docker service update --force`.** Segredo do
+> Docker é entregue ao contêiner quando ele nasce, então forçar a troca
+> faria o worker renascer — mas sem o segredo, que o passo 1 desatou. Só o
+> `stack deploy` reata o que está declarado no `docker-stack.yml`.
 
 ---
 
