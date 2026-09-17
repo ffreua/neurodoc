@@ -210,4 +210,7 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,
   com a alternativa recusada.
 - `design_system/design-system.html` — o tema Duralux real, servido
-  localmente; `docs/design-system.md` cataloga os tokens.
+  localmente; `docs/design-system.md` cataloga os tokens. **O produto tem
+  um tema só, o claro** — o escuro foi removido: um prontuário lido ao lado
+  do paciente não ganhava nada com ele, e cada tela nova passava a ter duas
+  versões para conferir.

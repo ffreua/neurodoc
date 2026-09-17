@@ -47,85 +47,6 @@
     scrollbar-width: thin;
 }
 
-html.app-navigation-dark .nxl-navigation .m-header .logo-lg,
-html.app-skin-dark .nxl-navigation .m-header .logo-lg {
-    color: #fff;
-}
-
-/* ---- Dark skin: soft buttons rendered as links ----------------------- */
-/* Duralux's dark skin paints every <a> white with !important. A soft button
- * (.btn-light-primary and friends) keeps its pale background, so any such
- * button written as a link ends up white-on-pale and unreadable. Restore
- * the contextual text colour these buttons have in the light skin; the
- * hover state, which does turn the background solid, is left to the theme. */
-html.app-skin-dark a.btn-light-primary:not(:hover):not(:focus):not(:active) {
-    color: #3454d1 !important;
-}
-
-html.app-skin-dark a.btn-light-secondary:not(:hover):not(:focus):not(:active) {
-    color: #64748b !important;
-}
-
-html.app-skin-dark a.btn-light-success:not(:hover):not(:focus):not(:active) {
-    color: #17c666 !important;
-}
-
-html.app-skin-dark a.btn-light-info:not(:hover):not(:focus):not(:active) {
-    color: #3dc7be !important;
-}
-
-html.app-skin-dark a.btn-light-warning:not(:hover):not(:focus):not(:active) {
-    color: #ffa21d !important;
-}
-
-html.app-skin-dark a.btn-light-danger:not(:hover):not(:focus):not(:active) {
-    color: #ea4d4d !important;
-}
-
-html.app-skin-dark a.btn-light-dark:not(:hover):not(:focus):not(:active) {
-    color: #283c50 !important;
-}
-
-/* ---- Dark skin: standard contextual alerts --------------------------- */
-/* The design system uses plain Bootstrap alerts (.alert-primary and
- * friends), but Duralux's dark skin only restyles its own
- * .alert-soft-*-message variants, leaving the standard ones bright white on
- * a dark page. These follow the theme's own dark idiom for alerts: soft
- * background, contextual text, dashed border. */
-html.app-skin-dark .alert-primary {
-    color: #3454d1;
-    background-color: rgba(52, 84, 209, 0.075);
-    border: 1px dashed #21387f;
-}
-
-html.app-skin-dark .alert-success {
-    color: #17c666;
-    background-color: rgba(23, 198, 102, 0.075);
-    border: 1px dashed #0a542b;
-}
-
-html.app-skin-dark .alert-warning {
-    color: #ffa21d;
-    background-color: rgba(255, 162, 29, 0.075);
-    border: 1px dashed #9d5c00;
-}
-
-html.app-skin-dark .alert-danger {
-    color: #ea4d4d;
-    background-color: rgba(234, 77, 77, 0.075);
-    border: 1px dashed #bb1616;
-}
-
-html.app-skin-dark .alert-info {
-    color: #3dc7be;
-    background-color: rgba(61, 199, 190, 0.075);
-    border: 1px dashed #226e69;
-}
-
-html.app-skin-dark .alert .btn-close {
-    filter: invert(1) grayscale(100%) brightness(200%);
-}
-
 /* ---- Authentication / public shell ----------------------------------- */
 /* Duralux styles the auth card (.auth-container .card.wd-450) but leaves the
  * page that holds it to the template. */
@@ -164,10 +85,6 @@ html.app-skin-dark .alert .btn-close {
     font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.2px;
-}
-
-html.app-skin-dark .nd-auth-brand .brand-name {
-    color: #fff;
 }
 
 /* ---- Django form rendering ------------------------------------------- */
@@ -224,18 +141,6 @@ html.app-skin-dark .nd-auth-brand .brand-name {
     border-color: var(--bs-primary, #3454d1);
     box-shadow: 0 0 0 0.2rem rgba(52, 84, 209, 0.15);
     outline: 0;
-}
-
-html.app-skin-dark .nd-form label {
-    color: #b1b4c0;
-}
-
-html.app-skin-dark .nd-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]),
-html.app-skin-dark .nd-form select,
-html.app-skin-dark .nd-form textarea {
-    color: #b1b4c0;
-    background-color: #19253f;
-    border-color: #1b2436;
 }
 
 /* ---- Accessibility --------------------------------------------------- */
@@ -480,20 +385,6 @@ button.nd-slot-free:focus-visible::before {
     }
     .nd-slot { font-size: 10px; }
 }
-
-/* Skin escuro: a grade nao pode ficar branca sobre fundo escuro. */
-html.app-skin-dark .nd-agenda { background: #1b2431; border-color: #2a3547; }
-html.app-skin-dark .nd-agenda-head,
-html.app-skin-dark .nd-agenda-time { background: #202a3a; color: #94a3b8; }
-html.app-skin-dark .nd-slot { background: #182029; color: #cbd5e1; }
-html.app-skin-dark button.nd-slot-free { border-color: #2a3547; color: #64748b; }
-html.app-skin-dark button.nd-slot-free:hover { background: #1e2740; border-color: #3454d1; color: #93a7f5; }
-html.app-skin-dark .nd-slot-past { background: #151c24; color: #3f4c5f; }
-html.app-skin-dark .nd-slot-blocked {
-    background: repeating-linear-gradient(45deg, #1b2431, #1b2431 5px, #232e3d 5px, #232e3d 10px);
-}
-html.app-skin-dark .nd-slot-busy { background: #1e2740; color: #dbe3f4; }
-
 
 /* Pagina sem barra lateral.
 

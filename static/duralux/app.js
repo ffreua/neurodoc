@@ -12,7 +12,6 @@
  *   .hamburger.is-active              animated mobile toggler
  *   li.nxl-hasmenu.nxl-trigger        open submenu
  *   ul.nxl-submenu.nxl-menu-visible / .nxl-menu-hidden        submenu motion
- *   html.app-skin-dark                dark skin
  *   .dropdown-menu.show               dropdowns
  *   .tab-content > .tab-pane.active   tabs and pills
  *   .collapse.show                    collapses and accordions
@@ -24,7 +23,6 @@
     var html = document.documentElement;
     var STORE = {
         minimenu: 'neurodoc.sidebar.minimenu',
-        skin: 'neurodoc.skin',
     };
 
     function read(key) {
@@ -47,32 +45,23 @@
         return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     }
 
-    /* ---------------------------------------------------------------- skin */
+    /* ------------------------------------------------------ tema (removido) */
 
-    function applySkin(dark) {
-        html.classList.toggle('app-skin-dark', dark);
-        document.body.classList.toggle('app-skin-dark', dark);
-        document.querySelectorAll('.dark-light-theme .dark-button').forEach(function (el) {
-            el.style.display = dark ? 'none' : '';
-        });
-        document.querySelectorAll('.dark-light-theme .light-button').forEach(function (el) {
-            el.style.display = dark ? '' : 'none';
-        });
-        document.querySelectorAll('[data-nd-skin-label]').forEach(function (el) {
-            el.textContent = dark ? 'Tema claro' : 'Tema escuro';
-        });
-    }
-
-    function initSkin() {
-        applySkin(read(STORE.skin) === 'dark');
-        document.querySelectorAll('.dark-light-theme .dark-button, .dark-light-theme .light-button, [data-nd-toggle="skin"]').forEach(function (el) {
-            el.addEventListener('click', function (event) {
-                event.preventDefault();
-                var dark = !html.classList.contains('app-skin-dark');
-                applySkin(dark);
-                write(STORE.skin, dark ? 'dark' : 'light');
-            });
-        });
+    /* O tema escuro saiu do produto. O que resta aqui é a limpeza para quem
+     * já o tinha ligado: a preferência morava no `localStorage` do
+     * navegador, e apagar só o botão deixaria essa pessoa presa num tema
+     * que não existe mais e sem nada na tela para desligá-lo.
+     *
+     * Pode ser removido quando não houver mais navegador com a chave
+     * gravada — na prática, depois de um ciclo de uso da equipe. */
+    function limparTemaEscuro() {
+        html.classList.remove('app-skin-dark');
+        document.body.classList.remove('app-skin-dark');
+        try {
+            window.localStorage.removeItem('neurodoc.skin');
+        } catch (err) {
+            /* modo privado: não havia o que apagar */
+        }
     }
 
     /* ------------------------------------------------------------- sidebar */
@@ -688,7 +677,7 @@
     }
 
     function boot() {
-        initSkin();
+        limparTemaEscuro();
         initSidebar();
         initPageActions();
         initDropdowns();
