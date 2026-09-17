@@ -25,6 +25,7 @@ from .forms import (
     MedicationForm,
 )
 from .models import (
+    EncounterKind,
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
     ExamResult, ExtractionStatus, LabValue, Medication,
 )
@@ -119,8 +120,19 @@ class DiagnosisLookupView(TenantScopedView):
 class TimelineView(TenantScopedView):
     def get(self, request, patient_id):
         patient = get_object_or_404(scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id)
-        encounters = selectors.patient_timeline(request.access_context, patient)
-        return render(request, 'clinical/timeline.html', {'patient': patient, 'encounters': encounters})
+        # A ordem vem da URL e é validada no selector; o que chega aqui é só
+        # repassado, nunca interpolado numa consulta.
+        ordenar = request.GET.get('ordenar', selectors.ORDEM_PADRAO)
+        if ordenar not in selectors.ORDENS_DA_GRADE:
+            ordenar = selectors.ORDEM_PADRAO
+        decrescente = request.GET.get('desc') == '1'
+        encounters = selectors.patient_timeline(
+            request.access_context, patient, ordenar=ordenar, decrescente=decrescente,
+        )
+        return render(request, 'clinical/timeline.html', {
+            'patient': patient, 'encounters': encounters,
+            'ordenar': ordenar, 'decrescente': decrescente,
+        })
 
 
 class EncounterCreateView(TenantScopedView):
@@ -129,9 +141,15 @@ class EncounterCreateView(TenantScopedView):
         membership = _doctor_membership(request)
         if membership is None:
             raise Http404
+        # O tipo vem do botão que foi clicado. Valor desconhecido cai no
+        # estruturado — que é o prontuário completo, e errar para o lado de
+        # pedir mais registro é o erro aceitável aqui.
+        kind = request.POST.get('kind')
+        if kind not in EncounterKind.values:
+            kind = EncounterKind.STRUCTURED
         encounter = Encounter.objects.create(
             tenant_id=request.access_context.tenant_id, patient=patient, physician_membership=membership,
-            occurred_at=timezone.now(), status=EncounterStatus.DRAFT,
+            occurred_at=timezone.now(), status=EncounterStatus.DRAFT, kind=kind,
         )
         source = cf.default_source_encounter(encounter)
         if source is not None:
@@ -169,7 +187,15 @@ class EncounterDetailView(TenantScopedView):
             for finding in findings
             if finding.item_code.startswith('escala.')
         }
-        return render(request, 'clinical/detail.html', {
+        # Um template por tipo. O de texto livre é uma página só, sem abas:
+        # o ponto dele é não fazer quem tem pressa navegar. Os dois recebem
+        # o mesmo contexto, e os blocos que os dois usam — medicação,
+        # hipóteses, documentos — são os mesmos parciais.
+        template_da_tela = (
+            'clinical/detail_livre.html' if encounter.kind == EncounterKind.FREE_TEXT
+            else 'clinical/detail.html'
+        )
+        return render(request, template_da_tela, {
             'encounter': encounter, 'form': EncounterForm(instance=encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
             'amendment_form': AmendmentForm(), 'pending_carry_forward': pending_items,

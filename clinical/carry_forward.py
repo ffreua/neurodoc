@@ -1,4 +1,7 @@
-"""RF-03.04: copy only `plan_text` (conduta) and diagnoses (hipóteses) from
+"""Copia da consulta anterior: conduta, impressões e hipóteses (CID).
+
+RF-03.04: copy only `plan_text` (conduta), `impressions` and diagnoses
+(hipóteses) from
 the physician's own last finalized encounter for this patient — never exam
 findings, never chief complaint/HPI, and never auto-generated prescriptions
 or requests. An alternative source encounter must be passed explicitly by
@@ -32,13 +35,21 @@ def carry_forward(context, target_encounter, source_encounter=None):
         return []
 
     items = []
-    if source_encounter.plan_text:
+    # Conduta e impressões: os dois campos de texto que se leva adiante, e
+    # os dois existem nos **dois** tipos de atendimento. É o que faz a
+    # conduta de um texto livre chegar num estruturado e vice-versa — a
+    # cópia é por campo, e o campo é o mesmo nos dois.
+    versao = source_encounter.content_hash or source_encounter.compute_content_hash()
+    for campo in ('plan_text', 'impressions'):
+        valor = getattr(source_encounter, campo, '')
+        if not valor:
+            continue
         item, _ = CarryForwardItem.objects.update_or_create(
-            tenant_id=context.tenant_id, target_encounter=target_encounter, field_path='plan_text',
+            tenant_id=context.tenant_id, target_encounter=target_encounter, field_path=campo,
             defaults={
                 'source_encounter': source_encounter,
-                'source_version_hash': source_encounter.content_hash or source_encounter.compute_content_hash(),
-                'copied_value': {'text': source_encounter.plan_text},
+                'source_version_hash': versao,
+                'copied_value': {'text': valor},
             },
         )
         items.append(item)
@@ -73,6 +84,7 @@ def has_pending_review(target_encounter):
 #: `diagnosis:a192554a-…`. O que aparece é o nome do campo no prontuário.
 FIELD_LABELS = {
     'plan_text': 'Conduta da consulta anterior',
+    'impressions': 'Impressões da consulta anterior',
 }
 DIAGNOSIS_LABEL = 'Hipótese da consulta anterior'
 
@@ -89,8 +101,8 @@ def describe_item(item):
     from .models import DiagnosisCertainty
 
     value = item.copied_value or {}
-    if item.field_path == 'plan_text':
-        return {'label': FIELD_LABELS['plan_text'], 'value': value.get('text', ''), 'detail': ''}
+    if item.field_path in FIELD_LABELS:
+        return {'label': FIELD_LABELS[item.field_path], 'value': value.get('text', ''), 'detail': ''}
     if item.field_path.startswith('diagnosis:'):
         code = value.get('code_snapshot') or ''
         description = value.get('description_snapshot') or ''
@@ -123,9 +135,14 @@ def review_carry_forward_item(item, action, actor_membership_id):
 
     encounter = item.target_encounter
     value = item.copied_value or {}
-    if item.field_path == 'plan_text':
-        encounter.plan_text = value.get('text', '')
-        encounter.save(update_fields=['plan_text'])
+    # Os campos de texto são aplicados pelo nome: acrescentar um campo
+    # copiável (as impressões foram o segundo) passa a funcionar aqui sem
+    # um `elif` novo — e um `elif` esquecido deixaria o item marcado como
+    # aceito sem nada ter sido copiado, que foi o defeito que a hipótese
+    # teve antes.
+    if item.field_path in FIELD_LABELS:
+        setattr(encounter, item.field_path, value.get('text', ''))
+        encounter.save(update_fields=[item.field_path])
     elif item.field_path.startswith('diagnosis:'):
         # Aceitar uma hipótese não fazia nada: o item ficava marcado como
         # aceito e a hipótese não entrava no atendimento. O aceite existe

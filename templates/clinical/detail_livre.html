@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% load nd static %}
+{% comment %}Atendimento em texto livre: uma página, sem abas.
+
+O estruturado tem seis abas porque o prontuário neurológico completo não
+cabe numa coluna. Este existe para o caso oposto — retorno de rotina,
+ajuste de dose —, e ali cada aba é um clique entre o médico e o registro.
+Se percorrer a tela custa mais do que escrever, o registro vai para outro
+lugar.
+
+O que **não** muda: medicação em uso, hipóteses (CID) e conduta são os
+mesmos campos do estruturado, com os mesmos parciais. É isso que faz a
+conduta e as impressões daqui poderem ser copiadas para um atendimento
+estruturado — e o contrário.{% endcomment %}
+{% block title %}Atendimento (texto livre) — {{ encounter.patient.full_name }}{% endblock %}
+{% block page_title %}Atendimento — texto livre{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:detail' encounter.patient_id %}">{{ encounter.patient.full_name }}</a></li>
+<li class="breadcrumb-item"><a href="{% url 'clinical:timeline' encounter.patient_id %}">Prontuário</a></li>
+<li class="breadcrumb-item">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'clinical:summary' encounter.id %}"
+   target="_blank" rel="noopener" data-nd-window="resumo">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+    <span>Imprimir</span>
+</a>
+<a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
+<a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
+{% if encounter.status != 'finalized' %}
+<button type="button" class="btn btn-light-danger" data-bs-toggle="modal" data-bs-target="#discard-modal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    <span>Descartar</span>
+</button>
+<button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#finalize-modal">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+    <span>Finalizar atendimento</span>
+</button>
+{% endif %}
+{% endblock %}
+{% block content %}
+
+{% include "clinical/_encounter_header.html" %}
+
+{% include "clinical/_carry_forward.html" %}
+
+{% comment %}O formulário do atendimento cobre SÓ a coluna da esquerda.
+
+As medicações e as hipóteses trazem formulários próprios, e HTML não aninha
+formulário: um `<form>` dentro de outro é ignorado pelo navegador, e o botão
+de incluir medicação passaria a salvar o texto livre. Por isso as duas
+colunas ficam fora, e o `<form>` começa dentro da coluna.{% endcomment %}
+<div class="row g-4">
+    <div class="col-xl-8">
+        <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate id="nd-livre-form">
+            {% csrf_token %}
+            <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+
+            {% comment %}O corpo da consulta. Nasce alto: parar para rolar
+            dentro de uma caixa de texto é exatamente o atrito que este tipo
+            de atendimento existe para evitar.{% endcomment %}
+            <div class="card stretch stretch-full mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Texto livre</h5>
+                    <span class="fs-11 text-muted">
+                        A consulta escrita como você preferir.
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.free_text col="col-12" %}
+                    </div>
+                </div>
+            </div>
+
+            {% comment %}Impressões e conduta juntas, e nesta ordem: uma é a
+            leitura do caso, a outra é o que se faz com ela. As duas vão para
+            a próxima consulta pelo mesmo mecanismo das hipóteses.{% endcomment %}
+            <div class="card stretch stretch-full mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Impressões e conduta</h5>
+                    <span class="fs-11 text-muted">
+                        Estes dois campos e as hipóteses são oferecidos na próxima
+                        consulta deste paciente, para você aceitar ou recusar.
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.impressions col="col-12" %}
+                        {% include "partials/field.html" with field=form.plan_text col="col-12" %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center flex-wrap gap-2 mb-4">
+                <button type="submit" class="btn btn-primary" data-nd-busy
+                        {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar atendimento</button>
+                {% if nd_can.issue_document %}
+                <a class="btn btn-light-primary" href="{% url 'documents:medical-new' encounter.id %}">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                    <span>Emitir documento</span>
+                </a>
+                {% endif %}
+                <span class="fs-11 text-muted">
+                    Pode salvar agora e finalizar depois — inclusive em outro dia.
+                </span>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-xl-4">
+        {% comment %}A coluna estruturada. Medicação em uso e hipóteses
+        continuam campos de verdade, e não texto: é delas que saem a receita,
+        o alerta e o indicador. Texto livre é sobre como se escreve a
+        consulta, não sobre abrir mão do que o sistema precisa entender.
+        {% endcomment %}
+        <div class="card stretch stretch-full mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Medicações em uso</h5>
+            </div>
+            {% include "clinical/_medications.html" %}
+        </div>
+
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Hipóteses (CID-10)</h5>
+                <span class="fs-11 text-muted">Também levadas para a próxima consulta.</span>
+            </div>
+            <div class="card-body">
+                {% if diagnoses %}
+                <ul class="list-unstyled mb-3">
+                    {% for d in diagnoses %}
+                    <li class="d-flex align-items-start gap-2 mb-2">
+                        <span class="badge bg-soft-primary text-primary">{{ d.code_snapshot }}</span>
+                        <span class="fs-12">
+                            {{ d.description_snapshot }}
+                            <span class="d-block fs-11 text-muted">{{ d.get_certainty_display }}</span>
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="fs-12 text-muted">Nenhuma hipótese registrada.</p>
+                {% endif %}
+
+                {% if encounter.status != 'finalized' %}
+                <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
+                      class="border-top pt-3">
+                    {% csrf_token %}
+                    <div class="row g-3">
+                        {% include "partials/form_fields.html" with form=diagnosis_form %}
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-light-primary btn-sm" data-nd-busy>
+                                Acrescentar hipótese
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block modals %}
+{% include "clinical/_encounter_modals.html" %}
+{% endblock %}
+
+{% block scripts %}
+{% comment %}`cid.js` é o autocomplete do CID-10 no formulário de hipótese —
+o mesmo do estruturado. `exam.js` não entra: não há roteiro de exame nesta
+tela.{% endcomment %}
+<script src="{% static 'clinical/cid.js' %}"></script>
+{% endblock %}

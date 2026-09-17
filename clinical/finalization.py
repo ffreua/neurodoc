@@ -5,7 +5,7 @@ from audit.services import record_audit_event
 from events.models import OutboxEvent, OutboxEventStatus
 
 from .carry_forward import has_pending_review
-from .models import CarryForwardItem, ClinicalAmendment, Encounter, EncounterStatus
+from .models import EncounterKind, CarryForwardItem, ClinicalAmendment, Encounter, EncounterStatus
 
 ENCOUNTER_FINALIZED_TOPIC = 'clinical.encounter_finalized'
 
@@ -35,6 +35,31 @@ def missing_requirements(encounter):
             'aba': 'História', 'ancora': 'tab-historia', 'justificavel': False,
         })
     justified = bool(encounter.finalization_justification)
+
+    # O requisito é o mesmo nos dois tipos — "há registro do que houve na
+    # consulta?" —, mas o campo onde esse registro mora não é.
+    #
+    # O atendimento de texto livre não tem queixa nem história: tem o corpo
+    # escrito de uma vez. Exigir os campos do estruturado aqui obrigaria a
+    # escrever uma justificativa de finalização em TODA consulta de texto
+    # livre — e uma trava que se dispara sempre deixa de ser lida e passa a
+    # ser contornada por reflexo.
+    #
+    # As âncoras também mudam: a tela de texto livre não tem abas, e mandar
+    # alguém para "a aba História" ali é mandá-lo procurar o que não existe.
+    if encounter.kind == EncounterKind.FREE_TEXT:
+        if not (encounter.free_text or justified):
+            pending.append({
+                'texto': 'Escrever o texto do atendimento.',
+                'aba': 'Texto livre', 'ancora': 'id_free_text', 'justificavel': True,
+            })
+        if not (encounter.plan_text or justified):
+            pending.append({
+                'texto': 'Preencher a conduta.',
+                'aba': 'Impressões e conduta', 'ancora': 'id_plan_text', 'justificavel': True,
+            })
+        return pending
+
     if not (encounter.chief_complaint or encounter.hpi or justified):
         pending.append({
             'texto': 'Preencher a queixa principal ou a história da doença atual.',

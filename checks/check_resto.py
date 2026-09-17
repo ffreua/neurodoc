@@ -18,7 +18,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from audit.models import AuditEvent
-from clinical.models import Encounter
+from clinical.models import Encounter, EncounterKind
 from communications.services import confirmation_contacts
 from documents.models import (
     DocumentRequest, DocumentRequestKind, DocumentRequestStatus, MedicalDocument,
@@ -54,7 +54,19 @@ print('=' * 66)
 print('3. HABITOS E VICIOS NO PRONTUARIO')
 print('=' * 66)
 
-enc = Encounter.objects.filter(tenant__slug=TENANT).exclude(status='finalized').first()
+# Habitos e vicios sao campos do prontuario **estruturado**: o atendimento
+# em texto livre nao os tem, de proposito. Sem filtrar por tipo, este
+# roteiro escolhia o primeiro atendimento aberto que aparecesse e acusava
+# ausencia do campo quando calhava de ser um texto livre — falha do sorteio,
+# nao do sistema. A ordem tambem e explicita: `first()` sem `order_by` deixa
+# a escolha por conta do plano de consulta do Postgres.
+enc = (
+    Encounter.objects
+    .filter(tenant__slug=TENANT, kind=EncounterKind.STRUCTURED)
+    .exclude(status='finalized')
+    .order_by('occurred_at')
+    .first()
+)
 if enc is None:
     print('  (sem atendimento aberto na demonstracao)')
 else:

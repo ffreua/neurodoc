@@ -136,6 +136,29 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         </div>
     </div>
 
+    {% comment %}Atendimento em texto livre.
+
+    O corpo escrito à mão substitui a seção "História", que no texto livre
+    fica vazia — imprimir seis subtítulos com "Não registrada" embaixo de
+    cada um encheria a folha de ausência. O resto do resumo (medicação,
+    hipóteses, conduta, adendos) é o mesmo nos dois tipos, porque os campos
+    são os mesmos.{% endcomment %}
+    {% if encounter.kind == 'free_text' %}
+    <h2>Atendimento</h2>
+    <div class="block">
+        {% if encounter.free_text %}
+        <p class="prose">{{ encounter.free_text }}</p>
+        {% else %}<p class="empty">Sem texto registrado.</p>{% endif %}
+    </div>
+
+    <h2>Impressões</h2>
+    <div class="block">
+        {% if encounter.impressions %}
+        <p class="prose">{{ encounter.impressions }}</p>
+        {% else %}<p class="empty">Não registradas.</p>{% endif %}
+    </div>
+    {% else %}
+
     {% comment %}História{% endcomment %}
     <h2>História</h2>
     <div class="block">
@@ -167,7 +190,10 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         {% endif %}
     </div>
 
+    {% endif %}
+
     {% comment %}Medicações{% endcomment %}
+
     <h2>Medicações em uso</h2>
     <div class="block">
         {% if medications %}
@@ -192,7 +218,12 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         {% endif %}
     </div>
 
-    {% comment %}Exame neurológico{% endcomment %}
+    {% comment %}Exame neurológico. Some no texto livre, que não tem roteiro
+    de exame — imprimir o subtítulo com "Nenhum item registrado" embaixo é a
+    mesma folha cheia de ausência que a seção História evita. A condição olha
+    também os achados, e não só o tipo: se por algum caminho houver item
+    gravado, ele aparece em vez de ficar escondido.{% endcomment %}
+    {% if encounter.kind != 'free_text' or findings_by_domain %}
     <h2>Exame neurológico <span class="muted" style="text-transform:none">({{ findings_count }} item(ns))</span></h2>
     <div class="block">
         {% if findings_by_domain %}
@@ -217,6 +248,7 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         <p class="empty">Nenhum item registrado.</p>
         {% endif %}
     </div>
+    {% endif %}
 
     {% comment %}Exames complementares{% endcomment %}
     <h2>Resultados de exames</h2>
@@ -284,6 +316,15 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         <p class="empty">Nenhuma hipótese registrada.</p>
         {% endif %}
     </div>
+
+    {% comment %}As impressões existem nos dois tipos; no texto livre já
+    saíram acima, junto do corpo.{% endcomment %}
+    {% if encounter.kind != 'free_text' and encounter.impressions %}
+    <h2>Impressões</h2>
+    <div class="block">
+        <p class="prose">{{ encounter.impressions }}</p>
+    </div>
+    {% endif %}
 
     {% comment %}Conduta{% endcomment %}
     <h2>Conduta</h2>

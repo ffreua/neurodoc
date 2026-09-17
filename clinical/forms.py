@@ -16,6 +16,7 @@ class EncounterForm(forms.ModelForm):
         fields = [
             'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
             'consanguinity_state', 'consanguinity_details', 'plan_text', 'finalization_justification',
+            'free_text', 'impressions',
         ]
         labels = {
             'chief_complaint': 'Queixa principal',
@@ -26,6 +27,8 @@ class EncounterForm(forms.ModelForm):
             'consanguinity_state': 'Consanguinidade',
             'consanguinity_details': 'Detalhes da consanguinidade',
             'plan_text': 'Conduta',
+            'free_text': 'Texto livre',
+            'impressions': 'Impressões',
             'finalization_justification': 'Justificativa da finalização',
         }
         widgets = {
@@ -49,6 +52,18 @@ class EncounterForm(forms.ModelForm):
             }),
             'consanguinity_details': forms.Textarea(attrs={'rows': 2}),
             'plan_text': forms.Textarea(attrs={'rows': 8}),
+            # A caixa de texto livre é o corpo da consulta inteira quando o
+            # médico escolhe escrever corrido: nasce alta, e o JavaScript a
+            # faz crescer com o que for digitado.
+            'free_text': forms.Textarea(attrs={
+                'rows': 18,
+                'placeholder': 'Escreva a consulta como preferir — queixa, exame, raciocínio.',
+            }),
+            'impressions': forms.Textarea(attrs={
+                'rows': 5,
+                'placeholder': 'O que você concluiu do caso. Este campo pode ser levado '
+                               'para a próxima consulta.',
+            }),
         }
 
 

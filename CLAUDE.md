@@ -91,7 +91,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`; **planos, limites e a matriz de permissão** |
 | `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto |
 | `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
-| `clinical` | `Encounter`, achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento |
+| `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
 | `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados |
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações, OCR, arquivo morto |
@@ -181,6 +181,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_isolation.py` | vazamento entre inquilinos |
 | `check_roles.py`, `check_matrix.py` | matriz de permissão |
 | `check_prontuario.py`, `check_roteiro.py` | prontuário e roteiro de exame |
+| `check_texto_livre.py` | os dois tipos de atendimento, a cópia entre eles e a grade por abertura/fechamento |
 | `check_mensageria.py`, `check_email.py` | outbox, entrega, reconciliação |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
 | `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |

@@ -12,6 +12,31 @@ class EncounterStatus(models.TextChoices):
     FINALIZED = 'finalized', 'Finalizado'
 
 
+class EncounterKind(models.TextChoices):
+    """Como este atendimento é escrito. Os dois valem igualmente.
+
+    O estruturado é o prontuário neurológico completo — queixa, história,
+    antecedentes, o roteiro de exame com quase 400 itens, escalas. É o que
+    se quer numa primeira consulta e numa investigação.
+
+    O texto livre existe porque nem toda consulta é essa. Retorno de
+    rotina, ajuste de dose, renovação — o médico com a sala cheia escreve
+    um parágrafo, e obrigá-lo a percorrer seis abas para isso faz com que
+    ele escreva o parágrafo em outro lugar, fora do prontuário. Um
+    prontuário que só aceita o registro completo acaba recebendo menos
+    registro, não mais.
+
+    O que **não** muda entre os dois: medicação em uso, hipóteses (CID),
+    conduta e os documentos emitidos continuam estruturados e são os
+    mesmos campos. É por isso que a conduta, as impressões e o CID de um
+    atendimento de texto livre podem ser copiados para um estruturado e
+    vice-versa — a cópia é por campo, e o campo é o mesmo.
+    """
+
+    STRUCTURED = 'structured', 'Prontuário estruturado'
+    FREE_TEXT = 'free_text', 'Texto livre'
+
+
 class ConsanguinityState(models.TextChoices):
     NONE = 'none', 'Ausente'
     SUSPECTED = 'suspected', 'Suspeita'
@@ -46,6 +71,24 @@ class Encounter(TenantModel):
     )
     consanguinity_details = models.TextField(max_length=2000, blank=True)
     plan_text = models.TextField(max_length=20000, blank=True)
+    #: Como este atendimento é escrito. Ver `EncounterKind`.
+    kind = models.CharField(
+        max_length=20, choices=EncounterKind.choices, default=EncounterKind.STRUCTURED,
+    )
+    #: O corpo do atendimento de texto livre.
+    #:
+    #: Teto alto de propósito: é onde cabe a consulta inteira quando o
+    #: médico escolhe escrever corrido, e um limite apertado seria
+    #: descoberto no meio de uma consulta, com o texto pronto na tela.
+    #: Vazio no atendimento estruturado, onde o mesmo conteúdo está
+    #: distribuído entre queixa, história e antecedentes.
+    free_text = models.TextField(max_length=100000, blank=True)
+    #: Impressões do médico sobre o caso.
+    #:
+    #: Campo próprio, e não um parágrafo no fim do texto livre, porque é o
+    #: que se quer levar para a próxima consulta — como a conduta e as
+    #: hipóteses. Diluído no corpo do texto, não haveria o que copiar.
+    impressions = models.TextField(max_length=20000, blank=True)
     finalization_justification = models.CharField(max_length=500, blank=True)
     status = models.CharField(max_length=40, choices=EncounterStatus.choices, default=EncounterStatus.DRAFT)
     finalized_at = models.DateTimeField(null=True, blank=True)
@@ -67,10 +110,23 @@ class Encounter(TenantModel):
         return self.status != EncounterStatus.FINALIZED
 
     def compute_content_hash(self):
+        """Impressão digital do que o médico escreveu neste atendimento.
+
+        Gravada na finalização e mostrada na tela e na trilha de auditoria.
+        Campo de texto que fique de fora muda sem que a versão do atendimento
+        mude — e no texto livre o campo de fora seria o **corpo inteiro da
+        consulta**, que é justamente o que o hash existe para cobrir. Por isso
+        `free_text` e `impressions` entram aqui.
+
+        Acrescentar campo muda o hash de atendimentos ainda abertos, e não o
+        dos já finalizados: aquele valor está gravado em `content_hash` e nada
+        o recalcula.
+        """
         payload = '|'.join([
             self.chief_complaint, self.hpi, self.personal_history, self.family_history,
             self.habits_history,
             self.consanguinity_state, self.consanguinity_details, self.plan_text,
+            self.free_text, self.impressions,
         ])
         return hashlib.sha256(payload.encode()).hexdigest()
 

@@ -130,6 +130,20 @@ PRD; é a referência operacional viva gerada a partir dele.
   digitalmente. Inclui os dois roteiros que estavam quebrados e foram
   consertados.
 
+## Atendimento em texto livre
+
+- [Atendimento em texto livre, ao lado do estruturado](homologation/atendimento-texto-livre.md) —
+  o médico escolhe, ao abrir o atendimento, entre o prontuário estruturado e
+  uma página só com o texto da consulta. Medicação, hipóteses (CID) e conduta
+  continuam campos estruturados nos dois tipos — é o que faz conduta e
+  impressões serem copiadas de um tipo para o outro nos dois sentidos. Os
+  dois podem ser abertos num dia e finalizados em outro, e a grade traz
+  abertura e fechamento como colunas que ordenam. Homologado com
+  `checks/check_texto_livre.py` (11 seções); inclui os três defeitos que a
+  construção produziu — o formulário aninhado, o resumo cheio de seções
+  vazias e o corpo da consulta que ficava fora do hash de integridade — e o
+  roteiro alheio que o resíduo do novo derrubou.
+
 ## Mensagens internas da equipe
 
 - [Mensagens da equipe](homologation/mensagens-equipe.md) — janela flutuante
