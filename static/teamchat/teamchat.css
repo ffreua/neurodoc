@@ -1,0 +1,463 @@
+/* Janela de mensagens da equipe.
+ *
+ * Folha própria, e não mais um bloco em `neurodoc.css`: aquela existe para
+ * remendar o que falta no Duralux, e isto é um componente inteiro que o
+ * tema não tem. Separadas, uma correção de tema não mexe no chat e um
+ * ajuste do chat não arrisca o formulário do Django.
+ *
+ * Nenhum token do Duralux é redefinido aqui. As cores abaixo são as do
+ * próprio tema, repetidas como variáveis locais em `.nd-tc` para que um
+ * ajuste de paleta seja feito num lugar só.
+ *
+ * Não há variante escura, e `prefers-color-scheme` não é consultado: o
+ * produto tem um tema, o claro. O tema escuro foi removido — um prontuário
+ * lido a dois palmos do paciente não ganha nada com ele, e cada tela nova
+ * passava a ter duas versões para conferir.
+ */
+
+.nd-tc {
+    --tc-fundo: #fff;
+    --tc-fundo-2: #f8fafc;
+    --tc-borda: #e5e7eb;
+    --tc-texto: #283c50;
+    --tc-muted: #64748b;
+    --tc-primaria: #3454d1;
+    --tc-online: #17c666;
+    --tc-bolha: #eef1fb;
+}
+
+/* O atributo `hidden` precisa vencer o `display:flex` da janela; sem o
+ * `!important` o navegador aplica os dois e a janela nasce aberta. */
+.nd-tc[hidden] {
+    display: none !important;
+}
+
+/* -------------------------------------------- aviso no botão do cabeçalho */
+
+/* Pulso curto quando o número cresce.
+ *
+ * Duas voltas e para. Uma badge que pulsa para sempre vira parte do
+ * cenário em dez minutos e deixa de avisar qualquer coisa — o que se quer
+ * é o movimento no canto do olho no momento em que a mensagem chega, não
+ * um enfeite piscando o dia inteiro na tela de quem atende paciente.
+ *
+ * A regra é de escala e sombra, e não de cor: o vermelho do círculo já é o
+ * sinal, e mudar a cor no pulso o faria parecer um estado diferente. */
+@keyframes nd-tc-pulso {
+    0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 77, 77, .55); }
+    45%  { transform: scale(1.28); box-shadow: 0 0 0 7px rgba(234, 77, 77, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(234, 77, 77, 0); }
+}
+
+#nd-tc-badge.is-nova {
+    animation: nd-tc-pulso .55s ease-out 2;
+}
+
+/* Quem pediu menos movimento no sistema operacional não recebe o pulso. O
+ * número e o título da aba continuam lá — nenhuma informação se perde,
+ * só o movimento. */
+@media (prefers-reduced-motion: reduce) {
+    #nd-tc-badge.is-nova { animation: none; }
+}
+
+/* ------------------------------------------------------------- a janela */
+
+/* `position: fixed` e não `absolute`: a janela acompanha a pessoa quando a
+ * página de baixo rola, que é o comportamento de uma janela flutuante.
+ *
+ * `z-index: 1040` fica **abaixo** do modal do Bootstrap (1055) de
+ * propósito. Um modal é modal: enquanto a confirmação de exclusão estiver
+ * aberta, ela é o que tem de estar na frente. Acima da barra lateral
+ * (1026) e do cabeçalho (1025), que é onde a janela precisa estar.
+ *
+ * Posição e tamanho vêm por `style` do JavaScript, que os guarda no
+ * `localStorage`. Os valores aqui são o primeiro uso, antes de existir
+ * preferência gravada. */
+.nd-tc-win {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    width: 720px;
+    height: 460px;
+    min-width: 320px;
+    min-height: 300px;
+    z-index: 1040;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid var(--tc-borda);
+    border-radius: 10px;
+    background: var(--tc-fundo);
+    color: var(--tc-texto);
+    box-shadow: 0 18px 45px rgba(40, 60, 80, .22);
+}
+
+/* ------------------------------------------------- barra / alça de arrasto */
+
+.nd-tc-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 10px 9px 13px;
+    border-bottom: 1px solid var(--tc-borda);
+    background: var(--tc-fundo-2);
+    /* `grab` e não `move`: o cursor é a única pista de que a barra arrasta. */
+    cursor: grab;
+    /* Arrastar não pode selecionar o texto do título — sem isto, o
+     * movimento vira uma seleção azul atravessando a tela. */
+    user-select: none;
+    touch-action: none;
+    flex: 0 0 auto;
+}
+
+.nd-tc-win.is-dragging .nd-tc-bar {
+    cursor: grabbing;
+}
+
+.nd-tc-titulo {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.nd-tc-bar-acoes {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+}
+
+.nd-tc-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--tc-muted);
+    cursor: pointer;
+}
+
+.nd-tc-icone:hover,
+.nd-tc-icone:focus-visible {
+    background: var(--tc-bolha);
+    color: var(--tc-texto);
+}
+
+/* --------------------------------------------------------- duas colunas */
+
+.nd-tc-body {
+    flex: 1 1 auto;
+    display: flex;
+    /* `min-height: 0` é obrigatório num filho de flex que precisa rolar:
+     * sem ele o item assume a altura do conteúdo e a rolagem interna nunca
+     * acontece — a conversa longa empurra o composer para fora da janela. */
+    min-height: 0;
+}
+
+.nd-tc-side {
+    width: 232px;
+    flex: 0 0 232px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    border-right: 1px solid var(--tc-borda);
+    background: var(--tc-fundo-2);
+}
+
+.nd-tc-filtro {
+    padding: 8px;
+    border-bottom: 1px solid var(--tc-borda);
+}
+
+.nd-tc-pessoas {
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    overflow-y: auto;
+    flex: 1 1 auto;
+    scrollbar-width: thin;
+}
+
+.nd-tc-pessoa {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.nd-tc-pessoa:hover,
+.nd-tc-pessoa:focus-visible {
+    background: var(--tc-bolha);
+}
+
+.nd-tc-pessoa.is-ativa {
+    background: var(--tc-bolha);
+    box-shadow: inset 2px 0 0 var(--tc-primaria);
+}
+
+.nd-tc-ponto {
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    border-radius: 50%;
+    background: var(--tc-muted);
+    opacity: .45;
+}
+
+.nd-tc-pessoa.is-online .nd-tc-ponto {
+    background: var(--tc-online);
+    opacity: 1;
+}
+
+.nd-tc-nome {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 1.25;
+    /* Nome comprido não pode empurrar a badge de não lidas para fora. */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.nd-tc-papel {
+    display: block;
+    font-size: 10.5px;
+    color: var(--tc-muted);
+}
+
+.nd-tc-pessoa > span:nth-child(2) {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.nd-tc-nao-lidas {
+    margin-left: auto;
+    min-width: 18px;
+    padding: 1px 5px;
+    border-radius: 9px;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-align: center;
+    color: #fff;
+    background: #ea4d4d;
+}
+
+/* ------------------------------------------------------------ conversa */
+
+.nd-tc-thread {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+}
+
+.nd-tc-vazio {
+    margin: auto;
+    padding: 24px;
+    text-align: center;
+    max-width: 24rem;
+}
+
+.nd-tc-conversa {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1 1 auto;
+}
+
+.nd-tc-conversa[hidden] {
+    display: none;
+}
+
+.nd-tc-thread-head {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--tc-borda);
+    flex: 0 0 auto;
+}
+
+.nd-tc-quem {
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.nd-tc-msgs {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    scrollbar-width: thin;
+}
+
+.nd-tc-msg {
+    max-width: 78%;
+    padding: 7px 10px;
+    border-radius: 10px;
+    background: var(--tc-bolha);
+    font-size: 12.5px;
+    line-height: 1.45;
+    /* Mensagem é texto escrito por gente: quebra em qualquer ponto para
+     * que um link colado sem espaço não estique a janela inteira. */
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.nd-tc-msg.is-minha {
+    align-self: flex-end;
+    background: var(--tc-primaria);
+    color: #fff;
+}
+
+.nd-tc-msg-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: 10px;
+    opacity: .7;
+}
+
+.nd-tc-dia {
+    align-self: center;
+    font-size: 10.5px;
+    color: var(--tc-muted);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    margin: 6px 0 2px;
+}
+
+.nd-tc-aviso {
+    margin: 0;
+    padding: 5px 12px;
+    font-size: 10.5px;
+    color: var(--tc-muted);
+    border-top: 1px solid var(--tc-borda);
+    flex: 0 0 auto;
+}
+
+.nd-tc-congelada {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 11.5px;
+    color: #ffa21d;
+    border-top: 1px solid var(--tc-borda);
+    flex: 0 0 auto;
+}
+
+.nd-tc-erro {
+    margin: 0;
+    padding: 6px 12px;
+    font-size: 11.5px;
+    color: #ea4d4d;
+    flex: 0 0 auto;
+}
+
+.nd-tc-erro[hidden] {
+    display: none;
+}
+
+/* ------------------------------------------------------------- composer */
+
+.nd-tc-composer {
+    display: flex;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 8px 12px 12px;
+    flex: 0 0 auto;
+}
+
+.nd-tc-composer textarea {
+    flex: 1 1 auto;
+    resize: none;
+    max-height: 120px;
+    padding: 7px 10px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    border: 1px solid var(--tc-borda);
+    border-radius: 8px;
+    background: var(--tc-fundo);
+    color: var(--tc-texto);
+}
+
+.nd-tc-composer textarea:focus {
+    outline: 0;
+    border-color: var(--tc-primaria);
+    box-shadow: 0 0 0 3px rgba(52, 84, 209, .15);
+}
+
+/* ---------------------------------------------------- alça de tamanho */
+
+.nd-tc-grip {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    width: 16px;
+    height: 16px;
+    cursor: nwse-resize;
+    touch-action: none;
+    /* Duas riscas diagonais desenhadas em gradiente: é a convenção visual
+     * de "puxe aqui", e não custa um arquivo de imagem. */
+    background:
+        linear-gradient(135deg, transparent 0 45%, var(--tc-muted) 45% 55%, transparent 55%),
+        linear-gradient(135deg, transparent 0 70%, var(--tc-muted) 70% 80%, transparent 80%);
+    opacity: .5;
+}
+
+.nd-tc-grip:hover,
+.nd-tc-grip:focus-visible {
+    opacity: 1;
+}
+
+/* ------------------------------------------------------------- celular */
+
+/* Abaixo de 576px a janela ocupa a tela toda e deixa de arrastar e
+ * redimensionar. Uma janela de 720px que a pessoa precisa reposicionar com
+ * o dedo num aparelho de 360px não é uma janela, é um obstáculo — e a
+ * posição gravada no `localStorage` de um desktop viria com coordenadas
+ * fora da tela. O JavaScript ignora o tamanho gravado nesta faixa. */
+@media (max-width: 575.98px) {
+    .nd-tc-win {
+        inset: 0 !important;
+        width: auto !important;
+        height: auto !important;
+        border-radius: 0;
+        border: 0;
+    }
+
+    .nd-tc-bar {
+        cursor: default;
+    }
+
+    .nd-tc-grip {
+        display: none;
+    }
+
+    /* Uma coluna de cada vez: a lista de pessoas, ou a conversa. O botão
+     * "voltar" da barra é o que alterna, e só aparece nesta faixa. */
+    .nd-tc-side {
+        width: 100%;
+        flex: 1 1 auto;
+        border-right: 0;
+    }
+
+    .nd-tc-win.is-conversa .nd-tc-side {
+        display: none;
+    }
+
+    .nd-tc-win:not(.is-conversa) .nd-tc-thread {
+        display: none;
+    }
+}

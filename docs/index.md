@@ -120,6 +120,19 @@ PRD; é a referência operacional viva gerada a partir dele.
   cancelamento, sanitização de Markdown e revogação interrompendo uma
   leitura já aberta.
 
+## Mensagens internas da equipe
+
+- [Mensagens da equipe](homologation/mensagens-equipe.md) — janela flutuante
+  ao lado do sino, arrastável e redimensionável, com presença real e entrega
+  ao vivo por Redis Streams e SSE. As sete decisões com a alternativa
+  recusada, e o que a implementação deliberadamente **não** decide
+  (retenção e expurgo continuam com quem responde pela LGPD na clínica).
+  Homologado na pilha local com `checks/check_mensagens.py` e `curl -N`
+  pelo Traefik real; inclui os três defeitos encontrados ao homologar —
+  o stream que reentregava histórico numa conexão nova, as duas asserções
+  erradas do próprio roteiro, e o 403 de CSRF que se anunciava como
+  "organização suspensa".
+
 ## Homologação final e documentação (S14)
 
 - [Aceite final v1](homologation/v1.md) — rastreabilidade, pendências

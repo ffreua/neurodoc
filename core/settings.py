@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'base', 'accounts', 'tenancy', 'patients',
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
     'finance', 'ai', 'notifications', 'audit', 'reporting',
-    'integrations', 'events', 'exams',
+    'integrations', 'events', 'exams', 'teamchat',
 ]
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',
@@ -156,6 +156,10 @@ CACHES = {'default': {
     'KEY_PREFIX': 'neurodoc',
 }}
 AI_EVENTS_REDIS_URL = f'{REDIS_BASE}/2'
+# Banco próprio para o chat da equipe: presença e caixas de entrada são
+# efêmeras e de alto giro, e um `FLUSHDB` de emergência num deles não pode
+# derrubar o streaming da IA (nem o cache) junto.
+TEAMCHAT_REDIS_URL = f'{REDIS_BASE}/3'
 RELEASE_ID = env('RELEASE_ID', default='dev')
 if not re.fullmatch(r'(dev|[a-f0-9]{40})', RELEASE_ID):
     raise ValueError('Invalid RELEASE_ID')

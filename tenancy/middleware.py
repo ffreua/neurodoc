@@ -18,7 +18,13 @@ SAFE_METHODS = frozenset({'GET', 'HEAD', 'OPTIONS', 'TRACE'})
 #: Entrar, sair e trocar de organização não aparecem aqui porque vivem em
 #: `/accounts/`, fora do alcance deste middleware — quem está numa clínica
 #: congelada continua tendo como sair dela.
-ALWAYS_ALLOWED_PREFIXES = ('/app/notifications/',)
+#: `/app/mensagens/lida/` entra pela mesma razão, e só ela: marcar a
+#: conversa como lida zera um contador do **usuário**. O envio de mensagem
+#: (`/app/mensagens/<id>/enviar/`) fica de fora de propósito — é escrita de
+#: dado da clínica, e numa clínica congelada nada é criado. A separação de
+#: prefixo no `teamchat/urls.py` existe exatamente para permitir esta
+#: distinção aqui.
+ALWAYS_ALLOWED_PREFIXES = ('/app/notifications/', '/app/mensagens/lida/')
 
 
 class TenantMiddleware:

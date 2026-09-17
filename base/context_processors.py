@@ -60,6 +60,7 @@ def shell(request):
         'nd_tenant': None,
         'nd_roles': [],
         'nd_unread_notifications': 0,
+        'nd_unread_messages': 0,
         'nd_recent_notifications': (),
         'nd_user_initials': _initials(user) if user is not None and user.is_authenticated else '',
         'nd_can': {},
@@ -86,6 +87,14 @@ def shell(request):
         name: context.can(name) for name in context.capabilities | _ALL_CAPABILITIES
     }
     data['nd_unread_notifications'] = mine.filter(read_at__isnull=True).count()
+    # Mensagens da equipe: uma soma sobre as poucas linhas de participação
+    # deste usuário, e não uma contagem na tabela de mensagens — ver o
+    # comentário de `ConversationMember.unread_count`. É o que acende a
+    # badge do botão ao lado do sino já na primeira renderização, sem
+    # esperar a sondagem do JavaScript.
+    from teamchat.services import unread_total
+
+    data['nd_unread_messages'] = unread_total(context.tenant_id, context.user_id)
     # Não lidas primeiro, como na central. O sino mostra cinco linhas: se
     # ordenar só por data, cinco avisos lidos hoje escondem o pendente de
     # ontem — que é justamente o que ainda precisa de alguém.

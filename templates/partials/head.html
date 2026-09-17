@@ -7,3 +7,11 @@
 {# Duralux (Bootstrap 5.3 + Duralux tokens), self-hosted: no external request. #}
 <link rel="stylesheet" href="{% static 'duralux/duralux.css' %}">
 <link rel="stylesheet" href="{% static 'duralux/neurodoc.css' %}">
+{% comment %}Janela de mensagens da equipe. Folha própria, e não mais um
+bloco em neurodoc.css: é um componente inteiro que o tema não tem, e
+misturá-lo com os remendos do Duralux faria as duas coisas crescerem juntas.
+
+Este bloco é `comment` e não a forma curta com cerquilha porque aquela só
+vale numa linha só: em três linhas o Django não fecha o comentário e imprime
+o texto no topo de toda página do produto. Foi o que aconteceu aqui.{% endcomment %}
+<link rel="stylesheet" href="{% static 'teamchat/teamchat.css' %}">

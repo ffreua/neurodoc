@@ -134,7 +134,14 @@ servidor.{% endcomment %}
     </div>
 </div>
 
+{% comment %}Janela de mensagens da equipe: só existe para quem tem vínculo
+resolvido, pela mesma condição do cabeçalho e da barra lateral.{% endcomment %}
+{% if request.access_context %}
+{% include "partials/teamchat.html" %}
+{% endif %}
+
 <script src="{% static 'duralux/app.js' %}"></script>
+{% if request.access_context %}<script src="{% static 'teamchat/teamchat.js' %}" defer></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

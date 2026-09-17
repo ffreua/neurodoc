@@ -99,6 +99,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
 | `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores |
 | `notifications` | sino do usuário |
+| `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
 | `reporting` | indicadores e exportações (CSV protegido contra injeção de fórmula, expiram em 24 h) |
 | `integrations` | captura por scanner, antivírus, CEP, TUSS |
@@ -177,6 +178,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_prontuario.py`, `check_roteiro.py` | prontuário e roteiro de exame |
 | `check_mensageria.py`, `check_email.py` | outbox, entrega, reconciliação |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
+| `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são

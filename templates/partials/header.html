@@ -40,6 +40,29 @@
                     </div>
                 </div>
 
+                {% comment %}Mensagens da equipe, ao lado do sino.
+
+                Um `<button>` de verdade, e não um `<div role="button">` como
+                os vizinhos do tema: este abre uma janela e precisa responder
+                a Enter e Espaço sem JavaScript extra, e aparecer na ordem de
+                tabulação sozinho. `.border-0.bg-transparent` desfaz o que o
+                navegador pinta num botão; o resto do visual vem de
+                `.nxl-head-link`, igual aos outros ícones.
+
+                A badge já sai renderizada pelo servidor
+                (`nd_unread_messages`, em `base/context_processors.py`): quem
+                recarrega a página vê o número na hora, sem esperar a
+                primeira sondagem do JavaScript.{% endcomment %}
+                <div class="nxl-h-item">
+                    <button type="button" class="nxl-head-link me-0 border-0 bg-transparent"
+                            id="nd-tc-toggle" aria-expanded="false" aria-controls="nd-teamchat"
+                            aria-label="Mensagens da equipe" data-bs-toggle="tooltip">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <span class="badge bg-danger nxl-h-badge" id="nd-tc-badge"
+                              {% if not nd_unread_messages %}hidden{% endif %}>{{ nd_unread_messages }}</span>
+                    </button>
+                </div>
+
                 <div class="dropdown nxl-h-item">
                     <div class="nxl-head-link me-0" data-bs-toggle="dropdown" data-bs-auto-close="outside" role="button" aria-expanded="false" aria-label="Notificações">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
