@@ -40,6 +40,23 @@ def _first_error(form):
     return 'Não foi possível salvar.'
 
 
+def _texto_do_erro(exc):
+    """A mensagem de uma exceção, legível na tela.
+
+    `str()` de uma `ValidationError` do Django devolve a **repr da lista**:
+    `["Escolha o lado de X"]`, com colchetes e aspas. Era o que aparecia na
+    faixa vermelha do prontuário toda vez que faltava a lateralidade de um
+    achado — a frase certa, vestida de estrutura de dados.
+
+    `messages` é o atributo que a própria `ValidationError` expõe para
+    isso; qualquer outra exceção cai no `str()` de sempre.
+    """
+    mensagens = getattr(exc, 'messages', None)
+    if mensagens:
+        return ' '.join(str(m) for m in mensagens)
+    return str(exc)
+
+
 def _blocked(request, encounter, message, anchor=''):
     """Recusa uma ação sem tirar quem usa o sistema de dentro dele.
 
@@ -330,7 +347,7 @@ class FindingUpsertView(TenantScopedView):
                     data['numeric_value'], data['qualifier'], data['note'],
                 )
         except Exception as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-exame')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exame')
         messages.success(request, 'Achado registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
@@ -498,7 +515,7 @@ class FinalizeEncounterView(TenantScopedView):
         try:
             finalization.finalize_encounter(request.access_context, encounter, membership)
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, str(exc))
+            return _blocked(request, encounter, _texto_do_erro(exc))
         messages.success(request, 'Atendimento finalizado. O registro agora é imutável.')
         return redirect('clinical:detail', encounter_id=encounter.id)
 
@@ -527,7 +544,7 @@ class EncounterDiscardView(TenantScopedView):
                 reason=request.POST.get('reason', ''),
             )
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, str(exc))
+            return _blocked(request, encounter, _texto_do_erro(exc))
         messages.success(request, 'Atendimento descartado.')
         return redirect('clinical:timeline', patient_id=patient_id)
 
@@ -547,7 +564,7 @@ class AmendmentCreateView(TenantScopedView):
                 form.cleaned_data['reason'], form.cleaned_data['text'],
             )
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-adendos')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-adendos')
         messages.success(request, 'Adendo registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-adendos')
 
@@ -674,7 +691,7 @@ class ExamResultCreateView(TenantScopedView):
                     encounter=encounter, document_date=form.cleaned_data.get('performed_on'),
                 )
             except (UploadRejected, QuotaExceeded) as exc:
-                return _blocked(request, encounter, str(exc), anchor='tab-exames')
+                return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
             exam_result.attachment = attachment
 
         exam_result.save()
@@ -787,7 +804,7 @@ class ExamResultExtractView(TenantScopedView):
         try:
             job = request_extraction(request.access_context, exam_result)
         except (ExtractionUnavailable, AIAuthorizationDenied) as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-exames')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
         if job.status == 'disabled':
             messages.warning(request, 'A leitura por IA está desligada nesta instalação.')
         else:
@@ -834,7 +851,7 @@ class ExamResultDraftReviewView(TenantScopedView):
             else:
                 return _blocked(request, encounter, 'Ação inválida.', anchor='tab-exames')
         except ExtractionUnavailable as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-exames')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 
@@ -847,7 +864,7 @@ class DiagnosticSupportRequestView(TenantScopedView):
         try:
             job = request_diagnostic_support(request.access_context, encounter)
         except AIAuthorizationDenied as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-hipoteses')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-hipoteses')
         if job.status == 'disabled':
             messages.warning(request, 'O apoio por IA está desligado nesta instalação.')
         elif job.status == 'succeeded':
