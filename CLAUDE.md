@@ -190,7 +190,9 @@ número anunciado é o do catálogo.
 Docker Swarm, imagem publicada por SHA do commit, Traefik com Let's
 Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 
-- **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`.
+- **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`, e
+  `scripts/setup_deploy.sh` para fazê-lo sozinho numa VPS limpa (retoma de
+  onde parou; não reimplementa build/push/stack — chama `ops/deploy.py`).
 - Mecanismo, rollback, backup/restauração (cifrado com `age`) e
   monitoramento: `docs/operations/`.
 - `RELEASE_ID` é o SHA e entra no caminho dos estáticos
