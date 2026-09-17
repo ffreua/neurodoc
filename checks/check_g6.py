@@ -64,12 +64,18 @@ if not doc.validation_token or len(doc.validation_token) != 16:
 data = render_medical_document_pdf(doc)
 texto, paginas = pdf_text(data)
 print('  paginas:', paginas)
-print('  tem URL de verificacao:', '/verificar/' in texto)
-print('  tem codigo formatado:', doc.validation_token[:4] in texto)
+# O QR e o bloco de verificacao passaram a sair SO em documento assinado
+# digitalmente. Antes saiam em qualquer PDF, inclusive no rascunho: o
+# `validation_token` e atribuido ja na criacao, e a unica condicao era ele
+# existir. Um QR no rascunho leva a farmacia a conferir e receber "documento
+# nao emitido" -- ou, pior, a tratar o papel como conferido. No documento
+# impresso para assinar a caneta vale o mesmo: quem responde por ele ali e a
+# assinatura de proprio punho, nao este sistema.
+print('  RASCUNHO sem URL de verificacao:', '/verificar/' not in texto)
 if paginas != 1:
     failures.append(f'receita simples saiu com {paginas} paginas')
-if '/verificar/' not in texto:
-    failures.append('o PDF nao traz a URL de verificacao')
+if '/verificar/' in texto:
+    failures.append('o rascunho trouxe a URL de verificacao — ela so vale com assinatura digital')
 
 print('=== 2. rascunho diz que e rascunho ===')
 print('  tarja de rascunho presente:', 'RASCUNHO' in texto)
@@ -148,21 +154,57 @@ for kind, campos in [
     created.append(d)
     t, _ = pdf_text(render_medical_document_pdf(d))
     tem_qr = '/verificar/' in t
-    print(f'  {kind:14} token={bool(d.validation_token)} url_no_pdf={tem_qr}')
-    if not d.validation_token or not tem_qr:
-        failures.append(f'{kind} saiu sem codigo de verificacao')
+    print(f'  {kind:14} token={bool(d.validation_token)} rascunho_sem_url={not tem_qr}')
+    if not d.validation_token:
+        failures.append(f'{kind} saiu sem codigo de verificacao no banco')
+    if tem_qr:
+        failures.append(f'{kind} trouxe a URL de verificacao no rascunho')
 
 print('=== 7. pagina publica de verificacao ===')
+# Zera o limite por IP antes de comecar.
+#
+# A pagina de verificacao limita tentativas por IP na cache compartilhada
+# (`documents.verification._too_many_attempts`). Rodando a suite inteira, os
+# roteiros anteriores que abrem `/verificar/` esgotam a cota do
+# `127.0.0.1`, e este chegava com HTTP 429 em tudo -- passando sozinho e
+# falhando em conjunto, que e o pior tipo de roteiro: o que so quebra
+# quando ninguem esta olhando so para ele.
+#
+# Limpar a chave e o certo: o que este trecho testa e a PAGINA. Quem testa
+# o limitador e a secao propria dele.
+from django.core.cache import cache
+
+cache.delete('docverify:127.0.0.1')
 anon = Client()
 r = anon.get(f'/verificar/{doc.validation_token}/')
 body = r.content.decode()
 print('  HTTP:', r.status_code)
 print('  mostra que NAO foi emitido:', 'NÃO foi emitido' in body)
-print('  nome mascarado:', patient.full_name not in body)
-print('  conteudo clinico ausente:', 'Dipirona' not in body)
+# A pergunta certa nao e "o nome inteiro aparece?", e sim "aparece mais do
+# que primeiro nome + inicial?".
+#
+# A forma anterior (`full_name not in body`) e impossivel de satisfazer
+# para quem tem sobrenome de uma letra: o nome "Fernando F" mascara para
+# "Fernando F***", que CONTEM "Fernando F". A mascara esta certa -- para
+# esse nome nao ha o que esconder --, e o roteiro acusava um vazamento que
+# nao existe. Basta um paciente assim no banco para o roteiro passar a
+# falhar para sempre, escondendo as falhas de verdade que ele testa.
+from documents.verification import mask_patient_name
+
+mascarado = mask_patient_name(patient.full_name)
+# Tira a mascara do corpo antes de procurar o nome inteiro. Sem isso a
+# busca acusa a propria mascara: "Fernando F" esta dentro de
+# "Fernando F***", e o roteiro dizia que a pagina vazou o nome quando ela
+# tinha feito exatamente o que devia.
+fora_da_mascara = body.replace(mascarado, '')
+print('  nome na pagina:', mascarado)
+print('  mostra o mascarado:', mascarado in body)
+print('  nome inteiro FORA da mascara:', patient.full_name in fora_da_mascara)
 if r.status_code != 200:
     failures.append(f'a pagina de verificacao devolveu {r.status_code}')
-if patient.full_name in body:
+if mascarado not in body:
+    failures.append('a pagina publica nao mostrou nem o nome mascarado')
+if patient.full_name in fora_da_mascara:
     failures.append('a pagina publica mostrou o nome completo do paciente')
 if 'Dipirona' in body:
     failures.append('a pagina publica vazou conteudo clinico')
@@ -190,6 +232,15 @@ doc2.document_number = 'REC-2026-000998'
 doc2.issued_at = timezone.now()
 doc2.signature_metadata = {'content_sha256': 'b' * 64}
 doc2.save()
+# O contraponto do que mudou: assinado digitalmente, o QR e a URL TEM de
+# sair. Sem esta linha, "QR so em documento assinado" passaria igualmente se
+# o QR tivesse sumido de todo lugar.
+texto_emitido, _ = pdf_text(render_medical_document_pdf(doc2))
+print('  EMITIDO traz a URL de verificacao:', '/verificar/' in texto_emitido)
+print('  EMITIDO traz o codigo formatado:', doc2.validation_token[:4] in texto_emitido)
+if '/verificar/' not in texto_emitido:
+    failures.append('o documento assinado saiu SEM a URL de verificacao')
+
 r = anon.get(f'/verificar/{doc2.validation_token}/')
 body = r.content.decode()
 print('  localizado e emitido:', 'Documento localizado e emitido' in body)
