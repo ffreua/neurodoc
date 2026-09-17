@@ -1,4 +1,4 @@
-{% load static %}
+{% load static %}{% load nd %}
 <nav class="nxl-navigation">
     <div class="navbar-wrapper">
         <div class="m-header">
@@ -229,12 +229,29 @@
 
             <div class="card text-center">
                 <div class="card-body">
+                    {% comment %}O logotipo da clínica, quando ela enviou um.
+
+                    Vem de `tenancy:clinic-logo-file`, que serve o arquivo do
+                    inquilino da **sessão** — o endereço não aceita id de
+                    organização, de propósito. Sem logotipo, fica o escudo
+                    genérico: uma moldura vazia esperando imagem é pior do
+                    que um símbolo assumido.{% endcomment %}
+                    {% if nd_clinic_has_logo %}
+                    <img src="{% url 'tenancy:clinic-logo-file' %}" alt=""
+                         class="nd-sidebar-logo mx-auto mb-3 d-block">
+                    {% else %}
                     <div class="avatar-text avatar-lg bg-soft-primary text-primary mx-auto mb-3">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                     </div>
+                    {% endif %}
                     <h6 class="text-dark fw-bolder mb-1">{% if nd_tenant %}{{ nd_tenant.trade_name|default:nd_tenant.legal_name }}{% else %}Organização{% endif %}</h6>
                     <p class="fs-11 text-muted mb-3">
-                        {% for role in nd_roles %}<span class="badge bg-gray-200 text-dark me-1">{{ role }}</span>{% endfor %}
+                        {% comment %}`nd_role`: `nd_roles` são os valores crus do
+                        `ArrayField` (`owner`, `doctor`), e não o rótulo do
+                        `TextChoices` — que só é resolvido em campo com
+                        `choices`. Sem o filtro, o menu mostrava o nome interno
+                        do papel embaixo do nome da clínica.{% endcomment %}
+                        {% for role in nd_roles %}<span class="badge bg-gray-200 text-dark me-1">{{ role|nd_role }}</span>{% endfor %}
                     </p>
                     <a class="btn btn-light-primary w-100 btn-sm" href="{% url 'accounts:tenant-picker' %}">Trocar organização</a>
                 </div>

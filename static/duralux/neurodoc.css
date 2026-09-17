@@ -173,6 +173,19 @@ button:focus-visible,
     left: 0;
 }
 
+/* ---- Logotipo da clínica no menu lateral ----------------------------- */
+
+/* Altura fixa e largura livre: logotipo de clínica vem em proporção
+ * imprevisível — faixa horizontal, quadrado, brasão alto. Limitar a altura
+ * e deixar a largura seguir mantém a proporção e impede que uma faixa
+ * larga estoure a coluna de 280px do menu. */
+.nd-sidebar-logo {
+    max-height: 56px;
+    max-width: 100%;
+    width: auto;
+    object-fit: contain;
+}
+
 /* ---- Long clinical text --------------------------------------------- */
 .nd-prose {
     white-space: pre-wrap;
