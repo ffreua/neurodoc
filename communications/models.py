@@ -5,25 +5,25 @@ from base.models import TenantModel
 
 
 class DeliveryChannel(models.TextChoices):
-    EMAIL = 'email', 'Email'
+    EMAIL = 'email', 'E-mail'
     SMS = 'sms', 'SMS'
 
 
 class DeliveryStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    ACCEPTED = 'accepted', 'Accepted'
-    DELIVERED = 'delivered', 'Delivered'
-    UNKNOWN = 'unknown', 'Unknown'
-    FAILED = 'failed', 'Failed'
-    NO_CONTACT = 'no_contact', 'No contact'
-    NEEDS_RECONCILIATION = 'needs_reconciliation', 'Needs reconciliation'
+    PENDING = 'pending', 'Na fila'
+    ACCEPTED = 'accepted', 'Aceita pelo provedor'
+    DELIVERED = 'delivered', 'Entregue'
+    UNKNOWN = 'unknown', 'Sem confirmação'
+    FAILED = 'failed', 'Falhou'
+    NO_CONTACT = 'no_contact', 'Sem contato cadastrado'
+    NEEDS_RECONCILIATION = 'needs_reconciliation', 'Aguardando reconciliação'
 
 
 class DeliveryAttemptOutcome(models.TextChoices):
-    ACCEPTED = 'accepted', 'Accepted'
-    DELIVERED = 'delivered', 'Delivered'
-    UNKNOWN = 'unknown', 'Unknown'
-    FAILED = 'failed', 'Failed'
+    ACCEPTED = 'accepted', 'Aceita pelo provedor'
+    DELIVERED = 'delivered', 'Entregue'
+    UNKNOWN = 'unknown', 'Sem confirmação'
+    FAILED = 'failed', 'Falhou'
 
 
 class Delivery(TenantModel):

@@ -11,8 +11,8 @@ from .chat_models import (  # noqa: F401,E402
 
 
 class AIJobKind(models.TextChoices):
-    ENCOUNTER_SUMMARY = 'encounter_summary', 'Encounter summary'
-    PATIENT_SUMMARY = 'patient_summary', 'Patient summary'
+    ENCOUNTER_SUMMARY = 'encounter_summary', 'Resumo do atendimento'
+    PATIENT_SUMMARY = 'patient_summary', 'Resumo do paciente'
     DIAGNOSTIC_SUPPORT = 'diagnostic_support', 'Apoio ao raciocínio diagnóstico'
     LAB_EXTRACTION = 'lab_extraction', 'Leitura de laudo laboratorial'
     REPORT_TRANSCRIPTION = 'report_transcription', 'Transcrição de laudo'

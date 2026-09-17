@@ -267,8 +267,8 @@ class ClinicProfile(TenantModel):
 
 
 class InvitationPurpose(models.TextChoices):
-    PLATFORM = 'platform', 'Platform'
-    COLLABORATOR = 'collaborator', 'Collaborator'
+    PLATFORM = 'platform', 'Plataforma'
+    COLLABORATOR = 'collaborator', 'Colaborador'
 
 
 class Invitation(TimestampedModel):

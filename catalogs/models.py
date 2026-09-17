@@ -9,9 +9,9 @@ class CatalogSystem(models.TextChoices):
 
 
 class CatalogReleaseStatus(models.TextChoices):
-    DRAFT = 'draft', 'Draft'
-    ACTIVE = 'active', 'Active'
-    SUPERSEDED = 'superseded', 'Superseded'
+    DRAFT = 'draft', 'Rascunho'
+    ACTIVE = 'active', 'Ativa'
+    SUPERSEDED = 'superseded', 'Substituída'
 
 
 class CatalogRelease(TimestampedModel):

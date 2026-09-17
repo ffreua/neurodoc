@@ -4,22 +4,22 @@ from base.models import TenantModel
 
 
 class ChatSessionStatus(models.TextChoices):
-    ACTIVE = 'active', 'Active'
-    ARCHIVED = 'archived', 'Archived'
+    ACTIVE = 'active', 'Ativa'
+    ARCHIVED = 'archived', 'Arquivada'
 
 
 class ChatMessageRole(models.TextChoices):
-    USER = 'user', 'User'
-    ASSISTANT = 'assistant', 'Assistant'
-    SYSTEM = 'system', 'System'
+    USER = 'user', 'Usuário'
+    ASSISTANT = 'assistant', 'Assistente'
+    SYSTEM = 'system', 'Sistema'
 
 
 class ChatMessageState(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    STREAMING = 'streaming', 'Streaming'
-    COMPLETE = 'complete', 'Complete'
-    CANCELLED = 'cancelled', 'Cancelled'
-    FAILED = 'failed', 'Failed'
+    PENDING = 'pending', 'Pendente'
+    STREAMING = 'streaming', 'Transmitindo'
+    COMPLETE = 'complete', 'Concluída'
+    CANCELLED = 'cancelled', 'Cancelada'
+    FAILED = 'failed', 'Falhou'
 
 
 class ChatSession(TenantModel):

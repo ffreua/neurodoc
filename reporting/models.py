@@ -4,9 +4,9 @@ from base.models import TenantModel
 
 
 class ReportDefinitionStatus(models.TextChoices):
-    DRAFT = 'draft', 'Draft'
-    APPROVED = 'approved', 'Approved'
-    RETIRED = 'retired', 'Retired'
+    DRAFT = 'draft', 'Rascunho'
+    APPROVED = 'approved', 'Aprovada'
+    RETIRED = 'retired', 'Descontinuada'
 
 
 class ReportDefinition(TenantModel):
