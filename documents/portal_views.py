@@ -6,7 +6,7 @@ expira em trinta minutos.
 """
 
 from django.contrib import messages
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
 
@@ -181,3 +181,22 @@ class PortalDoneView(PortalBaseView):
 
     def get(self, request, slug):
         return render(request, self.template_name, self.base_context())
+
+
+class PortalMedicationSearchView(PortalBaseView):
+    """Autocomplete de medicamento no portal público.
+
+    Público porque o formulário é público — e o que ele devolve é a lista
+    de preços da CMED, que a Anvisa publica na internet aberta. Não há
+    nada aqui do paciente, da clínica nem do sistema.
+
+    Herda de `PortalBaseView` de propósito: assim o endereço só responde
+    para clínica cujo portal está **publicado**, exatamente como o
+    formulário. Uma clínica que desligou o portal não passa a ter um
+    endpoint aberto por esquecimento.
+    """
+
+    def get(self, request, slug):
+        from catalogs.selectors import search_medications
+
+        return JsonResponse({'results': search_medications(request.GET.get('q', ''))})

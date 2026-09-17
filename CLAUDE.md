@@ -90,7 +90,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
 | `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`; **planos, limites e a matriz de permissão** |
 | `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto |
-| `catalogs` | CID-10 e espelho da TUSS (sincronizado semanalmente pelo worker), CEP dos Correios |
+| `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
 | `clinical` | `Encounter`, achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
 | `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados |
@@ -155,7 +155,12 @@ docker compose exec app python manage.py seed_demo
 
 Comandos úteis: `seed_demo`, `issue_platform_invitation`,
 `create_superadmin`, `install_exam_template`, `import_catalog`,
-`sync_tuss`, `testar_email`, `prepare_recovery`, `verify_physician`.
+`sync_tuss`, `import_cmed`, `testar_email`, `prepare_recovery`,
+`verify_physician`.
+
+`import_cmed` traz a lista de medicamentos da Anvisa (XLSX, ~12 MB) e roda
+**no worker** — só ele alcança a internet. `--dry-run` lê e conta sem
+gravar, que é o que se roda quando a CMED publica um arquivo novo.
 
 ## 7. Verificação (o que substitui os testes)
 
@@ -179,6 +184,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_mensageria.py`, `check_email.py` | outbox, entrega, reconciliação |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
 | `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
+| `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são

@@ -493,8 +493,26 @@ digitado em outra.{% endcomment %}
                         {% include "partials/field.html" with field=form.plan_text col="col-lg-8" %}
                         {% include "partials/field.html" with field=form.finalization_justification col="col-lg-4" %}
                     </div>
-                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy
-                            {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar conduta</button>
+                    {% comment %}Os dois botões numa faixa flex com margem própria.
+
+                    O de emitir documento estava solto logo depois do submit,
+                    dentro do form e sem margem: o `mt-3` era do botão de salvar,
+                    então o link subia e encostava nos campos de cima. Agora a
+                    margem é do contêiner, e vale para os dois.
+
+                    O rótulo era "Receita, pedido de exame, encaminhamento…" e
+                    esticava o botão pela metade da linha. O tipo se escolhe na
+                    tela seguinte; aqui basta dizer o que o botão faz.{% endcomment %}
+                    <div class="d-flex align-items-center flex-wrap gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary" data-nd-busy
+                                {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar conduta</button>
+                        {% if nd_can.issue_document %}
+                        <a class="btn btn-light-primary" href="{% url 'documents:medical-new' encounter.id %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            <span>Emitir documento</span>
+                        </a>
+                        {% endif %}
+                    </div>
                 </form>
             </div>
         </div>

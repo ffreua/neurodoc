@@ -1,4 +1,5 @@
 {% extends "base_auth.html" %}
+{% load static %}
 {% block title %}Solicitação — {{ clinic_name }}{% endblock %}
 {% block card_width %}wd-700{% endblock %}
 {% block tagline %}{{ clinic_name }}{% endblock %}
@@ -48,13 +49,23 @@ Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e v
     <div data-portal-kind="prescription_simple prescription_special" hidden>
         <h6 class="fw-bold text-dark">Medicações</h6>
         <p class="fs-12 text-muted">
-            Escreva exatamente como está na caixa e como você usa. Se não souber a
-            dose, escreva o que sabe — o médico confere no prontuário.
+            Comece a digitar o nome e escolha na lista — ela vem da tabela de
+            medicamentos da Anvisa. Se o seu não estiver lá (manipulado,
+            importado), escreva à mão: o campo aceita. Se não souber a dose,
+            escreva o que sabe — o médico confere no prontuário.
         </p>
         <div id="med-rows">
-            <div class="row g-2 mb-2 med-row">
+            {% comment %}`data-nd-med-grupo` na linha: o botão "Adicionar
+            medicação" CLONA esta linha, e o autocomplete precisa achar o
+            campo de dose **desta** linha, não o da primeira. Por isso o
+            destino é um seletor procurado dentro do grupo, e não um id —
+            ids clonados se repetem.{% endcomment %}
+            <div class="row g-2 mb-2 med-row" data-nd-med-grupo>
                 <div class="col-sm-5">
-                    <input type="text" class="form-control" name="med_name" placeholder="Nome do medicamento">
+                    <input type="text" class="form-control" name="med_name"
+                           placeholder="Nome do medicamento"
+                           data-nd-med-url="{% url 'portal:medicamento-search' slug %}"
+                           data-nd-med-dose="[name=med_dose]">
                 </div>
                 <div class="col-sm-3">
                     <input type="text" class="form-control" name="med_dose" placeholder="Dose (ex.: 50 mg)">
@@ -109,6 +120,7 @@ Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e v
 
 {% endblock %}
 {% block scripts %}
+<script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
 <script>
 (function () {
     var form = document.getElementById('portal-form');
@@ -142,7 +154,16 @@ Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e v
             if (rows.querySelectorAll('.med-row').length >= 20) { return; }
             var copia = rows.querySelector('.med-row').cloneNode(true);
             copia.querySelectorAll('input').forEach(function (i) { i.value = ''; });
+            /* A cópia traz junto a lista de resultados e a marca de "já
+             * ligado" da linha original; as duas têm de sair, senão a linha
+             * nova nasce com o resultado da busca anterior aberto e sem
+             * autocomplete próprio. */
+            copia.querySelectorAll('.nd-med-lista, .nd-med-aviso').forEach(function (e) { e.remove(); });
+            copia.querySelectorAll('[data-nd-med-ligado]').forEach(function (e) {
+                delete e.dataset.ndMedLigado;
+            });
             rows.appendChild(copia);
+            if (window.ndMedicamentos) { window.ndMedicamentos.ligar(copia); }
         });
     }
 })();

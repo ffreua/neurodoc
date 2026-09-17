@@ -15,3 +15,7 @@ Este bloco é `comment` e não a forma curta com cerquilha porque aquela só
 vale numa linha só: em três linhas o Django não fecha o comentário e imprime
 o texto no topo de toda página do produto. Foi o que aconteceu aqui.{% endcomment %}
 <link rel="stylesheet" href="{% static 'teamchat/teamchat.css' %}">
+{% comment %}Autocomplete de medicamento (CMED). Entra aqui, e não no shell
+de dentro de `/app/`, porque o portal público do paciente também o usa — e
+o portal não carrega o tema do aplicativo.{% endcomment %}
+<link rel="stylesheet" href="{% static 'catalogs/medicamentos.css' %}">

@@ -120,6 +120,16 @@ PRD; é a referência operacional viva gerada a partir dele.
   cancelamento, sanitização de Markdown e revogação interrompendo uma
   leitura já aberta.
 
+## Prescrição e catálogo de medicamentos
+
+- [Prescrição: catálogo da CMED, emissão avulsa e o QR](homologation/prescricao-cmed.md) —
+  26 mil apresentações da Anvisa no autocomplete das três telas, com a tarja
+  avisando (e não decidindo) sobre controle especial; documento emitido a
+  partir da ficha do paciente, sem atendimento; emissão em papel para
+  assinar à caneta; e o QR passando a sair só em documento assinado
+  digitalmente. Inclui os dois roteiros que estavam quebrados e foram
+  consertados.
+
 ## Mensagens internas da equipe
 
 - [Mensagens da equipe](homologation/mensagens-equipe.md) — janela flutuante

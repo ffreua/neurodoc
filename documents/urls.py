@@ -16,6 +16,16 @@ urlpatterns = [
 
     path('encounters/<uuid:encounter_id>/medical/', views.MedicalDocumentListView.as_view(), name='medical-list'),
     path('encounters/<uuid:encounter_id>/medical/new/', views.MedicalDocumentCreateView.as_view(), name='medical-new'),
+    # Emissão a partir da ficha do paciente, sem atendimento — a renovação
+    # de receita que se pede por telefone. Ver `PatientDocumentCreateView`.
+    path(
+        'patients/<uuid:patient_id>/medical/new/',
+        views.PatientDocumentCreateView.as_view(), name='patient-medical-new',
+    ),
+    path(
+        'medical/<uuid:document_id>/emitir-em-papel/',
+        views.MedicalDocumentIssueOnPaperView.as_view(), name='medical-issue-paper',
+    ),
     path('medical/<uuid:document_id>/', views.MedicalDocumentDetailView.as_view(), name='medical-detail'),
     path('medical/<uuid:document_id>/review/', views.MedicalDocumentReviewView.as_view(), name='medical-review'),
     path('medical/<uuid:document_id>/discard/', views.MedicalDocumentDiscardView.as_view(), name='medical-discard'),

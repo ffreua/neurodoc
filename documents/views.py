@@ -255,6 +255,78 @@ class MedicalDocumentCreateView(ClinicalDocumentView):
         return redirect('documents:medical-detail', document_id=document.id)
 
 
+class PatientDocumentCreateView(ClinicalDocumentView):
+    """Emitir documento a partir da ficha do paciente, sem atendimento.
+
+    É a receita que se renova por telefone, o pedido de exame que ficou
+    faltando, o encaminhamento que o paciente voltou para buscar. Exigir um
+    atendimento nesses casos levava a abrir uma consulta que não houve só
+    para poder imprimir — e consulta inventada no prontuário é pior do que
+    documento sem consulta.
+
+    O caminho continua sendo o mesmo do atendimento daí em diante: gera
+    rascunho, revisa, e então assina digitalmente ou emite para assinar à
+    mão. O que muda é só a ausência do vínculo com o atendimento, que fica
+    registrada no próprio documento e na trilha.
+    """
+
+    def _patient_or_404(self, request, patient_id):
+        return get_object_or_404(
+            Patient.objects.filter(tenant_id=request.access_context.tenant_id), id=patient_id,
+        )
+
+    def get(self, request, patient_id):
+        paciente = self._patient_or_404(request, patient_id)
+        return render(request, 'documents/medical_form.html', {
+            'form': MedicalDocumentForm(), 'patient': paciente, 'sem_atendimento': True,
+        })
+
+    def post(self, request, patient_id):
+        paciente = self._patient_or_404(request, patient_id)
+        physician_membership = _own_doctor_membership_or_403(request)
+        if physician_membership is None:
+            return HttpResponseForbidden('Only a doctor membership may author a medical document.')
+        form = MedicalDocumentForm(request.POST)
+        contexto = {'patient': paciente, 'sem_atendimento': True}
+        if not form.is_valid():
+            return render(request, 'documents/medical_form.html', dict(contexto, form=form))
+        kind = form.cleaned_data['kind']
+        content_fields = {field: form.cleaned_data[field] for field in document_kinds.all_fields(kind)}
+        from tenancy.models import Tenant
+
+        tenant = Tenant.objects.get(id=request.access_context.tenant_id)
+        try:
+            document = issuance.create_draft(
+                tenant, paciente, None, physician_membership, request.user.id, kind, content_fields,
+            )
+        except (ValueError, issuance.MissingPhysicianProfile) as exc:
+            form.add_error(None, str(exc))
+            return render(request, 'documents/medical_form.html', dict(contexto, form=form))
+        return redirect('documents:medical-detail', document_id=document.id)
+
+
+class MedicalDocumentIssueOnPaperView(ClinicalDocumentView):
+    """Emite o documento para ser assinado à caneta e carimbado.
+
+    `POST`, e nunca um link: atribui número de documento e muda o estado.
+    """
+
+    def post(self, request, document_id):
+        document = _medical_document_or_404(request, document_id)
+        try:
+            issuance.issue_on_paper(document, request.user.id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('documents:medical-detail', document_id=document.id)
+        messages.success(
+            request,
+            'Documento emitido para assinatura de próprio punho. '
+            'Imprima, assine e carimbe — ele não leva QR, porque quem responde por '
+            'ele no papel é a sua assinatura.',
+        )
+        return redirect('documents:medical-detail', document_id=document.id)
+
+
 class MedicalDocumentDetailView(ClinicalDocumentView):
     def get(self, request, document_id):
         document = _medical_document_or_404(request, document_id)

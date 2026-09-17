@@ -15,7 +15,10 @@ import re
 from django.db.models import Q
 
 from .importers import normalize_for_search
-from .models import ProcedureCode, CatalogRelease, CatalogReleaseStatus, CatalogSystem, DiagnosisCode
+from .models import (
+    CatalogRelease, CatalogReleaseStatus, CatalogSystem, DiagnosisCode, MedicationProduct,
+    ProcedureCode,
+)
 
 MAX_RESULTS = 20
 MIN_TERM_CHARS = 2
@@ -190,3 +193,74 @@ def search_procedure_codes(term, limit=MAX_RESULTS):
          'in_force': row.active}
         for row in ordered
     ]
+
+
+# ------------------------------------------------------------ medicamentos
+
+#: A busca de medicamento devolve mais linhas que a de código.
+#:
+#: A lista da CMED é por **apresentação**: "dipirona" tem dezenas de
+#: entradas que diferem só na concentração e na embalagem, e cortar em vinte
+#: esconderia justamente a apresentação que o médico procura. Trinta cabe
+#: numa lista rolável sem virar catálogo.
+MAX_MEDICAMENTOS = 30
+
+
+def search_medications(term, limit=MAX_MEDICAMENTOS):
+    """Apresentações que casam com `term`, por substância ou nome comercial.
+
+    A ordenação põe na frente o que **começa** com o que foi digitado:
+    quem digita "clonaz" quer clonazepam antes de um combinado que mencione
+    clonazepam no meio da substância. Depois vem o nome comercial, e por
+    último o resto.
+
+    Cada resultado carrega a tarja e a sugestão de controle especial —
+    "sugestão", e não decisão, pelo motivo escrito em `MedicationTarja`.
+    """
+    term = (term or '').strip()
+    if len(term) < MIN_TERM_CHARS:
+        return []
+    release = active_release(CatalogSystem.CMED)
+    if release is None:
+        return []
+
+    needle = normalize_for_search(term)
+    linhas = MedicationProduct.objects.filter(release=release, active=True).filter(
+        _token_filter(needle)
+    )[: limit * 6]
+
+    tokens = needle.split()
+    primeiro = tokens[0] if tokens else needle
+
+    def posicao(linha):
+        substancia = normalize_for_search(linha.substance)
+        produto = normalize_for_search(linha.product)
+        texto = normalize_for_search(f'{linha.substance} {linha.product} {linha.presentation}')
+        # Desempate por onde os termos aparecem, e não só alfabético.
+        #
+        # "dipirona 500" trazia 1000 MG na frente: o "500" casava com o
+        # "X 500" da quantidade da caixa, no fim da apresentação, e a ordem
+        # alfabética não distinguia isso de um "500 MG" no começo. Somar a
+        # posição de cada termo põe na frente a linha em que eles aparecem
+        # cedo — que é a dosagem, não o tamanho da embalagem.
+        cedo = sum(texto.find(t) if t in texto else 999 for t in tokens)
+        if substancia.startswith(primeiro):
+            return (0, cedo, substancia, linha.presentation)
+        if produto.startswith(primeiro):
+            return (1, cedo, produto, linha.presentation)
+        return (2, cedo, substancia, linha.presentation)
+
+    resultados = []
+    for linha in sorted(linhas, key=posicao)[:limit]:
+        resultados.append({
+            'id': str(linha.id),
+            'rotulo': linha.rotulo(),
+            'substancia': linha.substance[:200],
+            'produto': linha.product,
+            'apresentacao': linha.presentation,
+            'laboratorio': linha.laboratory,
+            'tarja': linha.tarja,
+            'tarja_label': linha.get_tarja_display(),
+            'controle_especial': linha.sugere_controle_especial,
+        })
+    return resultados

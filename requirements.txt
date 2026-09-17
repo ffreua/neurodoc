@@ -3309,3 +3309,19 @@ zstandard==0.25.0 \
     --hash=sha256:fd7a5004eb1980d3cefe26b2685bcb0b17989901a70a1040d1ac86f1d898c551 \
     --hash=sha256:ffef5a74088f1e09947aecf91011136665152e0b4b359c42be3373897fb39b01
     # via langsmith
+
+# openpyxl e et-xmlfile foram acrescentados a este lock SEM recompilar o
+# resto. Um `uv pip compile` completo subiria vinte e dois pacotes sem
+# relacao nenhuma com ler planilha -- entre eles `pyhanko-certvalidator`,
+# que valida a cadeia do certificado com que se assina receita, e `openai`
+# de 3.8 para 3.14. Trocar isso de carona numa mudanca sobre medicamentos e
+# como se descobre, semanas depois, que a assinatura parou de validar.
+#
+# Ao recompilar de proposito um dia, este bloco sai e volta na ordem
+# alfabetica normal; `requirements.in` ja lista openpyxl.
+openpyxl==3.1.5 \
+    --hash=sha256:5282c12b107bffeef825f4617dc029afaf41d0ea60823bbb665ef3079dc79de2 \
+    --hash=sha256:cf0e3cf56142039133628b5acffe8ef0c12bc902d2aadd3e0fe5878dc08d1050
+et-xmlfile==2.0.0 \
+    --hash=sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa \
+    --hash=sha256:dab3f4764309081ce75662649be815c4c9081e88f0837825f90fd28317d4da54

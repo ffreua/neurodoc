@@ -70,6 +70,49 @@ def _as_issued(document):
     return document
 
 
+def _as_paper(document):
+    """Cópia em memória marcada como emitida no papel, só para desenhar.
+
+    Mesma razão de `_as_issued`: o estado real só muda depois de o arquivo
+    existir.
+    """
+    document.status = MedicalDocumentStatus.ISSUED_ON_PAPER
+    return document
+
+
+@transaction.atomic
+def issue_on_paper(document, actor_id):
+    """Emite para ser assinado à caneta e carimbado.
+
+    É o caminho de quem não usa certificado digital, ou de quem está sem
+    ele naquele dia. O documento ganha número e data como qualquer outro, e
+    o PDF sai **sem** a tarja de rascunho e **sem** QR — ver
+    `MedicalDocumentStatus.ISSUED_ON_PAPER` e `pdf/common._qr_flowable`.
+
+    Sem `SELECT ... FOR UPDATE` seria possível emitir duas vezes em duas
+    abas e gastar dois números de documento para a mesma receita; o
+    `select_for_update` fecha isso, como no caminho da assinatura digital.
+    """
+    locked = MedicalDocument.objects.select_for_update().get(pk=document.pk)
+    if locked.status not in (MedicalDocumentStatus.DRAFT, MedicalDocumentStatus.READY_TO_SIGN):
+        raise ValueError('Só um rascunho ou documento pronto para assinar pode ser emitido em papel.')
+    locked.document_number = _next_document_number(locked.tenant_id, locked.kind)
+    locked.issued_at = timezone.now()
+    pdf_bytes = render_medical_document_pdf(_as_paper(locked))
+    locked.status = MedicalDocumentStatus.ISSUED_ON_PAPER
+    locked.pdf_attachment = store_generated_attachment(
+        locked.tenant, locked.patient, locked.physician.user, pdf_bytes,
+        f'{locked.kind}_{locked.id}_papel.pdf', encounter=locked.encounter,
+    )
+    locked.save(update_fields=['document_number', 'issued_at', 'status', 'pdf_attachment'])
+    record_audit_event(
+        actor_id, locked.tenant_id, 'documents.medicaldocument_issued_on_paper',
+        object_type='medical_document', object_id=locked.id, outcome='success',
+        purpose='Emitido para assinatura de proprio punho',
+    )
+    return locked
+
+
 def new_validation_token():
     """Código do QR e da página pública de verificação.
 

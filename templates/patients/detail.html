@@ -12,6 +12,16 @@
 {% if nd_can.read_clinical %}
 <a class="btn btn-light-primary" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
 {% endif %}
+{% if nd_can.issue_document %}
+{% comment %}Emitir documento sem abrir atendimento — a receita que se
+renova por telefone, o pedido de exame que ficou faltando. Exige
+`issue_document` (papel médico com habilitação verificada), e não
+`write_clinical`: quem não pode assinar não deve começar a emitir.{% endcomment %}
+<a class="btn btn-light-primary" href="{% url 'documents:patient-medical-new' patient.id %}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+    <span>Emitir documento</span>
+</a>
+{% endif %}
 {% if nd_can.write_clinical %}
 <form method="post" action="{% url 'clinical:new' patient.id %}">
     {% csrf_token %}
