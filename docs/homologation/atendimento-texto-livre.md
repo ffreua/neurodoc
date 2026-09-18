@@ -24,6 +24,7 @@ mais.**
 | Exame neurológico | roteiro de 387 nós + escalas | não tem |
 | Tela | seis abas | **uma página** |
 | Medicação em uso | estruturada | **a mesma, estruturada** |
+| Vem da consulta anterior | conduta, impressões, CID, medicação | **as mesmas quatro** |
 | Hipóteses (CID-10) | estruturadas | **as mesmas, estruturadas** |
 | Impressões | campo próprio | campo próprio |
 | Conduta | campo próprio | **o mesmo campo** |
@@ -37,9 +38,25 @@ escreve a consulta, não sobre abrir mão do que o sistema precisa entender.
 
 ## O que viaja entre os dois
 
-Conduta, impressões e hipóteses (CID) são oferecidas na consulta seguinte
-do mesmo paciente, para aceitar ou rejeitar uma a uma — o mecanismo de
-`carry_forward` que já existia para conduta e CID, agora com as impressões.
+Conduta, impressões, hipóteses (CID) **e a medicação em uso** são oferecidas
+na consulta seguinte do mesmo paciente, para aceitar ou rejeitar uma a uma —
+o mecanismo de `carry_forward` que já existia para conduta e CID, agora com
+as impressões e com a medicação.
+
+A medicação era uma promessa que o código não cumpria: o próprio
+`Medication` dizia, na sua docstring, que "a lista da consulta seguinte é
+trazida pela cópia revisada do atendimento anterior (RF-03.04)" — e
+`carry_forward` nunca a copiou. A lista pertence ao atendimento, e não ao
+paciente, justamente para que o registro de ontem não mude quando o
+tratamento de hoje muda; sem a cópia, o preço disso era redigitar tudo a
+cada retorno, que é como uma lista de medicação deixa de ser confiável.
+
+Vem só o que está **em uso**. Suspenso e concluído são decisões já tomadas
+na consulta anterior, e trazê-los faria o médico recusar as mesmas linhas
+todo retorno — uma revisão que se rejeita sempre deixa de ser lida. O item
+mostra nome, dose, frequência e indicação numa linha, como se lê numa
+receita: o que se decide ali é se aquele remédio continua, e para isso é
+preciso ver a posologia junto do nome.
 
 **A cópia funciona nos dois sentidos** porque ela é por campo, e o campo é
 o mesmo: a conduta de um atendimento de texto livre chega num estruturado e
@@ -191,6 +208,9 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
 - [x] conduta e impressões viajam do texto livre para o estruturado **e**
       do estruturado para o texto livre
 - [x] aceitar um item copiado grava mesmo o valor
+- [x] a medicação **em uso** vem da consulta anterior com posologia, a
+      suspensa não vem, aceitar grava a linha com a data de início, e
+      aceitar duas vezes não duplica
 - [x] a grade traz abertura, fechamento, "em aberto" e ordena pelas duas
 - [x] ordenação forjada pela URL não quebra nem vaza ordenação por coluna
       que a tela não mostra

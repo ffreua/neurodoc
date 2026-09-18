@@ -1,16 +1,21 @@
-"""Copia da consulta anterior: conduta, impressões e hipóteses (CID).
+"""Cópia da consulta anterior: conduta, impressões, hipóteses (CID) e medicação.
 
-RF-03.04: copy only `plan_text` (conduta), `impressions` and diagnoses
-(hipóteses) from
-the physician's own last finalized encounter for this patient — never exam
-findings, never chief complaint/HPI, and never auto-generated prescriptions
-or requests. An alternative source encounter must be passed explicitly by
-the caller (never inferred), matching the "seleção explícita autorizada"
-requirement.
+RF-03.04: copiar do último atendimento **finalizado do próprio médico**
+para aquele paciente, e só o que é decisão clínica que continua valendo —
+conduta, impressões, hipóteses e a medicação em uso. Nunca achados do
+exame, nunca queixa e história (aquilo é do dia), e nunca documento emitido.
+
+Nada é aplicado sozinho: cada item vira um `CarryForwardItem` pendente, que
+o médico aceita ou recusa um a um. É a diferença entre trazer a consulta
+anterior e assinar a consulta anterior.
+
+Um atendimento de origem diferente do último pode ser passado pelo chamador,
+sempre de forma explícita e nunca inferido — a "seleção explícita
+autorizada" do requisito.
 """
 from django.db import transaction
 
-from .models import CarryForwardItem, Encounter, EncounterStatus
+from .models import CarryForwardItem, Encounter, EncounterStatus, MedicationStatus
 
 
 def default_source_encounter(target_encounter):
@@ -54,6 +59,37 @@ def carry_forward(context, target_encounter, source_encounter=None):
         )
         items.append(item)
 
+    # Medicação em uso. O próprio `Medication` já dizia que a lista da
+    # consulta seguinte vem por aqui — a lista pertence ao atendimento, e não
+    # ao paciente, justamente para que o registro de ontem não mude quando o
+    # tratamento de hoje muda. Sem esta cópia, a promessa do modelo não
+    # existia: o médico redigitava tudo a cada retorno, que é como uma lista
+    # de medicação deixa de ser confiável.
+    #
+    # Só o que está **em uso**. Suspenso e concluído são decisões já tomadas
+    # na consulta anterior; trazê-los faria o médico recusar as mesmas linhas
+    # todo retorno, e uma revisão que se rejeita sempre deixa de ser lida.
+    for medication in source_encounter.medications.filter(status=MedicationStatus.IN_USE):
+        item, _ = CarryForwardItem.objects.update_or_create(
+            tenant_id=context.tenant_id, target_encounter=target_encounter,
+            field_path=f'medication:{medication.id}',
+            defaults={
+                'source_encounter': source_encounter,
+                'source_version_hash': versao,
+                'copied_value': {
+                    'name': medication.name,
+                    'dose': medication.dose,
+                    'route': medication.route,
+                    'frequency': medication.frequency,
+                    'started_on': medication.started_on.isoformat() if medication.started_on else None,
+                    'indication': medication.indication,
+                    'prescriber': medication.prescriber,
+                    'notes': medication.notes,
+                },
+            },
+        )
+        items.append(item)
+
     for diagnosis in source_encounter.diagnoses.all():
         item, _ = CarryForwardItem.objects.update_or_create(
             tenant_id=context.tenant_id, target_encounter=target_encounter,
@@ -87,6 +123,7 @@ FIELD_LABELS = {
     'impressions': 'Impressões da consulta anterior',
 }
 DIAGNOSIS_LABEL = 'Hipótese da consulta anterior'
+MEDICATION_LABEL = 'Medicação da consulta anterior'
 
 
 def describe_item(item):
@@ -103,6 +140,15 @@ def describe_item(item):
     value = item.copied_value or {}
     if item.field_path in FIELD_LABELS:
         return {'label': FIELD_LABELS[item.field_path], 'value': value.get('text', ''), 'detail': ''}
+    if item.field_path.startswith('medication:'):
+        # Posologia numa linha só, como se lê numa receita: o que se decide
+        # aqui é se aquele remédio continua, e para isso é preciso ver dose e
+        # frequência junto do nome, não um dicionário ao lado.
+        posologia = ' · '.join(
+            parte for parte in (value.get('dose'), value.get('frequency')) if parte
+        )
+        detalhe = ' · '.join(parte for parte in (posologia, value.get('indication')) if parte)
+        return {'label': MEDICATION_LABEL, 'value': value.get('name') or '', 'detail': detalhe}
     if item.field_path.startswith('diagnosis:'):
         code = value.get('code_snapshot') or ''
         description = value.get('description_snapshot') or ''
@@ -122,7 +168,7 @@ def describe_item(item):
 def review_carry_forward_item(item, action, actor_membership_id):
     from django.utils import timezone
 
-    from .models import EncounterDiagnosis, ReviewAction
+    from .models import EncounterDiagnosis, Medication, MedicationRoute, ReviewAction
 
     item.review_action = action
     item.reviewed_at = timezone.now()
@@ -143,6 +189,25 @@ def review_carry_forward_item(item, action, actor_membership_id):
     if item.field_path in FIELD_LABELS:
         setattr(encounter, item.field_path, value.get('text', ''))
         encounter.save(update_fields=[item.field_path])
+    elif item.field_path.startswith('medication:'):
+        # `get_or_create` pela identidade que o olho usa — nome e dose. Aceitar
+        # duas vezes (a tela recarregada, o clique repetido) não pode deixar o
+        # mesmo remédio duas vezes na lista do atendimento.
+        Medication.objects.get_or_create(
+            tenant_id=encounter.tenant_id, encounter=encounter,
+            name=value.get('name', ''), dose=value.get('dose', ''),
+            defaults={
+                'route': value.get('route') or MedicationRoute.ORAL,
+                'frequency': value.get('frequency') or '',
+                'started_on': value.get('started_on') or None,
+                'indication': value.get('indication') or '',
+                'prescriber': value.get('prescriber') or '',
+                'notes': value.get('notes') or '',
+                # Só o que estava em uso é copiado, e aceitar é dizer que
+                # continua em uso.
+                'status': MedicationStatus.IN_USE,
+            },
+        )
     elif item.field_path.startswith('diagnosis:'):
         # Aceitar uma hipótese não fazia nada: o item ficava marcado como
         # aceito e a hipótese não entrava no atendimento. O aceite existe

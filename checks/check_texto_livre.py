@@ -339,6 +339,55 @@ for esperado in ('plan_text', 'impressions'):
     if esperado not in campos2:
         failures.append(f'{esperado} nao foi copiado do estruturado para o texto livre')
 
+print('=== 7b. a medicacao em uso tambem vem da consulta anterior ===')
+from datetime import date
+
+from clinical.models import Medication, MedicationStatus
+
+origem = abrir(EncounterKind.FREE_TEXT)
+origem.free_text = 'Consulta de origem para a medicacao.'
+origem.status = EncounterStatus.FINALIZED
+origem.save()
+Medication.objects.create(
+    tenant_id=tenant_a.id, encounter=origem, name='Topiramato', dose='100 mg',
+    frequency='1x ao dia', indication='Enxaqueca', status=MedicationStatus.IN_USE,
+    started_on=date(2025, 3, 14),
+)
+Medication.objects.create(
+    tenant_id=tenant_a.id, encounter=origem, name='Amitriptilina', dose='25 mg',
+    frequency='a noite', status=MedicationStatus.SUSPENDED,
+)
+destino = abrir(EncounterKind.STRUCTURED)
+itens = carry_forward(contexto, destino, source_encounter=origem)
+trazidos = [describe_item(i) for i in itens if i.field_path.startswith('medication:')]
+print('  trazidas:', [(t['value'], t['detail']) for t in trazidos])
+if not any(t['value'] == 'Topiramato' for t in trazidos):
+    failures.append('a medicacao em uso nao veio da consulta anterior')
+if any(t['value'] == 'Amitriptilina' for t in trazidos):
+    failures.append('a medicacao SUSPENSA foi trazida; so o que esta em uso deve vir')
+if trazidos and '100 mg' not in (trazidos[0]['detail'] or ''):
+    failures.append(f"a posologia nao aparece no item: {trazidos[0]['detail']!r}")
+
+item_med = next(i for i in itens if i.field_path.startswith('medication:'))
+review_carry_forward_item(item_med, ReviewAction.ACCEPTED, vinculo.id)
+copiada = destino.medications.filter(name='Topiramato').first()
+print(f'  aceitar grava -> {copiada and (copiada.name, copiada.dose, copiada.frequency, copiada.status)}')
+if copiada is None:
+    failures.append('aceitar a medicacao copiada nao criou a medicacao no atendimento')
+elif copiada.dose != '100 mg' or copiada.status != MedicationStatus.IN_USE:
+    failures.append(f'a medicacao copiada chegou torta: {copiada.dose!r} / {copiada.status}')
+# `started_on` viaja como texto ISO no JSON do item; tem de voltar a ser data.
+if copiada is not None:
+    print(f'  em uso desde -> {copiada.started_on!r}')
+    if copiada.started_on != date(2025, 3, 14):
+        failures.append(f'a data de inicio nao sobreviveu a copia: {copiada.started_on!r}')
+# Aceitar de novo (tela recarregada, clique repetido) nao pode duplicar.
+review_carry_forward_item(item_med, ReviewAction.ACCEPTED, vinculo.id)
+quantas = destino.medications.filter(name='Topiramato').count()
+print(f'  aceitar duas vezes -> {quantas} linha(s) (1 esperada)')
+if quantas != 1:
+    failures.append(f'aceitar duas vezes duplicou a medicacao ({quantas})')
+
 print('=== 8. a grade mostra e ordena pelas duas datas ===')
 corpo = cliente.get(f'/app/clinical/patients/{paciente.id}/timeline/').content.decode()
 for marca in ['Abertura', 'Fechamento', 'em aberto', 'ordenar=fechamento']:
@@ -532,6 +581,7 @@ ids = list(ids)
 CarryForwardItem.objects.filter(target_encounter_id__in=ids).delete()
 CarryForwardItem.objects.filter(source_encounter_id__in=ids).delete()
 ExaminationFinding.objects.filter(encounter_id__in=ids).delete()
+Medication.objects.filter(encounter_id__in=ids).delete()
 apagados = Encounter.objects.filter(id__in=ids).delete()[0]
 print(f'  {apagados} objeto(s) removido(s)')
 
