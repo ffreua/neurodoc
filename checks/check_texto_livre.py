@@ -206,6 +206,33 @@ if any(pos < 0 for _, pos in posicoes):
 elif [p for _, p in posicoes] != sorted(p for _, p in posicoes):
     failures.append('a tela de texto livre esta fora da ordem texto/medicacao/impressoes/CID')
 
+# `stretch-full` e `height: calc(100% - 24px)`, e serve para cards lado a
+# lado ficarem da mesma altura. Numa coluna unica, 100% e a altura da COLUNA
+# INTEIRA: cada card passa a querer a altura dos quatro somados, e a pagina
+# fica com telas de espaco vazio entre uma secao e a seguinte.
+tem_stretch = 'stretch-full' in corpo
+print(f'  cards sem stretch-full  {not tem_stretch}')
+if tem_stretch:
+    failures.append('a tela de texto livre usa stretch-full numa coluna unica')
+
+# O autocomplete do CID-10 depende de `data-cid-url` NO FORMULARIO: `cid.js`
+# acha o campo de busca, sobe ate o form e desiste se nao houver endereco
+# ali. Sem o atributo a busca vira um campo de texto mudo, e a tela nao
+# reclama de nada.
+for marca in ['data-cid-url', 'data-nd-cid-search', 'name="diagnosis_code_id"']:
+    presente = marca in corpo
+    print(f'  {marca:<26} {presente}')
+    if not presente:
+        failures.append(f'o autocomplete do CID-10 nao esta ligado: falta {marca}')
+
+# O atributo estar na tela nao prova que a busca responde: o endereco tem de
+# devolver resultado para o mesmo usuario que abriu o atendimento.
+r = cliente.get('/app/clinical/cid-lookup/', {'q': 'enxaqueca'})
+achados = r.json().get('results', []) if r.status_code == 200 else []
+print(f"  busca de CID-10 'enxaqueca' -> HTTP {r.status_code}, {len(achados)} resultado(s)")
+if not achados:
+    failures.append(f'a busca do CID-10 nao devolveu resultado ({r.status_code})')
+
 # Os campos ficam FORA do <form> e pertencem a ele por `form=` (HTML5). Sem
 # o atributo, o que se digita no texto nao e enviado -- e a tela pareceria
 # salvar sem salvar.

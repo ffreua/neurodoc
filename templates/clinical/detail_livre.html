@@ -72,8 +72,15 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
 
         {% comment %}1. O corpo da consulta. Nasce alto: parar para rolar
         dentro de uma caixa de texto é exatamente o atrito que este tipo de
-        atendimento existe para evitar.{% endcomment %}
-        <div class="card stretch stretch-full mb-4">
+        atendimento existe para evitar.
+
+        Sem `stretch-full` aqui, nem nos outros três. Aquela classe é
+        `height: calc(100% - 24px)`, e serve para cards lado a lado ficarem
+        da mesma altura. Numa coluna única, `100%` é a altura da **coluna
+        inteira** — cada card passa a querer a altura dos quatro somados, e
+        a página fica com quatro telas de espaço vazio entre uma seção e a
+        seguinte.{% endcomment %}
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <span class="badge bg-soft-primary text-primary me-2">1</span>Texto livre
@@ -91,7 +98,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
         texto: é dela que saem a receita e o alerta. Texto livre é sobre como
         se escreve a consulta, não sobre abrir mão do que o sistema precisa
         entender.{% endcomment %}
-        <div class="card stretch stretch-full mb-4">
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <span class="badge bg-soft-primary text-primary me-2">2</span>Medicações em uso
@@ -106,7 +113,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
         {% comment %}3. Impressões e conduta, nesta ordem: uma é a leitura do
         caso, a outra é o que se faz com ela. As duas vão para a próxima
         consulta pelo mesmo mecanismo das hipóteses.{% endcomment %}
-        <div class="card stretch stretch-full mb-4">
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <span class="badge bg-soft-primary text-primary me-2">3</span>Impressões e conduta
@@ -126,7 +133,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
 
         {% comment %}4. Hipóteses (CID-10), por último: é a conclusão
         codificada, e é o que alimenta indicador e relatório.{% endcomment %}
-        <div class="card stretch stretch-full mb-4">
+        <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
                     <span class="badge bg-soft-primary text-primary me-2">4</span>Hipóteses (CID-10)
@@ -162,12 +169,34 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                 {% endif %}
 
                 {% if encounter.status != 'finalized' %}
+                {% comment %}`data-cid-url` no `<form>` é o que liga o
+                autocomplete: `cid.js` procura o campo de busca, sobe até o
+                formulário e desiste se não achar o endereço ali. Sem o
+                atributo a busca vira um campo de texto mudo — e foi assim
+                que esta tela nasceu, com o autocomplete que o estruturado
+                tem e ela não.
+
+                O campo oculto `diagnosis_code_id` é escrito à mão, e não
+                pelo parcial de campos: é ele que guarda **qual** código do
+                catálogo foi escolhido, e o script o preenche ao clicar na
+                sugestão.
+
+                A busca vem antes do código e da descrição porque é o
+                caminho normal; escrever à mão continua valendo, e é o caso
+                da hipótese que ainda não tem código.{% endcomment %}
                 <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
-                      class="border rounded-3 p-3 bg-gray-100">
+                      class="border rounded-3 p-3 bg-gray-100"
+                      data-cid-url="{% url 'clinical:cid-lookup' %}">
                     {% csrf_token %}
+                    {{ diagnosis_form.diagnosis_code_id }}
                     <h6 class="fw-bold text-dark mb-3">Acrescentar hipótese</h6>
                     <div class="row g-3">
-                        {% include "partials/form_fields.html" with form=diagnosis_form %}
+                        {% include "partials/field.html" with field=diagnosis_form.cid_search col="col-lg-8" %}
+                        {% include "partials/field.html" with field=diagnosis_form.certainty col="col-lg-2 col-md-6" %}
+                        {% include "partials/field.html" with field=diagnosis_form.rank col="col-lg-2 col-md-6" %}
+                        {% include "partials/field.html" with field=diagnosis_form.code_snapshot col="col-lg-2 col-md-3" %}
+                        {% include "partials/field.html" with field=diagnosis_form.description_snapshot col="col-lg-10 col-md-9" %}
+                        {% include "partials/field.html" with field=diagnosis_form.physician_note col="col-12" %}
                     </div>
                     <button type="submit" class="btn btn-primary mt-3" data-nd-busy>
                         Acrescentar hipótese

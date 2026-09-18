@@ -158,7 +158,7 @@ Há desempate por abertura: dois atendimentos ainda não finalizados têm o
 mesmo `finalized_at` (nulo), e sem o segundo critério a mesma página
 recarregada troca duas linhas de lugar.
 
-## Cinco defeitos que a construção produziu, e como apareceram
+## Sete defeitos que a construção produziu, e como apareceram
 
 **Formulário aninhado.** A primeira versão da tela punha o parcial de
 medicações — que traz um `<form>` próprio — dentro do formulário do
@@ -195,6 +195,8 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
 - [x] ordenação forjada pela URL não quebra nem vaza ordenação por coluna
       que a tela não mostra
 - [x] texto livre e impressões entram no hash de conteúdo
+- [x] nenhum card carrega `stretch-full`, e o autocomplete do CID-10 tem os
+      três ganchos e devolve resultado de verdade
 - [x] o resumo imprimível sai certo nos dois tipos
 - [x] a página de texto livre está na ordem texto → medicação → impressões e
       conduta → CID, e os campos estão amarrados ao formulário por `form=`
@@ -244,6 +246,23 @@ para o qual ele existe — e em silêncio, porque o paciente era criado
 normalmente, só sem contato. A pergunta certa é `_state.adding`. O mesmo
 engano estava em dois pontos antigos do `PatientForm`, onde só custava
 consultas inúteis a cada abertura do cadastro; foram corrigidos junto.
+
+**`stretch-full` numa coluna única.** Os quatro cards nasceram com
+`card stretch stretch-full`, copiado do layout de duas colunas. Aquela
+classe é `height: calc(100% - 24px)` e serve para cards **lado a lado**
+ficarem da mesma altura; empilhados numa coluna, `100%` é a altura da
+coluna inteira, e cada card passa a querer a altura dos quatro somados. A
+página ficou com telas de espaço vazio entre uma seção e a seguinte — e o
+sintoma relatado foi exatamente esse: "precisa rolar muito até encontrar".
+
+**O CID sem autocomplete.** `cid.js` acha o campo de busca, sobe até o
+`<form>` e desiste se não houver `data-cid-url` ali. A tela de texto livre
+nasceu sem o atributo e com o campo de busca renderizado pelo parcial
+genérico — sem o campo oculto `diagnosis_code_id`, que é onde o script
+grava qual código do catálogo foi escolhido. A busca virava um campo de
+texto mudo, e nada na tela reclamava. O roteiro agora confere os três
+ganchos **e** que o endereço devolve resultado de verdade: o atributo estar
+na página não prova que a busca responde.
 
 ## O que ficou de fora
 
