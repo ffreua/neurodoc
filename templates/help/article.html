@@ -5,7 +5,12 @@
 
 <section class="nd-help-article">
     <div class="container">
-        <div class="row g-5">
+        {% comment %}`g-lg-5` e nao `g-5`: a calha de 3rem vira margem negativa
+        de 24px de cada lado da `row`, e a folga do `container` e de 12px — num
+        celular a linha passava 12px da tela e o artigo rolava na horizontal.
+        A coluna do indice e `d-none d-lg-block`, entao abaixo de `lg` nao ha
+        nem duas colunas para a calha separar.{% endcomment %}
+        <div class="row g-4 g-lg-5">
 
             {% comment %}Índice fixo à esquerda: o manual é lido saltando entre
             processos, e voltar ao índice a cada salto quebra a leitura.

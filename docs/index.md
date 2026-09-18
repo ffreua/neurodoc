@@ -161,6 +161,17 @@ PRD; é a referência operacional viva gerada a partir dele.
   erradas do próprio roteiro, e o 403 de CSRF que se anunciava como
   "organização suspensa".
 
+## Aderência ao celular
+
+- [Aderência ao celular](homologation/mobile.md) — auditoria em navegador de
+  verdade: 30 telas em quatro tamanhos, incluindo celular deitado e tablet.
+  Nenhuma transbordava, mas os campos renderizavam a 13,5px e o Safari do
+  iPhone dava zoom na página a cada toque — mais de mil campos no prontuário
+  estruturado. Inclui o erro de usar largura em vez de `pointer: coarse`
+  (celular deitado tem 844px), os dois transbordos reais entre 768px e 900px,
+  e por que `checks/check_mobile.py` existe: as regras não produzem efeito
+  nenhum no computador, e CSS invisível é o primeiro a ser apagado.
+
 ## Homologação final e documentação (S14)
 
 - [Aceite final v1](homologation/v1.md) — rastreabilidade, pendências

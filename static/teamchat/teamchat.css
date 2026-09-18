@@ -423,6 +423,41 @@
 
 /* ------------------------------------------------------------- celular */
 
+/* No celular, 16px no campo de escrever.
+ *
+ * Nao e leitura: o Safari do iPhone da zoom na pagina quando o campo que
+ * recebe o foco tem fonte menor que 16px, e nao volta ao sair. A janela do
+ * chat ocupa a tela toda nessa faixa, e a pagina por tras dela sairia de
+ * escala a cada mensagem digitada. 16px e o limiar do proprio Safari.
+ *
+ * `max-height` sobe junto: com a fonte maior, 120px passariam a mostrar
+ * menos de tres linhas do que se esta escrevendo. */
+/* Mesma condicao do bloco de toque em `neurodoc.css`, e pelo mesmo motivo:
+ * um celular deitado tem 844px de largura e continua sendo um celular. */
+@media (max-width: 767.98px), (pointer: coarse) and (max-width: 1199.98px) {
+    .nd-tc-composer textarea {
+        font-size: 16px;
+        max-height: 140px;
+    }
+
+    /* O botao de enviar e um `.btn.btn-sm` do tema: os 40px de alvo de
+     * toque vem da regra geral em `neurodoc.css`, e nao se repetem aqui.
+     * So o alinhamento e daqui — com o campo mais alto, ele ficaria
+     * centrado na vertical e desalinhado da ultima linha do texto. */
+    .nd-tc-composer button[type="submit"] {
+        align-self: flex-end;
+    }
+
+    /* Os controles da barra da janela — fechar, voltar para a lista — sao
+     * quadrados de 26px, tamanho de mouse. No celular a janela ocupa a tela
+     * toda, e "fechar" com 26px ao lado do nome da pessoa e um toque que
+     * erra. O icone dentro nao cresce: cresce a area que o recebe. */
+    .nd-tc-icone {
+        width: 40px;
+        height: 40px;
+    }
+}
+
 /* Abaixo de 576px a janela ocupa a tela toda e deixa de arrastar e
  * redimensionar. Uma janela de 720px que a pessoa precisa reposicionar com
  * o dedo num aparelho de 360px não é uma janela, é um obstáculo — e a

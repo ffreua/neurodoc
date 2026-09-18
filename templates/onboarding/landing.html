@@ -22,7 +22,12 @@ batesse o limite.
 <!-- ------------------------------------------------------------- hero -->
 <section class="nd-hero">
     <div class="container">
-        <div class="row align-items-center g-5">
+        {% comment %}`g-lg-5` e nao `g-5`: a calha de 3rem vira margem negativa
+        de 24px de cada lado da `row`, e a folga do `container` e de 12px —
+        num celular de 390px a linha passava 12px da tela e a pagina de
+        vendas rolava na horizontal. Abaixo de `lg` as colunas empilham, e
+        calha horizontal ali nao separa nada.{% endcomment %}
+        <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
                 <span class="badge bg-soft-primary text-primary mb-3">Neurologia e neurocirurgia</span>
                 <h1 class="nd-hero-title">O prontuário que entende o exame neurológico.</h1>
@@ -252,7 +257,7 @@ reais responde isso melhor do que qualquer parágrafo de venda. Também serve
 a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
 <section class="nd-section bg-white">
     <div class="container">
-        <div class="row align-items-center g-5">
+        <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
                 <h2 class="fw-bold text-dark">Veja o sistema por dentro antes de decidir</h2>
                 <p class="fs-14 text-muted">

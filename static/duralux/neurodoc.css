@@ -417,3 +417,136 @@ body.nd-no-shell .nxl-content {
     max-width: 1320px;
     margin: 0 auto;
 }
+
+/* ==========================================================================
+   Aparelho de toque: celular e tablet, em pe e deitado
+
+   Auditado num navegador de verdade, em 27 telas do produto, em quatro
+   tamanhos: 390x844, 360x740, 844x390 (deitado) e 768x1024 (tablet).
+   Nenhuma delas transbordava na horizontal — o tema e Bootstrap e as
+   tabelas estao embrulhadas em `.table-responsive` —, e o menu lateral
+   entra e sai como deve. O que a auditoria encontrou foi outra coisa: o
+   tamanho do que se toca e do que se le.
+
+   Tudo aqui esta atras de media query, e de proposito: no computador a
+   densidade do Duralux e boa, e aumentar campo e botao lá só roubaria
+   espaco de tela num sistema que mostra muita informacao junta.
+   ========================================================================== */
+
+/* Barra de acoes da pagina que quebra a linha em vez de sair da tela.
+ *
+ * A partir de 768px o tema deixa de esconder as acoes atras do botao de
+ * sanduiche e as mostra em linha — e em `d-flex` sem `flex-wrap`. Numa tela
+ * de atendimento com cinco acoes (Imprimir, Anexos, Documentos, Descartar,
+ * Finalizar) isso pede 593px de uma barra que tem menos, e a pagina passa a
+ * rolar na horizontal. Foi medido em 768x1024: 52px para fora.
+ *
+ * A faixa afetada e estreita (tablet em retrato, celular em paisagem), e por
+ * isso passa desapercebida no computador — onde tudo cabe e a regra nunca
+ * chega a agir.
+ *
+ * Fora de media query de proposito: a condicao ja e a propria largura
+ * disponivel. Quebrar linha quando nao cabe e o comportamento certo em
+ * qualquer tamanho, e em tela larga a linha nunca quebra porque cabe.
+ * `justify-content: flex-end` mantem as acoes a direita, como estavam. */
+.page-header-right-items-wrapper {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: .5rem;
+}
+
+/* A condicao e o DEDO, e nao a largura.
+ *
+ * A primeira versao deste bloco usava so `max-width: 767.98px`, e a medicao
+ * mostrou o erro: num celular deitado a tela tem 844px de largura, e as
+ * regras deixavam de valer — o mesmo aparelho, o mesmo dedo, e o Safari
+ * voltando a dar zoom a cada campo tocado. No tablet em retrato (768px),
+ * idem.
+ *
+ * `pointer: coarse` e a pergunta certa: "o apontador e impreciso?". O teto
+ * de 1199px exclui o computador com tela sensivel ao toque, onde o mouse
+ * costuma ser o apontador de fato e a densidade do tema deve continuar.
+ *
+ * A largura fica na lista como primeira alternativa porque nem todo
+ * navegador antigo responde `pointer`, e naquela faixa o certo e valer de
+ * qualquer forma. */
+@media (max-width: 767.98px), (pointer: coarse) and (max-width: 1199.98px) {
+    /* 16px nos campos, e nao 13,5px.
+     *
+     * Este e o remendo mais importante do bloco, e o motivo nao e leitura:
+     * o Safari do iPhone **da zoom na pagina** quando o campo que recebe o
+     * foco tem fonte menor que 16px, e nao volta ao sair. Quem preenche o
+     * cadastro de paciente atravessa 28 campos; o prontuario estruturado
+     * tem mais de mil. A cada toque a pagina saltava de escala, e o
+     * caminho de volta era a pinca.
+     *
+     * 16px e o limiar do proprio Safari, nao uma preferencia. Vale para
+     * `-sm` tambem: o campo pequeno e justamente o da tabela, o mais
+     * apertado de acertar com o dedo. */
+    .form-control,
+    .form-control-sm,
+    .form-select,
+    .form-select-sm,
+    .input-group-text {
+        font-size: 1rem;
+    }
+
+    /* Alvo de toque de 40px.
+     *
+     * A auditoria achou botao de 27px de altura — "Trocar organizacao",
+     * "Usar a camera", "Nao sei a data de nascimento". O dedo tem cerca de
+     * 9mm; 27px e metade disso, e o erro de toque num prontuario nao e
+     * cosmetico: o botao vizinho pode ser "Descartar".
+     *
+     * `min-height` em vez de `padding` para nao mexer no alinhamento do
+     * texto dentro do botao, e `inline-flex` para o rotulo continuar
+     * centrado quando a altura cresce. */
+    .btn,
+    .btn-sm,
+    .btn-group-sm > .btn {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Botao que e so icone continua quadrado. Sem isto ele viraria um
+     * retangulo de 40x30 e sairia do lugar no cabecalho. */
+    .btn-icon {
+        min-width: 40px;
+    }
+
+    /* A caixa de selecao tambem se toca. 13px de lado e menor que a
+     * pontuacao do texto ao lado dela. */
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: .1rem;
+    }
+    .form-check-label {
+        padding-left: .25rem;
+    }
+
+    /* O avatar do cabecalho e o gatilho do menu da conta — sair, trocar de
+     * organizacao, MFA. Ele mede 30px, e e o unico caminho para aquelas
+     * acoes: errar o toque ali nao tem alternativa na tela. A area cresce
+     * sem que a bolinha cresca, com o `padding` entrando por fora. */
+    .nxl-h-item > a[aria-label="Conta"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    /* Lista longa com rolagem propria (atendimentos na ficha do paciente).
+     *
+     * No computador a altura fixa impede que a lista de um paciente de dez
+     * anos empurre o resto da ficha para fora da tela. No celular, area
+     * rolavel dentro de pagina rolavel e briga de dedo: o toque que queria
+     * rolar a pagina rola a lista, ou o contrario. Proporcional a tela
+     * resolve os dois — continua limitada, e o limite acompanha o aparelho. */
+    .nd-lista-rolavel {
+        max-height: 60vh !important;
+    }
+}
