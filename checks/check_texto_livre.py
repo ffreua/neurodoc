@@ -98,6 +98,48 @@ for rotulo, valor, marca_esperada, marca_proibida in [
     if marca_proibida in corpo:
         failures.append(f'{rotulo}: a tela trouxe {marca_proibida}, que e do outro tipo')
 
+print('=== 1b. TODA porta que abre atendimento oferece os dois tipos ===')
+# O defeito que este bloco existe para impedir: os dois botoes foram postos
+# na ficha do paciente e esquecidos na tela de prontuario. Quem entra pelo
+# prontuario nao passa pela ficha — e uma porta sem a escolha nao parece uma
+# porta faltando, parece que o texto livre nao existe.
+#
+# Confere as telas renderizadas (o que o medico ve) e, depois, o codigo-fonte
+# dos templates (para uma porta nova nascer coberta).
+for rotulo, url in [
+    ('ficha do paciente', f'/app/patients/{paciente.id}/'),
+    ('prontuario',        f'/app/clinical/patients/{paciente.id}/timeline/'),
+]:
+    corpo = cliente.get(url).content.decode()
+    tem_estruturado = 'value="structured"' in corpo
+    tem_livre = 'value="free_text"' in corpo
+    print(f'  {rotulo:<20} estruturado={tem_estruturado} texto livre={tem_livre}')
+    if not (tem_estruturado and tem_livre):
+        failures.append(f'{rotulo}: a tela nao oferece os dois tipos de atendimento')
+
+import os
+from django.conf import settings
+
+raizes = [d for conf in settings.TEMPLATES for d in conf.get('DIRS', [])]
+portas = []
+for raiz in raizes:
+    for pasta, _, arquivos in os.walk(raiz):
+        for nome in arquivos:
+            if not nome.endswith('.html'):
+                continue
+            caminho = os.path.join(pasta, nome)
+            with open(caminho, encoding='utf-8') as fh:
+                fonte = fh.read()
+            if "clinical:new" not in fonte:
+                continue
+            relativo = os.path.relpath(caminho, raiz)
+            portas.append(relativo)
+            if 'value="structured"' not in fonte or 'value="free_text"' not in fonte:
+                failures.append(f'{relativo} abre atendimento sem oferecer os dois tipos')
+print(f'  templates que abrem atendimento: {sorted(portas)}')
+if not portas:
+    failures.append('nenhum template abre atendimento — a busca por clinical:new falhou')
+
 print('=== 2. tipo desconhecido cai no estruturado ===')
 r = cliente.post(f'/app/clinical/patients/{paciente.id}/new/', {'kind': 'chute'}, follow=True)
 e = Encounter.objects.filter(tenant=tenant_a, patient=paciente).order_by('-created_at').first()

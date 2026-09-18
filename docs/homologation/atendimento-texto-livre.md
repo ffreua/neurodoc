@@ -1,7 +1,7 @@
 # Atendimento em texto livre, ao lado do estruturado
 
 > **Homologado na pilha local (2026-09-17).** Evidência de
-> `checks/check_texto_livre.py` (11 seções, `EXIT=0`) e da suíte inteira.
+> `checks/check_texto_livre.py` (12 seções, `EXIT=0`) e da suíte inteira.
 
 ## Por que existe
 
@@ -81,7 +81,7 @@ Há desempate por abertura: dois atendimentos ainda não finalizados têm o
 mesmo `finalized_at` (nulo), e sem o segundo critério a mesma página
 recarregada troca duas linhas de lugar.
 
-## Três defeitos que a construção produziu, e como apareceram
+## Quatro defeitos que a construção produziu, e como apareceram
 
 **Formulário aninhado.** A primeira versão da tela punha o parcial de
 medicações — que traz um `<form>` próprio — dentro do formulário do
@@ -97,11 +97,14 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
 
 ## O que o roteiro conferiu
 
-`checks/check_texto_livre.py`, 11 seções, `EXIT=0`:
+`checks/check_texto_livre.py`, 12 seções, `EXIT=0`:
 
 - [x] os dois tipos abrem, e cada um na **sua** tela (o estruturado sem
       `id_free_text`, o livre sem `tab-exame`)
 - [x] `kind` desconhecido vira estruturado, e não um estado inválido
+- [x] **as duas portas** que abrem atendimento — ficha do paciente e
+      prontuário — oferecem os dois tipos, e nenhum template que aponta para
+      `clinical:new` escapa da varredura
 - [x] a página tem texto, impressões, conduta, medicação, CID e emitir
       documento — e **zero** formulários aninhados
 - [x] o que se digita é gravado, e o atendimento passa a "em andamento"
@@ -135,6 +138,19 @@ tem, de propósito. Duas correções: `check_resto` agora pede um atendimento
 com o Postgres), e a limpeza do roteiro novo apaga também tudo o que nasceu
 para aquele paciente depois que ele começou — não só o que ele lembrou de
 registrar numa lista.
+
+**A porta esquecida — e a única encontrada usando o sistema.** Os dois
+botões foram postos na ficha do paciente e esquecidos na tela de
+**Prontuário**, que tem o seu próprio "Novo atendimento". Quem entra pelo
+prontuário não passa pela ficha, e o médico que testou criou um atendimento
+sem nunca ver a escolha.
+
+O roteiro não pegou porque exercitava o `POST` com `kind` na mão — provava
+que o servidor entende os dois tipos, e nada sobre haver por onde escolher.
+Agora ele confere as duas telas renderizadas **e** varre os templates: todo
+arquivo que aponta para `clinical:new` precisa trazer os dois valores, de
+modo que uma terceira porta nasça coberta. Uma porta sem a escolha não
+parece uma porta faltando — parece que o texto livre não existe.
 
 ## O que ficou de fora
 
