@@ -139,11 +139,14 @@ PRD; é a referência operacional viva gerada a partir dele.
   impressões serem copiadas de um tipo para o outro nos dois sentidos. Os
   dois podem ser abertos num dia e finalizados em outro, e a grade traz
   abertura e fechamento como colunas que ordenam. Homologado com
-  `checks/check_texto_livre.py` (12 seções); inclui os quatro defeitos que a
-  construção produziu — o formulário aninhado, o resumo cheio de seções
-  vazias, o corpo da consulta que ficava fora do hash de integridade e a
-  porta que ficou sem a escolha — e o roteiro alheio que o resíduo do novo
-  derrubou.
+  `checks/check_texto_livre.py` (13 seções). Traz também a ficha do paciente
+  com **todos** os atendimentos — tipo, abertura, fechamento, rolagem e
+  ordenação pelas duas datas — e o contato (celular e e-mail) no cadastro do
+  paciente, que vira `PatientContact` na mesma transação. Inclui os cinco
+  defeitos que a construção produziu — o formulário aninhado, o resumo cheio
+  de seções vazias, o corpo da consulta fora do hash de integridade, a porta
+  que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
+  — e o roteiro alheio que o resíduo do novo derrubou.
 
 ## Mensagens internas da equipe
 

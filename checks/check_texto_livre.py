@@ -42,7 +42,21 @@ tenant_a = Tenant.objects.get(slug='demo-clinica-a')
 tenant_b = Tenant.objects.get(slug='demo-clinica-b')
 medico = User.objects.get(email='doctor-a@demo.neurodoc.local')
 vinculo = Membership.objects.get(tenant=tenant_a, user=medico)
-paciente = Patient.objects.filter(tenant=tenant_a).first()
+#: CPF do paciente descartavel da secao 13. Declarado aqui em cima porque a
+#: escolha da cobaia precisa EXCLUI-LO: uma rodada que morra antes da limpeza
+#: o deixa no banco, e `first()` o escolheria na rodada seguinte — os
+#: atendimentos do roteiro nasceriam nele, e a limpeza esbarraria nas chaves
+#: protegidas que o proprio roteiro criou. Ja aconteceu.
+CPF_DESCARTAVEL = '52998224725'
+# Ordem explicita: `first()` sem `order_by` deixa a escolha com o Postgres, e
+# uma rodada passa a nao ser comparavel com a outra.
+paciente = (
+    Patient.objects
+    .filter(tenant=tenant_a)
+    .exclude(cpf=CPF_DESCARTAVEL)
+    .order_by('created_at')
+    .first()
+)
 criados = []
 #: Instante em que o roteiro comecou — a limpeza usa como janela.
 COMECOU = timezone.now()
@@ -170,6 +184,40 @@ for m in re.finditer(r'<form\b', corpo):
 print(f'  formularios aninhados  {aninhados} (0 esperado)')
 if aninhados:
     failures.append(f'{aninhados} formulario(s) aninhado(s) na tela de texto livre')
+
+# A ordem da pagina e parte do pedido: texto -> medicacao -> impressoes e
+# conduta -> CID, numa coluna so. Confere pela POSICAO de cada titulo no
+# corpo, que e o que o olho encontra de cima para baixo.
+ordem_pedida = ['Texto livre', 'Medicacoes em uso', 'Impressoes e conduta', 'Hipoteses (CID-10)']
+import unicodedata
+
+
+def sem_acento(texto):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn'
+    )
+
+
+corpo_liso = sem_acento(corpo)
+posicoes = [(titulo, corpo_liso.find(f'</span>{titulo}')) for titulo in ordem_pedida]
+print('  ordem na pagina:', [t for t, _ in sorted(posicoes, key=lambda par: par[1])])
+if any(pos < 0 for _, pos in posicoes):
+    failures.append(f'titulo nao encontrado na tela: {[t for t, p in posicoes if p < 0]}')
+elif [p for _, p in posicoes] != sorted(p for _, p in posicoes):
+    failures.append('a tela de texto livre esta fora da ordem texto/medicacao/impressoes/CID')
+
+# Os campos ficam FORA do <form> e pertencem a ele por `form=` (HTML5). Sem
+# o atributo, o que se digita no texto nao e enviado -- e a tela pareceria
+# salvar sem salvar.
+for marca in ['id="nd-atendimento-livre"', 'form="nd-atendimento-livre"']:
+    presente = marca in corpo
+    print(f'  {marca:<34} {presente}')
+    if not presente:
+        failures.append(f'a tela de texto livre nao tem {marca}')
+livre_form_attrs = corpo.count('form="nd-atendimento-livre"')
+print(f'  campos amarrados ao formulario: {livre_form_attrs} (4 esperados: 3 campos + botao)')
+if livre_form_attrs < 4:
+    failures.append(f'so {livre_form_attrs} elemento(s) apontam para o formulario do atendimento')
 
 print('=== 4. o que se digita e gravado ===')
 cliente.post(f'/app/clinical/{livre.id}/autosave/', {
@@ -321,6 +369,121 @@ if outro:
     print(f'  atendimento da clinica B -> {r.status_code} (404 esperado)')
     if r.status_code != 404:
         failures.append(f'abriu atendimento de outra clinica ({r.status_code})')
+
+print('=== 12. a ficha do paciente lista TODOS os atendimentos, com tipo e as duas datas ===')
+# A ficha mostrava os cinco ultimos e so a data de abertura: ver o sexto
+# obrigava a ir ao prontuario, e nada dizia se a evolucao era estruturada ou
+# texto livre.
+total = Encounter.objects.filter(tenant=tenant_a, patient=paciente).count()
+corpo = cliente.get(f'/app/patients/{paciente.id}/').content.decode()
+linhas = corpo.count('/app/clinical/')
+print(f'  atendimentos do paciente: {total} | "Abrir" na ficha: >= {total}')
+for marca in ['Texto livre', 'Estruturada', 'Abertura', 'Fechamento', 'em aberto',
+              'ordenar=abertura', 'ordenar=fechamento', 'overflow-y: auto']:
+    presente = marca in corpo
+    print(f'  {marca:<20} {presente}')
+    if not presente:
+        failures.append(f'a ficha do paciente nao traz {marca!r}')
+if 'Atendimentos recentes' in corpo:
+    failures.append('a ficha ainda corta a lista em "Atendimentos recentes"')
+# Cada atendimento tem de estar la, e nao so os cinco ultimos.
+for e in Encounter.objects.filter(tenant=tenant_a, patient=paciente)[:12]:
+    if f'/app/clinical/{e.id}/' not in corpo:
+        failures.append('a ficha do paciente nao lista todos os atendimentos')
+        break
+for ordem in ('abertura', 'fechamento'):
+    r = cliente.get(f'/app/patients/{paciente.id}/?ordenar={ordem}&desc=1')
+    print(f"  ordenar={ordem}&desc=1 -> HTTP {r.status_code}")
+    if r.status_code != 200:
+        failures.append(f'a ficha nao ordena por {ordem} ({r.status_code})')
+r = cliente.get(f'/app/patients/{paciente.id}/?ordenar=patient__cpf')
+if r.status_code != 200:
+    failures.append('ordenacao forjada na ficha do paciente quebrou a tela')
+
+print('=== 13. contato informado no cadastro vai para a area de Contatos ===')
+corpo = cliente.get('/app/patients/new/').content.decode()
+for marca in ['id_contact_phone', 'id_contact_email', 'id_contact_accepts_messages']:
+    presente = marca in corpo
+    print(f'  {marca:<32} {presente}')
+    if not presente:
+        failures.append(f'o cadastro de paciente nao tem {marca}')
+
+cpf_novo = '529.982.247-25'
+
+
+def apagar_paciente_do_roteiro():
+    """Apaga o paciente descartavel, descascando as chaves protegidas.
+
+    Contato, atendimento e recebivel apontam para o paciente com PROTECT — a
+    protecao existe para que apagar paciente nao leve embora, em silencio, o
+    contato que autorizou receber documento e a consulta que ja foi faturada.
+    Aqui e limpeza de roteiro: desce um nivel por vez ate o paciente sair.
+
+    Enumerar os modelos a mao seria pior: cada relacao nova acrescentada ao
+    paciente voltaria a quebrar esta limpeza, e a falha apareceria como um
+    traceback no fim de um roteiro que passou.
+    """
+    from django.db.models.deletion import ProtectedError
+
+    def apagar(consulta):
+        for _ in range(15):
+            try:
+                return consulta.delete()
+            except ProtectedError as erro:
+                protegidos = list(erro.protected_objects)
+                modelo = type(protegidos[0])
+                apagar(modelo.objects.filter(pk__in=[o.pk for o in protegidos]))
+        raise RuntimeError('nao consegui apagar o paciente do roteiro')
+
+    apagar(Patient.objects.filter(tenant=tenant_a, cpf=CPF_DESCARTAVEL))
+
+apagar_paciente_do_roteiro()
+r = cliente.post('/app/patients/new/', {
+    'full_name': 'Paciente Do Roteiro Livre', 'cpf': cpf_novo,
+    'birth_date': '1980-05-04', 'sex_at_registration': 'female',
+    'country': 'BR', 'payment_category': 'private',
+    'referral_source': 'patient', 'marital_status': 'single',
+    'contact_phone': '(11) 98765-4321', 'contact_email': 'roteiro@exemplo.local',
+    'contact_accepts_messages': 'on',
+}, follow=True)
+novo = Patient.objects.filter(tenant=tenant_a, cpf=CPF_DESCARTAVEL).first()
+print(f'  cadastro HTTP {r.status_code} | paciente criado: {novo is not None}')
+if novo is None:
+    failures.append(f'o cadastro com contato nao gravou o paciente ({r.status_code})')
+else:
+    contato = novo.contacts.first()
+    if contato is None:
+        failures.append('o contato informado no cadastro nao virou contato do paciente')
+    else:
+        print(f'  contato: {contato.name!r} | {contato.phone!r} | {contato.email!r} | '
+              f'sms={contato.sms_enabled} email={contato.email_enabled}')
+        if contato.phone != '11987654321':
+            failures.append(f'o telefone guardou a mascara: {contato.phone!r}')
+        if contato.email != 'roteiro@exemplo.local':
+            failures.append('o e-mail do cadastro nao chegou ao contato')
+        if not contato.name:
+            failures.append('o contato do cadastro ficou sem nome')
+        # Divulgacao NAO se deduz do contato dado no balcao: a LGPD exige
+        # consentimento especifico, e a caixa do cadastro nao e essa.
+        if contato.marketing_opt_in_at is not None:
+            failures.append('o cadastro marcou consentimento de divulgacao sozinho')
+        ficha = cliente.get(f'/app/patients/{novo.id}/').content.decode()
+        if '11987654321' not in ficha and '98765-4321' not in ficha:
+            failures.append('o contato do cadastro nao aparece na ficha')
+    # Telefone com numero de digitos impossivel e recusado, e nao gravado torto.
+    apagar_paciente_do_roteiro()
+    r = cliente.post('/app/patients/new/', {
+        'full_name': 'Telefone Curto', 'cpf': cpf_novo,
+        'birth_date': '1980-05-04', 'sex_at_registration': 'female',
+        'country': 'BR', 'payment_category': 'private',
+        'referral_source': 'patient', 'marital_status': 'single',
+        'contact_phone': '1234',
+    })
+    recusou = Patient.objects.filter(tenant=tenant_a, cpf=CPF_DESCARTAVEL).first() is None
+    print(f'  telefone de 4 digitos recusado: {recusou}')
+    if not recusou:
+        failures.append('o cadastro aceitou telefone de 4 digitos')
+    apagar_paciente_do_roteiro()
 
 print('=== limpeza ===')
 from clinical.models import ExaminationFinding

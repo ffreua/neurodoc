@@ -1,7 +1,7 @@
 # Atendimento em texto livre, ao lado do estruturado
 
 > **Homologado na pilha local (2026-09-17).** Evidência de
-> `checks/check_texto_livre.py` (12 seções, `EXIT=0`) e da suíte inteira.
+> `checks/check_texto_livre.py` (13 seções, `EXIT=0`) e da suíte inteira.
 
 ## Por que existe
 
@@ -64,6 +64,83 @@ Agora o requisito é o mesmo — "há registro do que houve?" —, lido no campo
 certo de cada tipo. As âncoras da mensagem também: mandar alguém para "a
 aba História" numa tela sem abas é mandá-lo procurar o que não existe.
 
+## Uma coluna, na ordem da consulta
+
+A primeira versão punha texto e conduta à esquerda e medicação e CID numa
+coluna estreita à direita. Lida como prontuário, ela obrigava o olho a
+saltar de um lado para o outro no meio do raciocínio. Agora é **uma coluna
+só**, numerada, na ordem em que a consulta acontece:
+
+1. **Texto livre** — o corpo da consulta
+2. **Medicações em uso** — estruturadas
+3. **Impressões e conduta**
+4. **Hipóteses (CID-10)** — estruturadas
+
+O obstáculo era HTML, não estética: medicação e hipóteses trazem `<form>`
+próprio, e **formulário não se aninha** — o navegador ignora o interno, e o
+botão de incluir medicação passaria a salvar o texto livre. Foi por isso
+que a primeira versão empurrou os dois para uma coluna lateral, fora do
+formulário do atendimento.
+
+A saída é o atributo `form=` do HTML5: o `<form>` do atendimento é
+declarado vazio no alto da página, e cada campo diz a que formulário
+pertence. Os campos podem então ficar em qualquer lugar, intercalados com
+os outros formulários, e continuam sendo enviados juntos.
+
+A alternativa era quebrar o atendimento em três formulários com um botão de
+salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo é
+pior do que qualquer arranjo de colunas.
+
+## A ficha do paciente
+
+Mostrava os **cinco últimos** atendimentos e só a data de abertura. Ver o
+sexto obrigava a ir ao prontuário, e nada dizia se aquela linha era uma
+evolução estruturada ou um texto livre.
+
+Agora traz **todos**, com o tipo em pastilha, abertura e fechamento, e as
+duas colunas ordenam — a mesma ordenação do prontuário, pelo mesmo seletor
+e pela mesma tabela fechada de campos. Duas consultas paralelas
+divergiriam, e a ficha acabaria mostrando uma ordem que o prontuário não
+conhece.
+
+A lista rola dentro do cartão: vertical para que a tela não cresça com o
+paciente de dez anos de acompanhamento, horizontal porque são seis colunas
+e o celular não as comporta lado a lado. O cabeçalho fica preso no topo —
+tabela que rola com o cabeçalho junto perde o nome da coluna na terceira
+linha. E o link de ordenação volta para a tabela por âncora; sem ela,
+ordenar jogava o leitor de volta ao topo da ficha.
+
+## Contato no cadastro do paciente
+
+O cadastro pedia CPF, endereço e carteirinha e **não** pedia o telefone.
+Quem cadastrava salvava o paciente e só depois descobria a área de
+Contatos, na ficha: o caminho até o dado mais usado da clínica passava por
+duas telas.
+
+Celular e e-mail entraram como seção 2 do cadastro e viram um
+`PatientContact` de verdade, na mesma transação — o mesmo registro que a
+área de Contatos lista e que a agenda lê para confirmar horário. Guardá-los
+como campos do paciente criaria um segundo endereço que metade do sistema
+não enxergaria.
+
+O que se registra ali é o contato do **próprio paciente**, e a relação diz
+isso. Parente, cuidador e representante legal continuam na área de
+Contatos, que tem os campos que eles exigem — comprovação da representação,
+autorização para receber documentos.
+
+Na edição o bloco não some: some a numeração, e a tela passaria de 1 para
+3. Em vez disso ele aponta para a área de Contatos, que é onde a pergunta
+"este telefone substitui qual dos contatos?" se responde com a lista na
+frente de quem decide.
+
+**Consentimento.** A caixa "pode receber mensagens do atendimento" nasce
+marcada, e vale só para o transacional — confirmar o horário que a pessoa
+marcou, mandar a receita que ela pediu. Quem deu o telefone no balcão deu
+para ser chamado. Divulgação é outra coisa: exige consentimento específico
+e destacado (LGPD art. 11, I), não se deduz daquela caixa, e continua
+sendo decidida na área de Contatos. O roteiro confere que o cadastro **não**
+marca `marketing_opt_in_at` sozinho.
+
 ## A grade
 
 Abertura e fechamento são colunas separadas, e **as duas ordenam**. Com
@@ -81,7 +158,7 @@ Há desempate por abertura: dois atendimentos ainda não finalizados têm o
 mesmo `finalized_at` (nulo), e sem o segundo critério a mesma página
 recarregada troca duas linhas de lugar.
 
-## Quatro defeitos que a construção produziu, e como apareceram
+## Cinco defeitos que a construção produziu, e como apareceram
 
 **Formulário aninhado.** A primeira versão da tela punha o parcial de
 medicações — que traz um `<form>` próprio — dentro do formulário do
@@ -97,7 +174,7 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
 
 ## O que o roteiro conferiu
 
-`checks/check_texto_livre.py`, 12 seções, `EXIT=0`:
+`checks/check_texto_livre.py`, 13 seções, `EXIT=0`:
 
 - [x] os dois tipos abrem, e cada um na **sua** tela (o estruturado sem
       `id_free_text`, o livre sem `tab-exame`)
@@ -119,6 +196,13 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
       que a tela não mostra
 - [x] texto livre e impressões entram no hash de conteúdo
 - [x] o resumo imprimível sai certo nos dois tipos
+- [x] a página de texto livre está na ordem texto → medicação → impressões e
+      conduta → CID, e os campos estão amarrados ao formulário por `form=`
+- [x] a ficha do paciente lista **todos** os atendimentos, com tipo, abertura,
+      fechamento, rolagem e ordenação pelas duas datas
+- [x] contato informado no cadastro vira `PatientContact`, com o telefone
+      sem máscara, aparece na ficha, e **não** marca consentimento de
+      divulgação sozinho; telefone de 4 dígitos é recusado
 - [x] atendimento de outra clínica responde 404
 
 **O corpo da consulta fora do hash.** `compute_content_hash()` cobre o que o
@@ -151,6 +235,15 @@ Agora ele confere as duas telas renderizadas **e** varre os templates: todo
 arquivo que aponta para `clinical:new` precisa trazer os dois valores, de
 modo que uma terceira porta nasça coberta. Uma porta sem a escolha não
 parece uma porta faltando — parece que o texto livre não existe.
+
+**`instance.pk` não diz se é um cadastro novo.** A chave primária é um UUID
+com `default=uuid.uuid4` (`base/models.py`): ela **já vem preenchida** no
+objeto que ainda não foi gravado. O guarda "só na criação" foi escrito como
+`if self.instance.pk: return None` e desligou o contato exatamente no caso
+para o qual ele existe — e em silêncio, porque o paciente era criado
+normalmente, só sem contato. A pergunta certa é `_state.adding`. O mesmo
+engano estava em dois pontos antigos do `PatientForm`, onde só custava
+consultas inúteis a cada abertura do cadastro; foram corrigidos junto.
 
 ## O que ficou de fora
 

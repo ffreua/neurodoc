@@ -110,6 +110,37 @@ class PatientForm(forms.ModelForm):
         widget=forms.NumberInput(attrs={'placeholder': 'Ex.: 1,75', 'step': '0.01', 'inputmode': 'decimal'}),
     )
 
+    # ------------------------------------------------------------ contato
+    #
+    # Telefone e e-mail não são campos do paciente: são um `PatientContact`,
+    # porque uma pessoa tem mais de um contato e cada um carrega o seu
+    # consentimento. Mas o cadastro pedia o CPF, o endereço e a carteirinha e
+    # **não** pedia o telefone — quem cadastrava salvava o paciente e só
+    # depois descobria a área de Contatos, na ficha. O caminho mais curto até
+    # o dado mais usado da clínica passava por duas telas.
+    #
+    # Aqui se registra o contato do **próprio paciente**, que é o caso de
+    # quase todo balcão. Parente, cuidador e representante legal continuam na
+    # área de Contatos, que tem os campos que eles exigem (relação,
+    # comprovação da representação, autorização para receber documentos).
+    contact_phone = forms.CharField(
+        label='Celular', max_length=16, required=False,
+        help_text='Com DDD. Usado para confirmar horário e enviar documentos.',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ex.: (11) 98765-4321', 'inputmode': 'tel', 'maxlength': '16',
+        }),
+    )
+    contact_email = forms.EmailField(
+        label='E-mail', max_length=254, required=False,
+        widget=forms.EmailInput(attrs={'placeholder': 'Ex.: maria.souza@email.com'}),
+    )
+    contact_accepts_messages = forms.BooleanField(
+        label='Pode receber mensagens do atendimento', required=False, initial=True,
+        help_text='Confirmação de horário, lembrete e o documento que a pessoa pediu — '
+                  'nada de divulgação. A autorização para divulgação é outra, exige '
+                  'consentimento específico pela LGPD e fica na área de Contatos.',
+    )
+
     class Meta:
         model = Patient
         fields = [
@@ -209,7 +240,10 @@ class PatientForm(forms.ModelForm):
             self.fields['country'].initial = 'BR'
 
         # Preenche o bloco de plano a partir da cobertura vigente ao editar.
-        if self.instance.pk:
+        # `_state.adding` e nao `pk`: a chave e um UUID com default, e vem
+        # preenchida antes de gravar — `if self.instance.pk` e verdadeiro no
+        # cadastro novo, e estas consultas saiam por nada a cada abertura.
+        if not self.instance._state.adding:
             # Peso e altura vêm da última medida registrada, **também quando o
             # formulário está vinculado**. Não é só para a tela abrir
             # preenchida: `changed_data` compara o enviado com o `initial`, e
@@ -234,7 +268,7 @@ class PatientForm(forms.ModelForm):
                     f'{last_height.observed_at.strftime("%d/%m/%Y")}. Alterar registra uma nova.'
                 )
 
-        if self.instance.pk and not self.is_bound:
+        if not self.instance._state.adding and not self.is_bound:
             coverage = self.instance.coverages.order_by('-starts_on', '-created_at').first()
             if coverage is not None:
                 self.fields['coverage_plan'].initial = coverage.plan_id
@@ -264,6 +298,20 @@ class PatientForm(forms.ModelForm):
         if existing is not None:
             raise forms.ValidationError(
                 f'Este CPF já está cadastrado para {existing.full_name}.',
+            )
+        return digits
+
+    def clean_contact_phone(self):
+        """Guarda só os dígitos.
+
+        O campo aceita a máscara porque é assim que se digita no balcão, e o
+        `max_length` de 16 do modelo recusaria "(11) 98765-4321" com pontuação
+        e espaço. Onze dígitos é celular com DDD; dez é fixo.
+        """
+        digits = re.sub(r'\D', '', self.cleaned_data.get('contact_phone') or '')
+        if digits and len(digits) not in (10, 11):
+            raise forms.ValidationError(
+                'Informe o telefone com DDD: 10 dígitos para fixo, 11 para celular.',
             )
         return digits
 
@@ -350,10 +398,53 @@ class PatientForm(forms.ModelForm):
             value = self.cleaned_data.get(field)
             if not value:
                 continue
-            if self.instance.pk and field not in self.changed_data:
+            if not self.instance._state.adding and field not in self.changed_data:
                 continue
             rows.append((kind, value, unit))
         return rows
+
+    @property
+    def contact_data(self):
+        """Contato a criar, ou None quando nada foi informado.
+
+        Só na **criação**: na edição, mexer aqui reabriria a pergunta "este
+        telefone substitui qual dos contatos?", que a área de Contatos já
+        responde com a lista na frente de quem decide. Um cadastro editado
+        não pode criar um segundo contato idêntico a cada salvamento.
+
+        O nome do contato é o do próprio paciente, e a relação diz isso: é o
+        contato dele, e não de um parente. Sem nome, a lista de Contatos
+        mostraria uma linha em branco com um telefone ao lado.
+
+        "É criação?" se pergunta por `_state.adding`, e **não** por
+        `instance.pk`. A chave primária é um UUID com `default=uuid.uuid4`
+        (`base/models.py`): ela já vem preenchida no objeto que ainda não foi
+        gravado, e `if self.instance.pk` é verdadeiro no cadastro novo. O
+        guarda escrito assim desligava o contato exatamente no caso para o
+        qual ele existe — e em silêncio, porque o paciente era criado.
+        """
+        if not self.instance._state.adding:
+            return None
+        phone = (self.cleaned_data.get('contact_phone') or '').strip()
+        email = (self.cleaned_data.get('contact_email') or '').strip()
+        if not phone and not email:
+            return None
+        # Mensagem transacional é execução do que a pessoa pediu — confirmar o
+        # horário que ela marcou, mandar a receita que ela solicitou —, e por
+        # isso a caixa nasce marcada: quem deu o telefone no balcão deu para
+        # ser chamado. Divulgação é outra coisa, exige consentimento
+        # específico (LGPD art. 11, I) e não é decidida aqui.
+        aceita = bool(self.cleaned_data.get('contact_accepts_messages'))
+        return {
+            'name': self.cleaned_data.get('full_name') or '',
+            'relationship': 'Próprio paciente',
+            'phone': phone,
+            'email': email,
+            'sms_enabled': aceita and bool(phone),
+            'email_enabled': aceita and bool(email),
+            'authorized_for_documents': aceita,
+        }
+
 
 
 class PatientContactForm(forms.ModelForm):

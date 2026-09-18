@@ -21,7 +21,8 @@ from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
 from .forms import (
-    AmendmentForm, DiagnosisForm, EncounterForm, ExamResultForm, FindingForm, LabValueForm,
+    AmendmentForm, DiagnosisForm, EncounterForm, ExamResultForm, FindingForm,
+    FreeTextEncounterForm, LabValueForm,
     MedicationForm,
 )
 from .models import (
@@ -191,12 +192,15 @@ class EncounterDetailView(TenantScopedView):
         # o ponto dele é não fazer quem tem pressa navegar. Os dois recebem
         # o mesmo contexto, e os blocos que os dois usam — medicação,
         # hipóteses, documentos — são os mesmos parciais.
-        template_da_tela = (
-            'clinical/detail_livre.html' if encounter.kind == EncounterKind.FREE_TEXT
-            else 'clinical/detail.html'
-        )
+        livre = encounter.kind == EncounterKind.FREE_TEXT
+        template_da_tela = 'clinical/detail_livre.html' if livre else 'clinical/detail.html'
+        # Na tela de texto livre os campos ficam FORA do `<form>` (medicação e
+        # hipóteses trazem formulário próprio, e HTML não aninha formulário):
+        # o formulário é declarado por `form=` em cada campo. Ver
+        # `FreeTextEncounterForm`.
+        FormularioDaTela = FreeTextEncounterForm if livre else EncounterForm
         return render(request, template_da_tela, {
-            'encounter': encounter, 'form': EncounterForm(instance=encounter),
+            'encounter': encounter, 'form': FormularioDaTela(instance=encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
             'amendment_form': AmendmentForm(), 'pending_carry_forward': pending_items,
             'findings': findings,

@@ -5,6 +5,10 @@ from django.shortcuts import redirect, render
 from django.utils import timezone
 
 from audit.services import record_audit_event
+# A lista de atendimentos da ficha usa o MESMO seletor do prontuario, com a
+# mesma tabela fechada de ordenacao: duas consultas paralelas divergiriam, e
+# a ficha acabaria mostrando uma ordem que o prontuario nao conhece.
+from clinical import selectors as clinical_selectors
 from integrations.cep import lookup_cep
 from tenancy.limits import PlanLimitReached, assert_can_add_patient, patient_status
 from tenancy.permissions import Capability, CapabilityRequiredView
@@ -146,6 +150,11 @@ class PatientCreateView(TenantScopedView):
             # Paciente e carteirinha entram juntos: um cadastro "por plano"
             # sem cobertura faria a cobrança cair em particular.
             measurements = form.measurements
+            # Telefone e e-mail informados no cadastro viram um contato de
+            # verdade, o mesmo que a área de Contatos lista e que a agenda lê
+            # para confirmar horário. Guardá-los em outro lugar criaria um
+            # segundo endereço do paciente que metade do sistema não enxerga.
+            contact_data = form.contact_data
             with transaction.atomic():
                 # De novo, e agora valendo. A verificação de cima evita o
                 # preenchimento perdido; esta é a que impede duas
@@ -162,6 +171,8 @@ class PatientCreateView(TenantScopedView):
                 # tinha o que calcular.
                 for kind, value, unit in measurements:
                     record_observation(request.access_context, patient, kind, value, unit)
+                if contact_data:
+                    create_contact(request.access_context, patient, **contact_data)
                 if incoming_photo is not None:
                     # Por último de propósito. `store_photo` escreve no
                     # disco, e disco não entra em rollback: se a cobertura
@@ -194,6 +205,11 @@ def _detail_context(request, patient, **overrides):
     adicionar cobertura); montar o contexto em cada uma já tinha deixado
     duas delas sem o formulário da outra.
     """
+    ordenar = request.GET.get('ordenar', clinical_selectors.ORDEM_PADRAO)
+    if ordenar not in clinical_selectors.ORDENS_DA_GRADE:
+        ordenar = clinical_selectors.ORDEM_PADRAO
+    decrescente = request.GET.get('desc') == '1'
+
     context = {
         'patient': patient,
         'bmi': compute_bmi(patient),
@@ -202,11 +218,22 @@ def _detail_context(request, patient, **overrides):
         'measurement_form': PatientMeasurementForm(),
         'measurement_hint': missing_measurement_hint(patient),
         'coverage_form': PatientCoverageForm(tenant_id=request.access_context.tenant_id),
-        'recent_encounters': (
-            patient.encounters
-            .select_related('physician_membership__user')
-            .order_by('-occurred_at')[:5]
+        # **Todos** os atendimentos, e não os cinco últimos.
+        #
+        # Cortar em cinco obrigava a ir ao prontuário para ver o sexto, e a
+        # ficha é onde se olha a história do paciente antes de atendê-lo. A
+        # lista rola dentro do cartão; a tela não cresce com o paciente
+        # antigo.
+        #
+        # A ordem é do usuário: abertura responde "quando ele veio?" e
+        # fechamento "quando este registro foi fechado?" — com atendimento
+        # aberto num dia e finalizado em outro, as duas deixam de coincidir.
+        # Validada contra a tabela fechada do selector, nunca interpolada.
+        'encounters': clinical_selectors.patient_timeline(
+            request.access_context, patient, ordenar=ordenar, decrescente=decrescente,
         ),
+        'ordenar': ordenar,
+        'decrescente': decrescente,
     }
     context.update(overrides)
     return context
