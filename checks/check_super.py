@@ -159,6 +159,26 @@ if segredos:
     falhas.extend(f'segredo exposto: {s}' for s in segredos)
 
 TOTPDevice.objects.filter(id__in=criados).delete()
+
+# --- a conta descartavel sai junto ---
+#
+# Ela nasce com `is_superuser`, `is_staff` e senha conhecida (esta escrita
+# tres telas acima, neste arquivo). Deixa-la no banco depois da rodada e
+# deixar uma porta de acesso total dormindo na base de desenvolvimento de
+# quem rodou o roteiro -- e a senha nao e segredo nenhum, esta versionada.
+#
+# `AuditEvent.actor` e PROTECT: a conta so sai depois dos eventos que ela
+# gerou. Apagar linha de trilha e coisa seria, e por isso esta explicito
+# aqui em vez de escondido num "apague o que atrapalhar": as linhas
+# removidas sao **as que este roteiro produziu**, com o ator que este
+# roteiro criou, numa base de demonstracao. Em producao isto nunca corre.
+from audit.models import AuditEvent as _AuditEvent
+
+_eventos = _AuditEvent.objects.filter(actor=su).count()
+_AuditEvent.objects.filter(actor=su).delete()
+_conta = su.email
+su.delete()
+print(f'  limpeza -> conta {_conta} removida ({_eventos} evento(s) de auditoria dela)')
 print()
 print('---')
 if falhas:
