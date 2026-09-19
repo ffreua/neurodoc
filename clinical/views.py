@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db import transaction
 from django.forms import modelform_factory
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -324,12 +325,15 @@ class EncounterAutosaveView(TenantScopedView):
                 'Atendimento finalizado: o registro não pode mais ser alterado. '
                 'Use um adendo.', 409,
             )
+        # Obrigatória, e não "se vier": ausente, a conferência era pulada
+        # por inteiro e um envio sem o campo sobrescrevia o que outra aba
+        # tivesse acabado de gravar. Quem não sabe de que versão partiu não
+        # tem como saber o que está apagando.
         submitted_version = request.POST.get('row_version')
-        if submitted_version and str(encounter.row_version) != submitted_version:
+        if not submitted_version:
             return self._fail(
                 request, encounter,
-                'Este atendimento foi alterado em outra aba desde que você o abriu. '
-                'Recarregue a página para não sobrescrever o que já foi gravado.', 409,
+                'Envio sem a versão do atendimento. Recarregue a página e tente de novo.', 400,
             )
 
         submitted = [name for name in self.EDITABLE if name in request.POST]
@@ -342,12 +346,41 @@ class EncounterAutosaveView(TenantScopedView):
             first = next(iter(form.errors.values()))[0]
             return self._fail(request, encounter, first, 400)
 
-        updated = form.save(commit=False)
-        if updated.status == EncounterStatus.DRAFT:
-            updated.status = EncounterStatus.IN_PROGRESS
-        updated.row_version += 1
-        updated.full_clean()
-        updated.save()
+        # Ler a versão, comparar e gravar eram três passos soltos: duas
+        # abas liam a mesma versão, as duas passavam na conferência e a
+        # segunda apagava a primeira. Pior, um salvamento iniciado antes da
+        # finalização podia gravar depois dela, por cima do texto fechado.
+        # `select_for_update` põe os três passos dentro da mesma transação —
+        # a segunda aba espera, relê a versão já incrementada e recusa.
+        with transaction.atomic():
+            travado = (
+                Encounter.objects
+                .select_for_update()
+                .filter(tenant_id=request.access_context.tenant_id, id=encounter.id)
+                .first()
+            )
+            if travado is None:
+                raise Http404
+            if not travado.is_editable():
+                return self._fail(
+                    request, encounter,
+                    'Atendimento finalizado enquanto você escrevia: o registro não pode '
+                    'mais ser alterado. Use um adendo.', 409,
+                )
+            if str(travado.row_version) != submitted_version:
+                return self._fail(
+                    request, encounter,
+                    'Este atendimento foi alterado em outra aba desde que você o abriu. '
+                    'Recarregue a página para não sobrescrever o que já foi gravado.', 409,
+                )
+            for name in submitted:
+                setattr(travado, name, form.cleaned_data[name])
+            if travado.status == EncounterStatus.DRAFT:
+                travado.status = EncounterStatus.IN_PROGRESS
+            travado.row_version += 1
+            travado.full_clean()
+            travado.save()
+        updated = travado
 
         if self._wants_json(request):
             return JsonResponse({'ok': True, 'row_version': updated.row_version})
@@ -519,6 +552,12 @@ class DiagnosisCreateView(TenantScopedView):
 class CarryForwardReviewView(TenantScopedView):
     def post(self, request, encounter_id, item_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(
+                request, encounter,
+                'Atendimento finalizado: o registro não pode mais ser alterado. '
+                'Use um adendo.', anchor='carry-forward',
+            )
         item = get_object_or_404(encounter.carry_forward_items, id=item_id)
         action = request.POST.get('action')
         if action not in ('accepted', 'edited', 'rejected'):
@@ -532,7 +571,10 @@ class CarryForwardReviewView(TenantScopedView):
                 anchor='carry-forward',
             )
         membership = _doctor_membership(request)
-        cf.review_carry_forward_item(item, action, membership.id if membership else None)
+        try:
+            cf.review_carry_forward_item(item, action, membership.id if membership else None)
+        except cf.CarryForwardBlocked as exc:
+            return _blocked(request, encounter, str(exc), anchor='carry-forward')
         return redirect('clinical:detail', encounter_id=encounter.id)
 
 

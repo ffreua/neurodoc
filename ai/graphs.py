@@ -149,12 +149,29 @@ class UnknownTask(Exception):
 
 
 def _invoke_with_timeout(chat_model, prompt, timeout_seconds):
-    with ThreadPoolExecutor(max_workers=1) as executor:
-        future = executor.submit(chat_model.invoke, prompt)
-        try:
-            return future.result(timeout=timeout_seconds)
-        except FutureTimeoutError as exc:
-            raise GraphTimeout(f'Model call exceeded {timeout_seconds}s') from exc
+    """Chama o provedor e desiste no prazo -- desiste de verdade.
+
+    O `with ThreadPoolExecutor(...)` que estava aqui parecia fazer isso e
+    nao fazia: sair do bloco chama `shutdown(wait=True)`, que **espera a
+    thread terminar**. O `GraphTimeout` era levantado no prazo e ficava
+    preso no `__exit__` ate o provedor responder, de modo que um limite de
+    vinte segundos podia segurar o worker por dois minutos -- e o worker
+    tem concorrencia dois.
+
+    A thread em si nao da para matar (nao ha como interromper uma chamada
+    de rede de fora, em Python); o que da e parar de esperar por ela.
+    `shutdown(wait=False)` faz isso, e a thread morre sozinha quando a
+    resposta chegar ou a conexao cair -- por isso o timeout **de rede** do
+    provedor continua sendo o que impede a thread de viver para sempre.
+    """
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = executor.submit(chat_model.invoke, prompt)
+    try:
+        return future.result(timeout=timeout_seconds)
+    except FutureTimeoutError as exc:
+        raise GraphTimeout(f'Model call exceeded {timeout_seconds}s') from exc
+    finally:
+        executor.shutdown(wait=False)
 
 
 def _strip_code_fence(text):

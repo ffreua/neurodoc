@@ -10,8 +10,8 @@ import uuid
 from pathlib import Path
 
 from ops.deploy import (
-    REGISTRY, configuration, create_config, initialize_volumes,
-    preflight, resolve_image, run, wait_for_stack,
+    configuration, create_config, initialize_volumes, preflight, registry,
+    resolve_image, run, wait_for_stack,
 )
 from ops.env import ROOT
 from ops.make_runtime import make_traefik, prepare_runtime
@@ -35,7 +35,17 @@ def decrypt_to(command, archive, identity, capture=False):
             source.wait()
 
 
-def read_manifest(folder):
+def read_manifest(folder, registry_esperado):
+    """Confere o backup e devolve o registro da release que o gerou.
+
+    O registry chega **por argumento**, e nao e lido daqui de dentro: ele
+    e uma configuracao da instalacao (`REGISTRY` no `.env`), nao uma
+    constante do codigo. Ate a correcao deste modulo isto era
+    `from ops.deploy import REGISTRY` -- uma constante que o deploy deixou
+    de exportar quando o registry virou configuravel. O restaurador nao
+    importava mais, e ninguem percebia: nenhum roteiro de `checks/` importa
+    `ops.restore`, de modo que a falha so apareceria no dia de restaurar.
+    """
     if not (folder / 'COMPLETE').is_file():
         raise RuntimeError('Incomplete backup')
     manifest = json.loads((folder / 'manifest.json').read_text())
@@ -51,7 +61,7 @@ def read_manifest(folder):
         if digest.hexdigest() != info['sha256'] or path.stat().st_size != info['bytes']:
             raise RuntimeError(f'Archive integrity mismatch: {name}')
     record = manifest['release']
-    if not record['APP_IMAGE'].startswith(REGISTRY + '@sha256:'):
+    if not record['APP_IMAGE'].startswith(registry_esperado + '@sha256:'):
         raise RuntimeError('Unexpected application registry')
     return record
 
@@ -185,7 +195,7 @@ def main():
     parser.add_argument('--identity')
     args = parser.parse_args()
     folder = Path(args.backup_dir).resolve()
-    record = read_manifest(folder)
+    record = read_manifest(folder, registry(configuration()))
     if args.prepare_data:
         prepare_data(folder, args.identity, record)
     else:

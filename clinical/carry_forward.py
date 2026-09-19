@@ -18,6 +18,10 @@ from django.db import transaction
 from .models import CarryForwardItem, Encounter, EncounterStatus, MedicationStatus
 
 
+class CarryForwardBlocked(Exception):
+    """Revisão recusada porque o atendimento de destino já foi finalizado."""
+
+
 def default_source_encounter(target_encounter):
     return (
         Encounter.objects
@@ -166,9 +170,28 @@ def describe_item(item):
 
 @transaction.atomic
 def review_carry_forward_item(item, action, actor_membership_id):
+    """Aplica (ou descarta) um item copiado da consulta anterior.
+
+    A recusa por atendimento finalizado mora **aqui**, e não só na view:
+    aceitar um item reescreve campo de texto do atendimento com
+    `setattr` + `save`, e este era o único caminho do sistema que alterava
+    prontuário fechado sem passar por `is_editable()`. Bastava repetir uma
+    requisição antiga — o botão ficou na aba, a aba ficou aberta, o médico
+    finalizou em outra — para a conduta antiga voltar por cima do texto
+    assinado, com `content_hash` intacto e nenhum adendo registrando nada.
+
+    Correção em prontuário finalizado é adendo (`clinical/finalization.py`),
+    e não sobrescrita.
+    """
     from django.utils import timezone
 
     from .models import EncounterDiagnosis, Medication, MedicationRoute, ReviewAction
+
+    if not item.target_encounter.is_editable():
+        raise CarryForwardBlocked(
+            'Atendimento finalizado: a revisão da consulta anterior não pode '
+            'mais ser aplicada. Use um adendo.'
+        )
 
     item.review_action = action
     item.reviewed_at = timezone.now()

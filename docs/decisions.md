@@ -4,7 +4,7 @@ Este documento rastreia as decisões arquiteturais adotadas no PRD (seção 3) e
 pendências P-01 a P-10, cada uma com dono e condição de liberação. É a referência
 de S01-T01 e é atualizado sempre que uma pendência é resolvida ou uma decisão muda.
 
-## Decisões adotadas (DEC-01 a DEC-20)
+## Decisões adotadas (DEC-01 a DEC-21)
 
 | ID | Decisão adotada e objetivo preservado | Estado/impacto |
 | --- | --- | --- |
@@ -28,6 +28,7 @@ de S01-T01 e é atualizado sempre que uma pendência é resolvida ou uma decisã
 | DEC-18 | Redis: resultados DB 0, cache DB 1, eventos transitórios DB 2; fonte clínica definitiva no PostgreSQL | Separação lógica não é fronteira de segurança |
 | DEC-19 | PostgreSQL 17, roles separadas para migração e execução, nenhum superuser no Django | App recebe credencial de DDL por exigir migrations no entrypoint; risco residual documentado |
 | DEC-20 | Nenhuma suíte de testes automatizados | Decisão confirmada; revisão, verificação sintática e homologação manual continuam obrigatórias |
+| DEC-21 | Segundo fator do link do documento: quatro últimos dígitos do CPF (ou data de nascimento, quando não há CPF), link válido por 30 dias — substitui o código de uso único de 8 dígitos/10 min/7 dias do RF-09.02 | Implementado em `communications/access.py`; **enfraquece** o segundo fator e alonga a validade do link, e por isso a proteção efetiva passa a ser o link opaco de 32 bytes com contador de tentativas atômico. Revisar se o portal do paciente passar a tratar pedido que não seja entrega de documento |
 | DEC-21 | Base local de faixas de CEP dos Correios (`catalogs.PostalCodeRange`, 6.614 faixas versionadas em `catalogs/data/postal_ranges.csv`) como fonte de município/UF; ViaCEP fica apenas como complemento de logradouro/bairro | O cadastro resolve o endereço sem depender de rede; o conjunto local é por faixa municipal e não contém logradouro, por isso o complemento externo permanece — enviando somente o CEP, nunca dado do paciente |
 | DEC-22 | CPF obrigatório no formulário de cadastro de paciente, não no modelo | Identifica o paciente em documento, guia e cobrança e bloqueia duplicata por CPF; o modelo continua aceitando nulo para não invalidar registros criados antes desta regra |
 | DEC-23 | Roteiro de exame como árvore versionada carregada de YAML (`exams`), com o roteiro oficial publicado pela organização e derivação pessoal por médico | Especialidade nova é arquivo novo, sem alterar código; o atendimento guarda roteiro e versão, então registro antigo continua sendo lido com o roteiro com que foi preenchido |

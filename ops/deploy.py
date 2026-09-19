@@ -16,6 +16,10 @@ from ops.make_runtime import make_traefik, prepare_runtime
 
 STACK = 'neurodoc_v1'
 
+#: UID do usuario da aplicacao dentro da imagem (`Dockerfile`). Os volumes
+#: e binds que o app escreve precisam pertencer a ele.
+APP_UID = 10001
+
 #: Registry de onde o Swarm puxa a imagem da aplicacao.
 #:
 #: Era uma constante em codigo, apontando para `ghcr.io/pycodebr/scsi_v1`
@@ -109,6 +113,16 @@ def preflight(config):
         run(['docker', 'secret', 'inspect', name, '--format', '{{.ID}}'])
     if run(['findmnt', '-n', '-o', 'FSTYPE', '-T', '/run/neurodoc-signing']) != 'tmpfs':
         raise RuntimeError('Signing session keys must reside on tmpfs')
+    # Ser tmpfs nao basta: o diretorio e montado no host, por root, e entra
+    # no container por bind. Quem escreve nele e o processo da aplicacao,
+    # que roda como UID 10001 (Dockerfile). Montado com o dono padrao, a
+    # pasta fica 0700 de root e a primeira assinatura falha com "permission
+    # denied" -- em producao, na hora de assinar uma receita, e nao aqui.
+    if os.stat('/run/neurodoc-signing').st_uid != APP_UID:
+        raise RuntimeError(
+            f'/run/neurodoc-signing must be owned by UID {APP_UID} (the container user); '
+            f'remount with uid={APP_UID},gid={APP_UID} or chown it'
+        )
     for path in ['requirements.txt', 'manage.py', 'core/asgi.py',
                  'accounts/models.py', 'tenancy/middleware.py', 'docs/index.md']:
         if not (ROOT / path).is_file():

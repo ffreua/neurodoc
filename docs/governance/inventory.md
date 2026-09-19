@@ -19,7 +19,7 @@ de uma promessa abstrata.
 | Anexos (exames, laudos externos) | `documents.Attachment` | Soft-delete + GC físico após 30 dias, nunca durante backup (lock) | Quarentena/antivírus antes de disponível (S06) |
 | Documento médico assinado | `documents.MedicalDocument` | Sem expurgo automático; hash + versionamento | PAdES; certificado de teste nesta etapa (P-05) |
 | Credencial de assinatura (PFX) | `documents.SigningCredential` | Até revogação/substituição | Cifrado por envelope; nunca em texto puro (S07) |
-| Contato para entrega (e-mail/telefone) | `communications.Delivery`, `DocumentAccessToken` | Token expira em 7 dias; OTP de uso único | Nunca envia diagnóstico na mensagem (S08) |
+| Contato para entrega (e-mail/telefone) | `communications.Delivery`, `DocumentAccessToken` | Token expira em 30 dias; verificação pelos 4 últimos dígitos do CPF ou data de nascimento, 5 tentativas (DEC-21) | Nunca envia diagnóstico na mensagem (S08) |
 | Financeiro (recebível/pagamento) | `finance.Receivable`, `Payment` | Sem expurgo automático | Isolado do prontuário; usuário financeiro não lê nota clínica (S09) |
 | Auditoria | `audit.AuditEvent` | Sem expurgo automático (trilha) | `purpose`/`integrity_metadata` nunca recebem texto clínico por contrato do `record_audit_event` |
 

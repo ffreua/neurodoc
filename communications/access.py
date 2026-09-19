@@ -28,6 +28,7 @@ impossível de abrir.
 import hashlib
 import secrets
 
+from django.db.models import F
 from django.utils import timezone
 
 from .models import DocumentAccessToken
@@ -121,18 +122,28 @@ def verify_identity(token, answer):
     A tentativa é gravada **antes** de responder, e não depois: gravar
     depois faria uma requisição interrompida no meio não contar, e quem
     tenta adivinhar interrompe de propósito.
-    """
-    if token.otp_attempts >= MAX_ATTEMPTS:
-        raise AccessLocked(
-            'Este link foi bloqueado por tentativas demais. Peça o reenvio à clínica.'
-        )
 
+    O incremento é um `UPDATE ... SET otp_attempts = otp_attempts + 1`
+    condicionado ao limite, e não ler-somar-gravar em Python. Lido em
+    Python, duas tentativas simultâneas leem o mesmo número, somam um
+    sobre o mesmo número e gravam o mesmo número: duas tentativas contadas
+    como uma. Quem quer adivinhar quatro dígitos manda as requisições em
+    paralelo de propósito, e era assim que cinco tentativas viravam muitas
+    mais. Como o próprio banco decide, a linha não atualizada **é** a
+    resposta de que o limite estourou.
+    """
     kind = challenge_kind(token)
     expected = expected_answer(token)
     given = _normalize(answer, kind)
 
-    token.otp_attempts += 1
-    token.save(update_fields=['otp_attempts'])
+    contada = type(token).objects.filter(
+        pk=token.pk, otp_attempts__lt=MAX_ATTEMPTS,
+    ).update(otp_attempts=F('otp_attempts') + 1)
+    if not contada:
+        raise AccessLocked(
+            'Este link foi bloqueado por tentativas demais. Peça o reenvio à clínica.'
+        )
+    token.refresh_from_db(fields=['otp_attempts'])
 
     # `compare_digest` para o tempo de resposta não revelar quantos dígitos
     # bateram. É barato, e o hábito vale mais do que a economia.

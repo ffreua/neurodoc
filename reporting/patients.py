@@ -151,16 +151,39 @@ def diagnosis_distribution(tenant, start, end):
     return result
 
 
+def _period_bounds(start, end):
+    """As datas como `date`, venham da tela ou de um parâmetro JSON do Celery."""
+    if isinstance(start, str):
+        start = datetime.date.fromisoformat(start)
+    if isinstance(end, str):
+        end = datetime.date.fromisoformat(end)
+    return start, end
+
+
+def patients_seen_detail_count(tenant, start, end):
+    """Quantas linhas o relatório teria, sem montar nenhuma.
+
+    É o que decide se a exportação cabe na requisição ou vai para o worker
+    (`reporting/services.py`), e por isso não pode ser "conta montando":
+    um `COUNT(DISTINCT)` no banco custa o mesmo para dez ou dez mil
+    pacientes.
+    """
+    start, end = _period_bounds(start, end)
+    return (
+        Encounter.objects
+        .filter(tenant_id=tenant, status=EncounterStatus.FINALIZED,
+                occurred_at__date__gte=start, occurred_at__date__lte=end)
+        .values('patient_id').distinct().count()
+    )
+
+
 def patients_seen_detail_rows(tenant, start, end):
     """Row-level export backing the "Pacientes atendidos" indicator --
     one row per distinct patient with their earliest finalized encounter
     in the window. `start`/`end` arrive as ISO date strings when this runs
     through the export registry (Celery task params are plain JSON).
     """
-    if isinstance(start, str):
-        start = datetime.date.fromisoformat(start)
-    if isinstance(end, str):
-        end = datetime.date.fromisoformat(end)
+    start, end = _period_bounds(start, end)
     encounters = Encounter.objects.filter(
         tenant_id=tenant, status=EncounterStatus.FINALIZED, occurred_at__date__gte=start, occurred_at__date__lte=end,
     ).select_related('patient').values('patient_id', 'patient__full_name').annotate(

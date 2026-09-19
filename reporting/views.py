@@ -42,10 +42,33 @@ class HomeRedirectMixin:
 
 
 def _parse_period(request):
+    """O período da tela, e o mês corrente quando não veio nenhum.
+
+    Data ilegível cai no padrão em vez de derrubar a página: `start` e
+    `end` vêm da URL, e a URL é digitada, colada pela metade e guardada nos
+    favoritos com o ano cortado. `fromisoformat` levantava `ValueError`
+    direto da view e o painel de indicadores respondia erro 500 — para um
+    caractere errado num parâmetro que tem padrão óbvio.
+
+    Inverter as duas também é entrada inválida, e silenciosa: um período
+    que termina antes de começar devolve todo indicador zerado, o que se
+    lê como "não houve atendimento" em vez de "a data está trocada".
+    """
     today = datetime.date.today()
-    start = request.GET.get('start') or str(today.replace(day=1))
-    end = request.GET.get('end') or str(today)
-    return datetime.date.fromisoformat(start), datetime.date.fromisoformat(end)
+
+    def data(valor, padrao):
+        if not valor:
+            return padrao
+        try:
+            return datetime.date.fromisoformat(valor)
+        except ValueError:
+            return padrao
+
+    start = data(request.GET.get('start'), today.replace(day=1))
+    end = data(request.GET.get('end'), today)
+    if end < start:
+        start, end = end, start
+    return start, end
 
 
 class DashboardView(HomeRedirectMixin, TenantScopedView):

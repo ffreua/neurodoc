@@ -69,10 +69,19 @@ Três camadas, e vale conhecer as três antes de mexer em qualquer view:
    `'doctor' in roles`. Papéis: `owner`, `doctor`, `secretary`, `manager`.
 
 No banco, o isolamento é reforçado por **chave estrangeira composta**:
-todo `TenantModel` carrega `UNIQUE(tenant_id, id)` e os filhos referenciam
-`(tenant_id, fk)` — ver `base/db.py::composite_tenant_foreign_key`. Uma
-linha não consegue apontar para objeto de outro inquilino nem por bug de
-aplicação.
+todo `TenantModel` carrega `UNIQUE(tenant_id, id)` — isso vale para todos
+— e os filhos referenciam `(tenant_id, fk)`, de modo que a linha não
+consegue apontar para objeto de outro inquilino nem por bug de aplicação.
+Ver `base/db.py::composite_tenant_foreign_key`.
+
+**A restrição composta está aplicada em `clinical` e `teamchat`**
+(`clinical/migrations/0009_*`, `teamchat/migrations/0001_*`), e não nos
+demais apps. Até 2026-09-19 só o `teamchat` a tinha, e este parágrafo
+dizia que todos a tinham — o `UNIQUE(tenant_id, id)` estava em toda parte
+e a chave que ele habilita, em lugar nenhum. Estender a `patients`,
+`documents`, `scheduling`, `finance` e `communications` é trabalho aberto;
+até lá, o que separa as clínicas nesses apps é o filtro por inquilino em
+cada consulta, sem a rede embaixo.
 
 **Rotas fora de `/app/` são públicas ou de instalação, de propósito:**
 `/` (vendas), `/accounts/`, `/verificar/` (QR do documento, aberto na
@@ -187,6 +196,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
 | `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |
 | `check_mobile.py` | aderência ao celular: o bloco de toque existe e pergunta por `pointer: coarse`, campos a 16px, alvo de 40px, tabela embrulhada, calha responsiva |
+| `check_backup.py` | restaurador carrega, trava única entre backup e arquivo morto, unidades do systemd executáveis |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
@@ -214,7 +224,7 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 - `PRD.md` — a especificação completa (matriz de permissão §4, roteiro de
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
-- `docs/decisions.md` — DEC-01..DEC-20 e as pendências P-01..P-10, com dono
+- `docs/decisions.md` — DEC-01..DEC-21 e as pendências P-01..P-10, com dono
   e condição de liberação (P-02 VPS real, P-05 certificado real, P-06/P-07
   responsáveis de LGPD, P-08 scanner real permanecem abertas).
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,

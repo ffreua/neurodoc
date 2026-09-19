@@ -857,15 +857,35 @@ nano .env      # SECURE_HSTS_SECONDS=31536000
 
 ### 15.4 Backups
 
-O repositório traz as unidades do systemd:
+**O `scripts/setup_deploy.sh` já faz esta seção inteira** — instala as duas
+unidades, liga os timers e roda o primeiro backup. O que segue é para quem
+instalou à mão.
+
+O repositório traz as unidades do systemd. Elas são **moldes**: trazem o
+caminho e o usuário padrão (`/srv/neurodoc`, `neurodocops`), que precisam
+ser trocados se esta instalação usa outros — uma unidade apontando para o
+caminho errado falha em silêncio até a noite em que o backup faria falta.
 
 ```bash
 sudo cp ops/neurodoc-backup.service ops/neurodoc-backup.timer /etc/systemd/system/
 sudo cp ops/neurodoc-signing-cleanup.service ops/neurodoc-signing-cleanup.timer /etc/systemd/system/
+# Só se o projeto ou o usuário não forem os padrões:
+#   sudo sed -i "s#/srv/neurodoc#$(pwd)#g; s#neurodocops#$(id -un)#g" #     /etc/systemd/system/neurodoc-{backup,signing-cleanup}.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer
 systemctl list-timers | grep neurodoc
 ```
+
+Prove que funciona antes de confiar, e não na primeira noite:
+
+```bash
+sudo systemctl start neurodoc-backup.service
+journalctl -u neurodoc-backup.service -n 30 --no-pager
+```
+
+Um backup que nunca foi restaurado não é backup. A prova completa está em
+`docs/operations/restore.md` e exige **outra máquina** — o `ops/restore.py`
+se recusa a rodar num host que já tenha serviços `neurodoc_v1_*`.
 
 **Além disso, guarde os segredos fora do servidor.** Um backup do banco
 sem as chaves-mestras é um backup que não abre:

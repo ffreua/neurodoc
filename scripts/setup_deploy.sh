@@ -31,8 +31,8 @@
 #
 #  3) Clonando o repositorio antes, por HTTPS com token:
 #
-#       git clone https://SEU-TOKEN@github.com/ffreua/neurodoc.git /opt/neurodoc
-#       bash /opt/neurodoc/scripts/setup_deploy.sh
+#       git clone https://SEU-TOKEN@github.com/ffreua/neurodoc.git /srv/neurodoc
+#       bash /srv/neurodoc/scripts/setup_deploy.sh
 #
 #     O script percebe o clone existente e pula a etapa de trazer o codigo.
 #
@@ -245,7 +245,10 @@ REDE_INTERNA='neurodoc_v1_internal'
 REDE_EGRESSO='neurodoc_v1_egress'
 ROTULO_NO='neurodoc_data'
 TMPFS_ASSINATURA='/run/neurodoc-signing'
-DESTINO_PADRAO='/opt/neurodoc'
+# UID do usuário da aplicação dentro da imagem (Dockerfile) — o mesmo de
+# `ops/deploy.py::APP_UID`. Tudo que o contêiner escreve precisa ser dele.
+UID_APP='10001'
+DESTINO_PADRAO='/srv/neurodoc'
 DOMINIO='neurodoc.app.br'
 ARQ_ESTADO_NOME='.neurodoc-setup.state'
 
@@ -443,18 +446,35 @@ CFG
   passo "Pasta das chaves de assinatura, em memória (tmpfs)"
   # As chaves de sessão de assinatura digital não podem tocar o disco. O
   # preflight confere o tipo do sistema de arquivos e recusa se for disco.
+  #
+  # `uid`/`gid` do usuário da aplicação, e não do root: esta pasta é
+  # montada aqui pelo root e entra no contêiner por bind
+  # (`docker-stack.yml`), onde quem escreve é o processo do app, que roda
+  # como ${UID_APP} (Dockerfile). Montada com o dono padrão ela fica 0700
+  # de root, e a falha não aparece agora — aparece em produção, na
+  # primeira receita que alguém tenta assinar.
   mkdir -p "$TMPFS_ASSINATURA"
   if [[ "$(findmnt -n -o FSTYPE -T "$TMPFS_ASSINATURA" 2>/dev/null || true)" == "tmpfs" ]]; then
     pulado "tmpfs em ${TMPFS_ASSINATURA}"
   else
     fazendo "Montando tmpfs em ${TMPFS_ASSINATURA}"
-    mount -t tmpfs -o size=16m,mode=0700 tmpfs "$TMPFS_ASSINATURA"
+    mount -t tmpfs -o "size=16m,mode=0700,uid=${UID_APP},gid=${UID_APP}" tmpfs "$TMPFS_ASSINATURA"
     ok "tmpfs montado"
+  fi
+  # Também para o tmpfs que já estava montado de uma execução anterior,
+  # feita antes desta correção: remontar derrubaria as chaves de sessão em
+  # uso, e o `chown` resolve sem isso.
+  if [[ "$(stat -c '%u' "$TMPFS_ASSINATURA")" != "$UID_APP" ]]; then
+    fazendo "Ajustando o dono de ${TMPFS_ASSINATURA} para ${UID_APP}"
+    chown "${UID_APP}:${UID_APP}" "$TMPFS_ASSINATURA"
+    ok "Dono ajustado"
+  else
+    pulado "Dono de ${TMPFS_ASSINATURA} (${UID_APP})"
   fi
   if grep -q "$TMPFS_ASSINATURA" /etc/fstab 2>/dev/null; then
     pulado "Linha no /etc/fstab"
   else
-    echo "tmpfs ${TMPFS_ASSINATURA} tmpfs size=16m,mode=0700 0 0" >>/etc/fstab
+    echo "tmpfs ${TMPFS_ASSINATURA} tmpfs size=16m,mode=0700,uid=${UID_APP},gid=${UID_APP} 0 0" >>/etc/fstab
     ok "Persistido no /etc/fstab (sobrevive a reinício)"
   fi
 
@@ -1066,6 +1086,49 @@ SSHCFG
     fi
   fi
 
+  # ──────────────────────────────────────────── backup e limpeza no timer ──
+  passo "Backup diário e limpeza de chaves (timers do systemd)"
+  # Até esta correção o script terminava sem instalar nada disso, e o
+  # resumo final mandava "configure o backup depois". Quem seguisse o
+  # resumo ficava sem backup nenhum e só descobria no dia de precisar —
+  # que é o dia em que não há como corrigir. Instalar aqui, junto do
+  # deploy, é a única ordem em que o esquecimento não é possível.
+  #
+  # As unidades em `ops/` são moldes: trazem o caminho e o usuário padrão,
+  # e aqui recebem os desta instalação, que a FASE 1 pode ter mudado.
+  local proj_real usuario_ops
+  proj_real="$(pwd)"
+  usuario_ops="$(id -un)"
+  local unidade ajustes
+  ajustes="s#/srv/neurodoc#${proj_real}#g"
+  ajustes="${ajustes}; s#^User=neurodocops#User=${usuario_ops}#"
+  ajustes="${ajustes}; s#^Group=neurodocops#Group=${usuario_ops}#"
+  for unidade in neurodoc-backup neurodoc-signing-cleanup; do
+    sudo sed "$ajustes" "ops/${unidade}.service" |
+      sudo tee "/etc/systemd/system/${unidade}.service" >/dev/null
+    sudo cp "ops/${unidade}.timer" "/etc/systemd/system/${unidade}.timer"
+  done
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer >>"$LOG_FILE" 2>&1
+  ok "Timers instalados e ligados (backup às 03:00, limpeza a cada 5 min)"
+
+  # A chave do backup é a única coisa deste servidor que não pode morar
+  # neste servidor. Sem ela o arquivo cifrado é lixo — inclusive para você.
+  if [[ "$(get_env BACKUP_AGE_RECIPIENT)" == "CHANGE_ME" || -z "$(get_env BACKUP_AGE_RECIPIENT)" ]]; then
+    aviso "O timer está ligado, mas BACKUP_AGE_RECIPIENT ainda é CHANGE_ME:"
+    echo "    ${GREY}o backup vai falhar todas as noites até você pôr a chave pública 'age'.${RESET}"
+    echo "    ${CYAN}age-keygen -o neurodoc-backup.key${RESET}  ${GREY}(na SUA máquina, nunca aqui)${RESET}"
+  else
+    fazendo "Rodando o primeiro backup agora, para provar que funciona"
+    if sudo systemctl start neurodoc-backup.service; then
+      ok "Primeiro backup concluído — confira em $(get_env BACKUP_DIR)"
+      aviso "Um backup só conta como backup depois de restaurado noutra máquina:"
+      echo "    ${CYAN}python -m ops.restore --prepare-data --backup-dir <pasta> --identity <chave>${RESET}"
+    else
+      aviso "O primeiro backup falhou. Veja: ${CYAN}journalctl -u neurodoc-backup.service -n 50${RESET}"
+    fi
+  fi
+
   # ───────────────────────────────────────────────────────── pós-deploy ───
   passo "Sua conta de superadministrador"
   local app_id
@@ -1147,8 +1210,11 @@ instrucoes_finais() {
   echo ""
   echo "  ${BOLD}O que ainda falta fazer (nesta ordem):${RESET}"
   echo "    1. ${BOLD}Definir sua senha${RESET} pelo link do convite e ${BOLD}ligar a MFA${RESET}."
-  echo "    2. ${BOLD}Backup${RESET}: gere a chave na SUA máquina (não aqui) com ${CYAN}age-keygen${RESET},"
-  echo "       ponha a pública em ${CYAN}BACKUP_AGE_RECIPIENT${RESET} no .env e publique de novo."
+  echo "    2. ${BOLD}Backup${RESET}: o timer diário já está ligado. Se ${CYAN}BACKUP_AGE_RECIPIENT${RESET}"
+  echo "       ainda for CHANGE_ME, gere a chave na SUA máquina (${CYAN}age-keygen${RESET}, nunca aqui),"
+  echo "       ponha a pública no .env e publique de novo — sem ela o backup falha toda noite."
+  echo "       ${BOLD}E restaure uma cópia em outra máquina${RESET} antes de confiar nela:"
+  echo "       ${CYAN}python -m ops.restore --prepare-data --backup-dir <pasta> --identity <chave>${RESET}"
   echo "    3. ${BOLD}HSTS${RESET}: só depois de o cadeado aparecer sem aviso —"
   echo "       ${CYAN}SECURE_HSTS_SECONDS=31536000${RESET} no .env e ${CYAN}bash scripts/deploy.sh${RESET}."
   echo "       ${GREY}O navegador guarda a instrução; ligar cedo demais não tem volta.${RESET}"

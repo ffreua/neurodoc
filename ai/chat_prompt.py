@@ -1,11 +1,14 @@
 """O que o modelo recebe numa volta do chat de apoio.
 
-Até aqui, o chat mandava ao provedor **apenas a mensagem digitada**:
-`run_chat_turn.delay(str(message.id), content)`. Sem instrução de sistema,
+Até aqui, o chat mandava ao provedor **apenas a mensagem digitada**, que
+ia como argumento da tarefa. Sem instrução de sistema,
 sem histórico, sem um dado sequer do prontuário, e sem passar pela
 desidentificação que o caminho de análise já aplicava. Era o modelo cru,
 respondendo de memória sobre um paciente que ele nunca viu — que é a
 definição do que se pediu para nunca acontecer.
+
+Hoje a tarefa recebe **dois identificadores** e lê a pergunta do banco;
+nada de texto clínico passa pelo broker (`ai/chat_views.py`).
 
 ## Fatos entregues, não ferramentas oferecidas
 
@@ -131,9 +134,18 @@ def build_patient_context(authorization):
             queixa = (e.get('chief_complaint') or '').strip()
             hpi = (e.get('hpi') or '').strip()
             plano = (e.get('plan_text') or '').strip()
-            texto = f'{data}: {queixa}'
+            livre = (e.get('free_text') or '').strip()
+            impressoes = (e.get('impressions') or '').strip()
+            texto = f'{data}: {queixa}' if queixa else data
             if hpi:
                 texto += f' | História: {hpi}'
+            # No atendimento de texto livre este é o corpo da consulta, e os
+            # campos acima vêm vazios: omiti-lo deixava a linha do tempo com
+            # a data e mais nada.
+            if livre:
+                texto += f' | Consulta: {livre}'
+            if impressoes:
+                texto += f' | Impressões: {impressoes}'
             if plano:
                 texto += f' | Conduta: {plano}'
             linhas.append(texto)

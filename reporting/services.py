@@ -11,8 +11,9 @@ from audit.services import record_audit_event
 from .exporters import export_csv
 from .models import ReportExport, ReportExportKind, ReportExportStatus
 
+#: Acima disto a exportação vai para o worker. Conferido por `COUNT` antes
+#: de qualquer leitura — medir depois de montar não é limite, é relatório.
 SYNC_ROW_LIMIT = 1000
-SYNC_TIME_LIMIT_SECONDS = 5
 EXPORT_TTL_HOURS = 24
 
 
@@ -28,8 +29,16 @@ class ReportNotFound(Exception):
 _REGISTRY = {}
 
 
-def register_report(name, rows_fn, fieldnames):
-    _REGISTRY[name] = (rows_fn, fieldnames)
+def register_report(name, rows_fn, fieldnames, count_fn=None):
+    """Registra um relatório exportável.
+
+    `count_fn(tenant, **params) -> int` é opcional e conta **sem montar as
+    linhas** — um `COUNT` no banco. É ela que decide se a exportação cabe
+    na requisição. Um relatório que não a fornece vai direto para a fila:
+    é a resposta segura para "não sei quanto isto pesa", e a errada seria
+    descobrir montando.
+    """
+    _REGISTRY[name] = (rows_fn, fieldnames, count_fn)
 
 
 def _export_dir(tenant_id):
@@ -54,25 +63,36 @@ def _write_csv_file(export, rows, fieldnames):
 def request_export(access_context, membership, report_name, parameters, kind=ReportExportKind.CSV):
     if report_name not in _REGISTRY:
         raise ReportNotFound(report_name)
-    rows_fn, fieldnames = _REGISTRY[report_name]
+    rows_fn, fieldnames, count_fn = _REGISTRY[report_name]
 
     export = ReportExport.objects.create(
         tenant_id=access_context.tenant_id, requested_by=membership, kind=kind,
         report_name=report_name, parameters=parameters, status=ReportExportStatus.RUNNING,
     )
-    started = time.monotonic()
-    rows = rows_fn(access_context.tenant_id, **parameters)
-    elapsed = time.monotonic() - started
 
-    if len(rows) <= SYNC_ROW_LIMIT and elapsed <= SYNC_TIME_LIMIT_SECONDS:
+    # A decisão vem **antes** da leitura. Até esta correção o relatório
+    # inteiro era montado na requisição e só então se perguntava se ele era
+    # grande demais para ser montado na requisição — a resposta chegava
+    # depois de o estrago estar feito, e o limite não protegia de nada.
+    # Agora um `COUNT` decide, e o relatório grande nunca chega a ser lido
+    # aqui: quem o monta é o worker.
+    cabe_na_requisicao = False
+    if count_fn is not None:
+        cabe_na_requisicao = count_fn(access_context.tenant_id, **parameters) <= SYNC_ROW_LIMIT
+
+    if cabe_na_requisicao:
+        started = time.monotonic()
+        rows = rows_fn(access_context.tenant_id, **parameters)
+        elapsed = time.monotonic() - started
         _write_csv_file(export, rows, fieldnames)
         record_audit_event(
             access_context.user_id, access_context.tenant_id, 'reporting.export_completed_sync',
             object_type='report_export', object_id=export.id, outcome='success',
+            integrity_metadata={'rows': len(rows), 'seconds': round(elapsed, 3)},
         )
         return export
 
-    # Large/slow: hand off to Celery, never block the request.
+    # Grande, ou de tamanho desconhecido: vai para o Celery sem ser lido.
     export.status = ReportExportStatus.QUEUED
     export.save(update_fields=['status'])
     from .tasks import run_export

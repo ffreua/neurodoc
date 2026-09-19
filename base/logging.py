@@ -40,5 +40,30 @@ class NoPostDataExceptionReporterFilter(SafeExceptionReporterFilter):
     path, never the request body.
     """
 
+    #: Marcador no lugar do valor. O **nome** da variável fica: saber que
+    #: existia um `encounter` naquele quadro ajuda a depurar, e o conteúdo
+    #: dele não ajuda nada que valha o risco.
+    PLACEHOLDER = '[SUPRIMIDO]'
+
     def get_post_parameters(self, request):
         return {}
+
+    def get_traceback_frame_variables(self, request, tb_frame):
+        """Nomes das variáveis locais, nunca os valores.
+
+        Suprimir o corpo do POST e parar por aí resolvia metade do
+        problema: o mesmo texto clínico reaparecia no relatório como
+        variável local do quadro que estourou -- `form.cleaned_data`,
+        `encounter`, `patient`, o `content` da mensagem do chat. A
+        filtragem herdada do Django olha o nome da variável, e nenhum
+        desses nomes parece sensível.
+
+        Não há aqui o dilema que há no POST: um alerta de erro precisa do
+        traceback, do caminho e do tipo da exceção. O conteúdo das
+        variáveis é comodidade, e comodidade não justifica mandar
+        prontuário por e-mail.
+        """
+        return [
+            (nome, self.PLACEHOLDER)
+            for nome, _valor in super().get_traceback_frame_variables(request, tb_frame)
+        ]

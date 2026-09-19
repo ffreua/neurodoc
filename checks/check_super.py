@@ -4,6 +4,8 @@ O outro teste provou que ele recusa. Este prova que ele serve — e que o
 que ele mostra nao inclui conteudo clinico, que e a decisao que governa o
 recurso.
 """
+import uuid
+
 from django.conf import settings as dj_settings
 from django.test import Client
 
@@ -167,18 +169,36 @@ TOTPDevice.objects.filter(id__in=criados).delete()
 # deixar uma porta de acesso total dormindo na base de desenvolvimento de
 # quem rodou o roteiro -- e a senha nao e segredo nenhum, esta versionada.
 #
-# `AuditEvent.actor` e PROTECT: a conta so sai depois dos eventos que ela
-# gerou. Apagar linha de trilha e coisa seria, e por isso esta explicito
-# aqui em vez de escondido num "apague o que atrapalhar": as linhas
-# removidas sao **as que este roteiro produziu**, com o ator que este
-# roteiro criou, numa base de demonstracao. Em producao isto nunca corre.
+# `AuditEvent.actor` e PROTECT: a conta so sairia depois dos eventos que
+# ela gerou, e desde `audit/0003_auditevent_imutavel` a trilha nao pode
+# mais ser apagada -- nem aqui. Ate entao este bloco tirava os eventos da
+# frente para poder apagar a conta; era o proprio roteiro contornando a
+# propriedade que o sistema promete, e a primeira coisa que a protecao
+# quebrou foi este atalho, que e o sinal de que ela funciona.
+#
+# Entao a conta e **aposentada**, nao apagada: perde os poderes, perde a
+# senha e perde o e-mail (que volta a ficar livre para a proxima rodada).
+# Como porta de acesso ela deixa de existir, que era a preocupacao; e a
+# linha que a trilha aponta continua de pe, que e como auditoria funciona.
+from accounts.models import User as _User
 from audit.models import AuditEvent as _AuditEvent
 
 _eventos = _AuditEvent.objects.filter(actor=su).count()
-_AuditEvent.objects.filter(actor=su).delete()
 _conta = su.email
-su.delete()
-print(f'  limpeza -> conta {_conta} removida ({_eventos} evento(s) de auditoria dela)')
+su.set_unusable_password()
+su.is_active = False
+su.is_staff = False
+su.is_superuser = False
+su.email = f'aposentado-por-roteiro-{uuid.uuid4().hex[:12]}@example.invalid'
+su.save(update_fields=['password', 'is_active', 'is_staff', 'is_superuser', 'email'])
+_ainda_pode_entrar = _User.objects.filter(
+    id=su.id, is_active=True,
+).exists() or su.has_usable_password()
+print(f'  limpeza -> conta {_conta} aposentada '
+      f'({_eventos} evento(s) de auditoria preservados)')
+print(f'  a conta ainda serve de porta: {_ainda_pode_entrar}')
+if _ainda_pode_entrar:
+    falhas.append('a conta descartavel continuou utilizavel depois da limpeza')
 print()
 print('---')
 if falhas:

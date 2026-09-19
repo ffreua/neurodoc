@@ -141,9 +141,51 @@ def _build_chat_messages(session, user_text):
     return mensagens
 
 
+def _avaliar_privacidade(session, mensagens):
+    """A politica de privacidade sobre tudo o que esta conversa mandaria.
+
+    O texto avaliado e o das mensagens ja montadas -- instrucao, prontuario
+    desidentificado, historico e a pergunta --, porque e exatamente isso
+    que sairia da clinica.
+
+    O atendimento passado a politica e o que **documenta consanguinidade**,
+    quando existe: a regra do `ai/services.py` olha o atendimento do job, e
+    a conversa nao tem um. Pegar o mais recente qualquer deixaria a porta
+    aberta por sorte de ordenacao; pegar justamente o que dispara a regra e
+    o unico jeito de a decisao ser a mesma nos dois caminhos.
+    """
+    from clinical.models import ConsanguinityState, Encounter
+
+    from . import privacy_policy
+
+    encounter = None
+    if session.patient_id:
+        encounter = (
+            Encounter.objects
+            .filter(tenant_id=session.tenant_id, patient_id=session.patient_id,
+                    consanguinity_state=ConsanguinityState.CONFIRMED)
+            .exclude(consanguinity_details='')
+            .order_by('-occurred_at')
+            .first()
+        )
+    texto = '\n'.join(
+        m.content if hasattr(m, 'content') else str(m) for m in mensagens
+    )
+    return privacy_policy.evaluate_privacy_policy(encounter, texto)
+
+
 def _membership_id_of(session):
-    """O vinculo do dono da sessao nesta clinica, revalidado agora."""
+    """O vinculo do dono da sessao nesta clinica, revalidado agora.
+
+    Vinculo ativo nao basta, e era so isso que se conferia aqui: tirar o
+    papel medico de alguem deixa o vinculo **ativo** -- ele continua sendo
+    da secretaria, do gerente. Uma tarefa ja enfileirada seguia adiante e
+    entregava prontuario a quem tinha acabado de perder o direito de le-lo.
+    A capacidade conferida e a mesma da view que abriu o chat e a mesma que
+    `ai/sse.py` reconfere a cada volta do stream.
+    """
     from tenancy.models import Membership, MembershipStatus
+    from tenancy.permissions import Capability, capabilities_for
 
     vinculo = Membership.objects.filter(
         tenant_id=session.tenant_id, user_id=session.owner_user_id,
@@ -151,11 +193,16 @@ def _membership_id_of(session):
     ).first()
     if vinculo is None:
         raise AIAuthorizationDenied('Vinculo inativo nesta organizacao')
+    capacidades = capabilities_for(
+        vinculo.roles, clinically_enabled=vinculo.can_practice_clinically(),
+    )
+    if Capability.CLINICAL_AI not in capacidades:
+        raise AIAuthorizationDenied('Vinculo sem capacidade de apoio clinico por IA')
     return vinculo.id
 
 
 @shared_task(name='ai.tasks.run_chat_turn', expires=600)
-def run_chat_turn(message_id, prompt):
+def run_chat_turn(message_id, user_message_id):
     """Streams the reply token-by-token into the Redis Stream keyed by
     this message's id (RF-11.04) while accumulating the full text, then
     persists the final, sanitized content to Postgres regardless of
@@ -178,14 +225,38 @@ def run_chat_turn(message_id, prompt):
     message = ChatMessage.objects.select_related('session', 'session__patient').get(id=message_id)
     session = message.session
     tenant_id, user_id, job_id = session.tenant_id, session.owner_user_id, str(message.id)
+    # A pergunta vem do banco pelo id, e não pelo broker: ver o comentário
+    # em `ai/chat_views.py`. O filtro por sessão é o de sempre -- um id de
+    # mensagem de outra conversa não busca nada aqui.
+    user_text = ChatMessage.objects.filter(
+        tenant_id=tenant_id, session_id=session.id, id=user_message_id,
+    ).values_list('content', flat=True).first()
+    if user_text is None:
+        aviso = 'A pergunta desta conversa nao foi encontrada.'
+        publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': aviso})
+        fail_assistant_message(message, aviso)
+        return {'status': 'failed', 'reason': 'user message not found'}
 
     try:
-        prompt = _build_chat_messages(session, prompt)
+        prompt = _build_chat_messages(session, user_text)
     except AIAuthorizationDenied as exc:
         aviso = f'Acesso revogado antes de a resposta comecar: {exc}'
         publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': aviso})
         fail_assistant_message(message, aviso)
         return {'status': 'denied', 'reason': str(exc)}
+
+    # A mesma politica que decide se um job pode sair, aplicada aqui.
+    # Ate esta correcao ela morava so em `ai/services.py`: o chat
+    # desidentificava o texto mas nunca perguntava se aquele conteudo podia
+    # deixar a clinica, e era o caminho **mais** largo dos dois -- leva o
+    # prontuario inteiro do paciente em escopo. Uma politica que cobre uma
+    # porta e ignora a outra nao e uma politica.
+    decisao = _avaliar_privacidade(session, prompt)
+    if not decisao.allowed:
+        publish_event(tenant_id, user_id, session.id, job_id, 'error',
+                      {'message': decisao.reason})
+        fail_assistant_message(message, decisao.reason)
+        return {'status': 'blocked_privacy', 'reason': decisao.reason}
 
     try:
         # `tenant_id` para o chat usar o provedor **daquela** clínica: a

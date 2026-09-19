@@ -184,7 +184,10 @@ if r_lista.status_code != 200 or r_post.status_code == 403 or not sem_faixa:
     falhas.append('reativar nao devolveu a clinica ao normal')
 
 print('=== 9. o console do superadmin muda o estado, com motivo e trilha ===')
-superadmin = User.objects.filter(is_superuser=True).first()
+# `is_active=True`: conta de superusuario desligada nao autentica, e
+# `force_login` com ela produziria um 404 no console que se leria como
+# falha do console, nao da conta escolhida aqui.
+superadmin = User.objects.filter(is_superuser=True, is_active=True).first()
 if superadmin is None:
     print('  (sem superusuario -- secao pulada)')
 else:

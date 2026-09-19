@@ -12,6 +12,27 @@ Estavam num diretório temporário, fora do repositório, até 09/09/2026.
 Um diretório temporário some, e com ele sumiria a única regressão que
 existe sobre permissões, isolamento entre inquilinos e o portal.
 
+## O que os roteiros deixam para trás
+
+Desde `audit/0003_auditevent_imutavel` a trilha de auditoria é
+`INSERT`-only no banco, e o papel da aplicação não tem `UPDATE` nem
+`DELETE` sobre ela. Três roteiros limpavam as próprias sobras apagando os
+eventos que haviam gerado, para então poder apagar a conta ou a
+organização que `AuditEvent.actor`/`AuditEvent.tenant` prendem por
+`PROTECT`. O banco passou a recusar isso — e o primeiro atalho que a
+proteção quebrou foi o deles, o que é o sinal de que ela funciona.
+
+Agora essas entidades são **aposentadas**: perdem os poderes, devolvem os
+identificadores únicos (e-mail, CNPJ, slug) e ficam de pé, com a trilha
+intacta apontando para elas. Cada rodada completa deixa, portanto, algumas
+contas `aposentado-por-roteiro-*` e organizações `aposentada-por-roteiro-*`
+no banco de demonstração. São inofensivas e coerentes — a organização
+aposentada mantém o roteiro de exame, justamente porque outros roteiros
+varrem todas as clínicas e cobram isso de cada uma.
+
+Para zerar, recrie a base: `docker compose down -v`, suba de novo e rode
+`seed_demo`.
+
 ## Como rodar
 
 Um:
