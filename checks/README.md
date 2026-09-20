@@ -54,19 +54,26 @@ Para zerar, recrie a base: `docker compose down -v`, suba de novo e rode
 
 ## Como rodar
 
-Um:
+Todos, ou os que interessam:
+
+```sh
+docker compose exec app python manage.py rodar_roteiros
+docker compose exec app python manage.py rodar_roteiros planos landing
+docker compose exec app python manage.py rodar_roteiros --parar-no-primeiro
+```
+
+Uma linha por roteiro, a saída completa só de quem falhou, e código 1 se
+algum falhar. Cada um roda em processo próprio — é mais lento do que
+carregar todos no mesmo interpretador, e é assim de propósito: eles mexem
+em `settings`, criam e apagam registros, e um roteiro que passa por causa
+de quem rodou antes não serve para nada.
+
+Enquanto se **escreve** um roteiro, use a forma antiga: `rodar_roteiros`
+lê `checks/` de dentro da imagem, e a linha abaixo empurra o arquivo do
+disco, de modo que a edição vale sem reconstruir.
 
 ```sh
 docker compose exec -T app python manage.py shell < checks/check_matrix.py
-```
-
-Todos:
-
-```sh
-for f in checks/check_*.py; do
-  echo "--- $f"
-  docker compose exec -T app python manage.py shell < "$f" 2>&1 | tail -3
-done
 ```
 
 Cada roteiro imprime o que observou, termina em `OK: …` quando passa e

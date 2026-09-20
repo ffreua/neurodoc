@@ -8,6 +8,29 @@
 {% endblock %}
 {% block super_content %}
 
+{% comment %}Antes dos números, e não numa aba de configuração: o que está
+frouxo na instalação tem de encontrar quem abre o console, em vez de
+esperar ser procurado. A lista só existe quando há algo nela.{% endcomment %}
+{% if avisos %}
+<div class="row g-3 mb-4">
+    {% for aviso in avisos %}
+    <div class="col-12">
+        <div class="alert {% if aviso.grave %}alert-danger{% else %}alert-warning{% endif %} mb-0"
+             role="alert">
+            <div class="d-flex align-items-start gap-2">
+                <i class="feather-alert-triangle mt-1"></i>
+                <div>
+                    <strong>{{ aviso.titulo }}</strong>
+                    <div class="fs-12 mt-1">{{ aviso.texto }}</div>
+                    <div class="fs-12 mt-2"><strong>O que fazer:</strong> {{ aviso.acao }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
 <div class="row g-4 mb-4">
     <div class="col-xxl-3 col-md-6">
         <div class="card stretch stretch-full">

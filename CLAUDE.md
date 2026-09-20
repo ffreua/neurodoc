@@ -173,11 +173,23 @@ gravar, que é o que se roda quando a CMED publica um arquivo novo.
 
 ## 7. Verificação (o que substitui os testes)
 
-Roteiros em `checks/`, rodados dentro do contêiner:
+Roteiros em `checks/`, rodados dentro do contêiner. A bateria inteira,
+ou só os que interessam:
 
 ```bash
-docker compose exec app python manage.py shell < checks/check_planos.py
-docker compose exec app python manage.py shell < checks/check_landing.py
+docker compose exec app python manage.py rodar_roteiros            # todos
+docker compose exec app python manage.py rodar_roteiros planos landing
+docker compose exec app python manage.py rodar_roteiros --listar
+```
+
+`rodar_roteiros` dá uma linha por roteiro, imprime a saída só de quem
+falhou e sai com código 1 se algum falhar — é o que um CI chamaria. Ele lê
+`checks/` **de dentro da imagem**; enquanto se escreve um roteiro novo,
+continue empurrando o arquivo do disco pela entrada padrão, que é o que
+vale na hora:
+
+```bash
+docker compose exec -T app python manage.py shell < checks/check_planos.py
 ```
 
 Cada roteiro **tenta quebrar** o comportamento, imprime seção por seção e
