@@ -16,6 +16,14 @@ tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
     <span>Resumo do caso</span>
 </a>
+{% comment %}A consulta anterior sem sair daqui. `Alt+P` faz o mesmo: o
+atalho está escrito no botão porque atalho que ninguém descobre não
+existe.{% endcomment %}
+<button type="button" class="btn btn-light" data-nd-gaveta-abrir
+        aria-controls="nd-gaveta" aria-haspopup="dialog">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    <span>Consulta anterior <span class="fs-11 text-muted">Alt+P</span></span>
+</button>
 <a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
 <a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
 {% if encounter.status != 'finalized' %}
@@ -35,6 +43,16 @@ tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
 {% endif %}
 {% endblock %}
 {% block content %}
+
+{% comment %}`data-nd-atendimento` é o gancho de `clinical/atendimento.js`:
+atalhos de teclado, rascunho local e a gaveta da consulta anterior. O id do
+atendimento entra na chave do rascunho, para o texto de um paciente nunca
+reaparecer no de outro; `data-nd-editavel` desliga a gravação local no
+atendimento finalizado, que não tem o que rascunhar.{% endcomment %}
+<div data-nd-atendimento="{{ encounter.id }}"
+     data-nd-editavel="{% if encounter.status == 'finalized' %}0{% else %}1{% endif %}">
+
+{% include "clinical/_rascunho_local.html" %}
 
 {% include "clinical/_encounter_header.html" %}
 
@@ -454,13 +472,20 @@ digitado em outra.{% endcomment %}
         {% endif %}
     </div>
 </div>
+
+</div>{# data-nd-atendimento #}
 {% endblock %}
 
 {% block modals %}
 {% include "clinical/_encounter_modals.html" %}
+{% comment %}A gaveta fica no bloco dos modais pelo mesmo motivo deles: o tema
+desfoca `.nxl-container` enquanto há sobreposição aberta, e ela sairia
+borrada junto com o fundo que deveria cobrir.{% endcomment %}
+{% include "clinical/_gaveta_anterior.html" %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'clinical/atendimento.js' %}" defer></script>
 <script src="{% static 'clinical/exam.js' %}"></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
 <script>

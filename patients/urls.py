@@ -8,6 +8,10 @@ urlpatterns = [
     path('', views.PatientListView.as_view(), name='list'),
     path('new/', views.PatientCreateView.as_view(), name='create'),
     path('autocomplete/', views.PatientAutocompleteView.as_view(), name='autocomplete'),
+    # Busca rápida do topo (Ctrl+K). Separada do autocomplete porque
+    # responde outra pergunta: aquele preenche um campo de formulário com
+    # o paciente escolhido, esta leva a pessoa até a ficha dele.
+    path('busca-rapida/', views.PatientGlobalSearchView.as_view(), name='busca-rapida'),
     path('cep-lookup/', views.CepLookupView.as_view(), name='cep-lookup'),
     path('<uuid:patient_id>/', views.PatientDetailView.as_view(), name='detail'),
     path('<uuid:patient_id>/edit/', views.PatientUpdateView.as_view(), name='update'),

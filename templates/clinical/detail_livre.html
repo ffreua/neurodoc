@@ -31,6 +31,14 @@ estruturado — e o contrário.{% endcomment %}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
     <span>Imprimir</span>
 </a>
+{% comment %}A consulta anterior sem sair daqui — `Alt+P` faz o mesmo.
+Numa tela de uma coluna só, feita para quem tem pressa, esta gaveta é o que
+evita abrir outra aba no meio de uma frase.{% endcomment %}
+<button type="button" class="btn btn-light" data-nd-gaveta-abrir
+        aria-controls="nd-gaveta" aria-haspopup="dialog">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    <span>Consulta anterior <span class="fs-11 text-muted">Alt+P</span></span>
+</button>
 <a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
 <a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
 {% if encounter.status != 'finalized' %}
@@ -45,6 +53,15 @@ estruturado — e o contrário.{% endcomment %}
 {% endif %}
 {% endblock %}
 {% block content %}
+
+{% comment %}Gancho de `clinical/atendimento.js` — o mesmo do estruturado:
+Ctrl+S salva, Alt+P abre a consulta anterior e o texto digitado vai para o
+`localStorage` a cada cinco segundos. Aqui não há Alt+1..9: esta tela não
+tem abas, e é justamente esse o ponto dela.{% endcomment %}
+<div data-nd-atendimento="{{ encounter.id }}"
+     data-nd-editavel="{% if encounter.status == 'finalized' %}0{% else %}1{% endif %}">
+
+{% include "clinical/_rascunho_local.html" %}
 
 {% include "clinical/_encounter_header.html" %}
 
@@ -225,10 +242,12 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
     </div>
 </div>
 
+</div>{# data-nd-atendimento #}
 {% endblock %}
 
 {% block modals %}
 {% include "clinical/_encounter_modals.html" %}
+{% include "clinical/_gaveta_anterior.html" %}
 {% endblock %}
 
 {% block scripts %}
@@ -237,5 +256,6 @@ o mesmo do estruturado. `exam.js` não entra: não há roteiro de exame nesta
 tela. `medicamentos.js` também não: o autocomplete da Anvisa é do formulário
 de receita, e o campo de medicação do prontuário não tem o gancho dele —
 carregá-lo aqui seria um arquivo a mais sem efeito nenhum.{% endcomment %}
+<script src="{% static 'clinical/atendimento.js' %}" defer></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
 {% endblock %}

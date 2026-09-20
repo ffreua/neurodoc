@@ -158,6 +158,96 @@
         if (erro) { erro.hidden = true; }
     }
 
+    /* ------------------------------------------------------------- som */
+
+    /* Um aviso curto, sintetizado na hora.
+     *
+     * `AudioContext` em vez de um arquivo: são duas notas de oitenta
+     * milissegundos, e um `.mp3` para isso seria uma requisição de rede,
+     * um arquivo a versionar e mais um caminho para o `Content-Security-Policy`
+     * — tudo para tocar o que cabe em dez linhas.
+     *
+     * Toca **só** quando a janela do chat está fechada. Com ela aberta a
+     * mensagem já apareceu na tela, e o som viraria eco do que se está
+     * lendo.
+     */
+    var SOM_CHAVE = 'neurodoc.teamchat.som';
+    var somContexto = null;
+    var ultimoBeep = 0;
+
+    function somLigado() {
+        try {
+            return window.localStorage.getItem(SOM_CHAVE) !== 'off';
+        } catch (e) {
+            return true;
+        }
+    }
+
+    function definirSom(ligado) {
+        try {
+            window.localStorage.setItem(SOM_CHAVE, ligado ? 'on' : 'off');
+        } catch (e) { /* navegação privada: vale só nesta sessão */ }
+        pintarBotaoSom();
+    }
+
+    function pintarBotaoSom() {
+        var botao = document.getElementById('nd-tc-som');
+        if (!botao) { return; }
+        var ligado = somLigado();
+        botao.setAttribute('aria-pressed', ligado ? 'true' : 'false');
+        botao.setAttribute('aria-label', ligado ? 'Desligar aviso sonoro' : 'Ligar aviso sonoro');
+        var icoLigado = document.getElementById('nd-tc-som-ligado');
+        var icoMudo = document.getElementById('nd-tc-som-mudo');
+        if (icoLigado) { icoLigado.hidden = !ligado; }
+        if (icoMudo) { icoMudo.hidden = ligado; }
+    }
+
+    function tocarAviso() {
+        if (!somLigado()) { return; }
+        /* Janela aberta não precisa de som: a mensagem está à vista. */
+        if (raiz && !raiz.hidden) { return; }
+        /* Uma mensagem por segundo de um colega apressado não vira cinco
+         * beeps: o aviso é "chegou alguma coisa", não "chegou mais uma". */
+        var agora = Date.now();
+        if (agora - ultimoBeep < 3000) { return; }
+        ultimoBeep = agora;
+
+        try {
+            var Contexto = window.AudioContext || window.webkitAudioContext;
+            if (!Contexto) { return; }
+            if (!somContexto) { somContexto = new Contexto(); }
+            /* O navegador suspende o contexto criado antes de qualquer
+             * gesto do usuário. Retomar é permitido depois do primeiro
+             * clique na página, e antes disso simplesmente não toca. */
+            if (somContexto.state === 'suspended' && somContexto.resume) {
+                somContexto.resume();
+            }
+            var t = somContexto.currentTime;
+            /* Duas notas curtas subindo (lá5 → dó#6). Sobe porque desce soa
+             * como erro, e curto porque isto acontece no meio de uma
+             * consulta. */
+            [880, 1108.73].forEach(function (hz, i) {
+                var osc = somContexto.createOscillator();
+                var ganho = somContexto.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = hz;
+                var inicio = t + i * 0.09;
+                /* Rampa de volume em vez de liga/desliga seco: corte
+                 * abrupto de onda estala no alto-falante. */
+                ganho.gain.setValueAtTime(0.0001, inicio);
+                ganho.gain.exponentialRampToValueAtTime(0.06, inicio + 0.01);
+                ganho.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.08);
+                osc.connect(ganho);
+                ganho.connect(somContexto.destination);
+                osc.start(inicio);
+                osc.stop(inicio + 0.09);
+            });
+        } catch (e) {
+            /* Sem áudio disponível (política do navegador, aparelho sem
+             * saída). A badge e o título continuam avisando. */
+        }
+    }
+
     /* -------------------------------------------------------- cabeçalho */
 
     /* A badge é o aviso de que alguém está tentando falar com você, e na
@@ -521,6 +611,7 @@
          * aba ainda não conhece — contar só o que está na lista deixaria a
          * badge apagada exatamente quando alguém está tentando contato. */
         atualizarBadge(totalNaoLidas + 1);
+        tocarAviso();
         pessoas.forEach(function (p) {
             if (p.conversa === m.conversa) { p.nao_lidas += 1; }
         });
@@ -655,11 +746,17 @@
         var acao = evento.target.closest('[data-nd-tc]');
         if (!acao) { return; }
         if (acao.dataset.ndTc === 'fechar') { fechar(); }
+        if (acao.dataset.ndTc === 'som') { definirSom(!somLigado()); }
         if (acao.dataset.ndTc === 'lista') {
             janela.classList.remove('is-conversa');
             botaoVoltar(false);
         }
     });
+
+    /* O botão nasce refletindo o que está guardado neste navegador, e não o
+     * que o HTML diz: quem desligou o som ontem não pode reencontrá-lo
+     * ligado hoje. */
+    pintarBotaoSom();
 
     function botaoVoltar(mostrar) {
         var alvo = raiz.querySelector('[data-nd-tc="lista"]');

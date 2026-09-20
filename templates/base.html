@@ -138,10 +138,12 @@ servidor.{% endcomment %}
 resolvido, pela mesma condição do cabeçalho e da barra lateral.{% endcomment %}
 {% if request.access_context %}
 {% include "partials/teamchat.html" %}
+{% include "partials/busca_global.html" %}
 {% endif %}
 
 <script src="{% static 'duralux/app.js' %}"></script>
-{% if request.access_context %}<script src="{% static 'teamchat/teamchat.js' %}" defer></script>{% endif %}
+{% if request.access_context %}<script src="{% static 'teamchat/teamchat.js' %}" defer></script>
+<script src="{% static 'patients/busca-global.js' %}" defer></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

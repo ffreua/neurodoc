@@ -237,6 +237,72 @@ if criado is None:
 else:
     Patient.objects.filter(id=criado.id).delete()
 
+print()
+print('=== 7. o card do consumo, no painel de indicadores ===')
+#
+# Renderizado isoladamente, com `LimitStatus` montado a mao: as faixas
+# precisam ser conferidas nos valores de borda (79, 80, 99, 100), e nao da
+# para produzir 80 % exatos mexendo no limite de uma clinica que tem tres
+# pacientes. A regra em si (`warning` a partir de 80 %, `blocked` no
+# limite) e a mesma ja exercitada acima nas seis portas -- aqui a pergunta
+# e se a TELA mostra o que a regra diz.
+from django.template.loader import render_to_string
+
+from tenancy.limits import LimitStatus
+
+
+def _cartao(usage, limit):
+    return render_to_string('reporting/_card_plano.html', {
+        'plano': LimitStatus('patients', usage, limit, 'Completo'),
+        'email_suporte': 'suporte@exemplo.invalid',
+        'tenant': tenant_a,
+    })
+
+
+def _faixa(html):
+    if 'bg-danger' in html:
+        return 'vermelho'
+    if 'bg-warning' in html:
+        return 'ambar'
+    if 'bg-success' in html:
+        return 'verde'
+    return 'sem cor'
+
+
+for usage, limite, esperada, espera_botao in [
+    (10, 100, 'verde', False),
+    (79, 100, 'verde', False),      # 79 % ainda e verde
+    (80, 100, 'ambar', True),       # o limiar exato
+    (99, 100, 'ambar', True),
+    (100, 100, 'vermelho', True),   # sem vaga
+    (120, 100, 'vermelho', True),   # rebaixamento: acima do teto, e nada foi apagado
+]:
+    html = _cartao(usage, limite)
+    faixa = _faixa(html)
+    tem_botao = 'Falar com o suporte' in html
+    ok = faixa == esperada and tem_botao == espera_botao
+    print(f'  {"ok  " if ok else "FALHA"} {usage}/{limite} -> {faixa:<9} botao_de_upgrade={tem_botao}')
+    if not ok:
+        failures.append(f'o card mostrou {faixa} com botao={tem_botao} em {usage}/{limite}')
+
+# O numero tem de estar escrito, e nao so pintado: cor sozinha nao informa
+# quem nao a distingue, e barra sozinha nao informa quem usa leitor de tela.
+html = _cartao(85, 100)
+for trecho in ['85', '100', '85%', 'aria-valuenow="85"']:
+    if trecho not in html:
+        failures.append(f'o card nao mostra {trecho!r} por escrito')
+print(f'  {"ok  " if all(t in html for t in ["85", "100", "85%"]) else "FALHA"} '
+      'o numero aparece escrito, alem da barra')
+
+# Plano ilimitado nao tem barra nem alarme: `None` e ilimitado em todo o
+# `tenancy/plans.py`, e uma barra cheia ali diria o contrario do que e.
+html = _cartao(500, None)
+sem_barra = 'nd-plano-barra' not in html
+sem_botao = 'Falar com o suporte' not in html
+print(f'  {"ok  " if sem_barra and sem_botao else "FALHA"} ilimitado: sem barra e sem alarme')
+if not (sem_barra and sem_botao):
+    failures.append('o card desenhou barra ou alarme para plano ilimitado')
+
 restaurar()
 print(f'--- plano da clinica A restaurado: {tenant_a.plan}')
 if failures:

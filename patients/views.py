@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.utils import timezone
 
 from audit.services import record_audit_event
@@ -60,6 +61,48 @@ class PatientAutocompleteView(TenantScopedView):
             # é mais fácil.
             {'id': str(p.id), 'full_name': p.full_name, 'record_number': p.record_number}
             for p in results
+        ]})
+
+
+def mascarar_cpf(cpf):
+    """`123.***.**9-01` — o bastante para conferir, longe de um documento.
+
+    A busca rápida abre por cima de qualquer tela, inclusive a do balcão
+    com gente do outro lado. Quem procura precisa distinguir dois
+    homônimos, e para isso bastam alguns dígitos; o CPF inteiro na ficha
+    do paciente é outro contexto, com a tela virada para quem atende.
+    """
+    digitos = ''.join(c for c in (cpf or '') if c.isdigit())
+    if len(digitos) != 11:
+        return ''
+    return f'{digitos[:3]}.***.**{digitos[8]}-{digitos[9:]}'
+
+
+class PatientGlobalSearchView(TenantScopedView):
+    """Busca rápida do topo (Ctrl+K), em JSON.
+
+    Mesma capacidade da lista de pacientes: quem não pode abrir a lista
+    não pode procurar por aqui. A consulta sai de
+    `selectors.busca_rapida`, que nasce de `scope_to_tenant` — o parâmetro
+    `q` escolhe **dentro** da clínica da sessão e não tem como sair dela.
+
+    Devolve o link pronto em vez de deixar a tela montar a URL: rota é
+    assunto do servidor, e um `/app/patients/<id>/` escrito à mão no
+    JavaScript é a primeira coisa a quebrar quando a rota muda.
+    """
+
+    def get(self, request):
+        encontrados = selectors.busca_rapida(request.access_context, request.GET.get('q', ''))
+        return JsonResponse({'resultados': [
+            {
+                'id': str(p.id),
+                'nome': p.full_name,
+                'cpf_mascarado': mascarar_cpf(p.cpf),
+                'nascimento': p.birth_date.strftime('%d/%m/%Y') if p.birth_date else '',
+                'prontuario': p.record_number or '',
+                'url': reverse('patients:detail', args=[p.id]),
+            }
+            for p in encontrados
         ]})
 
 

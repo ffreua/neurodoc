@@ -32,6 +32,25 @@
                 </div>
 
 
+                {% comment %}Busca rápida de paciente, o primeiro ícone da
+                direita — é a ação mais repetida de quem atende o balcão.
+
+                É um **link** para a lista de pacientes, e não um botão: sem
+                JavaScript ele continua levando à busca de verdade, em vez de
+                ser um ícone que não faz nada. Com JavaScript,
+                `busca-global.js` intercepta o clique pelo
+                `data-nd-busca-abrir` e abre a caixa.
+
+                O atalho aparece escrito no `title` porque atalho que ninguém
+                descobre não existe.{% endcomment %}
+                <div class="nxl-h-item d-none d-sm-flex">
+                    <a class="nxl-head-link me-0" href="{% url 'patients:list' %}"
+                       data-nd-busca-abrir aria-label="Buscar paciente (Ctrl+K)"
+                       title="Buscar paciente — Ctrl+K">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </a>
+                </div>
+
                 {% comment %}Mensagens da equipe, ao lado do sino.
 
                 Um `<button>` de verdade, e não um `<div role="button">` como

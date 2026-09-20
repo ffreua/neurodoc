@@ -1,0 +1,92 @@
+{% comment %}Consulta anterior numa gaveta, sem sair do atendimento.
+
+O que ela resolve: para escrever a evolução de hoje é preciso saber o que
+foi dito na última vez, e o caminho até lá era abrir a ficha do paciente
+noutra aba — ou pior, sair do atendimento não salvo. A gaveta traz o
+resumo por cima, e fecha.
+
+Vem renderizada com a página, escondida por CSS (`transform`), e não
+buscada por JavaScript ao abrir: são poucos campos que já estão no banco,
+e quem abre a gaveta está no meio de uma frase.
+
+É **leitura**. Nada aqui copia para o atendimento de hoje — copiar é a
+revisão da consulta anterior, que passa item a item e registra quem
+aceitou o quê (`clinical/carry_forward.py`).{% endcomment %}
+
+<div class="nd-gaveta-fundo" id="nd-gaveta-fundo" hidden></div>
+<aside class="nd-gaveta" id="nd-gaveta" aria-hidden="true"
+       aria-labelledby="nd-gaveta-titulo" role="dialog">
+    <div class="nd-gaveta-cabecalho">
+        <div>
+            <h2 class="fs-14 fw-bold text-dark mb-0" id="nd-gaveta-titulo">Consulta anterior</h2>
+            {% if consulta_anterior %}
+            <span class="fs-11 text-muted">
+                {{ consulta_anterior.occurred_at|date:"d/m/Y" }}
+                · {{ consulta_anterior.physician_membership.user.get_full_name|default:"médico da clínica" }}
+            </span>
+            {% endif %}
+        </div>
+        <button type="button" class="btn btn-sm btn-light" id="nd-gaveta-fechar"
+                aria-label="Fechar consulta anterior">Esc</button>
+    </div>
+
+    <div class="nd-gaveta-corpo">
+        {% if not consulta_anterior %}
+        <p class="fs-13 text-muted mb-0">
+            Este é o primeiro atendimento finalizado deste paciente — não há consulta
+            anterior para consultar.
+        </p>
+        {% else %}
+
+        {% if consulta_anterior.kind == 'free_text' %}
+        {% comment %}No texto livre o corpo da consulta é um campo só; mostrá-lo
+        inteiro é mostrar a consulta inteira.{% endcomment %}
+        {% if consulta_anterior.free_text %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold">Consulta</h3>
+        <p class="fs-13 nd-prose">{{ consulta_anterior.free_text }}</p>
+        {% endif %}
+        {% if consulta_anterior.impressions %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold mt-3">Impressões</h3>
+        <p class="fs-13 nd-prose">{{ consulta_anterior.impressions }}</p>
+        {% endif %}
+        {% else %}
+        {% if consulta_anterior.chief_complaint %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold">Queixa principal</h3>
+        <p class="fs-13 nd-prose">{{ consulta_anterior.chief_complaint }}</p>
+        {% endif %}
+        {% if consulta_anterior.hpi %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold mt-3">História da doença atual</h3>
+        <p class="fs-13 nd-prose">{{ consulta_anterior.hpi }}</p>
+        {% endif %}
+        {% endif %}
+
+        {% if consulta_anterior.diagnoses.all %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold mt-3">Hipóteses</h3>
+        <ul class="fs-13 ps-3 mb-0">
+            {% for d in consulta_anterior.diagnoses.all %}
+            <li>{{ d.code_snapshot }} — {{ d.description_snapshot }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if consulta_anterior.medications.all %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold mt-3">Medicação registrada</h3>
+        <ul class="fs-13 ps-3 mb-0">
+            {% for m in consulta_anterior.medications.all %}
+            <li>{{ m.name }}{% if m.dose %} — {{ m.dose }}{% endif %}{% if m.frequency %}, {{ m.frequency }}{% endif %}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if consulta_anterior.plan_text %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold mt-3">Conduta</h3>
+        <p class="fs-13 nd-prose">{{ consulta_anterior.plan_text }}</p>
+        {% endif %}
+
+        <a class="btn btn-sm btn-light w-100 mt-4"
+           href="{% url 'clinical:detail' consulta_anterior.id %}">
+            Abrir o atendimento completo
+        </a>
+        {% endif %}
+    </div>
+</aside>

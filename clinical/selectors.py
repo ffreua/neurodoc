@@ -45,6 +45,36 @@ def patient_timeline(context, patient, ordenar=ORDEM_PADRAO, decrescente=False):
     return consulta.order_by(expressao, '-occurred_at')
 
 
+def consulta_anterior(context, encounter):
+    """O último atendimento finalizado deste paciente antes deste.
+
+    De **qualquer** médico da clínica, e não só de quem está atendendo
+    agora. É diferente de `carry_forward.default_source_encounter`, que
+    restringe ao próprio médico de propósito: aquilo decide o que se
+    **copia** para o prontuário novo, e assinar a conduta de um colega não
+    é o mesmo ato que lê-la. Aqui é leitura — o que o colega escreveu na
+    consulta passada é exatamente o que falta saber antes de escrever a
+    desta, e quem abre esta tela já vê a ficha inteira do paciente.
+
+    Devolve `None` na primeira consulta, que é o caso mais comum de todos.
+    """
+    from .models import EncounterStatus
+
+    return (
+        scope_to_tenant(Encounter.objects.all(), context)
+        .filter(
+            patient_id=encounter.patient_id,
+            status=EncounterStatus.FINALIZED,
+            occurred_at__lt=encounter.occurred_at,
+        )
+        .exclude(id=encounter.id)
+        .select_related('physician_membership__user')
+        .prefetch_related('diagnoses', 'medications')
+        .order_by('-occurred_at')
+        .first()
+    )
+
+
 def get_encounter_or_404(context, encounter_id):
     encounter = scope_to_tenant(Encounter.objects.all(), context).filter(id=encounter_id).first()
     if encounter is None:

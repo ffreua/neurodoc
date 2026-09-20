@@ -1,8 +1,10 @@
 import datetime
 
+from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from tenancy.limits import patient_status
 from tenancy.models import Tenant
 from tenancy.permissions import Capability, CapabilityRequiredView
 
@@ -96,7 +98,17 @@ class DashboardView(HomeRedirectMixin, TenantScopedView):
             'doctor_share_forecast': operations.doctor_share_forecast(tenant, start, end),
             'payment_category': operations.payment_category_breakdown(tenant, start, end),
         }
-        return render(request, 'reporting/dashboard.html', {'start': start, 'end': end, 'indicators': indicators})
+        return render(request, 'reporting/dashboard.html', {
+            'start': start, 'end': end, 'indicators': indicators,
+            # O consumo do plano vem de `tenancy.limits`, e não recontado
+            # aqui: `LimitStatus` já sabe o que é "perto do fim" (80 %) e o
+            # que é "sem vaga", e é a mesma fonte que bloqueia o cadastro
+            # nas seis portas. Um segundo cálculo na tela acabaria dizendo
+            # que ainda cabe um paciente enquanto o cadastro recusa.
+            'plano': patient_status(tenant),
+            'email_suporte': settings.LEADS_EMAIL,
+            'tenant': tenant,
+        })
 
 
 class ExportRequestView(TenantScopedView):

@@ -213,6 +213,173 @@ textarea.form-control-sm {
     overflow-y: auto;
 }
 
+/* ---- Consumo do plano (indicadores) ---------------------------------- */
+/* A barra e fina de proposito: ela acompanha um numero que ja esta escrito
+ * ao lado, e nao substitui a leitura dele. Barra grossa pediria atencao
+ * que o dado nao merece todo dia -- so quando enche, e para isso serve a
+ * cor. */
+.nd-plano-barra {
+    height: 8px;
+    border-radius: 4px;
+}
+
+/* ---- Busca rapida global (Ctrl+K) ------------------------------------ */
+/* Sobreposicao propria, e nao o modal do tema: a busca precisa abrir no
+ * primeiro terco da tela (onde o olho ja esta, e onde o teclado do celular
+ * nao a empurra para fora), e o modal do tema centraliza verticalmente. */
+.nd-busca-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 12vh 16px 16px;
+    background: rgba(0, 19, 39, .45);
+}
+
+.nd-busca-overlay[hidden] {
+    display: none;
+}
+
+.nd-busca-caixa {
+    width: 100%;
+    max-width: 560px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 24px 48px rgba(0, 19, 39, .28);
+    overflow: hidden;
+}
+
+.nd-busca-campo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--bs-gray-200);
+}
+
+.nd-busca-campo input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    /* 16px: abaixo disso o Safari do iPhone da zoom ao focar o campo, e a
+     * tela inteira pula. Vale para todo campo do produto. */
+    font-size: 16px;
+    color: var(--bs-dark);
+    background: transparent;
+}
+
+.nd-busca-resultados {
+    max-height: 48vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.nd-busca-resultados li a {
+    display: block;
+    padding: 10px 16px;
+    color: inherit;
+    text-decoration: none;
+    /* 40px de alvo: o mesmo minimo de toque do resto do produto. */
+    min-height: 40px;
+}
+
+.nd-busca-resultados li a:hover,
+.nd-busca-resultados li.is-ativo a {
+    background: var(--bs-gray-100);
+}
+
+.nd-busca-rodape {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--bs-gray-200);
+    background: var(--bs-gray-100);
+}
+
+.nd-busca-tecla {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--bs-gray-300);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--bs-gray-600);
+}
+
+/* ---- Atendimento: rascunho local e consulta anterior ------------------ */
+/* O aviso de rascunho fica preso ao topo da area de trabalho: ele aparece
+ * quando a pagina carrega e a decisao (restaurar ou descartar) e do
+ * momento seguinte -- rolar a tela e perde-lo de vista seria trocar o
+ * aviso por uma duvida. */
+.nd-rascunho-aviso {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+/* Gaveta da consulta anterior. `transform` em vez de `right`, porque
+ * animar posicao repinta a pagina inteira a cada quadro e a gaveta abre
+ * por cima de um prontuario sendo digitado. */
+.nd-gaveta {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1070;
+    display: flex;
+    flex-direction: column;
+    width: min(420px, 92vw);
+    height: 100vh;
+    background: #fff;
+    box-shadow: -12px 0 32px rgba(0, 19, 39, .18);
+    transform: translateX(100%);
+    transition: transform .18s ease-out;
+}
+
+.nd-gaveta.is-aberta {
+    transform: translateX(0);
+}
+
+.nd-gaveta-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--bs-gray-200);
+}
+
+.nd-gaveta-corpo {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.nd-gaveta-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: 1069;
+    background: rgba(0, 19, 39, .35);
+}
+
+.nd-gaveta-fundo[hidden] {
+    display: none;
+}
+
+/* Quem desligou animacao no sistema recebe a gaveta sem deslize: ela
+ * aparece e some, que e a informacao que a animacao carregava. */
+@media (prefers-reduced-motion: reduce) {
+    .nd-gaveta {
+        transition: none;
+    }
+}
+
 /* ---- Print ----------------------------------------------------------- */
 @media print {
     .nxl-navigation,

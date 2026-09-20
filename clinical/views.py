@@ -224,6 +224,11 @@ class EncounterDetailView(TenantScopedView):
             'discard_summary': finalization.discard_summary(encounter),
             'discard_has_content': finalization.has_content(encounter),
             'discard_blockers': finalization.discard_blockers(encounter),
+            # A consulta anterior vai renderizada junto com a página, e não
+            # buscada por JavaScript quando a gaveta abre: são poucos campos,
+            # já estão no banco, e o médico que abre a gaveta está no meio de
+            # uma frase — uma espera de rede ali é uma frase interrompida.
+            'consulta_anterior': selectors.consulta_anterior(request.access_context, encounter),
             **self._extra_tabs(request, encounter),
         })
 
