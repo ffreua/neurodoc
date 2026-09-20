@@ -155,10 +155,56 @@ if tipos and tipos != {'report'}:
     failures.append(f'a retificacao trocou o tipo do documento: {tipos}')
 
 # limpeza
+def _remover_anexos_dos_documentos(ids):
+    """Tira do banco e do disco os PDFs dos documentos que o roteiro criou.
+
+    Apagar so o `MedicalDocument` deixava o `Attachment` do rascunho (e o
+    do assinado, quando havia) orfao no banco e o arquivo no volume de
+    midia. Somados os cinco roteiros que emitem documento, eram vinte e
+    dois anexos por rodada acumulando na clinica de demonstracao.
+
+    A segunda varredura, por PDF **sem dono**, existe porque nem todo
+    documento chega aqui pela lista: um que o proprio roteiro ja apagou,
+    ou que foi substituido no meio do caminho, sai da lista e levaria o
+    anexo junto para o esquecimento. O nome do arquivo de documento carrega
+    o id dele (`<tipo>_<uuid>_draft.pdf`), e um desses que nenhum
+    `MedicalDocument` reivindica nao e de ninguem.
+    """
+    import re
+    from pathlib import Path
+
+    from documents.models import Attachment, MedicalDocument
+
+    anexos = []
+    for atual in MedicalDocument.objects.filter(id__in=ids).values(
+        'pdf_attachment_id', 'signed_pdf_attachment_id',
+    ):
+        anexos += [v for v in atual.values() if v]
+    MedicalDocument.objects.filter(id__in=ids).delete()
+
+    padrao = re.compile(r'^[a-z_]+_[0-9a-f-]{36}_(draft|signed|papel)\.pdf$')
+    com_dono = set(
+        MedicalDocument.objects.values_list('pdf_attachment_id', flat=True)
+    ) | set(
+        MedicalDocument.objects.values_list('signed_pdf_attachment_id', flat=True)
+    )
+    for att in Attachment.objects.exclude(id__in=[i for i in com_dono if i]):
+        if padrao.match(att.original_name or ''):
+            anexos.append(att.id)
+
+    if not anexos:
+        return 0
+    for att in Attachment.objects.filter(id__in=anexos):
+        if att.storage_key:
+            Path(att.storage_key).unlink(missing_ok=True)
+    apagados, _ = Attachment.objects.filter(id__in=anexos).delete()
+    return apagados
+
+
 for d in created:
     MedicalDocument.objects.filter(id=d.id).update(replaces_document=None)
-for d in created:
-    MedicalDocument.objects.filter(id=d.id).delete()
+print('anexos dos documentos do roteiro removidos:',
+      _remover_anexos_dos_documentos([d.id for d in created]))
 
 print('---')
 if failures:

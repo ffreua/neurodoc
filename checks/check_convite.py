@@ -55,6 +55,7 @@ def descartar_conta():
             User.objects.filter(id=conta.id).update(
                 email=f'aposentado-por-roteiro-{uuid.uuid4().hex[:12]}@example.invalid',
                 is_active=False, is_staff=False, is_superuser=False,
+                first_name='[roteiro]', last_name='conta aposentada',
             )
         else:
             conta.delete()

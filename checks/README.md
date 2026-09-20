@@ -30,8 +30,27 @@ no banco de demonstração. São inofensivas e coerentes — a organização
 aposentada mantém o roteiro de exame, justamente porque outros roteiros
 varrem todas as clínicas e cobram isso de cada uma.
 
+Elas aparecem como `[roteiro] organizacao de teste aposentada` e
+`[roteiro] conta aposentada`, para quem abrir o console não precisar
+adivinhar o que são.
+
+**O resto não acumula, e isso foi medido.** Rodar a bateria inteira duas
+vezes seguidas deixa paciente, atendimento, anexo, documento e
+agendamento exatamente onde estavam. Até 19/09/2026 não era assim: cinco
+roteiros que emitem documento deixavam **vinte e dois anexos por rodada**
+(o `MedicalDocument` era apagado e o PDF dele ficava órfão, no banco e no
+volume de mídia), e o `check_secretary` deixava um paciente por rodada —
+o pré-cadastro pela agenda cria paciente junto com o agendamento, e só o
+agendamento era devolvido. Paciente ativo conta para o limite do plano
+(`tenancy/limits.py`), de modo que aquele acúmulo terminaria fazendo os
+roteiros falharem por esgotamento de cota, e não por regressão.
+
+Ao escrever um roteiro novo, meça: conte as linhas antes e depois e
+confira que o número voltou. É mais barato que descobrir meses depois,
+pela lista de pacientes da clínica de demonstração.
+
 Para zerar, recrie a base: `docker compose down -v`, suba de novo e rode
-`seed_demo`.
+`seed_demo` (e `import_cmed` no worker, se for exercitar as receitas).
 
 ## Como rodar
 

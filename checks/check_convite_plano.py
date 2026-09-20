@@ -93,12 +93,18 @@ def apagar_organizacoes(cnpjs, emails):
             cnpj=cnpj_sintetico(),
             slug=f'aposentada-por-roteiro-{uuid.uuid4().hex[:8]}',
             status=TenantStatus.CLOSED,
+            # A razao social tambem muda: ela e o que aparece na lista do
+            # console, e "Freua Servicos Medicos" repetido cinco vezes nao
+            # diz a ninguem que aquilo e resto de teste.
+            legal_name='[roteiro] organizacao de teste aposentada',
+            trade_name='[roteiro] aposentada',
         )
     for conta in User.objects.filter(email__in=emails):
         if AuditEvent.objects.filter(actor=conta).exists():
             User.objects.filter(id=conta.id).update(
                 email=f'aposentado-por-roteiro-{uuid.uuid4().hex[:12]}@example.invalid',
                 is_active=False, is_staff=False, is_superuser=False,
+                first_name='[roteiro]', last_name='conta aposentada',
             )
         else:
             conta.delete()
