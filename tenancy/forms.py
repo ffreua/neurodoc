@@ -190,3 +190,37 @@ class AcceptInvitationAccountForm(forms.Form):
         password = self.cleaned_data['password']
         validate_password(password)
         return password
+
+
+class ClinicMessageForm(forms.Form):
+    """Fale com a NeuroDoc / Envie sugestões.
+
+    Dois campos e nenhum anexo, de propósito. Um campo de arquivo aqui
+    viraria, no primeiro mês, exame de paciente no console de quem opera o
+    servidor — e essa é a linha que o produto inteiro não atravessa. O que
+    se manda daqui é texto sobre o sistema.
+    """
+
+    subject = forms.CharField(
+        label='Assunto', max_length=140,
+        widget=forms.TextInput(attrs={'placeholder': 'Em poucas palavras'}),
+    )
+    body = forms.CharField(
+        label='Mensagem', max_length=4000,
+        widget=forms.Textarea(attrs={
+            'rows': 6,
+            'placeholder': 'Conte o que aconteceu, ou o que faria diferença na sua rotina.',
+        }),
+    )
+
+    def clean_subject(self):
+        assunto = (self.cleaned_data.get('subject') or '').strip()
+        if len(assunto) < 3:
+            raise forms.ValidationError('Escreva um assunto.')
+        return assunto
+
+    def clean_body(self):
+        texto = (self.cleaned_data.get('body') or '').strip()
+        if len(texto) < 10:
+            raise forms.ValidationError('Escreva um pouco mais — assim não dá para ajudar.')
+        return texto

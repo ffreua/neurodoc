@@ -1,0 +1,96 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Mensagens das clínicas — NeuroDoc{% endblock %}
+{% block page_title %}Mensagens das clínicas{% endblock %}
+{% block super_section %}Mensagens{% endblock %}
+{% block super_content %}
+
+{% if sem_aviso %}
+{% comment %}Mesma razão da tela de leads: a mensagem é gravada antes de o
+e-mail sair, então uma falha de SMTP não a perde — mas esta é a única tela
+onde alguém descobre que ela existe.{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>{{ sem_aviso }} mensagem(ns) não geraram e-mail de aviso.</strong>
+    Elas estão registradas aqui de qualquer forma — confira a configuração de
+    SMTP da instalação.
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">
+            Últimas mensagens
+            {% if novas %}<span class="badge bg-soft-danger text-danger ms-2">{{ novas }} nova(s)</span>{% endif %}
+        </h5>
+        <div class="d-flex align-items-center gap-2">
+            {% comment %}Filtro por tipo, em links e não em menu: são duas
+            opções, e um `<select>` com dois itens custa um clique a mais para
+            fazer o que dois links fazem direto.{% endcomment %}
+            <a class="btn btn-sm {% if not kind_atual %}btn-primary{% else %}btn-light{% endif %}"
+               href="{% url 'superadmin:clinic-messages' %}">Todas</a>
+            {% for k in kinds %}
+            <a class="btn btn-sm {% if k.selected %}btn-primary{% else %}btn-light{% endif %}"
+               href="?kind={{ k.value }}">{{ k.label }}</a>
+            {% endfor %}
+            <span class="badge bg-soft-primary text-primary">{{ total }}</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if not rows %}
+        <p class="fs-13 text-muted p-4 mb-0">Nenhuma mensagem ainda.</p>
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Quando</th>
+                        <th scope="col">Clínica</th>
+                        <th scope="col">Quem escreveu</th>
+                        <th scope="col">Tipo</th>
+                        <th scope="col">Mensagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in rows %}
+                    <tr>
+                        <td class="ps-4 fs-12 text-muted">{{ m.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="fs-12">{{ m.tenant.trade_name|default:m.tenant.legal_name }}</td>
+                        <td class="fs-12">
+                            {{ m.author.user.get_full_name|default:m.author.user.email }}
+                            <span class="d-block fs-11 text-muted">{{ m.author.user.email }}</span>
+                        </td>
+                        <td>
+                            {% if m.kind == 'support' %}
+                            <span class="badge bg-soft-danger text-danger">{{ m.get_kind_display }}</span>
+                            {% else %}
+                            <span class="badge bg-soft-info text-info">{{ m.get_kind_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="d-block fs-13 fw-semibold text-dark">{{ m.subject }}</span>
+                            {% comment %}`nd-prose` preserva as quebras de linha: quem
+                            escreveu separou em parágrafos por alguma razão, e juntar
+                            tudo numa linha só dificulta ler o que se quer
+                            entender.{% endcomment %}
+                            <span class="d-block fs-12 text-muted nd-prose">{{ m.body }}</span>
+                            {% if m.notify_error %}
+                            <span class="d-block fs-11 text-danger mt-1">
+                                E-mail de aviso falhou: {{ m.notify_error }}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-3 mb-0">
+    A resposta é pelo e-mail de quem escreveu — este console é de leitura. Nenhuma
+    mensagem carrega anexo ou dado de paciente: a tela de quem envia não oferece
+    campo para isso, e avisa por quê.
+</p>
+
+{% endblock %}

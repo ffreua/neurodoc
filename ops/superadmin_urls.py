@@ -34,6 +34,10 @@ urlpatterns = [
         superadmin.InvitationRevokeView.as_view(), name='revoke-invitation',
     ),
     path('leads/', superadmin.LeadsView.as_view(), name='leads'),
+    path(
+        'mensagens/',
+        superadmin.ClinicMessagesView.as_view(), name='clinic-messages',
+    ),
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
     path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
 ]

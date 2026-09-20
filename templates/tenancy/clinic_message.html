@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — NeuroDoc{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">{{ titulo }}</li>
+{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body">
+                <p class="fs-13 text-muted">{{ ajuda }}</p>
+
+                {% comment %}O aviso não é formalidade jurídica: é a única coisa
+                que separa esta caixa de um canal por onde dado de paciente sairia
+                da clínica. Quem opera o servidor não tem acesso a prontuário, e
+                não pode ganhar acesso por uma mensagem de suporte colada às
+                pressas.{% endcomment %}
+                <div class="alert alert-warning d-flex align-items-start gap-2 fs-12" role="note">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                         stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <span>
+                        <strong>Não escreva dado de paciente aqui.</strong> Nome, CPF, telefone,
+                        diagnóstico ou qualquer trecho de prontuário. Se precisar se referir a um
+                        atendimento, mande o número dele — quem for ajudar pede o resto pelo
+                        caminho certo.
+                    </span>
+                </div>
+
+                <form method="post" class="nd-form">
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>{{ acao }}</button>
+                        <a class="btn btn-light" href="{% url 'reporting:dashboard' %}">Cancelar</a>
+                    </div>
+                </form>
+
+                <p class="fs-11 text-muted mt-3 mb-0">
+                    A resposta vai para o e-mail da sua conta. Junto da mensagem seguem apenas o
+                    nome da clínica, o seu nome e os seus papéis — nada do prontuário.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

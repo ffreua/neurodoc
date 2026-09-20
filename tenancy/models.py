@@ -327,6 +327,76 @@ class Invitation(TimestampedModel):
         return f'{self.purpose} invitation ({self.id})'
 
 
+class ClinicMessageKind(models.TextChoices):
+    """Por que a clínica está falando com quem mantém o sistema.
+
+    Duas portas, e a diferença não é de formulário: um pedido de ajuda tem
+    alguém esperando resposta hoje, e uma sugestão entra numa lista que se
+    lê com calma. Misturá-las numa caixa só faz o urgente esperar a vez
+    atrás de uma ideia de melhoria — e faz a ideia ser lida com a pressa
+    de quem está atendendo um chamado.
+    """
+
+    SUPPORT = 'support', 'Fale com a NeuroDoc'
+    SUGGESTION = 'suggestion', 'Sugestão de melhoria'
+
+
+class ClinicMessageStatus(models.TextChoices):
+    NEW = 'new', 'Nova'
+    READ = 'read', 'Lida'
+    ANSWERED = 'answered', 'Respondida'
+    ARCHIVED = 'archived', 'Arquivada'
+
+
+class ClinicMessage(TenantModel):
+    """Mensagem de uma clínica para quem mantém a instalação.
+
+    O caminho inverso do `Lead`: aquele é a pré-história de um inquilino,
+    este é um inquilino que já existe pedindo alguma coisa. Ficam no mesmo
+    app e são lidos no mesmo console, por quem opera o servidor.
+
+    `TenantModel` porque a mensagem **é** de uma clínica: quem a escreveu
+    escreveu de dentro de uma, e a resposta volta para ela. O console do
+    superadministrador atravessa organizações para ler, como já faz com a
+    trilha de auditoria; as telas de `/app/` continuam escopadas.
+
+    **Nunca conteúdo clínico.** A tela diz isso a quem escreve, e é por
+    isso que ela não oferece anexar arquivo nem escolher paciente: um
+    campo de anexo aqui viraria exame de paciente no console de quem opera
+    o servidor, que é exatamente a linha que o produto inteiro não
+    atravessa. O que se manda daqui é texto sobre o sistema.
+    """
+
+    kind = models.CharField(max_length=20, choices=ClinicMessageKind.choices)
+    #: Quem escreveu, pelo vínculo e não pelo usuário: a mesma pessoa pode
+    #: ter vínculo em duas clínicas, e o que importa aqui é de qual delas
+    #: ela falou.
+    author = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, related_name='+',
+    )
+    subject = models.CharField(max_length=140)
+    body = models.TextField(max_length=4000)
+    status = models.CharField(
+        max_length=20, choices=ClinicMessageStatus.choices, default=ClinicMessageStatus.NEW,
+    )
+    #: Anotação de quem opera o servidor, nunca visível para a clínica.
+    #: Existe para o console responder "o que foi feito com isto?" sem
+    #: exigir um segundo sistema.
+    handling_note = models.CharField(max_length=500, blank=True)
+    handled_at = models.DateTimeField(null=True, blank=True)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    notify_error = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        indexes = [
+            models.Index(fields=['-created_at'], name='tenancy_clinicmsg_recent_idx'),
+            models.Index(fields=['status'], name='tenancy_clinicmsg_status_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_kind_display()}: {self.subject}'
+
+
 class LeadStatus(models.TextChoices):
     NEW = 'new', 'Novo'
     CONTACTED = 'contacted', 'Contatado'

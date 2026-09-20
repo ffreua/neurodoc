@@ -679,6 +679,46 @@ class InvitationRevokeView(SuperAdminView):
 
 # --------------------------------------------------------------------- leads
 
+class ClinicMessagesView(SuperAdminView):
+    """O que as clínicas escreveram: pedidos de ajuda e sugestões.
+
+    Atravessa organizações, como a trilha de auditoria e pela mesma razão:
+    quem opera a instalação precisa ver todas. O que ele **não** vê aqui,
+    como em todo o console, é prontuário — a tela de quem escreve avisa
+    para não colar dado de paciente, e o modelo não tem campo para anexo.
+
+    Só leitura, como o resto. Marcar "respondida" seria uma escrita a mais
+    e um estado que ninguém atualiza: quem responde responde do próprio
+    e-mail, e a caixa dele é onde o assunto continua.
+
+    `notify_error` aparece na linha porque é o único lugar onde se
+    descobre que o aviso não saiu — quem escreveu viu "mensagem enviada",
+    e viu certo: ela está aqui.
+    """
+
+    def get(self, request):
+        from tenancy.models import ClinicMessage, ClinicMessageKind
+
+        tipo = request.GET.get('kind') or ''
+        consulta = ClinicMessage.objects.select_related(
+            'tenant', 'author__user',
+        ).order_by('-created_at')
+        if tipo in ClinicMessageKind.values:
+            consulta = consulta.filter(kind=tipo)
+
+        context = _nav('clinic-messages')
+        context['rows'] = list(consulta[:PAGE_SIZE])
+        context['total'] = ClinicMessage.objects.count()
+        context['kinds'] = [
+            {'value': v, 'label': l, 'selected': v == tipo}
+            for v, l in ClinicMessageKind.choices
+        ]
+        context['kind_atual'] = tipo
+        context['sem_aviso'] = ClinicMessage.objects.exclude(notify_error='').count()
+        context['novas'] = ClinicMessage.objects.filter(status='new').count()
+        return render(request, 'ops/superadmin/clinic_messages.html', context)
+
+
 class LeadsView(SuperAdminView):
     """Pedidos de contato vindos da pagina de vendas.
 

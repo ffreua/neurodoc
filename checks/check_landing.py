@@ -497,6 +497,50 @@ if _defensivo:
 
 Lead.objects.filter(email__endswith='@check.invalid').delete()
 
+print('=== 13. a senha do cadastro e digitada duas vezes ===')
+#
+# E a unica senha do sistema que nao tem recuperacao no minuto seguinte:
+# quem a cria esta criando **junto** a conta e a clinica, e um erro de
+# digitacao tranca a pessoa fora de uma organizacao que acabou de nascer,
+# com o e-mail de recuperacao indo para o endereco que ela tambem acabou
+# de digitar.
+from tenancy.models import Tenant as _Tenant
+
+_zerar_gratis()
+_cs = Client()
+_cs.get('/')
+_destino = _cs.post('/comecar-gratis/', {})['Location']
+_corpo_cad = _cs.get(_destino).content.decode(errors='replace')
+_tem_confirmacao = 'password_confirm' in _corpo_cad and 'Confirme a senha' in _corpo_cad
+print(f'  o formulario pede confirmacao: {_tem_confirmacao}')
+if not _tem_confirmacao:
+    falhas.append('o cadastro da clinica nao pede confirmacao de senha')
+
+
+def _cnpj_para_teste(base):
+    def dv(numeros, pesos):
+        resto = sum(a * b for a, b in zip(numeros, pesos)) % 11
+        return 0 if resto < 2 else 11 - resto
+
+    n = [int(x) for x in base]
+    d1 = dv(n, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    d2 = dv(n + [d1], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    return base + str(d1) + str(d2)
+
+
+_antes_org = _Tenant.objects.count()
+_r = _cs.post(_destino, {
+    'email': 'check-confirmacao@example.invalid',
+    'password': 'S3nhaForte!2026', 'password_confirm': 'S3nhaDiferente!2026',
+    'legal_name': 'Clinica do Roteiro de Senha', 'trade_name': 'Roteiro',
+    'cnpj': _cnpj_para_teste('998877665544'),
+})
+_criou = _Tenant.objects.count() - _antes_org
+_avisou = 'As duas senhas' in _r.content.decode(errors='replace')
+print(f'  senhas diferentes -> HTTP {_r.status_code}, organizacoes criadas={_criou}, avisa={_avisou}')
+if _criou or not _avisou:
+    falhas.append('o cadastro aceitou senha e confirmacao diferentes')
+
 print('---')
 if falhas:
     for line in falhas:
