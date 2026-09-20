@@ -39,6 +39,15 @@ class PortalBaseView(View):
             'slug': self.slug,
             'clinic_name': self.tenant.trade_name or self.tenant.legal_name,
             'notice': self.clinic.patient_portal_notice,
+            # O encarregado vai em toda tela do portal, e não só na
+            # primeira: quem chega aqui pelo link de um documento não
+            # passa pela identificação, e o contato tem de estar onde a
+            # pessoa estiver. LGPD art. 41, §1º.
+            'dpo': {
+                'nome': self.clinic.dpo_name,
+                'email': self.clinic.dpo_email,
+                'telefone': self.clinic.dpo_phone,
+            },
             'privacy_version': portal.PRIVACY_NOTICE_VERSION,
         }
         context.update(extra)

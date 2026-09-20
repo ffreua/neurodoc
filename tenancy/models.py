@@ -236,6 +236,26 @@ class ClinicProfile(TenantModel):
     #: Fica com a clínica porque o prazo é dela.
     patient_portal_notice = models.TextField(blank=True)
 
+    #: Encarregado pelo tratamento de dados pessoais (LGPD art. 41).
+    #:
+    #: A clínica é a **controladora** do prontuário — é ela que decide
+    #: atender, o que registrar e por quanto tempo —, e o §1º do art. 41
+    #: manda que a identidade e o contato do encarregado sejam divulgados
+    #: publicamente. Divulgados de verdade: um paciente que queira exercer
+    #: um direito precisa achar para quem escrever sem pedir a ninguém.
+    #:
+    #: Ficam aqui, e não numa configuração da instalação, porque o
+    #: encarregado é de cada clínica. Quem mantém o servidor é operador, e
+    #: tem o seu próprio — são duas figuras distintas, e juntá-las num
+    #: campo só faria o paciente escrever para quem não pode responder.
+    #:
+    #: Vazio enquanto a clínica não designar, e a tela do portal diz
+    #: exatamente isso em vez de inventar um endereço: prometer um canal
+    #: que não existe é pior do que admitir que ele falta.
+    dpo_name = models.CharField(max_length=255, blank=True)
+    dpo_email = models.EmailField(max_length=254, blank=True)
+    dpo_phone = models.CharField(max_length=20, blank=True)
+
     updated_by = models.ForeignKey(
         'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

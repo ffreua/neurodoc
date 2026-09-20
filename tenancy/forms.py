@@ -120,6 +120,7 @@ class ClinicProfileForm(forms.ModelForm):
         fields = [
             'address_line', 'address_district', 'city', 'state', 'postal_code',
             'phone', 'email', 'website',
+            'dpo_name', 'dpo_email', 'dpo_phone',
         ]
         labels = {
             'address_line': 'Endereço',
@@ -130,10 +131,20 @@ class ClinicProfileForm(forms.ModelForm):
             'phone': 'Telefone',
             'email': 'E-mail de contato',
             'website': 'Site',
+            'dpo_name': 'Encarregado de dados (nome)',
+            'dpo_email': 'E-mail do encarregado',
+            'dpo_phone': 'Telefone do encarregado',
         }
         help_texts = {
             'email': 'Aparece no cabeçalho do documento. Não é o remetente do '
                      'sistema — esse fica em Mensageria.',
+            'dpo_name': 'Quem responde por dados pessoais nesta clínica. A LGPD '
+                        '(art. 41, §1º) manda divulgar o contato publicamente, e é '
+                        'para cá que o paciente escreve para exercer um direito. '
+                        'Pode ser você.',
+            'dpo_email': 'Publicado no portal do paciente. Enquanto estiver vazio, '
+                         'o portal diz que o canal ainda não foi designado — em vez '
+                         'de prometer um endereço que não existe.',
         }
         widgets = {
             'address_line': forms.TextInput(attrs={'placeholder': 'Rua, número, complemento'}),

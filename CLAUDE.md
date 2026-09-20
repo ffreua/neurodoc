@@ -249,6 +249,10 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 - `PRD.md` — a especificação completa (matriz de permissão §4, roteiro de
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
+- `docs/governance/lgpd.md` — a matriz de tratamento (finalidade × base legal
+  candidata × medida técnica), operadores e transferência internacional, as
+  medidas técnicas com o roteiro que verifica cada uma, e a lista do que
+  **não** se resolve em código: contratos, designação de encarregado, RIPD.
 - `docs/decisions.md` — DEC-01..DEC-21 e as pendências P-01..P-10, com dono
   e condição de liberação (P-02 VPS real, P-05 certificado real, P-06/P-07
   responsáveis de LGPD, P-08 scanner real permanecem abertas).
