@@ -153,6 +153,62 @@ for script in ['backup.sh', 'cleanup_signing_keys.sh', 'deploy.sh']:
     # execucao do timer, de madrugada, sem ninguem olhando.
     confere('.venv-ops/bin/python' in texto, f'{script}: prefere o .venv-ops quando ele existe')
 
+print('=== 7. o que a primeira restauracao de verdade ensinou ===')
+#
+# Esta secao existe porque o ciclo completo foi exercitado em 20/09/2026
+# num Swarm local -- backup cifrado, servidor destruido, restauracao do
+# zero -- e tres defeitos so apareceram ali. Nenhum deles se veria lendo
+# o codigo.
+import inspect as _inspect
+
+fonte_restore = _inspect.getsource(restore) if restore else ''
+fonte_deploy = _inspect.getsource(importlib.import_module('ops.deploy'))
+
+# 1. `pg_restore --list` le so o indice e fecha o cano; o `age` que ainda
+#    escrevia morre de SIGPIPE. Tratar isso como falha fazia a conferencia
+#    de integridade do dump -- o primeiro passo da restauracao -- falhar
+#    sempre.
+confere('_fechou_o_cano' in fonte_restore,
+        'a restauracao tolera o produtor morto por cano fechado')
+confere('Restore consumer failed' in fonte_restore,
+        'e distingue falha do consumidor da falha da decifragem')
+
+# 2. O dump usa `--no-acl`, entao as permissoes nao voltam: a trilha de
+#    auditoria renascia gravavel pela aplicacao, com o REVOKE da migration
+#    `audit/0003` perdido. O trigger sobrevive (e schema), mas a defesa em
+#    profundidade nao.
+confere('_reaplicar_permissoes' in fonte_restore,
+        'a restauracao reaplica o REVOKE da trilha')
+confere('REVOKE UPDATE, DELETE ON audit_auditevent' in fonte_restore,
+        'e reaplica exatamente o que a migration faz')
+
+# 3. `resolve_image` comparava a referencia COM tag contra digests SEM
+#    tag: nunca casava, e caia no primeiro digest da lista. Com a imagem
+#    tagueada em dois repositorios, o primeiro vira sorteio -- e o
+#    registro da release guardava a referencia do repositorio errado, que
+#    a restauracao recusa com "Unexpected application registry".
+deploy_mod = importlib.import_module('ops.deploy')
+confere(hasattr(deploy_mod, 'repositorio_de'),
+        'o deploy sabe extrair o repositorio de uma referencia')
+if hasattr(deploy_mod, 'repositorio_de'):
+    casos = [
+        ('ghcr.io/dono/app:abc123', 'ghcr.io/dono/app'),
+        ('ghcr.io/dono/app@sha256:aa', 'ghcr.io/dono/app'),
+        ('localhost:5000/app:tag', 'localhost:5000/app'),
+        ('postgres:17.11-bookworm', 'postgres'),
+    ]
+    errados = [
+        (entrada, deploy_mod.repositorio_de(entrada), esperado)
+        for entrada, esperado in casos
+        if deploy_mod.repositorio_de(entrada) != esperado
+    ]
+    confere(not errados, 'tag e digest sao removidos, a porta do registry nao', str(errados))
+
+# As conferencias sobre o `.env.example` ficam no preflight do deploy, e
+# nao aqui: `.dockerignore` exclui `.env.*` da imagem -- de proposito --,
+# entao o molde nao existe de dentro do container. E o preflight e o lugar
+# certo mesmo, porque roda no host e imediatamente antes de publicar.
+
 if failures:
     print()
     for line in failures:

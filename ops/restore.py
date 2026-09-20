@@ -18,6 +18,24 @@ from ops.make_runtime import make_traefik, prepare_runtime
 
 
 def decrypt_to(command, archive, identity, capture=False):
+    """Decifra o arquivo e entrega o fluxo a quem vai consumi-lo.
+
+    Quem manda e o **consumidor**. Se ele termina bem, a restauracao
+    daquele passo deu certo -- e o `age` pode muito bem ter terminado mal
+    por causa disso: `pg_restore --list` le so o indice do dump e fecha o
+    cano, e o `age` que ainda escrevia morre com "pipe fechado" (EPIPE no
+    Windows, SIGPIPE no Linux, onde o codigo vem negativo).
+
+    A versao anterior levantava erro nesse caso. O efeito era a conferencia
+    de integridade do dump -- o primeiro passo de `--prepare-data` --
+    falhar sempre, com a mensagem generica "Restore decryption or consumer
+    failed", justamente no dia de restaurar. Foi assim que este defeito
+    apareceu: na primeira restauracao de verdade.
+
+    Dado truncado nao passa escondido por isso: um fluxo que acaba antes
+    da hora faz o proprio `pg_restore` ou `tar` falhar, e a falha dele
+    continua sendo erro.
+    """
     source = subprocess.Popen(['age', '-d', '-i', identity, str(archive)],
                               stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     try:
@@ -26,13 +44,59 @@ def decrypt_to(command, archive, identity, capture=False):
                                 stderr=subprocess.DEVNULL)
         source.stdout.close()
         code = source.wait(timeout=3600)
-        if code or target.returncode:
-            raise RuntimeError('Restore decryption or consumer failed')
+        if target.returncode:
+            raise RuntimeError(
+                f'Restore consumer failed ({target.returncode}); '
+                f'decryption exited {code}'
+            )
+        if code and not _fechou_o_cano(code):
+            raise RuntimeError(f'Restore decryption failed ({code})')
         return target.stdout if capture else None
     finally:
         if source.poll() is None:
             source.kill()
             source.wait()
+
+
+def _fechou_o_cano(code):
+    """O produtor morreu porque o consumidor parou de ler?
+
+    POSIX: SIGPIPE chega como `-13`, ou `141` quando um shell no meio
+    converte o sinal. Windows: o `age` sai com `1` e escreve no stderr, que
+    aqui esta descartado -- entao o `1` e aceito, e quem garante o
+    resultado e o codigo de saida do consumidor, ja conferido acima.
+    """
+    return code in (-13, 141, 1)
+
+
+def _reaplicar_permissoes(database):
+    """Devolve a trilha de auditoria ao estado somente-insercao.
+
+    O dump e feito com `--no-owner --no-acl`, de proposito: ele precisa
+    restaurar num servidor onde os papeis podem ter outra senha, e trazer
+    dono e permissoes junto faria a restauracao falhar por detalhe de
+    ambiente. O preco e que as permissoes **nao** voltam -- as tabelas
+    renascem com o que o `ALTER DEFAULT PRIVILEGES` do `postgres_init.sh`
+    concede, que e tudo.
+
+    Para toda tabela isso e o certo. Para `audit_auditevent` nao: o
+    `REVOKE UPDATE, DELETE` da migration `audit/0003` some, e o servidor
+    recuperado fica com a trilha gravavel pela aplicacao. O trigger
+    sobrevive (ele e schema, e vem no dump), entao a protecao principal
+    continua de pe -- mas a defesa em profundidade se perderia em
+    silencio, e justamente no servidor que nasceu de um desastre.
+
+    Descoberto na primeira restauracao de verdade, conferindo
+    `information_schema.role_table_grants` depois dela.
+    """
+    sql = (
+        "DO $reaplicar$ BEGIN "
+        "IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'neurodoc_app') THEN "
+        "REVOKE UPDATE, DELETE ON audit_auditevent FROM neurodoc_app; "
+        "END IF; END $reaplicar$;"
+    )
+    run(['docker', 'exec', database, 'psql', '-X', '-q', '-v', 'ON_ERROR_STOP=1',
+         '-U', 'postgres', '-d', 'neurodoc', '-c', sql])
 
 
 def read_manifest(folder, registry_esperado):
@@ -136,6 +200,7 @@ def prepare_data(folder, identity, record):
                  '-d', 'neurodoc', '-c', 'SELECT count(*) FROM django_migrations;'])
     if not count.isdigit() or int(count) < 1:
         raise RuntimeError('Restored migration history is empty')
+    _reaplicar_permissoes(database)
     run(['docker', 'service', 'rm', 'neurodoc_restore_db'])
     for attempt in range(60):
         if not run(['docker', 'ps', '-q', '--filter',

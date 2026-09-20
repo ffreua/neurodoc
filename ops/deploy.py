@@ -94,6 +94,18 @@ def preflight(config):
         raise RuntimeError('Production rollout baseline requires two web replicas')
     if config['ACME_EMAIL'] == 'CHANGE_ME' or '@' not in config['ACME_EMAIL']:
         raise RuntimeError('Configure the ACME account email')
+    # `TRUSTED_PROXIES=` vazia nao e "usa o padrao": `env.list` devolve
+    # lista vazia, e o valor declarado vence o default do `settings`. O
+    # efeito e o produto deixar de confiar em proxy nenhum -- atras do
+    # Traefik, `base/net.py` passa a devolver o IP **dele** para todo
+    # visitante, e o limite de vinte consultas ao QR da receita vira um
+    # balde unico para o planeta inteiro. Para usar o padrao, a linha sai
+    # do `.env`; vazia, ela e uma decisao silenciosa.
+    if 'TRUSTED_PROXIES' in read_env(ROOT / '.env') and not config['TRUSTED_PROXIES'].strip():
+        raise RuntimeError(
+            'TRUSTED_PROXIES esta declarada e vazia: remova a linha do .env para '
+            'usar o padrao, ou preencha as faixas dos proxies confiaveis'
+        )
     info = json.loads(run(['docker', 'info', '--format', '{{json .Swarm}}']))
     if info.get('LocalNodeState') != 'active' or not info.get('ControlAvailable'):
         raise RuntimeError('Run on an active Swarm manager')
@@ -134,6 +146,23 @@ def preflight(config):
         raise RuntimeError('Commit or resolve tracked changes before deployment')
 
 
+def repositorio_de(referencia):
+    """O repositorio de uma referencia, sem tag e sem digest.
+
+    `ghcr.io/dono/app:abc123`      -> `ghcr.io/dono/app`
+    `localhost:5000/app@sha256:..` -> `localhost:5000/app`
+
+    A porta do registry e o separador da tag sao os dois `:`, e distingui-los
+    exige olhar a ultima barra: o que vem depois dela pode ter tag, o que vem
+    antes e host[:porta].
+    """
+    sem_digest = referencia.split('@')[0]
+    depois_da_barra = sem_digest.rsplit('/', 1)[-1]
+    if ':' in depois_da_barra:
+        return sem_digest[:len(sem_digest) - len(depois_da_barra.split(':', 1)[1]) - 1]
+    return sem_digest
+
+
 def resolve_image(reference):
     if ':latest' in reference or (':' not in reference and '@sha256:' not in reference):
         raise RuntimeError('Unpinned image reference')
@@ -142,7 +171,24 @@ def resolve_image(reference):
     digests = data.get('RepoDigests') or []
     if not digests:
         raise RuntimeError('Registry digest unavailable')
-    return next((item for item in digests if item.split('@')[0] == reference.split('@')[0]), digests[0])
+    # A comparacao tira a TAG dos dois lados. Antes ela punha
+    # `ghcr.io/dono/app:abc123` contra `ghcr.io/dono/app@sha256:...`, que
+    # nunca sao iguais -- entao caia sempre no primeiro digest da lista.
+    #
+    # Com um repositorio so, o primeiro e o certo por acaso e ninguem
+    # percebe. A mesma imagem tagueada em dois (o que acontece ao publicar
+    # num registry novo, ou ao testar a restauracao) faz o Docker listar os
+    # dois digests, e o primeiro passa a ser sorteio: o registro da release
+    # guardaria uma referencia de outro repositorio, e a restauracao a
+    # recusaria como "Unexpected application registry" -- no dia de
+    # restaurar.
+    procurado = repositorio_de(reference)
+    for item in digests:
+        if repositorio_de(item) == procurado:
+            return item
+    raise RuntimeError(
+        f'Nenhum digest de {procurado} entre os publicados: {digests}'
+    )
 
 
 def create_config(path, prefix):
