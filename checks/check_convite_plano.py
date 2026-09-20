@@ -34,7 +34,7 @@ CNPJ_OVERRIDE = '11444777000323'  # sintetico, digitos verificadores conferidos
 EMAIL_TESTE = 'teste-convite-plano@example.invalid'
 
 def apagar_organizacoes(cnpjs, emails):
-    """Derruba vinculo e trilha antes da organizacao.
+    """Tira as organizacoes e contas do teste do caminho.
 
     Duas chaves `PROTECT` apontam para `Tenant`: `Membership.tenant` e
     `AuditEvent.tenant`. Apagar o tenant direto levanta `ProtectedError`, e
@@ -42,26 +42,72 @@ def apagar_organizacoes(cnpjs, emails):
     falha do que ele verifica.
 
     Que a trilha proteja a organizacao e o desenho certo: auditoria que
-    some junto com o objeto auditado nao e auditoria. Apagar evento aqui so
-    se justifica porque sao os eventos que este proprio roteiro acabou de
-    gerar, em organizacoes sinteticas que ele mesmo criou -- **nunca** faca
-    isto fora de um banco de demonstracao.
+    some junto com o objeto auditado nao e auditoria. Este bloco apagava a
+    trilha para contornar isso; desde `audit/0003_auditevent_imutavel` o
+    banco recusa, e a linha de auditoria nao sai nem em base de
+    demonstracao.
+
+    O que ja tem trilha e **aposentado**: devolve CNPJ e slug (os unicos
+    que a proxima rodada precisa de volta) e fica encerrado. O resto e
+    apagado normalmente.
     """
+    import uuid
+
     from audit.models import AuditEvent
     from exams.models import ExamNode, ExamScale, ExamScaleItem, ExamTemplate
-    from tenancy.models import Membership
+    from tenancy.models import Membership, TenantStatus
+
+    def cnpj_sintetico():
+        def dv(nums, pesos):
+            resto = sum(n * p for n, p in zip(nums, pesos)) % 11
+            return 0 if resto < 2 else 11 - resto
+
+        base = str(uuid.uuid4().int)[:12]
+        n = [int(x) for x in base]
+        d1 = dv(n, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+        d2 = dv(n + [d1], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+        return base + str(d1) + str(d2)
 
     Membership.objects.filter(tenant__cnpj__in=cnpjs).delete()
-    AuditEvent.objects.filter(tenant__cnpj__in=cnpjs).delete()
+
+    # Quem some e quem fica, decidido **antes** de apagar qualquer coisa.
     # A organizacao nasce com o roteiro de exame e as escalas (veja
-    # `exams/provisioning.py`), e `ExamScale.tenant` tambem e `PROTECT`.
+    # `exams/provisioning.py`), e apaga-los de uma organizacao que vai
+    # ficar de pe a deixa incoerente: outros roteiros varrem as clinicas
+    # existentes e cobram roteiro publicado de todas -- foi assim que esta
+    # limpeza quebrou o `check_roteiro`.
+    alvos = list(Tenant.objects.filter(cnpj__in=cnpjs))
+    presos = [t.id for t in alvos if AuditEvent.objects.filter(tenant=t).exists()]
+    somem = [t for t in alvos if t.id not in presos]
+
+    ids = [t.id for t in somem]
     # Ordem importa: no depende de template, item depende de escala.
-    ExamNode.objects.filter(tenant__cnpj__in=cnpjs).delete()
-    ExamTemplate.objects.filter(tenant__cnpj__in=cnpjs).delete()
-    ExamScaleItem.objects.filter(tenant__cnpj__in=cnpjs).delete()
-    ExamScale.objects.filter(tenant__cnpj__in=cnpjs).delete()
-    Tenant.objects.filter(cnpj__in=cnpjs).delete()
-    User.objects.filter(email__in=emails).delete()
+    ExamNode.objects.filter(tenant_id__in=ids).delete()
+    ExamTemplate.objects.filter(tenant_id__in=ids).delete()
+    ExamScaleItem.objects.filter(tenant_id__in=ids).delete()
+    ExamScale.objects.filter(tenant_id__in=ids).delete()
+    for tenant in somem:
+        tenant.delete()
+    for tenant_id in presos:
+        Tenant.objects.filter(id=tenant_id).update(
+            cnpj=cnpj_sintetico(),
+            slug=f'aposentada-por-roteiro-{uuid.uuid4().hex[:8]}',
+            status=TenantStatus.CLOSED,
+            # A razao social tambem muda: ela e o que aparece na lista do
+            # console, e "Freua Servicos Medicos" repetido cinco vezes nao
+            # diz a ninguem que aquilo e resto de teste.
+            legal_name='[roteiro] organizacao de teste aposentada',
+            trade_name='[roteiro] aposentada',
+        )
+    for conta in User.objects.filter(email__in=emails):
+        if AuditEvent.objects.filter(actor=conta).exists():
+            User.objects.filter(id=conta.id).update(
+                email=f'aposentado-por-roteiro-{uuid.uuid4().hex[:12]}@example.invalid',
+                is_active=False, is_staff=False, is_superuser=False,
+                first_name='[roteiro]', last_name='conta aposentada',
+            )
+        else:
+            conta.delete()
 
 
 # limpeza de rodadas anteriores

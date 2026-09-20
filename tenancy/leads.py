@@ -23,6 +23,7 @@ mensagem com o remetente do domínio da clínica para qualquer endereço.
 import re
 
 from django.conf import settings
+from base.net import client_ip
 
 #: Quantos pedidos por IP, e em quanto tempo. Generoso de propósito: uma
 #: clínica atrás de um NAT pode ter várias pessoas olhando ao mesmo tempo,
@@ -46,7 +47,7 @@ def rate_limited(request):
     """
     from django.core.cache import cache
 
-    ip = request.META.get('REMOTE_ADDR') or 'desconhecido'
+    ip = client_ip(request)
     key = f'leads:{ip}'
     try:
         cache.get_or_set(key, 0, RATE_WINDOW_SECONDS)

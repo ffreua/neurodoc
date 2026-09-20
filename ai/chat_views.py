@@ -117,7 +117,7 @@ class ChatMessageCreateView(TenantScopedView):
         except ConcurrencyLimitExceeded as exc:
             return HttpResponseForbidden(str(exc))
 
-        chat_services.post_user_message(session, content)
+        user_message = chat_services.post_user_message(session, content)
         # A primeira pergunta vira o titulo. O campo era opcional e ficava
         # vazio, e a lista virava uma coluna de "Sem titulo" -- que e uma
         # lista pela qual nao se navega.
@@ -125,7 +125,13 @@ class ChatMessageCreateView(TenantScopedView):
             session.title = content[:80] + ('…' if len(content) > 80 else '')
             session.save(update_fields=['title', 'updated_at'])
         assistant_message = chat_services.start_assistant_message(session)
-        run_chat_turn.delay(str(assistant_message.id), content)
+        # Só os dois identificadores vão para o RabbitMQ. O texto digitado
+        # ia junto, como argumento da tarefa: a pergunta do médico sobre um
+        # paciente ficava escrita na fila, que não é o prontuário, não é
+        # cifrada como ele e sobrevive num arquivo de mensagens se a tarefa
+        # falhar e for reenfileirada. O texto já está gravado na mensagem
+        # do usuário; o worker o lê de lá.
+        run_chat_turn.delay(str(assistant_message.id), str(user_message.id))
         return redirect('ai:chat-session-detail', session_id=session.id)
 
 

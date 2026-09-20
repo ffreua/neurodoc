@@ -273,7 +273,7 @@ Salvo rotas públicas expressamente indicadas, cada requisito exige usuário aut
 | ID | Regra implementável | Dados/estado | Aceite |
 | --- | --- | --- | --- |
 | RF-09.01 | Backend nativo de e-mail Django e SMSDEV via POST/JSON; execução em worker | Estados separados para aceitação e entrega confirmada | H-09 |
-| RF-09.02 | Mensagem neutra, link opaco e acesso por código; validade inicial de link 7 dias e revogação | Código 8 dígitos, 10 min, até 5 tentativas | H-09 |
+| RF-09.02 | Mensagem neutra, link opaco e acesso por código; validade inicial de link 7 dias e revogação | Código 8 dígitos, 10 min, até 5 tentativas. **Substituído em implementação por DEC-21** (4 últimos dígitos do CPF ou data de nascimento; link de 30 dias); requisito mantido aqui como redigido — a revisão do texto é do dono do produto | H-09 |
 | RF-09.03 | Se ambos os canais válidos estiverem habilitados, enviar ambos; canal ausente vira pendência | Responsável legal/contato autorizado registrado | H-09 |
 | RF-09.04 | Retries e reconciliação sem alegar exactly-once no provedor; timeout ambíguo vira unknown até conciliar | Idempotency key local e refer no SMSDEV | H-09 |
 

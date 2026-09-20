@@ -16,6 +16,7 @@ class EncounterForm(forms.ModelForm):
         fields = [
             'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
             'consanguinity_state', 'consanguinity_details', 'plan_text', 'finalization_justification',
+            'free_text', 'impressions',
         ]
         labels = {
             'chief_complaint': 'Queixa principal',
@@ -26,6 +27,8 @@ class EncounterForm(forms.ModelForm):
             'consanguinity_state': 'Consanguinidade',
             'consanguinity_details': 'Detalhes da consanguinidade',
             'plan_text': 'Conduta',
+            'free_text': 'Texto livre',
+            'impressions': 'Impressões',
             'finalization_justification': 'Justificativa da finalização',
         }
         widgets = {
@@ -49,7 +52,51 @@ class EncounterForm(forms.ModelForm):
             }),
             'consanguinity_details': forms.Textarea(attrs={'rows': 2}),
             'plan_text': forms.Textarea(attrs={'rows': 8}),
+            # A caixa de texto livre é o corpo da consulta inteira quando o
+            # médico escolhe escrever corrido: nasce alta, e o JavaScript a
+            # faz crescer com o que for digitado.
+            'free_text': forms.Textarea(attrs={
+                'rows': 18,
+                'placeholder': 'Escreva a consulta como preferir — queixa, exame, raciocínio.',
+            }),
+            'impressions': forms.Textarea(attrs={
+                'rows': 5,
+                'placeholder': 'O que você concluiu do caso. Este campo pode ser levado '
+                               'para a próxima consulta.',
+            }),
         }
+
+
+#: Identificador do formulário do atendimento em texto livre.
+#:
+#: A tela é uma coluna só, na ordem em que o médico pensa: texto, medicação,
+#: impressões e conduta, hipóteses. Medicação e hipóteses trazem formulários
+#: próprios, e HTML **não aninha formulário** — o `<form>` do atendimento não
+#: pode envolvê-los.
+#:
+#: A saída é o atributo `form=` do HTML5: o campo aponta para o formulário a
+#: que pertence e pode estar em qualquer lugar da página. A alternativa era
+#: espalhar o atendimento em três formulários separados, com um botão de
+#: salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo é
+#: pior do que qualquer arranjo de colunas.
+FORMULARIO_TEXTO_LIVRE = 'nd-atendimento-livre'
+
+
+class FreeTextEncounterForm(EncounterForm):
+    """`EncounterForm` com os campos amarrados ao formulário por `form=`.
+
+    Subclasse em vez de um parâmetro no `EncounterForm`: o atributo só faz
+    sentido nesta tela, e estampá-lo no formulário compartilhado o levaria
+    para a tela estruturada, onde os campos estão dentro do `<form>` e um
+    `form=` apontando para um id inexistente os tiraria do envio.
+    """
+
+    CAMPOS_DA_TELA = ('free_text', 'impressions', 'plan_text')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for nome in self.CAMPOS_DA_TELA:
+            self.fields[nome].widget.attrs['form'] = FORMULARIO_TEXTO_LIVRE
 
 
 class FindingForm(forms.Form):

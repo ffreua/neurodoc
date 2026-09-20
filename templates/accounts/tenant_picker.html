@@ -1,4 +1,5 @@
 {% extends "base_auth.html" %}
+{% load nd %}
 {% block title %}Escolher organização — NeuroDoc{% endblock %}
 {% block heading %}Escolher organização{% endblock %}
 {% block subheading %}Escolha em qual organização deseja trabalhar nesta sessão.{% endblock %}
@@ -27,7 +28,13 @@
                     {% endif %}
                 </span>
                 <span class="d-block fs-11 text-muted">
-                    {{ m.roles|join:", " }}
+                    {% comment %}`nd_role`, e não `join`: `Membership.roles` é
+                    um `ArrayField` de strings, então o `join` mostrava o nome
+                    interno do papel — "OWNER, DOCTOR" — na primeira tela que
+                    a pessoa vê depois de entrar. O rótulo em português existe
+                    no `TextChoices`, mas `TextChoices` só resolve rótulo em
+                    campo com `choices`, e este não é.{% endcomment %}
+                    {% for papel in m.roles %}{{ papel|nd_role }}{% if not forloop.last %}, {% endif %}{% endfor %}
                     {% if m.tenant.status == 'suspended' %}— somente leitura
                     {% elif m.tenant.status == 'closed' %}— acesso desativado
                     {% endif %}

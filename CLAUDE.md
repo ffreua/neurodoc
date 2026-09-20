@@ -69,10 +69,19 @@ Três camadas, e vale conhecer as três antes de mexer em qualquer view:
    `'doctor' in roles`. Papéis: `owner`, `doctor`, `secretary`, `manager`.
 
 No banco, o isolamento é reforçado por **chave estrangeira composta**:
-todo `TenantModel` carrega `UNIQUE(tenant_id, id)` e os filhos referenciam
-`(tenant_id, fk)` — ver `base/db.py::composite_tenant_foreign_key`. Uma
-linha não consegue apontar para objeto de outro inquilino nem por bug de
-aplicação.
+todo `TenantModel` carrega `UNIQUE(tenant_id, id)` — isso vale para todos
+— e os filhos referenciam `(tenant_id, fk)`, de modo que a linha não
+consegue apontar para objeto de outro inquilino nem por bug de aplicação.
+Ver `base/db.py::composite_tenant_foreign_key`.
+
+**A restrição composta está aplicada em `clinical` e `teamchat`**
+(`clinical/migrations/0009_*`, `teamchat/migrations/0001_*`), e não nos
+demais apps. Até 2026-09-19 só o `teamchat` a tinha, e este parágrafo
+dizia que todos a tinham — o `UNIQUE(tenant_id, id)` estava em toda parte
+e a chave que ele habilita, em lugar nenhum. Estender a `patients`,
+`documents`, `scheduling`, `finance` e `communications` é trabalho aberto;
+até lá, o que separa as clínicas nesses apps é o filtro por inquilino em
+cada consulta, sem a rede embaixo.
 
 **Rotas fora de `/app/` são públicas ou de instalação, de propósito:**
 `/` (vendas), `/accounts/`, `/verificar/` (QR do documento, aberto na
@@ -88,10 +97,10 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `core` | settings, urls, asgi, celery |
 | `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`) e central de ajuda (`base/help_content.py`) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
-| `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`; **planos, limites e a matriz de permissão** |
+| `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação); **planos, limites e a matriz de permissão** |
 | `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto |
-| `catalogs` | CID-10 e espelho da TUSS (sincronizado semanalmente pelo worker), CEP dos Correios |
-| `clinical` | `Encounter`, achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento |
+| `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
+| `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
 | `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados |
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações, OCR, arquivo morto |
@@ -99,6 +108,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
 | `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores |
 | `notifications` | sino do usuário |
+| `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
 | `reporting` | indicadores e exportações (CSV protegido contra injeção de fórmula, expiram em 24 h) |
 | `integrations` | captura por scanner, antivírus, CEP, TUSS |
@@ -147,6 +157,16 @@ docker compose exec app python manage.py seed_demo
 
 - App em `http://localhost:8000`, via Traefik em `:8080`, caixa de e-mail
   do Mailpit em `http://localhost:8025`.
+- **Abrir no celular** (a aderência ao toque não se confere no emulador do
+  navegador): ponha `NEURODOC_LAN_HOST=<IP desta máquina no Wi-Fi>` no
+  `.env` e regenere. São três travas em série, e o gerador abre as três de
+  uma vez — porta publicada em `0.0.0.0`, o IP em `ALLOWED_HOSTS` e a
+  origem em `CSRF_TRUSTED_ORIGINS`; abrir só uma dá conexão recusada, 400
+  ou login que não passa, nessa ordem. Falta ainda liberar a porta no
+  firewall do Windows, **no perfil da rede privada** — assim a regra vale
+  em casa e não segue valendo no Wi-Fi do aeroporto. Vazio, que é o
+  padrão, mantém tudo preso ao `127.0.0.1`. O Mailpit continua local: não
+  há motivo para a caixa de e-mail atravessar a rede.
 - `compose.yml` é **gerado** a partir de `docker-stack.yml` — edite o
   stack e regenere, não edite `compose.yml` à mão.
 - Segredos ficam em `.secrets/<NOME>` (um arquivo por segredo, lidos por
@@ -154,15 +174,32 @@ docker compose exec app python manage.py seed_demo
 
 Comandos úteis: `seed_demo`, `issue_platform_invitation`,
 `create_superadmin`, `install_exam_template`, `import_catalog`,
-`sync_tuss`, `testar_email`, `prepare_recovery`, `verify_physician`.
+`sync_tuss`, `import_cmed`, `testar_email`, `prepare_recovery`,
+`verify_physician`.
+
+`import_cmed` traz a lista de medicamentos da Anvisa (XLSX, ~12 MB) e roda
+**no worker** — só ele alcança a internet. `--dry-run` lê e conta sem
+gravar, que é o que se roda quando a CMED publica um arquivo novo.
 
 ## 7. Verificação (o que substitui os testes)
 
-Roteiros em `checks/`, rodados dentro do contêiner:
+Roteiros em `checks/`, rodados dentro do contêiner. A bateria inteira,
+ou só os que interessam:
 
 ```bash
-docker compose exec app python manage.py shell < checks/check_planos.py
-docker compose exec app python manage.py shell < checks/check_landing.py
+docker compose exec app python manage.py rodar_roteiros            # todos
+docker compose exec app python manage.py rodar_roteiros planos landing
+docker compose exec app python manage.py rodar_roteiros --listar
+```
+
+`rodar_roteiros` dá uma linha por roteiro, imprime a saída só de quem
+falhou e sai com código 1 se algum falhar — é o que um CI chamaria. Ele lê
+`checks/` **de dentro da imagem**; enquanto se escreve um roteiro novo,
+continue empurrando o arquivo do disco pela entrada padrão, que é o que
+vale na hora:
+
+```bash
+docker compose exec -T app python manage.py shell < checks/check_planos.py
 ```
 
 Cada roteiro **tenta quebrar** o comportamento, imprime seção por seção e
@@ -175,8 +212,16 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_isolation.py` | vazamento entre inquilinos |
 | `check_roles.py`, `check_matrix.py` | matriz de permissão |
 | `check_prontuario.py`, `check_roteiro.py` | prontuário e roteiro de exame |
+| `check_texto_livre.py` | os dois tipos de atendimento, a cópia entre eles e a grade por abertura/fechamento |
 | `check_mensageria.py`, `check_email.py` | outbox, entrega, reconciliação |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
+| `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
+| `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |
+| `check_mobile.py` | aderência ao celular: o bloco de toque existe e pergunta por `pointer: coarse`, campos a 16px, alvo de 40px, tabela embrulhada, calha responsiva |
+| `check_backup.py` | restaurador carrega, trava única entre backup e arquivo morto, unidades do systemd executáveis |
+| `check_mensagem_clinica.py` | as duas portas do rodapé do menu: qualquer vínculo escreve, a mensagem fica na clínica de quem escreveu, o texto não vai para a trilha, e o console lê as duas com MFA |
+| `check_perimetro.py` | a borda: agente de captura sem CSRF, desidentificação sem comer palavra, IP do visitante atrás do proxy |
+| `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
@@ -188,7 +233,9 @@ número anunciado é o do catálogo.
 Docker Swarm, imagem publicada por SHA do commit, Traefik com Let's
 Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 
-- **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`.
+- **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`, e
+  `scripts/setup_deploy.sh` para fazê-lo sozinho numa VPS limpa (retoma de
+  onde parou; não reimplementa build/push/stack — chama `ops/deploy.py`).
 - Mecanismo, rollback, backup/restauração (cifrado com `age`) e
   monitoramento: `docs/operations/`.
 - `RELEASE_ID` é o SHA e entra no caminho dos estáticos
@@ -202,10 +249,17 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 - `PRD.md` — a especificação completa (matriz de permissão §4, roteiro de
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
-- `docs/decisions.md` — DEC-01..DEC-20 e as pendências P-01..P-10, com dono
+- `docs/governance/lgpd.md` — a matriz de tratamento (finalidade × base legal
+  candidata × medida técnica), operadores e transferência internacional, as
+  medidas técnicas com o roteiro que verifica cada uma, e a lista do que
+  **não** se resolve em código: contratos, designação de encarregado, RIPD.
+- `docs/decisions.md` — DEC-01..DEC-21 e as pendências P-01..P-10, com dono
   e condição de liberação (P-02 VPS real, P-05 certificado real, P-06/P-07
   responsáveis de LGPD, P-08 scanner real permanecem abertas).
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,
   com a alternativa recusada.
 - `design_system/design-system.html` — o tema Duralux real, servido
-  localmente; `docs/design-system.md` cataloga os tokens.
+  localmente; `docs/design-system.md` cataloga os tokens. **O produto tem
+  um tema só, o claro** — o escuro foi removido: um prontuário lido ao lado
+  do paciente não ganhava nada com ele, e cada tela nova passava a ter duas
+  versões para conferir.

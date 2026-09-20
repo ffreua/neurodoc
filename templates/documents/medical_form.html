@@ -18,6 +18,11 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
 <li class="breadcrumb-item">
     <a href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
 </li>
+{% elif patient %}
+<li class="breadcrumb-item">
+    <a href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a>
+</li>
+<li class="breadcrumb-item">Documentos</li>
 {% else %}
 <li class="breadcrumb-item">Documentos</li>
 {% endif %}
@@ -26,6 +31,8 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
 {% block page_actions %}
 {% if encounter %}
 <a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Cancelar</a>
+{% elif patient %}
+<a class="btn btn-light" href="{% url 'patients:detail' patient.id %}">Cancelar</a>
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -35,16 +42,24 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
             <div class="card-header d-flex align-items-center justify-content-between">
                 <div>
                     <h5 class="card-title mb-0">Conteúdo do documento</h5>
-                    {% if encounter %}
                     {% comment %}De quem é o documento, à vista enquanto se digita.
                     Emitir uma receita para o paciente errado é o erro que esta linha
-                    existe para impedir.{% endcomment %}
+                    existe para impedir — e ela vale igualmente quando não há
+                    atendimento, onde o risco é maior porque não se veio do
+                    prontuário.{% endcomment %}
+                    {% if encounter %}
                     <span class="fs-11 text-muted">
                         {{ encounter.patient.full_name }}
                         {% if encounter.patient.record_number %}
                         · prontuário {{ encounter.patient.record_number }}
                         {% endif %}
                         · atendimento de {{ encounter.occurred_at|date:"d/m/Y" }}
+                    </span>
+                    {% elif patient %}
+                    <span class="fs-11 text-muted">
+                        {{ patient.full_name }}
+                        {% if patient.record_number %}· prontuário {{ patient.record_number }}{% endif %}
+                        · <span class="text-warning fw-semibold">sem atendimento vinculado</span>
                     </span>
                     {% endif %}
                 </div>
@@ -76,6 +91,34 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                     utilizável, só menos guiada.{% endcomment %}
                     <div class="row g-3 mt-1" data-nd-doc-kind="prescription">
                         {% include "partials/field.html" with field=form.prescription_format col="col-md-6" %}
+                        {% comment %}Busca na tabela de medicamentos da Anvisa (CMED).
+
+                        Fica **acima** da prescrição e escreve nela: escolher um
+                        item acrescenta uma linha ao texto, sem apagar o que já
+                        estava. A prescrição continua sendo um campo livre — é
+                        nela que entram posologia, manipulado e o que a tabela
+                        não tem. Uma busca que substituísse o campo livre por um
+                        seletor tiraria do médico metade do que ele escreve.
+
+                        `data-nd-med-formato` liga o aviso de tarja ao seletor de
+                        formato: item de tarja preta numa receita simples faz
+                        aparecer a sugestão de trocar, com o botão. Quem troca é
+                        o médico.{% endcomment %}
+                        <div class="col-12">
+                            <label class="form-label" for="nd-med-busca">
+                                Buscar medicamento na tabela da Anvisa
+                            </label>
+                            <input type="search" class="form-control" id="nd-med-busca"
+                                   placeholder="Ex.: clonazepam 2 mg"
+                                   data-nd-med-url="{% url 'catalogs:medicamento-search' %}"
+                                   data-nd-med-texto="id_prescription_text"
+                                   data-nd-med-formato="id_prescription_format">
+                            <div class="form-text fs-11">
+                                Opcional. O que for escolhido entra como uma linha na
+                                prescrição, e você continua escrevendo à vontade —
+                                inclusive o que não está na tabela.
+                            </div>
+                        </div>
                         {% include "partials/field.html" with field=form.prescription_text col="col-12" %}
                         {% include "partials/field.html" with field=form.special_instructions col="col-12" %}
                     </div>
@@ -109,4 +152,5 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
 
 {% block scripts %}
 <script src="{% static 'documents/medical_form.js' %}"></script>
+<script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
 {% endblock %}

@@ -77,13 +77,35 @@ class MedicalDocumentStatus(models.TextChoices):
     READY_TO_SIGN = 'ready_to_sign', 'Pronto para assinar'
     SIGNING = 'signing', 'Assinando'
     ISSUED = 'issued', 'Emitido'
+    #: Emitido para ser assinado à mão e carimbado no papel.
+    #:
+    #: Existe porque a alternativa era imprimir o rascunho — e o rascunho
+    #: sai com "RASCUNHO SEM VALIDADE" em vermelho no rodapé. Entregar ao
+    #: paciente uma receita que declara não valer é pior do que não ter a
+    #: funcionalidade.
+    #:
+    #: Tem número, tem data e **não tem QR**: o QR leva à página que afirma
+    #: que o documento saiu deste sistema e não foi alterado, e isso quem
+    #: sustenta é a assinatura digital. Num papel assinado à caneta, o que
+    #: responde por ele é a assinatura e o carimbo.
+    ISSUED_ON_PAPER = 'issued_on_paper', 'Emitido para assinatura física'
     FAILED = 'failed', 'Falhou'
 
 
 class MedicalDocument(TenantModel):
     patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='medical_documents')
+    #: O atendimento a que o documento pertence, quando há um.
+    #:
+    #: Opcional porque a renovação de receita sem consulta é o pedido real
+    #: do balcão — o paciente liga, o médico emite, e não houve
+    #: atendimento. Exigir um atendimento aqui obrigava a abrir uma
+    #: consulta falsa só para poder imprimir, e uma consulta que não houve
+    #: no prontuário é pior do que um documento sem consulta.
+    #:
+    #: O paciente continua obrigatório: documento sem paciente não existe.
     encounter = models.ForeignKey(
         'clinical.Encounter', on_delete=models.PROTECT, related_name='medical_documents',
+        null=True, blank=True,
     )
     physician = models.ForeignKey(
         'tenancy.Membership', on_delete=models.PROTECT, related_name='medical_documents',

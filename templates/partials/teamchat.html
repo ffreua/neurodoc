@@ -1,0 +1,132 @@
+{% comment %}Janela de mensagens da equipe.
+
+Fica aqui, no shell, e não numa página: o ponto dela é conversar **sem
+sair** da tela em que a pessoa está — o prontuário aberto, a agenda, o
+formulário meio preenchido. Uma página de chat obrigaria a abandonar o que
+está na tela para responder uma linha, que é justamente o que faz a equipe
+voltar para o WhatsApp com nome de paciente dentro.
+
+Vem fora de `.nxl-container` pelo mesmo motivo dos modais: o tema desfoca o
+container quando há modal aberto, e esta janela precisa continuar nítida
+por cima de qualquer coisa.
+
+Os endereços das rotas por conversa vêm como molde com um UUID zerado, que
+o JavaScript troca pelo id real. É a forma de não escrever `/app/mensagens/`
+à mão no JavaScript — um prefixo alterado em `core/urls.py` quebraria o
+chat em silêncio.{% endcomment %}
+<div class="nd-tc" id="nd-teamchat" hidden
+     data-eu="{{ request.user.id }}"
+     data-url-estado="{% url 'teamchat:state' %}"
+     data-url-abrir="{% url 'teamchat:open' %}"
+     data-url-stream="{% url 'teamchat:stream' %}"
+     data-url-conversa="{% url 'teamchat:thread' '00000000-0000-0000-0000-000000000000' %}"
+     data-url-enviar="{% url 'teamchat:send' '00000000-0000-0000-0000-000000000000' %}"
+     data-url-lida="{% url 'teamchat:read' '00000000-0000-0000-0000-000000000000' %}">
+    {% csrf_token %}
+
+    <div class="nd-tc-win" role="dialog" aria-modal="false"
+         aria-labelledby="nd-tc-titulo" tabindex="-1">
+
+        {% comment %}A barra é a alça de arrasto. Os botões dentro dela
+        param a propagação no JavaScript — sem isso, clicar em "fechar"
+        começaria a arrastar a janela.{% endcomment %}
+        <header class="nd-tc-bar" id="nd-tc-bar">
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            <span class="nd-tc-titulo" id="nd-tc-titulo">Mensagens da equipe</span>
+            <div class="nd-tc-bar-acoes">
+                <button type="button" class="nd-tc-icone" data-nd-tc="lista"
+                        aria-label="Voltar para a lista de pessoas" hidden>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                </button>
+                {% comment %}Interruptor do aviso sonoro.
+
+                Existe porque a alternativa é pior: um beep que não se
+                desliga, num consultório, toca com o paciente sentado na
+                frente. O estado fica no navegador de quem usa
+                (`localStorage`), e não no servidor — é preferência deste
+                aparelho, e a mesma pessoa pode querer som no computador da
+                recepção e silêncio no consultório.
+
+                Começa **ligado**: o aviso serve para quem não está olhando
+                a tela, e um aviso que precisa ser descoberto e ligado não
+                avisa ninguém.{% endcomment %}
+                <button type="button" class="nd-tc-icone" data-nd-tc="som"
+                        id="nd-tc-som" aria-pressed="true" aria-label="Desligar aviso sonoro">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nd-tc-som-ligado"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nd-tc-som-mudo" hidden><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+                </button>
+                <button type="button" class="nd-tc-icone" data-nd-tc="fechar" aria-label="Fechar mensagens">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="nd-tc-body">
+            <!-- ------------------------------------------------ pessoas -->
+            <aside class="nd-tc-side" id="nd-tc-side" aria-label="Pessoas da equipe">
+                <div class="nd-tc-filtro">
+                    <input type="search" class="form-control form-control-sm" id="nd-tc-filtro"
+                           placeholder="Filtrar pessoas" autocomplete="off" aria-label="Filtrar pessoas">
+                </div>
+                <ul class="nd-tc-pessoas" id="nd-tc-pessoas"></ul>
+            </aside>
+
+            <!-- ------------------------------------------------ conversa -->
+            <section class="nd-tc-thread" id="nd-tc-thread" aria-live="polite">
+                <div class="nd-tc-vazio" id="nd-tc-vazio">
+                    <p class="fw-semibold mb-1">Escolha alguém da equipe</p>
+                    <p class="fs-11 text-muted mb-0">
+                        A bolinha verde é quem está com o sistema aberto agora.
+                        Quem estiver off-line recebe e lê depois.
+                    </p>
+                </div>
+
+                <div class="nd-tc-conversa" id="nd-tc-conversa" hidden>
+                    <header class="nd-tc-thread-head">
+                        <span class="nd-tc-quem" id="nd-tc-quem"></span>
+                        <span class="nd-tc-papeis fs-11 text-muted" id="nd-tc-papeis"></span>
+                    </header>
+
+                    <div class="nd-tc-msgs" id="nd-tc-msgs"></div>
+
+                    {% comment %}O aviso não some com um clique e não é
+                    dispensável. Quem escreve aqui precisa saber que isto
+                    não é o prontuário: não é assinado, não entra no
+                    atendimento e não tem a guarda do registro clínico.
+                    Ver o cabeçalho de `teamchat/models.py`.{% endcomment %}
+                    <p class="nd-tc-aviso">
+                        Recado interno — <strong>não é prontuário</strong>. O que
+                        precisa ficar registrado vai na evolução do atendimento.
+                    </p>
+
+                    {% if request.access_context.tenant_is_read_only %}
+                    <p class="nd-tc-congelada">
+                        Organização suspensa: a conversa anterior continua
+                        disponível para leitura, mas não é possível enviar
+                        mensagem nova.
+                    </p>
+                    {% else %}
+                    <form class="nd-tc-composer" id="nd-tc-form">
+                        <label class="visually-hidden" for="nd-tc-texto">Mensagem</label>
+                        <textarea id="nd-tc-texto" rows="1" maxlength="4000"
+                                  placeholder="Escreva e pressione Enter" autocomplete="off"></textarea>
+                        <button type="submit" class="btn btn-primary btn-sm" aria-label="Enviar">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <p class="nd-tc-erro" id="nd-tc-erro" role="alert" hidden></p>
+                </div>
+            </section>
+        </div>
+
+        {% comment %}Alça de redimensionamento própria em vez de
+        `resize: both` do CSS: aquele exige `overflow` no elemento
+        redimensionado, o que quebraria o layout interno em duas colunas
+        com rolagem própria — e não deixa limitar o tamanho mínimo nem
+        manter a janela dentro da tela.{% endcomment %}
+        <span class="nd-tc-grip" id="nd-tc-grip" role="separator"
+              aria-label="Redimensionar a janela" tabindex="0"></span>
+    </div>
+</div>

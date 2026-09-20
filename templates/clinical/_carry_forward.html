@@ -1,0 +1,48 @@
+{% if pending_carry_forward %}
+{% comment %}Dados da consulta anterior aguardando revisão.
+
+Mostra o nome do campo no prontuário e o texto que será copiado — não o
+caminho interno nem o dicionário de armazenamento. Quem decide se aceita
+precisa ler o conteúdo, não o formato.{% endcomment %}
+<div class="card mb-4">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h5 class="card-title mb-0">Trazido da consulta anterior</h5>
+            <span class="fs-11 text-muted">
+                {{ pending_carry_forward.0.source_encounter.occurred_at|date:"d/m/Y" }} ·
+                nada é copiado sem sua decisão
+            </span>
+        </div>
+        <span class="badge bg-soft-warning text-warning">
+            {{ pending_carry_forward|length }} aguardando revisão
+        </span>
+    </div>
+    <div class="card-body">
+        <ul class="list-group list-group-flush">
+            {% for item in pending_carry_forward %}
+            <li class="list-group-item px-0 {% if forloop.first %}pt-0{% endif %}">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
+                    <div class="flex-grow-1">
+                        <span class="d-block fs-11 text-uppercase text-muted fw-semibold">
+                            {{ item.described.label }}
+                        </span>
+                        <span class="d-block fs-13 text-dark nd-prose mt-1">{{ item.described.value }}</span>
+                        {% if item.described.detail %}
+                        <span class="d-block fs-11 text-muted mt-1">{{ item.described.detail }}</span>
+                        {% endif %}
+                    </div>
+                    <form method="post" action="{% url 'clinical:review-carry-forward' encounter.id item.id %}"
+                          class="d-inline-flex gap-1 flex-shrink-0">
+                        {% csrf_token %}
+                        <button type="submit" name="action" value="accepted"
+                                class="btn btn-sm btn-light-success" data-nd-busy>Trazer para esta consulta</button>
+                        <button type="submit" name="action" value="rejected"
+                                class="btn btn-sm btn-light-danger" data-nd-busy>Descartar</button>
+                    </form>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}

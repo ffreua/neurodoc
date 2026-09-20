@@ -104,12 +104,13 @@ PLANS = {
         # `price_monthly` em centavos. Zero é grátis; `None` é "não há
         # preço de tabela", que é coisa diferente e só o Personalizado tem.
         'price_monthly': 0,
-        'summary': 'Para o consultório que está começando ou quer conhecer o sistema.',
+        'summary': 'Para o consultório solo e para quem está montando a própria '
+                   'agenda. Comece hoje, sem falar com ninguém.',
         'features': [
-            'Prontuário estruturado e roteiro de exame neurológico',
-            'Agenda e cadastro de pacientes',
-            'Documentos assinados com verificação pública',
-            'Sem cartão de crédito, sem prazo para acabar',
+            'Roteiro de exame neurológico completo, com as 387 verificações',
+            'Escalas pontuadas e prontuário com guarda de vinte anos',
+            'Receita e laudo assinados, com verificação pública por QR',
+            'Sem cartão de crédito, sem prazo e sem letra miúda',
         ],
         'highlight': False,
         'contact_only': False,
@@ -119,12 +120,13 @@ PLANS = {
         'max_patients': 3500,
         'max_doctors': 2,
         'price_monthly': 15800,
-        'summary': 'Para o consultório com dois médicos e carteira consolidada.',
+        'summary': 'Para o consultório que cresceu: dois médicos, convênios e '
+                   'dinheiro entrando por mais de uma porta.',
         'features': [
             'Tudo do Gratuito',
-            'Dois médicos com agenda própria',
-            'Financeiro, convênios e tabela de honorários',
-            'Portal de solicitações do paciente',
+            'Dois médicos, cada um com a própria grade de horários',
+            'Honorários com vigência, repasses e recebíveis por convênio',
+            'Portal do paciente: renovação de receita sem ligar para a recepção',
         ],
         'highlight': False,
         'contact_only': False,
@@ -134,13 +136,14 @@ PLANS = {
         'max_patients': 12000,
         'max_doctors': 5,
         'price_monthly': 26200,
-        'summary': 'Para a clínica com equipe e volume de atendimento consolidado.',
+        'summary': 'Para a clínica consolidada, com equipe multiprofissional e '
+                   'agenda cheia nos cinco dias.',
         'features': [
             'Tudo do Básico',
-            'Cinco médicos',
-            'Apoio de IA com revisão médica',
-            'Relatórios e indicadores gerenciais',
-            'Comunicação em massa com consentimento',
+            'Cinco médicos, secretaria e gestão, cada papel com o seu acesso',
+            'IA como copiloto do registro, sempre com revisão médica',
+            'Indicadores de produtividade e faturamento, com exportação',
+            'Campanhas e avisos em massa, com consentimento registrado',
         ],
         'highlight': True,
         'contact_only': False,
@@ -153,11 +156,12 @@ PLANS = {
         # Aqui `None` não é grátis: é "não há preço de tabela". A tela
         # precisa dizer isso, e não estampar um zero.
         'price_monthly': None,
-        'summary': 'Para quem precisa de outro tamanho, ou de condições próprias.',
+        'summary': 'Para serviço de neurologia de grande porte, clínica cirúrgica '
+                   'e hospital-dia — onde o padrão não serve.',
         'features': [
-            'Limites combinados caso a caso',
-            'Quantos médicos a clínica tiver',
-            'Valores de acordo com o que for fechado',
+            'Pacientes e médicos sem teto: o limite é o que for combinado',
+            'Condições comerciais e de implantação desenhadas com a sua equipe',
+            'Conversa direta com quem desenvolve, não com um canal de suporte',
         ],
         'highlight': False,
         'contact_only': True,

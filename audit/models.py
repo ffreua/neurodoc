@@ -5,9 +5,9 @@ from base.models import TimestampedModel
 
 
 class AuditOutcome(models.TextChoices):
-    SUCCESS = 'success', 'Success'
-    DENIED = 'denied', 'Denied'
-    ERROR = 'error', 'Error'
+    SUCCESS = 'success', 'Sucesso'
+    DENIED = 'denied', 'Negado'
+    ERROR = 'error', 'Erro'
 
 
 class AuditEvent(TimestampedModel):

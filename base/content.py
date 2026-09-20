@@ -1,124 +1,165 @@
-"""O texto da pagina de vendas.
+"""O texto da página de vendas.
 
-Fica em Python, e nao dentro do template, por uma razao pratica: o que a
-pagina promete precisa ser conferivel. Um roteiro de verificacao consegue
-afirmar que nenhum item de `RECURSOS` fala de coisa nao homologada, e
-consegue comparar a lista com a documentacao; dentro do HTML, a mesma
-conferencia viraria uma busca por substring no markup.
+Fica em Python, e não dentro do template, por uma razão prática: o que a
+página promete precisa ser conferível. Um roteiro de verificação consegue
+afirmar que nenhum item de `RECURSOS` fala de coisa não homologada, e
+consegue comparar a lista com a documentação; dentro do HTML, a mesma
+conferência viraria uma busca por substring no markup.
 
-**Nada aqui e promessa.** Cada item corresponde a funcionalidade que
-existe no produto e tem documento de homologacao em `docs/homologation/`.
-Quando algo estiver em desenvolvimento, ele nao entra nesta lista - entra
-quando estiver pronto.
+**Nada aqui é promessa.** Cada item corresponde a funcionalidade que
+existe no produto e tem documento de homologação em `docs/homologation/`.
+Quando algo estiver em desenvolvimento, ele não entra nesta lista — entra
+quando estiver pronto. Esta regra vale para quem escreve o texto; ela não
+precisa estar escrita **na página**, onde soaria como quem se defende de
+uma acusação que ninguém fez.
 
-**Sem depoimento e sem estatistica.** Depoimento fabricado de medico e
-falso testemunho sobre produto de saude; um contador em zero anuncia que
-nao ha clientes. Quando houver clinicas no piloto, os numeros entram
+**Sem depoimento e sem estatística.** Depoimento fabricado de médico é
+falso testemunho sobre produto de saúde; um contador em zero anuncia que
+não há clientes. Quando houver clínicas no piloto, os números entram
 medidos.
+
+**O tom é de especialista para especialista.** Quem lê isto examina
+pacientes com queixa neurológica e sabe o que é um reflexo assimétrico.
+Não há por que explicar o que ele faz melhor do que nós, nem adjetivar o
+que o produto faz: o ganho aparece quando se diz exatamente o que
+acontece na tela e o que deixa de acontecer na rotina.
 """
 
-#: Cada item: o que a clinica ganha, nao o que o codigo faz.
+#: Cada item: o que a clínica ganha, não o que o código faz.
 RECURSOS = [
     {
-        'titulo': 'Exame neurologico estruturado',
-        'texto': 'Roteiro em arvore com 387 itens, organizado por eixo, com '
-                 '"tudo normal" por grupo. O achado alterado aparece destacado '
-                 'em vez de se perder num paragrafo de texto corrido.',
+        'titulo': 'Exame neurológico estruturado em árvore',
+        'texto': 'Trezentos e oitenta e sete itens organizados por eixo — pares '
+                 'cranianos, motor, sensibilidade, coordenação, marcha —, com '
+                 '"tudo normal" por grupo para o que veio sem alteração. O achado '
+                 'anormal fica destacado no registro, em vez de se diluir num '
+                 'parágrafo de texto corrido que ninguém relê daqui a um ano.',
     },
     {
-        'titulo': 'Escalas funcionais pontuadas',
-        'texto': 'Quatorze escalas com pontuacao automatica e faixa de '
-                 'interpretacao, aplicadas dentro do atendimento e guardadas na '
-                 'historia do paciente.',
+        'titulo': 'Quatorze escalas com pontuação automática',
+        'texto': 'NIHSS, Rankin, Hoehn e Yahr, MEEG e outras dez, aplicadas dentro '
+                 'do atendimento. O escore e a faixa de interpretação saem '
+                 'calculados, e ficam na história do paciente — a comparação entre '
+                 'a consulta de hoje e a de seis meses atrás deixa de depender de '
+                 'procurar o número num texto antigo.',
     },
     {
-        'titulo': 'Documentos assinados digitalmente',
-        'texto': 'Receita, laudo, pedido de exame e encaminhamento com assinatura '
-                 'PAdES e QR de verificacao publica. Receita de controle especial '
-                 'sai em duas vias, com o quadro da Portaria 344/98.',
+        'titulo': 'Receita e laudo assinados com PAdES',
+        'texto': 'Receita, laudo, pedido de exame e encaminhamento assinados com o '
+                 'certificado do próprio médico, no padrão PAdES, e com QR de '
+                 'verificação pública: a farmácia confere tipo, número, CRM e data '
+                 'sem ter conta no sistema. Controle especial sai em duas vias, com '
+                 'o quadro da Portaria 344/98.',
     },
     {
-        'titulo': 'Agenda por medico',
-        'texto': 'Grade propria por profissional, bloqueio de horario sobreposto, '
-                 'remarcacao visual e confirmacao por e-mail ou SMS.',
+        'titulo': 'A consulta anterior a um toque de distância',
+        'texto': 'Conduta, impressões, hipóteses e medicação em uso da última '
+                 'consulta aparecem para revisão item a item, e cada um entra no '
+                 'registro de hoje só se o médico aceitar. Retorno de seguimento '
+                 'deixa de começar pela releitura do prontuário inteiro.',
     },
     {
-        'titulo': 'Portal do paciente',
-        'texto': 'O paciente pede a renovacao de receita sem criar conta. O pedido '
-                 'entra numa fila que exige capacidade clinica: quem decide o que '
-                 'sera emitido e o medico.',
+        'titulo': 'Agenda por médico, sem sobreposição',
+        'texto': 'Grade própria por profissional, com duração por tipo de '
+                 'atendimento, bloqueio de horário sobreposto, remarcação visual e '
+                 'confirmação por e-mail ou SMS. A recepção marca sem precisar '
+                 'perguntar se o horário cabe.',
     },
     {
-        'titulo': 'Apoio de inteligencia artificial',
-        'texto': 'Resumo do atendimento, leitura de laudo e chat sobre o caso, '
-                 'sempre com revisao do medico antes de aceitar. O texto e '
-                 'desidentificado antes de sair, e o envio e recusado quando nao '
-                 'satisfaz a politica de privacidade.',
+        'titulo': 'Portal do paciente para renovação de receita',
+        'texto': 'O paciente pede a renovação sem criar conta e sem ligar para a '
+                 'recepção. O pedido entra numa fila que exige capacidade clínica: '
+                 'quem decide o que será emitido, e se será, continua sendo o '
+                 'médico.',
+    },
+    {
+        'titulo': 'Inteligência artificial como copiloto, nunca como autor',
+        'texto': 'Resumo do atendimento, leitura de laudo e conversa sobre o caso, '
+                 'sempre com revisão médica antes de qualquer coisa entrar no '
+                 'prontuário. O texto é desidentificado antes de sair, e o envio é '
+                 'recusado quando não satisfaz a política de privacidade — a '
+                 'clínica pode usar o próprio provedor e a própria chave.',
+    },
+    {
+        'titulo': 'Guarda de vinte anos, e a trilha de quem viu o quê',
+        'texto': 'Prontuário finalizado não se reescreve: correção é adendo, com '
+                 'autor e data. Cada acesso e cada emissão ficam numa trilha que o '
+                 'próprio banco impede de alterar, e o backup é automático e '
+                 'cifrado com uma chave que fica fora do servidor.',
     },
 ]
 
-#: Perguntas que um medico faz antes de confiar o prontuario a alguem. As
-#: respostas dizem o que o sistema faz -- inclusive quando a resposta e
-#: desconfortavel, como a do item sobre o que ainda nao existe.
+#: Perguntas que um médico faz antes de confiar o prontuário a alguém. As
+#: respostas dizem o que o sistema faz — inclusive quando a resposta é
+#: desconfortável, como a do item sobre o que ainda não existe.
 FAQ = [
     {
-        'pergunta': 'Quem consegue ler o prontuario dos meus pacientes?',
-        'resposta': 'Apenas quem tem vinculo clinico na sua clinica. Quem opera o '
-                    'servidor ve quantas organizacoes existem, quem tem conta e a '
-                    'trilha de quem fez o que -- nunca o conteudo clinico. O console '
-                    'de administracao nao abre prontuario, e isso e verificado a cada '
-                    'versao.',
+        'pergunta': 'Quem consegue ler o prontuário dos meus pacientes?',
+        'resposta': 'Apenas quem tem vínculo clínico na sua clínica. Quem opera o '
+                    'servidor vê quantas organizações existem, quem tem conta e a '
+                    'trilha de quem fez o quê — nunca o conteúdo clínico. O console '
+                    'de administração não abre prontuário, e isso é verificado a cada '
+                    'versão.',
     },
     {
-        'pergunta': 'Os documentos assinados tem validade?',
-        'resposta': 'A assinatura e PAdES, o padrao usado em documento eletronico '
-                    'brasileiro, aplicada com o certificado do proprio medico. Cada '
-                    'documento sai com um codigo de verificacao publica: qualquer '
-                    'farmacia confere tipo, numero, medico, CRM e data sem ter conta '
-                    'no sistema. A emissao com certificado ICP-Brasil real depende de '
-                    'voce cadastrar o seu.',
+        'pergunta': 'Os documentos assinados têm validade?',
+        'resposta': 'A assinatura é PAdES, o padrão usado em documento eletrônico '
+                    'brasileiro, aplicada com o certificado do próprio médico. Cada '
+                    'documento sai com um código de verificação pública: qualquer '
+                    'farmácia confere tipo, número, médico, CRM e data sem ter conta '
+                    'no sistema. A emissão com certificado ICP-Brasil real depende de '
+                    'você cadastrar o seu.',
     },
     {
         'pergunta': 'E se eu passar do limite de pacientes do plano?',
-        'resposta': 'O sistema avisa quando voce chega a 80% da cota e recusa apenas '
-                    'o cadastro seguinte quando o limite e atingido. Nada do que ja '
-                    'esta registrado e apagado, arquivado ou escondido -- prontuario '
-                    'tem guarda legal de vinte anos, e ela nao conhece plano de '
-                    'assinatura. Arquivar um paciente que nao e mais acompanhado '
+        'resposta': 'O sistema avisa quando você chega a 80% da cota e recusa apenas '
+                    'o cadastro seguinte quando o limite é atingido. Nada do que já '
+                    'está registrado é apagado, arquivado ou escondido — prontuário '
+                    'tem guarda legal de vinte anos, e ela não conhece plano de '
+                    'assinatura. Arquivar um paciente que não é mais acompanhado '
                     'libera uma vaga.',
     },
     {
-        'pergunta': 'A inteligencia artificial da diagnostico?',
-        'resposta': 'Nao, e nao e isso que ela se propoe a fazer. Ela redige, resume '
-                    'e organiza; o medico aceita, edita ou rejeita cada sugestao, e o '
-                    'registro guarda o que foi feito. Sugestao nao aceita nao entra no '
-                    'prontuario.',
+        'pergunta': 'A inteligência artificial dá diagnóstico?',
+        'resposta': 'Não, e não é isso que ela se propõe a fazer. Ela redige, resume '
+                    'e organiza; o médico aceita, edita ou rejeita cada sugestão, e o '
+                    'registro guarda o que foi feito. Sugestão não aceita não entra no '
+                    'prontuário.',
     },
     {
-        'pergunta': 'Meus dados vao para onde?',
-        'resposta': 'O prontuario fica no banco de dados da instalacao. Para a IA, o '
-                    'texto passa por desidentificacao local antes de sair, e sua '
-                    'clinica pode cadastrar o proprio provedor e a propria chave -- os '
-                    'dados vao entao para o contrato que voce escolheu, nao para o '
+        'pergunta': 'Meus dados vão para onde?',
+        'resposta': 'O prontuário fica no banco de dados da instalação. Para a IA, o '
+                    'texto passa por desidentificação local antes de sair, e sua '
+                    'clínica pode cadastrar o próprio provedor e a própria chave — os '
+                    'dados vão então para o contrato que você escolheu, não para o '
                     'nosso.',
     },
     {
-        'pergunta': 'Como faco backup?',
-        'resposta': 'O backup e automatico, cifrado com uma chave que fica fora do '
-                    'servidor, e a restauracao e um procedimento documentado e testado. '
-                    'A chave de recuperacao e do responsavel pela clinica.',
+        'pergunta': 'Como faço backup?',
+        'resposta': 'O backup é automático, cifrado com uma chave que fica fora do '
+                    'servidor, e a restauração é um procedimento documentado e testado. '
+                    'A chave de recuperação é do responsável pela clínica.',
     },
     {
-        'pergunta': 'Posso comecar de graca?',
-        'resposta': 'Pode. O plano Gratuito atende ate 50 pacientes e um medico, sem '
-                    'cartao de credito. O acesso e liberado por um codigo de convite -- '
-                    'preencha o formulario e devolvemos o seu.',
+        'pergunta': 'Posso começar de graça?',
+        'resposta': 'Pode, e agora mesmo. O plano Gratuito atende até 50 pacientes e '
+                    'um médico, sem cartão de crédito e sem prazo para acabar. Clique '
+                    'em "Começar agora" no cartão do plano e você cai direto na tela '
+                    'de criação da clínica — nenhum contato comercial no caminho.',
     },
     {
-        'pergunta': 'O que ainda nao existe?',
-        'resposta': 'Pagamento on-line, faturamento TISS, teleconsulta e integracao com '
-                    'PACS/DICOM nao fazem parte desta versao. Receita de substancia '
+        'pergunta': 'Dá para migrar depois, se a clínica crescer?',
+        'resposta': 'Dá, e nada se perde na troca. Mudar de plano altera os limites '
+                    'e libera o que o plano novo inclui; paciente, atendimento, '
+                    'documento e agenda continuam exatamente onde estavam. Rebaixar '
+                    'também não apaga nada: o que passou do limite fica legível, e o '
+                    'sistema apenas deixa de aceitar cadastro novo.',
+    },
+    {
+        'pergunta': 'O que ainda não existe?',
+        'resposta': 'Pagamento on-line, faturamento TISS, teleconsulta e integração com '
+                    'PACS/DICOM não fazem parte desta versão. Receita de substância '
                     'sujeita a controle especial sai em papel, com as duas vias exigidas, '
-                    'e nao por transmissao eletronica a orgao regulador.',
+                    'e não por transmissão eletrônica a órgão regulador.',
     },
 ]

@@ -62,8 +62,16 @@ views reais. Dados sintéticos apenas; nenhum arquivo clínico real foi usado.
   de reprocessamento). Arquivos com mesmo conteúdo mas nomes diferentes
   recebem cópias distintas dentro do mesmo diretório de hash — dedup real só
   ocorre quando conteúdo **e** nome coincidem.
-- [x] `garbage_collect()` recusa-se a rodar por completo quando
-  `/data/media/.backup_lock` existe (`BackupInProgress`); com o lock ausente,
+- [x] `garbage_collect()` roda inteira dentro de `backup_exclusive()`, que
+  segura o **mesmo** advisory lock do PostgreSQL usado por `ops/backup.py`
+  (`ops/locks.py::BACKUP_LOCK`) e levanta `BackupInProgress` se o backup já
+  o detiver; a compactação do arquivo morto (`documents/archive.py`) usa o
+  mesmo bloco. Até 2026-09-19 as duas metades não se falavam: a aplicação
+  consultava um arquivo em `/data/media/.backup_lock` que **nenhuma parte do
+  sistema criava**, de modo que a recusa nunca acontecia e a compactação
+  podia renomear um anexo no meio da cópia — produzindo um backup cujo banco
+  aponta para arquivo inexistente, descoberto apenas na restauração.
+  Com a trava ausente,
   remove fisicamente apenas anexos com `deleted_at` mais antigo que 30 dias
   **e** cujo `storage_key` não seja referenciado por nenhum outro anexo não
   deletado — testado com `dry_run=True` (relatório sem apagar) e

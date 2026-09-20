@@ -11,6 +11,161 @@ sinais de menor/maior, troque pelo seu valor.
 > e resolva antes de seguir. Um passo pulado aqui aparece três passos
 > adiante como um erro que não tem relação aparente com a causa.
 
+## Dois caminhos
+
+Há duas formas de fazer este primeiro deploy, e as duas chegam ao mesmo
+lugar:
+
+| | O que é | Quando usar |
+| --- | --- | --- |
+| **Automatizado** | `scripts/setup_deploy.sh` faz as seções 3 a 15 sozinho | É o normal. Use este. |
+| **Manual** | as seções 3 a 16 deste documento, comando por comando | Quando algo falhar no automatizado, ou quando você quiser entender o porquê de cada passo |
+
+O script **não** substitui este documento: ele executa o que está aqui. É
+aqui que está escrito *por que* cada passo existe, e é aqui que você volta
+quando o automatizado parar no meio.
+
+---
+
+## 1. O caminho automatizado, passo a passo
+
+### 1.1 Antes de começar, tenha em mãos
+
+O script vai parar e pedir cada uma destas coisas. Separe antes — sair no
+meio para criar um token é o que faz o primeiro deploy virar uma tarde:
+
+- **Token de API da Cloudflare** — template *Edit zone DNS*, permissões
+  `Zone > DNS > Edit` e `Zone > Zone > Read`, restrito à zona
+  `neurodoc.app.br` (seção 5.4 explica).
+- **Token classic do GitHub** — escopo `write:packages` (seção 9).
+- **Senha da caixa `contato@neurodoc.app.br`** na Hostinger — a mesma do
+  webmail.
+- **Chave da NVIDIA** e **do SMSDEV**, se for usar IA e SMS. Se não for, o
+  script cria os segredos como `DISABLED` e desliga as duas no `.env`.
+- A VPS criada, com Ubuntu 24.04 e acesso `root` por SSH (seções 1 e 2).
+
+### 1.2 Leve o script para a VPS
+
+O repositório é **privado**, então o `curl https://raw.githubusercontent.com/...`
+que se vê nos tutoriais devolve **404** — aquele endereço não lê
+repositório privado. Da sua máquina, no PowerShell:
+
+```powershell
+scp -i $env:USERPROFILE\.ssh\neurodoc `
+    $env:USERPROFILE\projects\neurodoc\scripts\setup_deploy.sh `
+    root@SEU-IP:/root/
+```
+
+É o caminho mais simples, e a vantagem não é só comodidade: **nenhum token
+precisa existir na VPS antes de o script rodar**. Quem cria a chave do
+GitHub e faz o login no registry é ele, na ordem certa.
+
+Se preferir baixar de dentro da VPS, use a **API** do GitHub, que lê
+repositório privado (o host `raw.` não lê):
+
+```bash
+curl -fsSL \
+  -H "Authorization: Bearer SEU-TOKEN" \
+  -H "Accept: application/vnd.github.raw" \
+  https://api.github.com/repos/ffreua/neurodoc/contents/scripts/setup_deploy.sh \
+  -o setup_deploy.sh
+```
+
+Ou clone o repositório antes, por HTTPS com token — o script percebe o
+clone existente e pula a etapa de trazer o código:
+
+```bash
+git clone https://SEU-TOKEN@github.com/ffreua/neurodoc.git /opt/neurodoc
+bash /opt/neurodoc/scripts/setup_deploy.sh
+```
+
+### 1.3 Rode, como `root`
+
+```bash
+bash setup_deploy.sh
+```
+
+Ele se apresenta, lista o que você precisa ter em mãos e pergunta se pode
+começar. A partir daí trabalha sozinho, parando só onde você é
+indispensável.
+
+### 1.4 O que ele faz, na ordem
+
+**Fase 1, como `root`** (seções 3, 4 e 6 deste documento): atualiza o
+sistema, instala utilitários, ajusta o fuso, sobe o fail2ban, cria o swap,
+liga o firewall liberando 22/80/443, aplica o *tuning* de produção,
+instala o Docker e o configura para produção, inicializa o Swarm, aplica o
+rótulo `neurodoc_data=true`, monta o tmpfs das chaves de assinatura, cria
+o usuário de operação e lhe passa o bastão.
+
+**Fase 2, como o usuário de operação** (seções 5 e 7 a 15): gera a chave
+SSH do GitHub, clona o repositório, cria o `.venv-ops`, cria as três redes
+overlay com o isolamento certo, cria os quinze segredos, entra no
+registry, monta o `.env`, prepara o registro de homologação, confere o
+DNS, roda o preflight, **publica**, troca o certificado de teste pelo de
+verdade, cria seu superadministrador, sincroniza a TUSS e emite o convite
+da clínica-sede.
+
+### 1.5 Onde ele para e espera por você
+
+| Ele pede | Você faz |
+| --- | --- |
+| Chave pública SSH na tela | Cola em **GitHub ▸ Settings ▸ SSH and GPG keys ▸ New SSH key** |
+| Token classic do GitHub | Cria em **Settings ▸ Developer settings ▸ Tokens (classic)**, escopo `write:packages` |
+| Token da Cloudflare | Cria em **dash.cloudflare.com ▸ API Tokens**, template *Edit zone DNS* |
+| Senha do e-mail, chaves de IA/SMS | Cola (não aparecem na tela) |
+| As chaves geradas, numa caixa amarela | **Anota num gerenciador de senhas** — o Docker não deixa lê-las de novo |
+| Registro de homologação | Preenche `docs/releases/<sha>.md` e autoriza a publicação |
+| Registros DNS | Aponta `neurodoc.app.br` e `*.neurodoc.app.br` para o IP da VPS |
+
+> **A caixa amarela é a única chance.** O Docker não devolve o conteúdo de
+> um segredo, nem para conferir. As duas chaves-mestras cifram os
+> certificados de assinatura e as credenciais que as clínicas digitam:
+> perdê-las é perder o que elas cifram, sem recuperação. Anote ali, na
+> hora.
+
+### 1.6 Se parar no meio
+
+Rode de novo: `bash setup_deploy.sh`. Ele **retoma de onde parou** — cada
+passo pergunta ao mundo real (o segredo existe? a rede existe? o rótulo
+está no nó?) antes de agir, e pula o que já está feito. Suas respostas
+ficam guardadas, então ele não repergunta o que você já disse.
+
+Se o preflight recusar, a mensagem dele diz exatamente o que falta, e o
+script imprime a tradução das recusas mais comuns para a seção
+correspondente deste documento.
+
+### 1.7 O que o script deliberadamente NÃO faz
+
+Ele não constrói imagem, não dá `docker push` e não roda `docker stack
+deploy`. Quem faz isso é `ops/deploy.py`, que fixa as imagens por digest,
+espera cada serviço ficar saudável e volta atrás sozinho se algum não
+ficar.
+
+Um script de setup que refizesse esses passos viraria uma **segunda
+verdade** sobre como se publica o NeuroDoc — e as duas divergiriam no
+primeiro ajuste, com a diferença aparecendo em produção. Ele deixa a
+máquina exatamente no estado que `ops.deploy --check` exige, e chama o
+deploy de verdade.
+
+### 1.8 Depois que terminar
+
+Três coisas ficam para você, e o script as lista no fim:
+
+1. Definir sua senha pelo link do convite e **ligar a MFA** — o console
+   `/instalacao/` não abre sem ela.
+2. **Backup**: gerar a chave `age` na **sua** máquina (não na VPS), pôr a
+   pública em `BACKUP_AGE_RECIPIENT` e publicar de novo (seção 15.4).
+3. **HSTS**: só depois de o cadeado aparecer sem aviso (seção 15.3).
+
+---
+
+## O caminho manual
+
+As seções a seguir são o passo a passo completo, comando por comando. Leia
+mesmo que vá usar o script: é aqui que está o *porquê* de cada escolha, e é
+a única saída quando algo falhar no meio.
+
 ---
 
 ## 0. O que você vai precisar
@@ -323,7 +478,7 @@ Primeiro bloco — senhas e a chave do Django. Cole inteiro:
 for s in NEURODOC_DJANGO_SECRET_KEY NEURODOC_DB_ADMIN_PASSWORD \
          NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD \
          NEURODOC_RABBITMQ_PASSWORD NEURODOC_REDIS_PASSWORD; do
-  openssl rand -base64 48 | tr -d '\n' | docker secret create "$s" -
+  openssl rand -base64 48 | tr -d '\r\n' | docker secret create "$s" -
 done
 ```
 
@@ -331,7 +486,7 @@ Segundo bloco — as duas chaves-mestras de cifragem. Cole inteiro:
 
 ```bash
 for s in NEURODOC_PFX_MASTER_KEY NEURODOC_SECRETS_MASTER_KEY; do
-  k=$(openssl rand -base64 32 | tr -d '\n' | tr '+/' '-_')
+  k=$(openssl rand -base64 32 | tr -d '\r\n' | tr '+/' '-_')
   echo "$s: ${#k} caracteres (tem de ser 44)"
   printf '%s' "$k" | docker secret create "$s" -
 done
@@ -353,6 +508,12 @@ alguém salvar a senha do e-mail de uma clínica ou enviar um certificado de
 assinatura — com o sistema já em uso, e sem nada indicando que a causa foi
 um comando digitado no primeiro dia. O `tr '+/' '-_'` é o que converte o
 base64 comum em url-safe; o `-base64 32` é o que acerta o tamanho.
+
+O `tr -d '\r\n'` apaga os **dois** terminadores, e não só o `\n`. Há builds
+do OpenSSL — os do Windows entre eles — que terminam a linha com CRLF: o
+`\r` sobrevive a um `tr -d '\n'`, entra no segredo e não aparece em tela
+nenhuma. A chave sai com 45 caracteres em vez de 44, e é exatamente por
+isso que o comando imprime o tamanho antes de criar cada segredo.
 
 > O Docker **não deixa ler um segredo de volta**, nem para conferir. Por
 > isso o passo 15.4 pede que você os anote num gerenciador de senhas no
@@ -696,15 +857,35 @@ nano .env      # SECURE_HSTS_SECONDS=31536000
 
 ### 15.4 Backups
 
-O repositório traz as unidades do systemd:
+**O `scripts/setup_deploy.sh` já faz esta seção inteira** — instala as duas
+unidades, liga os timers e roda o primeiro backup. O que segue é para quem
+instalou à mão.
+
+O repositório traz as unidades do systemd. Elas são **moldes**: trazem o
+caminho e o usuário padrão (`/srv/neurodoc`, `neurodocops`), que precisam
+ser trocados se esta instalação usa outros — uma unidade apontando para o
+caminho errado falha em silêncio até a noite em que o backup faria falta.
 
 ```bash
 sudo cp ops/neurodoc-backup.service ops/neurodoc-backup.timer /etc/systemd/system/
 sudo cp ops/neurodoc-signing-cleanup.service ops/neurodoc-signing-cleanup.timer /etc/systemd/system/
+# Só se o projeto ou o usuário não forem os padrões:
+#   sudo sed -i "s#/srv/neurodoc#$(pwd)#g; s#neurodocops#$(id -un)#g" #     /etc/systemd/system/neurodoc-{backup,signing-cleanup}.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer
 systemctl list-timers | grep neurodoc
 ```
+
+Prove que funciona antes de confiar, e não na primeira noite:
+
+```bash
+sudo systemctl start neurodoc-backup.service
+journalctl -u neurodoc-backup.service -n 30 --no-pager
+```
+
+Um backup que nunca foi restaurado não é backup. A prova completa está em
+`docs/operations/restore.md` e exige **outra máquina** — o `ops/restore.py`
+se recusa a rodar num host que já tenha serviços `neurodoc_v1_*`.
 
 **Além disso, guarde os segredos fora do servidor.** Um backup do banco
 sem as chaves-mestras é um backup que não abre:

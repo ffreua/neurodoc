@@ -29,6 +29,7 @@ from django.utils import timezone
 
 from audit.services import protect_ip
 from base.validators import is_valid_cpf
+from base.net import client_ip
 
 #: Versão do aviso de privacidade aceito. Muda quando o texto muda, e fica
 #: gravado no pedido: demonstrar consentimento exige saber **a que** a
@@ -85,7 +86,7 @@ def _rate_limit(request, bucket, limit, window):
     """
     from django.core.cache import cache
 
-    ip = request.META.get('REMOTE_ADDR') or 'desconhecido'
+    ip = client_ip(request)
     key = f'portal:{bucket}:{ip}'
     try:
         cache.get_or_set(key, 0, window)
@@ -197,7 +198,7 @@ def submit(request, tenant, patient, kind, requester_name, requester_is_patient,
         privacy_ack_at=timezone.datetime.fromisoformat(data['privacy_at'])
         if data.get('privacy_at') else timezone.now(),
         privacy_notice_version=PRIVACY_NOTICE_VERSION,
-        origin_ip_protected=protect_ip(request.META.get('REMOTE_ADDR')),
+        origin_ip_protected=protect_ip(client_ip(request)),
     )
     record_audit_event(
         None, tenant.id, 'documents.portal_request_created',

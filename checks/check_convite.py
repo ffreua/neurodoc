@@ -28,17 +28,37 @@ falhas = []
 
 
 def descartar_conta():
-    """Apaga a conta do teste e o que a prende.
+    """Tira a conta do teste do caminho, sem tocar na trilha.
 
     A trilha de auditoria prende o usuario por `PROTECT`, e prende com
-    razao: apagar a conta apagaria o registro do que ela fez. Aqui os
-    eventos sao do proprio teste, entao saem junto — o que nao vale para
-    conta de gente.
+    razao: apagar a conta apagaria o registro do que ela fez. Este bloco
+    apagava os eventos para poder apagar a conta; desde
+    `audit/0003_auditevent_imutavel` o banco recusa — a trilha e
+    `INSERT`-only, e nem um roteiro a desfaz.
+
+    Conta que ja gerou evento e **aposentada**: perde o acesso e devolve o
+    e-mail, que e o unico motivo de ela precisar sair daqui. Conta sem
+    evento nenhum some de verdade, porque nao ha o que preservar.
     """
+    import uuid
+
     alvo = User.objects.filter(email=EMAIL)
     TOTPDevice.objects.filter(user__in=alvo).delete()
-    AuditEvent.objects.filter(actor__in=alvo).delete()
-    alvo.delete()
+    for conta in alvo:
+        if AuditEvent.objects.filter(actor=conta).exists():
+            # Perde os poderes junto com o e-mail. Manter `is_superuser`
+            # numa conta aposentada deixava um superusuario desligado na
+            # base, e o primeiro roteiro que procurasse
+            # `filter(is_superuser=True).first()` acabava tentando entrar
+            # com ela -- que e como esta limpeza quebrou o
+            # `check_inativacao` assim que passou a aposentar.
+            User.objects.filter(id=conta.id).update(
+                email=f'aposentado-por-roteiro-{uuid.uuid4().hex[:12]}@example.invalid',
+                is_active=False, is_staff=False, is_superuser=False,
+                first_name='[roteiro]', last_name='conta aposentada',
+            )
+        else:
+            conta.delete()
 
 
 descartar_conta()

@@ -31,6 +31,7 @@ urlpatterns = [
     path('app/integrations/', include('integrations.urls')),
     path('capture/', include('integrations.capture_urls')),
     path('app/notifications/', include('notifications.urls')),
+    path('app/mensagens/', include('teamchat.urls')),
     path('app/org/', include('communications.admin_urls')),
     path('app/org/', include('ai.admin_urls')),
     path('app/org/', include('patients.admin_urls')),

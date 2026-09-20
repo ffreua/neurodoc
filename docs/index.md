@@ -120,6 +120,58 @@ PRD; é a referência operacional viva gerada a partir dele.
   cancelamento, sanitização de Markdown e revogação interrompendo uma
   leitura já aberta.
 
+## Prescrição e catálogo de medicamentos
+
+- [Prescrição: catálogo da CMED, emissão avulsa e o QR](homologation/prescricao-cmed.md) —
+  26 mil apresentações da Anvisa no autocomplete das três telas, com a tarja
+  avisando (e não decidindo) sobre controle especial; documento emitido a
+  partir da ficha do paciente, sem atendimento; emissão em papel para
+  assinar à caneta; e o QR passando a sair só em documento assinado
+  digitalmente. Inclui os dois roteiros que estavam quebrados e foram
+  consertados.
+
+## Atendimento em texto livre
+
+- [Atendimento em texto livre, ao lado do estruturado](homologation/atendimento-texto-livre.md) —
+  o médico escolhe, ao abrir o atendimento, entre o prontuário estruturado e
+  uma página só com o texto da consulta. Medicação, hipóteses (CID) e conduta
+  continuam campos estruturados nos dois tipos — é o que faz conduta e
+  impressões serem copiadas de um tipo para o outro nos dois sentidos. Os
+  dois podem ser abertos num dia e finalizados em outro, e a grade traz
+  abertura e fechamento como colunas que ordenam. Homologado com
+  `checks/check_texto_livre.py` (13 seções). Traz também a ficha do paciente
+  com **todos** os atendimentos — tipo, abertura, fechamento, rolagem e
+  ordenação pelas duas datas — e o contato (celular e e-mail) no cadastro do
+  paciente, que vira `PatientContact` na mesma transação. Inclui os cinco
+  defeitos que a construção produziu — o formulário aninhado, o resumo cheio
+  de seções vazias, o corpo da consulta fora do hash de integridade, a porta
+  que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
+  — e o roteiro alheio que o resíduo do novo derrubou.
+
+## Mensagens internas da equipe
+
+- [Mensagens da equipe](homologation/mensagens-equipe.md) — janela flutuante
+  ao lado do sino, arrastável e redimensionável, com presença real e entrega
+  ao vivo por Redis Streams e SSE. As sete decisões com a alternativa
+  recusada, e o que a implementação deliberadamente **não** decide
+  (retenção e expurgo continuam com quem responde pela LGPD na clínica).
+  Homologado na pilha local com `checks/check_mensagens.py` e `curl -N`
+  pelo Traefik real; inclui os três defeitos encontrados ao homologar —
+  o stream que reentregava histórico numa conexão nova, as duas asserções
+  erradas do próprio roteiro, e o 403 de CSRF que se anunciava como
+  "organização suspensa".
+
+## Aderência ao celular
+
+- [Aderência ao celular](homologation/mobile.md) — auditoria em navegador de
+  verdade: 30 telas em quatro tamanhos, incluindo celular deitado e tablet.
+  Nenhuma transbordava, mas os campos renderizavam a 13,5px e o Safari do
+  iPhone dava zoom na página a cada toque — mais de mil campos no prontuário
+  estruturado. Inclui o erro de usar largura em vez de `pointer: coarse`
+  (celular deitado tem 844px), os dois transbordos reais entre 768px e 900px,
+  e por que `checks/check_mobile.py` existe: as regras não produzem efeito
+  nenhum no computador, e CSS invisível é o primeiro a ser apagado.
+
 ## Homologação final e documentação (S14)
 
 - [Aceite final v1](homologation/v1.md) — rastreabilidade, pendências

@@ -1,3 +1,11 @@
+# Molde. O `scripts/setup_deploy.sh` instala este arquivo substituindo o
+# caminho e o usuario pelos que a instalacao realmente usa; os valores
+# abaixo sao os padroes (`/srv/neurodoc`, `neurodocops`).
+#
+# `ExecStart` chama o `/bin/sh` em vez de executar o script direto: os
+# scripts do repositorio sao versionados em modo 644 de proposito (um
+# `chmod +x` faria o preflight recusar o deploy por arvore suja), e o
+# systemd falharia com "Permission denied" sem dizer o porque.
 [Unit]
 Description=Remove chaves de assinatura orfas do tmpfs do NeuroDoc
 Requires=docker.service
@@ -8,7 +16,7 @@ Type=oneshot
 User=neurodocops
 Group=neurodocops
 WorkingDirectory=/srv/neurodoc
-ExecStart=/srv/neurodoc/scripts/cleanup_signing_keys.sh
+ExecStart=/bin/sh /srv/neurodoc/scripts/cleanup_signing_keys.sh
 UMask=0077
 TimeoutStartSec=1min
 NoNewPrivileges=true

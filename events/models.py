@@ -4,12 +4,12 @@ from base.models import TenantModel, TimestampedModel
 
 
 class OutboxEventStatus(models.TextChoices):
-    PENDING = 'pending', 'Pending'
-    PROCESSING = 'processing', 'Processing'
-    COMPLETED = 'completed', 'Completed'
-    FAILED = 'failed', 'Failed'
-    CANCELLED = 'cancelled', 'Cancelled'
-    HELD_RESTORED = 'held_restored', 'Held (restored)'
+    PENDING = 'pending', 'Pendente'
+    PROCESSING = 'processing', 'Processando'
+    COMPLETED = 'completed', 'Concluído'
+    FAILED = 'failed', 'Falhou'
+    CANCELLED = 'cancelled', 'Cancelado'
+    HELD_RESTORED = 'held_restored', 'Retido (restauração)'
 
 
 class OutboxEvent(TenantModel):

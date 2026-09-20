@@ -311,8 +311,20 @@ for obj in criados:
         MedicalDocument.objects.filter(id=obj.id).delete()
         Attachment.objects.filter(id__in=[a for a in anexos if a]).delete()
 DocumentRequest.objects.filter(id__in=[o.id for o in criados if isinstance(o, DocumentRequest)]).delete()
-Encounter.objects.filter(
-    tenant=tenant, chief_complaint__startswith='Registro aberto a partir de pedido').delete()
+# Os atendimentos que este roteiro abriu -- e o que estiver pendurado neles.
+#
+# A limpeza era um `delete()` direto, e bastava uma execucao interrompida
+# para o atendimento sobrar no banco. Um roteiro posterior que pegue "o
+# primeiro atendimento do paciente" acrescenta um achado de exame nele, e a
+# partir dai a limpeza deste falha para sempre com `ProtectedError` --
+# porque `ExaminationFinding.encounter` e PROTECT. O roteiro passa a
+# quebrar por causa do proprio lixo, e a mensagem nao diz isso.
+abertos = Encounter.objects.filter(
+    tenant=tenant, chief_complaint__startswith='Registro aberto a partir de pedido')
+from clinical.models import ExaminationFinding
+
+ExaminationFinding.objects.filter(encounter__in=abertos).delete()
+abertos.delete()
 perfil.patient_portal_enabled, perfil.patient_portal_notice = estado[0], estado[1]
 perfil.save()
 perfil_b.patient_portal_enabled = estado[2]

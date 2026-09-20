@@ -11,9 +11,7 @@ from pathlib import Path
 
 from ops.deploy import configuration, run
 from ops.env import ROOT
-
-
-BACKUP_LOCK = 72654002
+from ops.locks import BACKUP_LOCK
 
 
 def container_for(service):
@@ -99,6 +97,14 @@ def main():
                 for chunk in iter(lambda: source.read(1048576), b''):
                     digest.update(chunk)
             files[path.name] = {'sha256': digest.hexdigest(), 'bytes': path.stat().st_size}
+        # A sessao que segura a trava tem de estar viva **agora**, e nao so
+        # ter estado viva no comeco: se o container do banco reiniciou no
+        # meio da copia, o PostgreSQL devolveu a trava sem avisar e a
+        # aplicacao pode ter comprimido ou apagado arquivo enquanto o tar
+        # rodava. Um backup assim parece completo e falha na restauracao --
+        # que e exatamente o momento em que ninguem tem uma segunda chance.
+        if keeper.poll() is not None:
+            raise RuntimeError('Backup lock session died mid-copy; discard this backup')
         manifest = {'completed_at': datetime.now(timezone.utc).isoformat(),
                     'release': record, 'files': files,
                     'consistency': 'database snapshot then immutable files; deletion lock held'}

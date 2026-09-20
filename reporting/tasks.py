@@ -10,7 +10,7 @@ def run_export(export_id):
     export = ReportExport.objects.filter(id=export_id).first()
     if export is None:
         return {'status': 'skipped'}
-    rows_fn, fieldnames = _REGISTRY[export.report_name]
+    rows_fn, fieldnames, _count_fn = _REGISTRY[export.report_name]
     try:
         rows = rows_fn(export.tenant_id, **export.parameters)
         _write_csv_file(export, rows, fieldnames)

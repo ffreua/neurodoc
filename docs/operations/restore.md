@@ -3,8 +3,11 @@
 ## Backup (`ops/backup.py`, timer `neurodoc-backup.timer`)
 
 Rodando diariamente às 03:00 (`America/Sao_Paulo`) num host com Swarm ativo:
-adquire um `pg_advisory_lock` no Postgres (evita concorrência com outro
-backup), gera `pg_dump --format=custom` do banco e um `tar` de cada volume
+adquire um `pg_advisory_lock` no Postgres — a mesma trava que a aplicação
+pega para coletar lixo ou compactar o arquivo morto
+(`ops/locks.py::BACKUP_LOCK`), de modo que nenhum arquivo é movido, comprimido
+ou apagado durante a cópia —, gera `pg_dump --format=custom` do banco e um
+`tar` de cada volume
 (`media`, `signing`, `letsencrypt`), cifrando cada stream diretamente com
 `age -r <destinatário>` sem nunca gravar texto plano em disco. Um
 `manifest.json` com hash SHA-256 e tamanho de cada arquivo, mais um marcador

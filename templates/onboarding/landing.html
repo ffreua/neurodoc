@@ -22,7 +22,12 @@ batesse o limite.
 <!-- ------------------------------------------------------------- hero -->
 <section class="nd-hero">
     <div class="container">
-        <div class="row align-items-center g-5">
+        {% comment %}`g-lg-5` e nao `g-5`: a calha de 3rem vira margem negativa
+        de 24px de cada lado da `row`, e a folga do `container` e de 12px —
+        num celular de 390px a linha passava 12px da tela e a pagina de
+        vendas rolava na horizontal. Abaixo de `lg` as colunas empilham, e
+        calha horizontal ali nao separa nada.{% endcomment %}
+        <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
                 <span class="badge bg-soft-primary text-primary mb-3">Neurologia e neurocirurgia</span>
                 <h1 class="nd-hero-title">O prontuário que entende o exame neurológico.</h1>
@@ -98,9 +103,16 @@ batesse o limite.
 <section class="nd-section">
     <div class="container">
         <div class="text-center mb-5">
-            <h2 class="fw-bold text-dark">O que está pronto</h2>
-            <p class="text-muted fs-14 mb-0">
-                Tudo abaixo existe no produto e foi homologado. Nada aqui é promessa.
+{% comment %}O título anterior era "O que está pronto", com o subtítulo
+"Tudo abaixo existe no produto e foi homologado. Nada aqui é promessa" —
+uma resposta a uma acusação que o visitante não fez. A regra continua
+valendo para quem escreve o texto (está no topo de `base/content.py`); ela
+só não precisa estar na página, onde lia como defesa.{% endcomment %}
+            <h2 class="fw-bold text-dark">Construído para a complexidade da neurologia</h2>
+            <p class="text-muted fs-14 mb-0 mx-auto" style="max-width: 46rem;">
+                O exame que você já faz de cabeça, registrado com a mesma precisão —
+                e transformado em documento claro, rápido de reler e com valor
+                jurídico no dia em que ele for preciso.
             </p>
         </div>
         <div class="row g-4">
@@ -228,10 +240,39 @@ batesse o limite.
                             {% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}
                         </ul>
 
+                        {% comment %}Dois caminhos, e a diferença não é de estilo.
+
+                        No Gratuito o botão **posta** e o visitante cai na criação
+                        da clínica com o convite já emitido: não há negócio a
+                        conversar, e cada passo entre a vontade de testar e o teste
+                        é gente que desiste sem nunca aparecer como contato.
+
+                        Nos pagos ele rola até o formulário e marca o plano —
+                        ali a conversa comercial é o ponto, não o obstáculo.
+
+                        O campo-armadilha é o mesmo do formulário de contato:
+                        invisível, e robô que preenche tudo se entrega nele.{% endcomment %}
+                        {% if plan.price.free %}
+                        <form method="post" action="{% url 'onboarding:start-free' %}" class="mt-auto">
+                            {% csrf_token %}
+                            <div class="d-none" aria-hidden="true">
+                                <label for="website-gratis">Não preencha este campo</label>
+                                <input type="text" id="website-gratis" name="website"
+                                       tabindex="-1" autocomplete="off">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" data-nd-busy>
+                                Começar agora, de graça
+                            </button>
+                            <span class="d-block fs-11 text-muted text-center mt-2">
+                                Sem cartão e sem esperar retorno
+                            </span>
+                        </form>
+                        {% else %}
                         <a class="btn {% if plan.highlight %}btn-primary{% else %}btn-outline-secondary{% endif %} mt-auto"
                            href="#contato" data-nd-plan="{{ plan.code }}">
                             {% if plan.contact_only %}Falar sobre condições{% else %}Quero este plano{% endif %}
                         </a>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -252,7 +293,7 @@ reais responde isso melhor do que qualquer parágrafo de venda. Também serve
 a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
 <section class="nd-section bg-white">
     <div class="container">
-        <div class="row align-items-center g-5">
+        <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
                 <h2 class="fw-bold text-dark">Veja o sistema por dentro antes de decidir</h2>
                 <p class="fs-14 text-muted">

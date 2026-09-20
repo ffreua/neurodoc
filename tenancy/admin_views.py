@@ -22,15 +22,16 @@ from accounts.models import PhysicianProfile
 from accounts.services import revoke_membership
 from audit.services import record_audit_event
 
-from . import branding
+from . import branding, clinic_messages
 from .forms import (
-    ClinicPortalForm, ClinicProfileForm, CollaboratorInvitationForm, MembershipRolesForm,
-    PhysicianProfileForm,
+    ClinicMessageForm, ClinicPortalForm, ClinicProfileForm, CollaboratorInvitationForm,
+    MembershipRolesForm, PhysicianProfileForm,
 )
 from .invitations import issue_invitation
 from .limits import PlanLimitReached, assert_can_add_doctor
 from .models import (
-    ClinicProfile, Invitation, InvitationPurpose, Membership, MembershipStatus, Role, Tenant,
+    ClinicMessageKind, ClinicProfile, Invitation, InvitationPurpose, Membership,
+    MembershipStatus, Role, Tenant,
 )
 from .permissions import Capability, CapabilityRequiredView
 
@@ -630,3 +631,92 @@ class ClinicLogoFileView(CapabilityRequiredView):
         # abra direto: conteúdo enviado por usuário servido do mesmo domínio.
         response['Content-Security-Policy'] = "default-src 'none'; style-src 'unsafe-inline'"
         return response
+
+
+class ClinicMessageView(CapabilityRequiredView):
+    """Fale com a NeuroDoc, e Envie sugestões.
+
+    Sem capacidade exigida: pedir ajuda e sugerir melhoria são de quem
+    usa, e a secretária que passa o dia na agenda costuma ter mais o que
+    dizer sobre a agenda do que quem administra a clínica. `None` aqui é
+    decisão, não esquecimento (ver `CapabilityRequiredView`).
+
+    Uma view para as duas portas, com o tipo na URL. O que muda entre elas
+    é o rótulo, o texto de ajuda e o `kind` gravado — separar em duas
+    classes duplicaria o limite, a trilha e o aviso por e-mail para trocar
+    duas frases.
+    """
+
+    required_capability = None
+
+    #: O que cada porta diz de si. Fica aqui, e não no template, para a
+    #: tela e o que se grava não poderem divergir: o rótulo mostrado é o
+    #: mesmo `get_kind_display()` que vai no e-mail do console.
+    PORTAS = {
+        ClinicMessageKind.SUPPORT: {
+            'titulo': 'Fale com a NeuroDoc',
+            'ajuda': 'Algo não está funcionando, ou você precisa de ajuda para usar '
+                     'alguma parte do sistema. Respondemos no e-mail da sua conta.',
+            'acao': 'Enviar mensagem',
+        },
+        ClinicMessageKind.SUGGESTION: {
+            'titulo': 'Envie sugestões',
+            'ajuda': 'O que faria diferença na sua rotina: um campo que falta, um '
+                     'caminho que dá voltas, um relatório que você monta na mão.',
+            'acao': 'Enviar sugestão',
+        },
+    }
+
+    def _porta(self, kind):
+        if kind not in self.PORTAS:
+            raise Http404
+        return self.PORTAS[kind]
+
+    def _membership(self, request):
+        from .models import Membership
+
+        return Membership.objects.filter(id=request.access_context.membership_id).first()
+
+    def get(self, request, kind):
+        return render(request, 'tenancy/clinic_message.html', {
+            'form': ClinicMessageForm(),
+            'kind': kind,
+            **self._porta(kind),
+        })
+
+    def post(self, request, kind):
+        porta = self._porta(kind)
+        form = ClinicMessageForm(request.POST)
+        membership = self._membership(request)
+        if membership is None:
+            raise Http404
+
+        if not form.is_valid():
+            return render(request, 'tenancy/clinic_message.html', {
+                'form': form, 'kind': kind, **porta,
+            }, status=400)
+
+        # O limite é conferido **depois** da validação, e não antes: quem
+        # erra o assunto quatro vezes não mandou mensagem nenhuma, e
+        # gastar a cota com tentativa recusada trancaria justamente quem
+        # está tendo dificuldade — que é quem mais precisa escrever.
+        if clinic_messages.rate_limited(membership.id):
+            messages.warning(
+                request,
+                'Você já mandou algumas mensagens na última hora. Se for urgente, '
+                'responda ao e-mail da última que enviamos.',
+            )
+            return redirect('reporting:dashboard')
+
+        clinic_messages.create(
+            request.access_context, membership, kind,
+            form.cleaned_data['subject'], form.cleaned_data['body'],
+        )
+        # Sucesso mesmo quando o aviso por e-mail falha: do ponto de vista
+        # de quem escreveu, a mensagem **foi** recebida -- está no banco, e
+        # aparece no console. É a mesma escolha do pedido de contato.
+        messages.success(
+            request,
+            'Mensagem enviada. Obrigado — ela chega a quem cuida do sistema.',
+        )
+        return redirect('reporting:dashboard')

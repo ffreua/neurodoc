@@ -16,6 +16,14 @@ tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
     <span>Resumo do caso</span>
 </a>
+{% comment %}A consulta anterior sem sair daqui. `Alt+P` faz o mesmo: o
+atalho está escrito no botão porque atalho que ninguém descobre não
+existe.{% endcomment %}
+<button type="button" class="btn btn-light" data-nd-gaveta-abrir
+        aria-controls="nd-gaveta" aria-haspopup="dialog">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    <span>Consulta anterior <span class="fs-11 text-muted">Alt+P</span></span>
+</button>
 <a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
 <a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
 {% if encounter.status != 'finalized' %}
@@ -36,107 +44,19 @@ tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
 {% endblock %}
 {% block content %}
 
-{% comment %}Cabeçalho do atendimento — quem, quando, em que estado.{% endcomment %}
-<div class="card mb-4">
-    <div class="card-body py-3">
-        <div class="d-flex flex-wrap align-items-center gap-3">
-            {% comment %}O retrato aqui confirma, antes de escrever, que o
-            atendimento está sendo lançado na ficha certa — que é o erro
-            que nenhuma validação pega, porque os dois cadastros são
-            válidos.{% endcomment %}
-            {% if encounter.patient.has_photo %}
-            <img class="avatar-md flex-shrink-0 rounded-circle" style="object-fit: cover;"
-                 src="{% url 'patients:photo-file' encounter.patient_id %}?v={{ encounter.patient.photo_updated_at|date:'U' }}"
-                 alt="Fotografia de {{ encounter.patient.full_name }}"
-                 onerror="this.remove();document.getElementById('nd-encounter-initial').classList.remove('d-none');">
-            <span id="nd-encounter-initial"
-                  class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0 d-none">
-                {{ encounter.patient.full_name|slice:":1"|upper }}
-            </span>
-            {% else %}
-            <span class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0">
-                {{ encounter.patient.full_name|slice:":1"|upper }}
-            </span>
-            {% endif %}
-            <div class="flex-grow-1">
-                <div class="d-flex flex-wrap align-items-center gap-2">
-                    <a class="fw-bold text-dark fs-14" href="{% url 'patients:detail' encounter.patient_id %}">
-                        {{ encounter.patient.full_name }}
-                    </a>
-                    <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">
-                        {{ encounter.get_status_display }}
-                    </span>
-                    <span class="badge bg-gray-200 text-dark">versão {{ encounter.row_version }}</span>
-                </div>
-                <div class="d-flex flex-wrap align-items-center gap-3 fs-12 text-muted mt-1">
-                    <span>{{ encounter.occurred_at|date:"d/m/Y H:i" }}</span>
-                    <span>{{ encounter.physician_membership.user.get_full_name }}</span>
-                    {% if encounter.status == 'finalized' %}
-                    <span class="text-break">hash {{ encounter.content_hash|slice:":16" }}…</span>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-        {% if encounter.status == 'finalized' %}
-        <div class="alert alert-success fade show fs-12 mt-3 mb-0 d-flex align-items-start gap-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-            <span>
-                Registro finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }} por
-                {{ encounter.finalized_by.user.get_full_name }} — imutável. Correções entram como adendo.
-            </span>
-        </div>
-        {% endif %}
-    </div>
-</div>
+{% comment %}`data-nd-atendimento` é o gancho de `clinical/atendimento.js`:
+atalhos de teclado, rascunho local e a gaveta da consulta anterior. O id do
+atendimento entra na chave do rascunho, para o texto de um paciente nunca
+reaparecer no de outro; `data-nd-editavel` desliga a gravação local no
+atendimento finalizado, que não tem o que rascunhar.{% endcomment %}
+<div data-nd-atendimento="{{ encounter.id }}"
+     data-nd-editavel="{% if encounter.status == 'finalized' %}0{% else %}1{% endif %}">
 
-{% if pending_carry_forward %}
-{% comment %}Dados da consulta anterior aguardando revisão.
+{% include "clinical/_rascunho_local.html" %}
 
-Mostra o nome do campo no prontuário e o texto que será copiado — não o
-caminho interno nem o dicionário de armazenamento. Quem decide se aceita
-precisa ler o conteúdo, não o formato.{% endcomment %}
-<div class="card mb-4">
-    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <div>
-            <h5 class="card-title mb-0">Trazido da consulta anterior</h5>
-            <span class="fs-11 text-muted">
-                {{ pending_carry_forward.0.source_encounter.occurred_at|date:"d/m/Y" }} ·
-                nada é copiado sem sua decisão
-            </span>
-        </div>
-        <span class="badge bg-soft-warning text-warning">
-            {{ pending_carry_forward|length }} aguardando revisão
-        </span>
-    </div>
-    <div class="card-body">
-        <ul class="list-group list-group-flush">
-            {% for item in pending_carry_forward %}
-            <li class="list-group-item px-0 {% if forloop.first %}pt-0{% endif %}">
-                <div class="d-flex flex-wrap align-items-start justify-content-between gap-3">
-                    <div class="flex-grow-1">
-                        <span class="d-block fs-11 text-uppercase text-muted fw-semibold">
-                            {{ item.described.label }}
-                        </span>
-                        <span class="d-block fs-13 text-dark nd-prose mt-1">{{ item.described.value }}</span>
-                        {% if item.described.detail %}
-                        <span class="d-block fs-11 text-muted mt-1">{{ item.described.detail }}</span>
-                        {% endif %}
-                    </div>
-                    <form method="post" action="{% url 'clinical:review-carry-forward' encounter.id item.id %}"
-                          class="d-inline-flex gap-1 flex-shrink-0">
-                        {% csrf_token %}
-                        <button type="submit" name="action" value="accepted"
-                                class="btn btn-sm btn-light-success" data-nd-busy>Trazer para esta consulta</button>
-                        <button type="submit" name="action" value="rejected"
-                                class="btn btn-sm btn-light-danger" data-nd-busy>Descartar</button>
-                    </form>
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-    </div>
-</div>
-{% endif %}
+{% include "clinical/_encounter_header.html" %}
+
+{% include "clinical/_carry_forward.html" %}
 
 {% comment %}Abas: a consulta é longa demais para uma coluna só. Cada seção
 carrega o próprio formulário, então trocar de aba nunca perde o que está
@@ -493,8 +413,26 @@ digitado em outra.{% endcomment %}
                         {% include "partials/field.html" with field=form.plan_text col="col-lg-8" %}
                         {% include "partials/field.html" with field=form.finalization_justification col="col-lg-4" %}
                     </div>
-                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy
-                            {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar conduta</button>
+                    {% comment %}Os dois botões numa faixa flex com margem própria.
+
+                    O de emitir documento estava solto logo depois do submit,
+                    dentro do form e sem margem: o `mt-3` era do botão de salvar,
+                    então o link subia e encostava nos campos de cima. Agora a
+                    margem é do contêiner, e vale para os dois.
+
+                    O rótulo era "Receita, pedido de exame, encaminhamento…" e
+                    esticava o botão pela metade da linha. O tipo se escolhe na
+                    tela seguinte; aqui basta dizer o que o botão faz.{% endcomment %}
+                    <div class="d-flex align-items-center flex-wrap gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary" data-nd-busy
+                                {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar conduta</button>
+                        {% if nd_can.issue_document %}
+                        <a class="btn btn-light-primary" href="{% url 'documents:medical-new' encounter.id %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            <span>Emitir documento</span>
+                        </a>
+                        {% endif %}
+                    </div>
                 </form>
             </div>
         </div>
@@ -534,174 +472,20 @@ digitado em outra.{% endcomment %}
         {% endif %}
     </div>
 </div>
+
+</div>{# data-nd-atendimento #}
 {% endblock %}
 
 {% block modals %}
-{% if encounter.status != 'finalized' %}
-<div class="modal fade" id="remove-finding-modal" tabindex="-1" aria-hidden="true"
-     aria-labelledby="remove-finding-title">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="post" id="remove-finding-form">
-                {% csrf_token %}
-                <div class="modal-header">
-                    <h5 class="modal-title" id="remove-finding-title">Remover item do exame</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="fs-13 mb-0" id="remove-finding-summary"></p>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger" data-nd-busy>Remover</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="normal-modal" tabindex="-1" aria-hidden="true" aria-labelledby="normal-modal-title">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="post" action="{% url 'clinical:exam-group-normal' encounter.id %}">
-                {% csrf_token %}
-                <input type="hidden" name="path" id="normal-path">
-                <input type="hidden" name="undo" id="normal-undo" value="">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="normal-modal-title">Marcar tudo normal</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="fs-13 mb-2" id="normal-summary"></p>
-                    <div class="alert alert-warning fade show fs-12 mb-0" role="alert" id="normal-warning">
-                        Só itens do tipo <strong>estado</strong> são marcados — escolha, número e
-                        escala continuam como estão, porque o sistema não pode inventar uma medida.
-                        Item que você já preencheu à mão é preservado. Dá para desfazer enquanto o
-                        atendimento não for finalizado.
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-primary" id="normal-confirm" data-nd-busy>Confirmar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
-{% if encounter.status != 'finalized' %}
-{% comment %}Descartar existe porque abrir um atendimento no paciente errado
-acontece. Só vale para atendimento não finalizado; finalizado é registro
-imutável e a correção lá é adendo. O modal mostra o que se perde antes de
-confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
-<div class="modal fade" id="discard-modal" tabindex="-1" aria-hidden="true" aria-labelledby="discard-modal-title">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="post" action="{% url 'clinical:discard' encounter.id %}">
-                {% csrf_token %}
-                <div class="modal-header">
-                    <h5 class="modal-title" id="discard-modal-title">Descartar este atendimento?</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    {% if discard_blockers %}
-                    <div class="alert alert-warning fade show fs-13 mb-0" role="alert">
-                        <strong>Este atendimento não pode ser descartado:</strong>
-                        <ul class="mb-0 mt-2 ps-3">
-                            {% for motivo in discard_blockers %}<li>{{ motivo }}</li>{% endfor %}
-                        </ul>
-                    </div>
-                    {% else %}
-                    <div class="alert alert-danger fade show fs-12" role="alert">
-                        O atendimento sai da história do paciente e <strong>não há como desfazer</strong>.
-                        O log de auditoria guarda quem descartou, quando e o que havia.
-                    </div>
-                    {% if discard_has_content %}
-                    <p class="fs-13 mb-2"><strong>Já há conteúdo registrado aqui:</strong></p>
-                    <ul class="fs-13 mb-3">
-                        {% if discard_summary.tem_historia %}<li>história preenchida</li>{% endif %}
-                        {% if discard_summary.tem_conduta %}<li>conduta preenchida</li>{% endif %}
-                        {% if discard_summary.exame %}<li>{{ discard_summary.exame }} item(ns) de exame</li>{% endif %}
-                        {% if discard_summary.medicacoes %}<li>{{ discard_summary.medicacoes }} medicação(ões)</li>{% endif %}
-                        {% if discard_summary.exames %}<li>{{ discard_summary.exames }} resultado(s) de exame</li>{% endif %}
-                        {% if discard_summary.hipoteses %}<li>{{ discard_summary.hipoteses }} hipótese(s)</li>{% endif %}
-                    </ul>
-                    <label class="form-label fw-semibold" for="discard-reason">
-                        Motivo do descarte <span class="text-danger" aria-hidden="true">*</span>
-                    </label>
-                    <input type="text" class="form-control" id="discard-reason" name="reason" required
-                           maxlength="255" placeholder="Ex.: atendimento aberto no paciente errado">
-                    <div class="form-text fs-11">
-                        Obrigatório porque há conteúdo. Fica no log de auditoria.
-                    </div>
-                    {% else %}
-                    <p class="fs-13 text-muted mb-0">
-                        Este atendimento está vazio — nada foi registrado nele.
-                    </p>
-                    {% endif %}
-                    {% endif %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-danger" data-nd-busy
-                            {% if discard_blockers %}disabled{% endif %}>Descartar atendimento</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-
-<div class="modal fade" id="finalize-modal" tabindex="-1" aria-hidden="true" aria-labelledby="finalize-modal-title">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <form method="post" action="{% url 'clinical:finalize' encounter.id %}">
-                {% csrf_token %}
-                <div class="modal-header">
-                    <h5 class="modal-title" id="finalize-modal-title">Finalizar este atendimento?</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
-                </div>
-                <div class="modal-body">
-                    {% comment %}O que falta aparece aqui, antes do clique. A
-                    verificação em cascata apontava um requisito por tentativa, e
-                    quem fechava a consulta descobria a lista aos poucos.{% endcomment %}
-                    {% if finalize_pending %}
-                    <div class="alert alert-warning fade show fs-13" role="alert">
-                        <strong>Falta preencher antes de finalizar:</strong>
-                        <ul class="mb-0 mt-2 ps-3">
-                            {% for item in finalize_pending %}
-                            <li>{{ item.texto }} <span class="text-muted">(aba {{ item.aba }})</span></li>
-                            {% endfor %}
-                        </ul>
-                    </div>
-                    <p class="fs-12 text-muted mb-0">
-                        Se algo aí não se aplica a esta consulta, escreva o motivo em
-                        <strong>Justificativa da finalização</strong>, na aba Conduta.
-                    </p>
-                    {% else %}
-                    <div class="alert alert-warning fade show fs-12" role="alert">
-                        Depois de finalizado, o registro fica <strong>imutável</strong>: nada do que já
-                        foi escrito pode ser alterado, e correções passam a entrar como adendo
-                        identificado.
-                    </div>
-                    <p class="fs-13 text-muted mb-0">
-                        Confirme que história, exame, hipóteses e conduta estão como você quer
-                        que fiquem registrados.
-                    </p>
-                    {% endif %}
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Revisar antes</button>
-                    <button type="submit" class="btn btn-primary" data-nd-busy
-                            {% if finalize_pending %}disabled{% endif %}>Finalizar atendimento</button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
-{% endif %}
+{% include "clinical/_encounter_modals.html" %}
+{% comment %}A gaveta fica no bloco dos modais pelo mesmo motivo deles: o tema
+desfoca `.nxl-container` enquanto há sobreposição aberta, e ela sairia
+borrada junto com o fundo que deveria cobrir.{% endcomment %}
+{% include "clinical/_gaveta_anterior.html" %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{% static 'clinical/atendimento.js' %}" defer></script>
 <script src="{% static 'clinical/exam.js' %}"></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
 <script>

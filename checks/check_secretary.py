@@ -13,6 +13,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from clinical.models import Encounter
+from patients.models import Patient, PatientContact
 from scheduling.availability import available_slots
 from scheduling.models import Appointment
 from tenancy.models import Membership
@@ -50,7 +51,11 @@ for offset in range(1, 40):
         }, follow=True)
         notes = [str(m) for m in get_messages(response.wsgi_request)]
         if Appointment.objects.count() - before == 1:
-            marcado = (slot, notes[-1] if notes else '(sem aviso)')
+            novo = Appointment.objects.filter(
+                starts_at=slot, physician_membership=doctor,
+            ).first()
+            marcado = (slot, notes[-1] if notes else '(sem aviso)',
+                       novo.patient_id if novo else None)
             break
     if marcado:
         break
@@ -84,12 +89,27 @@ print('certificados de assinatura ->', response.status_code)
 if response.status_code != 404:
     failures.append(f'a secretaria alcancou os certificados (HTTP {response.status_code})')
 
-# Devolve o horario a agenda. Sem isto cada rodada come um espaco da agenda
-# de demonstracao, ate o dia em que nao cabe mais uma primeira consulta — e
-# o teste passa a falhar por esgotamento, nao por regressao.
+# Devolve o horario a agenda **e o paciente que o pre-cadastro criou**.
+#
+# Sem devolver o horario, cada rodada come um espaco da agenda de
+# demonstracao, ate o dia em que nao cabe mais uma primeira consulta — e o
+# teste passa a falhar por esgotamento, nao por regressao.
+#
+# O paciente ficava: marcar pela agenda com `new_name` faz um pre-cadastro,
+# e so o agendamento era apagado. Sete rodadas deixavam sete "Teste
+# Permissao Secretaria" identicos na lista de pacientes de quem abrisse o
+# sistema — e paciente ativo conta para o limite do plano
+# (`tenancy/limits.py`), de modo que o acumulo terminaria no mesmo
+# esgotamento que o paragrafo acima existe para evitar.
 if marcado:
     Appointment.objects.filter(starts_at=marcado[0], physician_membership=doctor).delete()
     print('horario devolvido a agenda:', marcado[0])
+    if marcado[2]:
+        # O telefone informado vira um `PatientContact`, que e `PROTECT`:
+        # sai antes, ou o paciente nao sai.
+        PatientContact.objects.filter(patient_id=marcado[2]).delete()
+        apagados, _ = Patient.objects.filter(id=marcado[2]).delete()
+        print('paciente do pre-cadastro removido:', bool(apagados))
 
 print('---')
 if failures:

@@ -1,8 +1,10 @@
 import datetime
 
+from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 
+from tenancy.limits import patient_status
 from tenancy.models import Tenant
 from tenancy.permissions import Capability, CapabilityRequiredView
 
@@ -42,10 +44,33 @@ class HomeRedirectMixin:
 
 
 def _parse_period(request):
+    """O período da tela, e o mês corrente quando não veio nenhum.
+
+    Data ilegível cai no padrão em vez de derrubar a página: `start` e
+    `end` vêm da URL, e a URL é digitada, colada pela metade e guardada nos
+    favoritos com o ano cortado. `fromisoformat` levantava `ValueError`
+    direto da view e o painel de indicadores respondia erro 500 — para um
+    caractere errado num parâmetro que tem padrão óbvio.
+
+    Inverter as duas também é entrada inválida, e silenciosa: um período
+    que termina antes de começar devolve todo indicador zerado, o que se
+    lê como "não houve atendimento" em vez de "a data está trocada".
+    """
     today = datetime.date.today()
-    start = request.GET.get('start') or str(today.replace(day=1))
-    end = request.GET.get('end') or str(today)
-    return datetime.date.fromisoformat(start), datetime.date.fromisoformat(end)
+
+    def data(valor, padrao):
+        if not valor:
+            return padrao
+        try:
+            return datetime.date.fromisoformat(valor)
+        except ValueError:
+            return padrao
+
+    start = data(request.GET.get('start'), today.replace(day=1))
+    end = data(request.GET.get('end'), today)
+    if end < start:
+        start, end = end, start
+    return start, end
 
 
 class DashboardView(HomeRedirectMixin, TenantScopedView):
@@ -73,7 +98,17 @@ class DashboardView(HomeRedirectMixin, TenantScopedView):
             'doctor_share_forecast': operations.doctor_share_forecast(tenant, start, end),
             'payment_category': operations.payment_category_breakdown(tenant, start, end),
         }
-        return render(request, 'reporting/dashboard.html', {'start': start, 'end': end, 'indicators': indicators})
+        return render(request, 'reporting/dashboard.html', {
+            'start': start, 'end': end, 'indicators': indicators,
+            # O consumo do plano vem de `tenancy.limits`, e não recontado
+            # aqui: `LimitStatus` já sabe o que é "perto do fim" (80 %) e o
+            # que é "sem vaga", e é a mesma fonte que bloqueia o cadastro
+            # nas seis portas. Um segundo cálculo na tela acabaria dizendo
+            # que ainda cabe um paciente enquanto o cadastro recusa.
+            'plano': patient_status(tenant),
+            'email_suporte': settings.LEADS_EMAIL,
+            'tenant': tenant,
+        })
 
 
 class ExportRequestView(TenantScopedView):

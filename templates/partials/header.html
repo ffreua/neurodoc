@@ -31,13 +31,47 @@
                     </div>
                 </div>
 
-                <div class="nxl-h-item dark-light-theme">
-                    <div class="nxl-head-link me-0 dark-button" role="button" data-bs-toggle="tooltip" aria-label="Tema escuro">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    </div>
-                    <div class="nxl-head-link me-0 light-button" role="button" style="display:none" data-bs-toggle="tooltip" aria-label="Tema claro">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
-                    </div>
+
+                {% comment %}Busca rápida de paciente, o primeiro ícone da
+                direita — é a ação mais repetida de quem atende o balcão.
+
+                É um **link** para a lista de pacientes, e não um botão: sem
+                JavaScript ele continua levando à busca de verdade, em vez de
+                ser um ícone que não faz nada. Com JavaScript,
+                `busca-global.js` intercepta o clique pelo
+                `data-nd-busca-abrir` e abre a caixa.
+
+                O atalho aparece escrito no `title` porque atalho que ninguém
+                descobre não existe.{% endcomment %}
+                <div class="nxl-h-item d-none d-sm-flex">
+                    <a class="nxl-head-link me-0" href="{% url 'patients:list' %}"
+                       data-nd-busca-abrir aria-label="Buscar paciente (Ctrl+K)"
+                       title="Buscar paciente — Ctrl+K">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </a>
+                </div>
+
+                {% comment %}Mensagens da equipe, ao lado do sino.
+
+                Um `<button>` de verdade, e não um `<div role="button">` como
+                os vizinhos do tema: este abre uma janela e precisa responder
+                a Enter e Espaço sem JavaScript extra, e aparecer na ordem de
+                tabulação sozinho. `.border-0.bg-transparent` desfaz o que o
+                navegador pinta num botão; o resto do visual vem de
+                `.nxl-head-link`, igual aos outros ícones.
+
+                A badge já sai renderizada pelo servidor
+                (`nd_unread_messages`, em `base/context_processors.py`): quem
+                recarrega a página vê o número na hora, sem esperar a
+                primeira sondagem do JavaScript.{% endcomment %}
+                <div class="nxl-h-item">
+                    <button type="button" class="nxl-head-link me-0 border-0 bg-transparent"
+                            id="nd-tc-toggle" aria-expanded="false" aria-controls="nd-teamchat"
+                            aria-label="Mensagens da equipe" data-bs-toggle="tooltip">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                        <span class="badge bg-danger nxl-h-badge" id="nd-tc-badge"
+                              {% if not nd_unread_messages %}hidden{% endif %}>{{ nd_unread_messages }}</span>
+                    </button>
                 </div>
 
                 <div class="dropdown nxl-h-item">

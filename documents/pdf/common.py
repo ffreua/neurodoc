@@ -70,7 +70,19 @@ def format_validation_code(token):
 
 
 def _qr_flowable(document):
-    if not document.validation_token:
+    """O QR — e ele só existe com assinatura digital.
+
+    O QR leva à página que responde "esta receita saiu mesmo daquele
+    consultório e não foi alterada?". Quem sustenta essa resposta é a
+    assinatura, que cobre os bytes do arquivo. Num rascunho, ou num
+    documento impresso para ser assinado à caneta, não há o que o QR
+    prometa — e um QR impresso ali faria o balconista da farmácia conferir
+    e receber "documento não emitido", ou pior, tratá-lo como conferido.
+
+    Antes o QR saía em qualquer PDF: `validation_token` é atribuído já na
+    criação do rascunho, e a única condição era ele existir.
+    """
+    if document.status != 'issued' or not document.validation_token:
         return None
     widget = qr.QrCodeWidget(verification_url(document), barLevel='M')
     bounds = widget.getBounds()
@@ -206,8 +218,20 @@ def _patient_block(document, include_address):
         rows.append(Paragraph(f'<b>CPF:</b> {format_cpf(patient.cpf)}', BODY_STYLE))
     if include_address:
         rows.append(Paragraph(f'<b>Endereço:</b> {patient_address(patient)}', BODY_STYLE))
+    # A data do atendimento quando há um; senão, a da emissão, e por fim a
+    # da criação do rascunho.
+    #
+    # `document.encounter` passou a ser opcional: a renovação de receita
+    # pedida por telefone não tem consulta. Antes esta linha era
+    # `document.encounter.occurred_at` direto, e um documento sem
+    # atendimento estourava `AttributeError` no meio de gerar o PDF — com o
+    # rascunho já criado no banco e nenhum arquivo.
+    momento = (
+        document.encounter.occurred_at if document.encounter_id
+        else (document.issued_at or document.created_at)
+    )
     rows.append(Paragraph(
-        f'<b>Data do documento:</b> {document.encounter.occurred_at.strftime("%d/%m/%Y")}',
+        f'<b>Data do documento:</b> {momento.strftime("%d/%m/%Y")}',
         BODY_STYLE,
     ))
     doc_number = document.document_number or 'RASCUNHO — sem validade até a emissão'
@@ -226,6 +250,7 @@ def _signature_footer(document):
     aponta para a primeira.
     """
     issued = document.status == 'issued'
+    no_papel = document.status == 'issued_on_paper'
     profile = _physician_profile(document)
 
     left = [
@@ -244,6 +269,16 @@ def _signature_footer(document):
         digest = (document.signature_metadata or {}).get('content_sha256', '')
         if digest:
             left.append(Paragraph(f'SHA-256: {digest[:32]}…', SMALL_STYLE))
+    elif no_papel:
+        # Nem tarja de rascunho nem declaração de assinatura digital: o
+        # papel vale pela assinatura de próprio punho e pelo carimbo, e o
+        # rodapé diz isso em vez de afirmar o que não houve.
+        left.append(Spacer(1, 0.15 * cm))
+        left.append(Paragraph(
+            'Documento emitido para assinatura de próprio punho. '
+            'Válido apenas com a assinatura e o carimbo do profissional.',
+            SMALL_STYLE,
+        ))
     else:
         left.append(Spacer(1, 0.15 * cm))
         left.append(Paragraph(

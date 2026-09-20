@@ -5,9 +5,49 @@ _PHONE_PATTERN = re.compile(r'\b(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}-?\d{4}\b')
 _EMAIL_PATTERN = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
 _MIN_NAME_PART_LEN = 3
 
+#: Partes de nome que nao identificam ninguem sozinhas, e que aparecem em
+#: texto clinico com outro sentido. Sem esta lista, um paciente chamado
+#: "Maria das Gracas" faz "todas as noites" virar "to[PACIENTE] as
+#: noites" -- e com a fronteira de palavra ja em vigor continuaria fazendo
+#: "dor das pernas" virar "dor [PACIENTE] pernas".
+#:
+#: Os sufixos de geracao entram pelo mesmo motivo: "Filho" e "Neto" sao
+#: parte do nome, mas o que identifica sao as partes ja substituidas -- e
+#: "o filho do paciente relata" e frase de anamnese, nao nome de gente.
+_NAME_PARTICLES = frozenset({
+    'das', 'dos', 'del', 'della', 'van', 'von', 'bin', 'ibn',
+    'filho', 'filha', 'junior', 'neto', 'neta', 'sobrinho', 'sobrinha',
+    'segundo', 'terceiro',
+})
+
 
 def _name_parts(full_name):
-    return [p for p in (full_name or '').split() if len(p) >= _MIN_NAME_PART_LEN]
+    return [
+        p for p in (full_name or '').split()
+        if len(p) >= _MIN_NAME_PART_LEN and p.lower() not in _NAME_PARTICLES
+    ]
+
+
+def _redact_name_part(text, part, marker):
+    """Troca `part` por `marker`, mas so quando ela e uma palavra inteira.
+
+    Sem a fronteira de palavra -- que e como esta funcao nasceu -- a
+    substituicao comia pedaco de termo clinico: uma paciente chamada Ana
+    fazia "Anamnese" virar "[PACIENTE]mnese", um Dan fazia "danos
+    neurologicos" virar "[PACIENTE]os neurologicos". O texto adulterado ia
+    ao provedor e voltava como analise de uma consulta que ninguem
+    escreveu.
+
+    O `\b` do Python ja e unicode para `str`, entao nome acentuado (Joao,
+    Ines) casa normalmente.
+
+    Fica de fora, de proposito, o sobrenome que tambem e palavra comum:
+    um paciente "Joao Campos" continua fazendo "campos visuais" virar
+    "[PACIENTE] visuais". E o lado seguro do erro -- redigir demais nao
+    vaza nome de ninguem -- e nao da para distinguir os dois sem saber
+    qual dos dois sentidos a frase quis dizer.
+    """
+    return re.sub(rf'\b{re.escape(part)}\b', marker, text, flags=re.IGNORECASE)
 
 
 def deidentify_text(text, patient):
@@ -23,9 +63,9 @@ def deidentify_text(text, patient):
     result = text
     if patient is not None:
         for part in _name_parts(patient.full_name):
-            result = re.sub(re.escape(part), '[PACIENTE]', result, flags=re.IGNORECASE)
+            result = _redact_name_part(result, part, '[PACIENTE]')
         for part in _name_parts(getattr(patient, 'mother_name', '')):
-            result = re.sub(re.escape(part), '[NOME_MAE]', result, flags=re.IGNORECASE)
+            result = _redact_name_part(result, part, '[NOME_MAE]')
         if getattr(patient, 'cpf', None):
             result = result.replace(patient.cpf, '[CPF]')
     result = _CPF_PATTERN.sub('[CPF]', result)

@@ -5,8 +5,37 @@ from ops.make_runtime import prepare_runtime
 
 config = read_env(ROOT / '.env.example')
 config.update(read_env(ROOT / '.env'))
-config.update(DEBUG='True', ALLOWED_HOSTS='localhost,127.0.0.1',
-              CSRF_TRUSTED_ORIGINS='http://localhost:8000,http://127.0.0.1:8000,http://localhost:8080,http://127.0.0.1:8080',
+
+# ------------------------------------------------------- acesso pelo celular
+#
+# `NEURODOC_LAN_HOST` no `.env`, com o IP desta maquina na rede
+# (`192.168.x.y`), abre o ambiente local para os outros aparelhos do
+# Wi-Fi. Vazio -- o padrao -- mantem tudo preso ao `127.0.0.1`.
+#
+# Sao tres travas em serie, e abrir uma so nao adianta: a porta publicada
+# apenas no `127.0.0.1` recusa a conexao antes de qualquer coisa; passada
+# ela, o Django responde 400 a um `Host:` que nao esta em `ALLOWED_HOSTS`;
+# e, passada essa, o login falha porque a origem nao esta em
+# `CSRF_TRUSTED_ORIGINS`. Por isso o mesmo valor alimenta as tres.
+#
+# Existe porque aderencia ao celular nao se confere no emulador do
+# navegador: o `check_mobile.py` verifica alvo de toque e `pointer:
+# coarse`, e nada disso prova como o dedo de verdade alcanca o botao de
+# finalizar atendimento num aparelho de 5 polegadas.
+lan = (config.get('NEURODOC_LAN_HOST') or '').strip()
+hosts = ['localhost', '127.0.0.1'] + ([lan] if lan else [])
+origens = [
+    f'http://{host}:{porta}'
+    for host in hosts for porta in (8000, 8080)
+]
+# `0.0.0.0` so quando pedido: publicar na rede por padrao exporia o
+# ambiente de desenvolvimento de quem so quer rodar na propria maquina --
+# com `DEBUG=True`, que mostra configuracao e codigo a quem provoca um
+# erro, e com a base de demonstracao dentro.
+BIND = '0.0.0.0' if lan else '127.0.0.1'
+
+config.update(DEBUG='True', ALLOWED_HOSTS=','.join(hosts),
+              CSRF_TRUSTED_ORIGINS=','.join(origens),
               PUBLIC_BASE_URL='http://localhost:8000',
               SMS_ENABLED='False', AI_ENABLED='False', NEURODOC_DEMO_ALLOWED='True')
 
@@ -58,7 +87,7 @@ for name, service in stack['services'].items():
         service['build'] = {'context': '.', 'args': {
             'PYTHON_IMAGE': config['PYTHON_IMAGE'], 'RELEASE_ID': 'dev',
         }}
-        service['ports'] = ['127.0.0.1:8000:8000']
+        service['ports'] = [f'{BIND}:8000:8000']
         service['volumes'] = [item for item in service['volumes'] if isinstance(item, str)]
         service['tmpfs'].append('/run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700')
     if name == 'traefik':
@@ -71,7 +100,7 @@ for name, service in stack['services'].items():
         service['secrets'] = []
         service['volumes'] = []
         service['configs'] = [{'source': 'traefik_local', 'target': '/etc/traefik/local.yml'}]
-        service['ports'] = ['127.0.0.1:8080:80']
+        service['ports'] = [f'{BIND}:8080:80']
         service['healthcheck']['test'] = ['CMD', 'traefik', 'healthcheck', '--ping',
                                          '--entrypoints.ping.address=:8082',
                                          '--ping.entrypoint=ping']

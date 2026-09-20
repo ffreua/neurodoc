@@ -1,6 +1,8 @@
 from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth import login as auth_login
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views import View
 
 from accounts.services import send_email_verification
@@ -12,6 +14,110 @@ from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_p
 from .content import FAQ, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
+from base.net import client_ip
+
+
+class StartFreePlanView(View):
+    """Plano Gratuito sem passar por ninguém.
+
+    O caminho antigo era o mesmo dos planos pagos: preencher o formulário,
+    esperar alguém ler, receber um código de convite por e-mail. Para quem
+    vai pagar, essa conversa faz sentido e é onde o negócio acontece. Para
+    quem quer experimentar cinquenta pacientes de graça, ela é só uma
+    porta entre a vontade de testar e o teste — e quem desiste ali desiste
+    em silêncio, sem nunca aparecer como lead.
+
+    Aqui o convite é emitido na hora e a pessoa cai direto na tela de
+    criação da clínica. O convite é o mesmo objeto de sempre
+    (`tenancy.invitations`), com o mesmo consumo atômico e o mesmo plano
+    gravado: nada neste caminho cria organização por fora das regras.
+
+    **POST, e não link.** Um `GET` que cria convite é acionado por
+    qualquer imagem apontada para cá numa página de terceiro, e cada
+    visitante daquela página emitiria um. Com POST e CSRF, o pedido tem de
+    nascer de um formulário desta página.
+    """
+
+    #: Convites por IP na janela. Três é generoso para quem legitimamente
+    #: recomeça (fechou a aba, errou o e-mail, quis outra clínica) e curto
+    #: para quem automatiza.
+    LIMITE_POR_IP = 3
+    JANELA_SEGUNDOS = 3600
+
+    #: Dois dias. O convite existe para atravessar a distância entre o
+    #: clique e o cadastro, não para ficar guardado: quem clicou está
+    #: olhando a tela agora, e um token de semanas é um token que vaza de
+    #: um histórico de navegador.
+    TTL_DIAS = 2
+
+    def get(self, request):
+        """Sem POST não há convite — mas também não há erro na cara.
+
+        Alguém chega aqui pelo histórico do navegador ou por um link
+        colado. Mandar de volta para os planos é o que essa pessoa queria.
+        """
+        return redirect(f"{reverse('onboarding:landing')}#planos")
+
+    def post(self, request):
+        from tenancy.invitations import issue_invitation
+        from tenancy.models import InvitationPurpose
+        from tenancy.plans import PlanCode
+
+        # Campo-armadilha, o mesmo do formulário de contato: invisível na
+        # tela, preenchido por robô que preenche tudo. Quem cai nele volta
+        # para a página sem convite e sem saber que foi barrado.
+        if (request.POST.get('website') or '').strip():
+            return redirect(f"{reverse('onboarding:landing')}#planos")
+
+        if self._excedeu_o_limite(request):
+            # Para o formulário de contato, e não para uma página de erro:
+            # quem estourou o limite pode ser uma clínica inteira atrás do
+            # mesmo IP, e essa pessoa precisa de um caminho — não de um
+            # "tente mais tarde".
+            messages.info(
+                request,
+                'Já emitimos alguns acessos a partir desta conexão agora há pouco. '
+                'Deixe seu contato que devolvemos o código do plano Gratuito.',
+            )
+            return redirect(f"{reverse('onboarding:landing')}#contato")
+
+        invitation, raw_token = issue_invitation(
+            purpose=InvitationPurpose.PLATFORM,
+            plan=PlanCode.FREE,
+            ttl_days=self.TTL_DIAS,
+        )
+        # `issued_by` fica nulo de propósito: não houve pessoa emitindo.
+        # A trilha registra a origem, que é o que distingue este convite
+        # de um emitido no console pelo superadministrador.
+        record_audit_event(
+            None, None, 'tenancy.free_plan_invitation_issued',
+            object_type='invitation', object_id=invitation.id, outcome='success',
+            origin_ip=client_ip(request),
+            integrity_metadata={'plan': PlanCode.FREE, 'origem': 'landing'},
+        )
+        return redirect('onboarding:signup', token=raw_token)
+
+    def _excedeu_o_limite(self, request):
+        """Conta convites por IP. Falha **fechada**, ao contrário do lead.
+
+        O formulário de contato falha aberto de propósito: com o Redis
+        fora, o pior caso é um lead de robô no banco, e fechar ali
+        transformaria uma indisponibilidade em página de vendas que não
+        recebe contato.
+
+        Aqui o pior caso é outro. Este botão cria organização, e sem
+        contagem não há nada entre um script e um banco cheio de clínicas
+        vazias. Então, quando não dá para contar, este caminho fecha e a
+        pessoa vai para o formulário — que continua funcionando.
+        """
+        from django.core.cache import cache
+
+        chave = f'plano-gratis:{client_ip(request)}'
+        try:
+            cache.get_or_set(chave, 0, self.JANELA_SEGUNDOS)
+            return cache.incr(chave) > self.LIMITE_POR_IP
+        except Exception:                                   # noqa: BLE001
+            return True
 
 
 class LandingView(View):
@@ -101,7 +207,7 @@ class LandingView(View):
             clinic_name=(dados.get('clinic_name') or '').strip(),
             plan=dados.get('plan') or '',
             message=(dados.get('message') or '').strip(),
-            source_ip=request.META.get('REMOTE_ADDR') or None,
+            source_ip=client_ip(request) or None,
             privacy_notice_version=leads_service.PRIVACY_NOTICE_VERSION,
         )
         record_audit_event(
@@ -124,17 +230,43 @@ class OrganizationSignupView(View):
             return None
         return invitation
 
+    def _plano_do_convite(self, invitation):
+        """O que esta clínica vai ser, dito antes de ela existir.
+
+        Passou a importar quando o cartão do plano Gratuito virou um botão
+        que traz direto para cá: quem clicou escolheu um plano na tela
+        anterior e precisa reconhecer a escolha aqui, ou a sensação é de
+        ter sido levado para outro lugar. Vale igual para quem chega com
+        um código combinado por telefone — ver o plano escrito é a
+        confirmação de que o código é o certo.
+        """
+        from tenancy.limits import describe_limit
+        from tenancy.plans import max_doctors, max_patients, plan_label
+
+        return {
+            'rotulo': plan_label(invitation.plan),
+            'pacientes': describe_limit(max_patients(invitation.plan)),
+            'medicos': describe_limit(max_doctors(invitation.plan)),
+        }
+
     def get(self, request, token):
-        if self._invitation_or_none(token) is None:
+        invitation = self._invitation_or_none(token)
+        if invitation is None:
             return render(request, 'onboarding/invitation_invalid.html', status=400)
-        return render(request, 'onboarding/signup.html', {'form': OrganizationSignupForm()})
+        return render(request, 'onboarding/signup.html', {
+            'form': OrganizationSignupForm(),
+            'plano': self._plano_do_convite(invitation),
+        })
 
     def post(self, request, token):
         if self._invitation_or_none(token) is None:
             return render(request, 'onboarding/invitation_invalid.html', status=400)
         form = OrganizationSignupForm(request.POST)
         if not form.is_valid():
-            return render(request, 'onboarding/signup.html', {'form': form})
+            return render(request, 'onboarding/signup.html', {
+                'form': form,
+                'plano': self._plano_do_convite(self._invitation_or_none(token)),
+            })
         try:
             user, tenant, membership = accept_platform_invitation(
                 token,
@@ -149,7 +281,11 @@ class OrganizationSignupView(View):
             return render(request, 'onboarding/signup.html', {'form': form})
         except EmailAlreadyRegistered:
             form.add_error('email', 'Este e-mail já possui conta. Faça login para vincular uma organização.')
-            return render(request, 'onboarding/signup.html', {'form': form})
+            convite = self._invitation_or_none(token)
+            return render(request, 'onboarding/signup.html', {
+                'form': form,
+                'plano': self._plano_do_convite(convite) if convite else None,
+            })
         record_audit_event(
             user, tenant, 'tenancy.organization_created',
             object_type='tenant', object_id=tenant.id, outcome='success',

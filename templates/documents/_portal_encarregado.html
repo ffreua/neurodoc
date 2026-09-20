@@ -1,0 +1,39 @@
+{% comment %}Contato do encarregado de dados, no rodapé de toda tela do portal.
+
+A LGPD (art. 41, §1º) manda divulgar publicamente a identidade e o contato
+de quem responde por dados pessoais. "Publicamente" quer dizer que um
+paciente encontra sem pedir a ninguém — e o portal é o único lugar do
+sistema onde o paciente entra.
+
+Vai em todas as telas, e não só na primeira: quem chega pelo link de um
+documento não passa pela identificação, e o contato tem de estar onde a
+pessoa estiver.
+
+Quando a clínica ainda não designou, a tela **diz isso** em vez de
+esconder o bloco ou mostrar o e-mail geral da clínica. Esconder faz o
+paciente procurar o que não existe; usar o e-mail da recepção manda um
+pedido de direito para quem não pode respondê-lo, e o prazo corre do mesmo
+jeito.{% endcomment %}
+<div class="border-top mt-4 pt-3">
+    <span class="fs-11 text-uppercase text-muted fw-semibold d-block mb-1">
+        Encarregado de dados pessoais
+    </span>
+    {% if dpo.email or dpo.nome %}
+    <span class="fs-12 text-muted d-block">
+        {% if dpo.nome %}{{ dpo.nome }}{% endif %}
+        {% if dpo.email %}
+        — <a href="mailto:{{ dpo.email }}?subject=Dados%20pessoais%20—%20{{ clinic_name|urlencode }}">{{ dpo.email }}</a>
+        {% endif %}
+        {% if dpo.telefone %} · {{ dpo.telefone }}{% endif %}
+    </span>
+    <span class="fs-11 text-muted d-block mt-1">
+        Escreva para tratar de acesso, correção ou uso dos seus dados. Para
+        remarcar consulta ou pedir receita, use os caminhos acima — é mais rápido.
+    </span>
+    {% else %}
+    <span class="fs-12 text-muted d-block">
+        Esta clínica ainda não designou um encarregado no sistema. Para tratar dos
+        seus dados pessoais, procure a recepção e peça o contato do responsável.
+    </span>
+    {% endif %}
+</div>

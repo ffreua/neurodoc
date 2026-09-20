@@ -4,6 +4,8 @@ O outro teste provou que ele recusa. Este prova que ele serve — e que o
 que ele mostra nao inclui conteudo clinico, que e a decisao que governa o
 recurso.
 """
+import uuid
+
 from django.conf import settings as dj_settings
 from django.test import Client
 
@@ -84,6 +86,69 @@ for rota, esperados in rotas.items():
     elif faltando:
         falhas.append(f'{rota} nao mostrou {faltando}')
 
+# --- o console avisa o que esta frouxo na instalacao ---
+#
+# `SECURE_HSTS_SECONDS` comeca em 0 de proposito -- o navegador guarda a
+# instrucao, e liga-la antes de o HTTPS funcionar nao tem desfazer. Mas
+# nada lembrava de troca-lo depois, e uma instalacao seguia sem HSTS
+# porque o dia de ligar nunca entrou na lista de ninguem. Agora o console
+# diz, e este trecho confere que ele diz **e** que fica quieto quando nao
+# ha o que dizer.
+print()
+print('=== 6b. avisos de seguranca na visao geral ===')
+from ops.superadmin import _avisos_de_seguranca
+
+
+def _com_config(**mudancas):
+    antes = {k: getattr(dj_settings, k) for k in mudancas}
+    for k, v in mudancas.items():
+        setattr(dj_settings, k, v)
+    try:
+        return [a['titulo'] for a in _avisos_de_seguranca()]
+    finally:
+        for k, v in antes.items():
+            setattr(dj_settings, k, v)
+
+
+producao = dict(PUBLIC_BASE_URL='https://neurodoc.app.br', DEBUG=False,
+                SECRETS_MASTER_KEY='x', SECURE_HSTS_INCLUDE_SUBDOMAINS=True)
+
+casos = [
+    ('HTTPS com HSTS desligado avisa',
+     _com_config(**producao, SECURE_HSTS_SECONDS=0), True),
+    ('HTTPS com HSTS ligado nao avisa',
+     _com_config(**producao, SECURE_HSTS_SECONDS=31536000), False),
+    # O silencio em desenvolvimento importa tanto quanto o aviso: um
+    # alerta que aparece sempre deixa de ser lido, e ai o dia em que ele
+    # importa passa despercebido.
+    ('HTTP local nao avisa (0 e o certo ali)',
+     _com_config(PUBLIC_BASE_URL='http://localhost:8000', DEBUG=False,
+                 SECRETS_MASTER_KEY='x', SECURE_HSTS_SECONDS=0), False),
+]
+for descricao, titulos, espera_aviso in casos:
+    tem = any('HSTS desligado' in t for t in titulos)
+    ok = tem == espera_aviso
+    print(f'  {"ok  " if ok else "FALHA"} {descricao} -> {titulos or "nenhum"}')
+    if not ok:
+        falhas.append(descricao)
+
+# DEBUG e chave-mestra ausente entram pela mesma porta.
+titulos = _com_config(PUBLIC_BASE_URL='https://neurodoc.app.br', DEBUG=True,
+                      SECRETS_MASTER_KEY='', SECURE_HSTS_SECONDS=31536000,
+                      SECURE_HSTS_INCLUDE_SUBDOMAINS=True)
+print(f'  {"ok  " if len(titulos) == 2 else "FALHA"} DEBUG e chave-mestra tambem sao avisados -> {titulos}')
+if len(titulos) != 2:
+    falhas.append('o console nao avisou DEBUG ligado e chave-mestra ausente')
+
+# E a tela renderiza com os avisos, em vez de estourar no template.
+r = client.get('/instalacao/')
+corpo_visao = r.content.decode(errors='replace')
+tem_linha_hsts = 'HSTS' in corpo_visao
+print(f'  {"ok  " if r.status_code == 200 and tem_linha_hsts else "FALHA"} '
+      f'a visao geral abre e mostra o estado do HSTS (HTTP {r.status_code})')
+if r.status_code != 200 or not tem_linha_hsts:
+    falhas.append('a visao geral nao mostrou o estado do HSTS')
+
 # --- a trilha atravessa organizacoes ---
 r = client.get('/instalacao/auditoria/')
 corpo = r.content.decode(errors='replace')
@@ -159,6 +224,44 @@ if segredos:
     falhas.extend(f'segredo exposto: {s}' for s in segredos)
 
 TOTPDevice.objects.filter(id__in=criados).delete()
+
+# --- a conta descartavel sai junto ---
+#
+# Ela nasce com `is_superuser`, `is_staff` e senha conhecida (esta escrita
+# tres telas acima, neste arquivo). Deixa-la no banco depois da rodada e
+# deixar uma porta de acesso total dormindo na base de desenvolvimento de
+# quem rodou o roteiro -- e a senha nao e segredo nenhum, esta versionada.
+#
+# `AuditEvent.actor` e PROTECT: a conta so sairia depois dos eventos que
+# ela gerou, e desde `audit/0003_auditevent_imutavel` a trilha nao pode
+# mais ser apagada -- nem aqui. Ate entao este bloco tirava os eventos da
+# frente para poder apagar a conta; era o proprio roteiro contornando a
+# propriedade que o sistema promete, e a primeira coisa que a protecao
+# quebrou foi este atalho, que e o sinal de que ela funciona.
+#
+# Entao a conta e **aposentada**, nao apagada: perde os poderes, perde a
+# senha e perde o e-mail (que volta a ficar livre para a proxima rodada).
+# Como porta de acesso ela deixa de existir, que era a preocupacao; e a
+# linha que a trilha aponta continua de pe, que e como auditoria funciona.
+from accounts.models import User as _User
+from audit.models import AuditEvent as _AuditEvent
+
+_eventos = _AuditEvent.objects.filter(actor=su).count()
+_conta = su.email
+su.set_unusable_password()
+su.is_active = False
+su.is_staff = False
+su.is_superuser = False
+su.email = f'aposentado-por-roteiro-{uuid.uuid4().hex[:12]}@example.invalid'
+su.save(update_fields=['password', 'is_active', 'is_staff', 'is_superuser', 'email'])
+_ainda_pode_entrar = _User.objects.filter(
+    id=su.id, is_active=True,
+).exists() or su.has_usable_password()
+print(f'  limpeza -> conta {_conta} aposentada '
+      f'({_eventos} evento(s) de auditoria preservados)')
+print(f'  a conta ainda serve de porta: {_ainda_pode_entrar}')
+if _ainda_pode_entrar:
+    falhas.append('a conta descartavel continuou utilizavel depois da limpeza')
 print()
 print('---')
 if falhas:

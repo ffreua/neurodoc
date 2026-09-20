@@ -21,6 +21,7 @@ from django.utils import timezone
 from django.views import View
 
 from .models import MedicalDocument, MedicalDocumentStatus
+from base.net import client_ip
 
 #: Tentativas por janela, por IP. A página é pública e o código tem 64 bits;
 #: o limite existe para que nem valha a pena tentar, e para que a tentativa
@@ -54,7 +55,7 @@ def _too_many_attempts(request):
     """
     from django.core.cache import cache
 
-    ip = (request.META.get('REMOTE_ADDR') or 'desconhecido')
+    ip = client_ip(request)
     key = f'docverify:{ip}'
     try:
         count = cache.get_or_set(key, 0, LOOKUP_WINDOW_SECONDS)

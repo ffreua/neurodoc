@@ -1,0 +1,68 @@
+{% comment %}Consumo do plano, antes dos indicadores do período.
+
+Fica no topo porque responde a uma pergunta que não tem outro lugar na
+tela: "quanto ainda cabe?". Quem descobre o limite no momento de cadastrar
+o paciente já está com a pessoa na frente — e a conversa de plano não se
+faz ali.
+
+As faixas saem de `tenancy.limits.LimitStatus` (`warning` a partir de 80 %,
+`blocked` no limite), a mesma que recusa o cadastro. Nenhum número é
+recalculado aqui.{% endcomment %}
+{% if plano %}
+<div class="card stretch stretch-full mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <div>
+                <span class="fs-11 text-uppercase text-muted fw-semibold d-block">Pacientes do plano {{ plano.plan_label }}</span>
+                {% if plano.unlimited %}
+                <h4 class="fw-bold text-dark mb-0">{{ plano.usage }} <span class="fs-13 fw-normal text-muted">paciente(s) ativo(s) — sem limite contratado</span></h4>
+                {% else %}
+                <h4 class="fw-bold text-dark mb-0">
+                    {{ plano.usage }} <span class="fs-13 fw-normal text-muted">de {{ plano.limit }} pacientes — {{ plano.percent }}%</span>
+                </h4>
+                {% endif %}
+            </div>
+            {% if plano.blocked %}
+            <span class="badge bg-soft-danger text-danger">limite atingido</span>
+            {% elif plano.warning %}
+            <span class="badge bg-soft-warning text-warning">{{ plano.remaining }} vaga(s) restante(s)</span>
+            {% else %}
+            <span class="badge bg-soft-success text-success">dentro do plano</span>
+            {% endif %}
+        </div>
+
+        {% if not plano.unlimited %}
+        {% comment %}`aria-valuenow` e o texto ao lado da barra dizem o mesmo
+        número: a cor sozinha não informa quem não a distingue, e a barra
+        sozinha não informa quem usa leitor de tela.{% endcomment %}
+        <div class="progress nd-plano-barra" role="progressbar"
+             aria-label="Pacientes cadastrados em relação ao limite do plano"
+             aria-valuenow="{{ plano.percent }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar {% if plano.blocked %}bg-danger{% elif plano.warning %}bg-warning{% else %}bg-success{% endif %}"
+                 style="width: {{ plano.percent }}%"></div>
+        </div>
+        {% endif %}
+
+        {% if plano.blocked or plano.warning %}
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mt-3">
+            <span class="fs-12 text-muted">
+                {% if plano.blocked %}
+                Novos cadastros estão bloqueados até liberar vaga. Arquivar um paciente
+                devolve a vaga — nada é apagado.
+                {% else %}
+                Quando as vagas acabarem, o cadastro de novos pacientes é bloqueado.
+                {% endif %}
+            </span>
+            {% comment %}`mailto:` em vez de formulário: quem vê este botão já é
+            cliente, e mandá-lo preencher o formulário de contato da página de
+            vendas seria tratá-lo como desconhecido.{% endcomment %}
+            <a class="btn btn-sm {% if plano.blocked %}btn-danger{% else %}btn-light-warning{% endif %}"
+               href="mailto:{{ email_suporte }}?subject=Upgrade%20de%20plano%20—%20{{ tenant.legal_name|urlencode }}&body=Somos%20a%20cl%C3%ADnica%20{{ tenant.legal_name|urlencode }}%20({{ plano.usage }}%20de%20{{ plano.limit }}%20pacientes%20no%20plano%20{{ plano.plan_label|urlencode }})%20e%20gostar%C3%ADamos%20de%20falar%20sobre%20o%20plano.">
+                Falar com o suporte sobre o plano
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+

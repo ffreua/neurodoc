@@ -8,8 +8,8 @@ coletada — não reintroduz nada novo.
 
 | Dado | Retenção | Mecanismo |
 | --- | --- | --- |
-| Anexos removidos logicamente | 30 dias até expurgo físico | `documents.retention.garbage_collect` (S06) |
-| Token de acesso a documento | 7 dias | `communications.access` (S08) |
+| Anexos removidos logicamente | 30 dias até expurgo físico, **e nunca antes do fim da guarda legal** quando são anexos clínicos (20 anos do último registro, Lei 13.787/2018 art. 6º) | `documents.retention.garbage_collect` + `eliminacao_permitida` (S06) |
+| Token de acesso a documento | 30 dias (DEC-21) | `communications.access` (S08) |
 | Exportação de relatório | 24 horas | `reporting.services.expire_due_exports` (S13) |
 | Chave efêmera de assinatura (tmpfs) | Até revogação/reboot | `documents.signing_sessions` (S07) |
 | Trilha de auditoria | Sem expurgo automático | `audit.services.record_audit_event` |

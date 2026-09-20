@@ -47,85 +47,6 @@
     scrollbar-width: thin;
 }
 
-html.app-navigation-dark .nxl-navigation .m-header .logo-lg,
-html.app-skin-dark .nxl-navigation .m-header .logo-lg {
-    color: #fff;
-}
-
-/* ---- Dark skin: soft buttons rendered as links ----------------------- */
-/* Duralux's dark skin paints every <a> white with !important. A soft button
- * (.btn-light-primary and friends) keeps its pale background, so any such
- * button written as a link ends up white-on-pale and unreadable. Restore
- * the contextual text colour these buttons have in the light skin; the
- * hover state, which does turn the background solid, is left to the theme. */
-html.app-skin-dark a.btn-light-primary:not(:hover):not(:focus):not(:active) {
-    color: #3454d1 !important;
-}
-
-html.app-skin-dark a.btn-light-secondary:not(:hover):not(:focus):not(:active) {
-    color: #64748b !important;
-}
-
-html.app-skin-dark a.btn-light-success:not(:hover):not(:focus):not(:active) {
-    color: #17c666 !important;
-}
-
-html.app-skin-dark a.btn-light-info:not(:hover):not(:focus):not(:active) {
-    color: #3dc7be !important;
-}
-
-html.app-skin-dark a.btn-light-warning:not(:hover):not(:focus):not(:active) {
-    color: #ffa21d !important;
-}
-
-html.app-skin-dark a.btn-light-danger:not(:hover):not(:focus):not(:active) {
-    color: #ea4d4d !important;
-}
-
-html.app-skin-dark a.btn-light-dark:not(:hover):not(:focus):not(:active) {
-    color: #283c50 !important;
-}
-
-/* ---- Dark skin: standard contextual alerts --------------------------- */
-/* The design system uses plain Bootstrap alerts (.alert-primary and
- * friends), but Duralux's dark skin only restyles its own
- * .alert-soft-*-message variants, leaving the standard ones bright white on
- * a dark page. These follow the theme's own dark idiom for alerts: soft
- * background, contextual text, dashed border. */
-html.app-skin-dark .alert-primary {
-    color: #3454d1;
-    background-color: rgba(52, 84, 209, 0.075);
-    border: 1px dashed #21387f;
-}
-
-html.app-skin-dark .alert-success {
-    color: #17c666;
-    background-color: rgba(23, 198, 102, 0.075);
-    border: 1px dashed #0a542b;
-}
-
-html.app-skin-dark .alert-warning {
-    color: #ffa21d;
-    background-color: rgba(255, 162, 29, 0.075);
-    border: 1px dashed #9d5c00;
-}
-
-html.app-skin-dark .alert-danger {
-    color: #ea4d4d;
-    background-color: rgba(234, 77, 77, 0.075);
-    border: 1px dashed #bb1616;
-}
-
-html.app-skin-dark .alert-info {
-    color: #3dc7be;
-    background-color: rgba(61, 199, 190, 0.075);
-    border: 1px dashed #226e69;
-}
-
-html.app-skin-dark .alert .btn-close {
-    filter: invert(1) grayscale(100%) brightness(200%);
-}
-
 /* ---- Authentication / public shell ----------------------------------- */
 /* Duralux styles the auth card (.auth-container .card.wd-450) but leaves the
  * page that holds it to the template. */
@@ -164,10 +85,6 @@ html.app-skin-dark .alert .btn-close {
     font-size: 20px;
     font-weight: 700;
     letter-spacing: -0.2px;
-}
-
-html.app-skin-dark .nd-auth-brand .brand-name {
-    color: #fff;
 }
 
 /* ---- Django form rendering ------------------------------------------- */
@@ -226,18 +143,6 @@ html.app-skin-dark .nd-auth-brand .brand-name {
     outline: 0;
 }
 
-html.app-skin-dark .nd-form label {
-    color: #b1b4c0;
-}
-
-html.app-skin-dark .nd-form input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="submit"]),
-html.app-skin-dark .nd-form select,
-html.app-skin-dark .nd-form textarea {
-    color: #b1b4c0;
-    background-color: #19253f;
-    border-color: #1b2436;
-}
-
 /* ---- Accessibility --------------------------------------------------- */
 /* Duralux removes the default outline on several controls; a visible focus
  * ring is a hard requirement for keyboard use of a clinical record. */
@@ -268,6 +173,19 @@ button:focus-visible,
     left: 0;
 }
 
+/* ---- Logotipo da clínica no menu lateral ----------------------------- */
+
+/* Altura fixa e largura livre: logotipo de clínica vem em proporção
+ * imprevisível — faixa horizontal, quadrado, brasão alto. Limitar a altura
+ * e deixar a largura seguir mantém a proporção e impede que uma faixa
+ * larga estoure a coluna de 280px do menu. */
+.nd-sidebar-logo {
+    max-height: 56px;
+    max-width: 100%;
+    width: auto;
+    object-fit: contain;
+}
+
 /* ---- Long clinical text --------------------------------------------- */
 .nd-prose {
     white-space: pre-wrap;
@@ -293,6 +211,199 @@ textarea.form-control-sm {
 /* Enquanto o JS nao rodou (ou falhou), a caixa nao pode ficar cortada. */
 .no-js textarea.form-control {
     overflow-y: auto;
+}
+
+/* ---- Consumo do plano (indicadores) ---------------------------------- */
+/* A barra e fina de proposito: ela acompanha um numero que ja esta escrito
+ * ao lado, e nao substitui a leitura dele. Barra grossa pediria atencao
+ * que o dado nao merece todo dia -- so quando enche, e para isso serve a
+ * cor. */
+.nd-plano-barra {
+    height: 8px;
+    border-radius: 4px;
+}
+
+/* ---- Busca rapida global (Ctrl+K) ------------------------------------ */
+/* Sobreposicao propria, e nao o modal do tema: a busca precisa abrir no
+ * primeiro terco da tela (onde o olho ja esta, e onde o teclado do celular
+ * nao a empurra para fora), e o modal do tema centraliza verticalmente.
+ *
+ * O `display:flex` daqui precisava do `[hidden]` logo abaixo para nao
+ * deixar a caixa sempre aberta -- hoje a regra geral no fim do arquivo
+ * cuida disso, e esta continua so por clareza local. */
+.nd-busca-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 12vh 16px 16px;
+    background: rgba(0, 19, 39, .45);
+}
+
+.nd-busca-overlay[hidden] {
+    display: none;
+}
+
+.nd-busca-caixa {
+    width: 100%;
+    max-width: 560px;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 24px 48px rgba(0, 19, 39, .28);
+    overflow: hidden;
+}
+
+.nd-busca-campo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--bs-gray-200);
+}
+
+.nd-busca-campo input {
+    flex: 1;
+    border: 0;
+    outline: 0;
+    /* 16px: abaixo disso o Safari do iPhone da zoom ao focar o campo, e a
+     * tela inteira pula. Vale para todo campo do produto. */
+    font-size: 16px;
+    color: var(--bs-dark);
+    background: transparent;
+}
+
+.nd-busca-resultados {
+    max-height: 48vh;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.nd-busca-resultados li a {
+    display: block;
+    padding: 10px 16px;
+    color: inherit;
+    text-decoration: none;
+    /* 40px de alvo: o mesmo minimo de toque do resto do produto. */
+    min-height: 40px;
+}
+
+.nd-busca-resultados li a:hover,
+.nd-busca-resultados li.is-ativo a {
+    background: var(--bs-gray-100);
+}
+
+.nd-busca-rodape {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 16px;
+    border-top: 1px solid var(--bs-gray-200);
+    background: var(--bs-gray-100);
+}
+
+.nd-busca-tecla {
+    display: inline-block;
+    padding: 1px 6px;
+    border: 1px solid var(--bs-gray-300);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    background: #fff;
+    font-size: 11px;
+    line-height: 1.5;
+    color: var(--bs-gray-600);
+}
+
+/* ---- Atendimento: rascunho local e consulta anterior ------------------ */
+/* O aviso de rascunho fica preso ao topo da area de trabalho: ele aparece
+ * quando a pagina carrega e a decisao (restaurar ou descartar) e do
+ * momento seguinte -- rolar a tela e perde-lo de vista seria trocar o
+ * aviso por uma duvida. */
+.nd-rascunho-aviso {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+/* Gaveta da consulta anterior. `transform` em vez de `right`, porque
+ * animar posicao repinta a pagina inteira a cada quadro e a gaveta abre
+ * por cima de um prontuario sendo digitado. */
+.nd-gaveta {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 1070;
+    display: flex;
+    flex-direction: column;
+    width: min(420px, 92vw);
+    height: 100vh;
+    background: #fff;
+    box-shadow: -12px 0 32px rgba(0, 19, 39, .18);
+    transform: translateX(100%);
+    transition: transform .18s ease-out;
+}
+
+.nd-gaveta.is-aberta {
+    transform: translateX(0);
+}
+
+.nd-gaveta-cabecalho {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--bs-gray-200);
+}
+
+.nd-gaveta-corpo {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+}
+
+.nd-gaveta-fundo {
+    position: fixed;
+    inset: 0;
+    z-index: 1069;
+    background: rgba(0, 19, 39, .35);
+}
+
+.nd-gaveta-fundo[hidden] {
+    display: none;
+}
+
+/* Quem desligou animacao no sistema recebe a gaveta sem deslize: ela
+ * aparece e some, que e a informacao que a animacao carregava. */
+@media (prefers-reduced-motion: reduce) {
+    .nd-gaveta {
+        transition: none;
+    }
+}
+
+/* ---- `hidden` volta a esconder ------------------------------------- */
+/*
+ * O tema traz `[hidden]{display:none!important}` — e, dez mil linhas
+ * depois, `.d-flex{display:flex!important}`. Os dois seletores têm a
+ * mesma especificidade e os dois são `!important`, então vence o último:
+ * um elemento com `hidden` **e** `d-flex` fica visível.
+ *
+ * O defeito apareceu no aviso de rascunho do atendimento, e apareceu de
+ * um jeito que não se lê como problema de CSS: a faixa "há um rascunho
+ * não salvo" nascia visível para todo mundo, e os botões dela não faziam
+ * nada — porque o JavaScript só registra os cliques quando de fato
+ * encontra um rascunho, e ali não havia nenhum. Dois sintomas, uma causa.
+ *
+ * Esta regra fica no fim de `neurodoc.css`, que é carregado depois do
+ * tema, e devolve ao atributo o significado que ele tem no HTML. Vale
+ * para todo o produto: qualquer `el.hidden = true` do JavaScript passa a
+ * esconder, inclusive em elemento que carregue classe de display.
+ */
+[hidden] {
+    display: none !important;
 }
 
 /* ---- Print ----------------------------------------------------------- */
@@ -481,20 +592,6 @@ button.nd-slot-free:focus-visible::before {
     .nd-slot { font-size: 10px; }
 }
 
-/* Skin escuro: a grade nao pode ficar branca sobre fundo escuro. */
-html.app-skin-dark .nd-agenda { background: #1b2431; border-color: #2a3547; }
-html.app-skin-dark .nd-agenda-head,
-html.app-skin-dark .nd-agenda-time { background: #202a3a; color: #94a3b8; }
-html.app-skin-dark .nd-slot { background: #182029; color: #cbd5e1; }
-html.app-skin-dark button.nd-slot-free { border-color: #2a3547; color: #64748b; }
-html.app-skin-dark button.nd-slot-free:hover { background: #1e2740; border-color: #3454d1; color: #93a7f5; }
-html.app-skin-dark .nd-slot-past { background: #151c24; color: #3f4c5f; }
-html.app-skin-dark .nd-slot-blocked {
-    background: repeating-linear-gradient(45deg, #1b2431, #1b2431 5px, #232e3d 5px, #232e3d 10px);
-}
-html.app-skin-dark .nd-slot-busy { background: #1e2740; color: #dbe3f4; }
-
-
 /* Pagina sem barra lateral.
 
    `base.html` so inclui a barra quando ha inquilino resolvido, e o tema
@@ -512,4 +609,137 @@ body.nd-no-shell .nxl-container {
 body.nd-no-shell .nxl-content {
     max-width: 1320px;
     margin: 0 auto;
+}
+
+/* ==========================================================================
+   Aparelho de toque: celular e tablet, em pe e deitado
+
+   Auditado num navegador de verdade, em 27 telas do produto, em quatro
+   tamanhos: 390x844, 360x740, 844x390 (deitado) e 768x1024 (tablet).
+   Nenhuma delas transbordava na horizontal — o tema e Bootstrap e as
+   tabelas estao embrulhadas em `.table-responsive` —, e o menu lateral
+   entra e sai como deve. O que a auditoria encontrou foi outra coisa: o
+   tamanho do que se toca e do que se le.
+
+   Tudo aqui esta atras de media query, e de proposito: no computador a
+   densidade do Duralux e boa, e aumentar campo e botao lá só roubaria
+   espaco de tela num sistema que mostra muita informacao junta.
+   ========================================================================== */
+
+/* Barra de acoes da pagina que quebra a linha em vez de sair da tela.
+ *
+ * A partir de 768px o tema deixa de esconder as acoes atras do botao de
+ * sanduiche e as mostra em linha — e em `d-flex` sem `flex-wrap`. Numa tela
+ * de atendimento com cinco acoes (Imprimir, Anexos, Documentos, Descartar,
+ * Finalizar) isso pede 593px de uma barra que tem menos, e a pagina passa a
+ * rolar na horizontal. Foi medido em 768x1024: 52px para fora.
+ *
+ * A faixa afetada e estreita (tablet em retrato, celular em paisagem), e por
+ * isso passa desapercebida no computador — onde tudo cabe e a regra nunca
+ * chega a agir.
+ *
+ * Fora de media query de proposito: a condicao ja e a propria largura
+ * disponivel. Quebrar linha quando nao cabe e o comportamento certo em
+ * qualquer tamanho, e em tela larga a linha nunca quebra porque cabe.
+ * `justify-content: flex-end` mantem as acoes a direita, como estavam. */
+.page-header-right-items-wrapper {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    row-gap: .5rem;
+}
+
+/* A condicao e o DEDO, e nao a largura.
+ *
+ * A primeira versao deste bloco usava so `max-width: 767.98px`, e a medicao
+ * mostrou o erro: num celular deitado a tela tem 844px de largura, e as
+ * regras deixavam de valer — o mesmo aparelho, o mesmo dedo, e o Safari
+ * voltando a dar zoom a cada campo tocado. No tablet em retrato (768px),
+ * idem.
+ *
+ * `pointer: coarse` e a pergunta certa: "o apontador e impreciso?". O teto
+ * de 1199px exclui o computador com tela sensivel ao toque, onde o mouse
+ * costuma ser o apontador de fato e a densidade do tema deve continuar.
+ *
+ * A largura fica na lista como primeira alternativa porque nem todo
+ * navegador antigo responde `pointer`, e naquela faixa o certo e valer de
+ * qualquer forma. */
+@media (max-width: 767.98px), (pointer: coarse) and (max-width: 1199.98px) {
+    /* 16px nos campos, e nao 13,5px.
+     *
+     * Este e o remendo mais importante do bloco, e o motivo nao e leitura:
+     * o Safari do iPhone **da zoom na pagina** quando o campo que recebe o
+     * foco tem fonte menor que 16px, e nao volta ao sair. Quem preenche o
+     * cadastro de paciente atravessa 28 campos; o prontuario estruturado
+     * tem mais de mil. A cada toque a pagina saltava de escala, e o
+     * caminho de volta era a pinca.
+     *
+     * 16px e o limiar do proprio Safari, nao uma preferencia. Vale para
+     * `-sm` tambem: o campo pequeno e justamente o da tabela, o mais
+     * apertado de acertar com o dedo. */
+    .form-control,
+    .form-control-sm,
+    .form-select,
+    .form-select-sm,
+    .input-group-text {
+        font-size: 1rem;
+    }
+
+    /* Alvo de toque de 40px.
+     *
+     * A auditoria achou botao de 27px de altura — "Trocar organizacao",
+     * "Usar a camera", "Nao sei a data de nascimento". O dedo tem cerca de
+     * 9mm; 27px e metade disso, e o erro de toque num prontuario nao e
+     * cosmetico: o botao vizinho pode ser "Descartar".
+     *
+     * `min-height` em vez de `padding` para nao mexer no alinhamento do
+     * texto dentro do botao, e `inline-flex` para o rotulo continuar
+     * centrado quando a altura cresce. */
+    .btn,
+    .btn-sm,
+    .btn-group-sm > .btn {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Botao que e so icone continua quadrado. Sem isto ele viraria um
+     * retangulo de 40x30 e sairia do lugar no cabecalho. */
+    .btn-icon {
+        min-width: 40px;
+    }
+
+    /* A caixa de selecao tambem se toca. 13px de lado e menor que a
+     * pontuacao do texto ao lado dela. */
+    .form-check-input {
+        width: 1.25rem;
+        height: 1.25rem;
+        margin-top: .1rem;
+    }
+    .form-check-label {
+        padding-left: .25rem;
+    }
+
+    /* O avatar do cabecalho e o gatilho do menu da conta — sair, trocar de
+     * organizacao, MFA. Ele mede 30px, e e o unico caminho para aquelas
+     * acoes: errar o toque ali nao tem alternativa na tela. A area cresce
+     * sem que a bolinha cresca, com o `padding` entrando por fora. */
+    .nxl-h-item > a[aria-label="Conta"] {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 40px;
+        min-height: 40px;
+    }
+
+    /* Lista longa com rolagem propria (atendimentos na ficha do paciente).
+     *
+     * No computador a altura fixa impede que a lista de um paciente de dez
+     * anos empurre o resto da ficha para fora da tela. No celular, area
+     * rolavel dentro de pagina rolavel e briga de dedo: o toque que queria
+     * rolar a pagina rola a lista, ou o contrario. Proporcional a tela
+     * resolve os dois — continua limitada, e o limite acompanha o aparelho. */
+    .nd-lista-rolavel {
+        max-height: 60vh !important;
+    }
 }

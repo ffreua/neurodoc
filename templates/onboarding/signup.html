@@ -3,6 +3,25 @@
 {% block heading %}Criar sua clínica{% endblock %}
 {% block subheading %}Você será o responsável (owner) da organização criada.{% endblock %}
 {% block content %}
+{% comment %}O plano vem escrito porque este passo passou a ser o passo
+seguinte ao clique no cartão: quem escolheu o Gratuito na página de vendas
+precisa reconhecer aqui a escolha que fez, e quem chega com um código
+combinado por telefone confere se o código é o certo antes de criar a
+clínica.{% endcomment %}
+{% if plano %}
+<div class="alert alert-light border d-flex align-items-center gap-2 fs-12 mb-3" role="note">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+         class="flex-shrink-0 text-primary" aria-hidden="true">
+        <path d="M9 11l3 3L22 4"></path>
+        <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+    </svg>
+    <span>
+        Plano <strong>{{ plano.rotulo }}</strong> — até {{ plano.pacientes }} paciente(s)
+        ativo(s) e {{ plano.medicos }} médico(s). Mudar de plano depois não apaga nada.
+    </span>
+</div>
+{% endif %}
 <form method="post" novalidate>
     {% csrf_token %}
     {% include "partials/form_fields.html" %}

@@ -36,6 +36,13 @@ def get_patient_timeline(authorization, limit=MAX_ENCOUNTERS):
     """Revalidates scope on every call -- an authorization without a
     patient in scope can never enumerate any patient's encounters, no
     matter what the caller (or a compromised prompt) asks for.
+
+    `free_text` e `impressions` entram pelo mesmo motivo que entram no
+    `Encounter.compute_content_hash`: num atendimento de texto livre eles
+    **sao** a consulta, e os campos estruturados vem vazios. Sem eles a
+    linha do tempo de um paciente acompanhado em texto livre chegava ao
+    chat e ao resumo como uma lista de datas sem conteudo nenhum -- e a
+    resposta saia confiante, apoiada em nada.
     """
     if authorization.patient_id is None:
         raise ToolScopeError('Authorization has no patient in scope')
@@ -46,7 +53,9 @@ def get_patient_timeline(authorization, limit=MAX_ENCOUNTERS):
     return [
         {
             'encounter_id': str(e.id), 'occurred_at': e.occurred_at.isoformat(), 'status': e.status,
+            'kind': e.kind,
             'chief_complaint': e.chief_complaint, 'hpi': e.hpi, 'plan_text': e.plan_text,
+            'free_text': e.free_text, 'impressions': e.impressions,
         }
         for e in encounters
     ]

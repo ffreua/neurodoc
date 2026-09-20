@@ -27,7 +27,7 @@ from django.utils import timezone
 from audit.services import record_audit_event
 
 from .models import Attachment, AttachmentScanStatus
-from .retention import BackupInProgress, backup_lock_active
+from .retention import backup_exclusive
 from .storage import COMPRESSED_SUFFIX, is_compressed
 
 #: Três meses, como pedido. É o prazo em que um documento deixa de ser
@@ -158,41 +158,39 @@ def compact(tenant_id=None, limit=None, dry_run=True):
     mexer nos arquivos enquanto eles estão sendo copiados produz um backup
     com metade do material antigo e metade do novo.
     """
-    if backup_lock_active():
-        raise BackupInProgress('Backup em andamento; a compactação não roda agora.')
+    with backup_exclusive('a compactação'):
+        resumo = {'considerados': 0, 'compactados': 0, 'antes': 0, 'depois': 0, 'falhas': []}
+        queryset = eligible(tenant_id=tenant_id)
+        if limit:
+            queryset = queryset[:limit]
 
-    resumo = {'considerados': 0, 'compactados': 0, 'antes': 0, 'depois': 0, 'falhas': []}
-    queryset = eligible(tenant_id=tenant_id)
-    if limit:
-        queryset = queryset[:limit]
+        for attachment in queryset:
+            resumo['considerados'] += 1
+            try:
+                resultado = compact_attachment(attachment, dry_run=dry_run)
+            except CompactionFailed as exc:
+                resumo['falhas'].append(str(exc))
+                record_audit_event(
+                    None, attachment.tenant_id, 'documents.compaction_failed',
+                    object_type='attachment', object_id=attachment.id, outcome='failure',
+                    integrity_metadata={'reason': str(exc)[:200]},
+                )
+                continue
+            if resultado is None:
+                continue
+            antes, depois = resultado
+            resumo['antes'] += antes
+            if depois is not None:
+                resumo['depois'] += depois
+                resumo['compactados'] += 1
 
-    for attachment in queryset:
-        resumo['considerados'] += 1
-        try:
-            resultado = compact_attachment(attachment, dry_run=dry_run)
-        except CompactionFailed as exc:
-            resumo['falhas'].append(str(exc))
+        if not dry_run and resumo['compactados']:
             record_audit_event(
-                None, attachment.tenant_id, 'documents.compaction_failed',
-                object_type='attachment', object_id=attachment.id, outcome='failure',
-                integrity_metadata={'reason': str(exc)[:200]},
+                None, tenant_id, 'documents.archive_compacted',
+                object_type='tenant', object_id=tenant_id, outcome='success',
+                integrity_metadata={
+                    'files': resumo['compactados'],
+                    'bytes_before': resumo['antes'], 'bytes_after': resumo['depois'],
+                },
             )
-            continue
-        if resultado is None:
-            continue
-        antes, depois = resultado
-        resumo['antes'] += antes
-        if depois is not None:
-            resumo['depois'] += depois
-            resumo['compactados'] += 1
-
-    if not dry_run and resumo['compactados']:
-        record_audit_event(
-            None, tenant_id, 'documents.archive_compacted',
-            object_type='tenant', object_id=tenant_id, outcome='success',
-            integrity_metadata={
-                'files': resumo['compactados'],
-                'bytes_before': resumo['antes'], 'bytes_after': resumo['depois'],
-            },
-        )
-    return resumo
+        return resumo

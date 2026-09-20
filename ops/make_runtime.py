@@ -31,6 +31,17 @@ COMMON_KEYS = [
     'NEURODOC_RECOVERY_MODE',
     'SECURE_HSTS_SECONDS', 'SECURE_HSTS_INCLUDE_SUBDOMAINS',
 ]
+
+#: Chaves que podem faltar no `.env` sem derrubar o deploy, porque o
+#: `core/settings.py` tem um padrao para elas.
+#:
+#: `COMMON_KEYS` e deliberadamente estrita -- uma chave obrigatoria que
+#: some do `.env` tem de parar o deploy, nao virar string vazia dentro do
+#: container. Mas acrescentar uma chave **nova** aquela lista quebraria
+#: toda instalacao existente na primeira publicacao depois da
+#: atualizacao, por uma configuracao que tem padrao e que quase ninguem
+#: precisa mudar. Estas entram so quando existem.
+OPTIONAL_KEYS = ['TRUSTED_PROXIES']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 
@@ -40,6 +51,10 @@ def prepare_runtime(config):
     runtime.mkdir(mode=0o700, exist_ok=True)
     for role in ['app', 'worker', 'beat']:
         values = {key: config[key] for key in COMMON_KEYS}
+        values.update({
+            key: config[key] for key in OPTIONAL_KEYS
+            if (config.get(key) or '').strip()
+        })
         values['SERVICE_ROLE'] = role
         values['RUN_MIGRATIONS'] = 'True' if role == 'app' else 'False'
         names = list(BASE_SECRETS)

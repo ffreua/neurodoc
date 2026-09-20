@@ -75,6 +75,77 @@ def _nav(active):
 
 # ------------------------------------------------------------------ visão geral
 
+def _avisos_de_seguranca():
+    """O que está frouxo nesta instalação, dito onde alguém vai ler.
+
+    Todos estes são estados legítimos em algum momento da vida de uma
+    instalação — e nenhum deles deveria durar. `SECURE_HSTS_SECONDS`
+    começa em `0` de propósito, porque o navegador **guarda** a instrução
+    e ligá-la antes de o HTTPS funcionar deixa o site inalcançável para
+    quem já visitou, sem desfazer pelo servidor. O problema não é o valor
+    inicial: é que nada nunca lembra de trocá-lo, e uma instalação segue
+    anos sem HSTS porque o dia de ligar não chegou na lista de ninguém.
+
+    Só aparece o que está errado. Uma tela que lista vinte itens verdes e
+    um vermelho é uma tela em que ninguém vê o vermelho.
+    """
+    avisos = []
+    https = str(settings.PUBLIC_BASE_URL or '').startswith('https://')
+
+    if settings.DEBUG:
+        avisos.append({
+            'titulo': 'Modo de depuração ligado',
+            'texto': (
+                'Com DEBUG=True qualquer erro mostra a configuração e trechos do '
+                'código a quem provocou o erro. Nunca em produção.'
+            ),
+            'acao': 'DEBUG=False no .env, e publique de novo.',
+            'grave': True,
+        })
+
+    # Sem HTTPS a instrução não se aplica: é o ambiente local, onde o
+    # valor 0 é o certo e o aviso seria ruído permanente.
+    if https and not settings.SECURE_HSTS_SECONDS:
+        avisos.append({
+            'titulo': 'HSTS desligado',
+            'texto': (
+                'O site responde em HTTPS, mas não manda o navegador exigir HTTPS nas '
+                'próximas visitas. Quem digitar o endereço sem "https://" numa rede '
+                'hostil pode ser levado a uma cópia em HTTP sem perceber.'
+            ),
+            'acao': (
+                'Depois de confirmar que o cadeado aparece sem aviso: '
+                'SECURE_HSTS_SECONDS=31536000 no .env e publique de novo. '
+                'O navegador guarda a instrução — ligue só quando o HTTPS estiver '
+                'comprovadamente funcionando, porque voltar atrás não depende de nós.'
+            ),
+            'grave': False,
+        })
+    elif https and settings.SECURE_HSTS_SECONDS and not settings.SECURE_HSTS_INCLUDE_SUBDOMAINS:
+        avisos.append({
+            'titulo': 'HSTS não cobre os subdomínios',
+            'texto': (
+                'O domínio principal exige HTTPS; um subdomínio, não. A instalação usa '
+                'subdomínio por clínica como alias.'
+            ),
+            'acao': 'SECURE_HSTS_INCLUDE_SUBDOMAINS=True, depois de conferir que todos servem HTTPS.',
+            'grave': False,
+        })
+
+    if not settings.SECRETS_MASTER_KEY:
+        avisos.append({
+            'titulo': 'Chave-mestra de segredos ausente',
+            'texto': (
+                'Sem ela a clínica não consegue guardar as próprias credenciais de '
+                'e-mail e SMS — o campo aceita, e o envio falha depois.'
+            ),
+            'acao': 'Grave o secret NEURODOC_SECRETS_MASTER_KEY e publique de novo.',
+            'grave': True,
+        })
+
+    return avisos
+
+
 def _database_facts():
     """Versão do Postgres e tamanho do banco.
 
@@ -160,6 +231,11 @@ class OverviewView(SuperAdminView):
                 ('SMS (instalação)', settings.SMS_ENABLED),
                 ('IA (instalação)', settings.AI_ENABLED),
                 ('Chave-mestra de segredos', bool(settings.SECRETS_MASTER_KEY)),
+                # O estado do HSTS ao lado dos outros interruptores, e nao
+                # so no aviso: quem vem conferir a instalacao procura a
+                # linha, e um aviso que sumiu depois de resolvido nao
+                # responde "esta ligado?".
+                ('HSTS (HTTPS obrigatório no navegador)', bool(settings.SECURE_HSTS_SECONDS)),
             ],
             'database': _database_facts(),
             'celery': _celery_facts(),
@@ -175,6 +251,7 @@ class OverviewView(SuperAdminView):
                 ).count(),
             },
             'docs_enabled': settings.NEURODOC_DOCS_ENABLED,
+            'avisos': _avisos_de_seguranca(),
         })
         context.update(_broker_facts())
         return render(request, 'ops/superadmin/overview.html', context)
@@ -601,6 +678,46 @@ class InvitationRevokeView(SuperAdminView):
 
 
 # --------------------------------------------------------------------- leads
+
+class ClinicMessagesView(SuperAdminView):
+    """O que as clínicas escreveram: pedidos de ajuda e sugestões.
+
+    Atravessa organizações, como a trilha de auditoria e pela mesma razão:
+    quem opera a instalação precisa ver todas. O que ele **não** vê aqui,
+    como em todo o console, é prontuário — a tela de quem escreve avisa
+    para não colar dado de paciente, e o modelo não tem campo para anexo.
+
+    Só leitura, como o resto. Marcar "respondida" seria uma escrita a mais
+    e um estado que ninguém atualiza: quem responde responde do próprio
+    e-mail, e a caixa dele é onde o assunto continua.
+
+    `notify_error` aparece na linha porque é o único lugar onde se
+    descobre que o aviso não saiu — quem escreveu viu "mensagem enviada",
+    e viu certo: ela está aqui.
+    """
+
+    def get(self, request):
+        from tenancy.models import ClinicMessage, ClinicMessageKind
+
+        tipo = request.GET.get('kind') or ''
+        consulta = ClinicMessage.objects.select_related(
+            'tenant', 'author__user',
+        ).order_by('-created_at')
+        if tipo in ClinicMessageKind.values:
+            consulta = consulta.filter(kind=tipo)
+
+        context = _nav('clinic-messages')
+        context['rows'] = list(consulta[:PAGE_SIZE])
+        context['total'] = ClinicMessage.objects.count()
+        context['kinds'] = [
+            {'value': v, 'label': l, 'selected': v == tipo}
+            for v, l in ClinicMessageKind.choices
+        ]
+        context['kind_atual'] = tipo
+        context['sem_aviso'] = ClinicMessage.objects.exclude(notify_error='').count()
+        context['novas'] = ClinicMessage.objects.filter(status='new').count()
+        return render(request, 'ops/superadmin/clinic_messages.html', context)
+
 
 class LeadsView(SuperAdminView):
     """Pedidos de contato vindos da pagina de vendas.

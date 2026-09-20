@@ -15,6 +15,15 @@ class InvitationCodeForm(forms.Form):
 class OrganizationSignupForm(forms.Form):
     email = forms.EmailField(label='E-mail')
     password = forms.CharField(label='Senha', widget=forms.PasswordInput)
+    #: A senha digitada duas vezes.
+    #:
+    #: Esta é a única senha do sistema que não tem como ser recuperada
+    #: pelo caminho normal no minuto seguinte: quem a cria está criando
+    #: **junto** a conta e a clínica, e um erro de digitação aqui tranca a
+    #: pessoa fora de uma organização que acabou de nascer — com o e-mail
+    #: de recuperação indo para o endereço que ela também acabou de
+    #: digitar. Conferir duas vezes custa um campo.
+    password_confirm = forms.CharField(label='Confirme a senha', widget=forms.PasswordInput)
     legal_name = forms.CharField(label='Razão social', max_length=255)
     trade_name = forms.CharField(label='Nome fantasia', max_length=255, required=False)
     cnpj = forms.CharField(label='CNPJ', max_length=18)
@@ -26,6 +35,25 @@ class OrganizationSignupForm(forms.Form):
         password = self.cleaned_data['password']
         validate_password(password)
         return password
+
+    def clean(self):
+        """As duas senhas conferem?
+
+        O erro fica no campo da confirmação, e não no topo do formulário:
+        é lá que está o olho de quem acabou de digitar, e é lá que o
+        conserto acontece.
+
+        `clean_password` já rodou quando isto executa, então uma senha
+        fraca aparece como senha fraca; a divergência só é cobrada quando
+        há o que comparar — senão a pessoa receberia dois avisos sobre o
+        mesmo campo, e o segundo esconderia o primeiro.
+        """
+        dados = super().clean()
+        senha = dados.get('password')
+        confirmacao = dados.get('password_confirm')
+        if senha and confirmacao and senha != confirmacao:
+            self.add_error('password_confirm', 'As duas senhas não são iguais.')
+        return dados
 
     def clean_cnpj(self):
         digits = re.sub(r'\D', '', self.cleaned_data['cnpj'] or '')

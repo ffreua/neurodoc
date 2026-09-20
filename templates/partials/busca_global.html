@@ -1,0 +1,47 @@
+{% comment %}Busca rápida de paciente, aberta por Ctrl+K (⌘K no Mac) ou pela
+lupa do cabeçalho.
+
+Fica fora de `.nxl-container` pela mesma razão dos outros modais: o tema
+desfoca o container enquanto há um modal aberto, e esta caixa sairia
+borrada junto com o fundo.
+
+Sem JavaScript ela simplesmente não abre, e a lupa do cabeçalho é um link
+para a lista de pacientes — que é a mesma busca, com filtro e paginação.
+Um atalho é conveniência; a tela de pacientes é o caminho.{% endcomment %}
+<div class="nd-busca-overlay" id="nd-busca" hidden
+     data-nd-busca-url="{% url 'patients:busca-rapida' %}">
+    <div class="nd-busca-caixa" role="dialog" aria-modal="true"
+         aria-labelledby="nd-busca-titulo">
+        <h2 class="visually-hidden" id="nd-busca-titulo">Buscar paciente</h2>
+        <div class="nd-busca-campo">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" class="text-muted flex-shrink-0" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="search" id="nd-busca-campo" autocomplete="off" spellcheck="false"
+                   placeholder="Buscar paciente por nome, CPF, telefone ou nº do prontuário"
+                   aria-label="Buscar paciente por nome, CPF, telefone ou número do prontuário"
+                   aria-controls="nd-busca-resultados" aria-expanded="false" role="combobox">
+            <button type="button" class="btn btn-sm btn-light" id="nd-busca-fechar"
+                    aria-label="Fechar busca">Esc</button>
+        </div>
+
+        <ul class="nd-busca-resultados" id="nd-busca-resultados" role="listbox"
+            aria-label="Pacientes encontrados"></ul>
+
+        {% comment %}Uma linha de estado, e não três: "digite para buscar",
+        "procurando" e "nada encontrado" ocupam o mesmo lugar porque nunca
+        acontecem juntos.{% endcomment %}
+        <p class="fs-12 text-muted mb-0 px-3 py-2" id="nd-busca-estado" role="status" aria-live="polite">
+            Digite ao menos 2 caracteres.
+        </p>
+
+        <div class="nd-busca-rodape fs-11 text-muted">
+            <span><span class="nd-busca-tecla">↑</span> <span class="nd-busca-tecla">↓</span> navegar
+                · <span class="nd-busca-tecla">Enter</span> abrir</span>
+            <span>Somente pacientes desta clínica</span>
+        </div>
+    </div>
+</div>

@@ -83,3 +83,18 @@ class ProcedureSearchAPI(CapabilityRequiredView):
         return JsonResponse({
             'ok': True, 'results': selectors.search_procedure_codes(request.GET.get('q', '')),
         })
+
+
+class MedicationSearchAPI(CapabilityRequiredView):
+    """Autocomplete de medicamento, da lista da CMED/Anvisa.
+
+    Qualquer vínculo ativo: é catálogo público, sem dado de paciente, e a
+    secretária confere apresentação ao atender o telefone da farmácia.
+    Quem prescreve continua sendo quem tem capacidade clínica — isto aqui
+    só procura texto.
+    """
+
+    required_capability = None
+
+    def get(self, request):
+        return JsonResponse({'results': selectors.search_medications(request.GET.get('q', ''))})

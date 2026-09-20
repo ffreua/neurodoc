@@ -34,13 +34,20 @@ def upsert_cranial_nerve_finding(
     context, encounter, item_code, side=Side.NOT_APPLICABLE, body_site='',
     state=ExaminationState.NOT_ASSESSED, qualifier='', note='',
 ):
+    # Mensagens em português e nomeando o nervo como o roteiro o escreve —
+    # ver o comentário equivalente em `examination.upsert_finding`.
     if item_code not in CRANIAL_NERVE_ITEMS:
-        raise ValidationError(f'Unknown cranial nerve item {item_code!r}')
+        raise ValidationError(f'Item {item_code!r} não existe no exame dos nervos cranianos.')
+    rotulo = CRANIAL_NERVE_ITEMS[item_code]
     lateralized = item_code not in NOT_LATERALIZED_ITEMS
     if not lateralized and side not in (Side.NOT_APPLICABLE, Side.BILATERAL):
-        raise ValidationError(f'{item_code} is not lateralized')
+        raise ValidationError(
+            f'“{rotulo}” não é lateralizado: deixe o lado em branco ou marque bilateral.'
+        )
     if lateralized and side == Side.NOT_APPLICABLE:
-        raise ValidationError(f'{item_code} requires a side')
+        raise ValidationError(
+            f'Escolha o lado de “{rotulo}”: direito, esquerdo ou bilateral.'
+        )
     finding, _ = ExaminationFinding.objects.update_or_create(
         tenant_id=context.tenant_id, encounter=encounter, item_code=item_code, side=side, body_site=body_site,
         defaults={

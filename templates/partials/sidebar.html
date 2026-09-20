@@ -1,4 +1,4 @@
-{% load static %}
+{% load static %}{% load nd %}
 <nav class="nxl-navigation">
     <div class="navbar-wrapper">
         <div class="m-header">
@@ -229,14 +229,59 @@
 
             <div class="card text-center">
                 <div class="card-body">
+                    {% comment %}O logotipo da clínica, quando ela enviou um.
+
+                    Vem de `tenancy:clinic-logo-file`, que serve o arquivo do
+                    inquilino da **sessão** — o endereço não aceita id de
+                    organização, de propósito. Sem logotipo, fica o escudo
+                    genérico: uma moldura vazia esperando imagem é pior do
+                    que um símbolo assumido.{% endcomment %}
+                    {% if nd_clinic_has_logo %}
+                    <img src="{% url 'tenancy:clinic-logo-file' %}" alt=""
+                         class="nd-sidebar-logo mx-auto mb-3 d-block">
+                    {% else %}
                     <div class="avatar-text avatar-lg bg-soft-primary text-primary mx-auto mb-3">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                     </div>
+                    {% endif %}
                     <h6 class="text-dark fw-bolder mb-1">{% if nd_tenant %}{{ nd_tenant.trade_name|default:nd_tenant.legal_name }}{% else %}Organização{% endif %}</h6>
                     <p class="fs-11 text-muted mb-3">
-                        {% for role in nd_roles %}<span class="badge bg-gray-200 text-dark me-1">{{ role }}</span>{% endfor %}
+                        {% comment %}`nd_role`: `nd_roles` são os valores crus do
+                        `ArrayField` (`owner`, `doctor`), e não o rótulo do
+                        `TextChoices` — que só é resolvido em campo com
+                        `choices`. Sem o filtro, o menu mostrava o nome interno
+                        do papel embaixo do nome da clínica.{% endcomment %}
+                        {% for role in nd_roles %}<span class="badge bg-gray-200 text-dark me-1">{{ role|nd_role }}</span>{% endfor %}
                     </p>
                     <a class="btn btn-light-primary w-100 btn-sm" href="{% url 'accounts:tenant-picker' %}">Trocar organização</a>
+
+                    {% comment %}As duas portas para quem mantém o sistema.
+
+                    Ficam no rodapé do menu, e não numa tela de ajuda: quem
+                    precisa delas não está procurando uma seção — está no meio de
+                    outra coisa que deu errado, ou acabou de ter uma ideia
+                    atendendo. Ter de caçar o caminho é o que faz a sugestão nunca
+                    ser escrita e o problema virar um telefonema.
+
+                    Separadas porque são assuntos diferentes: um pedido de ajuda
+                    tem alguém esperando hoje, uma sugestão entra numa lista lida
+                    com calma. Misturá-las faria o urgente esperar atrás da ideia.
+
+                    Sem capacidade exigida — a secretária que passa o dia na
+                    agenda costuma ter mais o que dizer sobre a agenda do que quem
+                    administra a clínica.{% endcomment %}
+                    <div class="d-grid gap-2 mt-2">
+                        <a class="btn btn-light btn-sm d-flex align-items-center justify-content-center gap-2"
+                           href="{% url 'tenancy:clinic-message' 'support' %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                            <span>Fale com a NeuroDoc</span>
+                        </a>
+                        <a class="btn btn-light btn-sm d-flex align-items-center justify-content-center gap-2"
+                           href="{% url 'tenancy:clinic-message' 'suggestion' %}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18h6"></path><path d="M10 22h4"></path><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"></path></svg>
+                            <span>Envie sugestões</span>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

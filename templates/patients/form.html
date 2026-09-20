@@ -95,10 +95,61 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
         </div>
     </div>
 
+    {% comment %}Contato, só no cadastro novo.
+
+    Telefone e e-mail não são campos do paciente — são um `PatientContact`,
+    porque uma pessoa tem vários contatos e cada um carrega o seu
+    consentimento. Mas o cadastro pedia CPF, endereço e carteirinha e **não**
+    pedia o telefone: quem cadastrava salvava o paciente e só depois descobria
+    a área de Contatos, na ficha. O caminho até o dado mais usado da clínica
+    passava por duas telas.
+
+    O que se registra aqui é o contato do **próprio paciente**. Parente,
+    cuidador e representante legal continuam na área de Contatos, que tem os
+    campos que eles exigem — relação, comprovação da representação,
+    autorização para receber documentos.
+
+    Fora da criação o bloco some: na edição, este telefone substituiria qual
+    dos contatos já cadastrados? A área de Contatos responde isso com a lista
+    na frente de quem decide, e um campo aqui criaria um contato repetido a
+    cada salvamento.{% endcomment %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <span class="badge bg-soft-primary text-primary me-2">2</span>Contato
+            </h5>
+            <span class="fs-11 text-muted">
+                {% if patient %}
+                Os contatos deste paciente já existem e são editados na ficha.
+                {% else %}
+                Vai direto para a área de Contatos da ficha. Parentes e responsáveis
+                são cadastrados lá, com os campos próprios deles.
+                {% endif %}
+            </span>
+        </div>
+        <div class="card-body">
+            {% if patient %}
+            {% comment %}Na edição o bloco não some — some a numeração, e a
+            ficha passaria a ter um salto de 1 para 3. Em vez disso ele aponta
+            para onde os contatos de fato se editam, com a lista na frente de
+            quem decide qual substituir.{% endcomment %}
+            <a class="btn btn-light-primary btn-sm" href="{% url 'patients:detail' patient.id %}#contatos">
+                Ver e editar contatos na ficha
+            </a>
+            {% else %}
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.contact_phone col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.contact_email col="col-lg-5 col-md-6" %}
+                {% include "partials/field.html" with field=form.contact_accepts_messages col="col-lg-4" %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
     <div class="card mb-4">
         <div class="card-header d-flex align-items-center justify-content-between">
             <h5 class="card-title mb-0">
-                <span class="badge bg-soft-primary text-primary me-2">2</span>Endereço
+                <span class="badge bg-soft-primary text-primary me-2">3</span>Endereço
             </h5>
             <span class="fs-11 text-muted" id="cep-status" role="status" aria-live="polite"></span>
         </div>
@@ -119,7 +170,7 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="card-title mb-0">
-                <span class="badge bg-soft-primary text-primary me-2">3</span>Atendimento
+                <span class="badge bg-soft-primary text-primary me-2">4</span>Atendimento
             </h5>
         </div>
         <div class="card-body">
@@ -134,7 +185,7 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="card-title mb-0">
-                <span class="badge bg-soft-primary text-primary me-2">4</span>Pagamento
+                <span class="badge bg-soft-primary text-primary me-2">5</span>Pagamento
             </h5>
         </div>
         <div class="card-body">
@@ -175,7 +226,7 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
     <div class="card mb-4">
         <div class="card-header">
             <h5 class="card-title mb-0">
-                <span class="badge bg-soft-primary text-primary me-2">5</span>Observações
+                <span class="badge bg-soft-primary text-primary me-2">6</span>Observações
             </h5>
         </div>
         <div class="card-body">

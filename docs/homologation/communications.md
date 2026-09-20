@@ -21,19 +21,34 @@ Nenhuma conta SMSDEV real foi usada (P-03 permanece pendente,
   (`kind=delivery_pending_contact`) para os papéis `secretary`/`owner` do
   tenant — testado diretamente, sem conteúdo clínico no título
   (`sanitized_title` é um texto fixo genérico).
-- [x] **Link opaco + OTP**: o link enviado nunca abre o documento
-  diretamente — a página pública (`/d/<token>/`) sempre exige um código de
-  8 dígitos, válido por 10 minutos, com até 5 tentativas
-  (`OTP_MAX_ATTEMPTS`), enviado ao **mesmo contato já verificado**, nunca
-  ao próprio link. Testado: código errado → 403 sem liberar o PDF; código
-  certo → libera o PDF (bytes reais, `Content-Type: application/pdf`);
-  token revogado depois da verificação bem-sucedida **ainda assim** passa a
-  responder 404 na próxima visita — a revogação é checada em
-  `resolve_token()` a cada acesso, não apenas na tela de código, então uma
-  sessão de navegador já "verificada" não sobrevive a uma revogação.
-  Cada nova sessão de visualização exige um código novo (o hash do OTP é
-  limpo após o uso), evitando reaproveitamento de um código vazado/adivinhado
-  em uma janela de tempo futura dentro dos 7 dias de validade do link.
+- [x] **Link opaco + resposta que o paciente sabe** (DEC-21): o link
+  enviado nunca abre o documento diretamente — a página pública
+  (`/d/<token>/`) sempre exige os **quatro últimos dígitos do CPF** do
+  paciente, ou a **data de nascimento** quando não há CPF cadastrado
+  (criança, na maioria das vezes), com até 5 tentativas (`MAX_ATTEMPTS`);
+  o link vale 30 dias (`TOKEN_VALIDITY_DAYS`).
+
+  Esta homologação descrevia, até 2026-09-19, o mecanismo anterior —
+  código de 8 dígitos válido por 10 minutos enviado ao contato verificado,
+  link de 7 dias. Aquele texto continuou no documento **depois** de o
+  código ter sido substituído, de modo que a homologação estava assinada
+  sobre um comportamento que o sistema já não tinha. O registro da troca,
+  com o que se perde e o que se ganha, está em `communications/access.py`
+  e em DEC-21.
+
+  O que sustenta a proteção hoje é o **link**: 32 bytes aleatórios,
+  entregues só a contato autorizado e verificado, com prazo e revogação. Os
+  quatro dígitos não são segredo forte — são 10.000 combinações contra
+  cinco tentativas, e o contador é atômico (`UPDATE ... otp_attempts + 1`
+  condicionado ao limite), de modo que requisições paralelas não contam
+  como uma.
+
+  Testado: resposta errada → 403 sem liberar o PDF; resposta certa → libera
+  o PDF (bytes reais, `Content-Type: application/pdf`); token revogado
+  depois da verificação bem-sucedida **ainda assim** passa a responder 404
+  na próxima visita — a revogação é checada em `resolve_token()` a cada
+  acesso, não apenas na tela de verificação, então uma sessão de navegador
+  já "verificada" não sobrevive a uma revogação.
 - [x] **`accepted` ≠ `delivered`**: o envio bem-sucedido ao SMSDEV (ou ao
   backend de e-mail) só move o status para `accepted`; `delivered` exigiria
   confirmação real via DLR (`communications.reconciliation`), que não pôde

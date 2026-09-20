@@ -254,6 +254,21 @@
                     <a class="fw-semibold" href="{% url 'documents:credential-list' %}">Habilitar sessão</a>.
                 </div>
                 {% endif %}
+                {% comment %}Emitir para assinar à caneta.
+
+                Fica ao lado da assinatura digital, e não escondido: quem não
+                tem certificado, ou está sem ele hoje, precisa de um caminho —
+                e o que existia era imprimir o rascunho, que sai com "SEM
+                VALIDADE" em vermelho. O documento ganha número e data e sai
+                **sem QR**: no papel, quem responde por ele é a assinatura de
+                próprio punho e o carimbo.{% endcomment %}
+                <form method="post" action="{% url 'documents:medical-issue-paper' document.id %}"
+                      data-nd-confirm="Emitir para assinatura de próprio punho? O documento ganha número e não poderá mais ser assinado digitalmente.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light w-100" data-nd-busy>
+                        Emitir para assinar e carimbar
+                    </button>
+                </form>
                 <form method="post" action="{% url 'documents:medical-discard' document.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-light-danger w-100">Descartar</button>

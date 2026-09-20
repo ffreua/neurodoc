@@ -105,20 +105,33 @@ def upsert_finding(
     context, encounter, domain, item_code, side=Side.NOT_APPLICABLE, body_site='',
     state=ExaminationState.NOT_ASSESSED, numeric_value=None, qualifier='', note='',
 ):
+    # As mensagens abaixo vão para a tela do médico, então são em português
+    # e nomeiam o item como ele aparece no roteiro — não pelo código
+    # interno. Antes diziam `cn3_4_6_diplopia_nystagmus requires a side`, e
+    # quem lia tinha de adivinhar qual item do exame era aquele.
     catalog = CATALOG_BY_DOMAIN.get(domain)
     if catalog is None or item_code not in catalog:
-        raise ValidationError(f'Unknown item {item_code!r} for domain {domain!r}')
+        raise ValidationError(f'Item {item_code!r} não existe no domínio {domain!r} do exame.')
+    rotulo = catalog[item_code]
     lateralized = domain not in NOT_LATERALIZED_DOMAINS and item_code not in NOT_LATERALIZED_ITEMS
     if not lateralized and side not in (Side.NOT_APPLICABLE, Side.BILATERAL):
-        raise ValidationError(f'{item_code} is not lateralized')
+        raise ValidationError(
+            f'“{rotulo}” não é lateralizado: deixe o lado em branco ou marque bilateral.'
+        )
     if lateralized and side == Side.NOT_APPLICABLE:
-        raise ValidationError(f'{item_code} requires a side')
+        raise ValidationError(
+            f'Escolha o lado de “{rotulo}”: direito, esquerdo ou bilateral.'
+        )
     if domain == ExaminationDomain.STRENGTH and numeric_value is not None:
         if numeric_value not in (0, 1, 2, 3, 4, 5):
-            raise ValidationError('Strength grade must be an integer 0-5, no arbitrary fractions')
+            raise ValidationError(
+                'A força vai de 0 a 5, em número inteiro — a escala do MRC não tem fração.'
+            )
     if item_code == 'plantar' and state in (ExaminationState.NORMAL, ExaminationState.ALTERED):
         if qualifier not in PLANTAR_QUALIFIERS:
-            raise ValidationError('Plantar response requires a flexor/extensor/indifferent qualifier')
+            raise ValidationError(
+                'A resposta plantar precisa da qualificação: flexora, extensora ou indiferente.'
+            )
 
     finding, _ = ExaminationFinding.objects.update_or_create(
         tenant_id=context.tenant_id, encounter=encounter, item_code=item_code, side=side, body_site=body_site,

@@ -113,6 +113,14 @@ def _gather_diagnostic_context(authorization, encounter):
         'antecedentes_familiares': encounter.family_history,
         'conduta_registrada': encounter.plan_text,
     }
+    # Atendimento de texto livre: o corpo da consulta e as impressões são
+    # estes dois campos, e os estruturados acima vêm vazios. Ficavam de
+    # fora — o apoio diagnóstico recebia um atendimento em branco e
+    # respondia assim mesmo.
+    if encounter.free_text.strip():
+        current['consulta_texto_livre'] = encounter.free_text
+    if encounter.impressions.strip():
+        current['impressoes_do_medico'] = encounter.impressions
     # A consanguinidade entra só quando foi de fato informada. O rótulo do
     # campo é ele próprio um marcador de risco na política de privacidade
     # (fail-closed, P-06 em aberto): mandá-lo mesmo quando ninguém respondeu

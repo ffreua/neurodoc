@@ -1,0 +1,162 @@
+{% if encounter.status != 'finalized' %}
+<div class="modal fade" id="remove-finding-modal" tabindex="-1" aria-hidden="true"
+     aria-labelledby="remove-finding-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" id="remove-finding-form">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="remove-finding-title">Remover item do exame</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fs-13 mb-0" id="remove-finding-summary"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" data-nd-busy>Remover</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="normal-modal" tabindex="-1" aria-hidden="true" aria-labelledby="normal-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'clinical:exam-group-normal' encounter.id %}">
+                {% csrf_token %}
+                <input type="hidden" name="path" id="normal-path">
+                <input type="hidden" name="undo" id="normal-undo" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="normal-modal-title">Marcar tudo normal</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="fs-13 mb-2" id="normal-summary"></p>
+                    <div class="alert alert-warning fade show fs-12 mb-0" role="alert" id="normal-warning">
+                        Só itens do tipo <strong>estado</strong> são marcados — escolha, número e
+                        escala continuam como estão, porque o sistema não pode inventar uma medida.
+                        Item que você já preencheu à mão é preservado. Dá para desfazer enquanto o
+                        atendimento não for finalizado.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="normal-confirm" data-nd-busy>Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% if encounter.status != 'finalized' %}
+{% comment %}Descartar existe porque abrir um atendimento no paciente errado
+acontece. Só vale para atendimento não finalizado; finalizado é registro
+imutável e a correção lá é adendo. O modal mostra o que se perde antes de
+confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
+<div class="modal fade" id="discard-modal" tabindex="-1" aria-hidden="true" aria-labelledby="discard-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'clinical:discard' encounter.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="discard-modal-title">Descartar este atendimento?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    {% if discard_blockers %}
+                    <div class="alert alert-warning fade show fs-13 mb-0" role="alert">
+                        <strong>Este atendimento não pode ser descartado:</strong>
+                        <ul class="mb-0 mt-2 ps-3">
+                            {% for motivo in discard_blockers %}<li>{{ motivo }}</li>{% endfor %}
+                        </ul>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger fade show fs-12" role="alert">
+                        O atendimento sai da história do paciente e <strong>não há como desfazer</strong>.
+                        O log de auditoria guarda quem descartou, quando e o que havia.
+                    </div>
+                    {% if discard_has_content %}
+                    <p class="fs-13 mb-2"><strong>Já há conteúdo registrado aqui:</strong></p>
+                    <ul class="fs-13 mb-3">
+                        {% if discard_summary.tem_historia %}<li>história preenchida</li>{% endif %}
+                        {% if discard_summary.tem_conduta %}<li>conduta preenchida</li>{% endif %}
+                        {% if discard_summary.exame %}<li>{{ discard_summary.exame }} item(ns) de exame</li>{% endif %}
+                        {% if discard_summary.medicacoes %}<li>{{ discard_summary.medicacoes }} medicação(ões)</li>{% endif %}
+                        {% if discard_summary.exames %}<li>{{ discard_summary.exames }} resultado(s) de exame</li>{% endif %}
+                        {% if discard_summary.hipoteses %}<li>{{ discard_summary.hipoteses }} hipótese(s)</li>{% endif %}
+                    </ul>
+                    <label class="form-label fw-semibold" for="discard-reason">
+                        Motivo do descarte <span class="text-danger" aria-hidden="true">*</span>
+                    </label>
+                    <input type="text" class="form-control" id="discard-reason" name="reason" required
+                           maxlength="255" placeholder="Ex.: atendimento aberto no paciente errado">
+                    <div class="form-text fs-11">
+                        Obrigatório porque há conteúdo. Fica no log de auditoria.
+                    </div>
+                    {% else %}
+                    <p class="fs-13 text-muted mb-0">
+                        Este atendimento está vazio — nada foi registrado nele.
+                    </p>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger" data-nd-busy
+                            {% if discard_blockers %}disabled{% endif %}>Descartar atendimento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="finalize-modal" tabindex="-1" aria-hidden="true" aria-labelledby="finalize-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'clinical:finalize' encounter.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="finalize-modal-title">Finalizar este atendimento?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    {% comment %}O que falta aparece aqui, antes do clique. A
+                    verificação em cascata apontava um requisito por tentativa, e
+                    quem fechava a consulta descobria a lista aos poucos.{% endcomment %}
+                    {% if finalize_pending %}
+                    <div class="alert alert-warning fade show fs-13" role="alert">
+                        <strong>Falta preencher antes de finalizar:</strong>
+                        <ul class="mb-0 mt-2 ps-3">
+                            {% for item in finalize_pending %}
+                            <li>{{ item.texto }} <span class="text-muted">(aba {{ item.aba }})</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <p class="fs-12 text-muted mb-0">
+                        Se algo aí não se aplica a esta consulta, escreva o motivo em
+                        <strong>Justificativa da finalização</strong>, na aba Conduta.
+                    </p>
+                    {% else %}
+                    <div class="alert alert-warning fade show fs-12" role="alert">
+                        Depois de finalizado, o registro fica <strong>imutável</strong>: nada do que já
+                        foi escrito pode ser alterado, e correções passam a entrar como adendo
+                        identificado.
+                    </div>
+                    <p class="fs-13 text-muted mb-0">
+                        Confirme que história, exame, hipóteses e conduta estão como você quer
+                        que fiquem registrados.
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Revisar antes</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy
+                            {% if finalize_pending %}disabled{% endif %}>Finalizar atendimento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}

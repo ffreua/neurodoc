@@ -12,21 +12,68 @@ Estavam num diretório temporário, fora do repositório, até 09/09/2026.
 Um diretório temporário some, e com ele sumiria a única regressão que
 existe sobre permissões, isolamento entre inquilinos e o portal.
 
+## O que os roteiros deixam para trás
+
+Desde `audit/0003_auditevent_imutavel` a trilha de auditoria é
+`INSERT`-only no banco, e o papel da aplicação não tem `UPDATE` nem
+`DELETE` sobre ela. Três roteiros limpavam as próprias sobras apagando os
+eventos que haviam gerado, para então poder apagar a conta ou a
+organização que `AuditEvent.actor`/`AuditEvent.tenant` prendem por
+`PROTECT`. O banco passou a recusar isso — e o primeiro atalho que a
+proteção quebrou foi o deles, o que é o sinal de que ela funciona.
+
+Agora essas entidades são **aposentadas**: perdem os poderes, devolvem os
+identificadores únicos (e-mail, CNPJ, slug) e ficam de pé, com a trilha
+intacta apontando para elas. Cada rodada completa deixa, portanto, algumas
+contas `aposentado-por-roteiro-*` e organizações `aposentada-por-roteiro-*`
+no banco de demonstração. São inofensivas e coerentes — a organização
+aposentada mantém o roteiro de exame, justamente porque outros roteiros
+varrem todas as clínicas e cobram isso de cada uma.
+
+Elas aparecem como `[roteiro] organizacao de teste aposentada` e
+`[roteiro] conta aposentada`, para quem abrir o console não precisar
+adivinhar o que são.
+
+**O resto não acumula, e isso foi medido.** Rodar a bateria inteira duas
+vezes seguidas deixa paciente, atendimento, anexo, documento e
+agendamento exatamente onde estavam. Até 19/09/2026 não era assim: cinco
+roteiros que emitem documento deixavam **vinte e dois anexos por rodada**
+(o `MedicalDocument` era apagado e o PDF dele ficava órfão, no banco e no
+volume de mídia), e o `check_secretary` deixava um paciente por rodada —
+o pré-cadastro pela agenda cria paciente junto com o agendamento, e só o
+agendamento era devolvido. Paciente ativo conta para o limite do plano
+(`tenancy/limits.py`), de modo que aquele acúmulo terminaria fazendo os
+roteiros falharem por esgotamento de cota, e não por regressão.
+
+Ao escrever um roteiro novo, meça: conte as linhas antes e depois e
+confira que o número voltou. É mais barato que descobrir meses depois,
+pela lista de pacientes da clínica de demonstração.
+
+Para zerar, recrie a base: `docker compose down -v`, suba de novo e rode
+`seed_demo` (e `import_cmed` no worker, se for exercitar as receitas).
+
 ## Como rodar
 
-Um:
+Todos, ou os que interessam:
+
+```sh
+docker compose exec app python manage.py rodar_roteiros
+docker compose exec app python manage.py rodar_roteiros planos landing
+docker compose exec app python manage.py rodar_roteiros --parar-no-primeiro
+```
+
+Uma linha por roteiro, a saída completa só de quem falhou, e código 1 se
+algum falhar. Cada um roda em processo próprio — é mais lento do que
+carregar todos no mesmo interpretador, e é assim de propósito: eles mexem
+em `settings`, criam e apagam registros, e um roteiro que passa por causa
+de quem rodou antes não serve para nada.
+
+Enquanto se **escreve** um roteiro, use a forma antiga: `rodar_roteiros`
+lê `checks/` de dentro da imagem, e a linha abaixo empurra o arquivo do
+disco, de modo que a edição vale sem reconstruir.
 
 ```sh
 docker compose exec -T app python manage.py shell < checks/check_matrix.py
-```
-
-Todos:
-
-```sh
-for f in checks/check_*.py; do
-  echo "--- $f"
-  docker compose exec -T app python manage.py shell < "$f" 2>&1 | tail -3
-done
 ```
 
 Cada roteiro imprime o que observou, termina em `OK: …` quando passa e

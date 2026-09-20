@@ -6,12 +6,13 @@ from base.models import TimestampedModel
 class CatalogSystem(models.TextChoices):
     CID10 = 'CID10', 'CID-10'
     TUSS = 'TUSS', 'TUSS'
+    CMED = 'CMED', 'CMED/Anvisa (medicamentos)'
 
 
 class CatalogReleaseStatus(models.TextChoices):
-    DRAFT = 'draft', 'Draft'
-    ACTIVE = 'active', 'Active'
-    SUPERSEDED = 'superseded', 'Superseded'
+    DRAFT = 'draft', 'Rascunho'
+    ACTIVE = 'active', 'Ativa'
+    SUPERSEDED = 'superseded', 'Substituída'
 
 
 class CatalogRelease(TimestampedModel):
@@ -121,3 +122,100 @@ class PostalCodeRange(TimestampedModel):
 
     def __str__(self):
         return f'{self.cep_start}-{self.cep_end} {self.city}/{self.uf}'
+
+
+class MedicationTarja(models.TextChoices):
+    """A tarja da embalagem, como a lista da CMED a escreve.
+
+    Serve para **avisar** quem prescreve, nunca para decidir por ele. A
+    coluna TARJA é atributo da lista de **preços** da CMED, não a regra da
+    Portaria SVS/MS 344/98: ela acompanha o que a Anvisa registrou para
+    aquela apresentação e pode divergir do enquadramento que vale para o
+    receituário. Um sistema que trocasse o formato da receita sozinho a
+    partir dela estaria transformando dado comercial em decisão clínica.
+
+    `NAO_INFORMADA` é o `- (*)` da planilha, que aparece em 4.670 das
+    26.242 linhas. É ausência de informação, e não "sem tarja" — tratar os
+    dois como a mesma coisa faria o sistema afirmar que um medicamento é
+    isento quando ele só não foi classificado.
+    """
+
+    PRETA = 'preta', 'Tarja preta'
+    VERMELHA_RESTRITA = 'vermelha_restrita', 'Tarja vermelha sob restrição'
+    VERMELHA = 'vermelha', 'Tarja vermelha'
+    SEM_TARJA = 'sem_tarja', 'Sem tarja'
+    NAO_INFORMADA = 'nao_informada', 'Tarja não informada'
+
+
+#: Tarjas que costumam exigir Receituário de Controle Especial. É a base do
+#: aviso na tela — e a palavra "costumam" está no texto exibido de
+#: propósito, porque quem decide é quem assina.
+TARJAS_QUE_SUGEREM_CONTROLE_ESPECIAL = frozenset({
+    MedicationTarja.PRETA, MedicationTarja.VERMELHA_RESTRITA,
+})
+
+
+class MedicationProduct(TimestampedModel):
+    """Uma apresentação de medicamento da lista de preços da CMED/Anvisa.
+
+    Catálogo público e global, como CID-10 e TUSS: não é dado de inquilino,
+    e por isso herda `TimestampedModel` e não `TenantModel`.
+
+    A linha da CMED é por **apresentação**, não por medicamento: o mesmo
+    princípio ativo aparece em dezenas de linhas, uma por concentração,
+    forma e embalagem. É exatamente o que se quer num autocomplete de
+    receita, onde "500 mg comprimido revestido caixa com 20" é a informação
+    que falta na hora de escrever.
+
+    Os preços da planilha (52 das 74 colunas) **não** são importados. Eles
+    envelhecem a cada publicação, ninguém prescreve por preço, e guardá-los
+    transformaria um catálogo clínico numa tabela de valores desatualizada
+    que alguém acabaria exibindo ao paciente.
+    """
+
+    release = models.ForeignKey(CatalogRelease, on_delete=models.PROTECT, related_name='medications')
+    #: Código GGREM: o identificador da apresentação na CMED. Único na
+    #: release, e é por ele que uma reimportação reconhece a mesma linha.
+    ggrem = models.CharField(max_length=32)
+    #: `TextField`, e não `CharField`: a substância de uma vacina
+    #: pneumocócica lista todos os sorotipos e chega a 1.419 caracteres na
+    #: lista de 09/2026. Qualquer teto que eu escolhesse aqui seria um
+    #: `value too long` numa publicação futura — e o importador falha no
+    #: meio, com a release pela metade.
+    substance = models.TextField()
+    product = models.CharField(max_length=300)
+    presentation = models.CharField(max_length=500)
+    laboratory = models.CharField(max_length=300, blank=True)
+    therapeutic_class = models.CharField(max_length=300, blank=True)
+    product_type = models.CharField(max_length=60, blank=True)
+    tarja = models.CharField(
+        max_length=30, choices=MedicationTarja.choices, default=MedicationTarja.NAO_INFORMADA,
+    )
+    registration = models.CharField(max_length=32, blank=True)
+    ean = models.CharField(max_length=20, blank=True)
+    #: Substância, produto e apresentação sem acento e em maiúsculas, para
+    #: comparar com o que se digita. Mesma razão e mesma função do CID-10
+    #: (`normalize_for_search`): este banco não tem `unaccent`, e ninguém
+    #: digita acento procurando "dipirona" com o paciente na frente.
+    search_text = models.TextField(blank=True, default='')
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['release', 'ggrem'], name='catalogs_medication_release_ggrem_uniq'),
+        ]
+        indexes = [
+            models.Index(fields=['release', 'substance'], name='catalogs_med_substance_idx'),
+        ]
+
+    @property
+    def sugere_controle_especial(self):
+        return self.tarja in TARJAS_QUE_SUGEREM_CONTROLE_ESPECIAL
+
+    def rotulo(self):
+        """Uma linha só, como o médico lê no autocomplete."""
+        partes = [self.product or self.substance, self.presentation]
+        return ' — '.join(p for p in partes if p)
+
+    def __str__(self):
+        return f'{self.product} ({self.substance[:40]})'

@@ -1,4 +1,5 @@
 from django.contrib import messages
+from django.db import transaction
 from django.forms import modelform_factory
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,10 +22,12 @@ from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
 from .forms import (
-    AmendmentForm, DiagnosisForm, EncounterForm, ExamResultForm, FindingForm, LabValueForm,
+    AmendmentForm, DiagnosisForm, EncounterForm, ExamResultForm, FindingForm,
+    FreeTextEncounterForm, LabValueForm,
     MedicationForm,
 )
 from .models import (
+    EncounterKind,
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
     ExamResult, ExtractionStatus, LabValue, Medication,
 )
@@ -38,6 +41,23 @@ def _first_error(form):
         label = form.fields[field].label if field in form.fields else ''
         return f'{label}: {errors[0]}' if label else errors[0]
     return 'Não foi possível salvar.'
+
+
+def _texto_do_erro(exc):
+    """A mensagem de uma exceção, legível na tela.
+
+    `str()` de uma `ValidationError` do Django devolve a **repr da lista**:
+    `["Escolha o lado de X"]`, com colchetes e aspas. Era o que aparecia na
+    faixa vermelha do prontuário toda vez que faltava a lateralidade de um
+    achado — a frase certa, vestida de estrutura de dados.
+
+    `messages` é o atributo que a própria `ValidationError` expõe para
+    isso; qualquer outra exceção cai no `str()` de sempre.
+    """
+    mensagens = getattr(exc, 'messages', None)
+    if mensagens:
+        return ' '.join(str(m) for m in mensagens)
+    return str(exc)
 
 
 def _blocked(request, encounter, message, anchor=''):
@@ -102,8 +122,19 @@ class DiagnosisLookupView(TenantScopedView):
 class TimelineView(TenantScopedView):
     def get(self, request, patient_id):
         patient = get_object_or_404(scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id)
-        encounters = selectors.patient_timeline(request.access_context, patient)
-        return render(request, 'clinical/timeline.html', {'patient': patient, 'encounters': encounters})
+        # A ordem vem da URL e é validada no selector; o que chega aqui é só
+        # repassado, nunca interpolado numa consulta.
+        ordenar = request.GET.get('ordenar', selectors.ORDEM_PADRAO)
+        if ordenar not in selectors.ORDENS_DA_GRADE:
+            ordenar = selectors.ORDEM_PADRAO
+        decrescente = request.GET.get('desc') == '1'
+        encounters = selectors.patient_timeline(
+            request.access_context, patient, ordenar=ordenar, decrescente=decrescente,
+        )
+        return render(request, 'clinical/timeline.html', {
+            'patient': patient, 'encounters': encounters,
+            'ordenar': ordenar, 'decrescente': decrescente,
+        })
 
 
 class EncounterCreateView(TenantScopedView):
@@ -112,9 +143,15 @@ class EncounterCreateView(TenantScopedView):
         membership = _doctor_membership(request)
         if membership is None:
             raise Http404
+        # O tipo vem do botão que foi clicado. Valor desconhecido cai no
+        # estruturado — que é o prontuário completo, e errar para o lado de
+        # pedir mais registro é o erro aceitável aqui.
+        kind = request.POST.get('kind')
+        if kind not in EncounterKind.values:
+            kind = EncounterKind.STRUCTURED
         encounter = Encounter.objects.create(
             tenant_id=request.access_context.tenant_id, patient=patient, physician_membership=membership,
-            occurred_at=timezone.now(), status=EncounterStatus.DRAFT,
+            occurred_at=timezone.now(), status=EncounterStatus.DRAFT, kind=kind,
         )
         source = cf.default_source_encounter(encounter)
         if source is not None:
@@ -152,8 +189,19 @@ class EncounterDetailView(TenantScopedView):
             for finding in findings
             if finding.item_code.startswith('escala.')
         }
-        return render(request, 'clinical/detail.html', {
-            'encounter': encounter, 'form': EncounterForm(instance=encounter),
+        # Um template por tipo. O de texto livre é uma página só, sem abas:
+        # o ponto dele é não fazer quem tem pressa navegar. Os dois recebem
+        # o mesmo contexto, e os blocos que os dois usam — medicação,
+        # hipóteses, documentos — são os mesmos parciais.
+        livre = encounter.kind == EncounterKind.FREE_TEXT
+        template_da_tela = 'clinical/detail_livre.html' if livre else 'clinical/detail.html'
+        # Na tela de texto livre os campos ficam FORA do `<form>` (medicação e
+        # hipóteses trazem formulário próprio, e HTML não aninha formulário):
+        # o formulário é declarado por `form=` em cada campo. Ver
+        # `FreeTextEncounterForm`.
+        FormularioDaTela = FreeTextEncounterForm if livre else EncounterForm
+        return render(request, template_da_tela, {
+            'encounter': encounter, 'form': FormularioDaTela(instance=encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
             'amendment_form': AmendmentForm(), 'pending_carry_forward': pending_items,
             'findings': findings,
@@ -176,6 +224,11 @@ class EncounterDetailView(TenantScopedView):
             'discard_summary': finalization.discard_summary(encounter),
             'discard_has_content': finalization.has_content(encounter),
             'discard_blockers': finalization.discard_blockers(encounter),
+            # A consulta anterior vai renderizada junto com a página, e não
+            # buscada por JavaScript quando a gaveta abre: são poucos campos,
+            # já estão no banco, e o médico que abre a gaveta está no meio de
+            # uma frase — uma espera de rede ali é uma frase interrompida.
+            'consulta_anterior': selectors.consulta_anterior(request.access_context, encounter),
             **self._extra_tabs(request, encounter),
         })
 
@@ -277,12 +330,15 @@ class EncounterAutosaveView(TenantScopedView):
                 'Atendimento finalizado: o registro não pode mais ser alterado. '
                 'Use um adendo.', 409,
             )
+        # Obrigatória, e não "se vier": ausente, a conferência era pulada
+        # por inteiro e um envio sem o campo sobrescrevia o que outra aba
+        # tivesse acabado de gravar. Quem não sabe de que versão partiu não
+        # tem como saber o que está apagando.
         submitted_version = request.POST.get('row_version')
-        if submitted_version and str(encounter.row_version) != submitted_version:
+        if not submitted_version:
             return self._fail(
                 request, encounter,
-                'Este atendimento foi alterado em outra aba desde que você o abriu. '
-                'Recarregue a página para não sobrescrever o que já foi gravado.', 409,
+                'Envio sem a versão do atendimento. Recarregue a página e tente de novo.', 400,
             )
 
         submitted = [name for name in self.EDITABLE if name in request.POST]
@@ -295,12 +351,41 @@ class EncounterAutosaveView(TenantScopedView):
             first = next(iter(form.errors.values()))[0]
             return self._fail(request, encounter, first, 400)
 
-        updated = form.save(commit=False)
-        if updated.status == EncounterStatus.DRAFT:
-            updated.status = EncounterStatus.IN_PROGRESS
-        updated.row_version += 1
-        updated.full_clean()
-        updated.save()
+        # Ler a versão, comparar e gravar eram três passos soltos: duas
+        # abas liam a mesma versão, as duas passavam na conferência e a
+        # segunda apagava a primeira. Pior, um salvamento iniciado antes da
+        # finalização podia gravar depois dela, por cima do texto fechado.
+        # `select_for_update` põe os três passos dentro da mesma transação —
+        # a segunda aba espera, relê a versão já incrementada e recusa.
+        with transaction.atomic():
+            travado = (
+                Encounter.objects
+                .select_for_update()
+                .filter(tenant_id=request.access_context.tenant_id, id=encounter.id)
+                .first()
+            )
+            if travado is None:
+                raise Http404
+            if not travado.is_editable():
+                return self._fail(
+                    request, encounter,
+                    'Atendimento finalizado enquanto você escrevia: o registro não pode '
+                    'mais ser alterado. Use um adendo.', 409,
+                )
+            if str(travado.row_version) != submitted_version:
+                return self._fail(
+                    request, encounter,
+                    'Este atendimento foi alterado em outra aba desde que você o abriu. '
+                    'Recarregue a página para não sobrescrever o que já foi gravado.', 409,
+                )
+            for name in submitted:
+                setattr(travado, name, form.cleaned_data[name])
+            if travado.status == EncounterStatus.DRAFT:
+                travado.status = EncounterStatus.IN_PROGRESS
+            travado.row_version += 1
+            travado.full_clean()
+            travado.save()
+        updated = travado
 
         if self._wants_json(request):
             return JsonResponse({'ok': True, 'row_version': updated.row_version})
@@ -330,7 +415,7 @@ class FindingUpsertView(TenantScopedView):
                     data['numeric_value'], data['qualifier'], data['note'],
                 )
         except Exception as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-exame')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exame')
         messages.success(request, 'Achado registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
@@ -472,6 +557,12 @@ class DiagnosisCreateView(TenantScopedView):
 class CarryForwardReviewView(TenantScopedView):
     def post(self, request, encounter_id, item_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(
+                request, encounter,
+                'Atendimento finalizado: o registro não pode mais ser alterado. '
+                'Use um adendo.', anchor='carry-forward',
+            )
         item = get_object_or_404(encounter.carry_forward_items, id=item_id)
         action = request.POST.get('action')
         if action not in ('accepted', 'edited', 'rejected'):
@@ -485,7 +576,10 @@ class CarryForwardReviewView(TenantScopedView):
                 anchor='carry-forward',
             )
         membership = _doctor_membership(request)
-        cf.review_carry_forward_item(item, action, membership.id if membership else None)
+        try:
+            cf.review_carry_forward_item(item, action, membership.id if membership else None)
+        except cf.CarryForwardBlocked as exc:
+            return _blocked(request, encounter, str(exc), anchor='carry-forward')
         return redirect('clinical:detail', encounter_id=encounter.id)
 
 
@@ -498,7 +592,7 @@ class FinalizeEncounterView(TenantScopedView):
         try:
             finalization.finalize_encounter(request.access_context, encounter, membership)
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, str(exc))
+            return _blocked(request, encounter, _texto_do_erro(exc))
         messages.success(request, 'Atendimento finalizado. O registro agora é imutável.')
         return redirect('clinical:detail', encounter_id=encounter.id)
 
@@ -527,7 +621,7 @@ class EncounterDiscardView(TenantScopedView):
                 reason=request.POST.get('reason', ''),
             )
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, str(exc))
+            return _blocked(request, encounter, _texto_do_erro(exc))
         messages.success(request, 'Atendimento descartado.')
         return redirect('clinical:timeline', patient_id=patient_id)
 
@@ -547,7 +641,7 @@ class AmendmentCreateView(TenantScopedView):
                 form.cleaned_data['reason'], form.cleaned_data['text'],
             )
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-adendos')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-adendos')
         messages.success(request, 'Adendo registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-adendos')
 
@@ -674,7 +768,7 @@ class ExamResultCreateView(TenantScopedView):
                     encounter=encounter, document_date=form.cleaned_data.get('performed_on'),
                 )
             except (UploadRejected, QuotaExceeded) as exc:
-                return _blocked(request, encounter, str(exc), anchor='tab-exames')
+                return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
             exam_result.attachment = attachment
 
         exam_result.save()
@@ -787,7 +881,7 @@ class ExamResultExtractView(TenantScopedView):
         try:
             job = request_extraction(request.access_context, exam_result)
         except (ExtractionUnavailable, AIAuthorizationDenied) as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-exames')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
         if job.status == 'disabled':
             messages.warning(request, 'A leitura por IA está desligada nesta instalação.')
         else:
@@ -834,7 +928,7 @@ class ExamResultDraftReviewView(TenantScopedView):
             else:
                 return _blocked(request, encounter, 'Ação inválida.', anchor='tab-exames')
         except ExtractionUnavailable as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-exames')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 
@@ -847,7 +941,7 @@ class DiagnosticSupportRequestView(TenantScopedView):
         try:
             job = request_diagnostic_support(request.access_context, encounter)
         except AIAuthorizationDenied as exc:
-            return _blocked(request, encounter, str(exc), anchor='tab-hipoteses')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-hipoteses')
         if job.status == 'disabled':
             messages.warning(request, 'O apoio por IA está desligado nesta instalação.')
         elif job.status == 'succeeded':

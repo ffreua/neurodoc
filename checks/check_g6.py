@@ -64,12 +64,18 @@ if not doc.validation_token or len(doc.validation_token) != 16:
 data = render_medical_document_pdf(doc)
 texto, paginas = pdf_text(data)
 print('  paginas:', paginas)
-print('  tem URL de verificacao:', '/verificar/' in texto)
-print('  tem codigo formatado:', doc.validation_token[:4] in texto)
+# O QR e o bloco de verificacao passaram a sair SO em documento assinado
+# digitalmente. Antes saiam em qualquer PDF, inclusive no rascunho: o
+# `validation_token` e atribuido ja na criacao, e a unica condicao era ele
+# existir. Um QR no rascunho leva a farmacia a conferir e receber "documento
+# nao emitido" -- ou, pior, a tratar o papel como conferido. No documento
+# impresso para assinar a caneta vale o mesmo: quem responde por ele ali e a
+# assinatura de proprio punho, nao este sistema.
+print('  RASCUNHO sem URL de verificacao:', '/verificar/' not in texto)
 if paginas != 1:
     failures.append(f'receita simples saiu com {paginas} paginas')
-if '/verificar/' not in texto:
-    failures.append('o PDF nao traz a URL de verificacao')
+if '/verificar/' in texto:
+    failures.append('o rascunho trouxe a URL de verificacao — ela so vale com assinatura digital')
 
 print('=== 2. rascunho diz que e rascunho ===')
 print('  tarja de rascunho presente:', 'RASCUNHO' in texto)
@@ -148,21 +154,57 @@ for kind, campos in [
     created.append(d)
     t, _ = pdf_text(render_medical_document_pdf(d))
     tem_qr = '/verificar/' in t
-    print(f'  {kind:14} token={bool(d.validation_token)} url_no_pdf={tem_qr}')
-    if not d.validation_token or not tem_qr:
-        failures.append(f'{kind} saiu sem codigo de verificacao')
+    print(f'  {kind:14} token={bool(d.validation_token)} rascunho_sem_url={not tem_qr}')
+    if not d.validation_token:
+        failures.append(f'{kind} saiu sem codigo de verificacao no banco')
+    if tem_qr:
+        failures.append(f'{kind} trouxe a URL de verificacao no rascunho')
 
 print('=== 7. pagina publica de verificacao ===')
+# Zera o limite por IP antes de comecar.
+#
+# A pagina de verificacao limita tentativas por IP na cache compartilhada
+# (`documents.verification._too_many_attempts`). Rodando a suite inteira, os
+# roteiros anteriores que abrem `/verificar/` esgotam a cota do
+# `127.0.0.1`, e este chegava com HTTP 429 em tudo -- passando sozinho e
+# falhando em conjunto, que e o pior tipo de roteiro: o que so quebra
+# quando ninguem esta olhando so para ele.
+#
+# Limpar a chave e o certo: o que este trecho testa e a PAGINA. Quem testa
+# o limitador e a secao propria dele.
+from django.core.cache import cache
+
+cache.delete('docverify:127.0.0.1')
 anon = Client()
 r = anon.get(f'/verificar/{doc.validation_token}/')
 body = r.content.decode()
 print('  HTTP:', r.status_code)
 print('  mostra que NAO foi emitido:', 'NÃO foi emitido' in body)
-print('  nome mascarado:', patient.full_name not in body)
-print('  conteudo clinico ausente:', 'Dipirona' not in body)
+# A pergunta certa nao e "o nome inteiro aparece?", e sim "aparece mais do
+# que primeiro nome + inicial?".
+#
+# A forma anterior (`full_name not in body`) e impossivel de satisfazer
+# para quem tem sobrenome de uma letra: o nome "Fernando F" mascara para
+# "Fernando F***", que CONTEM "Fernando F". A mascara esta certa -- para
+# esse nome nao ha o que esconder --, e o roteiro acusava um vazamento que
+# nao existe. Basta um paciente assim no banco para o roteiro passar a
+# falhar para sempre, escondendo as falhas de verdade que ele testa.
+from documents.verification import mask_patient_name
+
+mascarado = mask_patient_name(patient.full_name)
+# Tira a mascara do corpo antes de procurar o nome inteiro. Sem isso a
+# busca acusa a propria mascara: "Fernando F" esta dentro de
+# "Fernando F***", e o roteiro dizia que a pagina vazou o nome quando ela
+# tinha feito exatamente o que devia.
+fora_da_mascara = body.replace(mascarado, '')
+print('  nome na pagina:', mascarado)
+print('  mostra o mascarado:', mascarado in body)
+print('  nome inteiro FORA da mascara:', patient.full_name in fora_da_mascara)
 if r.status_code != 200:
     failures.append(f'a pagina de verificacao devolveu {r.status_code}')
-if patient.full_name in body:
+if mascarado not in body:
+    failures.append('a pagina publica nao mostrou nem o nome mascarado')
+if patient.full_name in fora_da_mascara:
     failures.append('a pagina publica mostrou o nome completo do paciente')
 if 'Dipirona' in body:
     failures.append('a pagina publica vazou conteudo clinico')
@@ -190,6 +232,15 @@ doc2.document_number = 'REC-2026-000998'
 doc2.issued_at = timezone.now()
 doc2.signature_metadata = {'content_sha256': 'b' * 64}
 doc2.save()
+# O contraponto do que mudou: assinado digitalmente, o QR e a URL TEM de
+# sair. Sem esta linha, "QR so em documento assinado" passaria igualmente se
+# o QR tivesse sumido de todo lugar.
+texto_emitido, _ = pdf_text(render_medical_document_pdf(doc2))
+print('  EMITIDO traz a URL de verificacao:', '/verificar/' in texto_emitido)
+print('  EMITIDO traz o codigo formatado:', doc2.validation_token[:4] in texto_emitido)
+if '/verificar/' not in texto_emitido:
+    failures.append('o documento assinado saiu SEM a URL de verificacao')
+
 r = anon.get(f'/verificar/{doc2.validation_token}/')
 body = r.content.decode()
 print('  localizado e emitido:', 'Documento localizado e emitido' in body)
@@ -199,8 +250,54 @@ if 'Documento localizado e emitido' not in body:
     failures.append('documento emitido nao apareceu como valido')
 
 # limpeza
-for d in created:
-    MedicalDocument.objects.filter(id=d.id).delete()
+def _remover_anexos_dos_documentos(ids):
+    """Tira do banco e do disco os PDFs dos documentos que o roteiro criou.
+
+    Apagar so o `MedicalDocument` deixava o `Attachment` do rascunho (e o
+    do assinado, quando havia) orfao no banco e o arquivo no volume de
+    midia. Somados os cinco roteiros que emitem documento, eram vinte e
+    dois anexos por rodada acumulando na clinica de demonstracao.
+
+    A segunda varredura, por PDF **sem dono**, existe porque nem todo
+    documento chega aqui pela lista: um que o proprio roteiro ja apagou,
+    ou que foi substituido no meio do caminho, sai da lista e levaria o
+    anexo junto para o esquecimento. O nome do arquivo de documento carrega
+    o id dele (`<tipo>_<uuid>_draft.pdf`), e um desses que nenhum
+    `MedicalDocument` reivindica nao e de ninguem.
+    """
+    import re
+    from pathlib import Path
+
+    from documents.models import Attachment, MedicalDocument
+
+    anexos = []
+    for atual in MedicalDocument.objects.filter(id__in=ids).values(
+        'pdf_attachment_id', 'signed_pdf_attachment_id',
+    ):
+        anexos += [v for v in atual.values() if v]
+    MedicalDocument.objects.filter(id__in=ids).delete()
+
+    padrao = re.compile(r'^[a-z_]+_[0-9a-f-]{36}_(draft|signed|papel)\.pdf$')
+    com_dono = set(
+        MedicalDocument.objects.values_list('pdf_attachment_id', flat=True)
+    ) | set(
+        MedicalDocument.objects.values_list('signed_pdf_attachment_id', flat=True)
+    )
+    for att in Attachment.objects.exclude(id__in=[i for i in com_dono if i]):
+        if padrao.match(att.original_name or ''):
+            anexos.append(att.id)
+
+    if not anexos:
+        return 0
+    for att in Attachment.objects.filter(id__in=anexos):
+        if att.storage_key:
+            Path(att.storage_key).unlink(missing_ok=True)
+    apagados, _ = Attachment.objects.filter(id__in=anexos).delete()
+    return apagados
+
+
+print('anexos dos documentos do roteiro removidos:',
+      _remover_anexos_dos_documentos([d.id for d in created]))
 sem_endereco.delete()
 
 print('---')

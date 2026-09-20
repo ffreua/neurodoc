@@ -11,4 +11,5 @@ class ReportingConfig(AppConfig):
         register_report(
             'patients_seen_detail', patients.patients_seen_detail_rows,
             ['patient_id', 'full_name', 'first_encounter_at'],
+            count_fn=patients.patients_seen_detail_count,
         )

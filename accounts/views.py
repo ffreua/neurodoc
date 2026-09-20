@@ -12,6 +12,7 @@ from audit.services import record_audit_event
 from . import mfa, services, throttling
 from .forms import MFAChallengeForm, ThrottledAuthenticationForm
 from .models import User
+from base.net import client_ip
 
 PENDING_MFA_SESSION_KEY = 'pending_mfa_user_id'
 
@@ -23,8 +24,8 @@ class EmailLoginView(LoginView):
 
     def form_valid(self, form):
         user = form.get_user()
-        client_ip = self.request.META.get('REMOTE_ADDR')
-        throttling.clear_failures(user.email, client_ip)
+        ip_do_cliente = client_ip(self.request)
+        throttling.clear_failures(user.email, ip_do_cliente)
         if mfa.user_has_confirmed_totp(user):
             self.request.session[PENDING_MFA_SESSION_KEY] = str(user.id)
             record_audit_event(
