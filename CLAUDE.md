@@ -197,6 +197,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |
 | `check_mobile.py` | aderência ao celular: o bloco de toque existe e pergunta por `pointer: coarse`, campos a 16px, alvo de 40px, tabela embrulhada, calha responsiva |
 | `check_backup.py` | restaurador carrega, trava única entre backup e arquivo morto, unidades do systemd executáveis |
+| `check_perimetro.py` | a borda: agente de captura sem CSRF, desidentificação sem comer palavra, IP do visitante atrás do proxy |
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 

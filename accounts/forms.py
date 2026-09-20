@@ -3,12 +3,13 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
 
 from . import throttling
+from base.net import client_ip
 
 
 class ThrottledAuthenticationForm(AuthenticationForm):
     def __init__(self, request=None, *args, **kwargs):
         super().__init__(request=request, *args, **kwargs)
-        self._client_ip = request.META.get('REMOTE_ADDR') if request else None
+        self._client_ip = client_ip(request) if request else None
 
     def clean(self):
         email = self.cleaned_data.get('username')

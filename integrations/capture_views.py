@@ -3,7 +3,9 @@ import json
 
 from django.http import Http404, HttpResponse, HttpResponseForbidden, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from documents.storage import QuotaExceeded, receive_upload
 from documents.tasks import scan_attachment
@@ -81,10 +83,26 @@ class SessionOpenView(TenantScopedView):
         return render(request, 'integrations/capture/session_started.html', {'session': session, 'token': raw_token})
 
 
+@method_decorator(csrf_exempt, name='dispatch')
 class BatchUploadView(View):
     """Authenticated by the session-scoped token in the URL, not by Django
     session/cookies -- this is the endpoint the capture agent (running on
     the scanning workstation, not in a browser) calls directly over HTTPS.
+
+    `csrf_exempt` **e** o que faz este endpoint existir. A protecao CSRF
+    defende um navegador de ser usado como arma pela sessao que ele carrega:
+    ela pressupoe cookie de sessao, e aqui nao ha nenhum. Quem chama e o
+    `capture_agent/agent.py`, um script na estacao de digitalizacao, que
+    manda `Content-Type` e mais nada. Sem esta linha o `CsrfViewMiddleware`
+    recusava com "CSRF cookie not set" antes de a view comecar -- e a
+    captura por scanner nunca funcionou em nenhuma instalacao.
+
+    O que autentica e o token da sessao de captura na URL, resolvido logo
+    na primeira linha do `post`: aleatorio, de uso limitado a uma sessao
+    aberta por alguem com permissao, e com prazo. Nao ha aqui nada que um
+    navegador de terceiro possa acionar sozinho, que e o ataque que o CSRF
+    impede -- forjar a requisicao exige ja conhecer o token, e quem o
+    conhece nao precisa do navegador da vitima.
     """
 
     def post(self, request, session_token):

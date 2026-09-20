@@ -12,6 +12,7 @@ from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_p
 from .content import FAQ, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
+from base.net import client_ip
 
 
 class LandingView(View):
@@ -101,7 +102,7 @@ class LandingView(View):
             clinic_name=(dados.get('clinic_name') or '').strip(),
             plan=dados.get('plan') or '',
             message=(dados.get('message') or '').strip(),
-            source_ip=request.META.get('REMOTE_ADDR') or None,
+            source_ip=client_ip(request) or None,
             privacy_notice_version=leads_service.PRIVACY_NOTICE_VERSION,
         )
         record_audit_event(

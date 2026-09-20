@@ -18,6 +18,19 @@ DEBUG = env.bool('DEBUG', default=False)
 SECRET_KEY = secret('DJANGO_SECRET_KEY')
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
 CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+#: Redes de onde `X-Forwarded-For` pode ser acreditado (`base/net.py`).
+#:
+#: O padrao sao as faixas privadas, que e onde o Traefik roda: em
+#: producao o app nao publica porta nenhuma e so e alcancavel por ele, de
+#: modo que quem fala com o app ja esta dentro da rede do Swarm. Uma
+#: faixa publica aqui -- as da Cloudflare, por exemplo -- so entra quando
+#: aquele proxy for realmente o caminho de entrada, porque declarar
+#: confiavel quem nao e devolve ao visitante o poder de escrever o
+#: proprio IP no cabecalho.
+TRUSTED_PROXIES = env.list('TRUSTED_PROXIES', default=[
+    '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', '::1/128',
+])
 PUBLIC_BASE_URL = env('PUBLIC_BASE_URL', default='http://localhost:8000')
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = env('TIME_ZONE', default='America/Sao_Paulo')
