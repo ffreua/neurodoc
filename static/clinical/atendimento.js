@@ -100,9 +100,24 @@
         });
     }
 
+    /* Os rascunhos que a faixa está oferecendo agora. Vive aqui fora
+     * porque os cliques são ligados **uma vez**, no arranque, e não
+     * dentro de quem mostra a faixa.
+     *
+     * A primeira versão registrava os dois cliques dentro de
+     * `avisarRascunho`, que só roda quando há rascunho. Parecia
+     * equivalente — se a faixa não aparece, ninguém clica nela — até o dia
+     * em que ela apareceu por outro motivo (o `hidden` derrotado pelo
+     * `d-flex` do tema, ver `neurodoc.css`): aí havia uma faixa na tela
+     * com dois botões que não faziam absolutamente nada, que é pior do
+     * que não ter faixa. Botão visível sem comportamento é defeito por si
+     * só, venha a visibilidade de onde vier. */
+    var rascunhosOferecidos = [];
+
     function avisarRascunho(achados) {
         var aviso = document.getElementById('nd-rascunho');
         if (!aviso) { return; }
+        rascunhosOferecidos = achados;
         var quando = achados.reduce(function (maior, r) { return Math.max(maior, r.em); }, 0);
         var texto = document.getElementById('nd-rascunho-texto');
         if (texto && quando) {
@@ -110,13 +125,17 @@
                 + 'navegador em ' + new Date(quando).toLocaleString('pt-BR') + '.';
         }
         aviso.hidden = false;
+    }
 
+    function ligarBotoesDoRascunho() {
+        var aviso = document.getElementById('nd-rascunho');
+        if (!aviso) { return; }
         var restaurar = document.getElementById('nd-rascunho-restaurar');
         var descartar = document.getElementById('nd-rascunho-descartar');
 
         if (restaurar) {
             restaurar.addEventListener('click', function () {
-                achados.forEach(function (r) {
+                rascunhosOferecidos.forEach(function (r) {
                     r.campo.value = r.texto;
                     /* `input` para o autogrow do `app.js` recalcular a altura
                      * da caixa: restaurar dez linhas numa caixa de três
@@ -124,7 +143,7 @@
                     r.campo.dispatchEvent(new Event('input', { bubbles: true }));
                 });
                 aviso.hidden = true;
-                var primeiro = achados[0] && achados[0].campo;
+                var primeiro = rascunhosOferecidos[0] && rascunhosOferecidos[0].campo;
                 if (primeiro) { primeiro.focus(); }
             });
         }
@@ -263,6 +282,7 @@
 
     /* ------------------------------------------------------------- ligar */
 
+    ligarBotoesDoRascunho();
     var achados = lerRascunhos();
     if (achados.length) { avisarRascunho(achados); }
 

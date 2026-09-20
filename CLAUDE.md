@@ -157,6 +157,16 @@ docker compose exec app python manage.py seed_demo
 
 - App em `http://localhost:8000`, via Traefik em `:8080`, caixa de e-mail
   do Mailpit em `http://localhost:8025`.
+- **Abrir no celular** (a aderência ao toque não se confere no emulador do
+  navegador): ponha `NEURODOC_LAN_HOST=<IP desta máquina no Wi-Fi>` no
+  `.env` e regenere. São três travas em série, e o gerador abre as três de
+  uma vez — porta publicada em `0.0.0.0`, o IP em `ALLOWED_HOSTS` e a
+  origem em `CSRF_TRUSTED_ORIGINS`; abrir só uma dá conexão recusada, 400
+  ou login que não passa, nessa ordem. Falta ainda liberar a porta no
+  firewall do Windows, **no perfil da rede privada** — assim a regra vale
+  em casa e não segue valendo no Wi-Fi do aeroporto. Vazio, que é o
+  padrão, mantém tudo preso ao `127.0.0.1`. O Mailpit continua local: não
+  há motivo para a caixa de e-mail atravessar a rede.
 - `compose.yml` é **gerado** a partir de `docker-stack.yml` — edite o
   stack e regenere, não edite `compose.yml` à mão.
 - Segredos ficam em `.secrets/<NOME>` (um arquivo por segredo, lidos por

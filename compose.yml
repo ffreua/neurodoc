@@ -43,7 +43,7 @@ services:
         PYTHON_IMAGE: python:3.14.7-slim-bookworm
         RELEASE_ID: dev
     ports:
-    - 127.0.0.1:8000:8000
+    - 0.0.0.0:8000:8000
   celery_worker:
     image: neurodoc:dev
     command:
@@ -219,7 +219,7 @@ services:
     tmpfs:
     - /tmp:size=32m,mode=1777
     ports:
-    - 127.0.0.1:8080:80
+    - 0.0.0.0:8080:80
     volumes: []
     configs:
     - source: traefik_local

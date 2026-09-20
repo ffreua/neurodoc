@@ -28,6 +28,7 @@ As perguntas sao:
 """
 import io
 import os
+import pathlib
 import re
 
 falhas = []
@@ -153,6 +154,90 @@ for pasta, _, arquivos in os.walk(RAIZ_TEMPLATES):
 print(f'  linhas com g-5 sem variante: {largas or "nenhuma"}')
 if largas:
     falhas.append(f'`g-5` sem variante responsiva (transborda no celular): {largas}')
+
+print()
+print('=' * 66)
+print('7. `hidden` ESCONDE MESMO, E NAO SO NO ATRIBUTO')
+print('=' * 66)
+#
+# O tema traz `[hidden]{display:none!important}` e, dez mil linhas depois,
+# `.d-flex{display:flex!important}`. Mesma especificidade, os dois
+# `!important`: vence o ultimo, e um elemento com `hidden` **e** `d-flex`
+# fica visivel.
+#
+# Isto ja aconteceu: a faixa "ha um rascunho nao salvo" do atendimento
+# nascia visivel para todo mundo, com dois botoes que nao faziam nada --
+# o JavaScript so liga os cliques quando encontra rascunho de verdade, e
+# ali nao havia nenhum. Quem via a tela nao tinha como ligar um sintoma ao
+# outro, nem suspeitar de CSS.
+CSS_DURALUX = 'static/duralux/duralux.css'
+
+tema = ler(CSS_DURALUX)
+proprio = ler(CSS_TEMA)
+
+# 1. O tema realmente derruba o `hidden` depois de o declarar?
+pos_hidden = tema.find('[hidden]{display:none!important}')
+conflitos = [
+    m.group(0) for m in re.finditer(r'\.d-[a-z-]*\{display:[^};]+!important\}', tema)
+    if m.start() > pos_hidden >= 0
+]
+print(f'  regras de display que vencem o [hidden] do tema: {len(conflitos)}')
+if not conflitos:
+    print('  (o tema mudou; a regra de resgate abaixo pode ter deixado de ser necessaria)')
+
+# 2. O resgate esta no CSS que carrega por ultimo?
+resgate = re.search(r'\[hidden\]\s*\{[^}]*display:\s*none\s*!important', proprio)
+print(f'  neurodoc.css devolve o significado do atributo: {bool(resgate)}')
+if conflitos and not resgate:
+    falhas.append(
+        'o tema derruba [hidden] e neurodoc.css nao o restaura: '
+        'elemento com hidden + classe de display aparece na tela'
+    )
+
+# 3. Alguma folha carregada DEPOIS torna a derrubar o atributo?
+#
+#    Exigir que `neurodoc.css` seja a ultima seria rigido demais -- o
+#    `head` carrega o CSS do chat e o do catalogo depois dele, por boas
+#    razoes. O que nao pode e uma dessas folhas trazer `display` com
+#    `!important` num seletor que empate com `[hidden]`, porque ai o
+#    resgate volta a perder pela ordem.
+head = ler('templates/partials/head.html')
+folhas = re.findall(r"static '([^']+\.css)'", head)
+print(f'  ordem das folhas: {folhas}')
+depois = folhas[folhas.index('duralux/neurodoc.css') + 1:] if 'duralux/neurodoc.css' in folhas else []
+for folha in depois:
+    caminho = os.path.join('static', folha)
+    if not os.path.exists(caminho):
+        continue
+    # Comentarios fora antes de ler seletor: o `/* ... */` que precede uma
+    # regra entraria no grupo e viraria um nome de seletor de tres linhas.
+    limpo = re.sub(r'/\*.*?\*/', '', ler(caminho), flags=re.S)
+    perigosas = []
+    for seletor, valor in re.findall(r'([^{}]+)\{[^}]*display:\s*([a-z-]+)[^};]*!important', limpo):
+        seletor = ' '.join(seletor.split())
+        # `display:none!important` num seletor com `[hidden]` esta do MESMO
+        # lado: e outro resgate pontual, como o que o chat da equipe ja
+        # fazia para a propria janela antes de a regra geral existir.
+        if valor == 'none' or '[hidden]' in seletor:
+            continue
+        perigosas.append(f'{seletor} -> display:{valor}')
+    print(f'  {folha}: regras que venceriam o [hidden] = {perigosas or "nenhuma"}')
+    if perigosas:
+        falhas.append(
+            f'{folha} vem depois de neurodoc.css e mostra o que deveria estar '
+            f'escondido ({perigosas})'
+        )
+
+# 4. E nenhum template combina os dois contando com a sorte.
+combinam = []
+for caminho in sorted(pathlib.Path(RAIZ_TEMPLATES).rglob('*.html')):
+    texto = ler(str(caminho))
+    for tag in re.findall(r'<[a-zA-Z][^>]*\bhidden\b[^>]*>', texto, re.S):
+        if re.search(r'\bd-(flex|block|grid|inline-flex|inline-block)\b', tag):
+            combinam.append(str(caminho).replace(chr(92), '/'))
+print(f'  templates com hidden + classe de display: {sorted(set(combinam)) or "nenhum"}')
+# Nao e falha: com o resgate no lugar, a combinacao funciona. Fica listado
+# porque e onde o defeito reaparece se alguem mexer na ordem das folhas.
 
 print()
 if falhas:

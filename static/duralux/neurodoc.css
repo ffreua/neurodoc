@@ -226,7 +226,11 @@ textarea.form-control-sm {
 /* ---- Busca rapida global (Ctrl+K) ------------------------------------ */
 /* Sobreposicao propria, e nao o modal do tema: a busca precisa abrir no
  * primeiro terco da tela (onde o olho ja esta, e onde o teclado do celular
- * nao a empurra para fora), e o modal do tema centraliza verticalmente. */
+ * nao a empurra para fora), e o modal do tema centraliza verticalmente.
+ *
+ * O `display:flex` daqui precisava do `[hidden]` logo abaixo para nao
+ * deixar a caixa sempre aberta -- hoje a regra geral no fim do arquivo
+ * cuida disso, e esta continua so por clareza local. */
 .nd-busca-overlay {
     position: fixed;
     inset: 0;
@@ -378,6 +382,28 @@ textarea.form-control-sm {
     .nd-gaveta {
         transition: none;
     }
+}
+
+/* ---- `hidden` volta a esconder ------------------------------------- */
+/*
+ * O tema traz `[hidden]{display:none!important}` — e, dez mil linhas
+ * depois, `.d-flex{display:flex!important}`. Os dois seletores têm a
+ * mesma especificidade e os dois são `!important`, então vence o último:
+ * um elemento com `hidden` **e** `d-flex` fica visível.
+ *
+ * O defeito apareceu no aviso de rascunho do atendimento, e apareceu de
+ * um jeito que não se lê como problema de CSS: a faixa "há um rascunho
+ * não salvo" nascia visível para todo mundo, e os botões dela não faziam
+ * nada — porque o JavaScript só registra os cliques quando de fato
+ * encontra um rascunho, e ali não havia nenhum. Dois sintomas, uma causa.
+ *
+ * Esta regra fica no fim de `neurodoc.css`, que é carregado depois do
+ * tema, e devolve ao atributo o significado que ele tem no HTML. Vale
+ * para todo o produto: qualquer `el.hidden = true` do JavaScript passa a
+ * esconder, inclusive em elemento que carregue classe de display.
+ */
+[hidden] {
+    display: none !important;
 }
 
 /* ---- Print ----------------------------------------------------------- */
