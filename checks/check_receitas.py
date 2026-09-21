@@ -247,6 +247,75 @@ except ValueError as e:
 alvo.street, alvo.city, alvo.state = rua, cidade, uf
 alvo.save(update_fields=['street', 'city', 'state'])
 
+print('=== 10b. o controle especial sai no formato do Anexo XVII ===')
+# Duas vias, e em cada uma a assinatura do medico ACIMA dos quadros de
+# comprador e fornecedor.
+#
+# A ordem ja foi a inversa aqui, com o argumento de que a assinatura
+# fecha o documento e nao deve ter campo em branco embaixo. O formulario
+# oficial faz o contrario: os dois quadros ficam no rodape, abaixo da
+# assinatura do prescritor, e e la que o balconista aprendeu a procurar.
+especial = issuance.create_draft(
+    tenant_a, paciente, None, vinculo_medico, medico.id,
+    MedicalDocumentKind.PRESCRIPTION,
+    {'prescription_text': 'Clonazepam 2 mg — 1 comprimido a noite',
+     'prescription_format': 'special_control'},
+)
+criados.append(especial)
+
+import io as _io
+from pypdf import PdfReader as _PdfReader
+
+_pdf = render_medical_document_pdf(especial)
+_paginas = _PdfReader(_io.BytesIO(_pdf)).pages
+print(f'  vias (uma pagina cada)        -> {len(_paginas)} (2 esperado)')
+if len(_paginas) != 2:
+    failures.append(f'o controle especial saiu com {len(_paginas)} via(s), e nao 2')
+
+for _n, _pagina in enumerate(_paginas, start=1):
+    _linhas = [l.strip() for l in (_pagina.extract_text() or '').splitlines() if l.strip()]
+
+    def _onde(alvo, linhas=_linhas):
+        for i, linha in enumerate(linhas):
+            if alvo.lower() in linha.lower():
+                return i
+        return None
+
+    # A ancora e a **linha de assinatura**, e nao a palavra "CRM": o CRM
+    # aparece antes no cabecalho do emitente, e ancorar nele fazia esta
+    # conferencia passar mesmo com os quadros acima da assinatura. Foi o
+    # que a primeira versao desta secao fazia.
+    import re as _re
+
+    _assinatura = next(
+        (i for i, l in enumerate(_linhas) if _re.fullmatch(r'_{20,}', l)), None,
+    )
+    _comprador = _onde('COMPRADOR')
+    _fornecedor = _onde('FORNECEDOR')
+    _via = _onde('VIA —') if _onde('VIA —') is not None else _onde('VIA')
+    print(f'  via {_n}: rotulo={_linhas[_via][:30] if _via is not None else None!r}  '
+          f'linha de assinatura={_assinatura}  comprador={_comprador}  '
+          f'fornecedor={_fornecedor}')
+    if None in (_assinatura, _comprador, _fornecedor):
+        failures.append(f'via {_n} do controle especial sem assinatura ou sem os quadros')
+        continue
+    # E o nome e o CRM acompanham a linha, logo abaixo dela.
+    _bloco = ' '.join(_linhas[_assinatura:_comprador])
+    if 'CRM' not in _bloco:
+        failures.append(f'via {_n}: a linha de assinatura saiu sem o CRM abaixo dela')
+    if not _assinatura < _comprador:
+        failures.append(f'via {_n}: os quadros vieram ACIMA da assinatura do medico')
+    if not _comprador < _fornecedor:
+        failures.append(f'via {_n}: o quadro do fornecedor veio antes do comprador')
+
+# Os rotulos de via dizem qual folha fica retida.
+_texto_especial = texto_do_pdf(_pdf)
+for _rotulo in ['RETENÇÃO DA FARMÁCIA', 'ORIENTAÇÃO AO PACIENTE']:
+    if _rotulo not in _texto_especial:
+        failures.append(f'o controle especial saiu sem o rotulo "{_rotulo}"')
+print(f'  rotulos das duas vias         -> '
+      f'{all(r in _texto_especial for r in ["RETENÇÃO DA FARMÁCIA", "ORIENTAÇÃO AO PACIENTE"])}')
+
 print('=== 11. a tela do paciente oferece emitir documento ===')
 pagina = cliente_med.get(f'/app/patients/{paciente.id}/')
 tem_botao = b'documents/patients/' in pagina.content or b'Emitir documento' in pagina.content

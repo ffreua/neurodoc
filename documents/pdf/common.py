@@ -440,16 +440,23 @@ def _one_copy(document, title, body_flowables, clinic, via_label='', include_add
     story.append(Spacer(1, 0.5 * cm))
     story.extend(body_flowables)
     story.append(Spacer(1, 1 * cm))
-    if control_identification:
-        # Antes da assinatura do medico, e nao depois: quem preenche o
-        # quadro e o balconista, e o que fecha o documento e a assinatura
-        # de quem o emitiu. Invertido, a receita terminaria com campos em
-        # branco embaixo da assinatura, como se ela os cobrisse.
-        story.extend(_control_identification_block())
-        story.append(Spacer(1, 0.5 * cm))
     story.append(HRFlowable(width='100%', thickness=0.5))
     story.append(Spacer(1, 0.3 * cm))
     story.extend(_signature_footer(document))
+    if control_identification:
+        # Depois da assinatura, no pe da folha.
+        #
+        # Esta ordem ja foi a inversa, com o argumento de que a assinatura
+        # de quem emite fecha o documento e nao deve ter campos em branco
+        # embaixo. O argumento e razoavel e esta errado: o formulario do
+        # Anexo XVII da Portaria SVS/MS 344/98 traz os dois quadros no
+        # rodape, abaixo da assinatura do prescritor, e e la que o
+        # balconista da farmacia aprendeu a procura-los. Uma receita que
+        # os coloca no meio da folha obriga quem dispensa a caçar o campo
+        # -- e o custo de contrariar um formulario que todo mundo conhece
+        # e pago no balcao, nao aqui.
+        story.append(Spacer(1, 0.7 * cm))
+        story.extend(_control_identification_block())
     return story
 
 
