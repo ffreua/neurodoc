@@ -28,6 +28,41 @@ class OrganizationSignupForm(forms.Form):
     trade_name = forms.CharField(label='Nome fantasia', max_length=255, required=False)
     cnpj = forms.CharField(label='CNPJ', max_length=18)
 
+    #: A versão do contrato que estava na tela quando a pessoa leu.
+    #:
+    #: Vai e volta escondido para que uma publicação entre o carregamento
+    #: e o envio não faça alguém aceitar um texto que não viu. O servidor
+    #: não confia neste valor para gravar nada — ele só compara com a
+    #: versão corrente e, se diferirem, devolve o formulário com o texto
+    #: novo à vista. O que fica registrado é sempre `contract.VERSAO`.
+    contract_version = forms.CharField(widget=forms.HiddenInput(), required=False)
+
+    #: O aceite. `required=True` num `BooleanField` significa marcado:
+    #: desmarcado o formulário não passa, e é essa a intenção -- criar uma
+    #: clínica sem aceite registrado é criar uma clínica sem contrato.
+    accept_contract = forms.BooleanField(
+        label='Li e aceito o Contrato de Adesão e o tratamento de dados nele descrito',
+        error_messages={'required': 'É preciso aceitar o contrato para criar a clínica.'},
+    )
+
+    def clean_contract_version(self):
+        """A versão lida é a versão corrente?
+
+        Se não for, o texto mudou entre abrir a página e enviar o
+        formulário. Recusar aqui custa um reenvio; aceitar em silêncio
+        registraria como lido um texto que ninguém leu -- que é
+        exatamente o vício que anula uma cláusula de adesão.
+        """
+        from tenancy import contract
+
+        lida = (self.cleaned_data.get('contract_version') or '').strip()
+        if lida and lida != contract.VERSAO:
+            raise forms.ValidationError(
+                'O contrato foi atualizado enquanto você preenchia. '
+                'Leia a versão nova abaixo e aceite de novo.'
+            )
+        return contract.VERSAO
+
     def clean_email(self):
         return self.cleaned_data['email'].strip().lower()
 

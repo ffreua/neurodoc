@@ -97,7 +97,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `core` | settings, urls, asgi, celery |
 | `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`) e central de ajuda (`base/help_content.py`) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
-| `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação); **planos, limites e a matriz de permissão** |
+| `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação), `ContractAcceptance`; **planos, limites, a matriz de permissão e o contrato de adesão** (`contract.py`) |
 | `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto |
 | `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior |
@@ -145,6 +145,17 @@ completo, pré-cadastro da agenda, quatro caminhos do papel médico).
 
 Acesso é liberado por **código de convite** (`tenancy/invitations.py`), que
 carrega o plano contratado — não há pagamento on-line.
+
+**Contrato de adesão: `tenancy/contract.py`.** O texto mora em código pelo
+mesmo motivo dos preços — mudá-lo é um commit com autor e data. `VERSAO`
+identifica a redação, e **nunca se edita uma versão já aceita**: texto novo
+é versão nova. O aceite é obrigatório no cadastro e grava versão, SHA-256
+do texto, quem aceitou, IP, navegador e os dois prazos (arrependimento de 7
+dias, vencimento no aniversário). Uma via completa vai por e-mail ao
+contratante; `/contrato/` é público; `/instalacao/contratos/` lista os
+aceites e acusa quem aponta para um texto diferente do que está no ar. O
+que ele fixa em matéria de LGPD está em `docs/governance/lgpd.md` §9 —
+inclusive as três escolhas que ainda pedem confirmação de advogado.
 
 ## 6. Ambiente local
 
@@ -222,6 +233,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_mensagem_clinica.py` | as duas portas do rodapé do menu: qualquer vínculo escreve, a mensagem fica na clínica de quem escreveu, o texto não vai para a trilha, e o console lê as duas com MFA |
 | `check_perimetro.py` | a borda: agente de captura sem CSRF, desidentificação sem comer palavra, IP do visitante atrás do proxy |
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
+| `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são

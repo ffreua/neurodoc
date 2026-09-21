@@ -1,12 +1,41 @@
-{% load nd %}
-{% if form.non_field_errors %}
+{% load nd %}{% comment %}Renderiza um formulário inteiro, ou uma parte dele.
+
+`pular` e `somente` existem para o caso em que alguma coisa precisa
+aparecer **no meio** do formulário -- o contrato de adesão, que fica entre
+os campos e a caixa de aceite. A alternativa era copiar a marcação de um
+campo para o template que precisa disso, e a cópia deixa de acompanhar
+este arquivo na primeira vez que um erro de campo mudar de lugar.
+
+Chamado em duas partes, os erros gerais e os campos escondidos saem só na
+primeira: duplicá-los mostraria o mesmo aviso duas vezes e mandaria dois
+`contract_version` no POST.
+
+    {% include "partials/form_fields.html" with pular="accept_contract" %}
+    ... o que precisa ficar no meio ...
+    {% include "partials/form_fields.html" with somente="accept_contract" %}
+{% endcomment %}{% with erros_ocultos=form|nd_hidden_errors %}
+{% if erros_ocultos and not somente %}
+{% comment %}Erro em campo escondido apareceria em lugar nenhum: o laco de
+baixo imprime `{{ field }}` e mais nada, e o formulario voltaria recusado
+sem dizer por que. Aconteceu com `contract_version` -- quem enviava o
+cadastro depois de o contrato mudar via a mesma tela de novo, sem aviso.
+
+`nd_hidden_errors` e um filtro, e nao um laco aqui, porque a caixa de
+aviso precisa saber se ha **algum** erro antes de se abrir -- um laco
+dentro dela nasceria vazio toda vez que o formulario fosse desenhado.{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    {% for error in erros_ocultos %}<div>{{ error }}</div>{% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+{% if form.non_field_errors and not somente %}
 <div class="alert alert-danger fade show d-flex align-items-start gap-2" role="alert">
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
     <div>{% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>
 </div>
 {% endif %}
-{% for field in form.hidden_fields %}{{ field }}{% endfor %}
-{% for field in form.visible_fields %}
+{% if not somente %}{% for field in form.hidden_fields %}{{ field }}{% endfor %}{% endif %}
+{% for field in form.visible_fields %}{% if somente and field.name != somente %}{% elif pular and field.name == pular %}{% else %}
 <div class="mb-3">
     {% if field|nd_is_checkbox %}
     <div class="form-check">
@@ -26,4 +55,4 @@
     {% if field.help_text %}<div class="form-text fs-11">{{ field.help_text }}</div>{% endif %}
     {% for error in field.errors %}<div class="invalid-feedback d-block fs-11">{{ error }}</div>{% endfor %}
 </div>
-{% endfor %}
+{% endif %}{% endfor %}

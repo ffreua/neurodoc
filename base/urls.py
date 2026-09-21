@@ -7,6 +7,11 @@ app_name = 'onboarding'
 urlpatterns = [
     path('', views.LandingView.as_view(), name='landing'),
     path('signup/<str:token>/', views.OrganizationSignupView.as_view(), name='signup'),
+    # O contrato de adesao, aberto e sem convite. Quem vai aderir precisa
+    # poder ler -- e mandar ao advogado da clinica -- antes de decidir; um
+    # contrato que so aparece na hora de clicar em "aceito" e um contrato
+    # que ninguem teve como avaliar.
+    path('contrato/', views.ContractView.as_view(), name='contrato'),
     # Plano Gratuito sem intermediário: o botão do cartão posta aqui, o
     # convite é emitido na hora e a pessoa segue para `signup`. Os planos
     # pagos continuam indo ao formulário de contato, onde a conversa

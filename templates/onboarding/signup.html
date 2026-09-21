@@ -2,6 +2,7 @@
 {% block title %}Criar organização — NeuroDoc{% endblock %}
 {% block heading %}Criar sua clínica{% endblock %}
 {% block subheading %}Você será o responsável (owner) da organização criada.{% endblock %}
+{% block card_width %}wd-700{% endblock %}
 {% block content %}
 {% comment %}O plano vem escrito porque este passo passou a ser o passo
 seguinte ao clique no cartão: quem escolheu o Gratuito na página de vendas
@@ -24,7 +25,31 @@ clínica.{% endcomment %}
 {% endif %}
 <form method="post" novalidate>
     {% csrf_token %}
-    {% include "partials/form_fields.html" %}
+    {% include "partials/form_fields.html" with pular="accept_contract" %}
+
+    {% comment %}O contrato fica **na** página, numa caixa que rola, e não
+    atrás de um link. Uma caixa de aceite apontando para outra aba é a
+    forma clássica de um contrato de adesão ser considerado não informado
+    (CDC, art. 46) — a pessoa marca "aceito" sem que o texto lhe tenha
+    sido apresentado. Rolar é diferente de abrir.
+
+    `form_fields.html` renderiza os campos declarados no formulário, e
+    `contract_version` e `accept_contract` estão entre eles; por isso a
+    caixa vem aqui, imediatamente antes do botão, e o aceite é o último
+    gesto antes de criar a clínica.{% endcomment %}
+    {% if contrato %}
+    <div class="nd-contrato-caixa mb-3" tabindex="0" role="region"
+         aria-label="Contrato de Adesão, versão {{ contrato.VERSAO }}">
+        {% include "partials/contrato.html" %}
+    </div>
+    <p class="fs-11 text-muted mb-3">
+        <a href="{% url 'onboarding:contrato' %}" target="_blank" rel="noopener">Abrir o contrato
+        em outra aba</a> para imprimir ou mandar ao seu advogado. Uma via vai para o seu
+        e-mail assim que a clínica for criada.
+    </p>
+    {% endif %}
+    {% include "partials/form_fields.html" with somente="accept_contract" %}
+
     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Criar conta e clínica</button>
 </form>
 {% endblock %}

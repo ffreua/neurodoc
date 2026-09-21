@@ -196,7 +196,7 @@ publico = Client()
 pagina = publico.get(f'/signup/{token}/')
 print(f'  a pagina de cadastro do convite abre -> {pagina.status_code}')
 
-usuario, clinica, vinculo = accept_platform_invitation(
+usuario, clinica, vinculo, _aceite = accept_platform_invitation(
     token, 'dono@clinica-nova.example', 'S3nhaF0rteDeVerdade!2026',
     'Clinica Nova Neurologia Ltda', cnpj('112223330001'), trade_name='Clinica Nova',
 )

@@ -1,0 +1,44 @@
+{% comment %}O contrato de adesão, renderizado de `tenancy/contract.py`.
+
+Um único template para as três telas que mostram o contrato: a página
+pública, a caixa do cadastro e o console do superadministrador. Três
+cópias do texto em HTML divergiriam, e divergiriam exatamente onde não
+podem — entre o que a pessoa leu ao aceitar e o que o console exibe
+depois como sendo o que ela aceitou.
+
+A numeração sai de `forloop.counter`, e não está escrita nas cláusulas:
+acrescentar uma cláusula no meio renumeraria tudo sozinho, em vez de
+deixar duas cláusulas 9 até alguém reparar.{% endcomment %}
+<article class="nd-contrato">
+    <header class="nd-contrato-cabeca">
+        <h2 class="fw-bold text-dark mb-1">{{ contrato.TITULO }}</h2>
+        <p class="fs-12 text-muted mb-0">{{ contrato.SUBTITULO }}</p>
+        <p class="fs-11 text-muted mb-0">Versão {{ contrato.VERSAO }}</p>
+    </header>
+
+    {% comment %}O resumo vem antes do contrato, e não no lugar dele. Um
+    contrato de adesão que ninguém lê é um contrato que se discute depois
+    (CDC, art. 46); dizer em quatro frases o que mais importa, com a
+    cláusula ao lado, é o que faz a leitura começar.{% endcomment %}
+    <ul class="nd-contrato-resumo">
+        {% for item in contrato.RESUMO %}
+        <li>
+            <strong class="d-block fs-13 text-dark">{{ item.0 }}</strong>
+            <span class="fs-12 text-muted">{{ item.1 }}</span>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <ol class="nd-contrato-clausulas">
+        {% for clausula in contrato.CLAUSULAS %}
+        <li>
+            <h3 class="fs-13 fw-bold text-dark mb-2">{{ forloop.counter }}. {{ clausula.titulo }}</h3>
+            <ol class="nd-contrato-itens">
+                {% for item in clausula.itens %}
+                <li><span class="nd-contrato-numero">{{ forloop.parentloop.counter }}.{{ forloop.counter }}.</span>{{ item }}</li>
+                {% endfor %}
+            </ol>
+        </li>
+        {% endfor %}
+    </ol>
+</article>

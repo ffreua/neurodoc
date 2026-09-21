@@ -49,6 +49,11 @@ from django.views import View
 
 PAGE_SIZE = 100
 
+#: Quantos nomes de organizacao o aviso de "sem contrato" imprime antes de
+#: virar um numero. Doze cabe em duas linhas; acima disso o aviso deixa de
+#: ser aviso e vira lista.
+NOMES_VISIVEIS = 12
+
 
 class SuperAdminView(LoginRequiredMixin, View):
     """Base: superusuário com MFA verificada, ou 404.
@@ -717,6 +722,87 @@ class ClinicMessagesView(SuperAdminView):
         context['sem_aviso'] = ClinicMessage.objects.exclude(notify_error='').count()
         context['novas'] = ClinicMessage.objects.filter(status='new').count()
         return render(request, 'ops/superadmin/clinic_messages.html', context)
+
+
+class ContractsView(SuperAdminView):
+    """Quem aceitou o contrato de adesao, qual versao, e quando vence.
+
+    Tres perguntas que so tem resposta aqui, e cada uma tem um dia em que
+    alguem precisa dela:
+
+    - **A clinica tem contrato?** Uma organizacao sem aceite registrado e
+      uma clinica usando o sistema sem contrato. A tela mostra essas
+      primeiro, porque e o unico item da lista que exige acao.
+    - **Ela aceitou o texto que esta no ar?** A versao sozinha nao
+      responde: se alguem editar `tenancy/contract.py` sem trocar
+      `VERSAO`, todo aceite passado aponta para um texto que ninguem leu.
+      Por isso a coluna compara o SHA-256 gravado no aceite com o do texto
+      corrente, e diz quando eles divergem.
+    - **Quando vence, e ainda cabe arrependimento?** Prazo de contrato nao
+      se calcula de cabeca no dia em que o cliente liga pedindo o
+      dinheiro de volta.
+
+    So leitura, como o resto do console. Registrar desistencia daqui seria
+    escrita, e a desistencia tem consequencia comercial -- ela passa pelo
+    `/admin/`, onde ha formulario, confirmacao e registro de quem fez.
+    """
+
+    def get(self, request):
+        from tenancy import contract
+        from tenancy.contracts import sha_do_texto
+        from tenancy.models import ContractAcceptance, Tenant
+        from tenancy.plans import plan_label
+
+        sha_atual = sha_do_texto()
+        agora = timezone.now()
+
+        linhas = []
+        consulta = ContractAcceptance.objects.select_related(
+            'tenant', 'accepted_by',
+        ).order_by('-created_at')
+        for aceite in consulta[:PAGE_SIZE]:
+            linhas.append({
+                'aceite': aceite,
+                'clinica': aceite.tenant.trade_name or aceite.tenant.legal_name,
+                'plano': plan_label(aceite.plan),
+                'texto_confere': aceite.text_sha256 == sha_atual,
+                'versao_atual': aceite.version == contract.VERSAO,
+                'arrependimento_aberto': (
+                    aceite.withdrawn_at is None and aceite.withdrawal_deadline > agora
+                ),
+                'vencido': aceite.expires_at <= agora,
+            })
+
+        # Clinicas sem aceite. Sao as que nasceram antes de o contrato
+        # existir -- e sao exatamente as que precisam aceitar a proxima
+        # versao. Listadas por nome, sem acao: regularizar e conversa
+        # comercial, nao botao de console.
+        #
+        # A contagem e inteira e a lista e curta. Numa instalacao com
+        # muitas organizacoes antigas, imprimir todos os nomes vira um
+        # paragrafo que ninguem le -- e o numero, que e o que importa,
+        # fica perdido no meio dele.
+        com_aceite = ContractAcceptance.objects.values_list('tenant_id', flat=True)
+        pendentes = Tenant.objects.exclude(id__in=com_aceite).order_by('legal_name')
+        sem_contrato = list(pendentes[:NOMES_VISIVEIS])
+        sem_contrato_total = pendentes.count()
+
+        context = _nav('contracts')
+        context['contrato'] = contract
+        context['sha_atual'] = sha_atual
+        context['rows'] = linhas
+        context['total'] = ContractAcceptance.objects.count()
+        context['sem_contrato'] = sem_contrato
+        context['sem_contrato_total'] = sem_contrato_total
+        context['sem_contrato_ocultos'] = max(0, sem_contrato_total - len(sem_contrato))
+        # So conta como falha o envio que foi **tentado** e falhou. Um
+        # aceite sem `emailed_at` e sem erro nasceu fora do cadastro (um
+        # roteiro, um comando de terminal), e nunca teve via para enviar:
+        # contar esses como falha de SMTP manda procurar defeito onde nao
+        # ha nenhum.
+        context['sem_copia'] = ContractAcceptance.objects.exclude(email_error='').count()
+        context['divergentes'] = sum(1 for l in linhas if not l['texto_confere'])
+        return render(request, 'ops/superadmin/contracts.html', context)
 
 
 class LeadsView(SuperAdminView):

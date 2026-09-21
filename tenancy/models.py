@@ -417,6 +417,88 @@ class ClinicMessage(TenantModel):
         return f'{self.get_kind_display()}: {self.subject}'
 
 
+class ContractAcceptance(TenantModel):
+    """O aceite do contrato de adesao, com prova de o que foi aceito.
+
+    Nasce junto com a clinica, na mesma transacao de
+    `accept_platform_invitation`: uma organizacao sem aceite registrado
+    seria uma clinica usando o sistema sem contrato, e descobrir isso
+    depois nao tem conserto -- ninguem volta no tempo para perguntar.
+
+    **Por que guardar o hash do texto.** A versao sozinha nao prova nada:
+    se alguem editar `tenancy/contract.py` sem trocar `VERSAO`, todos os
+    aceites passados passam a apontar para um texto que ninguem leu.
+    Com o SHA-256 do texto gravado no aceite, a divergencia aparece --
+    e aparece na tela do console, que e onde alguem olha.
+
+    `TenantModel` porque o aceite **e** da clinica, e um dia ela vai
+    querer reler o que assinou. O console do superadministrador atravessa
+    organizacoes para ler, como ja faz com as mensagens e com a trilha.
+    """
+
+    #: Versao aceita (`tenancy.contract.VERSAO`). Texto novo e versao
+    #: nova: nunca se edita uma versao ja aceita.
+    version = models.CharField(max_length=20)
+    #: SHA-256 de `contract.texto_simples()` no momento do aceite.
+    text_sha256 = models.CharField(max_length=64)
+    #: O plano contratado, copiado do convite. Fica aqui, e nao so no
+    #: `Tenant`, porque o plano da clinica muda e o do contrato assinado
+    #: nao: o que se cobrou no primeiro ano e o que esta escrito aqui.
+    plan = models.CharField(max_length=40, choices=PlanCode.choices, default=PlanCode.FREE)
+
+    #: A conta que aceitou, enquanto ela existir.
+    #:
+    #: `SET_NULL`, e nao `PROTECT`. A tentacao e proteger -- e prova de
+    #: aceite, e prova nao se apaga. Mas o que prova o aceite sao os dois
+    #: campos abaixo, copiados no instante; a chave estrangeira e
+    #: conveniencia para abrir a conta a partir do contrato. Com `PROTECT`,
+    #: uma conta encerrada ficaria presa para sempre por causa dela, e o
+    #: unico jeito de encerrar a conta seria apagar o aceite -- que e
+    #: exatamente o que nao pode acontecer.
+    accepted_by = models.ForeignKey(
+        'accounts.User', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+    )
+    #: Nome e e-mail copiados no aceite. Sao **eles** que provam quem
+    #: aceitou: a conta pode trocar de e-mail, ser desativada ou sumir, e
+    #: quem aceitou naquele dia continua sendo quem esta escrito aqui.
+    accepted_name = models.CharField(max_length=255, blank=True)
+    accepted_email = models.EmailField(max_length=254)
+    source_ip = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=255, blank=True)
+
+    #: Ate quando cabe arrependimento (clausula 9), e quando vence o
+    #: periodo contratado (clausula 2). Gravados, e nao calculados na
+    #: leitura, porque sao termo de contrato: mudar o prazo de sete dias
+    #: amanha nao pode reescrever o prazo de quem assinou ontem.
+    withdrawal_deadline = models.DateTimeField()
+    expires_at = models.DateTimeField()
+    withdrawn_at = models.DateTimeField(null=True, blank=True)
+
+    #: Copia enviada ao contratante. Mesmo padrao do lead e da mensagem:
+    #: o aceite e gravado antes de o e-mail sair, e a falha do e-mail fica
+    #: registrada em vez de derrubar a criacao da clinica.
+    emailed_at = models.DateTimeField(null=True, blank=True)
+    email_error = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            # Uma clinica aceita cada versao uma vez. Aceitar a mesma
+            # versao duas vezes nao acrescenta nada e faria a tela do
+            # console perguntar qual das duas vale.
+            models.UniqueConstraint(
+                fields=['tenant', 'version'],
+                name='tenancy_contract_tenant_version_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['-created_at'], name='tenancy_contrato_recent_idx'),
+        ]
+
+    def __str__(self):
+        return f'Contrato {self.version} — {self.accepted_email}'
+
+
 class LeadStatus(models.TextChoices):
     NEW = 'new', 'Novo'
     CONTACTED = 'contacted', 'Contatado'

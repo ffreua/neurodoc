@@ -384,6 +384,109 @@ textarea.form-control-sm {
     }
 }
 
+/* ---- Contrato de adesao ---------------------------------------------- */
+/*
+ * Texto longo para ler na tela, em tres lugares: a pagina publica, a
+ * caixa do cadastro e o console da instalacao. O que muda entre eles e o
+ * recipiente; a tipografia e a mesma, e por isso mora aqui e nao em cada
+ * template.
+ *
+ * `max-width` em caractere (`ch`) e nao em pixel: a medida que importa
+ * numa coluna de texto e quantas letras cabem na linha, e nenhuma fonte
+ * garante isso em pixel. Entre 60 e 75 caracteres e onde o olho volta
+ * para a linha certa sem se perder.
+ */
+.nd-contrato {
+    max-width: 72ch;
+    color: var(--bs-body-color, #4b5563);
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.nd-contrato-cabeca {
+    border-bottom: 1px solid var(--bs-border-color, #e5e7eb);
+    padding-bottom: 12px;
+    margin-bottom: 16px;
+}
+
+.nd-contrato-resumo {
+    list-style: none;
+    padding: 16px;
+    margin: 0 0 24px;
+    border: 1px solid var(--bs-border-color, #e5e7eb);
+    border-radius: 8px;
+    background: var(--bs-gray-100, #f9fafb);
+    display: grid;
+    gap: 12px;
+}
+
+/* Duas colunas so quando ha largura para duas colunas de texto legiveis.
+ * `auto-fit` com `minmax` faz isso sem media query e sem numero magico de
+ * breakpoint: no celular cai para uma coluna sozinho. */
+@media (min-width: 720px) {
+    .nd-contrato-resumo {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+}
+
+.nd-contrato-clausulas,
+.nd-contrato-itens {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nd-contrato-clausulas > li {
+    margin-bottom: 20px;
+}
+
+.nd-contrato-itens > li {
+    /* O numero da clausula fica na calha, fora do bloco de texto: quem
+     * procura "9.2" corre o olho pela margem esquerda em vez de ler o
+     * comeco de cada paragrafo. */
+    padding-left: 44px;
+    text-indent: -44px;
+    margin-bottom: 8px;
+}
+
+.nd-contrato-numero {
+    display: inline-block;
+    width: 44px;
+    text-indent: 0;
+    color: var(--bs-gray-500, #9ca3af);
+    font-variant-numeric: tabular-nums;
+}
+
+/* A caixa com rolagem propria: o cadastro e o console mostram o contrato
+ * inteiro sem empurrar o botao de aceite para tres telas abaixo.
+ *
+ * `tabindex="0"` esta no HTML, e nao aqui, mas e por causa desta regra:
+ * area rolavel que so rola com o mouse deixa de fora quem navega pelo
+ * teclado. */
+.nd-contrato-caixa {
+    max-height: 340px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 16px;
+    border: 1px solid var(--bs-border-color, #e5e7eb);
+    border-radius: 8px;
+    background: #fff;
+}
+
+/* Dentro da caixa o titulo desce de tamanho. Na pagina publica ele e o
+ * titulo da pagina e manda no tamanho dela; no cadastro e no console ele
+ * esta dentro de outra tela, e um titulo de pagina ali disputa a atencao
+ * com o titulo que de fato manda. */
+.nd-contrato-caixa .nd-contrato-cabeca h2 {
+    font-size: 15px;
+    margin-bottom: 2px;
+}
+
+.nd-contrato-caixa:focus-visible {
+    outline: 2px solid var(--bs-primary, #3454d1);
+    outline-offset: 2px;
+}
+
 /* ---- `hidden` volta a esconder ------------------------------------- */
 /*
  * O tema traz `[hidden]{display:none!important}` — e, dez mil linhas
@@ -414,6 +517,19 @@ textarea.form-control-sm {
     .footer,
     .nd-no-print {
         display: none !important;
+    }
+
+    /* Na impressao a caixa deixa de rolar: papel nao rola, e um contrato
+     * impresso com 340px de altura sai com uma clausula e meia. */
+    .nd-contrato-caixa {
+        max-height: none;
+        overflow: visible;
+        border: 0;
+        padding: 0;
+    }
+
+    .nd-contrato {
+        max-width: none;
     }
 
     .nxl-container {

@@ -66,6 +66,10 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
                     <li><a href="{% url 'onboarding:help' %}">Manual de uso</a></li>
                     <li><a href="{% url 'onboarding:help-faq' %}">Perguntas frequentes</a></li>
                     <li><a href="{% url 'verify-document' %}">Verificar um documento</a></li>
+                    {% comment %}O contrato no rodape, e nao so na hora de
+                    aderir: quem esta avaliando o produto precisa poder ler
+                    -- e mandar ao advogado -- antes de decidir.{% endcomment %}
+                    <li><a href="{% url 'onboarding:contrato' %}">Contrato de adesão</a></li>
                 </ul>
             </div>
             <div class="col-md-3">

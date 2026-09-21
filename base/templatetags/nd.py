@@ -241,3 +241,23 @@ def nd_confirmation_contacts(patient):
         if phone and email:
             break
     return {'phone': phone, 'email': email}
+
+
+@register.filter
+def nd_hidden_errors(form):
+    """Erros dos campos escondidos, achatados numa lista.
+
+    Campo escondido e renderizado como `{{ field }}` e mais nada, entao um
+    erro nele nao aparece em lugar nenhum: o formulario volta recusado sem
+    dizer por que. Aconteceu com `contract_version` -- quem enviava o
+    cadastro depois de o contrato ter mudado via a mesma tela de novo, sem
+    explicacao e sem nada para corrigir.
+
+    Filtro, e nao laco no template, porque o template precisa saber se ha
+    **algum** erro antes de abrir a caixa de aviso -- senao a caixa nasce
+    vazia toda vez que o formulario e desenhado.
+    """
+    erros = []
+    for field in form.hidden_fields():
+        erros.extend(field.errors)
+    return erros

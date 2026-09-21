@@ -42,6 +42,45 @@ def _oficiais(tenant_id):
     )
 
 
+def _cnpj(base):
+    def dv(nums, pesos):
+        resto = sum(n * p for n, p in zip(nums, pesos)) % 11
+        return 0 if resto < 2 else 11 - resto
+
+    numeros = [int(x) for x in base]
+    d1 = dv(numeros, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    d2 = dv(numeros + [d1], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
+    return base + str(d1) + str(d2)
+
+
+def limpar_residuo():
+    """Desfaz o que uma execucao interrompida **deste roteiro** deixou.
+
+    Limpar so no fim nao basta: a execucao que aborta no meio deixa a
+    clinica e o usuario para tras, e a proxima morre em
+    `EmailAlreadyRegistered` -- uma mensagem que nao tem relacao nenhuma
+    com o que se esta verificando. Foi exatamente o que aconteceu quando o
+    aceite de contrato passou a segurar a clinica por PROTECT.
+
+    So alcanca o CNPJ e o e-mail usados aqui.
+    """
+    from tenancy.models import ContractAcceptance
+
+    velhas = list(Tenant.objects.filter(cnpj=_cnpj('987654320001')))
+    if velhas:
+        ContractAcceptance.objects.filter(tenant__in=velhas).delete()
+        for velha in velhas:
+            ExamNode.objects.filter(tenant=velha).delete()
+            ExamTemplate.objects.filter(tenant=velha).delete()
+            ExamScaleItem.objects.filter(tenant=velha).delete()
+            ExamScale.objects.filter(tenant=velha).delete()
+            Membership.objects.filter(tenant=velha).delete()
+            velha.delete()
+    User.objects.filter(email='check-roteiro@example.invalid').delete()
+
+
+limpar_residuo()
+
 print('=== 1. as clinicas existentes tem roteiro publicado e padrao ===')
 for tenant in Tenant.objects.all():
     publicados = _oficiais(tenant.id).count()
@@ -76,15 +115,6 @@ if pede_comando or sem_roteiro:
 print('=== 3. clinica criada por convite ja nasce com roteiro ===')
 
 
-def _cnpj(base):
-    def dv(nums, pesos):
-        resto = sum(n * p for n, p in zip(nums, pesos)) % 11
-        return 0 if resto < 2 else 11 - resto
-
-    numeros = [int(x) for x in base]
-    d1 = dv(numeros, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-    d2 = dv(numeros + [d1], [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])
-    return base + str(d1) + str(d2)
 
 
 emissor = User.objects.filter(is_superuser=True).first()
@@ -92,7 +122,7 @@ retorno = issue_invitation(
     purpose=InvitationPurpose.PLATFORM, issued_by=emissor, plan=PlanCode.BASIC,
 )
 token = next(x for x in retorno if isinstance(x, str))
-usuario, nova, _vinculo = accept_platform_invitation(
+usuario, nova, _vinculo, _aceite = accept_platform_invitation(
     token, 'check-roteiro@example.invalid', 'S3nhaF0rte!123',
     'Clinica Do Roteiro Ltda', _cnpj('987654320001'),
 )
@@ -118,6 +148,12 @@ if repetido is not None or depois != antes:
     falhas.append('provisionar duas vezes criou uma versao nova do roteiro sem necessidade')
 
 # limpeza: a clinica de teste nao fica no banco
+#
+# O aceite de contrato sai antes de tudo: `ContractAcceptance.tenant` e
+# PROTECT, como todo `TenantModel`, e a clinica criada pelo caminho do
+# cliente agora nasce com um.
+from tenancy.models import ContractAcceptance
+ContractAcceptance.objects.filter(tenant=nova).delete()
 ExamNode.objects.filter(tenant=nova).delete()
 ExamTemplate.objects.filter(tenant=nova).delete()
 ExamScaleItem.objects.filter(tenant=nova).delete()

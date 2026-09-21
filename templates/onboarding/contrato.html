@@ -1,0 +1,30 @@
+{% extends "base_public.html" %}
+{% block title %}Contrato de Adesão — NeuroDoc{% endblock %}
+{% block content %}
+{% comment %}Página pública, sem login e sem convite: o contrato precisa
+poder ser lido — e mandado ao advogado da clínica — antes de alguém
+decidir aderir. Um contrato que só aparece na hora de clicar em "aceito"
+é um contrato que ninguém teve como avaliar.{% endcomment %}
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    {% include "partials/contrato.html" %}
+
+                    <hr class="my-4">
+                    <p class="fs-11 text-muted mb-2">
+                        Este é o texto em vigor. Ao aderir, ficam registrados a versão, a data,
+                        quem aceitou e uma conferência (SHA-256) do texto — e uma via vai por
+                        e-mail para quem contratou.
+                    </p>
+                    <div class="d-flex flex-wrap gap-2">
+                        <a class="btn btn-primary" href="{% url 'onboarding:landing' %}#planos">Ver os planos</a>
+                        <a class="btn btn-light" href="{% url 'onboarding:landing' %}#contato">Falar com a gente</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

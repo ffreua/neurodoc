@@ -37,7 +37,8 @@ Consequências práticas que decorrem disso:
 - **Cada clínica precisa do seu encarregado.** A instalação também precisa
   do dela, como operadora.
 - **O contrato entre clínica e NeuroDoc é o instrumento central** (art.
-  39): é ele que autoriza o tratamento e fixa as instruções.
+  39): é ele que autoriza o tratamento e fixa as instruções. Ele existe,
+  é aceito na adesão e está descrito no §9.
 
 ---
 
@@ -136,7 +137,7 @@ decisão ou de uma assinatura.
 | --- | --- | --- | --- |
 | 1 | Confirmar a leitura de controlador/operador do §1 | Assessoria jurídica | Todo o resto |
 | 2 | Validar a base legal de cada linha do §2 | Assessoria jurídica | Dado real |
-| 3 | Contrato clínica ↔ NeuroDoc com as cláusulas do art. 39 | Controlador + assessoria | Dado real |
+| 3 | ~~Contrato clínica ↔ NeuroDoc com as cláusulas do art. 39~~ — **minuta escrita e implementada** (`tenancy/contract.py`, §9). Falta a **revisão por advogado** | Assessoria jurídica | Dado real |
 | 4 | Contrato com cada operador do §4 | Mantenedor da instalação | Dado real |
 | 5 | Designar o encarregado da instalação e divulgar o contato (art. 41, §1º) | Mantenedor | Dado real |
 | 6 | Cada clínica designar o encarregado dela | Cada controlador | Dado real naquela clínica |
@@ -176,9 +177,50 @@ Levar estas, e não "está tudo certo com a LGPD?":
 
 | Pendência | Estado | Observação |
 | --- | --- | --- |
-| P-06 | **Aberta** | As medidas técnicas estão implementadas e verificadas (§5). Falta a decisão jurídica: §6, itens 1–10. |
+| P-06 | **Aberta** | As medidas técnicas estão implementadas e verificadas (§5), e o contrato do art. 39 existe e é aceito na adesão (§9). Falta a decisão jurídica: §6, itens 1, 2 e 4–10, e a revisão do contrato (item 3). |
 | P-07 | **Aberta** | Nenhuma integração com o SNCR foi implementada ou testada. Até a verificação regulatória, `prescription` é receita comum, nunca substituto de notificação a órgão de controle. |
 
 Este documento é revisado quando uma linha do §6 fechar. Nenhuma linha se
 marca como resolvida sem o documento correspondente (contrato, designação,
 RIPD) existir de fato.
+
+---
+
+## 9. O contrato de adesão
+
+O instrumento do art. 39 existe e é aceito por toda clínica que entra:
+`tenancy/contract.py`, quinze cláusulas, visível em `/contrato/` sem
+login.
+
+**O que ele fixa**, na linguagem do §1 acima: a clínica é controladora, o
+NeuroDoc é operador (cláusula 4); as obrigações do operador do art. 39
+estão na cláusula 6; os suboperadores do §4 estão nomeados na cláusula 7,
+com direito de rescisão sem ônus se um deles for trocado; a transferência
+internacional da IA está na cláusula 8, e a IA continua desligada por
+padrão; o prazo de comunicação de incidente ao controlador é de 48 horas
+(cláusula 12); a guarda de 20 anos e o direito de exportar por 90 dias
+após o término estão na cláusula 11.
+
+**Como o aceite é registrado.** `ContractAcceptance` guarda a versão, o
+**SHA-256 do texto**, quem aceitou, o e-mail, o IP, o navegador e os dois
+prazos (arrependimento e vencimento). O hash é o que torna o aceite
+conferível: versão é um rótulo que alguém pode esquecer de trocar, hash
+não. Uma via completa vai por e-mail ao contratante, e
+`/instalacao/contratos/` mostra todos os aceites, sinalizando os que
+apontam para um texto diferente do que está no ar.
+
+**O que ainda falta:** revisão por advogado (§6, item 3). A minuta foi
+redigida com atenção à LGPD, ao CDC e à Lei 13.787/2018, e três escolhas
+merecem confirmação expressa:
+
+1. A cláusula 4.4 **não** isenta o operador: o art. 42 imputa
+   responsabilidade direta a ele, e uma cláusula de isenção total seria
+   nula. Confirmar a redação.
+2. O direito de arrependimento de 7 dias é concedido **contratualmente**,
+   porque o art. 49 do CDC pode não alcançar uma relação entre duas
+   empresas (teoria finalista). Confirmar se convém mantê-lo assim.
+3. A cláusula 10.2 abre exceções ao não reembolso (descumprimento,
+   indisponibilidade acima de 72 h, troca de suboperador recusada). Sem
+   elas, a cláusula de não reembolso absoluto seria atacável como abusiva.
+
+Verificado por `check_contrato`.

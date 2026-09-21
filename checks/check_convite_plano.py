@@ -81,6 +81,12 @@ def apagar_organizacoes(cnpjs, emails):
     somem = [t for t in alvos if t.id not in presos]
 
     ids = [t.id for t in somem]
+    # O aceite de contrato sai primeiro: `ContractAcceptance.tenant` e
+    # PROTECT, como todo `TenantModel`, e a organizacao criada pelo
+    # caminho do cliente agora nasce com um. Sai so das que somem -- a
+    # organizacao que fica precisa continuar com o contrato que aceitou.
+    from tenancy.models import ContractAcceptance
+    ContractAcceptance.objects.filter(tenant_id__in=ids).delete()
     # Ordem importa: no depende de template, item depende de escala.
     ExamNode.objects.filter(tenant_id__in=ids).delete()
     ExamTemplate.objects.filter(tenant_id__in=ids).delete()
@@ -148,7 +154,7 @@ convite, token = issue_invitation(
     plan=PlanCode.CUSTOM, plan_note='Consultorio do responsavel pelo produto',
 )
 print(f'  convite emitido: plano={convite.plan} nota={convite.plan_note!r}')
-user, tenant, membership = accept_platform_invitation(
+user, tenant, membership, _aceite = accept_platform_invitation(
     token, EMAIL_TESTE, 'SenhaDeTeste!2026',
     'Freua Servicos Medicos Especializados Ltda', CNPJ_TESTE,
 )
@@ -166,7 +172,7 @@ convite2, token2 = issue_invitation(
     InvitationPurpose.PLATFORM, issued_by=superadmin,
     plan=PlanCode.BASIC, patient_limit_override=1200, doctor_limit_override=3,
 )
-_, tenant2, _ = accept_platform_invitation(
+_, tenant2, _, _ = accept_platform_invitation(
     token2, 'teste-override@example.invalid', 'SenhaDeTeste!2026',
     'Clinica Override Teste Ltda', CNPJ_OVERRIDE,
 )
