@@ -12,6 +12,12 @@ config.update(read_env(ROOT / '.env'))
 # (`192.168.x.y`), abre o ambiente local para os outros aparelhos do
 # Wi-Fi. Vazio -- o padrao -- mantem tudo preso ao `127.0.0.1`.
 #
+# Aceita **varios**, separados por virgula, porque as redes se somam em
+# vez de se substituirem: o IP do Wi-Fi serve o celular que esta na mesa,
+# e o IP do Tailscale (`100.x.y.z`) serve a mesma instalacao vista de
+# outra cidade. Com um valor so, ligar o acesso remoto custava o acesso
+# do celular -- e a troca era descoberta com o aparelho na mao.
+#
 # Sao tres travas em serie, e abrir uma so nao adianta: a porta publicada
 # apenas no `127.0.0.1` recusa a conexao antes de qualquer coisa; passada
 # ela, o Django responde 400 a um `Host:` que nao esta em `ALLOWED_HOSTS`;
@@ -22,8 +28,12 @@ config.update(read_env(ROOT / '.env'))
 # navegador: o `check_mobile.py` verifica alvo de toque e `pointer:
 # coarse`, e nada disso prova como o dedo de verdade alcanca o botao de
 # finalizar atendimento num aparelho de 5 polegadas.
-lan = (config.get('NEURODOC_LAN_HOST') or '').strip()
-hosts = ['localhost', '127.0.0.1'] + ([lan] if lan else [])
+lan = [
+    parte.strip()
+    for parte in (config.get('NEURODOC_LAN_HOST') or '').split(',')
+    if parte.strip()
+]
+hosts = ['localhost', '127.0.0.1'] + lan
 origens = [
     f'http://{host}:{porta}'
     for host in hosts for porta in (8000, 8080)
