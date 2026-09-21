@@ -165,12 +165,13 @@ if [int(x) for x in numeros] != list(range(1, len(contract.CLAUSULAS) + 1)):
 else:
     print(f'  numeracao={numeros[0]}..{numeros[-1]}')
 
-# O resumo aponta para clausulas que existem.
-for titulo, texto in contract.RESUMO:
-    for citada in re.findall(r'cl[aá]usulas? (\d+)(?: e (\d+))?', texto):
-        for n in [x for x in citada if x]:
-            if not 1 <= int(n) <= len(contract.CLAUSULAS):
-                falhas.append(f'o resumo "{titulo}" cita a clausula {n}, que nao existe')
+# A pagina mostra o contrato, e so o contrato. Resumo nosso e ressalva de
+# minuta pendente sairam quando a redacao foi fechada: um "isto ainda nao
+# foi aprovado" impresso num contrato em vigor e pior do que inutil.
+if hasattr(contract, 'RESUMO'):
+    falhas.append('o resumo voltou ao contrato; a pagina mostra o documento da advogada')
+if 'ressalva' in contract.REVISAO_JURIDICA:
+    falhas.append('a ressalva de minuta pendente voltou ao contrato fechado')
 
 print('=== 2. o hash identifica o texto ===')
 sha = sha_do_texto()

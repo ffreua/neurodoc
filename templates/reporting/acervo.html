@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Exportar dados da clínica — NeuroDoc{% endblock %}
+{% block page_title %}Exportar dados da clínica{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Exportar dados</li>
+{% endblock %}
+{% block content %}
+
+<div class="row">
+    <div class="col-lg-8">
+        {% comment %}O texto diz o que a pessoa está levando e por quanto
+        tempo o arquivo existe. Uma tela de exportação sem isso produz
+        links que expiram sem aviso, e quem os perdeu conclui que a
+        exportação falhou.{% endcomment %}
+        <p class="fs-13 text-muted">
+            Os dados desta clínica, prontos para sair do sistema. É o direito da
+            cláusula 13.1 do <a href="{% url 'onboarding:contrato' %}" target="_blank"
+            rel="noopener">Contrato de Adesão</a>: obter o que é seu em formato de
+            uso comum. O arquivo fica disponível por {{ horas }} horas e depois é
+            apagado do servidor — baixe e guarde.
+        </p>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title mb-1">Cadastro de pacientes</h5>
+                <p class="fs-12 text-muted">
+                    Ficha completa de cada paciente: identificação, endereço, contatos
+                    e convênios. Inclui os arquivados.
+                </p>
+                <form method="post" class="d-flex flex-wrap gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="acervo" value="acervo_pacientes">
+                    <button type="submit" name="formato" value="md"
+                            class="btn btn-primary" data-nd-busy>Exportar em Markdown</button>
+                    <button type="submit" name="formato" value="json"
+                            class="btn btn-light" data-nd-busy>Exportar em JSON</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5 class="card-title mb-1">Atendimentos e anotações</h5>
+                <p class="fs-12 text-muted">
+                    Todos os atendimentos, agrupados por paciente e em ordem de data,
+                    com o texto das anotações clínicas — queixa, história, evolução,
+                    impressões e conduta.
+                </p>
+                {% if pode_clinico %}
+                <form method="post" class="d-flex flex-wrap gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="acervo" value="acervo_atendimentos">
+                    <button type="submit" name="formato" value="md"
+                            class="btn btn-primary" data-nd-busy>Exportar em Markdown</button>
+                    <button type="submit" name="formato" value="json"
+                            class="btn btn-light" data-nd-busy>Exportar em JSON</button>
+                </form>
+                {% else %}
+                {% comment %}Explica em vez de esconder. Quem administra a
+                clínica sem ser médico não abre prontuário na tela, e não faria
+                sentido baixar todos num arquivo — mas descobrir isso pela
+                ausência de um botão manda procurar um defeito que não
+                existe.{% endcomment %}
+                <div class="alert alert-light border fs-12 mb-0" role="note">
+                    <strong>Esta exportação é de quem lê prontuário.</strong>
+                    O seu vínculo administra a clínica, e o conteúdo clínico não
+                    aparece nas suas telas — por isso também não sai em arquivo.
+                    Um vínculo com o papel médico exporta esta parte.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="alert alert-warning d-flex align-items-start gap-2 fs-12" role="note">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                 stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <span>
+                <strong>O arquivo sai do sistema com você, e a proteção dele passa a ser sua.</strong>
+                Dado de saúde é sensível. Guarde em disco cifrado, não mande por
+                aplicativo de mensagem e apague as cópias que não forem mais
+                necessárias. A clínica continua sendo a controladora desses dados.
+            </span>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Últimas exportações</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if not recentes %}
+                <p class="fs-13 text-muted p-4 mb-0">Nenhuma exportação ainda.</p>
+                {% else %}
+                <ul class="list-group list-group-flush">
+                    {% for e in recentes %}
+                    <li class="list-group-item">
+                        <a class="fs-13 fw-semibold" href="{% url 'reporting:export-detail' export_id=e.id %}">
+                            {% if e.report_name == 'acervo_pacientes' %}Cadastro de pacientes
+                            {% else %}Atendimentos e anotações{% endif %}
+                        </a>
+                        <span class="d-block fs-11 text-muted">
+                            {{ e.get_kind_display }} · {{ e.created_at|date:"d/m/Y H:i" }}
+                            · {{ e.get_status_display }}
+                            {% if e.row_count %}· {{ e.row_count }} registro(s){% endif %}
+                        </span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -77,39 +77,7 @@ REVISAO_JURIDICA = {
     'nome': 'Dra. Karina Albuquerque Freua',
     'oab': 'OAB/SP nº 450.476',
     'papel': 'Advogada responsável pela redação e pela revisão jurídica desta versão.',
-    'ressalva': (
-        'A identificação da profissional não constitui, isoladamente, '
-        'declaração de aprovação ou assinatura. A indicação como versão '
-        'juridicamente revisada ocorre após sua efetiva conferência e '
-        'assinatura.'
-    ),
 }
-
-#: Resumo honesto, exibido acima do contrato.
-#:
-#: Existe porque ninguém lê dezoito cláusulas antes de clicar, e fingir o
-#: contrário é como se escrevem os contratos que depois são discutidos por
-#: falta de informação clara. O resumo não substitui o texto — ele diz o
-#: que mais importa e aponta a cláusula.
-RESUMO = [
-    ('Quem responde pelo prontuário é a clínica',
-     'Você decide o que registrar e responde pelo conteúdo clínico. O NeuroDoc '
-     'trata esses dados em seu nome, como operador, seguindo suas instruções '
-     '(cláusulas 5 e 6).'),
-    ('Você pode desistir em 7 dias',
-     'Contratou e se arrependeu? Até 7 dias corridos, devolução integral, sem '
-     'justificativa. Depois disso o plano anual segue até o fim, salvo as '
-     'hipóteses da cláusula 12.3 (cláusulas 11 e 12).'),
-    ('Os dados são seus, e saem com você',
-     'A qualquer momento você exporta o que é seu. Se o contrato acabar, você '
-     'tem 90 dias para levar os dados — dívida não impede a exportação do '
-     'prontuário (cláusula 13).'),
-    ('Ninguém de fora lê o prontuário por rotina',
-     'O acesso a conteúdo clínico é excepcional, limitado ao necessário e '
-     'submetido a auditoria; incidente é comunicado a você em até 24 horas '
-     '(cláusulas 7 e 14).'),
-]
-
 
 def _item(entrada):
     """Normaliza um item de cláusula.
@@ -827,8 +795,6 @@ def texto_simples():
         REVISAO_JURIDICA['oab'],
         '',
         REVISAO_JURIDICA['papel'],
-        '',
-        REVISAO_JURIDICA['ressalva'],
         '',
     ]
     return '\n'.join(linhas)

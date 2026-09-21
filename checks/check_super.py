@@ -70,10 +70,18 @@ client.cookies['sessionid'] = request.session.session_key
 print('superusuario:', su.email, '| MFA verificada na sessao')
 print()
 
+# A conta e procurada pela busca, e nao esperada na primeira pagina.
+#
+# A lista de usuarios corta em `PAGE_SIZE` e ordena por e-mail: numa
+# instalacao com mais de cem contas -- que e o caso deste banco depois de
+# a bateria rodar algumas vezes --, a conta do roteiro cai fora da
+# primeira pagina e o roteiro acusava a tela de nao mostrar quem ela
+# mostra. Buscar e o que uma pessoa faria, e e o que a tela oferece.
 rotas = {
     '/instalacao/': ['Organiza', 'Servi', 'Banco de dados'],
     '/instalacao/organizacoes/': ['Todas as cl'],
-    '/instalacao/usuarios/': ['Contas da instala', su.email],
+    '/instalacao/usuarios/': ['Contas da instala'],
+    f'/instalacao/usuarios/?q={su.email}': ['Contas da instala', su.email],
     '/instalacao/auditoria/': ['Trilha'],
 }
 for rota, esperados in rotas.items():

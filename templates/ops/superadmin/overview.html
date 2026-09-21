@@ -149,7 +149,15 @@ esperar ser procurado. A lista só existe quando há algo nela.{% endcomment %}
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
                     <li class="list-group-item d-flex align-items-center justify-content-between">
-                        <span>Versão publicada</span>
+                        <span>Versão do produto</span>
+                        <code class="fs-12">{{ versao }}</code>
+                    </li>
+                    {% comment %}Os dois números aparecem juntos porque
+                    respondem a perguntas diferentes: a versão diz que
+                    NeuroDoc é este, o SHA diz qual commit exatamente está
+                    rodando aqui.{% endcomment %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                        <span>Build publicado</span>
                         <code class="fs-12">{{ release_id }}</code>
                     </li>
                     <li class="list-group-item d-flex align-items-center justify-content-between">

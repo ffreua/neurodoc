@@ -10,6 +10,7 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+from base.version import VERSION, version_display
 from ops.env import ROOT, read_env
 from ops.make_runtime import make_traefik, prepare_runtime
 
@@ -313,6 +314,10 @@ def main():
     traefik_file = make_traefik(config, cidrs)
     params = dict(images, APP_IMAGE=app_image, RELEASE_ID=release,
                   ROLLOUT_ID=uuid.uuid4().hex, APP_REPLICAS=config['APP_REPLICAS'])
+    # Fica no registro da publicacao, e nao so na imagem: e por ele que se
+    # descobre depois qual versao do produto cada release entregou, sem
+    # precisar recuperar o commit para ler `base/version.py`.
+    params['PRODUCT_VERSION'] = VERSION
     params['POSTGRES_INIT_CONFIG'] = create_config(ROOT / 'ops/postgres_init.sh', 'pginit')
     params['INFRA_ENTRYPOINT_CONFIG'] = create_config(ROOT / 'ops/infra_entrypoint.sh', 'infra')
     params['TRAEFIK_CONFIG'] = create_config(traefik_file, 'traefik')
@@ -334,6 +339,11 @@ def main():
         (runtime / 'previous-successful.json').write_bytes(record_path.read_bytes())
     record_path.write_text(json.dumps(params, indent=2))
     record_path.chmod(0o600)
+    # Os dois numeros na mesma linha, de proposito. O SHA identifica o
+    # build e e o que se usa para voltar atras; a versao identifica o
+    # produto e e a que se escreve na nota de versao e no chamado. Quem
+    # acabou de publicar precisa dos dois a vista.
+    print(f'NeuroDoc {version_display()} publicado.')
     print(f'Release {release} deployed; all services are healthy.')
 
 

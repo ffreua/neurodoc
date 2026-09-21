@@ -5,15 +5,20 @@ from .models import ReportExport, ReportExportStatus
 
 @shared_task(name='reporting.tasks.run_export', expires=3600)
 def run_export(export_id):
-    from .services import _REGISTRY, _write_csv_file
+    from .services import _REGISTRY, _write_export_file
 
     export = ReportExport.objects.filter(id=export_id).first()
     if export is None:
         return {'status': 'skipped'}
-    rows_fn, fieldnames, _count_fn = _REGISTRY[export.report_name]
+    # Sem reconferir capacidade: quem podia pedir foi conferido em
+    # `request_export`, e o worker roda sem requisicao e sem
+    # `access_context`. Reconferir aqui exigiria carregar o vinculo de
+    # novo -- e um vinculo revogado no meio do caminho cancelaria uma
+    # exportacao que a pessoa tinha direito de pedir no momento do pedido.
+    registro = _REGISTRY[export.report_name]
     try:
-        rows = rows_fn(export.tenant_id, **export.parameters)
-        _write_csv_file(export, rows, fieldnames)
+        rows = registro['rows_fn'](export.tenant_id, **export.parameters)
+        _write_export_file(export, rows, registro['fieldnames'], registro['markdown_fn'])
     except Exception as exc:
         export.status = ReportExportStatus.FAILED
         export.save(update_fields=['status'])

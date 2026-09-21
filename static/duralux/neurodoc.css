@@ -409,26 +409,6 @@ textarea.form-control-sm {
     margin-bottom: 16px;
 }
 
-.nd-contrato-resumo {
-    list-style: none;
-    padding: 16px;
-    margin: 0 0 24px;
-    border: 1px solid var(--bs-border-color, #e5e7eb);
-    border-radius: 8px;
-    background: var(--bs-gray-100, #f9fafb);
-    display: grid;
-    gap: 12px;
-}
-
-/* Duas colunas so quando ha largura para duas colunas de texto legiveis.
- * `auto-fit` com `minmax` faz isso sem media query e sem numero magico de
- * breakpoint: no celular cai para uma coluna sozinho. */
-@media (min-width: 720px) {
-    .nd-contrato-resumo {
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    }
-}
-
 .nd-contrato-clausulas,
 .nd-contrato-itens {
     list-style: none;

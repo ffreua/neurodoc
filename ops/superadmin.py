@@ -47,6 +47,8 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views import View
 
+from base.version import version_display
+
 PAGE_SIZE = 100
 
 #: Quantos nomes de organizacao o aviso de "sem contrato" imprime antes de
@@ -226,6 +228,11 @@ class OverviewView(SuperAdminView):
         context = _nav('overview')
         context.update({
             'release_id': settings.RELEASE_ID,
+            # Dois numeros, e nao um: o SHA diz qual codigo roda, a versao
+            # diz que produto e. Quem opera precisa do primeiro para achar
+            # o commit; quem atende um chamado precisa do segundo para
+            # saber do que a clinica esta falando.
+            'versao': version_display(),
             'debug': settings.DEBUG,
             'public_base_url': settings.PUBLIC_BASE_URL,
             # As chaves não aparecem — só se estão configuradas. Um console
