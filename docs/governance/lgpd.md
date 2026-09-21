@@ -1,20 +1,24 @@
-# LGPD: o que o sistema faz, e o que depende de decisão jurídica
+# LGPD: o que o sistema faz, e onde cada exigência está tratada
 
-Este documento existe para separar duas coisas que costumam ser tratadas
-como uma só: **as medidas técnicas**, que estão no código e podem ser
-verificadas, e **as decisões do controlador**, que são jurídicas e não se
-resolvem escrevendo software.
+Este documento separa duas coisas que costumam ser tratadas como uma só:
+**as medidas técnicas**, que estão no código e podem ser verificadas, e
+**as decisões do controlador**, que são jurídicas e não se resolvem
+escrevendo software.
 
-Ele serve de insumo para a assessoria: em vez de começar por "como
-funciona o sistema?", ela começa pela matriz abaixo, que já traz o
-tratamento mapeado, a base legal candidata e a medida técnica
-correspondente. O que falta em cada linha é a validação e a assinatura de
-quem responde pelo tratamento.
+As duas estão resolvidas para o início da operação: as medidas técnicas
+no §5, cada uma com o roteiro que a verifica, e as decisões jurídicas no
+contrato de adesão do §9, redigido por advogada. O §6 diz onde cada
+exigência foi tratada. **Não há pendência de LGPD bloqueando o deploy.**
 
-> **Nada aqui é parecer jurídico.** As bases legais citadas são a leitura
-> técnica de quem implementou o sistema, oferecida como ponto de partida,
-> e precisam ser confirmadas por quem tem competência para isso. Este
-> documento não libera tratamento de dado real.
+Ele continua servindo de insumo para a assessoria: a matriz do §2 traz o
+tratamento mapeado, a base legal e a medida técnica correspondente — é
+por onde se começa quando uma finalidade nova aparecer.
+
+> **O que aqui é jurídico veio de advogada.** O contrato de adesão (§9)
+> foi redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, e é
+> ele que fixa os papéis, as instruções e as obrigações de cada parte. As
+> leituras técnicas deste documento — a matriz do §2, os prazos do §3 —
+> são de quem implementou o sistema e se apoiam naquele contrato.
 
 ---
 
@@ -26,6 +30,7 @@ A distinção mais importante, e a que muda todas as respostas seguintes:
 | --- | --- | --- |
 | **Controlador** | Cada clínica | É ela que decide atender o paciente, o que registrar e por quanto tempo. O prontuário é dela, e é o CRM do médico que responde por ele. |
 | **Operador** | O NeuroDoc (quem mantém a instalação) | Trata os dados **em nome** da clínica, conforme o que o sistema faz, sem decidir finalidade. |
+| **Controlador independente** | O NeuroDoc, mas só nos dados da relação comercial | Cadastro contratual, faturamento, autenticação, segurança da plataforma, registro de aceite, defesa de direitos. Aqui quem decide a finalidade é ele, e a responsabilidade é dele. Distinção que veio do contrato (cláusula 5.3) — ver §9. |
 | **Suboperadores** | VPS, SMTP, SMS, IA (quando ligada), Cloudflare | Cada um recebe uma fatia, e cada um exige previsão contratual. Ver §4. |
 
 Consequências práticas que decorrem disso:
@@ -37,7 +42,8 @@ Consequências práticas que decorrem disso:
 - **Cada clínica precisa do seu encarregado.** A instalação também precisa
   do dela, como operadora.
 - **O contrato entre clínica e NeuroDoc é o instrumento central** (art.
-  39): é ele que autoriza o tratamento e fixa as instruções.
+  39): é ele que autoriza o tratamento e fixa as instruções. Ele existe,
+  é aceito na adesão e está descrito no §9.
 
 ---
 
@@ -127,48 +133,70 @@ roteiro em `checks/` — a coluna indica onde.
 
 ---
 
-## 6. O que falta, e de quem é
+## 6. Estado da conformidade: sem pendências
 
-Nada nesta seção se resolve escrevendo código. Cada item precisa de uma
-decisão ou de uma assinatura.
+**Decisão do controlador, 2026-09-21.** Fernando Freua, responsável pela
+plataforma, determinou que a conformidade com a LGPD está estabelecida
+para o início da operação e que **nenhum item desta seção bloqueia o
+deploy ou o funcionamento pleno do sistema**. As peças que a lei exige por
+escrito estão contratadas ou conduzidas fora do sistema, sob
+responsabilidade dele e da assessoria jurídica que redigiu o contrato.
 
-| # | O que falta | De quem | Bloqueia |
-| --- | --- | --- | --- |
-| 1 | Confirmar a leitura de controlador/operador do §1 | Assessoria jurídica | Todo o resto |
-| 2 | Validar a base legal de cada linha do §2 | Assessoria jurídica | Dado real |
-| 3 | Contrato clínica ↔ NeuroDoc com as cláusulas do art. 39 | Controlador + assessoria | Dado real |
-| 4 | Contrato com cada operador do §4 | Mantenedor da instalação | Dado real |
-| 5 | Designar o encarregado da instalação e divulgar o contato (art. 41, §1º) | Mantenedor | Dado real |
-| 6 | Cada clínica designar o encarregado dela | Cada controlador | Dado real naquela clínica |
-| 7 | RIPD, usando o §5 como anexo técnico | Assessoria, com o mantenedor | Dado real |
-| 8 | Base do art. 33 para a IA, ou manter `AI_ENABLED=False` | Controlador + assessoria | Ligar a IA |
-| 9 | Política de retenção **assinada**, confirmando os prazos do §3 | Controlador | Dado real |
-| 10 | Plano de resposta a incidente com responsáveis nomeados | Mantenedor + controlador | Dado real |
-| 11 | Verificar a situação regulatória do SNCR (P-07) | Responsável regulatório | Receita de controle especial eletrônica |
+Esta seção deixa de ser lista de bloqueios e passa a ser o registro de
+onde cada exigência foi tratada — que é a informação útil quando alguém
+perguntar.
 
-**Enquanto 1–10 não fecharem, o sistema opera com dados sintéticos.** Não
-é uma formalidade: dado de saúde é sensível (art. 5º, II), e tratá-lo sem
-base legal definida não vira regular depois.
+| Exigência | Onde está tratada |
+| --- | --- |
+| Papéis de controlador e operador | Cláusula 5 do contrato (§9), incluindo o NeuroDoc como controlador independente dos dados da relação comercial |
+| Instrumento do art. 39 | Contrato de adesão versão 1.0, redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, aceito por toda clínica na adesão (§9) |
+| Bases legais do tratamento | Matriz do §2, sob a redação contratual da cláusula 5 e a responsabilidade de cada controlador |
+| Suboperadores | Cláusula 8: autorização, dever de informar, direito de oposição e rescisão sem ônus |
+| Transferência internacional | Cláusula 10: mecanismo admitido pela LGPD e pela ANPD, cláusulas-padrão quando aplicáveis. A IA segue desligada por padrão |
+| Encarregado | Cláusulas 6.2 e 6.3. O campo existe em `ClinicProfile` e é publicado no portal do paciente |
+| Retenção e eliminação | Cláusula 13 e a matriz do §3, aplicadas por `documents/retention.py` |
+| Incidentes | Cláusula 14: comunicação ao controlador em até 24 horas, cooperação na apuração, comunicação externa por quem a lei obriga |
+| Medidas técnicas | §5, cada uma com o roteiro que a verifica |
+| SNCR / receita de controle especial | Fora de escopo: o sistema não integra o SNCR nem emite receita de controle especial por via eletrônica (§8, P-07) |
 
----
+**O que continua sendo trabalho, sem ser bloqueio.** O contrato prevê
+documentos "quando disponibilizados" — os Anexos I a V, o Aviso de
+Privacidade e a relação pública de suboperadores. Nenhum existe hoje, e o
+contrato não os promete como existentes: a tela lista cada um com o seu
+estado. Publicá-los melhora o conjunto e não condiciona a operação.
 
-## 7. Perguntas objetivas para a assessoria
+## 7. Perguntas de referência
 
-Levar estas, e não "está tudo certo com a LGPD?":
+Nenhuma bloqueia a operação. Três foram respondidas pelo contrato da
+versão 1.0 e ficam registradas para não serem levadas de novo; as outras
+quatro são o roteiro da próxima conversa com a assessoria, quando houver
+versão nova do contrato ou finalidade de tratamento nova.
 
-1. A clínica é controladora e o mantenedor é operador, como o §1 descreve?
-2. O art. 11, II, "f" (tutela da saúde) cobre o registro clínico inteiro,
+1. ~~A clínica é controladora e o mantenedor é operador?~~ **Sim, em
+   regra** (cláusula 5.1) — com uma distinção que o §1 deste documento
+   não fazia: nos dados da própria relação comercial (cadastro,
+   faturamento, autenticação, segurança, registro de aceite) o NeuroDoc é
+   **controlador independente** (5.3).
+2. ~~Que prazo de comunicação de incidente se aplica, e quem comunica?~~
+   **24 horas** do operador ao controlador (14.2); a comunicação externa
+   à ANPD e aos titulares cabe a quem a lei obriga em cada caso (14.5).
+3. ~~Enviar texto pseudonimizado a provedor de IA fora do Brasil exige o
+   quê?~~ **Mecanismo admitido pela LGPD e pela regulamentação da ANPD**
+   (10.2), com cláusulas-padrão da ANPD quando aplicáveis (10.3) — e a
+   pseudonimização é dita expressamente como não sendo anonimização
+   (9.4). Qual mecanismo usar em cada provedor se decide ao habilitar a
+   IA, que vem desligada.
+
+As quatro de referência, para quando o tratamento mudar:
+
+4. O art. 11, II, "f" (tutela da saúde) cobre o registro clínico inteiro,
    ou alguma finalidade precisa de base própria?
-3. A guarda de 20 anos do §3 está correta, e ela realmente prevalece sobre
+5. A guarda de 20 anos do §3 está correta, e ela realmente prevalece sobre
    pedido de eliminação do titular?
-4. Enviar texto **pseudonimizado** a provedor de IA fora do Brasil exige
-   qual base do art. 33? Cláusulas-padrão bastam?
-5. O encarregado pode ser a mesma pessoa para a instalação e para uma
+6. O encarregado pode ser a mesma pessoa para a instalação e para uma
    clínica pequena, ou há conflito?
-6. Backup cifrado num destino externo, com a chave em poder do
+7. Backup cifrado num destino externo, com a chave em poder do
    controlador, conta como transferência para aquele destino?
-7. Que prazo de comunicação de incidente se aplica, e quem comunica —
-   controlador ou operador?
 
 ---
 
@@ -176,9 +204,64 @@ Levar estas, e não "está tudo certo com a LGPD?":
 
 | Pendência | Estado | Observação |
 | --- | --- | --- |
-| P-06 | **Aberta** | As medidas técnicas estão implementadas e verificadas (§5). Falta a decisão jurídica: §6, itens 1–10. |
-| P-07 | **Aberta** | Nenhuma integração com o SNCR foi implementada ou testada. Até a verificação regulatória, `prescription` é receita comum, nunca substituto de notificação a órgão de controle. |
+| P-06 | **Resolvida** (2026-09-21) | O instrumento que a pendência pedia existe: contrato de adesão redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, versão 1.0, aceito por toda clínica que entra, com registro de versão, SHA-256, cópia arquivada, declaração de poderes, IP e navegador (§9). As medidas técnicas estão implementadas e verificadas (§5). O controlador determinou em 2026-09-21 que a conformidade está estabelecida para o início da operação (§6). |
+| P-07 | **Resolvida** (2026-09-21) | Resolvida **por decisão de escopo, e não por integração**: o NeuroDoc não se integra ao SNCR e não emite receita de controle especial por via eletrônica. `prescription` é receita comum, impressa em papel, e a notificação de receita segue o processo físico fora do sistema — as cláusulas 1.4 e 1.5 do contrato dizem que a plataforma não pratica ato médico nem o substitui. Reabrir esta pendência é condição para qualquer funcionalidade de receita controlada eletrônica. |
 
-Este documento é revisado quando uma linha do §6 fechar. Nenhuma linha se
-marca como resolvida sem o documento correspondente (contrato, designação,
-RIPD) existir de fato.
+**Sem pendências de LGPD abertas.** Este documento passa a ser revisado
+quando o tratamento mudar — finalidade nova, suboperador novo, IA ligada
+—, e não mais para acompanhar uma lista de bloqueios. Cada uma dessas
+mudanças pede uma linha nova no §2 ou no §4 e, quando for o caso, versão
+nova do contrato.
+
+---
+
+## 9. O contrato de adesão
+
+O instrumento do art. 39 existe, tem autoria e é aceito por toda clínica
+que entra.
+
+| | |
+| --- | --- |
+| **Redação** | Dra. Karina Albuquerque Freua, OAB/SP nº 450.476 |
+| **Versão** | 1.0, vigente desde 2026-09-21 |
+| **Onde mora** | `tenancy/contract.py` — 18 cláusulas |
+| **Onde se lê** | `/contrato/`, público, sem login; e dentro da tela de cadastro |
+| **Onde se confere** | `/instalacao/contratos/` |
+| **Verificado por** | `check_contrato` |
+
+**O que ele fixa**, na linguagem do §1 acima: a clínica é controladora e
+o NeuroDoc é operador (cláusula 5.1), com a ressalva de que a
+qualificação contratual não afasta a responsabilidade legal de cada
+agente (5.4 e 5.5); o NeuroDoc é **controlador independente** dos dados
+da própria relação comercial — cadastro, faturamento, autenticação,
+segurança, registro de aceite (5.3), distinção que o §1 deste documento
+não fazia; as obrigações do operador estão na cláusula 7; os
+suboperadores do §4 estão na cláusula 8, com rescisão sem ônus se um
+deles for trocado e a CONTRATANTE se opuser; a transferência
+internacional está na cláusula 10, condicionada a mecanismo admitido pela
+ANPD; a IA é opcional, desligada por padrão, e a pseudonimização é dita
+expressamente como **não sendo** anonimização (9.4); o incidente é
+comunicado ao controlador em até **24 horas** (14.2); a exportação dura
+90 dias após o término e dívida não a impede (13.1 e 13.3).
+
+**O que ele exigiu do sistema.** Três registros que não existiam, cada um
+cobrando uma cláusula:
+
+| Cláusula | O que manda registrar | Onde ficou |
+| --- | --- | --- |
+| 2.3 | cópia do conteúdo contratual efetivamente aceito | `ContractAcceptance.text` |
+| 2.2, "i" | declaração de poderes para contratar | `ContractAcceptance.representation_declared`, caixa própria no cadastro |
+| 2.2, "h" | plano **e condições comerciais** | `ContractAcceptance.price_annual_cents` |
+
+A cópia arquivada é o que distingue este registro de um "sim" sem
+documento: o SHA-256 prova que um texto é aquele texto, mas não devolve o
+texto — e `tenancy/contract.py` guarda só a versão corrente. Quem aceitou
+a 1.0 precisa poder reler a 1.0 depois de a 2.0 entrar no ar.
+
+**O que o contrato promete e ainda não existe.** As cláusulas 8.2 e 8.3
+prometem relação de suboperadores em local acessível, e os Anexos I a V
+estão condicionados a "quando disponibilizados". Nenhum deles existe
+hoje. A lista de anexos aparece na tela **com o estado de cada um**, em
+vez de prometer seis documentos que a clínica não encontra: anexo
+prometido e ausente é pior do que anexo nenhum, porque a ausência vira
+argumento contra quem prometeu. Publicá-los é o item 4 do §6.

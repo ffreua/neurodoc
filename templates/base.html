@@ -92,6 +92,10 @@ vinculo em clinica nenhuma.{% endcomment %}
             NeuroDoc — prontuário e gestão da clínica neurológica
         </p>
         <div class="d-flex align-items-center gap-4">
+            {% comment %}A versão no rodapé, e não escondida numa tela de
+            "sobre": quem abre um chamado precisa dizer qual NeuroDoc está
+            usando, e ninguém procura esse número antes de reclamar.{% endcomment %}
+            <span class="fs-11 fw-semibold text-uppercase text-muted">Versão {{ nd_versao }}</span>
             <span class="fs-11 fw-semibold text-uppercase text-muted">Dados sob sigilo médico</span>
         </div>
     </footer>

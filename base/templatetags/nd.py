@@ -241,3 +241,39 @@ def nd_confirmation_contacts(patient):
         if phone and email:
             break
     return {'phone': phone, 'email': email}
+
+
+@register.filter
+def nd_hidden_errors(form):
+    """Erros dos campos escondidos, achatados numa lista.
+
+    Campo escondido e renderizado como `{{ field }}` e mais nada, entao um
+    erro nele nao aparece em lugar nenhum: o formulario volta recusado sem
+    dizer por que. Aconteceu com `contract_version` -- quem enviava o
+    cadastro depois de o contrato ter mudado via a mesma tela de novo, sem
+    explicacao e sem nada para corrigir.
+
+    Filtro, e nao laco no template, porque o template precisa saber se ha
+    **algum** erro antes de abrir a caixa de aviso -- senao a caixa nasce
+    vazia toda vez que o formulario e desenhado.
+    """
+    erros = []
+    for field in form.hidden_fields():
+        erros.extend(field.errors)
+    return erros
+
+
+@register.filter
+def nd_na_lista(nome, lista):
+    """O campo está nesta lista de nomes separados por vírgula?
+
+    Existe porque `form_fields.html` passou a precisar mover **dois**
+    campos para o meio do formulário -- a caixa de aceite do contrato e a
+    declaração de poderes --, e a comparação direta `field.name != somente`
+    só dava conta de um. Comparar contra uma string com vírgulas pelo
+    operador `in` do template pegaria `accept` dentro de
+    `accept_contract`; dividir de verdade, não.
+    """
+    if not lista:
+        return False
+    return nome in [parte.strip() for parte in str(lista).split(',')]

@@ -78,11 +78,28 @@ def _attachment_or_404(request, attachment_id):
 
 
 class AttachmentListView(TenantScopedView):
+    """A lista de anexos do paciente.
+
+    Quem nao le prontuario ve a **linha** de um anexo clinico, e nao o
+    nome dele. A diferenca importa: a secretaria precisa saber que o
+    exame ja chegou, para responder ao paciente que ligou perguntando --
+    e nao precisa saber que o exame e um eletroencefalograma.
+
+    O conteudo ja estava protegido em `_attachment_or_404` (baixar e
+    previa devolvem 404), mas o nome do arquivo escapava na listagem, e
+    nome de arquivo e informacao clinica numa clinica de neurologia:
+    `ressonancia_cranio.pdf` diz o que foi investigado. Mascarar aqui, e
+    nao esconder a linha, e o que fecha a brecha sem tirar da recepcao a
+    informacao de que ha documento.
+    """
+
     def get(self, request, patient_id):
         patient = _patient_or_404(request, patient_id)
         attachments = patient.attachments.filter(deleted_at=None).order_by('-created_at')
         return render(request, 'documents/list.html', {
-            'patient': patient, 'attachments': attachments, 'form': AttachmentUploadForm(),
+            'patient': patient, 'attachments': attachments,
+            'pode_ver_clinico': request.access_context.can(Capability.READ_CLINICAL),
+            'form': AttachmentUploadForm(),
         })
 
     def post(self, request, patient_id):
@@ -120,11 +137,25 @@ class AttachmentDownloadView(TenantScopedView):
                 object_type='attachment', object_id=attachment.id, outcome='denied',
             )
             raise Http404
+        # O arquivo pode nao estar la: backup restaurado sem a midia,
+        # disco trocado, expurgo que apagou os bytes e deixou a linha. Sem
+        # este `except`, a falta vira 500 com rastro -- o medico ve "erro
+        # do servidor" e ninguem fica sabendo de qual anexo se trata. Com
+        # ele, vira 404 e um evento na trilha dizendo qual arquivo sumiu.
+        try:
+            conteudo = read_bytes(attachment)
+        except (FileNotFoundError, OSError):
+            record_audit_event(
+                request.user, request.access_context.tenant_id,
+                'documents.attachment_file_missing',
+                object_type='attachment', object_id=attachment.id, outcome='failure',
+            )
+            raise Http404
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.attachment_downloaded',
             object_type='attachment', object_id=attachment.id, outcome='success',
         )
-        response = HttpResponse(read_bytes(attachment), content_type=attachment.mime)
+        response = HttpResponse(conteudo, content_type=attachment.mime)
         response['Content-Disposition'] = f'attachment; filename="{attachment.original_name}"'
         response['Cache-Control'] = 'private, no-store'
         return response
@@ -133,9 +164,10 @@ class AttachmentDownloadView(TenantScopedView):
 class AttachmentPreviewView(TenantScopedView):
     def get(self, request, attachment_id):
         attachment = _attachment_or_404(request, attachment_id)
+        # Mesma razao do download acima: arquivo ausente e 404, nao 500.
         try:
             png_bytes = render_preview_png(attachment)
-        except PreviewUnavailable:
+        except (PreviewUnavailable, FileNotFoundError, OSError):
             raise Http404
         response = HttpResponse(png_bytes, content_type='image/png')
         response['Cache-Control'] = 'private, no-store'

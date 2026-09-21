@@ -1,0 +1,194 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Contratos de adesão — NeuroDoc{% endblock %}
+{% block page_title %}Contratos de adesão{% endblock %}
+{% block super_section %}Contratos{% endblock %}
+{% block super_content %}
+
+{% if divergentes %}
+{% comment %}O aviso mais importante da tela, e por isso o primeiro. Um
+aceite cujo hash não confere é um aceite que aponta para um texto
+diferente do que está no ar — ou alguém editou o contrato sem trocar a
+versão, ou a versão é antiga. As duas hipóteses pedem a mesma coisa:
+olhar antes de usar este aceite como prova de alguma coisa.{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>{{ divergentes }} aceite(s) apontam para um texto diferente do atual.</strong>
+    Se a versão também for diferente, é só um contrato antigo — normal. Se a versão
+    for a mesma e o texto não, alguém editou <code>tenancy/contract.py</code> sem
+    trocar <code>VERSAO</code>, e os aceites daquela versão deixaram de ser conferíveis.
+</div>
+{% endif %}
+
+{% if sem_copia %}
+{% comment %}Só conta o envio que foi tentado e falhou. Aceite sem data de
+envio e sem erro nasceu fora do cadastro — um roteiro, um comando de
+terminal — e nunca teve via a enviar; contá-lo aqui mandaria procurar
+defeito de SMTP onde não há nenhum.{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>{{ sem_copia }} contratante(s) não receberam a via por e-mail.</strong>
+    O aceite está registrado de qualquer forma — confira a configuração de SMTP.
+</div>
+{% endif %}
+
+{% if sem_copia_arquivada %}
+{% comment %}A cláusula 2.3 manda guardar, junto do registro, uma cópia do
+que foi aceito. Aceites anteriores a essa coluna não têm — provam que
+houve aceite, não provam de quê. Não se preenche retroativamente: seria
+arquivar como aceito um texto que aquela clínica não viu.{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>{{ sem_copia_arquivada }} aceite(s) sem cópia contratual arquivada.</strong>
+    São anteriores à cláusula 2.3 entrar no sistema. A versão e o SHA-256 identificam
+    o texto; a cópia se resolve quando a clínica aceitar a próxima versão.
+</div>
+{% endif %}
+
+{% if sem_contrato_total %}
+<div class="alert alert-danger fade show" role="alert">
+    <strong>{{ sem_contrato_total }} organização(ões) sem aceite registrado.</strong>
+    São clínicas criadas antes de o contrato existir, ou por caminho que não passa
+    pelo cadastro. Elas precisam aceitar a próxima versão.
+    <span class="d-block fs-12 mt-2">
+        {% for t in sem_contrato %}{{ t.trade_name|default:t.legal_name }}{% if not forloop.last %} · {% endif %}{% endfor %}{% if sem_contrato_ocultos %} · e mais {{ sem_contrato_ocultos }}{% endif %}
+    </span>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">Aceites registrados</h5>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-soft-primary text-primary">{{ total }}</span>
+            <a class="btn btn-sm btn-light" href="{% url 'onboarding:contrato' %}" target="_blank"
+               rel="noopener">Ler o contrato em vigor</a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if not rows %}
+        <p class="fs-13 text-muted p-4 mb-0">Nenhuma adesão registrada ainda.</p>
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Quando</th>
+                        <th scope="col">Clínica</th>
+                        <th scope="col">Quem aceitou</th>
+                        <th scope="col">Plano</th>
+                        <th scope="col">Declarações</th>
+                        <th scope="col">Versão</th>
+                        <th scope="col">Prazos</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in rows %}
+                    <tr>
+                        <td class="ps-4 fs-12 text-muted">
+                            {{ l.aceite.created_at|date:"d/m/Y H:i" }}
+                            {% if l.aceite.source_ip %}
+                            <span class="d-block fs-11">de {{ l.aceite.source_ip }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {{ l.clinica }}
+                            <span class="d-block fs-11 text-muted">CNPJ {{ l.aceite.tenant.cnpj }}</span>
+                        </td>
+                        <td class="fs-12">
+                            {% comment %}O nome só aparece se existir. A conta
+                            recém-criada não tem nome, e `default` pelo e-mail
+                            imprimia o mesmo endereço duas vezes.{% endcomment %}
+                            {% if l.aceite.accepted_name %}{{ l.aceite.accepted_name }}
+                            <span class="d-block fs-11 text-muted">{{ l.aceite.accepted_email }}</span>
+                            {% else %}{{ l.aceite.accepted_email }}{% endif %}
+                            {% if l.aceite.emailed_at %}
+                            <span class="d-block fs-11 text-success">Via enviada em {{ l.aceite.emailed_at|date:"d/m/Y" }}</span>
+                            {% elif l.aceite.email_error %}
+                            <span class="d-block fs-11 text-danger">Via não enviada: {{ l.aceite.email_error }}</span>
+                            {% else %}
+                            {% comment %}Cinza, e não vermelho: este aceite não
+                            veio do cadastro, então nunca houve via a enviar.
+                            Vermelho aqui faria procurar um defeito de SMTP que
+                            não existe.{% endcomment %}
+                            <span class="d-block fs-11 text-muted">Sem via enviada (aceite fora do cadastro)</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {{ l.plano }}
+                            {% if l.valor %}
+                            <span class="d-block fs-11 text-muted">{{ l.valor }} / ano</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {% comment %}As duas declarações da cláusula 2.2: a
+                            de poderes ("i") e a cópia arquivada ("2.3"). São o
+                            que se procura quando alguém contesta o aceite, e
+                            por isso ficam numa coluna, não num rodapé.{% endcomment %}
+                            {% if l.aceite.representation_declared %}
+                            <span class="d-block fs-11 text-success">Poderes declarados</span>
+                            {% else %}
+                            <span class="d-block fs-11 text-muted">Poderes não registrados</span>
+                            {% endif %}
+                            {% if l.tem_copia %}
+                            <span class="d-block fs-11 text-success">Cópia arquivada</span>
+                            {% else %}
+                            <span class="d-block fs-11 text-warning">Sem cópia arquivada</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if l.versao_atual %}
+                            <span class="badge bg-soft-success text-success">{{ l.aceite.version }}</span>
+                            {% else %}
+                            <span class="badge bg-soft-secondary text-secondary">{{ l.aceite.version }}</span>
+                            {% endif %}
+                            {% comment %}O hash aparece truncado, e inteiro no
+                            título: a coluna precisa caber, e quem vai conferir
+                            de verdade copia do e-mail do contratante — onde ele
+                            está por extenso.{% endcomment %}
+                            {% if l.texto_confere %}
+                            <span class="d-block fs-11 text-muted" title="{{ l.aceite.text_sha256 }}">
+                                texto confere
+                            </span>
+                            {% else %}
+                            <span class="d-block fs-11 text-warning" title="{{ l.aceite.text_sha256 }}">
+                                texto difere do atual
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {% if l.aceite.withdrawn_at %}
+                            <span class="badge bg-soft-danger text-danger">Desistiu em {{ l.aceite.withdrawn_at|date:"d/m/Y" }}</span>
+                            {% elif l.arrependimento_aberto %}
+                            <span class="badge bg-soft-warning text-warning">
+                                Arrependimento até {{ l.aceite.withdrawal_deadline|date:"d/m/Y" }}
+                            </span>
+                            {% endif %}
+                            <span class="d-block fs-11 {% if l.vencido %}text-danger{% else %}text-muted{% endif %}">
+                                {% if l.vencido %}Venceu{% else %}Vence{% endif %}
+                                em {{ l.aceite.expires_at|date:"d/m/Y" }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Texto em vigor — versão {{ contrato.VERSAO }}</h5>
+    </div>
+    <div class="card-body">
+        <p class="fs-11 text-muted">
+            Conferência deste texto: <code>{{ sha_atual }}</code>. É este valor que a coluna
+            "texto confere" compara com o que ficou gravado em cada aceite.
+            Redação de {{ contrato.REVISAO_JURIDICA.nome }}, {{ contrato.REVISAO_JURIDICA.oab }}.
+        </p>
+        <div class="nd-contrato-caixa" tabindex="0" role="region"
+             aria-label="Contrato de Adesão, versão {{ contrato.VERSAO }}">
+            {% include "partials/contrato.html" %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

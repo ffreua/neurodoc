@@ -1,0 +1,117 @@
+{% comment %}O contrato de adesão, renderizado de `tenancy/contract.py`.
+
+Um único template para as três telas que mostram o contrato: a página
+pública, a caixa do cadastro e o console do superadministrador. Três
+cópias do texto em HTML divergiriam, e divergiriam exatamente onde não
+podem — entre o que a pessoa leu ao aceitar e o que o console exibe
+depois como sendo o que ela aceitou.
+
+A numeração das cláusulas sai de `forloop.counter` e a letra das alíneas
+vem pronta do catálogo: acrescentar uma cláusula no meio renumera tudo
+sozinho, em vez de deixar duas cláusulas 12 até alguém reparar.
+
+O campo de conferência SHA-256 que a minuta prevê no cabeçalho **não**
+aparece aqui, e não é esquecimento: o hash é calculado sobre este mesmo
+documento, e imprimi-lo dentro dele mudaria o insumo do cálculo. Quem
+mostra o carimbo é a tela em volta.{% endcomment %}
+<article class="nd-contrato">
+    <header class="nd-contrato-cabeca">
+        <h2 class="fw-bold text-dark mb-1">{{ contrato.TITULO }}</h2>
+        <p class="fs-12 text-muted mb-0">{{ contrato.SUBTITULO }}</p>
+        <p class="fs-11 text-muted mb-0">
+            Versão {{ contrato.VERSAO }} · vigência desde {{ contrato.VIGENCIA_DESDE }}
+        </p>
+    </header>
+
+    <section class="nd-contrato-partes">
+        <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Qualificação das partes</h3>
+        <p class="mb-2"><strong>De um lado,</strong> {{ contrato.CONTRATADO.nome|upper }},
+        {{ contrato.CONTRATADO.qualificacao }}, inscrito no CPF sob nº
+        {{ contrato.CONTRATADO.cpf }}, com endereço profissional na
+        {{ contrato.CONTRATADO.endereco }}, {{ contrato.CONTRATADO.papel }},
+        doravante denominado simplesmente &ldquo;NEURODOC&rdquo; ou
+        &ldquo;CONTRATADO&rdquo;;</p>
+        <p class="mb-2"><strong>e, de outro lado,</strong> {{ contrato.CONTRATANTE }}
+        Doravante denominado simplesmente &ldquo;CONTRATANTE&rdquo;.</p>
+        <p class="mb-0">{{ contrato.PREAMBULO }}</p>
+    </section>
+
+    <ol class="nd-contrato-clausulas">
+        {% for clausula in contrato.CLAUSULAS %}
+        <li>
+            <h3 class="fs-13 fw-bold text-dark mb-2">
+                Cláusula {{ forloop.counter }} — {{ clausula.titulo }}
+            </h3>
+            <ol class="nd-contrato-itens">
+                {% for item in clausula.itens %}
+                <li>
+                    <span class="nd-contrato-numero">{{ forloop.parentloop.counter }}.{{ forloop.counter }}.</span>{{ item.texto }}
+                    {% if item.alineas %}
+                    <ol class="nd-contrato-alineas">
+                        {% for alinea in item.alineas %}
+                        <li><span class="nd-contrato-letra">{{ alinea.letra }})</span>{{ alinea.texto }}</li>
+                        {% endfor %}
+                    </ol>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </li>
+        {% endfor %}
+    </ol>
+
+    <section class="nd-contrato-bloco">
+        <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Documentos integrantes</h3>
+        {% comment %}O estado de cada anexo aparece ao lado do nome. A minuta
+        os condiciona a "quando disponibilizados", e prometer seis documentos
+        que a clínica não encontra em lugar nenhum é pior do que não
+        prometer: a ausência vira argumento contra quem prometeu.{% endcomment %}
+        <ul class="nd-contrato-anexos">
+            {% for nome, disponivel in contrato.ANEXOS %}
+            <li>
+                {{ nome }}
+                {% if disponivel %}
+                <span class="nd-contrato-estado nd-contrato-estado-ok">disponível</span>
+                {% else %}
+                <span class="nd-contrato-estado">ainda não disponibilizado</span>
+                {% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="fs-12 text-muted mb-0">
+            Os documentos acima integram este contrato quando disponibilizados.
+        </p>
+    </section>
+
+    <section class="nd-contrato-bloco">
+        <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Declaração de aceite</h3>
+        <p class="mb-2">Ao selecionar a opção eletrônica de aceite, a CONTRATANTE ou
+        seu representante declara:</p>
+        <ul class="nd-contrato-declaracao">
+            {% for item in contrato.DECLARACAO_ACEITE %}
+            <li>{{ item }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+
+    <footer class="nd-contrato-assinaturas">
+        <div>
+            <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Identificação do contratado</h3>
+            <p class="fs-12 mb-0">
+                <strong>{{ contrato.CONTRATADO.nome }}</strong><br>
+                Médico Neurologista<br>
+                CPF nº {{ contrato.CONTRATADO.cpf }}<br>
+                {{ contrato.CONTRATADO.endereco }}<br>
+                Responsável pela plataforma NeuroDoc
+            </p>
+        </div>
+        <div>
+            <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Revisão jurídica</h3>
+            <p class="fs-12 mb-2">
+                <strong>{{ contrato.REVISAO_JURIDICA.nome }}</strong><br>
+                {{ contrato.REVISAO_JURIDICA.oab }}<br>
+                {{ contrato.REVISAO_JURIDICA.papel }}
+            </p>
+        </div>
+    </footer>
+</article>

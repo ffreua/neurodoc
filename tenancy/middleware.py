@@ -74,4 +74,27 @@ class TenantMiddleware:
         ):
             return render(request, 'tenancy/tenant_suspended.html', status=403)
 
-        return self.get_response(request)
+        return self._sem_cache(self.get_response(request))
+
+    @staticmethod
+    def _sem_cache(response):
+        """Nenhuma tela de `/app/` fica guardada no navegador.
+
+        Sem cabeçalho, o navegador aplica cache heurístico e o botão
+        Voltar reexibe a página **depois do logout** — a lista de
+        pacientes do médico anterior aparece para quem sentar no mesmo
+        computador do consultório. `Vary: Cookie`, que a sessão já põe,
+        resolve o cache compartilhado e não resolve este: o histórico do
+        navegador é do navegador.
+
+        Aqui, e não em cada view, pelo mesmo motivo do congelamento da
+        clínica suspensa logo acima: a view que esquecesse a linha seria
+        justamente a que ninguém testaria. Respostas que já declararam a
+        própria política passam intactas — a foto do paciente é servida
+        com `private, max-age=300` de propósito, e sobrescrevê-la aqui
+        faria o navegador rebaixar a mesma imagem a cada rolagem da
+        lista.
+        """
+        if not response.has_header('Cache-Control'):
+            response['Cache-Control'] = 'private, no-store, max-age=0'
+        return response

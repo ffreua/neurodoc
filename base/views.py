@@ -15,6 +15,7 @@ from .content import FAQ, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
+from tenancy.contracts import copia_para_operacao, enviar_copia
 
 
 class StartFreePlanView(View):
@@ -223,6 +224,25 @@ class LandingView(View):
                       self._context(enviado=True, lead_nome=lead.name))
 
 
+class ContractView(View):
+    """O contrato de adesão em vigor, público.
+
+    Sem login e sem convite de propósito. Três pessoas precisam deste
+    endereço e nenhuma delas tem conta no momento em que precisa: quem
+    está avaliando o produto, o advogado a quem ela vai mandar o texto, e
+    quem já aderiu e quer reler o que assinou antes de entrar.
+
+    Mostra sempre a versão corrente. Quem aceitou uma versão anterior tem
+    a via no e-mail, com o hash do texto — e o console da instalação sabe
+    qual versão cada clínica aceitou.
+    """
+
+    def get(self, request):
+        from tenancy import contract
+
+        return render(request, 'onboarding/contrato.html', {'contrato': contract})
+
+
 class OrganizationSignupView(View):
     def _invitation_or_none(self, token):
         invitation = peek_invitation(token)
@@ -249,47 +269,81 @@ class OrganizationSignupView(View):
             'medicos': describe_limit(max_doctors(invitation.plan)),
         }
 
+    def _contexto(self, invitation, form):
+        """O que a tela precisa: o formulário, o plano e o contrato.
+
+        O contrato vai **inteiro** na página, e não atrás de um link. Uma
+        caixa de aceite que aponta para outro lugar é a forma clássica de
+        um contrato de adesão ser considerado não informado (CDC, art.
+        46): a pessoa clica em "aceito" sem que o texto lhe tenha sido
+        apresentado. Rolar uma caixa é diferente de abrir outra aba.
+        """
+        from tenancy import contract
+
+        return {
+            'form': form,
+            'plano': self._plano_do_convite(invitation) if invitation else None,
+            'contrato': contract,
+        }
+
     def get(self, request, token):
         invitation = self._invitation_or_none(token)
         if invitation is None:
             return render(request, 'onboarding/invitation_invalid.html', status=400)
-        return render(request, 'onboarding/signup.html', {
-            'form': OrganizationSignupForm(),
-            'plano': self._plano_do_convite(invitation),
-        })
+        from tenancy import contract
+
+        return render(request, 'onboarding/signup.html', self._contexto(
+            invitation, OrganizationSignupForm(initial={'contract_version': contract.VERSAO}),
+        ))
 
     def post(self, request, token):
         if self._invitation_or_none(token) is None:
             return render(request, 'onboarding/invitation_invalid.html', status=400)
         form = OrganizationSignupForm(request.POST)
         if not form.is_valid():
-            return render(request, 'onboarding/signup.html', {
-                'form': form,
-                'plano': self._plano_do_convite(self._invitation_or_none(token)),
-            })
+            return render(request, 'onboarding/signup.html', self._contexto(
+                self._invitation_or_none(token), form,
+            ))
         try:
-            user, tenant, membership = accept_platform_invitation(
+            user, tenant, membership, aceite = accept_platform_invitation(
                 token,
                 email=form.cleaned_data['email'],
                 password=form.cleaned_data['password'],
                 legal_name=form.cleaned_data['legal_name'],
                 trade_name=form.cleaned_data['trade_name'],
                 cnpj=form.cleaned_data['cnpj'],
+                # Quem aceitou, de onde e com qual navegador. É a prova do
+                # aceite eletrônico, e ela só existe se for colhida no
+                # instante — depois não há onde buscar.
+                contract_ip=client_ip(request) if client_ip(request) != 'desconhecido' else None,
+                contract_user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                contract_powers=form.cleaned_data['declare_powers'],
             )
         except InvalidInvitation:
             form.add_error(None, 'Convite inválido, expirado ou já utilizado.')
-            return render(request, 'onboarding/signup.html', {'form': form})
+            return render(request, 'onboarding/signup.html', self._contexto(None, form))
         except EmailAlreadyRegistered:
             form.add_error('email', 'Este e-mail já possui conta. Faça login para vincular uma organização.')
-            convite = self._invitation_or_none(token)
-            return render(request, 'onboarding/signup.html', {
-                'form': form,
-                'plano': self._plano_do_convite(convite) if convite else None,
-            })
+            return render(request, 'onboarding/signup.html', self._contexto(
+                self._invitation_or_none(token), form,
+            ))
         record_audit_event(
             user, tenant, 'tenancy.organization_created',
             object_type='tenant', object_id=tenant.id, outcome='success',
         )
+        # A trilha guarda que houve aceite, de qual versão e de qual
+        # texto. Não guarda o contrato: ele está em `tenancy/contract.py`,
+        # versionado, e o hash daqui diz qual texto foi aceito.
+        record_audit_event(
+            user, tenant, 'tenancy.contract_accepted',
+            object_type='contract_acceptance', object_id=aceite.id, outcome='success',
+            integrity_metadata={'version': aceite.version, 'sha256': aceite.text_sha256},
+        )
+        # Fora da transação, de propósito: a criação da clínica não espera
+        # o SMTP responder, e uma falha de e-mail não desfaz o aceite --
+        # ela fica registrada em `email_error` e aparece no console.
+        enviar_copia(aceite)
+        copia_para_operacao(aceite)
         auth_login(request, user)
         send_email_verification(user, request)
         return render(request, 'accounts/email_verification_sent.html')

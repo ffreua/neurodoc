@@ -29,15 +29,24 @@ class InvalidInvitation(Exception):
 
 
 @transaction.atomic
-def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_name=''):
+def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_name='',
+                               contract_ip=None, contract_user_agent='',
+                               contract_powers=False):
     """Consumes a platform invitation and creates org+owner atomically.
 
     If organization creation fails for any reason (duplicate e-mail,
     invalid CNPJ, ...), the invitation consumption rolls back with it, so a
     failed signup never burns a one-time invite.
+
+    O aceite do contrato entra **aqui dentro**, e nao numa chamada
+    seguinte na view: uma clinica criada e um aceite que falhou depois
+    seria uma organizacao usando o sistema sem contrato registrado, e
+    ninguem descobriria antes de precisar do contrato.
     """
     from accounts.models import User
     from exams.provisioning import ensure_default_template
+
+    from .contracts import registrar_aceite
 
     invitation = consume_invitation(token, consumed_by=None, expected_purpose=InvitationPurpose.PLATFORM)
     if invitation is None:
@@ -69,10 +78,15 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     )
     invitation.consumed_by = user
     invitation.save(update_fields=['consumed_by'])
+    aceite = registrar_aceite(
+        tenant, user, plan=invitation.plan,
+        ip=contract_ip, user_agent=contract_user_agent,
+        poderes_declarados=contract_powers,
+    )
     # A clínica nasce pronta para atender: sem isto, o primeiro exame
     # neurológico abre num aviso pedindo um comando de terminal.
     ensure_default_template(tenant.id)
-    return user, tenant, membership
+    return user, tenant, membership, aceite
 
 
 class InvitationEmailMismatch(Exception):

@@ -104,6 +104,35 @@ for label, url, expected in CASES:
             failures.append(f'{label} / {name}: esperava {want}, veio {got} (HTTP {code})')
     print(row)
 
+# ------------------------------------- o nome do anexo tambem e clinico
+#
+# A tela de anexos e administrativa de proposito: a secretaria precisa
+# anexar carteirinha e documento. Mas `ressonancia_cranio.pdf` diz o que
+# foi investigado, e o nome escapava na listagem mesmo com o conteudo
+# protegido -- baixar ja respondia 404, e o nome aparecia na linha.
+print()
+print('=== o nome do anexo clinico nao escapa na listagem ===')
+qualquer_clinico = Attachment.objects.filter(
+    tenant__slug=TENANT, classification=AttachmentClassification.CLINICAL,
+    deleted_at=None,
+).first()
+if qualquer_clinico is None:
+    print('  (sem anexo clinico na demonstracao; secao pulada)')
+else:
+    rota = f'/app/documents/patients/{qualquer_clinico.patient_id}/'
+    for name in PROFILES:
+        corpo = clients[name].get(rota).content.decode(errors='replace')
+        mostra = qualquer_clinico.original_name in corpo
+        mascara = 'Documento clínico' in corpo
+        le_prontuario = name.startswith('doctor')
+        print(f'  {name:12} nome visivel={mostra}  mascarado={mascara}')
+        if le_prontuario and not mostra:
+            failures.append(f'{name} lê prontuário e não viu o nome do anexo')
+        if not le_prontuario and mostra:
+            failures.append(f'{name} não lê prontuário e viu o nome do anexo clínico')
+        if not le_prontuario and not mascara:
+            failures.append(f'{name} não viu nem o nome nem o aviso de documento clínico')
+
 print('---')
 for label in skipped:
     print('SEM DADO PARA TESTAR:', label)

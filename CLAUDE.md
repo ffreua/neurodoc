@@ -97,7 +97,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `core` | settings, urls, asgi, celery |
 | `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`) e central de ajuda (`base/help_content.py`) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
-| `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação); **planos, limites e a matriz de permissão** |
+| `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação), `ContractAcceptance`; **planos, limites, a matriz de permissão e o contrato de adesão** (`contract.py`) |
 | `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto |
 | `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior |
@@ -110,7 +110,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `notifications` | sino do usuário |
 | `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
-| `reporting` | indicadores e exportações (CSV protegido contra injeção de fórmula, expiram em 24 h) |
+| `reporting` | indicadores e **exportação do acervo** (cadastro e prontuário em Markdown e JSON); CSV protegido contra injeção de fórmula, tudo expira em 24 h |
 | `integrations` | captura por scanner, antivírus, CEP, TUSS |
 | `events` | outbox de eventos de domínio com dispatcher idempotente e múltiplos consumidores por tópico |
 | `ops` | deploy, backup/restauração, saúde, console do superadministrador, geração do compose local |
@@ -145,6 +145,24 @@ completo, pré-cadastro da agenda, quatro caminhos do papel médico).
 
 Acesso é liberado por **código de convite** (`tenancy/invitations.py`), que
 carrega o plano contratado — não há pagamento on-line.
+
+**Contrato de adesão: `tenancy/contract.py`.** Dezoito cláusulas,
+**redigidas pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476** —
+não são texto nosso, e correção de redação passa por ela. O texto mora em
+código pelo mesmo motivo dos preços: mudá-lo é um commit com autor e
+data. `VERSAO` identifica a redação, e **nunca se edita uma versão já
+aceita** (cláusula 17.6): texto novo é versão nova.
+
+O aceite é obrigatório no cadastro, em **duas** caixas — "li e aceito" e
+"tenho poderes para contratar por esta clínica" (cláusula 2.2, "i") —, e
+grava versão, SHA-256, **cópia integral do texto aceito** (cláusula 2.3),
+plano e valor anual (2.2, "h"), quem aceitou, IP, navegador e os dois
+prazos (arrependimento de 7 dias, vencimento no aniversário). Uma via
+completa vai por e-mail ao contratante, tirada da cópia arquivada e não
+do texto corrente. `/contrato/` é público; `/instalacao/contratos/` lista
+os aceites e acusa quem aponta para um texto diferente do que está no ar.
+O que o contrato fixa em matéria de LGPD, e o que ele promete e ainda não
+existe (os Anexos I a V), está em `docs/governance/lgpd.md` §9.
 
 ## 6. Ambiente local
 
@@ -222,11 +240,54 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_mensagem_clinica.py` | as duas portas do rodapé do menu: qualquer vínculo escreve, a mensagem fica na clínica de quem escreveu, o texto não vai para a trilha, e o console lê as duas com MFA |
 | `check_perimetro.py` | a borda: agente de captura sem CSRF, desidentificação sem comer palavra, IP do visitante atrás do proxy |
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
+| `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
+| `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
 obrigatórios — o primeiro confere que o anual é o mensal × 12 e que o
 número anunciado é o do catálogo.
+
+## 7-A. Versão do produto
+
+**`base/version.py`.** `VERSION` é a versão do produto — o primeiro deploy
+é a **1.0**. Não confundir com `RELEASE_ID`, que é o SHA do commit
+publicado: aquele identifica um *build* e muda a cada publicação; este
+identifica o *produto* e é o número que aparece num chamado de suporte,
+numa nota de versão e num contrato.
+
+Maior quando quebra algo para quem já usa; menor quando entra
+funcionalidade sem quebrar. Correção sem funcionalidade nova não mexe em
+nenhum dos dois — o `RELEASE_ID` já a identifica.
+
+Aparece no rodapé do aplicativo e da página pública (`nd_versao`, do
+processador de contexto), em `/instalacao/` ao lado do build, no retorno
+do `operational_ping` e na saída do deploy. O módulo não importa nada de
+propósito: `ops/deploy.py` roda no host, fora do Django.
+
+## 7-B. Exportação do acervo
+
+**`/app/reporting/acervo/`**, no menu de administração da clínica. É o que
+cumpre a cláusula 13.1 do contrato de adesão — obter os dados em formato
+de uso comum — e sai só em **Markdown e JSON**:
+
+- **JSON** para levar a outro sistema: estrutura preservada, inclusive as
+  listas (contatos, convênios) que não cabem numa célula.
+- **Markdown** para ler: o cadastro vira uma ficha por paciente, e o
+  prontuário vira um documento agrupado por paciente e em ordem de data,
+  com o texto de cada anotação. Tabela com uma coluna de vinte mil
+  caracteres é tecnicamente uma exportação e praticamente ilegível.
+
+Reaproveita o motor de `reporting` inteiro: fila no worker, arquivo
+privado com 0600, expiração em 24 h, trilha de auditoria.
+
+**Quem pode.** A capacidade é declarada **por relatório**, em
+`reporting/apps.py`, e conferida em `request_export` — não na view, porque
+o nome do relatório chega pelo POST. O cadastro exige
+`MANAGE_ORGANIZATION` (só o dono, que é a CONTRATANTE do contrato); o
+acervo clínico exige `MANAGE_ORGANIZATION` **e** `READ_CLINICAL`, porque
+um dono que não é médico não abre prontuário na tela e não pode baixar
+todos num arquivo. Recusa entra na trilha como `reporting.export_denied`.
 
 ## 8. Deploy
 
@@ -250,12 +311,16 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
 - `docs/governance/lgpd.md` — a matriz de tratamento (finalidade × base legal
-  candidata × medida técnica), operadores e transferência internacional, as
-  medidas técnicas com o roteiro que verifica cada uma, e a lista do que
-  **não** se resolve em código: contratos, designação de encarregado, RIPD.
+  × medida técnica), operadores e transferência internacional, as medidas
+  técnicas com o roteiro que verifica cada uma, e onde cada exigência
+  jurídica ficou tratada. **Sem pendências desde 2026-09-21**: o contrato
+  de adesão da advogada (§9) é o instrumento do art. 39, e o §6 registra a
+  decisão do controlador de que nada ali bloqueia a operação.
 - `docs/decisions.md` — DEC-01..DEC-21 e as pendências P-01..P-10, com dono
-  e condição de liberação (P-02 VPS real, P-05 certificado real, P-06/P-07
-  responsáveis de LGPD, P-08 scanner real permanecem abertas).
+  e condição de liberação (P-02 VPS real, P-05 certificado real, P-08
+  scanner real permanecem abertas; P-06 e P-07 foram resolvidas em
+  2026-09-21 — a primeira pelo contrato de adesão da advogada, a segunda
+  por decisão de escopo sobre o SNCR).
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,
   com a alternativa recusada.
 - `design_system/design-system.html` — o tema Duralux real, servido

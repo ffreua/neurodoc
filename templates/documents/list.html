@@ -33,16 +33,29 @@
                             {% for a in attachments %}
                             <tr>
                                 <td class="ps-4">
+                                    {% comment %}Nome de arquivo é informação clínica:
+                                    `ressonancia_cranio.pdf` diz o que foi investigado. Quem
+                                    não lê prontuário vê que existe documento — o que a
+                                    recepção precisa para responder ao paciente que ligou —
+                                    e não vê o que ele é.{% endcomment %}
+                                    {% if pode_ver_clinico or a.classification != 'clinical' %}
                                     <span class="d-block fw-semibold text-dark">{{ a.original_name }}</span>
+                                    {% else %}
+                                    <span class="d-block fw-semibold text-muted fst-italic">Documento clínico</span>
+                                    <span class="d-block fs-11 text-muted">Enviado em {{ a.created_at|date:"d/m/Y" }} · visível para o médico</span>
+                                    {% endif %}
                                     {% if a.scan_error %}<span class="d-block fs-11 text-danger">{{ a.scan_error }}</span>{% endif %}
                                 </td>
-                                <td><span class="badge bg-gray-200 text-dark">{{ a.classification }}</span></td>
+                                <td><span class="badge bg-gray-200 text-dark">{{ a.get_classification_display }}</span></td>
                                 <td>
                                     <span class="badge bg-soft-{{ a.scan_status|nd_tone }} text-{{ a.scan_status|nd_tone }}">{{ a.get_scan_status_display }}</span>
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="d-inline-flex align-items-center gap-1">
-                                        {% if a.scan_status == 'available' %}
+                                        {% comment %}Botão que devolve 404 é pior do que
+                                        botão ausente: quem clica conclui que o sistema
+                                        quebrou, e não que a regra é essa.{% endcomment %}
+                                        {% if a.scan_status == 'available' and pode_ver_clinico or a.scan_status == 'available' and a.classification != 'clinical' %}
                                         <a class="btn btn-sm btn-light-primary" href="{% url 'documents:download' a.id %}">Baixar</a>
                                         <a class="btn btn-sm btn-light" href="{% url 'documents:preview' a.id %}">Prévia</a>
                                         {% endif %}

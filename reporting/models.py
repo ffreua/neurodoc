@@ -45,8 +45,26 @@ class ReportDefinition(TenantModel):
 
 
 class ReportExportKind(models.TextChoices):
+    """Em que formato a exportacao sai.
+
+    `MD` e `JSON` entraram com a exportacao do acervo da clinica
+    (clausula 13.1 do contrato: "formato tecnicamente adequado e de uso
+    comum"), e a escolha entre eles nao e estetica:
+
+    - `JSON` e para levar os dados a outro sistema. Estrutura preservada,
+      campo por campo, sem perda.
+    - `MD` e para **ler**. Um prontuario de dez anos em tabela CSV nao se
+      le; em Markdown vira um documento com secoes, que abre em qualquer
+      editor e imprime.
+
+    `CSV` continua para os indicadores gerenciais, que sao tabela de
+    verdade. `PDF` esta declarado desde o inicio e ainda nao e gerado.
+    """
+
     CSV = 'csv', 'CSV'
     PDF = 'pdf', 'PDF'
+    MD = 'md', 'Markdown'
+    JSON = 'json', 'JSON'
 
 
 class ReportExportStatus(models.TextChoices):

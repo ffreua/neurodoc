@@ -116,6 +116,10 @@
                     <ul class="nxl-submenu {% if nd_section == 'tenancy' %}nxl-menu-visible{% else %}nxl-menu-hidden{% endif %}">
                         <li class="nxl-item"><a class="nxl-link" href="{% url 'tenancy:team' %}">Equipe e papéis</a></li>
                         <li class="nxl-item"><a class="nxl-link" href="{% url 'tenancy:clinic' %}">Identidade da clínica</a></li>
+                        {% comment %}Exportar o acervo fica na administração da
+                        clínica porque o direito é de quem contratou (cláusula
+                        13.1 do contrato), e não de quem opera o balcão.{% endcomment %}
+                        <li class="nxl-item"><a class="nxl-link" href="{% url 'reporting:acervo' %}">Exportar dados</a></li>
                     </ul>
                 </li>
                 {% endif %}

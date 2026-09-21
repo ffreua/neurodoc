@@ -38,6 +38,7 @@ urlpatterns = [
         'mensagens/',
         superadmin.ClinicMessagesView.as_view(), name='clinic-messages',
     ),
+    path('contratos/', superadmin.ContractsView.as_view(), name='contracts'),
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
     path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
 ]

@@ -11,6 +11,8 @@ from django.urls import Resolver404, resolve
 
 from tenancy.permissions import Capability
 
+from .version import VERSION
+
 #: Todas as capacidades declaradas, para o dicionário do template trazer
 #: também as negadas — uma chave ausente e uma chave `False` se comportam
 #: igual no template, mas a lista completa é o que permite conferir a
@@ -53,6 +55,11 @@ def shell(request):
     user = getattr(request, 'user', None)
     context = getattr(request, 'access_context', None)
     data = {
+        # A versao do produto, em toda tela. Constante de modulo, sem
+        # consulta: o rodape do aplicativo e o da pagina publica mostram a
+        # mesma, e quem abre um chamado de suporte tem o numero a vista sem
+        # precisar procurar.
+        'nd_versao': VERSION,
         'nd_section': _section(request),
         'nd_view': _view_name(request),
         'nd_portal_requests': 0,

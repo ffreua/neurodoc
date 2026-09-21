@@ -17,6 +17,8 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 
 from accounts.models import User
 from patients.models import Patient, PatientStatus
+import atexit
+
 from tenancy import limits
 from tenancy.models import Membership, MembershipStatus, Role, Tenant
 from tenancy.plans import PLANS, PlanCode
@@ -29,6 +31,21 @@ plano_original = (tenant_a.plan, tenant_a.patient_limit_override, tenant_a.docto
 def restaurar():
     tenant_a.plan, tenant_a.patient_limit_override, tenant_a.doctor_limit_override = plano_original
     tenant_a.save(update_fields=['plan', 'patient_limit_override', 'doctor_limit_override'])
+
+
+# Devolve o plano mesmo se o roteiro quebrar no meio.
+#
+# Este roteiro **prende** a clinica de demonstracao no limite para provar
+# que as seis portas bloqueiam -- inclusive com `override=0`. A restauracao
+# ficava so no fim: uma falha no meio deixava a clinica demo recusando
+# cadastro de paciente sem motivo visivel, e quem fosse usar o sistema
+# depois encontraria um defeito que nao existe.
+#
+# `atexit` e nao `try/finally` porque isto e um script corrido, sem funcao
+# em volta: cobre a saida normal, a excecao nao tratada e o
+# `raise SystemExit(1)` do fim. Chamar duas vezes nao faz mal -- escreve o
+# mesmo valor.
+atexit.register(restaurar)
 
 
 def com_limite(pacientes=None, medicos=None, plano=None):

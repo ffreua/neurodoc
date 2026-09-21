@@ -10,7 +10,7 @@ from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import operations, patients
 from .models import ReportExport, ReportExportKind, ReportExportStatus
-from .services import request_export
+from .services import EXPORT_TTL_HOURS, request_export
 
 
 class TenantScopedView(CapabilityRequiredView):
@@ -111,6 +111,67 @@ class DashboardView(HomeRedirectMixin, TenantScopedView):
         })
 
 
+class AcervoView(CapabilityRequiredView):
+    """Levar os dados embora: cadastro e prontuário, em Markdown ou JSON.
+
+    Fica na administração da clínica porque o direito é da CONTRATANTE, e
+    não de quem opera o balcão — cláusula 13.1 do contrato de adesão. Por
+    isso a tela exige `MANAGE_ORGANIZATION`, que só o dono tem.
+
+    O acervo **clínico** exige, além dela, `READ_CLINICAL`: o dono que não
+    é médico administra a clínica e não abre prontuário, e não seria
+    coerente que não pudesse ler uma nota na tela e pudesse baixar todas
+    num arquivo. Quando falta, a tela diz por que o botão não está lá em
+    vez de simplesmente escondê-lo — sumir sem explicação faz a pessoa
+    procurar defeito onde há regra.
+
+    Quem decide de verdade é `request_export`, que confere as capacidades
+    do relatório pedido. Esta tela só evita oferecer o que seria negado.
+    """
+
+    required_capability = Capability.MANAGE_ORGANIZATION
+
+    def get(self, request):
+        from tenancy.selectors import scope_to_tenant
+
+        recentes = scope_to_tenant(
+            ReportExport.objects.filter(report_name__startswith='acervo_'),
+            request.access_context,
+        ).order_by('-created_at')[:10]
+        return render(request, 'reporting/acervo.html', {
+            'pode_clinico': request.access_context.can(Capability.READ_CLINICAL),
+            'recentes': recentes,
+            'horas': EXPORT_TTL_HOURS,
+        })
+
+    def post(self, request):
+        from tenancy.models import Membership
+
+        from .services import ReportNotAllowed, ReportNotFound
+
+        nome = request.POST.get('acervo')
+        formato = request.POST.get('formato')
+        # Lista fechada, e não o que vier no POST: `request_export` já
+        # recusa nome desconhecido, mas deixar a tela aceitar qualquer
+        # string faria a trilha de auditoria encher de tentativas que são
+        # só erro de digitação em link colado.
+        if nome not in {'acervo_pacientes', 'acervo_atendimentos'}:
+            raise Http404
+        if formato not in {ReportExportKind.MD, ReportExportKind.JSON}:
+            raise Http404
+
+        membership = Membership.objects.filter(
+            id=request.access_context.membership_id,
+        ).first()
+        try:
+            export = request_export(
+                request.access_context, membership, nome, {}, kind=formato,
+            )
+        except (ReportNotAllowed, ReportNotFound):
+            raise Http404
+        return redirect('reporting:export-detail', export_id=export.id)
+
+
 class ExportRequestView(TenantScopedView):
     def post(self, request):
         from tenancy.models import Membership
@@ -137,9 +198,22 @@ class ExportDownloadView(TenantScopedView):
         export = get_object_or_404(scope_to_tenant(ReportExport.objects.all(), request.access_context), id=export_id)
         if export.status != ReportExportStatus.READY or not export.storage_key:
             raise Http404
+        from .services import FORMATOS
+
         with open(export.storage_key, 'rb') as fh:
             content = fh.read()
-        response = HttpResponse(content, content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{export.report_name}.csv"'
+        # Extensao e tipo saem do formato gravado, e nao de `csv` fixo. Um
+        # Markdown entregue como `text/csv` chamado `.csv` abre no Excel
+        # como uma coluna de lixo -- o arquivo estava certo e a pessoa
+        # concluiria que a exportacao esta quebrada.
+        extensao, tipo = FORMATOS.get(export.kind, ('txt', 'text/plain; charset=utf-8'))
+        response = HttpResponse(content, content_type=tipo)
+        response['Content-Disposition'] = (
+            f'attachment; filename="{export.report_name}.{extensao}"'
+        )
+        # `nosniff` porque parte disto e Markdown e JSON vindos de texto
+        # que o proprio usuario escreveu: sem ele, um navegador que
+        # adivinhe o tipo pode decidir renderizar em vez de baixar.
+        response['X-Content-Type-Options'] = 'nosniff'
         response['Cache-Control'] = 'private, no-store'
         return response
