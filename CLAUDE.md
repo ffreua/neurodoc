@@ -146,16 +146,23 @@ completo, pré-cadastro da agenda, quatro caminhos do papel médico).
 Acesso é liberado por **código de convite** (`tenancy/invitations.py`), que
 carrega o plano contratado — não há pagamento on-line.
 
-**Contrato de adesão: `tenancy/contract.py`.** O texto mora em código pelo
-mesmo motivo dos preços — mudá-lo é um commit com autor e data. `VERSAO`
-identifica a redação, e **nunca se edita uma versão já aceita**: texto novo
-é versão nova. O aceite é obrigatório no cadastro e grava versão, SHA-256
-do texto, quem aceitou, IP, navegador e os dois prazos (arrependimento de 7
-dias, vencimento no aniversário). Uma via completa vai por e-mail ao
-contratante; `/contrato/` é público; `/instalacao/contratos/` lista os
-aceites e acusa quem aponta para um texto diferente do que está no ar. O
-que ele fixa em matéria de LGPD está em `docs/governance/lgpd.md` §9 —
-inclusive as três escolhas que ainda pedem confirmação de advogado.
+**Contrato de adesão: `tenancy/contract.py`.** Dezoito cláusulas,
+**redigidas pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476** —
+não são texto nosso, e correção de redação passa por ela. O texto mora em
+código pelo mesmo motivo dos preços: mudá-lo é um commit com autor e
+data. `VERSAO` identifica a redação, e **nunca se edita uma versão já
+aceita** (cláusula 17.6): texto novo é versão nova.
+
+O aceite é obrigatório no cadastro, em **duas** caixas — "li e aceito" e
+"tenho poderes para contratar por esta clínica" (cláusula 2.2, "i") —, e
+grava versão, SHA-256, **cópia integral do texto aceito** (cláusula 2.3),
+plano e valor anual (2.2, "h"), quem aceitou, IP, navegador e os dois
+prazos (arrependimento de 7 dias, vencimento no aniversário). Uma via
+completa vai por e-mail ao contratante, tirada da cópia arquivada e não
+do texto corrente. `/contrato/` é público; `/instalacao/contratos/` lista
+os aceites e acusa quem aponta para um texto diferente do que está no ar.
+O que o contrato fixa em matéria de LGPD, e o que ele promete e ainda não
+existe (os Anexos I a V), está em `docs/governance/lgpd.md` §9.
 
 ## 6. Ambiente local
 
@@ -266,8 +273,10 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
   medidas técnicas com o roteiro que verifica cada uma, e a lista do que
   **não** se resolve em código: contratos, designação de encarregado, RIPD.
 - `docs/decisions.md` — DEC-01..DEC-21 e as pendências P-01..P-10, com dono
-  e condição de liberação (P-02 VPS real, P-05 certificado real, P-06/P-07
-  responsáveis de LGPD, P-08 scanner real permanecem abertas).
+  e condição de liberação (P-02 VPS real, P-05 certificado real, P-08
+  scanner real permanecem abertas; P-06 e P-07 foram resolvidas em
+  2026-09-21 — a primeira pelo contrato de adesão da advogada, a segunda
+  por decisão de escopo sobre o SNCR).
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,
   com a alternativa recusada.
 - `design_system/design-system.html` — o tema Duralux real, servido

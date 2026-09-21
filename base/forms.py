@@ -45,6 +45,24 @@ class OrganizationSignupForm(forms.Form):
         error_messages={'required': 'É preciso aceitar o contrato para criar a clínica.'},
     )
 
+    #: Declaração de poderes para contratar (cláusula 2.2, "i").
+    #:
+    #: Campo separado da caixa de aceite, e não uma frase dentro dela.
+    #: São duas declarações diferentes — "li e aceito" e "posso assinar
+    #: por esta clínica" —, e a segunda é a que se discute quando alguém
+    #: alega que quem clicou não tinha poderes. Juntas numa caixa só, não
+    #: haveria como mostrar que a pergunta foi feita.
+    #:
+    #: Obrigatória: quem cria a organização vira o responsável dela, e
+    #: responsável que não pode assinar pela clínica não deveria estar
+    #: criando a clínica.
+    declare_powers = forms.BooleanField(
+        label='Declaro que possuo poderes para contratar em nome desta clínica',
+        error_messages={
+            'required': 'É preciso declarar que você pode contratar em nome da clínica.',
+        },
+    )
+
     def clean_contract_version(self):
         """A versão lida é a versão corrente?
 

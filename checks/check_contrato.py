@@ -33,8 +33,8 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 from accounts.models import User
 from tenancy import contract
 from tenancy.contracts import (
-    PRAZO_ARREPENDIMENTO_DIAS, _somar_um_ano, enviar_copia, registrar_aceite,
-    sha_do_texto,
+    PRAZO_ARREPENDIMENTO_DIAS, _somar_um_ano, enviar_copia, preco_anual_centavos,
+    registrar_aceite, sha_do_texto,
 )
 from tenancy.invitations import issue_invitation
 from tenancy.models import ContractAcceptance, InvitationPurpose, Tenant
@@ -116,19 +116,36 @@ print(f'  versao={contract.VERSAO}  clausulas={len(contract.CLAUSULAS)}  '
 # de uma clausula nao pode quebrar o roteiro, apagar a clausula precisa.
 obrigatorias = [
     ('arrependimento de 7 dias', r'7 \(sete\) dias corridos'),
-    ('nao reembolso apos o prazo', r'n[aã]o gera direito a reembolso'),
-    ('vencimento anual na data do aceite', r'anivers[aá]rio do aceite'),
-    ('vigencia de 12 meses', r'12 \(doze\) meses'),
-    ('clinica e a controladora', r'CONTROLADORA dos dados pessoais'),
-    ('NeuroDoc e a operadora', r'a NeuroDoc é a OPERADORA'),
-    ('responsabilidade do operador nao e afastada', r'art\.\s*42'),
-    ('guarda de 20 anos do prontuario', r'20 \(vinte\) anos'),
+    ('nao reembolso por conveniencia', r'n[aã]o haver[aá] restitui[cç][aã]o'),
+    ('restituicao proporcional nas excecoes',
+     r'restitui[cç][aã]o proporcional do per[ií]odo n[aã]o utilizado'),
+    ('vigencia de 12 meses da contratacao',
+     r'12 \(doze\) meses, contados da data\s+da contrata[cç][aã]o'),
+    ('renovacao automatica', r'renovado automaticamente'),
+    ('clinica e a controladora', r'CONTRATANTE atuar[aá], em regra, como CONTROLADORA'),
+    ('NeuroDoc e o operador', r'NeuroDoc, como OPERADOR'),
+    ('papel contratual nao afasta a lei',
+     r'n[aã]o afasta as\s+responsabilidades que a legisla[cç][aã]o atribuir'),
+    ('lei da LGPD citada', r'Lei n[ºo] 13\.709/2018'),
+    ('copia do contrato fica com o registro',
+     r'c[oó]pia do conte[uú]do contratual efetivamente aceito'),
+    ('declaracao de poderes para contratar', r'poderes para\s+contratar em nome'),
+    ('hash deterministico', r'identificador SHA-256'),
     ('exportacao no termino', r'90 \(noventa\) dias'),
-    ('prontuario nao e retido como garantia', r'n[aã]o é retido como garantia'),
-    ('prazo de aviso de incidente', r'48 \(quarenta e oito\) horas'),
+    ('divida nao impede exportacao',
+     r'exist[eê]ncia de d[ií]vida n[aã]o impedir[aá] a exporta[cç][aã]o'),
+    ('guarda legal do prontuario continua da clinica',
+     r'n[aã]o transfere ao CONTRATADO a responsabilidade'),
+    ('prontuario nao e garantia de pagamento', r'como garantia\s+de pagamento'),
+    ('prazo de aviso de incidente', r'at[eé] 24 horas'),
     ('suboperadores', r'suboperadores'),
-    ('transferencia internacional', r'art\.\s*33'),
-    ('encarregado', r'art\.\s*41'),
+    ('transferencia internacional e a ANPD', r'Ag[eê]ncia Nacional de Prote[cç][aã]o de Dados'),
+    ('encarregado', r'indicar encarregado'),
+    ('IA nao entra sozinha no prontuario',
+     r'Nenhum resultado produzido por intelig[eê]ncia artificial ser[aá]\s+incorporado'),
+    ('pseudonimizacao nao e anonimizacao', r'n[aã]o constituem anonimiza[cç][aã]o'),
+    ('limitacao de responsabilidade com excecoes', r'na extens[aã]o proibida por lei'),
+    ('versao aceita permanece vinculada', r'permanecer[aá] vinculada [aà] respectiva'),
     ('foro', r'Fica eleito o foro'),
 ]
 presentes = 0
@@ -142,7 +159,7 @@ print(f'  clausulas obrigatorias presentes={presentes}/{len(obrigatorias)}')
 # Numeracao coerente: a tela numera por posicao, e o texto simples tambem.
 # Se as duas contagens divergissem, o e-mail citaria "clausula 9" e a tela
 # mostraria outra coisa no lugar.
-numeros = re.findall(r'^(\d+)\. [A-ZÀ-Ú]', inteiro, re.MULTILINE)
+numeros = re.findall(r'^CLÁUSULA (\d+) —', inteiro, re.MULTILINE)
 if [int(x) for x in numeros] != list(range(1, len(contract.CLAUSULAS) + 1)):
     falhas.append(f'a numeracao das clausulas saiu fora de ordem: {numeros}')
 else:
@@ -183,6 +200,24 @@ if faltando:
     falhas.append(f'a pagina publica nao mostra as clausulas: {faltando}')
 if '/contrato/' not in anonimo.get('/').content.decode(errors='replace'):
     falhas.append('a pagina de vendas nao aponta para o contrato')
+# Quem redigiu, e a qualificacao das partes, aparecem no documento -- nao
+# so no comentario do modulo.
+assinatura = (contract.REVISAO_JURIDICA['nome'] in corpo
+              and contract.REVISAO_JURIDICA['oab'] in corpo)
+qualificacao = contract.CONTRATADO['cpf'] in corpo
+print(f'  advogada na pagina={assinatura}  qualificacao do contratado={qualificacao}')
+if not assinatura or not qualificacao:
+    falhas.append('a pagina publica nao identifica a advogada ou o contratado')
+# Anexos: todos listados, e o estado de cada um dito. Prometer anexo que
+# nao existe sem dizer que nao existe e o defeito que esta linha impede.
+sem_anexo = [nome for nome, _ in contract.ANEXOS if nome not in corpo]
+if sem_anexo:
+    falhas.append(f'a pagina nao lista os anexos: {sem_anexo}')
+if any(not d for _, d in contract.ANEXOS) and 'ainda não disponibilizado' not in corpo:
+    falhas.append('ha anexo indisponivel e a pagina nao diz que ele nao existe')
+# Alineas numeradas, e nao um paragrafo corrido.
+if 'nd-contrato-alineas' not in corpo:
+    falhas.append('a pagina nao renderiza as alineas das clausulas')
 
 print('=== 4. sem aceitar, nao nasce clinica ===')
 convite, token = issue_invitation(purpose=InvitationPurpose.PLATFORM, plan=PlanCode.BASIC)
@@ -194,6 +229,7 @@ dados = {
     'trade_name': 'Roteiro Contrato',
     'cnpj': CNPJ_A,
     'contract_version': contract.VERSAO,
+    'declare_powers': 'on',
 }
 antes = Tenant.objects.count()
 cliente = Client()
@@ -208,6 +244,19 @@ if criou or not avisou:
 convite.refresh_from_db()
 if convite.consumed_at is not None:
     falhas.append('o cadastro recusado consumiu o convite')
+
+# A declaracao de poderes (clausula 2.2, "i") e a segunda porta: aceitar
+# o contrato sem poder assinar pela clinica nao cria organizacao nenhuma.
+antes = Tenant.objects.count()
+sem_poderes = dict(dados, accept_contract='on')
+sem_poderes.pop('declare_powers')
+r_poderes = cliente.post(f'/signup/{token}/', sem_poderes)
+texto_poderes = r_poderes.content.decode(errors='replace')
+print(f'  POST sem declarar poderes -> HTTP {r_poderes.status_code}  '
+      f'clinicas criadas={Tenant.objects.count() - antes}  '
+      f'avisa={"contratar em nome da" in texto_poderes}')
+if Tenant.objects.count() != antes or 'contratar em nome da' not in texto_poderes:
+    falhas.append('o cadastro criou a clinica sem a declaracao de poderes')
 
 print('=== 5. versao velha no formulario e recusada ===')
 antes = Tenant.objects.count()
@@ -246,6 +295,21 @@ else:
     if aceite.accepted_email != f'dono{SUFIXO}':
         falhas.append('o aceite nao gravou quem aceitou')
 
+    # O que a redacao da advogada exige a mais do registro.
+    copia_bate = aceite.text == contract.texto_simples()
+    preco = preco_anual_centavos(PlanCode.BASIC)
+    print(f'  copia arquivada={len(aceite.text)} caracteres (confere={copia_bate})  '
+          f'poderes={aceite.representation_declared}  '
+          f'valor anual gravado={aceite.price_annual_cents} (esperado={preco})')
+    if not aceite.text:
+        falhas.append('o aceite nao arquivou a copia do contrato (clausula 2.3)')
+    elif not copia_bate:
+        falhas.append('a copia arquivada difere do texto em vigor no aceite')
+    if not aceite.representation_declared:
+        falhas.append('o aceite nao gravou a declaracao de poderes (clausula 2.2, i)')
+    if aceite.price_annual_cents != preco:
+        falhas.append('o aceite nao gravou o valor anual do plano (clausula 2.2, h)')
+
     # Os prazos sao os do contrato, e nao qualquer data.
     # Arredondado, e nao `.days`: `created_at` e gravado pelo banco alguns
     # microssegundos depois de o prazo ser calculado, entao a diferenca e
@@ -283,6 +347,11 @@ else:
               f'clausulas faltando={len(sem_clausula)}')
         if sem_clausula or not tem_hash or not tem_data:
             falhas.append('a via enviada ao contratante nao tem o contrato inteiro')
+        # E a via leva a **copia arquivada**, e nao o texto corrente:
+        # reenviar a via de um contrato antigo com a redacao nova seria
+        # mandar a pessoa um documento que ela nunca aceitou.
+        if aceite.text and aceite.text not in via:
+            falhas.append('a via enviada nao usou a copia arquivada do aceite')
     if aceite.emailed_at is None:
         falhas.append('o envio da via nao ficou registrado no aceite')
 
@@ -324,6 +393,7 @@ Client().post(f'/signup/{outro_token}/', {
     'cnpj': CNPJ_B,
     'contract_version': contract.VERSAO,
     'accept_contract': 'on',
+    'declare_powers': 'on',
 })
 vizinha = Tenant.objects.filter(cnpj=CNPJ_B).first()
 if clinica is None or vizinha is None:

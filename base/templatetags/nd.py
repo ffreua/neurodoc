@@ -261,3 +261,19 @@ def nd_hidden_errors(form):
     for field in form.hidden_fields():
         erros.extend(field.errors)
     return erros
+
+
+@register.filter
+def nd_na_lista(nome, lista):
+    """O campo está nesta lista de nomes separados por vírgula?
+
+    Existe porque `form_fields.html` passou a precisar mover **dois**
+    campos para o meio do formulário -- a caixa de aceite do contrato e a
+    declaração de poderes --, e a comparação direta `field.name != somente`
+    só dava conta de um. Comparar contra uma string com vírgulas pelo
+    operador `in` do template pegaria `accept` dentro de
+    `accept_contract`; dividir de verdade, não.
+    """
+    if not lista:
+        return False
+    return nome in [parte.strip() for parte in str(lista).split(',')]

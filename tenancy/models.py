@@ -437,14 +437,33 @@ class ContractAcceptance(TenantModel):
     """
 
     #: Versao aceita (`tenancy.contract.VERSAO`). Texto novo e versao
-    #: nova: nunca se edita uma versao ja aceita.
+    #: nova: nunca se edita uma versao ja aceita -- a clausula 17.6 diz
+    #: isso com todas as letras.
     version = models.CharField(max_length=20)
     #: SHA-256 de `contract.texto_simples()` no momento do aceite.
     text_sha256 = models.CharField(max_length=64)
+    #: O contrato inteiro, como foi aceito.
+    #:
+    #: Exigencia da clausula 2.3: "uma copia do conteudo contratual
+    #: efetivamente aceito permanecera vinculada ao respectivo registro de
+    #: contratacao". So o hash nao cumpre -- ele prova que um texto e
+    #: aquele texto, mas nao devolve o texto. E `tenancy/contract.py`
+    #: guarda apenas a **versao corrente**: quem aceitou a 1.0 nao tem
+    #: onde ler a 1.0 depois de a 2.0 entrar no ar.
+    #:
+    #: Vinte e cinco mil caracteres por aceite, uma vez por clinica. E
+    #: barato para o que compra: a prova documental fica no banco, e nao
+    #: numa versao do codigo que alguem teria de recuperar do historico.
+    text = models.TextField(blank=True)
     #: O plano contratado, copiado do convite. Fica aqui, e nao so no
     #: `Tenant`, porque o plano da clinica muda e o do contrato assinado
     #: nao: o que se cobrou no primeiro ano e o que esta escrito aqui.
     plan = models.CharField(max_length=40, choices=PlanCode.choices, default=PlanCode.FREE)
+    #: O que o plano custava no dia (clausula 2.2, "h": plano **e
+    #: condicoes comerciais**). Em centavos, como todo preco do sistema.
+    #: Nulo quando nao ha preco de tabela -- o Personalizado, combinado
+    #: caso a caso. Zero e o Gratuito, que e um preco e nao uma ausencia.
+    price_annual_cents = models.PositiveIntegerField(null=True, blank=True)
 
     #: A conta que aceitou, enquanto ela existir.
     #:
@@ -466,6 +485,14 @@ class ContractAcceptance(TenantModel):
     accepted_email = models.EmailField(max_length=254)
     source_ip = models.GenericIPAddressField(null=True, blank=True)
     user_agent = models.CharField(max_length=255, blank=True)
+    #: Declaracao de poderes para contratar (clausula 2.2, "i").
+    #:
+    #: Campo proprio, e nao embutido na caixa de aceite. Sao duas
+    #: declaracoes diferentes -- "li e aceito" e "tenho poderes para
+    #: assinar por esta clinica" --, e a segunda e a que se discute quando
+    #: alguem alega que quem clicou nao podia ter clicado. Juntas numa
+    #: caixa so, nao haveria como mostrar que a pergunta foi feita.
+    representation_declared = models.BooleanField(default=False)
 
     #: Ate quando cabe arrependimento (clausula 9), e quando vence o
     #: periodo contratado (clausula 2). Gravados, e nao calculados na

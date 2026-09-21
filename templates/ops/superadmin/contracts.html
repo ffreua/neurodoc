@@ -29,6 +29,18 @@ defeito de SMTP onde não há nenhum.{% endcomment %}
 </div>
 {% endif %}
 
+{% if sem_copia_arquivada %}
+{% comment %}A cláusula 2.3 manda guardar, junto do registro, uma cópia do
+que foi aceito. Aceites anteriores a essa coluna não têm — provam que
+houve aceite, não provam de quê. Não se preenche retroativamente: seria
+arquivar como aceito um texto que aquela clínica não viu.{% endcomment %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>{{ sem_copia_arquivada }} aceite(s) sem cópia contratual arquivada.</strong>
+    São anteriores à cláusula 2.3 entrar no sistema. A versão e o SHA-256 identificam
+    o texto; a cópia se resolve quando a clínica aceitar a próxima versão.
+</div>
+{% endif %}
+
 {% if sem_contrato_total %}
 <div class="alert alert-danger fade show" role="alert">
     <strong>{{ sem_contrato_total }} organização(ões) sem aceite registrado.</strong>
@@ -61,6 +73,7 @@ defeito de SMTP onde não há nenhum.{% endcomment %}
                         <th scope="col">Clínica</th>
                         <th scope="col">Quem aceitou</th>
                         <th scope="col">Plano</th>
+                        <th scope="col">Declarações</th>
                         <th scope="col">Versão</th>
                         <th scope="col">Prazos</th>
                     </tr>
@@ -97,7 +110,28 @@ defeito de SMTP onde não há nenhum.{% endcomment %}
                             <span class="d-block fs-11 text-muted">Sem via enviada (aceite fora do cadastro)</span>
                             {% endif %}
                         </td>
-                        <td class="fs-12">{{ l.plano }}</td>
+                        <td class="fs-12">
+                            {{ l.plano }}
+                            {% if l.valor %}
+                            <span class="d-block fs-11 text-muted">{{ l.valor }} / ano</span>
+                            {% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {% comment %}As duas declarações da cláusula 2.2: a
+                            de poderes ("i") e a cópia arquivada ("2.3"). São o
+                            que se procura quando alguém contesta o aceite, e
+                            por isso ficam numa coluna, não num rodapé.{% endcomment %}
+                            {% if l.aceite.representation_declared %}
+                            <span class="d-block fs-11 text-success">Poderes declarados</span>
+                            {% else %}
+                            <span class="d-block fs-11 text-muted">Poderes não registrados</span>
+                            {% endif %}
+                            {% if l.tem_copia %}
+                            <span class="d-block fs-11 text-success">Cópia arquivada</span>
+                            {% else %}
+                            <span class="d-block fs-11 text-warning">Sem cópia arquivada</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if l.versao_atual %}
                             <span class="badge bg-soft-success text-success">{{ l.aceite.version }}</span>
@@ -148,6 +182,7 @@ defeito de SMTP onde não há nenhum.{% endcomment %}
         <p class="fs-11 text-muted">
             Conferência deste texto: <code>{{ sha_atual }}</code>. É este valor que a coluna
             "texto confere" compara com o que ficou gravado em cada aceite.
+            Redação de {{ contrato.REVISAO_JURIDICA.nome }}, {{ contrato.REVISAO_JURIDICA.oab }}.
         </p>
         <div class="nd-contrato-caixa" tabindex="0" role="region"
              aria-label="Contrato de Adesão, versão {{ contrato.VERSAO }}">

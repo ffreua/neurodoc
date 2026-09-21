@@ -26,6 +26,7 @@ A distinção mais importante, e a que muda todas as respostas seguintes:
 | --- | --- | --- |
 | **Controlador** | Cada clínica | É ela que decide atender o paciente, o que registrar e por quanto tempo. O prontuário é dela, e é o CRM do médico que responde por ele. |
 | **Operador** | O NeuroDoc (quem mantém a instalação) | Trata os dados **em nome** da clínica, conforme o que o sistema faz, sem decidir finalidade. |
+| **Controlador independente** | O NeuroDoc, mas só nos dados da relação comercial | Cadastro contratual, faturamento, autenticação, segurança da plataforma, registro de aceite, defesa de direitos. Aqui quem decide a finalidade é ele, e a responsabilidade é dele. Distinção que veio do contrato (cláusula 5.3) — ver §9. |
 | **Suboperadores** | VPS, SMTP, SMS, IA (quando ligada), Cloudflare | Cada um recebe uma fatia, e cada um exige previsão contratual. Ver §4. |
 
 Consequências práticas que decorrem disso:
@@ -135,9 +136,9 @@ decisão ou de uma assinatura.
 
 | # | O que falta | De quem | Bloqueia |
 | --- | --- | --- | --- |
-| 1 | Confirmar a leitura de controlador/operador do §1 | Assessoria jurídica | Todo o resto |
+| 1 | ~~Confirmar a leitura de controlador/operador do §1~~ — **fechado** pela cláusula 5 do contrato, que qualifica as partes e ressalva a responsabilidade legal de cada agente | — | — |
 | 2 | Validar a base legal de cada linha do §2 | Assessoria jurídica | Dado real |
-| 3 | ~~Contrato clínica ↔ NeuroDoc com as cláusulas do art. 39~~ — **minuta escrita e implementada** (`tenancy/contract.py`, §9). Falta a **revisão por advogado** | Assessoria jurídica | Dado real |
+| 3 | ~~Contrato clínica ↔ NeuroDoc com as cláusulas do art. 39~~ — **fechado.** Redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, versão 1.0, implementado e aceito na adesão (§9) | — | — |
 | 4 | Contrato com cada operador do §4 | Mantenedor da instalação | Dado real |
 | 5 | Designar o encarregado da instalação e divulgar o contato (art. 41, §1º) | Mantenedor | Dado real |
 | 6 | Cada clínica designar o encarregado dela | Cada controlador | Dado real naquela clínica |
@@ -147,9 +148,12 @@ decisão ou de uma assinatura.
 | 10 | Plano de resposta a incidente com responsáveis nomeados | Mantenedor + controlador | Dado real |
 | 11 | Verificar a situação regulatória do SNCR (P-07) | Responsável regulatório | Receita de controle especial eletrônica |
 
-**Enquanto 1–10 não fecharem, o sistema opera com dados sintéticos.** Não
-é uma formalidade: dado de saúde é sensível (art. 5º, II), e tratá-lo sem
-base legal definida não vira regular depois.
+**O que ainda bloqueia dado real são os itens 2 e 4–10.** Não é
+formalidade: dado de saúde é sensível (art. 5º, II), e tratá-lo sem base
+legal definida não vira regular depois. O contrato do item 3 fechou a
+peça central — é ele que autoriza o tratamento e fixa as instruções —,
+mas ele não substitui a designação de encarregado, o RIPD, nem os
+contratos com cada suboperador.
 
 ---
 
@@ -157,19 +161,34 @@ base legal definida não vira regular depois.
 
 Levar estas, e não "está tudo certo com a LGPD?":
 
-1. A clínica é controladora e o mantenedor é operador, como o §1 descreve?
-2. O art. 11, II, "f" (tutela da saúde) cobre o registro clínico inteiro,
+Três já foram respondidas pelo contrato da versão 1.0, e ficam aqui com a
+resposta para não serem levadas de novo:
+
+1. ~~A clínica é controladora e o mantenedor é operador?~~ **Sim, em
+   regra** (cláusula 5.1) — com uma distinção que o §1 deste documento
+   não fazia: nos dados da própria relação comercial (cadastro,
+   faturamento, autenticação, segurança, registro de aceite) o NeuroDoc é
+   **controlador independente** (5.3).
+2. ~~Que prazo de comunicação de incidente se aplica, e quem comunica?~~
+   **24 horas** do operador ao controlador (14.2); a comunicação externa
+   à ANPD e aos titulares cabe a quem a lei obriga em cada caso (14.5).
+3. ~~Enviar texto pseudonimizado a provedor de IA fora do Brasil exige o
+   quê?~~ **Mecanismo admitido pela LGPD e pela regulamentação da ANPD**
+   (10.2), com cláusulas-padrão da ANPD quando aplicáveis (10.3) — e a
+   pseudonimização é dita expressamente como não sendo anonimização
+   (9.4). Qual mecanismo usar em cada provedor continua sendo o item 8 do
+   §6.
+
+As que seguem abertas:
+
+4. O art. 11, II, "f" (tutela da saúde) cobre o registro clínico inteiro,
    ou alguma finalidade precisa de base própria?
-3. A guarda de 20 anos do §3 está correta, e ela realmente prevalece sobre
+5. A guarda de 20 anos do §3 está correta, e ela realmente prevalece sobre
    pedido de eliminação do titular?
-4. Enviar texto **pseudonimizado** a provedor de IA fora do Brasil exige
-   qual base do art. 33? Cláusulas-padrão bastam?
-5. O encarregado pode ser a mesma pessoa para a instalação e para uma
+6. O encarregado pode ser a mesma pessoa para a instalação e para uma
    clínica pequena, ou há conflito?
-6. Backup cifrado num destino externo, com a chave em poder do
+7. Backup cifrado num destino externo, com a chave em poder do
    controlador, conta como transferência para aquele destino?
-7. Que prazo de comunicação de incidente se aplica, e quem comunica —
-   controlador ou operador?
 
 ---
 
@@ -177,50 +196,63 @@ Levar estas, e não "está tudo certo com a LGPD?":
 
 | Pendência | Estado | Observação |
 | --- | --- | --- |
-| P-06 | **Aberta** | As medidas técnicas estão implementadas e verificadas (§5), e o contrato do art. 39 existe e é aceito na adesão (§9). Falta a decisão jurídica: §6, itens 1, 2 e 4–10, e a revisão do contrato (item 3). |
-| P-07 | **Aberta** | Nenhuma integração com o SNCR foi implementada ou testada. Até a verificação regulatória, `prescription` é receita comum, nunca substituto de notificação a órgão de controle. |
+| P-06 | **Resolvida** (2026-09-21) | O instrumento que a pendência pedia existe: contrato de adesão redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, versão 1.0, aceito por toda clínica que entra, com registro de versão, SHA-256, cópia arquivada, declaração de poderes, IP e navegador (§9). As medidas técnicas estão implementadas e verificadas (§5). **A pendência fecha na peça contratual, não no resto:** os itens 2 e 4–10 do §6 continuam abertos com dono, e são eles que hoje bloqueiam dado real. |
+| P-07 | **Resolvida** (2026-09-21) | Resolvida **por decisão de escopo, e não por integração**: o NeuroDoc não se integra ao SNCR e não emite receita de controle especial por via eletrônica. `prescription` é receita comum, impressa em papel, e a notificação de receita segue o processo físico fora do sistema — as cláusulas 1.4 e 1.5 do contrato dizem que a plataforma não pratica ato médico nem o substitui. Reabrir esta pendência é condição para qualquer funcionalidade de receita controlada eletrônica. |
 
 Este documento é revisado quando uma linha do §6 fechar. Nenhuma linha se
 marca como resolvida sem o documento correspondente (contrato, designação,
-RIPD) existir de fato.
+RIPD) existir de fato — ou, como em P-07, sem a decisão de escopo que
+torna a pendência inaplicável estar escrita.
 
 ---
 
 ## 9. O contrato de adesão
 
-O instrumento do art. 39 existe e é aceito por toda clínica que entra:
-`tenancy/contract.py`, quinze cláusulas, visível em `/contrato/` sem
-login.
+O instrumento do art. 39 existe, tem autoria e é aceito por toda clínica
+que entra.
 
-**O que ele fixa**, na linguagem do §1 acima: a clínica é controladora, o
-NeuroDoc é operador (cláusula 4); as obrigações do operador do art. 39
-estão na cláusula 6; os suboperadores do §4 estão nomeados na cláusula 7,
-com direito de rescisão sem ônus se um deles for trocado; a transferência
-internacional da IA está na cláusula 8, e a IA continua desligada por
-padrão; o prazo de comunicação de incidente ao controlador é de 48 horas
-(cláusula 12); a guarda de 20 anos e o direito de exportar por 90 dias
-após o término estão na cláusula 11.
+| | |
+| --- | --- |
+| **Redação** | Dra. Karina Albuquerque Freua, OAB/SP nº 450.476 |
+| **Versão** | 1.0, vigente desde 2026-09-21 |
+| **Onde mora** | `tenancy/contract.py` — 18 cláusulas |
+| **Onde se lê** | `/contrato/`, público, sem login; e dentro da tela de cadastro |
+| **Onde se confere** | `/instalacao/contratos/` |
+| **Verificado por** | `check_contrato` |
 
-**Como o aceite é registrado.** `ContractAcceptance` guarda a versão, o
-**SHA-256 do texto**, quem aceitou, o e-mail, o IP, o navegador e os dois
-prazos (arrependimento e vencimento). O hash é o que torna o aceite
-conferível: versão é um rótulo que alguém pode esquecer de trocar, hash
-não. Uma via completa vai por e-mail ao contratante, e
-`/instalacao/contratos/` mostra todos os aceites, sinalizando os que
-apontam para um texto diferente do que está no ar.
+**O que ele fixa**, na linguagem do §1 acima: a clínica é controladora e
+o NeuroDoc é operador (cláusula 5.1), com a ressalva de que a
+qualificação contratual não afasta a responsabilidade legal de cada
+agente (5.4 e 5.5); o NeuroDoc é **controlador independente** dos dados
+da própria relação comercial — cadastro, faturamento, autenticação,
+segurança, registro de aceite (5.3), distinção que o §1 deste documento
+não fazia; as obrigações do operador estão na cláusula 7; os
+suboperadores do §4 estão na cláusula 8, com rescisão sem ônus se um
+deles for trocado e a CONTRATANTE se opuser; a transferência
+internacional está na cláusula 10, condicionada a mecanismo admitido pela
+ANPD; a IA é opcional, desligada por padrão, e a pseudonimização é dita
+expressamente como **não sendo** anonimização (9.4); o incidente é
+comunicado ao controlador em até **24 horas** (14.2); a exportação dura
+90 dias após o término e dívida não a impede (13.1 e 13.3).
 
-**O que ainda falta:** revisão por advogado (§6, item 3). A minuta foi
-redigida com atenção à LGPD, ao CDC e à Lei 13.787/2018, e três escolhas
-merecem confirmação expressa:
+**O que ele exigiu do sistema.** Três registros que não existiam, cada um
+cobrando uma cláusula:
 
-1. A cláusula 4.4 **não** isenta o operador: o art. 42 imputa
-   responsabilidade direta a ele, e uma cláusula de isenção total seria
-   nula. Confirmar a redação.
-2. O direito de arrependimento de 7 dias é concedido **contratualmente**,
-   porque o art. 49 do CDC pode não alcançar uma relação entre duas
-   empresas (teoria finalista). Confirmar se convém mantê-lo assim.
-3. A cláusula 10.2 abre exceções ao não reembolso (descumprimento,
-   indisponibilidade acima de 72 h, troca de suboperador recusada). Sem
-   elas, a cláusula de não reembolso absoluto seria atacável como abusiva.
+| Cláusula | O que manda registrar | Onde ficou |
+| --- | --- | --- |
+| 2.3 | cópia do conteúdo contratual efetivamente aceito | `ContractAcceptance.text` |
+| 2.2, "i" | declaração de poderes para contratar | `ContractAcceptance.representation_declared`, caixa própria no cadastro |
+| 2.2, "h" | plano **e condições comerciais** | `ContractAcceptance.price_annual_cents` |
 
-Verificado por `check_contrato`.
+A cópia arquivada é o que distingue este registro de um "sim" sem
+documento: o SHA-256 prova que um texto é aquele texto, mas não devolve o
+texto — e `tenancy/contract.py` guarda só a versão corrente. Quem aceitou
+a 1.0 precisa poder reler a 1.0 depois de a 2.0 entrar no ar.
+
+**O que o contrato promete e ainda não existe.** As cláusulas 8.2 e 8.3
+prometem relação de suboperadores em local acessível, e os Anexos I a V
+estão condicionados a "quando disponibilizados". Nenhum deles existe
+hoje. A lista de anexos aparece na tela **com o estado de cada um**, em
+vez de prometer seis documentos que a clínica não encontra: anexo
+prometido e ausente é pior do que anexo nenhum, porque a ausência vira
+argumento contra quem prometeu. Publicá-los é o item 4 do §6.

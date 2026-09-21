@@ -457,6 +457,84 @@ textarea.form-control-sm {
     font-variant-numeric: tabular-nums;
 }
 
+/* Qualificacao das partes e os blocos de fecho (anexos, declaracao,
+ * assinaturas). Recuados por uma regua a esquerda em vez de emoldurados:
+ * sao partes do mesmo documento, e caixa em volta de cada uma
+ * transformaria um contrato em cinco cartoes empilhados. */
+.nd-contrato-partes,
+.nd-contrato-bloco {
+    border-left: 2px solid var(--bs-border-color, #e5e7eb);
+    padding-left: 16px;
+    margin: 0 0 24px;
+}
+
+.nd-contrato-anexos,
+.nd-contrato-declaracao {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 10px;
+}
+
+.nd-contrato-anexos > li,
+.nd-contrato-declaracao > li {
+    margin-bottom: 6px;
+}
+
+/* O estado do anexo colado ao nome dele, e nao numa coluna a parte: a
+ * informacao que importa e "este existe?", e ela precisa ser lida na
+ * mesma sacada que o nome. */
+.nd-contrato-estado {
+    display: inline-block;
+    font-size: 11px;
+    line-height: 1.5;
+    padding: 0 6px;
+    border-radius: 3px;
+    background: var(--bs-gray-200, #e5e7eb);
+    color: var(--bs-gray-700, #374151);
+    white-space: nowrap;
+}
+
+.nd-contrato-estado-ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+/* Alineas: mesma calha das clausulas, um nivel adentro. A letra ocupa
+ * largura fixa para que a), b) e c) comecem na mesma coluna. */
+.nd-contrato-alineas {
+    list-style: none;
+    padding: 0;
+    margin: 6px 0 0;
+}
+
+.nd-contrato-alineas > li {
+    padding-left: 26px;
+    text-indent: -26px;
+    margin-bottom: 4px;
+}
+
+.nd-contrato-letra {
+    display: inline-block;
+    width: 26px;
+    text-indent: 0;
+    color: var(--bs-gray-500, #9ca3af);
+}
+
+/* Duas colunas no fecho: o contratado de um lado, a advogada do outro,
+ * como num instrumento assinado. Uma coluna so no celular. */
+.nd-contrato-assinaturas {
+    display: grid;
+    gap: 20px 40px;
+    border-top: 1px solid var(--bs-border-color, #e5e7eb);
+    padding-top: 16px;
+}
+
+@media (min-width: 640px) {
+    .nd-contrato-assinaturas {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
 /* A caixa com rolagem propria: o cadastro e o console mostram o contrato
  * inteiro sem empurrar o botao de aceite para tres telas abaixo.
  *

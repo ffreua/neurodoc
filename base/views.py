@@ -317,6 +317,7 @@ class OrganizationSignupView(View):
                 # instante — depois não há onde buscar.
                 contract_ip=client_ip(request) if client_ip(request) != 'desconhecido' else None,
                 contract_user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                contract_powers=form.cleaned_data['declare_powers'],
             )
         except InvalidInvitation:
             form.add_error(None, 'Convite inválido, expirado ou já utilizado.')

@@ -30,7 +30,8 @@ class InvalidInvitation(Exception):
 
 @transaction.atomic
 def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_name='',
-                               contract_ip=None, contract_user_agent=''):
+                               contract_ip=None, contract_user_agent='',
+                               contract_powers=False):
     """Consumes a platform invitation and creates org+owner atomically.
 
     If organization creation fails for any reason (duplicate e-mail,
@@ -80,6 +81,7 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     aceite = registrar_aceite(
         tenant, user, plan=invitation.plan,
         ip=contract_ip, user_agent=contract_user_agent,
+        poderes_declarados=contract_powers,
     )
     # A clínica nasce pronta para atender: sem isto, o primeiro exame
     # neurológico abre num aviso pedindo um comando de terminal.

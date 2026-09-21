@@ -25,7 +25,7 @@ clínica.{% endcomment %}
 {% endif %}
 <form method="post" novalidate>
     {% csrf_token %}
-    {% include "partials/form_fields.html" with pular="accept_contract" %}
+    {% include "partials/form_fields.html" with pular="accept_contract,declare_powers" %}
 
     {% comment %}O contrato fica **na** página, numa caixa que rola, e não
     atrás de um link. Uma caixa de aceite apontando para outra aba é a
@@ -48,7 +48,7 @@ clínica.{% endcomment %}
         e-mail assim que a clínica for criada.
     </p>
     {% endif %}
-    {% include "partials/form_fields.html" with somente="accept_contract" %}
+    {% include "partials/form_fields.html" with somente="accept_contract,declare_powers" %}
 
     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Criar conta e clínica</button>
 </form>

@@ -2,17 +2,20 @@
 
 `pular` e `somente` existem para o caso em que alguma coisa precisa
 aparecer **no meio** do formulário -- o contrato de adesão, que fica entre
-os campos e a caixa de aceite. A alternativa era copiar a marcação de um
-campo para o template que precisa disso, e a cópia deixa de acompanhar
-este arquivo na primeira vez que um erro de campo mudar de lugar.
+os campos e as duas caixas de declaração. A alternativa era copiar a
+marcação de um campo para o template que precisa disso, e a cópia deixa de
+acompanhar este arquivo na primeira vez que um erro de campo mudar de
+lugar.
+
+Os dois aceitam vários nomes separados por vírgula.
 
 Chamado em duas partes, os erros gerais e os campos escondidos saem só na
 primeira: duplicá-los mostraria o mesmo aviso duas vezes e mandaria dois
 `contract_version` no POST.
 
-    {% include "partials/form_fields.html" with pular="accept_contract" %}
+    {% include "partials/form_fields.html" with pular="a,b" %}
     ... o que precisa ficar no meio ...
-    {% include "partials/form_fields.html" with somente="accept_contract" %}
+    {% include "partials/form_fields.html" with somente="a,b" %}
 {% endcomment %}{% with erros_ocultos=form|nd_hidden_errors %}
 {% if erros_ocultos and not somente %}
 {% comment %}Erro em campo escondido apareceria em lugar nenhum: o laco de
@@ -35,7 +38,7 @@ dentro dela nasceria vazio toda vez que o formulario fosse desenhado.{% endcomme
 </div>
 {% endif %}
 {% if not somente %}{% for field in form.hidden_fields %}{{ field }}{% endfor %}{% endif %}
-{% for field in form.visible_fields %}{% if somente and field.name != somente %}{% elif pular and field.name == pular %}{% else %}
+{% for field in form.visible_fields %}{% if somente and not field.name|nd_na_lista:somente %}{% elif field.name|nd_na_lista:pular %}{% else %}
 <div class="mb-3">
     {% if field|nd_is_checkbox %}
     <div class="form-check">
