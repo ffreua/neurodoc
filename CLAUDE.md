@@ -103,7 +103,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
 | `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados |
-| `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações, OCR, arquivo morto |
+| `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
 | `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores |
@@ -242,6 +242,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
+| `check_portal_retorno.py` | janela de retorno do portal: conta em meses de calendário, prazo do médico vencendo o da clínica, as três portas do portal, sessão aberta antes do aperto, e a tela que cita o art. 37 sem inventar prazo do CFM |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
@@ -288,6 +289,39 @@ o nome do relatório chega pelo POST. O cadastro exige
 acervo clínico exige `MANAGE_ORGANIZATION` **e** `READ_CLINICAL`, porque
 um dono que não é médico não abre prontuário na tela e não pode baixar
 todos num arquivo. Recusa entra na trilha como `reporting.export_denied`.
+
+## 7-C. Janela de retorno do portal
+
+**`documents/portal_retorno.py`.** O portal público recebe pedido de
+receita, relatório e exame — os três são ato médico. O art. 37 do Código
+de Ética Médica (Resolução CFM nº 2.217/2018) veda prescrever sem exame
+direto do paciente, e um portal que aceita pedido de quem não é visto há
+anos empurra o médico para essa vedação, um paciente de cada vez.
+
+Quem consultou há mais tempo que a janela vê uma tela explicando o prazo
+e como agendar, **em vez do formulário** — e nenhum pedido chega à fila.
+
+- **Onde se define:** `ClinicProfile.patient_portal_max_months` é o padrão
+  da clínica (tela de identidade → portal); `Membership.patient_portal_max_months`
+  é a janela do médico para os pacientes dele, definida na própria fila de
+  solicitações. Nulo no vínculo herda a clínica.
+- **Valores:** 3, 4, 6, 9, 12, 15 ou 18 meses. **Padrão 6** — sem padrão,
+  a clínica que liga o portal e não configura nada aceitaria pedido de
+  quem não consulta há cinco anos.
+- **Conta em meses de calendário**, não em múltiplos de 30 dias: seis
+  meses dão 181 a 184 dias, e a diferença cai justamente sobre quem
+  consultou na fronteira.
+- **Conta qualquer atendimento**, inclusive em rascunho: rascunho
+  significa que o médico abriu a ficha durante a visita. Exigir o
+  finalizado bloquearia quem foi visto na semana passada porque a nota
+  ainda não fechou.
+- **Confere em três portas:** identificação, abertura do formulário e
+  envio. A do envio existe porque entre abrir a sessão e enviar cabe o
+  médico apertar a janela.
+
+**O CFM não fixa número de meses**, e a tela diz isso. Escrever "o CFM
+exige 6 meses" seria inventar uma regra — `check_portal_retorno` tem uma
+asserção só para impedir que essa frase apareça.
 
 ## 8. Deploy
 

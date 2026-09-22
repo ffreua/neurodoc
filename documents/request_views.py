@@ -55,10 +55,64 @@ class DocumentRequestQueueView(ClinicalDocumentView):
             .select_related('patient', 'reviewed_by__user', 'resulting_document')
             .order_by('-reviewed_at')[:30]
         )
+        from tenancy.models import (
+            PORTAL_REQUEST_WINDOW_DEFAULT, ClinicProfile, Membership, PortalRequestWindow,
+        )
+
+        clinica = ClinicProfile.objects.filter(
+            tenant_id=request.access_context.tenant_id,
+        ).first()
+        meu = Membership.objects.filter(
+            id=request.access_context.membership_id,
+        ).values_list('patient_portal_max_months', flat=True).first()
         return render(request, 'documents/request_queue.html', {
             'open_requests': list(abertos),
             'closed_requests': list(fechados),
+            # A janela de retorno fica aqui, e nao numa tela de
+            # configuracao: e aqui que o medico ve o efeito dela -- os
+            # pedidos que chegaram, e a ausencia dos que foram barrados.
+            'janela_do_medico': meu,
+            'janela_da_clinica': (
+                getattr(clinica, 'patient_portal_max_months', None)
+                or PORTAL_REQUEST_WINDOW_DEFAULT
+            ),
+            'janelas': PortalRequestWindow.choices,
         })
+
+    def post(self, request):
+        """O medico define a propria janela de retorno.
+
+        So a dele: o vinculo vem de `access_context`, e nao de um campo do
+        formulario. Aceitar um `membership_id` postado deixaria um medico
+        afrouxar a janela de outro -- e a responsabilidade do art. 37 e de
+        quem atende, nao de quem tem o formulario aberto.
+        """
+        from tenancy.models import Membership, PortalRequestWindow
+
+        bruto = (request.POST.get('meses') or '').strip()
+        if bruto == '':
+            valor = None                      # herda a clinica
+        elif bruto.isdigit() and int(bruto) in PortalRequestWindow.values:
+            valor = int(bruto)
+        else:
+            raise Http404
+
+        Membership.objects.filter(id=request.access_context.membership_id).update(
+            patient_portal_max_months=valor,
+        )
+        record_audit_event(
+            request.user, request.access_context.tenant_id,
+            'documents.portal_window_set',
+            object_type='membership', object_id=request.access_context.membership_id,
+            outcome='success', integrity_metadata={'meses': valor},
+        )
+        messages.success(
+            request,
+            'Prazo atualizado: os seus pacientes podem pedir pelo portal até '
+            + (f'{valor} meses' if valor else 'o prazo padrão da clínica')
+            + ' depois da consulta.',
+        )
+        return redirect('documents:request-queue')
 
 
 def _draft_form(pedido, data=None):

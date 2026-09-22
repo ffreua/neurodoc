@@ -76,6 +76,10 @@ owner = client_for('doctor-a@demo.neurodoc.local')
 r = owner.post('/app/org/clinica/portal/', {
     'patient_portal_enabled': '1',
     'patient_portal_notice': 'Pedidos respondidos em ate 3 dias uteis.',
+    # O prazo de retorno entrou no mesmo formulario: a tela o renderiza
+    # sempre, e um POST sem ele e formulario invalido -- o portal nao
+    # chegava a ser publicado, e as doze secoes seguintes viam 404.
+    'patient_portal_max_months': '18',
 }, follow=True)
 perfil.refresh_from_db()
 print('  ->', note(r))
@@ -163,6 +167,20 @@ if 404 not in codes:
 zera_balde()
 
 print('=== 8. identificacao correta abre a etapa 2 ===')
+# O portal so aceita quem consultou dentro da janela de retorno
+# (`documents/portal_retorno.py`). A precondicao e garantida aqui, e nao
+# herdada do `seed_demo`: um banco semeado ha mais de seis meses faria
+# este roteiro acusar o portal de nao abrir a etapa 2 quando o que houve
+# foi a regra funcionando.
+from datetime import timedelta as _timedelta
+
+from clinical.models import Encounter as _Encounter
+
+_ultimo = _Encounter.objects.filter(tenant=tenant, patient=paciente).order_by('-occurred_at').first()
+if _ultimo is not None:
+    _ultimo.occurred_at = timezone.now() - _timedelta(days=20)
+    _ultimo.save(update_fields=['occurred_at'])
+    print(f'  ultima consulta ajustada para ha 20 dias ({_ultimo.occurred_at:%d/%m/%Y})')
 paciente_c = Client()
 r = paciente_c.post(f'/solicitacoes/{tenant.slug}/', {
     'cpf': CPF, 'birth_date': NASC.isoformat(), 'privacy_ack': '1'}, follow=True)

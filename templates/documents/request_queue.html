@@ -7,6 +7,35 @@
 {% endblock %}
 {% block content %}
 
+{% comment %}O prazo de retorno fica nesta tela, e não numa página de
+configuração: é aqui que o médico vê o efeito dele — os pedidos que
+chegaram, e a ausência dos que foram barrados. Quem o define é quem
+atende, porque é dele a responsabilidade do art. 37 do Código de Ética
+Médica.{% endcomment %}
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="post" class="d-flex flex-wrap align-items-end gap-3">
+            {% csrf_token %}
+            <div>
+                <label class="form-label fw-semibold mb-1" for="meses">
+                    Meus pacientes podem pedir pelo portal até
+                </label>
+                <select class="form-select" id="meses" name="meses" style="max-width: 20rem;">
+                    <option value="">Prazo padrão da clínica ({{ janela_da_clinica }} meses)</option>
+                    {% for valor, rotulo in janelas %}
+                    <option value="{{ valor }}" {% if janela_do_medico == valor %}selected{% endif %}>{{ rotulo }} depois da consulta</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary" data-nd-busy>Salvar prazo</button>
+            <span class="fs-11 text-muted" style="max-width: 30rem;">
+                Quem consultou há mais tempo vê uma tela explicando o prazo e como
+                agendar, em vez do formulário — e nenhum pedido chega aqui.
+            </span>
+        </form>
+    </div>
+</div>
+
 <div class="card mb-4">
     <div class="card-header d-flex align-items-center justify-content-between">
         <h5 class="card-title mb-0">Aguardando revisão</h5>

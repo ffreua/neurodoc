@@ -10,7 +10,9 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
 
-from . import portal
+from audit.services import record_audit_event
+
+from . import portal, portal_retorno
 from .models import DocumentRequestKind
 
 #: Finalidades de relatório, herdadas do portal em uso. A lista existe
@@ -49,6 +51,12 @@ class PortalBaseView(View):
                 'telefone': self.clinic.dpo_phone,
             },
             'privacy_version': portal.PRIVACY_NOTICE_VERSION,
+            # Telefone e e-mail da clínica: a tela que recusa um pedido
+            # precisa dizer como marcar a consulta que destrava o pedido.
+            # Recusar sem oferecer o caminho seguinte joga o paciente de
+            # volta na busca do Google.
+            'clinic_phone': self.clinic.phone,
+            'clinic_email': self.clinic.email,
         }
         context.update(extra)
         return context
@@ -94,6 +102,24 @@ class PortalIdentifyView(PortalBaseView):
                 error='Não encontramos um cadastro ativo com esses dados. '
                       'Confira o CPF e a data de nascimento.',
             ), status=404)
+
+        # A janela de retorno, conferida aqui e não na tela seguinte:
+        # descobrir a recusa depois de descrever cinco medicamentos é pior
+        # do que descobrir antes de começar.
+        #
+        # A sessão é descartada junto. Mantê-la deixaria `/solicitar/`
+        # acessível por link direto a quem a tela acabou de recusar.
+        impedimento = portal_retorno.bloqueio(self.clinic, patient)
+        if impedimento is not None:
+            portal.clear(request)
+            record_audit_event(
+                None, self.tenant.id, 'documents.portal_request_window_closed',
+                object_type='patient', object_id=patient.id, outcome='denied',
+                integrity_metadata={'meses': impedimento.meses},
+            )
+            return render(request, 'documents/portal_retorno.html', self.base_context(
+                bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
+            ), status=403)
         return redirect('portal:request', slug=slug)
 
 
@@ -106,6 +132,12 @@ class PortalRequestView(PortalBaseView):
         patient = portal.verified_patient(request, self.tenant)
         if patient is None:
             return redirect('portal:identify', slug=slug)
+        impedimento = portal_retorno.bloqueio(self.clinic, patient)
+        if impedimento is not None:
+            portal.clear(request)
+            return render(request, 'documents/portal_retorno.html', self.base_context(
+                bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
+            ), status=403)
         return render(request, self.template_name, self.base_context(
             patient=patient, kinds=DocumentRequestKind.choices, purposes=REPORT_PURPOSES,
         ))
@@ -114,6 +146,16 @@ class PortalRequestView(PortalBaseView):
         patient = portal.verified_patient(request, self.tenant)
         if patient is None:
             return redirect('portal:identify', slug=slug)
+
+        # De novo, e não só na identificação: entre abrir a sessão e
+        # enviar cabe o médico apertar a janela, e uma sessão aberta
+        # antes não pode valer como autorização depois.
+        impedimento = portal_retorno.bloqueio(self.clinic, patient)
+        if impedimento is not None:
+            portal.clear(request)
+            return render(request, 'documents/portal_retorno.html', self.base_context(
+                bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
+            ), status=403)
 
         kind = request.POST.get('kind', '')
         if kind not in DocumentRequestKind.values:

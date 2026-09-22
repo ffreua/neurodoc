@@ -1,0 +1,81 @@
+{% extends "base_auth.html" %}
+{% block title %}Precisamos te ver — {{ clinic_name }}{% endblock %}
+{% block card_width %}wd-550{% endblock %}
+{% block tagline %}{{ clinic_name }}{% endblock %}
+{% block heading %}
+{% if bloqueio.nunca_consultou %}Ainda não temos uma consulta sua registrada
+{% else %}Antes de emitir, precisamos te ver{% endif %}
+{% endblock %}
+{% block subheading %}
+{% comment %}O tom é o da recepção, não o do jurídico: quem lê esta tela é
+um paciente que queria renovar uma receita e acabou de ser recusado. A
+norma vem depois, explicando o porquê — e não no lugar da explicação.{% endcomment %}
+{% if bloqueio.nunca_consultou %}
+Este canal serve para quem já é paciente da clínica. Como ainda não há uma
+consulta registrada no seu nome, o primeiro passo é agendar um atendimento.
+{% else %}
+{% if patient_first_name %}{{ patient_first_name }}, a{% else %}A{% endif %}
+sua última consulta foi em <strong>{{ bloqueio.ultima|date:"d/m/Y" }}</strong>{% if bloqueio.medico %},
+com {{ bloqueio.medico }}{% endif %}. Para emitir receita, relatório ou pedido de
+exames pelo portal, esta clínica pede uma consulta nos últimos
+<strong>{{ bloqueio.meses }} meses</strong>.
+{% endif %}
+{% endblock %}
+{% block content %}
+
+<div class="alert alert-warning fade show fs-13" role="alert">
+    <strong>O seu pedido não foi enviado.</strong>
+    Nada do que você digitou ficou guardado — e nenhum médico foi acionado.
+</div>
+
+{% comment %}A norma, dita com precisão e sem exagero.
+
+O CFM **não** fixa um número de meses; quem fixa é a clínica. Escrever
+"o CFM exige 6 meses" seria inventar uma regra que não existe, e a
+primeira pessoa a conferir descobriria — o que destruiria a confiança
+justamente na tela em que ela mais importa.{% endcomment %}
+<div class="card border mb-3">
+    <div class="card-body">
+        <h6 class="fs-12 fw-bold text-dark text-uppercase mb-2">Por que existe esse prazo</h6>
+        <p class="fs-13 mb-2">
+            Receita, relatório e pedido de exames são atos médicos. O
+            <strong>Código de Ética Médica</strong> (Resolução CFM nº 2.217/2018),
+            no art. 37, veda ao médico <em>“prescrever tratamento ou outros
+            procedimentos sem exame direto do paciente”</em>, salvo em urgência ou
+            emergência com impossibilidade comprovada de examinar.
+        </p>
+        <p class="fs-12 text-muted mb-0">
+            A norma não estabelece um número de meses — quem define o intervalo é
+            quem acompanha o seu caso. Nesta clínica, o prazo é de
+            {{ bloqueio.meses }} meses.
+        </p>
+    </div>
+</div>
+
+<h6 class="fs-12 fw-bold text-dark text-uppercase mb-2">O que fazer agora</h6>
+<ul class="fs-13 mb-3">
+    <li>Agende uma consulta — depois dela, este canal volta a funcionar para você.</li>
+    <li>Se você está sem a medicação e não pode esperar, procure a clínica por
+        telefone e explique a situação: isso é conversa de gente, não de formulário.</li>
+    <li>Em urgência ou emergência, procure um pronto-socorro.</li>
+</ul>
+
+{% if clinic_phone or clinic_email %}
+<div class="card border mb-3">
+    <div class="card-body">
+        <h6 class="fs-12 fw-bold text-dark text-uppercase mb-2">Falar com a clínica</h6>
+        {% if clinic_phone %}
+        <p class="fs-13 mb-1">Telefone: <a href="tel:{{ clinic_phone }}">{{ clinic_phone }}</a></p>
+        {% endif %}
+        {% if clinic_email %}
+        <p class="fs-13 mb-0">E-mail: <a href="mailto:{{ clinic_email }}">{{ clinic_email }}</a></p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<a class="btn btn-light w-100" href="{% url 'portal:identify' slug=slug %}">Voltar ao início</a>
+
+{% include "documents/_portal_encarregado.html" %}
+
+{% endblock %}
