@@ -16,9 +16,9 @@ consulta registrada no seu nome, o primeiro passo é agendar um atendimento.
 {% else %}
 {% if patient_first_name %}{{ patient_first_name }}, a{% else %}A{% endif %}
 sua última consulta foi em <strong>{{ bloqueio.ultima|date:"d/m/Y" }}</strong>{% if bloqueio.medico %},
-com {{ bloqueio.medico }}{% endif %}. Para emitir receita, relatório ou pedido de
-exames pelo portal, esta clínica pede uma consulta nos últimos
-<strong>{{ bloqueio.meses }} meses</strong>.
+com {{ bloqueio.medico }}{% endif %} — faz mais de
+<strong>{{ bloqueio.dias }} dias</strong>. Para emitir receita, relatório ou pedido
+de exames, precisamos de uma consulta mais recente.
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -28,12 +28,20 @@ exames pelo portal, esta clínica pede uma consulta nos últimos
     Nada do que você digitou ficou guardado — e nenhum médico foi acionado.
 </div>
 
-{% comment %}A norma, dita com precisão e sem exagero.
+{% comment %}A norma, citada literalmente.
 
-O CFM **não** fixa um número de meses; quem fixa é a clínica. Escrever
-"o CFM exige 6 meses" seria inventar uma regra que não existe, e a
-primeira pessoa a conferir descobriria — o que destruiria a confiança
-justamente na tela em que ela mais importa.{% endcomment %}
+As duas citações foram conferidas na fonte, e a redação do art. 37 é a
+que consta no Código — inclusive a exceção, que é "urgência **ou**
+emergência **e** impossibilidade comprovada", e não "emergência
+comunicada ao CRM", que não existe. A primeira pessoa a conferir vai
+conferir, e uma regra inventada destruiria a confiança justamente na tela
+em que ela mais importa.
+
+O prazo aplicado é o mesmo da resolução — 180 dias — e não um número
+nosso. Foi essa a razão de o prazo deixar de ser configurável: com nove
+ou dezoito meses, esta tela citaria uma resolução que diz 180 dias logo
+acima do prazo que a contraria, e o paciente leria as duas coisas na
+mesma folha.{% endcomment %}
 <div class="card border mb-3">
     <div class="card-body">
         <h6 class="fs-12 fw-bold text-dark text-uppercase mb-2">Por que existe esse prazo</h6>
@@ -41,13 +49,22 @@ justamente na tela em que ela mais importa.{% endcomment %}
             Receita, relatório e pedido de exames são atos médicos. O
             <strong>Código de Ética Médica</strong> (Resolução CFM nº 2.217/2018),
             no art. 37, veda ao médico <em>“prescrever tratamento ou outros
-            procedimentos sem exame direto do paciente”</em>, salvo em urgência ou
-            emergência com impossibilidade comprovada de examinar.
+            procedimentos sem exame direto do paciente, salvo em casos de urgência ou
+            emergência e impossibilidade comprovada de realizá-lo”</em> — e, nesse
+            caso, o exame deve ser feito assim que o impedimento cessar. O parágrafo
+            único do mesmo artigo remete o atendimento a distância à regulamentação
+            do Conselho Federal de Medicina.
+        </p>
+        <p class="fs-13 mb-2">
+            Essa regulamentação é a <strong>Resolução CFM nº 2.314/2022</strong>, que
+            no art. 6º, § 2º determina que, no acompanhamento de doenças crônicas ou
+            que requeiram acompanhamento por longo tempo, <em>“deve ser realizada
+            consulta presencial, com o médico assistente do paciente, em intervalos
+            não superiores a 180 dias”</em>.
         </p>
         <p class="fs-12 text-muted mb-0">
-            A norma não estabelece um número de meses — quem define o intervalo é
-            quem acompanha o seu caso. Nesta clínica, o prazo é de
-            {{ bloqueio.meses }} meses.
+            É esse o prazo aplicado aqui — os mesmos 180 dias da resolução, sem
+            alteração para mais ou para menos.
         </p>
     </div>
 </div>

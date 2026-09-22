@@ -115,7 +115,7 @@ class PortalIdentifyView(PortalBaseView):
             record_audit_event(
                 None, self.tenant.id, 'documents.portal_request_window_closed',
                 object_type='patient', object_id=patient.id, outcome='denied',
-                integrity_metadata={'meses': impedimento.meses},
+                integrity_metadata={'dias': impedimento.dias},
             )
             return render(request, 'documents/portal_retorno.html', self.base_context(
                 bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],

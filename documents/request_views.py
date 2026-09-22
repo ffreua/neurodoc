@@ -55,63 +55,63 @@ class DocumentRequestQueueView(ClinicalDocumentView):
             .select_related('patient', 'reviewed_by__user', 'resulting_document')
             .order_by('-reviewed_at')[:30]
         )
-        from tenancy.models import (
-            PORTAL_REQUEST_WINDOW_DEFAULT, ClinicProfile, Membership, PortalRequestWindow,
-        )
+        from tenancy.models import PORTAL_RECENT_VISIT_DAYS, ClinicProfile, Membership
 
         clinica = ClinicProfile.objects.filter(
             tenant_id=request.access_context.tenant_id,
         ).first()
         meu = Membership.objects.filter(
             id=request.access_context.membership_id,
-        ).values_list('patient_portal_max_months', flat=True).first()
+        ).values_list('patient_portal_requires_recent_visit', flat=True).first()
         return render(request, 'documents/request_queue.html', {
             'open_requests': list(abertos),
             'closed_requests': list(fechados),
-            # A janela de retorno fica aqui, e nao numa tela de
+            # A escolha de barrar fica aqui, e nao numa tela de
             # configuracao: e aqui que o medico ve o efeito dela -- os
             # pedidos que chegaram, e a ausencia dos que foram barrados.
-            'janela_do_medico': meu,
-            'janela_da_clinica': (
-                getattr(clinica, 'patient_portal_max_months', None)
-                or PORTAL_REQUEST_WINDOW_DEFAULT
+            #
+            # `None` e um terceiro estado, e nao "False": significa seguir
+            # a clinica, e e o que permite o responsavel mudar o padrao e
+            # valer para quem nao se manifestou.
+            'barra_do_medico': meu,
+            'barra_da_clinica': getattr(
+                clinica, 'patient_portal_requires_recent_visit', True,
             ),
-            'janelas': PortalRequestWindow.choices,
+            'dias_da_norma': PORTAL_RECENT_VISIT_DAYS,
         })
 
     def post(self, request):
-        """O medico define a propria janela de retorno.
+        """O medico decide se barra consulta antiga nos proprios pacientes.
 
-        So a dele: o vinculo vem de `access_context`, e nao de um campo do
-        formulario. Aceitar um `membership_id` postado deixaria um medico
-        afrouxar a janela de outro -- e a responsabilidade do art. 37 e de
-        quem atende, nao de quem tem o formulario aberto.
+        So o proprio vinculo: ele vem de `access_context`, e nao de um
+        campo do formulario. Aceitar um `membership_id` postado deixaria um
+        medico desligar a barreira de outro -- e a responsabilidade do art.
+        37 e de quem atende, nao de quem tem o formulario aberto.
         """
-        from tenancy.models import Membership, PortalRequestWindow
+        from tenancy.models import Membership
 
-        bruto = (request.POST.get('meses') or '').strip()
-        if bruto == '':
-            valor = None                      # herda a clinica
-        elif bruto.isdigit() and int(bruto) in PortalRequestWindow.values:
-            valor = int(bruto)
-        else:
+        escolhas = {'clinica': None, 'sim': True, 'nao': False}
+        bruto = (request.POST.get('barrar') or '').strip()
+        if bruto not in escolhas:
             raise Http404
+        valor = escolhas[bruto]
 
         Membership.objects.filter(id=request.access_context.membership_id).update(
-            patient_portal_max_months=valor,
+            patient_portal_requires_recent_visit=valor,
         )
         record_audit_event(
             request.user, request.access_context.tenant_id,
-            'documents.portal_window_set',
+            'documents.portal_recent_visit_rule_set',
             object_type='membership', object_id=request.access_context.membership_id,
-            outcome='success', integrity_metadata={'meses': valor},
+            outcome='success', integrity_metadata={'barrar': valor},
         )
-        messages.success(
-            request,
-            'Prazo atualizado: os seus pacientes podem pedir pelo portal até '
-            + (f'{valor} meses' if valor else 'o prazo padrão da clínica')
-            + ' depois da consulta.',
-        )
+        messages.success(request, {
+            None: 'Atualizado: os seus pacientes seguem a regra da clínica.',
+            True: 'Atualizado: pedidos de quem não consulta há mais de 180 dias '
+                  'serão recusados pelo portal.',
+            False: 'Atualizado: o portal aceitará pedidos independentemente da data '
+                   'da última consulta. A avaliação de cada pedido continua sendo sua.',
+        }[valor])
         return redirect('documents:request-queue')
 
 

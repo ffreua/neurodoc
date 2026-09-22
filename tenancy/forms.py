@@ -170,20 +170,22 @@ class ClinicPortalForm(forms.ModelForm):
     class Meta:
         model = ClinicProfile
         fields = ['patient_portal_enabled', 'patient_portal_notice',
-                  'patient_portal_max_months']
+                  'patient_portal_requires_recent_visit']
         labels = {
             'patient_portal_enabled': 'Publicar o portal de solicitações',
             'patient_portal_notice': 'Aviso exibido no portal',
-            'patient_portal_max_months': 'Aceitar pedidos de quem consultou nos últimos',
+            'patient_portal_requires_recent_visit':
+                'Recusar pedidos de quem não consulta há mais de 180 dias',
         }
         help_texts = {
             'patient_portal_enabled': 'Enquanto estiver desligado, o endereço responde '
                                       'como inexistente — nem a existência da clínica é '
                                       'confirmada a quem o acessa.',
-            'patient_portal_max_months': 'Padrão da clínica. Quem consultou há mais tempo '
-                                         'vê uma tela explicando o prazo e como agendar, '
-                                         'em vez do formulário. Cada médico pode definir '
-                                         'um prazo diferente para os pacientes dele.',
+            'patient_portal_requires_recent_visit':
+                'O prazo é o da Resolução CFM nº 2.314/2022 (art. 6º, § 2º) e não se '
+                'configura. Quem consultou há mais tempo vê uma tela explicando a norma '
+                'e como agendar, em vez do formulário. Padrão da clínica — cada médico '
+                'pode decidir diferente para os pacientes dele.',
             'patient_portal_notice': 'Prazo de resposta, o que este canal não atende, '
                                      'orientações. Aparece antes do formulário.',
         }

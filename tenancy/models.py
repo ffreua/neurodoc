@@ -142,39 +142,16 @@ class TenantDomain(TimestampedModel):
         return self.hostname
 
 
-class PortalRequestWindow(models.IntegerChoices):
-    """Ha quanto tempo a ultima consulta ainda autoriza um pedido pelo portal.
-
-    O portal recebe pedido de receita, relatorio e exame -- os tres sao ato
-    medico, e o art. 37 do Codigo de Etica Medica (Resolucao CFM n
-    2.217/2018) veda prescrever tratamento ou outros procedimentos sem
-    exame direto do paciente. O CFM **nao** fixa um numero de meses: quem
-    fixa e quem atende, e esta lista e o conjunto de intervalos que faz
-    sentido oferecer.
-
-    Seis meses e o padrao porque e o intervalo de retorno mais comum em
-    acompanhamento neurologico estavel -- e porque um padrao precisa
-    existir: sem ele, a clinica que liga o portal e nao configura nada
-    passaria a aceitar pedido de quem nao consulta ha cinco anos.
-
-    Numeros, e nao texto, para que a conta de meses seja uma conta e nao
-    uma tabela de conversao.
-    """
-
-    M3 = 3, '3 meses'
-    M4 = 4, '4 meses'
-    M6 = 6, '6 meses'
-    M9 = 9, '9 meses'
-    M12 = 12, '12 meses'
-    M15 = 15, '15 meses'
-    M18 = 18, '18 meses'
-
-
-#: O que vale quando ninguem escolheu. Constante propria porque tres
-#: lugares a citam -- o campo da clinica, a resolucao da janela e o
-#: roteiro -- e um `6` solto em cada um deixa de concordar na primeira
-#: mudanca.
-PORTAL_REQUEST_WINDOW_DEFAULT = PortalRequestWindow.M6
+#: Ha quantos dias, no maximo, pode ter sido a ultima consulta para o
+#: paciente ainda pedir pelo portal.
+#:
+#: Cento e oitenta, e nao "seis meses": a Resolucao CFM n 2.314/2022, art.
+#: 6, 2, diz "intervalos nao superiores a 180 dias". Seis meses de
+#: calendario dao 181 a 184 dias -- mais permissivo do que o texto que a
+#: tela cita, e a diferenca cai justamente sobre quem consultou na
+#: fronteira. O numero e o da norma para que a citacao e o comportamento
+#: digam a mesma coisa.
+PORTAL_RECENT_VISIT_DAYS = 180
 
 
 class MembershipStatus(models.TextChoices):
@@ -198,20 +175,18 @@ class Membership(TenantModel):
     activated_at = models.DateTimeField(null=True, blank=True)
     revoked_at = models.DateTimeField(null=True, blank=True)
 
-    #: A janela de retorno **deste medico**, para os pacientes que ele
-    #: atende. Nulo herda a da clinica.
+    #: A escolha **deste medico** para os pacientes que ele atende. Nulo
+    #: herda a da clinica.
     #:
-    #: Mora no vinculo, e nao em `PhysicianProfile`, porque `PhysicianProfile`
-    #: e do usuario e atravessa clinicas: o CRM e o mesmo em toda parte, e a
-    #: politica de retorno nao e -- o mesmo medico pode renovar em tres meses
-    #: no consultorio de epilepsia e em doze no ambulatorio de cefaleia. Aqui
-    #: a configuracao nasce escopada por inquilino, como todo `TenantModel`.
+    #: Mora no vinculo, e nao em `PhysicianProfile`, porque
+    #: `PhysicianProfile` e do usuario e atravessa clinicas: o CRM e o
+    #: mesmo em toda parte, e a decisao de barrar nao precisa ser. Aqui a
+    #: configuracao nasce escopada por inquilino, como todo `TenantModel`.
     #:
-    #: Nulo e diferente de zero: nulo diz "siga a clinica", e e o que
-    #: permite o dono mudar o padrao e valer para quem nao se manifestou.
-    patient_portal_max_months = models.PositiveSmallIntegerField(
-        choices=PortalRequestWindow.choices, null=True, blank=True,
-    )
+    #: Tres estados, e por isso `null=True`: sim, nao, e "siga a clinica"
+    #: -- este ultimo e o que permite o responsavel mudar o padrao e a
+    #: mudanca valer para quem nao se manifestou.
+    patient_portal_requires_recent_visit = models.BooleanField(null=True, blank=True)
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
@@ -285,12 +260,13 @@ class ClinicProfile(TenantModel):
     #: o que o portal não substitui, orientações da primeira consulta.
     #: Fica com a clínica porque o prazo é dela.
     patient_portal_notice = models.TextField(blank=True)
-    #: Ate quantos meses depois da ultima consulta o paciente ainda pode
-    #: pedir pelo portal. Padrao da clinica; cada medico pode apertar ou
-    #: afrouxar para os proprios pacientes em `Membership`.
-    patient_portal_max_months = models.PositiveSmallIntegerField(
-        choices=PortalRequestWindow.choices, default=PORTAL_REQUEST_WINDOW_DEFAULT,
-    )
+    #: Barrar quem nao consulta ha mais de `PORTAL_RECENT_VISIT_DAYS`.
+    #:
+    #: Ligado por padrao: e o que a Resolucao CFM n 2.314/2022 parametriza
+    #: e o que o art. 37 do Codigo de Etica Medica sustenta. Desligar e
+    #: liberalidade de quem responde pelo ato -- o medico segue podendo
+    #: prescrever, so nao pelo portal automaticamente.
+    patient_portal_requires_recent_visit = models.BooleanField(default=True)
 
     #: Encarregado pelo tratamento de dados pessoais (LGPD art. 41).
     #:

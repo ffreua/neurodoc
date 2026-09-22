@@ -1,47 +1,37 @@
 """Quando a última consulta é antiga demais para um pedido pelo portal.
 
 O portal recebe pedido de receita, relatório médico e exame — os três são
-ato médico. O art. 37 do Código de Ética Médica (Resolução CFM nº
-2.217/2018) veda ao médico "prescrever tratamento ou outros procedimentos
-sem exame direto do paciente, salvo em casos de urgência ou emergência e
-impossibilidade comprovada de realizá-lo". Um portal que aceita pedido de
-quem não é visto há anos empurra o médico para essa vedação — e a decisão
-de recusar acaba caindo sobre ele, um a um, depois de o paciente já ter
-criado expectativa.
+ato médico. Duas normas do CFM sustentam a recusa, e elas se encaixam:
 
-**O CFM não fixa um número de meses.** Quem fixa é quem atende. Este
-módulo só aplica o intervalo que a clínica ou o médico escolheram, e a
-tela diz as duas coisas separadamente: a norma que existe, e o prazo que
-é da clínica.
+- **Código de Ética Médica** (Resolução CFM nº 2.217/2018), art. 37: é
+  vedado ao médico "prescrever tratamento ou outros procedimentos sem
+  exame direto do paciente, salvo em casos de urgência ou emergência e
+  impossibilidade comprovada de realizá-lo, devendo, nesse caso, fazê-lo
+  imediatamente após cessar o impedimento". O parágrafo único remete o
+  atendimento a distância à regulamentação do CFM.
+- **Resolução CFM nº 2.314/2022**, art. 6º, § 2º — a regulamentação que o
+  parágrafo único anuncia: no acompanhamento de doenças crônicas ou que
+  requeiram acompanhamento por longo tempo "deve ser realizada consulta
+  presencial, com o médico assistente do paciente, em intervalos não
+  superiores a 180 dias".
 
-**Bloqueia na identificação, e confere de novo no envio.** Na
-identificação porque é onde a pessoa ainda não investiu tempo — descobrir
-a recusa depois de descrever cinco medicamentos é pior do que descobrir
-antes. No envio porque entre uma coisa e outra cabe o médico apertar a
-janela, e a sessão aberta antes não pode valer como autorização depois.
+**O prazo é o da norma, e só ele.** Não há prazo configurável: oferecer
+nove ou dezoito meses faria a tela citar uma resolução que diz 180 dias
+logo acima do prazo que a contraria — e o paciente lê as duas coisas na
+mesma folha. O que a clínica e o médico escolhem é **barrar ou não**.
+
+**Barrar é o padrão; não barrar é liberalidade de quem responde pelo
+ato.** Desligar não impede ninguém de prescrever: o médico continua
+podendo emitir a receita quando entender que deve. O que muda é o portal
+deixar de decidir sozinho por ele.
+
+**Confere em três portas** — identificação, abertura do formulário e
+envio. Na identificação porque é onde a pessoa ainda não investiu tempo;
+no envio porque entre uma coisa e outra cabe o médico mudar a opção, e
+uma sessão aberta antes não vale como autorização depois.
 """
 
-from tenancy.models import PORTAL_REQUEST_WINDOW_DEFAULT
-
-
-def _somar_meses(momento, meses):
-    """A mesma data, `meses` adiante. Sem biblioteca e sem 30 dias.
-
-    Trinta dias vezes seis dá 180, e seis meses civis dão entre 181 e 184
-    — a diferença é de dias, e cai justamente sobre quem consultou na
-    fronteira. Meses de calendário é o que a clínica quis dizer quando
-    escolheu "6 meses", e é o que o paciente entende ao ler a tela.
-
-    Dia que não existe no mês de destino cai no último dia dele: 31 de
-    janeiro mais um mês é 28 de fevereiro, e não 3 de março.
-    """
-    import calendar
-
-    total = momento.month - 1 + meses
-    ano = momento.year + total // 12
-    mes = total % 12 + 1
-    dia = min(momento.day, calendar.monthrange(ano, mes)[1])
-    return momento.replace(year=ano, month=mes, day=dia)
+from tenancy.models import PORTAL_RECENT_VISIT_DAYS
 
 
 def ultima_consulta(patient):
@@ -66,21 +56,22 @@ def ultima_consulta(patient):
     )
 
 
-def janela_em_meses(clinic, encontro):
-    """Quantos meses valem para este paciente.
+def barra(clinic, encontro):
+    """Esta clínica barra consulta antiga, para este paciente?
 
-    A do médico que o atendeu vence a da clínica: foi ele quem viu o caso,
-    e é dele a responsabilidade do art. 37. Nulo no vínculo significa
-    "siga a clínica" — é o que permite o responsável mudar o padrão e a
-    mudança valer para quem não se manifestou.
+    A escolha do médico que o atendeu vence a da clínica: foi ele quem viu
+    o caso, e é dele a responsabilidade do art. 37. `None` no vínculo
+    significa "siga a clínica" — é o que permite o responsável mudar o
+    padrão e a mudança valer para quem não se manifestou.
     """
     do_medico = getattr(
-        getattr(encontro, 'physician_membership', None), 'patient_portal_max_months', None,
+        getattr(encontro, 'physician_membership', None),
+        'patient_portal_requires_recent_visit', None,
     )
-    if do_medico:
-        return int(do_medico)
-    da_clinica = getattr(clinic, 'patient_portal_max_months', None)
-    return int(da_clinica or PORTAL_REQUEST_WINDOW_DEFAULT)
+    if do_medico is not None:
+        return bool(do_medico)
+    da_clinica = getattr(clinic, 'patient_portal_requires_recent_visit', None)
+    return True if da_clinica is None else bool(da_clinica)
 
 
 class Bloqueio:
@@ -91,8 +82,9 @@ class Bloqueio:
     vai esquecer de olhar.
     """
 
-    def __init__(self, meses, ultima=None, medico=''):
-        self.meses = meses
+    dias = PORTAL_RECENT_VISIT_DAYS
+
+    def __init__(self, ultima=None, medico=''):
         #: `None` quando não há consulta nenhuma registrada. São dois casos
         #: diferentes na tela: "faz tempo demais" e "ainda não te vimos".
         self.ultima = ultima
@@ -109,13 +101,13 @@ def bloqueio(clinic, patient, agora=None):
 
     agora = agora or timezone.now()
     encontro = ultima_consulta(patient)
-    meses = janela_em_meses(clinic, encontro)
-
+    if not barra(clinic, encontro):
+        return None
     if encontro is None:
-        return Bloqueio(meses)
+        return Bloqueio()
 
-    limite = _somar_meses(timezone.localtime(encontro.occurred_at), meses)
-    if timezone.localtime(agora) <= limite:
+    idade = (agora - encontro.occurred_at).days
+    if idade <= PORTAL_RECENT_VISIT_DAYS:
         return None
 
     profissional = getattr(encontro.physician_membership, 'user', None)
@@ -123,4 +115,4 @@ def bloqueio(clinic, patient, agora=None):
     if profissional is not None:
         perfil = getattr(profissional, 'physician_profile', None)
         nome = getattr(perfil, 'professional_name', '') or profissional.get_full_name()
-    return Bloqueio(meses, ultima=timezone.localtime(encontro.occurred_at), medico=nome)
+    return Bloqueio(ultima=timezone.localtime(encontro.occurred_at), medico=nome)

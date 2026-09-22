@@ -7,9 +7,9 @@
 {% endblock %}
 {% block content %}
 
-{% comment %}O prazo de retorno fica nesta tela, e não numa página de
-configuração: é aqui que o médico vê o efeito dele — os pedidos que
-chegaram, e a ausência dos que foram barrados. Quem o define é quem
+{% comment %}A regra de consulta recente fica nesta tela, e não numa
+página de configuração: é aqui que o médico vê o efeito dela — os pedidos
+que chegaram, e a ausência dos que foram barrados. Quem decide é quem
 atende, porque é dele a responsabilidade do art. 37 do Código de Ética
 Médica.{% endcomment %}
 <div class="card mb-4">
@@ -17,20 +17,29 @@ Médica.{% endcomment %}
         <form method="post" class="d-flex flex-wrap align-items-end gap-3">
             {% csrf_token %}
             <div>
-                <label class="form-label fw-semibold mb-1" for="meses">
-                    Meus pacientes podem pedir pelo portal até
+                <label class="form-label fw-semibold mb-1" for="barrar">
+                    Pedidos de quem não consulta há mais de {{ dias_da_norma }} dias
                 </label>
-                <select class="form-select" id="meses" name="meses" style="max-width: 20rem;">
-                    <option value="">Prazo padrão da clínica ({{ janela_da_clinica }} meses)</option>
-                    {% for valor, rotulo in janelas %}
-                    <option value="{{ valor }}" {% if janela_do_medico == valor %}selected{% endif %}>{{ rotulo }} depois da consulta</option>
-                    {% endfor %}
+                {% comment %}Três estados, e não uma caixa de marcar: "seguir a
+                clínica" é diferente de "não barrar", e é ele que faz a mudança do
+                responsável valer para quem não se manifestou.{% endcomment %}
+                <select class="form-select" id="barrar" name="barrar" style="max-width: 26rem;">
+                    <option value="clinica" {% if barra_do_medico == None %}selected{% endif %}>
+                        Seguir a clínica ({% if barra_da_clinica %}recusar{% else %}aceitar{% endif %})
+                    </option>
+                    <option value="sim" {% if barra_do_medico == True %}selected{% endif %}>
+                        Recusar — o paciente vê a norma e como agendar
+                    </option>
+                    <option value="nao" {% if barra_do_medico == False %}selected{% endif %}>
+                        Aceitar mesmo assim — eu avalio cada pedido
+                    </option>
                 </select>
             </div>
-            <button type="submit" class="btn btn-primary" data-nd-busy>Salvar prazo</button>
+            <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
             <span class="fs-11 text-muted" style="max-width: 30rem;">
-                Quem consultou há mais tempo vê uma tela explicando o prazo e como
-                agendar, em vez do formulário — e nenhum pedido chega aqui.
+                O prazo é o da Resolução CFM nº 2.314/2022 (art. 6º, § 2º) e não se
+                configura. Aceitar não obriga você a emitir nada: o pedido chega aqui
+                como qualquer outro, e a decisão continua sua.
             </span>
         </form>
     </div>

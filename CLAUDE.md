@@ -242,7 +242,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
-| `check_portal_retorno.py` | janela de retorno do portal: conta em meses de calendário, prazo do médico vencendo o da clínica, as três portas do portal, sessão aberta antes do aperto, e a tela que cita o art. 37 sem inventar prazo do CFM |
+| `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
@@ -290,38 +290,50 @@ acervo clínico exige `MANAGE_ORGANIZATION` **e** `READ_CLINICAL`, porque
 um dono que não é médico não abre prontuário na tela e não pode baixar
 todos num arquivo. Recusa entra na trilha como `reporting.export_denied`.
 
-## 7-C. Janela de retorno do portal
+## 7-C. Consulta recente no portal
 
 **`documents/portal_retorno.py`.** O portal público recebe pedido de
-receita, relatório e exame — os três são ato médico. O art. 37 do Código
-de Ética Médica (Resolução CFM nº 2.217/2018) veda prescrever sem exame
-direto do paciente, e um portal que aceita pedido de quem não é visto há
-anos empurra o médico para essa vedação, um paciente de cada vez.
+receita, relatório e exame — os três são ato médico. Duas normas do CFM
+sustentam a recusa, e elas se encaixam:
 
-Quem consultou há mais tempo que a janela vê uma tela explicando o prazo
-e como agendar, **em vez do formulário** — e nenhum pedido chega à fila.
+- **Código de Ética Médica** (Res. CFM nº 2.217/2018), **art. 37**: é
+  vedado prescrever "sem exame direto do paciente, salvo em casos de
+  urgência ou emergência e impossibilidade comprovada de realizá-lo". O
+  **parágrafo único** remete o atendimento a distância à regulamentação
+  do CFM.
+- **Res. CFM nº 2.314/2022, art. 6º, § 2º** — a regulamentação que o
+  parágrafo único anuncia: consulta presencial com o médico assistente
+  "em intervalos não superiores a **180 dias**".
 
-- **Onde se define:** `ClinicProfile.patient_portal_max_months` é o padrão
-  da clínica (tela de identidade → portal); `Membership.patient_portal_max_months`
-  é a janela do médico para os pacientes dele, definida na própria fila de
-  solicitações. Nulo no vínculo herda a clínica.
-- **Valores:** 3, 4, 6, 9, 12, 15 ou 18 meses. **Padrão 6** — sem padrão,
-  a clínica que liga o portal e não configura nada aceitaria pedido de
-  quem não consulta há cinco anos.
-- **Conta em meses de calendário**, não em múltiplos de 30 dias: seis
-  meses dão 181 a 184 dias, e a diferença cai justamente sobre quem
-  consultou na fronteira.
-- **Conta qualquer atendimento**, inclusive em rascunho: rascunho
-  significa que o médico abriu a ficha durante a visita. Exigir o
-  finalizado bloquearia quem foi visto na semana passada porque a nota
-  ainda não fechou.
-- **Confere em três portas:** identificação, abertura do formulário e
-  envio. A do envio existe porque entre abrir a sessão e enviar cabe o
-  médico apertar a janela.
+**O prazo não é configurável, e isso é a decisão.** Ele é o da norma —
+`PORTAL_RECENT_VISIT_DAYS = 180`, em dias e não em meses de calendário,
+porque seis meses dão 181 a 184 dias e seriam mais permissivos que o texto
+citado. Um prazo configurável faria a tela de bloqueio citar uma resolução
+que diz 180 dias logo acima de um prazo que a contraria, com o paciente
+lendo as duas coisas na mesma folha.
 
-**O CFM não fixa número de meses**, e a tela diz isso. Escrever "o CFM
-exige 6 meses" seria inventar uma regra — `check_portal_retorno` tem uma
-asserção só para impedir que essa frase apareça.
+**O que se escolhe é barrar ou não:**
+
+| Onde | Campo | Estados |
+| --- | --- | --- |
+| Identidade da clínica → portal | `ClinicProfile.patient_portal_requires_recent_visit` | sim / não (padrão **sim**) |
+| Fila de solicitações do portal | `Membership.patient_portal_requires_recent_visit` | sim / não / **nulo** = seguir a clínica |
+
+A escolha do médico que atendeu vence a da clínica — é dele a
+responsabilidade do art. 37. Nulo é um terceiro estado, e é o que permite
+o responsável mudar o padrão e a mudança valer para quem não se
+manifestou. **Não barrar não impede ninguém de prescrever:** o pedido
+chega à fila como qualquer outro, e a decisão continua do médico.
+
+Conta **qualquer** atendimento, inclusive em rascunho — rascunho significa
+que o médico abriu a ficha durante a visita. Confere em **três portas**:
+identificação, abertura do formulário e envio; a do envio existe porque
+entre abrir a sessão e enviar cabe o médico mudar a opção.
+
+`check_portal_retorno` cobra a fronteira exata (180 passa, 181 não), a
+precedência das escolhas, as três portas, e que a tela **cite as duas
+normas com a redação que consta nelas** — inclusive uma asserção contra a
+exceção inventada "emergência comunicada ao CRM", que o art. 37 não tem.
 
 ## 8. Deploy
 

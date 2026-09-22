@@ -28,7 +28,8 @@ tenant_b = Tenant.objects.get(slug='demo-clinica-b')
 perfil = ClinicProfile.objects.get_or_create(tenant=tenant)[0]
 perfil_b = ClinicProfile.objects.get_or_create(tenant=tenant_b)[0]
 estado = (perfil.patient_portal_enabled, perfil.patient_portal_notice,
-          perfil_b.patient_portal_enabled)
+          perfil_b.patient_portal_enabled,
+          perfil.patient_portal_requires_recent_visit)
 
 
 def note(r):
@@ -76,10 +77,14 @@ owner = client_for('doctor-a@demo.neurodoc.local')
 r = owner.post('/app/org/clinica/portal/', {
     'patient_portal_enabled': '1',
     'patient_portal_notice': 'Pedidos respondidos em ate 3 dias uteis.',
-    # O prazo de retorno entrou no mesmo formulario: a tela o renderiza
-    # sempre, e um POST sem ele e formulario invalido -- o portal nao
-    # chegava a ser publicado, e as doze secoes seguintes viam 404.
-    'patient_portal_max_months': '18',
+    # A regra de consulta recente entrou no mesmo formulario: a tela a
+    # renderiza sempre, e um POST sem ela publica o portal com a regra
+    # desligada -- que e o que este roteiro precisa, porque ele testa o
+    # portal e nao a regra (`check_portal_retorno` cuida dela).
+    #
+    # Ausente significa desmarcado num `BooleanField`, e e proposital:
+    # explicito aqui, o roteiro seguinte nao depende da data das consultas
+    # semeadas.
 }, follow=True)
 perfil.refresh_from_db()
 print('  ->', note(r))
@@ -167,20 +172,9 @@ if 404 not in codes:
 zera_balde()
 
 print('=== 8. identificacao correta abre a etapa 2 ===')
-# O portal so aceita quem consultou dentro da janela de retorno
-# (`documents/portal_retorno.py`). A precondicao e garantida aqui, e nao
-# herdada do `seed_demo`: um banco semeado ha mais de seis meses faria
-# este roteiro acusar o portal de nao abrir a etapa 2 quando o que houve
-# foi a regra funcionando.
-from datetime import timedelta as _timedelta
-
-from clinical.models import Encounter as _Encounter
-
-_ultimo = _Encounter.objects.filter(tenant=tenant, patient=paciente).order_by('-occurred_at').first()
-if _ultimo is not None:
-    _ultimo.occurred_at = timezone.now() - _timedelta(days=20)
-    _ultimo.save(update_fields=['occurred_at'])
-    print(f'  ultima consulta ajustada para ha 20 dias ({_ultimo.occurred_at:%d/%m/%Y})')
+# Sem mexer na data das consultas: o portal foi publicado com a regra de
+# consulta recente desligada (secao 2), entao este roteiro testa o portal
+# e `check_portal_retorno` testa a regra.
 paciente_c = Client()
 r = paciente_c.post(f'/solicitacoes/{tenant.slug}/', {
     'cpf': CPF, 'birth_date': NASC.isoformat(), 'privacy_ack': '1'}, follow=True)
@@ -344,6 +338,7 @@ from clinical.models import ExaminationFinding
 ExaminationFinding.objects.filter(encounter__in=abertos).delete()
 abertos.delete()
 perfil.patient_portal_enabled, perfil.patient_portal_notice = estado[0], estado[1]
+perfil.patient_portal_requires_recent_visit = estado[3]
 perfil.save()
 perfil_b.patient_portal_enabled = estado[2]
 perfil_b.save()
