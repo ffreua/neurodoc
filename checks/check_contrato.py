@@ -26,7 +26,6 @@ from unittest import mock
 
 from django.core import mail
 from django.db import IntegrityError, transaction
-from django.utils import timezone
 from django_otp import login as otp_login
 from django_otp.plugins.otp_totp.models import TOTPDevice
 

@@ -1,6 +1,8 @@
+import logging
 from datetime import datetime, time, timedelta
 
 from django.contrib import messages
+from django.db import IntegrityError
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -25,6 +27,9 @@ from .models import (
     AppointmentStatus, AppointmentType, AvailabilityRule, Holiday, ScheduleBlock,
     ScheduleBlockKind,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class TenantScopedView(CapabilityRequiredView):
@@ -613,7 +618,17 @@ class QuickBookingView(TenantScopedView):
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
-        except Exception:
+        except IntegrityError:
+            # So o choque de horario cai aqui. `ExclusionConstraint`
+            # (`scheduling_appointment_no_overlap`) e o que recusa duas
+            # reservas sobrepostas quando duas pessoas marcam ao mesmo
+            # tempo, e e a unica falha que justifica esta mensagem.
+            #
+            # Era `except Exception`, e a mensagem era esta mesma: banco
+            # fora do ar, erro de programacao e entrada estranha viravam
+            # "o horario acabou de ser ocupado". A secretaria tentava de
+            # novo num horario que estava livre, indefinidamente, e o
+            # defeito nao aparecia em lugar nenhum.
             messages.error(
                 request,
                 'Este horário acabou de ser ocupado por outra reserva. Escolha outro.',
@@ -917,9 +932,22 @@ class RescheduleAppointmentView(TenantScopedView):
             services.reschedule_appointment(
                 request.access_context, appointment, new_start, new_end, request.user.id,
             )
-        except Exception:
+        except IntegrityError:
+            # Ver o comentario da criacao de reserva: so o choque de
+            # horario cai aqui.
             messages.error(
                 request, 'Este horário acabou de ser ocupado por outra reserva. Escolha outro.',
+            )
+            return redirect(back)
+        except Exception:
+            # Qualquer outra coisa e defeito, e defeito se registra. A
+            # mensagem nao inventa causa: diz que nao deu e que alguem foi
+            # avisado, que e a verdade.
+            logger.exception('Falha ao remarcar a reserva %s', appointment.id)
+            messages.error(
+                request,
+                'Não foi possível remarcar agora. O erro foi registrado — '
+                'tente de novo em instantes.',
             )
             return redirect(back)
 

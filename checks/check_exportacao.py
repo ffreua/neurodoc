@@ -23,7 +23,7 @@ from django.utils import timezone
 
 from accounts.models import User
 from base.version import VERSION, version_display
-from clinical.models import Encounter, EncounterKind, EncounterStatus
+from clinical.models import Encounter
 from patients.models import Patient
 from reporting import acervo
 from reporting.models import ReportExport, ReportExportKind, ReportExportStatus

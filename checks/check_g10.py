@@ -12,7 +12,6 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 from datetime import date
 
 from django.contrib.messages import get_messages
-from django.utils import timezone
 
 from accounts.models import User
 from clinical.models import Encounter
