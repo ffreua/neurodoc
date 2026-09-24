@@ -256,7 +256,7 @@ class Command(BaseCommand):
         # whatever a prior manual smoke test happened to leave behind ---
         from clinical.finalization import finalize_encounter
         from clinical.models import Encounter, EncounterStatus
-        from finance.models import PaymentCategory
+        from finance.models import FeeSchedule, PaymentCategory
         from finance.payments import record_payment
         from finance.pricing import create_fee_schedule
         from finance.receivables import create_receivable_for_encounter
@@ -341,14 +341,57 @@ class Command(BaseCommand):
             finalize_encounter(demo_ctx, return_encounter, membership_doctor_a)
             counts['encounters'] += 2
 
-            create_fee_schedule(
-                tenant_a, PaymentCategory.PRIVATE, Decimal('350.00'), Decimal('280.00'),
-                date.today() - timedelta(days=400), physician=membership_doctor_a,
-            )
-            for encounter in [first_encounter, return_encounter]:
-                receivable = create_receivable_for_encounter(encounter, doctor_a.id)
-                if receivable is not None:
-                    record_payment(receivable, receivable.charged_amount, 'pix', doctor_a.id)
+
+        # --- Honorarios e recebiveis ---
+        #
+        # Isto ficava dentro da guarda "ja existe atendimento finalizado?",
+        # logo acima, e a consequencia so aparecia num banco que ja tinha
+        # sido semeado antes deste bloco existir: os atendimentos estavam
+        # la, a guarda pulava tudo, e a clinica de demonstracao ficava com
+        # **zero** recebiveis -- a tela Financeiro abria dizendo "nenhum
+        # recebivel no periodo" para sempre. Foi assim que o manual quase
+        # publicou uma captura de tela vazia ilustrando o artigo de
+        # financeiro.
+        #
+        # Sao dois fatos diferentes e cada um se verifica sozinho: existe
+        # atendimento finalizado, e existe preco para cobrar por ele.
+        # Duas tabelas, e nao uma. So havia a particular, e a unica
+        # paciente com atendimento finalizado tem convenio ativo -- entao
+        # `create_receivable_for_encounter` resolvia o preco como
+        # `insurance`, nao achava regra e devolvia `None`, **em silencio**
+        # (ele grava `receivable_pricing_missing` na trilha e segue). A
+        # clinica de demonstracao ficava sem nenhum recebivel sem que nada
+        # na tela dissesse por que.
+        for categoria, bruto, medico, plano in (
+            (PaymentCategory.PRIVATE, Decimal('350.00'), Decimal('280.00'), None),
+            (PaymentCategory.INSURANCE, Decimal('180.00'), Decimal('144.00'), plan_a),
+        ):
+            if not FeeSchedule.objects.filter(
+                tenant=tenant_a, physician=membership_doctor_a, plan=plano,
+                payment_category=categoria,
+            ).exists():
+                create_fee_schedule(
+                    tenant_a, categoria, bruto, medico,
+                    date.today() - timedelta(days=400),
+                    physician=membership_doctor_a, plan=plano,
+                )
+
+        # `create_receivable_for_encounter` ja e idempotente por
+        # (inquilino, atendimento, tipo de cobranca) -- repetir a semeadura
+        # nao duplica cobranca.
+        finalizados = Encounter.objects.filter(
+            tenant=tenant_a, status=EncounterStatus.FINALIZED,
+        ).order_by('occurred_at')
+        for posicao, encounter in enumerate(finalizados):
+            receivable = create_receivable_for_encounter(encounter, doctor_a.id)
+            if receivable is None or receivable.payments.exists():
+                continue
+            # O primeiro sai quitado e os demais ficam em aberto. Pagar
+            # todos deixava a lista inteira verde, e uma tela em que nada
+            # esta pendente nao mostra para que serve a tela.
+            if posicao == 0:
+                record_payment(receivable, receivable.charged_amount, 'pix', doctor_a.id)
+            counts['receivables'] = counts.get('receivables', 0) + 1
 
         def reserve_demo_slot(patient, starts_at, minutes, appointment_type):
             """Reserva um horario de demonstracao, e desiste se ele ja estiver ocupado.

@@ -1,8 +1,8 @@
 # Central de ajuda: manual e perguntas de uso
 
-`/ajuda/` — doze processos explicados passo a passo, com 25 capturas das
-telas reais, mais dez perguntas de quem já usa. Pública, sem login, e
-ligada à página inicial.
+`/ajuda/` — vinte e três processos explicados passo a passo, com 47
+capturas das telas reais, mais dez perguntas de quem já usa. Pública, sem
+login, e ligada à página inicial.
 
 Evidências: `checks/check_ajuda.py`.
 
@@ -31,7 +31,7 @@ usuário abrir a página e ver o ícone quebrado.
 versão de quando foi escrito, e o commit que muda a tela não o toca. Aqui,
 quem muda a tela vê o texto no mesmo diff.
 
-## Os doze processos
+## Os vinte e três processos
 
 | # | Artigo | Público |
 | --- | --- | --- |
@@ -47,6 +47,22 @@ quem muda a tela vê o texto no mesmo diff.
 | 10 | Chat de apoio | Médico |
 | 11 | Convênios, planos e valores | Dono, gestor, médico |
 | 12 | Equipe, papéis e registro profissional | Dono |
+| 13 | Os indicadores da clínica | Dono, gestor, médico |
+| 14 | Financeiro: recebíveis, pagamentos e ajustes | Dono, gestor, secretaria, médico |
+| 15 | A grade de horários do médico | Médico, dono, gestor |
+| 16 | Identidade da clínica e o encarregado de dados | Dono |
+| 17 | E-mail e SMS da clínica | Dono, gestor |
+| 18 | Comunicação em massa | Dono, gestor |
+| 19 | Notificações | Todos |
+| 20 | Mensagens internas da equipe | Todos |
+| 21 | Exportar os dados da clínica | Dono |
+| 22 | Digitalizar documentos do paciente | Secretaria, médico |
+| 23 | Falar com a NeuroDoc | Todos |
+
+Os onze últimos entraram em 2026-09-23, quando o manual foi confrontado
+com o menu: doze artigos cobriam o trabalho assistencial e **nenhum**
+cobria o administrativo. Financeiro, indicadores, mensageria, campanhas,
+exportação e captura estavam no produto e fora do manual.
 
 Cada artigo tem público declarado, resumo e passos numerados. Nem todo
 passo tem captura: uma imagem por parágrafo transforma o manual numa
@@ -67,24 +83,56 @@ médico a digitar o que não deve.
 
 ## As capturas
 
-Tiradas com Chrome real dirigido por `agent-browser`, contra a pilha local
-e o banco de demonstração recém-limpo. **Em lotes pequenos, fechando o
-navegador entre eles**: o Chrome foi morto três vezes nesta máquina por
-falta de memória, e uma sequência de vinte e cinco capturas numa sessão só
-é exatamente o caso que estoura.
+Tiradas por `ops/capturar_ajuda.py`, com o navegador **dentro do Docker**,
+na rede da própria pilha. A primeira leva saiu de um Chrome dirigido à mão
+nesta máquina, e o navegador foi morto três vezes por falta de memória no
+meio do trabalho — uma sequência longa de capturas competindo por RAM com
+o navegador de quem está trabalhando é exatamente o caso que estoura.
+Mudar de lugar resolveu: `scripts/capturar_ajuda.sh` refaz o manual
+inteiro num comando.
 
-Três exigiram preparar o estado antes, e vale registrar porque a próxima
-atualização vai precisar do mesmo:
+Quatro defeitos que só apareceram porque o roteiro passou a conferir a si
+mesmo, e que valem registro porque nenhum deles levantava erro:
 
-- **`agenda-marcar`**: a semana corrente não tinha horário livre (a grade
-  do médico é segunda-feira, e a captura foi feita num domingo). Resolvido
-  navegando para `?date=` da segunda seguinte.
-- **`chat-conversa`**: não havia conversa no banco — os roteiros limpam as
-  suas. Criada uma conversa de exemplo, com a resposta da IA mostrando a
-  frase "Não encontrei isso no prontuário deste paciente", que é
-  justamente o comportamento que o artigo descreve.
-- **`solicitacoes-portal`**: o portal vem desligado por padrão, e o
-  endereço responde 404 nesse estado. Ligado na clínica de demonstração.
+- **A captura saía da clínica errada.** O dono da demonstração tem vínculo
+  em duas clínicas, e o roteiro escolhia "a primeira do seletor" — a
+  Clínica Demo B, que existe justamente para exercitar a troca de
+  organização e quase não tem dado. Vinte e duas telas saíram dela, todas
+  respondendo 200. Agora a clínica é escolhida **pelo nome**, e o roteiro
+  confere o cabeçalho depois de entrar.
+- **Seis capturas saíram idênticas duas a duas.** O preparo mandava rolar
+  até uma seção com `scroll_into_view_if_needed`, que não faz nada quando o
+  elemento já está visível. O manual publicaria a mesma imagem com duas
+  legendas diferentes. O roteiro agora compara o SHA-256 de tudo que
+  gravou e falha se dois arquivos baterem; o que não se resolve rolando
+  virou captura **do elemento**.
+- **A janela de mensagens da equipe atravessa a navegação** — ela vive no
+  shell, não na página. Depois das duas capturas do chat, apareceu colada
+  por cima da captura seguinte. Fechada agora antes de cada tela.
+- **`networkidle` nunca dispara em `/app/`**: chat e notificações mantêm
+  conexões SSE abertas, e a rede não fica ociosa. A espera é
+  `domcontentloaded` mais um tempo fixo.
+
+## O banco de demonstração tinha zero recebíveis
+
+Descoberto ao ilustrar o artigo do financeiro: a tela abria dizendo
+"nenhum recebível no período", e nenhum manual se escreve a partir disso.
+
+Eram dois defeitos de `seed_demo` empilhados, e os dois em silêncio:
+
+1. A tabela de honorários e a criação dos recebíveis estavam **dentro** da
+   guarda "já existe atendimento finalizado?". Num banco semeado antes de
+   esse bloco existir, os atendimentos estavam lá, a guarda pulava tudo, e
+   a clínica ficava sem cobrança nenhuma para sempre.
+2. Só havia tabela **particular**, e a única paciente com atendimento
+   finalizado tem convênio ativo. `create_receivable_for_encounter`
+   resolvia o preço como `insurance`, não achava regra, gravava
+   `finance.receivable_pricing_missing` na trilha e devolvia `None` — sem
+   nada na tela dizendo por quê.
+
+Os dois fatos agora se verificam sozinhos, e a semeadura cria as duas
+tabelas. O primeiro recebível sai quitado e os demais ficam em aberto: uma
+lista inteiramente verde não mostra para que serve a tela.
 
 ## Um defeito encontrado na primeira renderização
 
@@ -103,15 +151,15 @@ texto inerte, não markup.
 
 | # | Pergunta | Resultado |
 | --- | --- | --- |
-| 1 | Toda captura referenciada existe? | 25 de 25 |
+| 1 | Toda captura referenciada existe? | 47 de 47 |
 | 2 | Alguma captura órfã? | Nenhuma |
 | 3 | As páginas abrem sem login? | Índice, perguntas e landing em 200 |
-| 4 | Cada artigo abre e está no índice? | 12 de 12 |
+| 4 | Cada artigo abre e está no índice? | 23 de 23 |
 | 5 | Slug inexistente? | 404, não 500 |
 | 6 | A landing leva ao manual? | Manual e perguntas |
 | 7 | As capturas são servidas? | `<img>` renderizado |
 | 8 | Promete o que está fora do escopo? | Nada |
-| 9 | Todo artigo tem público, resumo e passos? | 12 de 12 |
+| 9 | Todo artigo tem público, resumo e passos? | 23 de 23 |
 
 A seção 2 é a que costuma faltar em verificação de manual: ela pega a
 captura que ficou no repositório depois de o texto que a usava ser

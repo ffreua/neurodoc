@@ -337,6 +337,279 @@ ARTICLES = [
              '', ''),
         ],
     },
+    {
+        'slug': 'indicadores',
+        'title': 'Os indicadores da clínica',
+        'summary': 'O painel de início: consumo do plano, atendimentos, faltas e faturamento do período.',
+        'audience': 'Dono, gestor, médico',
+        'steps': [
+            ('**Início** é o painel. Ele abre no mês corrente, e o seletor de período '
+             'no topo muda todos os números de uma vez — não há um filtro por gráfico.',
+             'indicadores-painel.png', 'Painel de indicadores'),
+            ('O primeiro bloco é o **consumo do plano**: quantos pacientes ativos você '
+             'tem e quantos cabem. Ele fica no topo porque responde a uma pergunta que '
+             'não tem outro lugar na tela — "quanto ainda cabe?". Descobrir o limite na '
+             'hora de cadastrar é descobrir com a pessoa na sua frente.',
+             'indicadores-plano.png', 'Consumo do plano'),
+            ('Arquivar um paciente **libera vaga**; nada é apagado. A partir de 80% do '
+             'limite a barra avisa, e no limite o cadastro é recusado — com o caminho '
+             'para falar sobre o plano na mesma tela.',
+             '', ''),
+            ('Os números de faturamento são **por competência**, e os de caixa são por '
+             'recebimento. São perguntas diferentes: um diz quanto você produziu no '
+             'mês, o outro quanto entrou. Ver os dois lado a lado é o que explica a '
+             'diferença entre agenda cheia e conta magra no fim do mês.',
+             '', ''),
+            ('A secretaria não vê esta tela. Ela abre direto no **balcão do dia**, que é '
+             'o que o trabalho dela pede — indicador agregado de faturamento não é '
+             'informação de recepção.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'financeiro',
+        'title': 'Financeiro: recebíveis, pagamentos e ajustes',
+        'summary': 'O que foi faturado, o que entrou, e como corrigir sem apagar história.',
+        'audience': 'Dono, gestor, secretaria, médico',
+        'steps': [
+            ('**Financeiro** lista os recebíveis: um por atendimento faturável, com o '
+             'valor que a tabela de honorários definia **naquela data**. O recebível '
+             'guarda um retrato do que valia; mudar a tabela hoje não reescreve o que '
+             'já foi lançado.',
+             'financeiro-recebiveis.png', 'Lista de recebíveis'),
+            ('Registrar um pagamento abre a baixa: valor, data, forma e observação. '
+             'Pagamento **parcial** é aceito — o recebível fica com saldo e continua '
+             'aparecendo em aberto até fechar.',
+             'financeiro-pagamento.png', 'Registro de pagamento'),
+            ('Um **ajuste** é o que corrige valor sem apagar história: desconto, glosa '
+             'do convênio, acréscimo combinado. Ele entra como linha própria, com '
+             'motivo e autor, e o recebível original continua legível.',
+             '', ''),
+            ('Todo valor é decimal, nunca ponto flutuante. É a diferença entre fechar o '
+             'mês e passar a tarde procurando um centavo.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'disponibilidade',
+        'title': 'A grade de horários do médico',
+        'summary': 'Dias e horas de atendimento, duração por tipo, bloqueios e feriados.',
+        'audience': 'Médico, dono, gestor',
+        'steps': [
+            ('**Agenda → Disponibilidade** define em que dias e horas o médico atende. '
+             'A grade é semanal e se repete; o que ela produz são os horários que a '
+             'marcação oferece.',
+             'disponibilidade-grade.png', 'Grade semanal'),
+            ('A **duração da consulta** é por tipo de atendimento: primeira consulta, '
+             'retorno, procedimento. Definir aqui evita a conta de cabeça a cada '
+             'marcação — e evita a sobreposição que só se descobre no dia.',
+             'disponibilidade-duracao.png', 'Duração por tipo'),
+            ('**Bloqueios** tiram horário da grade sem apagá-la: férias, congresso, uma '
+             'tarde de cirurgia. O horário bloqueado some da oferta e volta sozinho '
+             'quando o bloqueio termina.',
+             'disponibilidade-bloqueio.png', 'Bloqueio de horário'),
+            ('Feriados nacionais já vêm carregados, e **não bloqueiam sozinhos** — quem '
+             'atende em feriado continua atendendo. A tela mostra quais ainda estão '
+             'abertos, para você decidir um a um.',
+             '', ''),
+            ('Cada médico configura a própria grade. Dono e gestor configuram a de '
+             'qualquer um; o médico, só a dele.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'clinica',
+        'title': 'Identidade da clínica e o encarregado de dados',
+        'summary': 'Cabeçalho dos documentos, logotipo, portal do paciente e o contato da LGPD.',
+        'audience': 'Dono',
+        'steps': [
+            ('**Organização → Identidade da clínica** guarda o que sai no cabeçalho de '
+             'toda receita, laudo e relatório: razão social, CNPJ, endereço, telefone e '
+             'e-mail. Conferir isto antes do primeiro documento poupa reimprimir o que '
+             'já foi assinado.',
+             'clinica-identidade.png', 'Dados da clínica'),
+            ('O **logotipo** aparece no documento e no menu. Envie PNG ou JPG; a tela '
+             'mostra como ele vai sair antes de você salvar.',
+             'clinica-logotipo.png', 'Logotipo'),
+            ('O **encarregado de dados pessoais** é exigência da LGPD (art. 41, §1º): a '
+             'identidade e o contato precisam ser divulgados publicamente. Preencha nome '
+             'e e-mail — enquanto estiver vazio, o portal do paciente diz, com todas as '
+             'letras, que a clínica ainda não designou ninguém.',
+             'clinica-encarregado.png', 'Encarregado de dados'),
+            ('Na mesma tela fica a **publicação do portal** de solicitações, em botão '
+             'próprio. É ação separada de propósito: trocar o CEP corrige uma impressão; '
+             'publicar o portal abre um endereço na internet que aceita CPF e data de '
+             'nascimento de pacientes.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'mensageria',
+        'title': 'E-mail e SMS da clínica',
+        'summary': 'Configurar o remetente da clínica e acompanhar o que foi entregue.',
+        'audience': 'Dono, gestor',
+        'steps': [
+            ('**Mensagens → Configuração** guarda as credenciais de SMTP da clínica. '
+             'Elas são da clínica, e não da instalação: confirmação de consulta que sai '
+             'de um remetente genérico cai em spam e não parece da sua clínica.',
+             'mensageria-config.png', 'Credenciais de e-mail'),
+            ('O botão de **testar** abre a conexão de verdade antes de salvar. Senha de '
+             'SMTP errada só se descobre no dia em que um paciente não recebe a '
+             'confirmação — e aí ninguém liga uma coisa à outra.',
+             '', ''),
+            ('**Entregas** mostra cada mensagem que saiu: destino, canal, estado e '
+             'tentativa. Uma entrega recusada aparece com o motivo, e é daqui que se '
+             'descobre um e-mail digitado errado na ficha.',
+             'mensageria-entregas.png', 'Fila de entregas'),
+            ('Nada é enviado de dentro da requisição: tudo passa por fila. É o que '
+             'permite o sistema responder na hora e tentar de novo quando o servidor do '
+             'outro lado está fora.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'campanhas',
+        'title': 'Comunicação em massa',
+        'summary': 'Avisar muitos pacientes de uma vez, com consentimento e descadastro.',
+        'audience': 'Dono, gestor',
+        'steps': [
+            ('**Mensagens → Campanhas** monta um envio para muitos pacientes. A lista '
+             'sai **apenas** de quem autorizou receber comunicação — quem nunca '
+             'autorizou não entra, e não há como incluí-lo.',
+             'campanhas-nova.png', 'Nova campanha'),
+            ('O consentimento é reconferido **no instante do envio**, e não só na '
+             'montagem: entre criar a campanha e disparar podem passar dias, e quem se '
+             'descadastrou nesse intervalo não recebe.',
+             '', ''),
+            ('O link de **descadastro** é acrescentado pelo sistema, não digitado por '
+             'você — mensagem sem ele não sai. A LGPD (art. 8º, §5º) manda que revogar '
+             'seja tão fácil quanto consentir.',
+             '', ''),
+            ('O envio é **fatiado por minuto**. Mil mensagens de uma vez, saindo de um '
+             'remetente novo, fazem o provedor marcar o domínio da clínica como spam — e '
+             'isso atinge também o e-mail de confirmação de consulta.',
+             'campanhas-andamento.png', 'Campanha em andamento'),
+            ('**Pausar** interrompe sem perder o que já saiu; retomar continua de onde '
+             'parou, e quem já recebeu não recebe de novo. Campanha em envio não dispara '
+             'duas vezes, nem com dois cliques.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'notificacoes',
+        'title': 'Notificações',
+        'summary': 'O sino: o que o sistema avisa e o que fica esperando você.',
+        'audience': 'Todos',
+        'steps': [
+            ('O **sino**, no topo da tela, acende quando há algo esperando: um pedido do '
+             'portal, uma exportação pronta, um documento que terminou de ser assinado. '
+             'As cinco últimas aparecem ali mesmo.',
+             'notificacoes-sino.png', 'Sino de notificações'),
+            ('A **central** lista tudo, com as não lidas primeiro. Ordenar só por data '
+             'faria cinco avisos de hoje esconderem o pendente de ontem — que é '
+             'justamente o que ainda precisa de alguém.',
+             'notificacoes-lista.png', 'Central de notificações'),
+            ('Notificação **não carrega conteúdo clínico**: ela diz que algo aconteceu e '
+             'leva até lá. O título não traz nome de paciente nem trecho de prontuário, '
+             'porque ele aparece numa tela que outra pessoa pode estar vendo por cima do '
+             'seu ombro.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'equipe-chat',
+        'title': 'Mensagens internas da equipe',
+        'summary': 'Conversar com quem trabalha na mesma clínica, sem sair do sistema.',
+        'audience': 'Todos',
+        'steps': [
+            ('O botão ao lado do sino abre a **janela de mensagens**. A conversa é entre '
+             'duas pessoas da mesma clínica, e a entrega é ao vivo — sem recarregar a '
+             'página.',
+             'equipe-chat-janela.png', 'Janela de mensagens'),
+            ('A lista mostra quem está online e quantas mensagens você não leu. Há uma '
+             'conversa por par de pessoas: procurar alguém duas vezes abre a mesma '
+             'conversa, com todo o histórico.',
+             'equipe-chat-lista.png', 'Lista de conversas'),
+            ('**Isto não é prontuário, e a tela diz isso.** Combinar um encaixe ou avisar '
+             'que o paciente chegou é o uso; registrar conduta clínica não é — o que vale '
+             'como registro é o atendimento, não a conversa.',
+             '', ''),
+            ('Mensagem não atravessa clínicas. Quem trabalha em duas organizações tem '
+             'duas listas separadas, e a de uma nunca aparece na outra.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'exportar',
+        'title': 'Exportar os dados da clínica',
+        'summary': 'Levar embora o cadastro e o prontuário, em Markdown ou JSON.',
+        'audience': 'Dono',
+        'steps': [
+            ('**Organização → Exportar dados** entrega o acervo da clínica. É o direito '
+             'da cláusula 13.1 do contrato de adesão: obter o que é seu em formato de uso '
+             'comum, sem depender de ninguém.',
+             'exportar-tela.png', 'Exportar dados'),
+            ('São dois acervos. O **cadastro de pacientes** traz a ficha completa de cada '
+             'um, com contatos e convênios. Os **atendimentos** trazem todas as anotações '
+             'clínicas, agrupadas por paciente e em ordem de data.',
+             '', ''),
+            ('**JSON** é para levar a outro sistema: a estrutura é preservada campo a '
+             'campo. **Markdown** é para ler: o cadastro vira uma ficha por paciente, e o '
+             'prontuário vira um documento que abre em qualquer editor e imprime.',
+             '', ''),
+            ('A exportação vai para a fila e avisa quando fica pronta. O arquivo **expira '
+             'em 24 horas** e some do servidor — baixe e guarde.',
+             'exportar-pronta.png', 'Exportação pronta'),
+            ('Exportar o prontuário exige ler prontuário. Quem administra a clínica sem '
+             'ser médico leva o cadastro, não as anotações — seria estranho não poder '
+             'abrir uma nota na tela e poder baixar todas num arquivo. **O arquivo sai do '
+             'sistema com você, e a proteção dele passa a ser sua.**',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'scanner',
+        'title': 'Digitalizar documentos do paciente',
+        'summary': 'Mandar para o prontuário o que chegou em papel.',
+        'audience': 'Secretaria, médico',
+        'steps': [
+            ('**Integrações → Captura** registra os aparelhos que enviam documento '
+             'digitalizado para o sistema. Cada aparelho tem credencial própria: um '
+             'scanner da recepção que some não leva junto o acesso dos outros.',
+             'scanner-dispositivos.png', 'Aparelhos de captura'),
+            ('O documento digitalizado entra como **anexo do paciente**, passa pelo '
+             'antivírus e só fica disponível depois de liberado. Arquivo reprovado não é '
+             'entregue a ninguém.',
+             '', ''),
+            ('O mesmo arquivo enviado duas vezes não cria dois anexos: o sistema '
+             'reconhece pelo conteúdo. Scanner que repete a página por falha de rede é '
+             'caso comum, e o prontuário não pode ficar com a duplicata.',
+             '', ''),
+            ('Sem scanner, o caminho continua sendo **anexar pela ficha do paciente** — a '
+             'captura é conveniência, não requisito.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'suporte',
+        'title': 'Falar com a NeuroDoc',
+        'summary': 'Pedir ajuda e sugerir melhorias, de dentro do sistema.',
+        'audience': 'Todos',
+        'steps': [
+            ('No rodapé do menu há duas portas: **Fale com a NeuroDoc**, para pedir '
+             'ajuda, e **Envie sugestões**, para propor melhoria. São separadas porque um '
+             'chamado tem alguém esperando hoje, e uma ideia entra numa lista que se lê '
+             'com calma.',
+             'suporte-mensagem.png', 'Fale com a NeuroDoc'),
+            ('**Não escreva dado de paciente.** Nome, CPF, telefone, diagnóstico ou '
+             'trecho de prontuário. Quem lê a mensagem opera o servidor e não tem acesso '
+             'a prontuário — se precisar citar um atendimento, mande o número dele.',
+             '', ''),
+            ('A resposta vai para o e-mail da sua conta. Junto da mensagem seguem apenas '
+             'o nome da clínica, o seu nome e os seus papéis.',
+             '', ''),
+        ],
+    },
 ]
 
 
