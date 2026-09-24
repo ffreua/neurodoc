@@ -17,6 +17,8 @@ spam quando mil mensagens saem de uma vez de um remetente novo. O envio é
 fatiado por minuto, e a campanha volta para a fila até acabar.
 """
 
+from contextlib import contextmanager
+
 import secrets
 
 from django.db import transaction
@@ -125,11 +127,63 @@ def _body_with_footer(campaign, contact):
     )
 
 
+#: Classe de trava das campanhas, no espaco de travas consultivas do
+#: PostgreSQL. Numero proprio, ao lado do `BACKUP_LOCK` de `ops/locks.py`:
+#: duas travas diferentes nao podem dividir o mesmo numero.
+CAMPAIGN_LOCK_CLASS = 72654003
+
+
+@contextmanager
+def _envio_exclusivo(campaign):
+    """Uma fatia de cada vez, por campanha.
+
+    `send_batch` lia os pendentes e enviava, sem travar as linhas. Duas
+    fatias simultaneas da mesma campanha liam **os mesmos** destinatarios
+    e mandavam o e-mail duas vezes para a mesma pessoa -- e o caminho para
+    isso era curto: dois cliques no botao de disparar, ou um clique em
+    cima da tarefa periodica que ja estava rodando.
+
+    Trava consultiva e nao `select_for_update`: manter uma transacao
+    aberta durante o SMTP e o que esgota o pool de conexoes quando o
+    servidor de e-mail demora. A trava vale pela sessao, o envio acontece
+    fora de transacao, e quem nao a pega simplesmente nao envia -- a fatia
+    dele seria duplicata da que ja esta saindo.
+
+    `crc32` e nao `hash()`: o `hash` de texto e aleatorizado por processo
+    no Python, entao dois workers calculariam chaves diferentes e a trava
+    nao trancaria nada.
+    """
+    import zlib
+
+    from django.db import connection
+
+    chave = zlib.crc32(str(campaign.id).encode()) - 2**31
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT pg_try_advisory_lock(%s, %s)',
+                       [CAMPAIGN_LOCK_CLASS, chave])
+        peguei = cursor.fetchone()[0]
+    if not peguei:
+        yield False
+        return
+    try:
+        yield True
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT pg_advisory_unlock(%s, %s)',
+                           [CAMPAIGN_LOCK_CLASS, chave])
+
+
 def guard(campaign):
     """Recusa o disparo quando falta algo. Erra para o lado de não enviar."""
     from .models import MessagingSettings
 
-    if campaign.status not in (CampaignStatus.DRAFT, CampaignStatus.PAUSED, CampaignStatus.SENDING):
+    # `SENDING` saiu da lista. Aceita-lo fazia o segundo clique no botao de
+    # disparar agendar uma segunda cadeia de fatias para a mesma campanha.
+    # "Retomar" parte de `PAUSED`, entao nada legitimo se perde -- e quem
+    # clica duas vezes recebe uma frase em vez de duplicar o envio.
+    if campaign.status not in (CampaignStatus.DRAFT, CampaignStatus.PAUSED):
+        if campaign.status == CampaignStatus.SENDING:
+            raise CampaignBlocked('Esta campanha já está enviando.')
         raise CampaignBlocked('Esta campanha já foi concluída ou cancelada.')
     if not campaign.subject.strip() or not campaign.body_text.strip():
         raise CampaignBlocked('Assunto e texto são obrigatórios.')
@@ -152,6 +206,20 @@ def send_batch(campaign, limit=None):
     mantém o worker livre entre as fatias.
     """
     limit = limit or campaign.per_minute
+    with _envio_exclusivo(campaign) as meu:
+        if not meu:
+            # Outra fatia desta campanha esta saindo agora. A nossa seria
+            # duplicata dela, e `restantes` continua o que era: quem
+            # segura a trava reagenda a proxima.
+            restantes = campaign.recipients.filter(
+                status=RecipientStatus.PENDING,
+            ).count()
+            return {'enviados': 0, 'falhas': 0, 'pulados': 0, 'restantes': restantes,
+                    'concorrente': True}
+        return _enviar_fatia(campaign, limit)
+
+
+def _enviar_fatia(campaign, limit):
     pendentes = (
         campaign.recipients.filter(status=RecipientStatus.PENDING)
         .select_related('contact')[:limit]

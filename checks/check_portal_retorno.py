@@ -80,6 +80,21 @@ def com_consulta(dias_atras):
     )
 
 
+def zera_balde():
+    """O limite de tentativas do portal e por IP, e aqui todo cliente e
+    127.0.0.1.
+
+    Sao oito tentativas em quinze minutos (`LOOKUP_MAX_ATTEMPTS`), e este
+    roteiro faz perto disso. Sem zerar, rodar a bateria duas vezes dentro
+    da janela fazia a segunda falhar com 429 -- uma falha que nao e do
+    produto, e que manda procurar defeito no lugar errado.
+    """
+    from django.core.cache import cache
+
+    cache.delete('portal:lookup:127.0.0.1')
+    cache.delete('portal:submit:127.0.0.1')
+
+
 def escolha(clinica_barra, medico_barra):
     perfil.patient_portal_requires_recent_visit = clinica_barra
     perfil.save(update_fields=['patient_portal_requires_recent_visit'])
@@ -151,6 +166,7 @@ print(f'  sem consulta nenhuma -> {"bloqueado" if b else "liberado"}  '
 if b is None or not b.nunca_consultou:
     falhas.append('quem nunca consultou nao foi barrado como tal')
 
+zera_balde()
 perfil.patient_portal_enabled = True
 perfil.save(update_fields=['patient_portal_enabled'])
 dados = {
@@ -165,6 +181,7 @@ print(f'  identificacao -> HTTP {r.status_code}  '
 if r.status_code != 403 or 'Ainda não temos' not in corpo:
     falhas.append('a tela nao distinguiu "nunca consultou" de "consulta antiga"')
 
+zera_balde()
 print('=== 6. a tela cita as duas normas como elas sao ===')
 com_consulta(400)
 c = Client()
@@ -198,6 +215,7 @@ if re.search(r'comunicad[ao]s? ao CRM', achatado):
 if re.search(r'CFM[^.]{0,80}(exige|determina|obriga)[^.]{0,40}\d+\s*meses', achatado):
     falhas.append('a tela atribui ao CFM um prazo em meses que ele nao fixa')
 
+zera_balde()
 print('=== 7. as tres portas do portal ===')
 r2 = c.get(f'/solicitacoes/{clinica.slug}/solicitar/')
 print(f'  /solicitar/ depois do bloqueio -> HTTP {r2.status_code} (302 esperado)')
@@ -218,6 +236,7 @@ if r.status_code != 403:
     falhas.append('a sessao aberta antes de ligar a barreira continuou valendo')
 
 escolha(False, None)
+zera_balde()
 c3 = Client()
 c3.post(f'/solicitacoes/{clinica.slug}/', dados)
 escolha(True, None)
@@ -228,6 +247,7 @@ print(f'  ligou depois; POST de envio    -> HTTP {r.status_code} (403 esperado)'
 if r.status_code != 403:
     falhas.append('o envio passou com a barreira ja ligada')
 
+zera_balde()
 print('=== 8. quem consultou dentro do prazo segue normalmente ===')
 com_consulta(10)
 escolha(True, None)

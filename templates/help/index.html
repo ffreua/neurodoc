@@ -9,10 +9,17 @@
             <div class="col-lg-8">
                 <span class="badge bg-soft-primary text-primary mb-3">Central de ajuda</span>
                 <h1 class="nd-hero-title">Como usar o NeuroDoc</h1>
+{% comment %}Dizia "o manual de cada processo do sistema". Não era
+verdade: são doze artigos, e ficam de fora financeiro operacional,
+exportação do acervo, campanhas, captura por scanner, notificações,
+mensagens da equipe e a identidade da clínica. Prometer cobertura total
+numa página de ajuda é o tipo de exagero que quem procura o assunto que
+falta descobre em trinta segundos — e aí passa a duvidar do resto.{% endcomment %}
                 <p class="nd-hero-lead">
-                    O manual de cada processo do sistema, passo a passo e com as telas ao
-                    lado. Tudo aqui descreve o que existe no produto — nenhum passo fala de
-                    função que ainda não chegou.
+                    O passo a passo dos caminhos principais do dia, com as telas ao lado.
+                    Tudo aqui descreve o que existe no produto — nenhum passo fala de
+                    função que ainda não chegou. Não achou o seu assunto? Escreva pelo
+                    <strong>Fale com a NeuroDoc</strong>, no rodapé do menu.
                 </p>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary" href="{% url 'onboarding:help-article' articles.0.slug %}">
