@@ -23,7 +23,7 @@ dado conferido.
             {% include "partials/field.html" with field=exam_result_form.performed_on col="col-lg-2 col-md-4" %}
             {% include "partials/field.html" with field=exam_result_form.service_name col="col-lg-2 col-md-8" %}
             {% include "partials/field.html" with field=exam_result_form.report_file col="col-lg-6" %}
-            {% include "partials/field.html" with field=exam_result_form.run_extraction col="col-lg-6" %}
+            {% if nd_can.clinical_ai %}{% include "partials/field.html" with field=exam_result_form.run_extraction col="col-lg-6" %}{% endif %}
             {% include "partials/field.html" with field=exam_result_form.report_text col="col-lg-8" %}
             {% include "partials/field.html" with field=exam_result_form.conclusion col="col-lg-4" %}
         </div>
@@ -71,7 +71,11 @@ dado conferido.
                     Abrir laudo
                 </a>
                 {% endif %}
-                {% if encounter.status != 'finalized' and result.attachment %}
+                {% comment %}O estado da leitura continua aparecendo acima mesmo
+                sem a IA no plano -- e o registro do que ja foi lido, e escondê-lo
+                apagaria informacao de quem foi rebaixado. O que sai e o botao de
+                pedir de novo.{% endcomment %}
+                {% if encounter.status != 'finalized' and result.attachment and nd_can.clinical_ai %}
                 <form method="post" action="{% url 'clinical:extract-exam-result' encounter.id result.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>

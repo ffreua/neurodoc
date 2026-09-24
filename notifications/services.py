@@ -23,6 +23,7 @@ cabeçalho.
 
 from tenancy.models import Membership, MembershipStatus
 from tenancy.permissions import capabilities_for
+from tenancy.plans import has_clinical_ai
 
 from .models import Notification
 
@@ -54,10 +55,14 @@ def _members_with(tenant, capability):
         .filter(tenant=tenant, status=MembershipStatus.ACTIVE)
         .select_related('user')
     )
+    # Lido uma vez, fora da lista: o plano e da clinica, igual para todos
+    # os vinculos dela, e perguntar por vinculo seria uma consulta por
+    # membro para sempre chegar na mesma resposta.
+    ia = has_clinical_ai(tenant.plan)
     return [
         m for m in membros
         if capability in capabilities_for(
-            m.roles, clinically_enabled=m.can_practice_clinically(),
+            m.roles, clinically_enabled=m.can_practice_clinically(), ai_contracted=ia,
         )
     ]
 

@@ -84,6 +84,7 @@ def build_access_context(request):
     if not _hostname_matches_tenant(request, membership.tenant_id):
         return None
     from .permissions import capabilities_for
+    from .plans import has_clinical_ai
 
     return AccessContext(
         user_id=user.id,
@@ -94,5 +95,8 @@ def build_access_context(request):
         tenant_status=membership.tenant.status,
         capabilities=capabilities_for(
             membership.roles, clinically_enabled=membership.can_practice_clinically(),
+            # `active_membership_for` ja traz o tenant por `select_related`:
+            # ler o plano aqui nao acrescenta consulta a requisicao.
+            ai_contracted=has_clinical_ai(membership.tenant.plan),
         ),
     )

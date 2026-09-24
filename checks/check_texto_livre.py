@@ -563,6 +563,7 @@ else:
 
 print('=== limpeza ===')
 from clinical.models import ExaminationFinding
+from finance.models import FinancialAdjustment, Payment, Receivable
 
 # A limpeza nao confia so na lista `criados`. Um atendimento aberto por um
 # caminho que o roteiro esquecesse de registrar — ou uma rodada que morresse
@@ -582,6 +583,27 @@ CarryForwardItem.objects.filter(target_encounter_id__in=ids).delete()
 CarryForwardItem.objects.filter(source_encounter_id__in=ids).delete()
 ExaminationFinding.objects.filter(encounter_id__in=ids).delete()
 Medication.objects.filter(encounter_id__in=ids).delete()
+
+# O recebivel tambem, e a ordem e a das chaves protegidas.
+#
+# Este roteiro e o unico que finaliza atendimento pelo servico de dominio,
+# e finalizar emite `clinical.encounter_finalized`. O worker despacha o
+# evento e `finance.handlers` cria o recebivel daquele atendimento -- tudo
+# como deve ser. Mas `Receivable.encounter` e `PROTECT`, entao o
+# atendimento do roteiro passa a nao poder ser apagado, e a limpeza morre
+# com `ProtectedError` **depois** de todas as secoes terem passado.
+#
+# Nao aparecia porque a clinica de demonstracao nao tinha tabela de
+# honorarios: sem preco, `create_receivable_for_encounter` devolvia `None`
+# e nenhum recebivel nascia. A semeadura passou a criar a tabela (o manual
+# precisava ilustrar a tela Financeiro), e com ela veio esta dependencia.
+#
+# E uma corrida, e por isso falhava de forma intermitente: se o worker
+# ainda nao tivesse despachado o evento, a limpeza passava.
+FinancialAdjustment.objects.filter(receivable__encounter_id__in=ids).delete()
+Payment.objects.filter(receivable__encounter_id__in=ids).delete()
+Receivable.objects.filter(encounter_id__in=ids).delete()
+
 apagados = Encounter.objects.filter(id__in=ids).delete()[0]
 print(f'  {apagados} objeto(s) removido(s)')
 

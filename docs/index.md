@@ -50,6 +50,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 - [Planos e limites](homologation/plan-limits.md) — quatro planos, override
   por clínica, e a trava valendo nas seis portas por onde paciente e médico
   entram. Rebaixar congela: nada some.
+- [A IA segue o plano contratado](homologation/ia-por-plano.md) — o apoio
+  clínico por IA é do Completo e do Personalizado; o bloqueio em duas
+  camadas, e por que o corte é por plano e não por cota.
 - [Convites com plano e console comercial](homologation/plan-invitations.md) —
   o código de convite carrega o plano contratado; o console ganha emissão de
   convite e troca de plano, as duas únicas escritas que ele tem.

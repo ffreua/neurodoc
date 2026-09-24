@@ -74,11 +74,17 @@ RECURSOS = [
     },
     {
         'titulo': 'Inteligência artificial como copiloto, nunca como autor',
-        'texto': 'Resumo do atendimento, leitura de laudo e conversa sobre o caso, '
-                 'sempre com revisão médica antes de qualquer coisa entrar no '
-                 'prontuário. O texto é desidentificado antes de sair, e o envio é '
-                 'recusado quando não satisfaz a política de privacidade — a '
-                 'clínica pode usar o próprio provedor e a própria chave.',
+        # "A partir do Completo" fica aqui, e nao so no quadro de planos.
+        # Este bloco descreve o produto solto, fora da vitrine, e um
+        # visitante que le a lista de recursos e assina o Gratuito
+        # descobriria a diferenca depois de pagar. E a mesma divergencia
+        # que `plans.has_clinical_ai` corrige do lado do servidor.
+        'texto': 'A partir do plano Completo: resumo do atendimento, leitura de laudo '
+                 'e conversa sobre o caso, sempre com revisão médica antes de '
+                 'qualquer coisa entrar no prontuário. O texto é desidentificado '
+                 'antes de sair, e o envio é recusado quando não satisfaz a política '
+                 'de privacidade — a clínica pode usar o próprio provedor e a '
+                 'própria chave.',
     },
     {
         'titulo': 'Guarda de vinte anos, e a trilha de quem viu o quê',

@@ -16,6 +16,7 @@ from base.crypto import (
     SecretUnavailable, encrypt_secret, mask_secret, master_key_available,
 )
 from tenancy.permissions import Capability, CapabilityRequiredView
+from tenancy.plans import has_clinical_ai, plan_label
 
 from .forms import AIProviderSettingsForm
 from .models import AIProviderSettings
@@ -43,7 +44,48 @@ class ManagerRequiredView(CapabilityRequiredView):
             from django.http import Http404
 
             raise Http404
+        # Plano sem IA: le, nao escreve.
+        #
+        # Nao e 404 como o resto das recusas deste arquivo, e a diferenca e
+        # deliberada. Quem abre esta tela e o dono ou o gestor -- quem
+        # contrataria o plano. Esconder a tela deles ensinaria que o recurso
+        # nao existe; mostra-la explicando que o plano nao o inclui responde
+        # a pergunta que a pessoa veio fazer.
+        #
+        # O que nao se pode e deixar gravar: uma chave de provedor guardada
+        # numa clinica onde a IA nunca vai rodar e uma armadilha -- a tela
+        # diria "configurado" e nada funcionaria, e o motivo estaria em
+        # outro lugar. Por isso o bloqueio e por **verbo HTTP**, num lugar
+        # so, igual ao que `TenantMiddleware` faz com a clinica suspensa.
+        #
+        # A capacidade e conferida **antes** do plano, e a ordem nao e
+        # detalhe: quem nao tem `MANAGE_INTEGRATIONS` precisa receber o 404
+        # da base, e nao este 403 -- um 403 aqui contaria a uma secretaria
+        # que a tela existe, que e exatamente o que a recusa por 404 evita
+        # no resto de `/app/`. Escrito ao contrario, o roteiro pegou: o
+        # medico sem papel administrativo levava 403 no POST e 404 no GET
+        # da mesma rota.
+        if (
+            request.method not in ('GET', 'HEAD')
+            and request.access_context.can(self.required_capability)
+            and not self.ai_contratada
+        ):
+            from django.http import HttpResponseForbidden
+
+            return HttpResponseForbidden(
+                f'O plano {plan_label(self.membership.tenant.plan)} não inclui o '
+                f'apoio clínico por IA.'
+            )
         return super().dispatch(request, *args, **kwargs)
+
+    @property
+    def ai_contratada(self):
+        """Se o plano desta clinica inclui a IA.
+
+        `self.membership` ja vem com `select_related('tenant')`, entao isto
+        nao acrescenta consulta.
+        """
+        return has_clinical_ai(self.membership.tenant.plan)
 
     @property
     def tenant_id(self):
@@ -91,12 +133,27 @@ class AISettingsView(ManagerRequiredView):
             'platform_model': django_settings.AI_MODEL,
             'has_master_key': master_key_available(),
             'model_count': len(row.available_models or []),
+            # Padrao "tem IA", sobrescrito pelo `get` abaixo.
+            #
+            # As views de gravacao re-renderizam esta tela chamando
+            # `AISettingsView()._context(request, form=form)` numa
+            # instancia que nunca passou por `dispatch` e nao tem
+            # `self.membership`. Calcular aqui daria `AttributeError` no
+            # caminho de erro do formulario. O padrao e seguro porque
+            # gravar ja e recusado em `dispatch` quando o plano nao inclui
+            # a IA: quem chega a re-renderizar, contratou.
+            'ai_contratada': True,
+            'plano_label': '',
         }
         context.update(overrides)
         return context
 
     def get(self, request):
-        return render(request, 'ai/settings.html', self._context(request))
+        return render(request, 'ai/settings.html', self._context(
+            request,
+            ai_contratada=self.ai_contratada,
+            plano_label=plan_label(self.membership.tenant.plan),
+        ))
 
 
 class AISettingsSaveView(ManagerRequiredView):

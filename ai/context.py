@@ -4,6 +4,7 @@ import uuid
 from clinical.models import Encounter
 from patients.models import Patient
 from tenancy.models import Membership, MembershipStatus
+from tenancy.plans import has_clinical_ai, plan_label
 
 
 class AIAuthorizationDenied(Exception):
@@ -25,11 +26,34 @@ def build_ai_authorization(access_context, patient_id=None, encounter_id=None):
     membership revoked between enqueue and execution, or a patient_id that
     doesn't belong to this tenant, must never let data into the job.
     """
-    membership = Membership.objects.filter(
-        id=access_context.membership_id, tenant_id=access_context.tenant_id, status=MembershipStatus.ACTIVE,
-    ).first()
+    membership = (
+        Membership.objects
+        .select_related('tenant')
+        .filter(
+            id=access_context.membership_id, tenant_id=access_context.tenant_id,
+            status=MembershipStatus.ACTIVE,
+        )
+        .first()
+    )
     if membership is None:
         raise AIAuthorizationDenied('Membership is not active in this tenant')
+    # O plano da clinica, conferido aqui e nao so na tela.
+    #
+    # Esta funcao e o ponto por onde passa **todo** trabalho de IA: a
+    # criacao do job, a reconferencia imediatamente antes da chamada ao
+    # provedor, e o resumo automatico de `ai/handlers.py` -- que nasce de
+    # um evento, sem tela nenhuma e sem ninguem clicando. Deixar o gate so
+    # em `capabilities_for` fecharia as portas que tem tela e deixaria
+    # aquela aberta, gastando a chave da instalacao numa clinica que nao
+    # contratou a IA.
+    #
+    # E, pela mesma razao que o vinculo e relido aqui, o plano tambem: um
+    # rebaixamento entre enfileirar e executar e o mesmo caso de um vinculo
+    # revogado no meio, e a ultima chance de recusar e esta.
+    if not has_clinical_ai(membership.tenant.plan):
+        raise AIAuthorizationDenied(
+            f'O plano {plan_label(membership.tenant.plan)} não inclui o apoio clínico por IA.'
+        )
 
     patient = None
     if patient_id:

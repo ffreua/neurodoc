@@ -256,7 +256,7 @@ ARTICLES = [
         'slug': 'chat',
         'title': 'Chat de apoio',
         'summary': 'Conversar com a IA sobre um paciente, com o prontuário como fonte.',
-        'audience': 'Médico',
+        'audience': 'Médico — planos Completo e Personalizado',
         'steps': [
             ('Abra uma conversa e escolha o paciente pelo nome. Com paciente, a IA '
              'consulta o prontuário **dele** — atendimentos, exames, medicações e '
@@ -281,6 +281,11 @@ ARTICLES = [
              'remove a conversa e as mensagens de vez, para o caso da conversa aberta '
              'por engano; o prontuário do paciente não é afetado, e o registro de que '
              'a conversa existiu fica na trilha, sem o conteúdo.',
+             '', ''),
+            ('**Não encontra o Chat de apoio no menu?** O apoio por IA faz parte dos '
+             'planos Completo e Personalizado. Nos demais ele não aparece — e nada do '
+             'que já está no prontuário muda por isso. Em Organização → Inteligência '
+             'artificial, o dono e o gestor veem qual plano inclui o recurso.',
              '', ''),
         ],
     },

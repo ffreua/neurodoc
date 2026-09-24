@@ -32,6 +32,7 @@ from reporting.services import (
 )
 from tenancy.models import Membership, MembershipStatus, Role, Tenant
 from tenancy.permissions import Capability, capabilities_for
+from tenancy.plans import has_clinical_ai
 
 falhas = []
 
@@ -51,6 +52,7 @@ def contexto_de(membership):
         capabilities=capabilities_for(
             membership.roles,
             clinically_enabled=membership.can_practice_clinically(),
+            ai_contracted=has_clinical_ai(membership.tenant.plan),
         ),
     )
 

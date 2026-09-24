@@ -186,15 +186,22 @@ def _membership_id_of(session):
     """
     from tenancy.models import Membership, MembershipStatus
     from tenancy.permissions import Capability, capabilities_for
+    from tenancy.plans import has_clinical_ai
 
-    vinculo = Membership.objects.filter(
-        tenant_id=session.tenant_id, user_id=session.owner_user_id,
-        status=MembershipStatus.ACTIVE,
-    ).first()
+    vinculo = (
+        Membership.objects
+        .select_related('tenant')
+        .filter(
+            tenant_id=session.tenant_id, user_id=session.owner_user_id,
+            status=MembershipStatus.ACTIVE,
+        )
+        .first()
+    )
     if vinculo is None:
         raise AIAuthorizationDenied('Vinculo inativo nesta organizacao')
     capacidades = capabilities_for(
         vinculo.roles, clinically_enabled=vinculo.can_practice_clinically(),
+        ai_contracted=has_clinical_ai(vinculo.tenant.plan),
     )
     if Capability.CLINICAL_AI not in capacidades:
         raise AIAuthorizationDenied('Vinculo sem capacidade de apoio clinico por IA')

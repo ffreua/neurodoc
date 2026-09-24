@@ -337,7 +337,12 @@ digitado em outra.{% endcomment %}
         {# --------------------------------------------------------- Hipóteses #}
         <div class="tab-pane fade" id="tab-hipoteses" role="tabpanel">
             <div class="card-body">
-                {% include "clinical/_diagnostic_support.html" %}
+                {% comment %}O apoio da IA some quando o plano da clinica nao o
+                inclui. A recusa ja existe no servidor e chega como aviso, mas
+                oferecer um botao que sempre recusa e defeito de navegacao --
+                a mesma razao pela qual a barra lateral esconde o chat de
+                apoio em vez de deixar o link dando 404.{% endcomment %}
+                {% if nd_can.clinical_ai %}{% include "clinical/_diagnostic_support.html" %}{% endif %}
 
                 {% if encounter.status != 'finalized' %}
                 {% comment %}A busca no CID-10 vem antes do código e da descrição:

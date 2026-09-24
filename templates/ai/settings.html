@@ -44,6 +44,31 @@ some sozinho quando o recurso e ligado.{% endcomment %}
                 {% endif %}
             </div>
             <div class="card-body">
+                {% if not ai_contratada %}
+                {% comment %}Plano sem IA: a tela explica, e nao some.
+
+                Recusar por 404, como o resto das telas de /app/ faz com quem
+                nao tem a capacidade, funcionaria — e ensinaria ao dono que o
+                recurso nao existe. Quem abre esta tela e exatamente quem
+                decide o plano, e a resposta util para ele e qual plano tem a
+                IA, nao uma pagina inexistente.
+
+                O formulario sai junto, e nao fica desabilitado: campo
+                desabilitado convida a tentar, e a gravacao e recusada no
+                servidor de qualquer forma.{% endcomment %}
+                <div class="alert alert-light-warning fade show fs-13 mb-0" role="alert">
+                    <strong>O plano {{ plano_label }} não inclui o apoio clínico por IA.</strong>
+                    <span class="d-block fs-12 mt-1">
+                        O copiloto de registro, com revisão médica obrigatória, faz parte
+                        do plano Completo. Nada do que já está no prontuário muda: é só
+                        este recurso que não está contratado.
+                    </span>
+                    <span class="d-block fs-12 mt-2">
+                        Para falar sobre o plano:
+                        <a href="mailto:contato@neurodoc.app.br">contato@neurodoc.app.br</a>.
+                    </span>
+                </div>
+                {% else %}
                 <form method="post" action="{% url 'ai-admin:save' %}" novalidate id="ai-form">
                     {% csrf_token %}
                     {% include "partials/form_fields.html" %}
@@ -73,6 +98,7 @@ some sozinho quando o recurso e ligado.{% endcomment %}
                         </button>
                     </div>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -121,6 +147,12 @@ some sozinho quando o recurso e ligado.{% endcomment %}
                     </li>
                 </ul>
 
+                {% comment %}Convite a configurar e explicação de para onde os dados
+                vão: as duas coisas pressupõem que algum pedido de IA vai sair daqui.
+                Num plano que não inclui a IA não vai sair nenhum, e deixá-las na tela
+                contradiz o aviso que está ao lado — "os pedidos saem pela configuração
+                da instalação" ao lado de "o plano não inclui o recurso".{% endcomment %}
+                {% if ai_contratada %}
                 {% if provider_meta.key_url %}
                 <a class="btn btn-light btn-sm w-100 mt-3" target="_blank" rel="noopener"
                    href="{{ provider_meta.key_url }}">
@@ -145,6 +177,7 @@ some sozinho quando o recurso e ligado.{% endcomment %}
                         <code>{{ platform_model }}</code>).
                     </span>
                 </div>
+                {% endif %}
             </div>
         </div>
     </div>

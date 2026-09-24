@@ -129,7 +129,7 @@ _CLINICAL_READ = frozenset({Capability.READ_CLINICAL, Capability.CLINICAL_AI})
 _CLINICAL_WRITE = frozenset({Capability.WRITE_CLINICAL, Capability.ISSUE_DOCUMENT})
 
 
-def capabilities_for(roles, *, clinically_enabled):
+def capabilities_for(roles, *, clinically_enabled, ai_contracted):
     """As capacidades de um vínculo.
 
     `roles` acumulam: quem é `owner` **e** `doctor` soma as duas colunas —
@@ -141,6 +141,20 @@ def capabilities_for(roles, *, clinically_enabled):
     é dele, mas não finaliza atendimento nem assina documento — e essa é a
     diferença que impede alguém de se autoconceder capacidade médica só
     marcando um papel.
+
+    `ai_contracted` é `plans.has_clinical_ai(tenant.plan)`: o plano da
+    clínica inclui a IA. É a única entrada aqui que não vem do vínculo, e
+    por isso é **veto**, aplicado depois dos papéis — nenhuma combinação
+    de papel devolve `CLINICAL_AI` numa clínica que não a contratou.
+
+    Os três argumentos são obrigatórios e nomeados de propósito. Um
+    `ai_contracted=True` por padrão manteria todo chamador existente
+    compilando e nenhum deles cobrando o plano, que é o defeito que não
+    aparece em teste nenhum: a tela abre, a IA responde e a fatura é de
+    quem hospeda. Quem acrescenta uma chamada decide.
+
+    Cuidado com o nome: **não é** `settings.AI_ENABLED`. Aquele é o
+    interruptor da instalação inteira; este é o contrato de uma clínica.
     """
     roles = set(roles or [])
     granted = set()
@@ -150,6 +164,8 @@ def capabilities_for(roles, *, clinically_enabled):
         granted |= _CLINICAL_READ
         if clinically_enabled:
             granted |= _CLINICAL_WRITE
+    if not ai_contracted:
+        granted.discard(Capability.CLINICAL_AI)
     return frozenset(granted)
 
 

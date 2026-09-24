@@ -6,6 +6,7 @@ from django.http import Http404, HttpResponseForbidden, StreamingHttpResponse
 
 from tenancy.models import Membership, MembershipStatus
 from tenancy.permissions import Capability, capabilities_for
+from tenancy.plans import has_clinical_ai
 
 from . import streaming
 from .chat_models import ChatSession
@@ -31,13 +32,20 @@ def _membership_still_authorized(membership_id, tenant_id):
     o cliente desligar. A verificação é a mesma capacidade da view, refeita
     a cada volta do laço.
     """
-    membership = Membership.objects.filter(
-        id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE,
-    ).first()
+    membership = (
+        Membership.objects
+        # `select_related` porque isto roda a cada volta do laco: sem ele,
+        # ler o plano da clinica seria uma segunda consulta por volta, num
+        # stream que pode durar minutos.
+        .select_related('tenant')
+        .filter(id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE)
+        .first()
+    )
     if membership is None:
         return False
     return Capability.CLINICAL_AI in capabilities_for(
         membership.roles, clinically_enabled=membership.can_practice_clinically(),
+        ai_contracted=has_clinical_ai(membership.tenant.plan),
     )
 
 

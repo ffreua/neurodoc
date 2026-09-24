@@ -101,6 +101,7 @@ PLANS = {
         'label': 'Gratuito',
         'max_patients': 50,
         'max_doctors': 1,
+        'clinical_ai': False,
         # `price_monthly` em centavos. Zero é grátis; `None` é "não há
         # preço de tabela", que é coisa diferente e só o Personalizado tem.
         'price_monthly': 0,
@@ -119,6 +120,7 @@ PLANS = {
         'label': 'Básico',
         'max_patients': 3500,
         'max_doctors': 2,
+        'clinical_ai': False,
         'price_monthly': 15800,
         'summary': 'Para o consultório que cresceu: dois médicos, convênios e '
                    'dinheiro entrando por mais de uma porta.',
@@ -135,6 +137,7 @@ PLANS = {
         'label': 'Completo',
         'max_patients': 12000,
         'max_doctors': 5,
+        'clinical_ai': True,
         'price_monthly': 26200,
         'summary': 'Para a clínica consolidada, com equipe multiprofissional e '
                    'agenda cheia nos cinco dias.',
@@ -153,6 +156,7 @@ PLANS = {
         # None é ilimitado. Ver o cabeçalho deste módulo.
         'max_patients': None,
         'max_doctors': None,
+        'clinical_ai': True,
         # Aqui `None` não é grátis: é "não há preço de tabela". A tela
         # precisa dizer isso, e não estampar um zero.
         'price_monthly': None,
@@ -202,6 +206,25 @@ def max_patients(code):
 def max_doctors(code):
     """Limite de médicos do plano. `None` é ilimitado."""
     return plan_config(code)['max_doctors']
+
+
+def has_clinical_ai(code):
+    """Se o plano inclui o apoio clínico por IA.
+
+    Existe porque a linha de venda existia sozinha. `features` já anunciava
+    "IA como copiloto do registro" **só** no Completo, e o produto não
+    cobrava isso em lugar nenhum: uma clínica no Gratuito tinha a IA
+    inteira. Era exatamente a divergência que o cabeçalho deste módulo diz
+    que este acoplamento impede — texto de venda e o que o servidor cumpre
+    no mesmo arquivo —, e ela estava aqui dentro.
+
+    `.get` com `False`, e não `[...]`: plano sem a chave (código
+    desconhecido, plano novo escrito pela metade) fica **sem** IA. É a
+    mesma direção de erro do `plan_config` logo acima — errar para o lado
+    do menor direito aparece como "recurso não disponível, fale conosco",
+    e errar para o outro lado gasta a chave da instalação sem contrato.
+    """
+    return plan_config(code).get('clinical_ai', False)
 
 
 def pricing(code):

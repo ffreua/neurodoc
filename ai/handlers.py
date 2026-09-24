@@ -4,6 +4,7 @@ from django.conf import settings
 
 from clinical.models import Encounter
 from tenancy.context import AccessContext
+from tenancy.plans import has_clinical_ai
 
 from . import services
 from .models import AIJobKind, AIJobStatus
@@ -23,6 +24,20 @@ def handle_encounter_finalized(event):
         return
     tenant = encounter.tenant
     if not (tenant.settings or {}).get('ai_encounter_summary_enabled', False):
+        return
+    # Plano sem IA sai por `return`, e nao pela excecao de
+    # `build_ai_authorization` -- que tambem recusaria, mais abaixo.
+    #
+    # A diferenca importa porque isto e um consumidor de evento: excecao
+    # aqui faz o despachante reentregar com recuo e, esgotadas as
+    # tentativas, marcar o evento como FAILED (`events/dispatcher.py`).
+    # Mas nada falhou -- a clinica simplesmente nao contratou o recurso, e
+    # o evento foi processado corretamente ao nao fazer nada. Deixar isso
+    # virar falha encheria a caixa de eventos de falha falsa a cada
+    # atendimento finalizado, escondendo a falha de verdade quando viesse.
+    #
+    # Mesma forma dos dois `return` acima, pela mesma razao.
+    if not has_clinical_ai(tenant.plan):
         return
 
     fake_context = AccessContext(

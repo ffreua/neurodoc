@@ -143,6 +143,18 @@ Aviso a partir de 80 %; no limite, bloqueia. **Rebaixar congela: nada é
 apagado nem fica inacessível.** A trava vale em seis portas (cadastro
 completo, pré-cadastro da agenda, quatro caminhos do papel médico).
 
+**O apoio clínico por IA é recurso de plano** (`clinical_ai` em
+`plans.py`): Completo e Personalizado têm; Gratuito e Básico, não. A
+vitrine já anunciava isso só no Completo e o servidor não cobrava — uma
+clínica no Gratuito tinha a IA inteira. O bloqueio mora em dois lugares, e
+os dois são necessários: `capabilities_for` recebe `ai_contracted` e veta
+`CLINICAL_AI` (telas, barra lateral, stream SSE, tarefa do chat), e
+`ai/context.py::build_ai_authorization` recusa (criação do job, a
+reconferência antes de falar com o provedor, e o resumo automático, que
+nasce de um evento e não passa por tela). O corte é por plano e não por
+cota porque a clínica que configurou a própria chave paga a própria conta
+— ver `docs/homologation/ia-por-plano.md`.
+
 Acesso é liberado por **código de convite** (`tenancy/invitations.py`), que
 carrega o plano contratado — não há pagamento on-line.
 
@@ -240,6 +252,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_mensagem_clinica.py` | as duas portas do rodapé do menu: qualquer vínculo escreve, a mensagem fica na clínica de quem escreveu, o texto não vai para a trilha, e o console lê as duas com MFA |
 | `check_perimetro.py` | a borda: agente de captura sem CSRF, desidentificação sem comer palavra, IP do visitante atrás do proxy |
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
+| `check_ia_plano.py` | a IA segue o plano: a capacidade vetada, a autorização do job recusando, o resumo automático que sai por `return` em vez de derrubar o evento, o chat em 404 com o link sumindo junto, e a tela de configuração que explica sem deixar gravar |
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
