@@ -6,6 +6,7 @@ assina, para quem, quando, sob que número, e como conferir se é verdadeiro —
 """
 
 import io
+from xml.sax.saxutils import escape
 
 from django.conf import settings
 from reportlab.graphics.barcode import qr
@@ -18,6 +19,41 @@ from reportlab.lib.units import cm, mm
 from reportlab.platypus import (
     HRFlowable, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
 )
+
+
+def texto_seguro(valor):
+    """Texto de banco pronto para entrar na marcacao do ReportLab.
+
+    `Paragraph` nao recebe texto puro: recebe a mini-linguagem de marcacao
+    do ReportLab (`<b>`, `<font>`, `<br/>`, `<img/>`). Todo valor daqui
+    vinha por f-string, sem escape, e o efeito foi medido gerando PDF de
+    verdade:
+
+        entrada `Ana <x> Souza`                    -> no PDF: `Ana Souza`
+        entrada `Ana <b>Paula</b> Souza`           -> sai em negrito
+        entrada `<font color="white">SEGREDO</font>` -> sai invisivel
+
+    Ou seja: o conteudo e **silenciosamente alterado** num documento que o
+    medico assina em PAdES. Um `T < 38` digitado na receita perde tudo ate
+    o proximo `>`; a via que a farmacia retem fica diferente do que foi
+    escrito. Nao e so estetica -- e integridade de documento medico.
+
+    Escapar resolve os dois lados: o que for digitado aparece literal, e a
+    marcacao que este modulo escreve de proposito (o `<b>` dos rotulos, o
+    `<br/>` das quebras) continua valendo, porque ela e concatenada
+    **depois** do escape.
+    """
+    return escape('' if valor is None else str(valor))
+
+
+def paragrafo_de_texto(valor, estilo):
+    """Bloco de texto livre, com as quebras de linha preservadas.
+
+    O `<br/>` entra **depois** do escape -- na ordem inversa ele seria
+    escapado junto e o documento sairia com `&lt;br/&gt;` no lugar da
+    quebra, que foi o primeiro jeito errado de arrumar isto.
+    """
+    return Paragraph(texto_seguro(valor).replace(chr(10), "<br/>"), estilo)
 
 STYLES = getSampleStyleSheet()
 TITLE_STYLE = ParagraphStyle('DocTitle', parent=STYLES['Title'], alignment=TA_CENTER, fontSize=14)
@@ -206,18 +242,18 @@ def _patient_block(document, include_address):
     patient = document.patient
     birth = patient.birth_date.strftime('%d/%m/%Y') if patient.birth_date else 'não informada'
     rows = [
-        Paragraph(f'<b>Paciente:</b> {patient.full_name}', BODY_STYLE),
-        Paragraph(f'<b>Nascimento:</b> {birth}', BODY_STYLE),
+        Paragraph(f'<b>Paciente:</b> {texto_seguro(patient.full_name)}', BODY_STYLE),
+        Paragraph(f'<b>Nascimento:</b> {texto_seguro(birth)}', BODY_STYLE),
     ]
     if patient.record_number:
         # O número do prontuário sai no papel para o caminho de volta:
         # o paciente liga citando a receita, e a recepção acha a ficha
         # pelo número em vez de pelo nome, que pode ter homônimo.
-        rows.append(Paragraph(f'<b>Prontuário:</b> {patient.record_number}', BODY_STYLE))
+        rows.append(Paragraph(f'<b>Prontuário:</b> {texto_seguro(patient.record_number)}', BODY_STYLE))
     if patient.cpf:
-        rows.append(Paragraph(f'<b>CPF:</b> {format_cpf(patient.cpf)}', BODY_STYLE))
+        rows.append(Paragraph(f'<b>CPF:</b> {texto_seguro(format_cpf(patient.cpf))}', BODY_STYLE))
     if include_address:
-        rows.append(Paragraph(f'<b>Endereço:</b> {patient_address(patient)}', BODY_STYLE))
+        rows.append(Paragraph(f'<b>Endereço:</b> {texto_seguro(patient_address(patient))}', BODY_STYLE))
     # A data do atendimento quando há um; senão, a da emissão, e por fim a
     # da criação do rascunho.
     #
@@ -235,7 +271,7 @@ def _patient_block(document, include_address):
         BODY_STYLE,
     ))
     doc_number = document.document_number or 'RASCUNHO — sem validade até a emissão'
-    rows.append(Paragraph(f'<b>Número:</b> {doc_number} (versão {document.version})', BODY_STYLE))
+    rows.append(Paragraph(f'<b>Número:</b> {texto_seguro(doc_number)} (versão {document.version})', BODY_STYLE))
     return rows
 
 
@@ -256,7 +292,7 @@ def _signature_footer(document):
     left = [
         Paragraph('_' * 42, BODY_STYLE),
         Paragraph(profile.professional_name, LABEL_STYLE),
-        Paragraph(f'CRM {profile.crm_number}/{profile.crm_state}', SMALL_STYLE),
+        Paragraph(f'CRM {texto_seguro(profile.crm_number)}/{texto_seguro(profile.crm_state)}', SMALL_STYLE),
     ]
     if issued:
         assinado = document.issued_at.strftime('%d/%m/%Y às %H:%M') if document.issued_at else ''
@@ -350,7 +386,7 @@ def _control_identification_block():
     balconista enxergar dois quadros em vez de um bloco de texto.
     """
     def campo(texto):
-        return Paragraph(texto, CONTROL_FIELD)
+        return Paragraph(texto_seguro(texto), CONTROL_FIELD)
 
     comprador = Table(
         [

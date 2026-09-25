@@ -91,10 +91,25 @@
             lista.classList.add('d-none');
         }
 
+        /* Escapa para texto **e** para atributo.
+         *
+         * A forma curta -- `div.textContent = t; return div.innerHTML` --
+         * escapa `&`, `<` e `>` e **nao** escapa aspas: a serializacao de
+         * um no de texto nao sabe em que contexto o resultado sera colado,
+         * e aspa so precisa de escape dentro de atributo. Este retorno e
+         * colado justamente dentro de um atributo, entao uma aspa dupla no
+         * dado fechava o atributo e o que vinha depois virava atributo novo
+         * do elemento -- `Maria" onmouseover="...` executava. O nome do
+         * paciente e texto livre (`patients/forms.py::clean_full_name` so
+         * apara espaco) e nao ha CSP que impeca o manipulador embutido.
+         *
+         * As duas linhas de `replace` sao o conserto inteiro: com `"` e `'`
+         * escapados, o valor nao escapa de atributo de aspa simples nem de
+         * aspa dupla, e o contexto de texto continua correto. */
         function escapar(texto) {
             var div = document.createElement('div');
             div.textContent = texto == null ? '' : String(texto);
-            return div.innerHTML;
+            return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
         }
 
         buscaPaciente.addEventListener('input', function () {

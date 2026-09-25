@@ -1,7 +1,7 @@
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, Spacer
 
-from .common import BODY_STYLE, LABEL_STYLE, SMALL_STYLE, build_pdf
+from .common import BODY_STYLE, LABEL_STYLE, SMALL_STYLE, build_pdf, paragrafo_de_texto
 
 TITLE = 'Receita médica'
 SPECIAL_TITLE = 'Receituário de Controle Especial'
@@ -48,13 +48,13 @@ def render(document):
         parts = [
             Paragraph('Prescrição:', LABEL_STYLE),
             Spacer(1, 0.2 * cm),
-            Paragraph(content['prescription_text'].replace('\n', '<br/>'), BODY_STYLE),
+            paragrafo_de_texto(content['prescription_text'], BODY_STYLE),
         ]
         if content.get('special_instructions'):
             parts += [
                 Spacer(1, 0.4 * cm),
                 Paragraph('Instruções especiais:', LABEL_STYLE),
-                Paragraph(content['special_instructions'].replace('\n', '<br/>'), BODY_STYLE),
+                paragrafo_de_texto(content['special_instructions'], BODY_STYLE),
             ]
         if kind == SPECIAL_CONTROL:
             parts += [

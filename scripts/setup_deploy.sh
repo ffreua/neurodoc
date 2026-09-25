@@ -293,9 +293,26 @@ fase_servidor() {
   ok "Sistema atualizado"
 
   passo "Instalando utilitários"
-  fazendo "curl git htop iotop net-tools unzip jq ca-certificates"
-  tentar apt-get install -y curl git htop iotop net-tools unzip jq ca-certificates >>"$LOG_FILE" 2>&1
-  ok "Utilitários instalados"
+  # `age` entra aqui porque a cópia de segurança **depende** dele:
+  # `ops/backup.py` chama `subprocess.run(['age', '-r', destinatário])` para
+  # cifrar o dump e os volumes. Sem o binário, o timer noturno estoura com
+  # `FileNotFoundError` na primeira madrugada, e o alerta que faltaria seria
+  # justamente o de que não há backup. Estava fora da lista, e uma VPS
+  # preparada por este roteiro subia sem nenhuma chance de backup cifrado.
+  fazendo "curl git htop iotop net-tools unzip jq ca-certificates age"
+  tentar apt-get install -y curl git htop iotop net-tools unzip jq ca-certificates age >>"$LOG_FILE" 2>&1
+  if tem age; then
+    ok "Utilitários instalados (age presente)"
+  else
+    # Debian 11 e derivados antigos não têm `age` nos repositórios. Parar
+    # aqui é melhor que descobrir na primeira madrugada: o passo seguinte
+    # configura o backup, e configurá-lo sem o cifrador é escrever um timer
+    # que nunca vai funcionar.
+    aviso "O pacote 'age' não está nos repositórios desta distribuição."
+    echo "  Instale-o antes de seguir — https://github.com/FiloSottile/age/releases"
+    echo "  Sem ele, \`ops/backup.py\` não cifra nada e a cópia noturna falha."
+    exit 1
+  fi
 
   passo "Fuso horário (${fuso})"
   if timedatectl show -p Timezone --value 2>/dev/null | grep -qx "$fuso"; then

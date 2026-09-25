@@ -292,6 +292,9 @@ SERVER_EMAIL = env('SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
 ADMINS = [(f'ops-{i}', addr) for i, addr in enumerate(env.list('ALERT_ADMIN_EMAILS', default=[]))]
 MANAGERS = ADMINS
 DEFAULT_EXCEPTION_REPORTER_FILTER = 'base.logging.NoPostDataExceptionReporterFilter'
+# O filtro decide o que de cada secao e mostrado; o reporter decide quais
+# secoes existem. A query string so se tira aqui -- ver a classe.
+DEFAULT_EXCEPTION_REPORTER = 'base.logging.NoQueryStringExceptionReporter'
 # Destinatario dos pedidos de contato da pagina de vendas.
 #
 # Fixo na configuracao, nunca um campo do formulario: formulario publico
