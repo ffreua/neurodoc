@@ -217,6 +217,26 @@ class HealthPlanUpdateView(HealthPlanAdminView):
         return redirect('health-plans:list')
 
 
+def insurer_usage(insurer):
+    """Quem prende este convenio, e por que ele nao pode sumir.
+
+    Uma chave `PROTECT` aponta para `Insurer`: `HealthPlan.insurer`. Logo o
+    convenio so pode ser apagado quando nao tem plano nenhum pendurado.
+
+    A contagem de coberturas vai junto **so para a mensagem**: dizer "3
+    planos" e menos util que dizer "3 planos, e 12 pacientes atendidos por
+    eles", porque e isso que explica por que o caminho nao e apagar e sim
+    desmarcar "Aceito pela clinica".
+
+    Devolve `(planos, coberturas)`.
+    """
+    from .models import PatientCoverage
+
+    planos = insurer.plans.count()
+    coberturas = PatientCoverage.objects.filter(plan__insurer=insurer).count()
+    return planos, coberturas
+
+
 def plan_usage(plan):
     """Quem prende este plano, e por que ele nao pode sumir.
 
@@ -238,6 +258,70 @@ def plan_usage(plan):
         PatientCoverage.objects.filter(plan=plan).count(),
         FeeSchedule.objects.filter(plan=plan).count(),
     )
+
+
+class InsurerDeleteView(HealthPlanAdminView):
+    """Apaga um convenio **que nao tem plano nenhum**.
+
+    Mesmo caso do plano, um nivel acima: o convenio entrou com o nome
+    errado, ou duplicado, e desativar deixaria lixo permanente na lista de
+    quem administra a clinica.
+
+    A cadeia e deliberada e se le de baixo para cima: o plano so sai quando
+    nenhum paciente e nenhuma tabela de valores o usam; o convenio so sai
+    quando nao tem mais plano. Quem quiser mesmo remover um convenio inteiro
+    apaga os planos dele primeiro -- e se algum plano recusar, e porque ha
+    historia clinica ou financeira presa nele, que e justamente o que nao
+    pode desaparecer por arrumacao de cadastro.
+
+    Para o convenio em uso o caminho continua sendo desmarcar "Aceito pela
+    clinica": ele some das listas de escolha e continua legivel onde ja foi
+    usado.
+
+    A contagem nao substitui o `PROTECT`: ela existe para a mensagem ser
+    util. Se um plano nascer entre a contagem e o `delete`, o
+    `ProtectedError` e capturado e nada e apagado.
+    """
+
+    def post(self, request, insurer_id):
+        from django.db.models import ProtectedError
+
+        insurer = get_object_or_404(
+            Insurer, id=insurer_id, tenant_id=self.tenant_id,
+        )
+        rotulo = str(insurer)
+        planos, coberturas = insurer_usage(insurer)
+        if planos:
+            detalhe = f'{planos} plano(s)'
+            if coberturas:
+                detalhe += f', com {coberturas} paciente(s) atendido(s) por eles,'
+            messages.error(
+                request,
+                f'{rotulo} nao pode ser excluido: {detalhe} dependem dele. Apague os '
+                f'planos primeiro, ou desmarque "Aceito pela clinica" para tira-lo de '
+                f'circulacao sem perder o historico.',
+            )
+            return redirect('health-plans:list')
+
+        try:
+            insurer.delete()
+        except ProtectedError:
+            # Corrida: alguem cadastrou um plano neste convenio enquanto
+            # esta tela estava aberta.
+            messages.error(
+                request,
+                f'{rotulo} passou a ter plano enquanto esta tela estava aberta e por '
+                'isso nao foi excluido. Recarregue para ver a situacao atual.',
+            )
+            return redirect('health-plans:list')
+
+        record_audit_event(
+            request.user, self.tenant_id, 'patients.insurer_deleted',
+            object_type='insurer', object_id=insurer_id, outcome='success',
+            integrity_metadata={'label': rotulo},
+        )
+        messages.success(request, f'{rotulo} excluido. Nenhum plano dependia dele.')
+        return redirect('health-plans:list')
 
 
 class HealthPlanDeleteView(HealthPlanAdminView):

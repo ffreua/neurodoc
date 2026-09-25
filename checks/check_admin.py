@@ -316,6 +316,49 @@ print()
 print('limpeza:', len(criados['fees']), 'valores,', len(criados['plans']), 'planos,',
       len(criados['insurers']), 'convenios removidos')
 
+print()
+print('=== exclusao de convenio ===')
+# A cadeia se le de baixo para cima: o plano so sai quando ninguem o usou, e
+# o convenio so sai quando nao tem mais plano. Apagar convenio com plano
+# levaria junto o registro de sob qual cobertura o paciente foi atendido.
+
+vazio = Insurer.objects.create(tenant=tenant_obj, name='Convenio Digitado Errado (check)')
+r = dono.post(f'/app/org/convenios/{vazio.id}/excluir/', follow=True)
+sumiu = not Insurer.objects.filter(id=vazio.id).exists()
+print(f'  convenio sem plano   -> {r.status_code}  excluido={sumiu}')
+if not sumiu:
+    falhas.append('convenio sem plano nenhum nao pode ser excluido')
+
+com_plano = (
+    Insurer.objects.filter(tenant=tenant_obj, plans__isnull=False).distinct().first()
+)
+if com_plano is None:
+    print('  (nenhum convenio com plano na demonstracao -- nao da para provar aqui)')
+else:
+    rotulo = str(com_plano)
+    r = dono.post(f'/app/org/convenios/{com_plano.id}/excluir/', follow=True)
+    resistiu = Insurer.objects.filter(id=com_plano.id).exists()
+    corpo = r.content.decode('utf-8', 'replace')
+    explica = 'nao pode ser excluido' in corpo or 'não pode ser excluído' in corpo
+    print(f'  convenio com plano   -> {r.status_code}  resistiu={resistiu}  '
+          f'a tela diz por que={explica}')
+    if not resistiu:
+        falhas.append(
+            f'{rotulo} tinha plano e foi apagado — isso levaria junto o registro '
+            f'de sob qual cobertura o paciente foi atendido'
+        )
+    if not explica:
+        falhas.append('a recusa de excluir convenio nao explica o que o prende')
+
+# Quem nao administra a clinica nao apaga convenio, mesmo com o id na mao.
+descartavel_sec = Insurer.objects.create(tenant=tenant_obj, name='Convenio da secretaria (check)')
+codigo = secretaria.post(f'/app/org/convenios/{descartavel_sec.id}/excluir/').status_code
+sobreviveu = Insurer.objects.filter(id=descartavel_sec.id).exists()
+print(f'  secretaria tenta     -> {codigo}  sobreviveu={sobreviveu}')
+if codigo != 404 or not sobreviveu:
+    falhas.append(f'secretaria conseguiu chegar na exclusao de convenio ({codigo})')
+descartavel_sec.delete()
+
 print('---')
 if falhas:
     for f in falhas:

@@ -162,6 +162,23 @@ primeiro e a de convênios fica abaixo, como o cadastro de apoio que é.
                                     data-active="{% if insurer.active %}1{% endif %}">
                                 Editar
                             </button>
+                            {% comment %}Excluir so aparece para convenio sem plano
+                            nenhum -- cadastro errado ou duplicado. Havendo plano, apagar
+                            o convenio levaria junto o registro de sob qual cobertura os
+                            pacientes foram atendidos; a saida e apagar os planos
+                            primeiro (cada um so sai se ninguem o usou) ou desmarcar
+                            "Aceito pela clinica". O servidor recusa de qualquer forma; o
+                            botao some para nao oferecer o que sera negado.{% endcomment %}
+                            {% if not insurer.plan_count %}
+                            <form method="post" class="d-inline"
+                                  action="{% url 'health-plans:insurer-delete' insurer.id %}"
+                                  data-nd-confirm="Excluir {{ insurer.name }}? Nenhum plano depende deste convênio, então nada do histórico se perde.">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>
+                                    Excluir
+                                </button>
+                            </form>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -177,10 +194,15 @@ primeiro e a de convênios fica abaixo, como o cadastro de apoio que é.
 
 <p class="fs-11 text-muted mt-3 mb-0">
     Um plano já usado não é apagado: ele guarda sob qual cobertura o paciente foi
-    atendido, e apagá-lo apagaria esse registro. Para tirar de circulação, desmarque
-    <em>Aceito pela clínica</em> — some das listas de escolha e continua legível onde
-    já foi usado. O botão <em>Excluir</em> aparece apenas para o plano que nunca foi
-    usado por ninguém, que é o caso do cadastro feito errado.
+    atendido, e apagá-lo apagaria esse registro. O mesmo vale um nível acima — um
+    convênio com planos pendurados não sai. Para tirar de circulação, desmarque
+    <em>Aceito pela clínica</em>: some das listas de escolha e continua legível onde
+    já foi usado.
+    <br>
+    O botão <em>Excluir</em> aparece só para o cadastro que ninguém usou — o plano sem
+    paciente e sem tabela de valores, e o convênio sem plano nenhum. Para remover um
+    convênio inteiro, apague os planos dele primeiro; se algum recusar, é porque há
+    história clínica ou financeira presa nele.
 </p>
 {% endblock %}
 {% comment %}Os modais vao no bloco proprio, fora de `.nxl-container`.
