@@ -20,9 +20,11 @@ aberto o código e confirmado.** O que confirmei está na §5–§8 com a
 evidência. O que não deu tempo de confirmar está na §25, marcado como **não
 verificado** — e não deve ser tratado como defeito até que alguém o confirme.
 
-Duas das três rodadas de varredura foram interrompidas pelo limite de uso da
-sessão. **5 das 19 dimensões nunca rodaram** (§25). Isso limita a cobertura e
-está registrado, não escondido.
+As duas primeiras rodadas foram interrompidas pelo limite de uso da sessão.
+**As 19 dimensões foram completadas numa terceira rodada** (2026-09-25):
+19 auditores, 116 achados brutos, 277 arquivos lidos só nas cinco últimas.
+O que continua valendo é a regra do parágrafo acima — 13 achados verificados
+por mim, 103 não; a §25 separa os dois.
 
 ---
 
@@ -34,9 +36,9 @@ nenhum dos defeitos que costumam aparecer num pré-deploy: zero SQL cru, zero
 e Linux, zero migration pendente, zero erro de sintaxe em 479 arquivos, e os
 52 roteiros de verificação passam inteiros.
 
-Os defeitos que apareceram estão nas **bordas** — no que sai do sistema, não
-no que circula dentro dele. Cinco foram confirmados com prova e corrigidos
-nesta auditoria:
+Os defeitos que apareceram estão nas **bordas** — no que sai do sistema, no
+que entra por um campo de texto, e no que acontece fora do horário comercial.
+Oito foram confirmados com prova e corrigidos:
 
 | # | Defeito | Severidade | Estado |
 | --- | --- | --- | --- |
@@ -45,6 +47,9 @@ nesta auditoria:
 | 3 | XSS armazenado pelo nome do paciente na lista do chat de IA | **ALTO** | corrigido e verificado |
 | 4 | `age` nunca instalado na VPS: a cópia de segurança cifrada não roda | **ALTO** | corrigido |
 | 5 | `/admin/login/` sem limitador de tentativas | **ALTO** | corrigido |
+| 6 | As duas entradas de dinheiro sem validação: `150,00` devolvia 500, e `NaN` era aceito | **ALTO** | corrigido e verificado |
+| 7 | Exportação do acervo clínico: a capacidade valia para pedir e não para **baixar** | **ALTO** | corrigido e verificado |
+| 8 | Data do sistema lida em UTC: das 21h à meia-noite, financeiro e painel abriam no dia errado | **MÉDIO** | corrigido e verificado |
 
 Dois achados confirmados **não** foram corrigidos porque a correção muda
 regra de negócio — estão marcados como `DECISÃO DE NEGÓCIO NECESSÁRIA` (§9).
@@ -325,6 +330,73 @@ apps. (Descoberto quebrando o boot e consertando.)
 
 ---
 
+### A-05 · As duas entradas de dinheiro não validavam nada
+
+| | |
+| --- | --- |
+| **Arquivo** | `finance/views.py:67-103`, `finance/pricing.py::quantize_brl` |
+| **Severidade** | **ALTO** — corrigido e verificado |
+
+`RecordPaymentView` e `ApplyAdjustmentView` — as duas únicas rotas que lançam
+dinheiro no produto — liam `request.POST.get('amount')` e entregavam o texto
+cru a `quantize_brl`, que faz `Decimal(valor)`. As views capturavam
+`except ValueError`, e **`decimal.InvalidOperation` herda de `ArithmeticError`,
+não de `ValueError`**.
+
+Medido, chamada a chamada:
+
+| Digitado | Resultado |
+| --- | --- |
+| `150,00` — o jeito brasileiro | `InvalidOperation` → **500** |
+| campo vazio | `InvalidOperation` → **500** |
+| campo ausente | `TypeError` → **500** |
+| `1e999` | `InvalidOperation` → **500** |
+| `NaN` | **passava**, e viraria um pagamento NaN no banco |
+| 14 dígitos | passava, e estouraria o `numeric(12,2)` no `INSERT` |
+
+O resto do produto já fazia certo: `finance/fee_forms.py` usa `DecimalField`
+com limites, e o cadastro de paciente usa `BrazilianDecimalField` justamente
+porque "quem digita peso digita com vírgula". Estas duas rotas ficaram de
+fora — e são as que mexem em dinheiro.
+
+**Correção.** `finance/forms.py` (novo): `PaymentForm` e `AdjustmentForm`
+sobre o `BrazilianDecimalField` que já existia, com `max_digits=12,
+decimal_places=2` — exatamente as colunas. O tipo do ajuste passou a
+`ChoiceField`, o motivo virou obrigatório (ele vai para a trilha), e a forma
+de pagamento ganhou o limite da coluna.
+
+**Teste:** `checks/check_dinheiro.py` (novo, 6 seções).
+
+---
+
+### A-06 · A capacidade da exportação valia para pedir, não para baixar
+
+| | |
+| --- | --- |
+| **Arquivo** | `reporting/views.py:137-148, 189-205` |
+| **Severidade** | **ALTO** — corrigido e verificado |
+
+O projeto declara a capacidade **por relatório** (`reporting/apps.py`), e
+`CLAUDE.md` explica por quê: o nome do relatório chega pelo POST, então a
+verificação mora em `request_export` e não na view. O acervo clínico exige
+`MANAGE_ORGANIZATION` **e** `READ_CLINICAL`.
+
+O que faltou: a lista de exportações recentes e o download eram escopados
+**apenas por inquilino**. Um dono que não é médico não conseguia *pedir* o
+acervo clínico — mas via na lista o arquivo que um médico pediu, e podia
+baixá-lo. É o prontuário de todos os pacientes num arquivo só.
+
+**Correção.** `reporting/services.py::pode_ver_export` responde a pergunta
+num lugar só, e as três portas passaram a usá-la: a lista mostra apenas o
+que o vínculo poderia baixar, e detalhe e download devolvem 404. Relatório
+fora do catálogo não é baixável por ninguém — uma linha órfã no banco não
+vira arquivo aberto.
+
+**Teste:** seção nova em `checks/check_exportacao.py`, que cobra que "pode
+pedir" e "pode baixar" concordem para **todos** os vínculos da clínica.
+
+---
+
 ## 7. Problemas médios
 
 | # | Arquivo | Problema | Estado |
@@ -333,6 +405,9 @@ apps. (Descoberto quebrando o boot e consertando.)
 | M-02 | `documents/retention.py:88` | `garbage_collect` só é chamado por `checks/check_backup.py` — **nunca roda em produção** | confirmado · §9 |
 | M-03 | `tenancy/admin_views.py:373` | `PhysicianProfile` é global por usuário: o responsável da clínica A editar o CRM reflete na clínica B e zera a verificação lá | confirmado, severidade rebaixada |
 | M-04 | `requirements.txt` | `cryptography 48.0.1` (3 avisos) e `pymdown-extensions 10.21.3` (2 avisos) | ver §13 |
+| M-05 | `finance/views.py`, `reporting/views.py`, +4 | **Data lida em UTC.** O contêiner roda em `Etc/UTC` e o produto em `America/Sao_Paulo`: das 21h à meia-noite `date.today()` já devolve o dia seguinte. O período padrão do financeiro e do painel abria em "amanhã" — e no último dia do mês, já no mês seguinte, com tudo zerado | **corrigido** (`timezone.localdate()` nos 6 pontos) |
+| M-06 | `integrations/capture.py:32` | `complete_pairing` não tem rota: o pareamento do scanner **não pode ser concluído por HTTP**. Só `checks/check_perimetro.py` o chama | confirmado · coerente com a pendência P-08 |
+| M-07 | `scheduling/publishing.py:85` | `appointments_outside_rules` é definido e **nunca chamado**: o aviso de que encurtar a grade deixa consultas órfãs não existe na prática | confirmado |
 
 **Sobre M-03 — o que o código faz certo.** Trocar o CRM **rebaixa a
 verificação para PENDENTE** antes de gravar, e a comparação é feita *antes* do
@@ -343,7 +418,15 @@ documento. Sobra o efeito colateral entre clínicas, que é MÉDIO.
 
 ## 8. Problemas de baixa prioridade
 
-Nenhum confirmado de forma independente. Os candidatos estão na §25.
+Confirmados por mim, e deliberadamente **não corrigidos** — são de qualidade
+de dado, não de correção:
+
+| # | Arquivo | Problema |
+| --- | --- | --- |
+| B-01 | `patients/forms.py:318` | `clean_postal_code` só remove não-dígitos: um CEP de 3 dígitos é aceito e gravado |
+| B-02 | `patients/forms.py:325` | `clean_birth_date` só barra o futuro: um nascimento em 1800 passa |
+| B-03 | `documents/issuance.py:141` | O número do documento vem de `COUNT(*) + 1` e **não há `UNIQUE` em `document_number`**. Não é explorável hoje — `discard_document` recusa apagar documento emitido, e rascunho não tem número —, mas a constraint é seguro barato |
+| B-04 | `templates/registration/password_reset_email.html` | Morto: o projeto sobrescreve `email_template_name`. **Deixado no lugar de propósito** — é o caminho padrão do Django, e removê-lo transforma um futuro `TemplateDoesNotExist` numa surpresa |
 
 ## 9. `DECISÃO DE NEGÓCIO NECESSÁRIA`
 
@@ -465,13 +548,16 @@ falha** (1.157 s).
 | --- | --- | --- |
 | `checks/check_js_atributo.py` | Dado do servidor colado em atributo HTML pelo JavaScript; distingue marcação de seletor CSS; confere que o nome do paciente **continua aceitando aspas** (a correção é na saída — recusar `O'Brien` na entrada não resolveria nada) | 5 |
 | `checks/check_alerta_erro.py` | Segredo e PII no e-mail de alerta; inclui um caso que cria um setting novo com credencial para provar que a filtragem decide pelo **valor**, não por lista de nomes | 6 |
+| `checks/check_dinheiro.py` | As duas entradas de dinheiro: vírgula decimal e separador de milhar aceitos; vazio, ausente, `NaN`, infinito, 14 dígitos, negativo e zero recusados **com mensagem**; limites do formulário conferidos contra a coluna do banco; e a data do produto lida no fuso da clínica | 6 |
+| `checks/check_exportacao.py` (seção nova) | "Pode pedir" e "pode baixar" têm de concordar para todos os vínculos da clínica | 1 |
 
 ## 16. Resultado dos testes
 
 | Momento | Roteiros | Resultado |
 | --- | --- | --- |
 | Linha de base (antes de qualquer alteração) | 50 | **nenhuma falha** (1.157 s) |
-| Final (com as 5 correções e os 2 roteiros novos) | **52** | **nenhuma falha** (342 s) |
+| Após a 1ª rodada de correções | 52 | **nenhuma falha** (342 s) |
+| Final (8 correções, 3 roteiros novos) | **53** | **nenhuma falha** (350 s) |
 
 Nenhuma correção desta auditoria quebrou comportamento existente. Os dois
 roteiros novos falham de verdade contra o código anterior — foram escritos
@@ -560,18 +646,25 @@ Ver `DEPLOY.md` §Validação e `DEPLOY_CHECKLIST.md`.
 
 ## 25. Problemas conhecidos restantes
 
-### 25.1 · Dimensões que não rodaram
+### 25.1 · Cobertura das dimensões
 
-O limite de uso da sessão interrompeu duas das três rodadas. **5 de 19
-dimensões nunca foram varridas:**
+As 19 dimensões foram completadas. As cinco que o limite de sessão havia
+cortado rodaram em 2026-09-25 e leram 277 arquivos:
 
-| Dimensão | O que ficou sem cobertura automática | Mitigação |
-| --- | --- | --- |
-| `validacao` | Entrada malformada campo a campo nos forms | Parcial: `check_landing`, `check_g10`, `check_contrato` exercitam entrada inválida |
-| `banco-esquema` | Índices, `on_delete`, `unique` faltando | Parcial: esquema criado do zero e conferido (§11) |
-| `frontend` | Erro de JS, duplo submit, link morto | Parcial: `check_mobile`, `check_links`, e a varredura dos 16 `.js` (§10) |
-| `codigo-morto` | Função nunca chamada, template órfão | Parcial: 0 arquivos `.bak/.old/.copy`; 2 `TODO/FIXME` no projeto inteiro |
-| `lgpd-privacidade` | Mapa de dado pessoal ponta a ponta | Parcial: `docs/governance/lgpd.md` + os achados de `logs-pii` |
+| Dimensão | Arquivos lidos | Achados | O que rendeu |
+| --- | --- | --- | --- |
+| `validacao` | 62 | 7 | **A-05** (dinheiro sem validação) e **M-05** (data em UTC) |
+| `banco-esquema` | 61 | 8 | **B-03**; o resto refutado ou já coberto |
+| `frontend` | 48 | 6 | `data-nd-busy` não alcança botão ligado por `form=` |
+| `codigo-morto` | 62 | 8 | **M-06** e **M-07** |
+| `lgpd-privacidade` | 44 | 6 | **A-06** (download do acervo clínico) |
+
+Os quatro censos do auditor de frontend, que conferi por conta própria:
+**150 formulários POST, zero sem `csrf_token`**; zero `id` duplicado real;
+zero `href` literal para rota inexistente; zero CSS ou JS morto; nenhum
+resíduo do tema escuro. Dos 18 formulários sem `data-nd-busy`, **todos os 18
+são idempotentes** — descartar, remover, revogar, arquivar, sair. Nenhum cria
+registro, então não há defeito de duplo submit.
 
 ### 25.2 · Achados automáticos **não verificados**
 
@@ -603,6 +696,31 @@ que merecem atenção — `communications/services.py` (reenvio de documento
 revoga o link que acabou de criar) e `.env.example` (`TRUSTED_PROXIES` não
 inclui as faixas da Cloudflare, que o próprio deploy põe na frente).
 
+**Das cinco dimensões novas** (24 achados não verificados): rascunho de
+prontuário no `localStorage` sem prazo; `data-nd-busy` que não alcança botão
+ligado ao formulário por `form=`; cancelar a confirmação deixando o botão
+desabilitado; remoção de anexo sem confirmação; foto do paciente gravada com
+permissão padrão; trilha guardando conteúdo clínico em alguns eventos; IP
+nunca gravado na trilha; `protect_ip` sem máscara de IPv6 comprimido;
+desidentificação da IA que não remove data de nascimento nem endereço; o
+gatilho de imutabilidade não cobrir `TRUNCATE`; `ai/tools/administrative.py`
+como módulo morto; resíduo legado em `documents/storage.py`.
+
+### 25.2b · Achados que **refutei** ao verificar
+
+Registrados porque a refutação também é resultado — e porque quem repetir a
+auditoria vai encontrá-los de novo:
+
+| Achado | Por que não procede |
+| --- | --- |
+| `/admin/login/` como "segunda porta sem MFA" (CRÍTICO) | Testado: usuário comum com senha **correta** não autentica (`is_staff` exigido), e `/admin/` e `/instalacao/` exigem `is_verified()`. Sobrava o limitador, corrigido em A-04 |
+| Responsável escreve no CRM → "escalonamento de privilégio" (CRÍTICO) | Trocar o CRM **rebaixa a verificação para PENDENTE** antes de gravar, com a comparação feita antes do `is_valid()` porque `ModelForm` muta a instância |
+| Número de documento colide ao apagar (ALTO) | `discard_document` recusa apagar documento emitido, e rascunho não tem número. Sobra a fragilidade (B-03) |
+| Portal do paciente como "oráculo de CPF" | `check_g10` §6 já cobra que os casos de falha sejam indistinguíveis, e §7 o bloqueio por IP |
+| 10 cópias de `TenantScopedView` como duplicação | Cada uma declara uma **capacidade diferente**: é configuração por app sobre `CapabilityRequiredView`, o padrão documentado |
+| Duas `ManagerRequiredView` homônimas | Corpos diferentes, métodos auxiliares diferentes. Nome repetido, lógica não |
+| `registration/password_reset_email.html` órfão | Morto de fato, mas é o caminho padrão do Django: mantido de propósito (B-04) |
+
 ### 25.3 · Pendências externas já conhecidas
 
 P-02 (VPS real), P-03 (SMTP/SMS/IA reais), P-05 (certificado A1 do médico),
@@ -629,15 +747,15 @@ roteiro de auditoria exige:
 
 | # | Pergunta | Resposta |
 | --- | --- | --- |
-| 1 | Todo o repositório foi analisado? | **Parcialmente.** Determinístico: sim (826 arquivos). Assistido: 14 de 19 dimensões |
+| 1 | Todo o repositório foi analisado? | Sim. Determinístico: 826 arquivos. Assistido: **19 de 19 dimensões** |
 | 2 | Os fluxos principais foram identificados? | Sim — §4 |
 | 3 | Os fluxos principais têm testes? | Sim — 52 roteiros; lacunas em `TEST_MATRIX.md` |
-| 4 | A suíte passa? | **Sim — 52/52** |
+| 4 | A suíte passa? | **Sim — 53/53** |
 | 5 | O build funciona? | Sim |
 | 6 | Dependências auditadas? | Sim — 2 pacotes com aviso (§13) |
 | 7 | Segurança revisada? | Sim — §10 |
 | 8 | Autorização revisada? | Sim; nenhum IDOR encontrado |
-| 9 | O banco foi revisado? | **Parcialmente** — esquema criado do zero; índices/`on_delete` não auditados |
+| 9 | O banco foi revisado? | Sim — 84 tabelas, 209 FKs, 154 constraints únicas, **zero FK sem índice**; trilha imutável em duas camadas (papel sem `UPDATE`/`DELETE` **e** gatilho) |
 | 10 | Migrations verificadas? | Sim — 86 do zero, nenhuma pendente |
 | 11 | Configuração de produção revisada? | Sim — §18 |
 | 12 | Segredos procurados? | Sim, incluindo o histórico do git |
@@ -657,10 +775,11 @@ roteiro de auditoria exige:
 A auditoria não deixou bloqueador conhecido. O crítico encontrado foi
 corrigido e verificado por medição; os quatro de alta prioridade também.
 
-**A ausência de erro encontrado não é prova de ausência de erro** — e aqui
-isso é mais que fórmula: 5 das 19 dimensões não chegaram a rodar e 73 dos 81
-achados automáticos não foram verificados (§25). O que este documento afirma
-é o que foi medido; o resto está marcado como não verificado, de propósito.
+**A ausência de erro encontrado não é prova de ausência de erro.** As 19
+dimensões rodaram, mas dos 116 achados automáticos verifiquei 13 — os outros
+103 estão na §25 como pistas, não como fatos. Sete deles eu **refutei** ao
+abrir o código (§25.2b), o que dá a medida de quanto uma varredura assistida
+precisa ser conferida antes de virar decisão.
 
 **Duas decisões suas antes de produção** (§9): D-01 (SSRF do `base_url` da IA)
 e D-02 (agendar a coleta de lixo do disco).

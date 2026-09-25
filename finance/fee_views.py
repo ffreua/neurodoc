@@ -28,6 +28,7 @@ from tenancy.permissions import Capability, CapabilityRequiredView, can_set_fee_
 from .fee_forms import FeeScheduleCloseForm, FeeScheduleForm
 from .models import FeeSchedule
 from .pricing import OverlappingFeeSchedule, create_fee_schedule
+from django.utils import timezone
 
 
 class FeeAdminView(CapabilityRequiredView):
@@ -46,7 +47,7 @@ def _rows(tenant_id, context):
     as três situações precisam ser distinguíveis de relance — uma tabela
     que mostra tudo igual faz alguém cadastrar de novo o que já existe.
     """
-    hoje = date.today()
+    hoje = timezone.localdate()
     regras = (
         FeeSchedule.objects.filter(tenant_id=tenant_id)
         .select_related('physician__user', 'plan__insurer', 'procedure')

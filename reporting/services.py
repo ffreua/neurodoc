@@ -43,6 +43,32 @@ FORMATOS = {
 _REGISTRY = {}
 
 
+def report_capabilities(name):
+    """As capacidades que aquele relatorio exige, ou `()` se ele nao existe.
+
+    Existe porque a pergunta era feita num lugar so -- `request_export` --, e
+    ha tres outros que precisam dela: a lista de exportacoes recentes, a tela
+    de detalhe e o download. Sem isto, o que `apps.py` declara por relatorio
+    valia na hora de PEDIR e nao valia na hora de BAIXAR: quem podia ver a
+    tela via o arquivo que outro pediu, e podia baixa-lo.
+
+    Devolver tupla vazia para relatorio desconhecido, e nao levantar: quem
+    chama usa isto para FILTRAR, e uma linha orfa no banco (relatorio
+    removido do catalogo) nao deve derrubar a tela -- ela some da lista, que
+    e o comportamento conservador.
+    """
+    registro = _REGISTRY.get(name)
+    return tuple(registro['capabilities']) if registro else ()
+
+
+def pode_ver_export(access_context, name):
+    """Se este vinculo pode ver/baixar o arquivo daquele relatorio."""
+    capacidades = report_capabilities(name)
+    if not capacidades:
+        return False
+    return all(access_context.can(c) for c in capacidades)
+
+
 def register_report(name, rows_fn, fieldnames, count_fn=None,
                     markdown_fn=None, capability=None, kinds=None):
     """Registra um relatório exportável.

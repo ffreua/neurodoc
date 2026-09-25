@@ -8,6 +8,7 @@ consulta exigia o admin técnico do Django, que é de quem opera o servidor.
 
 from datetime import date
 
+from django.utils import timezone
 from django import forms
 
 from base.widgets import HTML5DateInput
@@ -57,7 +58,7 @@ class FeeScheduleForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.tenant_id = tenant_id
         self.access_context = context
-        self.fields['effective_from'].initial = date.today()
+        self.fields['effective_from'].initial = timezone.localdate()
 
         self._physicians = {
             str(m.id): m for m in

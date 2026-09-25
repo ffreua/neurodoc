@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+from django.utils import timezone
 from django import forms
 
 from base.widgets import HTML5DateInput, HTML5DateTimeInput, HTML5TimeInput
@@ -149,7 +150,7 @@ class WeeklyScheduleForm(forms.Form):
             if not ends_on:
                 self.add_error('ends_on', 'Informe a data final ou escolha um prazo.')
         elif horizon:
-            cleaned['ends_on'] = (starts_on or date.today()) + timedelta(days=int(horizon))
+            cleaned['ends_on'] = (starts_on or timezone.localdate()) + timedelta(days=int(horizon))
         else:
             cleaned['ends_on'] = None
 

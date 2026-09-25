@@ -340,6 +340,41 @@ else:
     if r.status_code != 404:
         falhas.append('a tela aceitou um formato que o relatorio nao declara')
 
+print('=== a capacidade do relatorio vale tambem para BAIXAR ===')
+# A capacidade e declarada POR RELATORIO em `reporting/apps.py`, e era
+# conferida so em `request_export` -- na hora de PEDIR. A lista de
+# exportacoes recentes e o download eram escopados apenas por inquilino.
+#
+# Consequencia, encontrada na auditoria pre-deploy de 2026-09-24: o acervo
+# CLINICO exige MANAGE_ORGANIZATION **e** READ_CLINICAL para ser pedido, mas
+# o dono que nao e medico via na lista o arquivo que um medico pediu -- e
+# podia baixa-lo. E o prontuario de todos os pacientes num arquivo so.
+from reporting.services import pode_ver_export
+
+for vinculo in Membership.objects.filter(
+    tenant=clinica, status=MembershipStatus.ACTIVE,
+).select_related('user', 'tenant'):
+    ctx = contexto_de(vinculo)
+    pede_clinico = all(
+        ctx.can(c) for c in (Capability.MANAGE_ORGANIZATION, Capability.READ_CLINICAL)
+    )
+    baixa_clinico = pode_ver_export(ctx, 'acervo_atendimentos')
+    print(f'  {vinculo.user.email:38} pode pedir={pede_clinico}  pode baixar={baixa_clinico}')
+    if pede_clinico != baixa_clinico:
+        falhas.append(
+            f'{vinculo.user.email}: pode pedir o acervo clinico={pede_clinico} mas '
+            f'pode baixa-lo={baixa_clinico} — as duas portas tem de concordar'
+        )
+
+# Relatorio que nao existe no catalogo nao e baixavel por ninguem: uma linha
+# orfa no banco (relatorio retirado do catalogo) nao pode virar arquivo aberto.
+qualquer = contexto_de(
+    Membership.objects.filter(tenant=clinica, status=MembershipStatus.ACTIVE).first()
+)
+print(f'  relatorio fora do catalogo -> {pode_ver_export(qualquer, "nao_existe")}')
+if pode_ver_export(qualquer, 'nao_existe'):
+    falhas.append('relatorio desconhecido foi considerado baixavel')
+
 # Limpeza: as exportacoes deste roteiro saem, com os arquivos.
 for export in ReportExport.objects.filter(id__in=[e.id for e in criados]):
     if export.storage_key:

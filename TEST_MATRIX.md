@@ -1,7 +1,7 @@
 # Matriz de testes — NeuroDoc 1.0
 
-**Resultado apurado em 2026-09-24.** Não existe suíte automatizada, por
-decisão registrada (DEC-20); o substituto são os **52 roteiros de
+**Resultado apurado em 2026-09-25.** Não existe suíte automatizada, por
+decisão registrada (DEC-20); o substituto são os **53 roteiros de
 verificação** em `checks/`, rodados por `manage.py rodar_roteiros`.
 
 Legenda de cobertura: **auto** = roteiro na bateria · **manual** = exercitado
@@ -33,9 +33,13 @@ nesta auditoria · **nenhuma** = sem cobertura.
 | Verificação | QR público na farmácia | segurança | ✅ | auto | `check_g6` — nome mascarado, sem conteúdo clínico |
 | Portal | Pedido sem conta, janela de 180 dias | regra | ✅ | auto | `check_portal_retorno`, `check_g10` |
 | Portal | Limite por IP na identificação | segurança | ✅ | auto | `check_g10` |
-| Financeiro | Recebível, pagamento, ajuste | integração | ✅ | auto | `check_exportacao`, bateria |
+| Financeiro | Recebível, pagamento, ajuste | integração | ✅ | auto | bateria |
+| **Financeiro** | **Valor digitado com vírgula (`150,00`)** | **borda** | ✅ | **auto** | `check_dinheiro` — **defeito encontrado e corrigido**: devolvia 500 |
+| **Financeiro** | **Valor vazio, `NaN`, infinito, 14 dígitos, negativo** | **borda** | ✅ | **auto** | `check_dinheiro` — `NaN` era **aceito** antes |
+| **Sistema** | **Data padrão das telas entre 21h e meia-noite** | **fuso** | ✅ | **auto** | `check_dinheiro` §6 — lia UTC, abria em "amanhã" |
 | Indicadores | Consumo do plano e período | integração | ✅ | auto | `check_planos` |
 | Exportação | MD e JSON, capacidade, expiração 24 h | segurança | ✅ | auto | `check_exportacao` |
+| **Exportação** | **Baixar o acervo clínico sem `READ_CLINICAL`** | **autorização** | ✅ | **auto** | `check_exportacao` — **defeito encontrado e corrigido**: a capacidade valia só para pedir |
 | IA | Gate por plano nas duas camadas | autorização | ✅ | auto | `check_ia_plano` (8 seções) |
 | **IA** | **Nome de paciente com aspa na lista do chat** | **XSS** | ✅ | **manual** | **defeito encontrado e corrigido**, provado em Chromium |
 | Chat da equipe | Conversa por par, fronteira entre clínicas | isolamento | ✅ | auto | `check_mensagens` |
@@ -80,6 +84,6 @@ nesta auditoria · **nenhuma** = sem cobertura.
 | Concorrência real | Os roteiros são sequenciais; só `check_mensageria` usa threads | 7 achados não verificados (auditoria §25.2) |
 | Transações parciais | Nenhum roteiro derruba a transação no meio | 7 achados não verificados |
 | Frontend em navegador | `check_mobile` e `check_links` olham o HTML, não executam a página | Erro de JS em produção |
-| Esquema do banco | Índices e `on_delete` não auditados | Dimensão não rodou |
-| Validação campo a campo | Entrada malformada por campo | Dimensão não rodou |
+| Scanner (captura) | `complete_pairing` não tem rota HTTP | Recurso inalcançável — coerente com a pendência P-08 |
+| Grade da agenda | `appointments_outside_rules` nunca é chamado | Encurtar a grade não avisa sobre consultas órfãs |
 | Tratamento de erro | Sem `handler404`/`handler500` próprios | 8 achados não verificados |

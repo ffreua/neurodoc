@@ -11,7 +11,7 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 ## Antes de sair da máquina de desenvolvimento
 
 ### Código e verificação
-- [x] Os 52 roteiros de `checks/` passam (`manage.py rodar_roteiros`)
+- [x] Os 53 roteiros de `checks/` passam (`manage.py rodar_roteiros`)
 - [x] 479 arquivos `.py` sem erro de sintaxe
 - [x] `makemigrations --check --dry-run` limpo
 - [x] `manage.py check --deploy` — só os 2 avisos deliberados de HSTS
@@ -27,6 +27,9 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 - [x] Injeção de marcação no PDF corrigida e provada em PDF real
 - [x] `/admin/login/` com limitador de tentativas
 - [x] Alerta de erro sem segredo e sem dado de paciente
+- [x] As duas entradas de dinheiro validadas (`150,00` não derruba mais a tela)
+- [x] Download do acervo clínico cobra a capacidade do relatório, não a da tela
+- [x] Data do sistema lida no fuso da clínica, não em UTC
 - [ ] **Decidir D-01** (SSRF do `base_url` da IA) — ver auditoria §9
 - [ ] Avaliar subir `cryptography` para 49.0.0 (exercitando a assinatura)
 

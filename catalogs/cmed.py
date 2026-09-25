@@ -190,7 +190,7 @@ def importar(caminho, versao=None, url='', ativar=True):
     Ativar é o último passo e troca a release em vigor numa transação só —
     não existe instante em que a clínica fique sem catálogo ou com dois.
     """
-    versao = versao or date.today().strftime('%Y-%m-%d')
+    versao = versao or timezone.localdate().strftime('%Y-%m-%d')
     if CatalogRelease.objects.filter(system=CatalogSystem.CMED, version=versao).exists():
         raise ImportacaoCmedErro(
             f'Já existe uma release CMED versão {versao}. '

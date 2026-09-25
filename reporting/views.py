@@ -1,5 +1,6 @@
 import datetime
 
+from django.utils import timezone
 from django.conf import settings
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -10,7 +11,7 @@ from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import operations, patients
 from .models import ReportExport, ReportExportKind, ReportExportStatus
-from .services import EXPORT_TTL_HOURS, request_export
+from .services import EXPORT_TTL_HOURS, pode_ver_export, request_export
 
 
 class TenantScopedView(CapabilityRequiredView):
@@ -56,7 +57,9 @@ def _parse_period(request):
     que termina antes de começar devolve todo indicador zerado, o que se
     lê como "não houve atendimento" em vez de "a data está trocada".
     """
-    today = datetime.date.today()
+    # Ver a mesma nota em `finance/views.py::_parse_period`: em UTC, das
+    # 21h a meia-noite o dia ja virou, e o painel abria no periodo errado.
+    today = timezone.localdate()
 
     def data(valor, padrao):
         if not valor:
@@ -134,8 +137,18 @@ class AcervoView(CapabilityRequiredView):
     def get(self, request):
         from tenancy.selectors import scope_to_tenant
 
+        # A lista mostra so o que este vinculo poderia baixar.
+        #
+        # Antes ela era escopada apenas por inquilino, e o acervo CLINICO --
+        # que exige MANAGE_ORGANIZATION **e** READ_CLINICAL para ser pedido --
+        # aparecia para o dono que nao e medico assim que qualquer medico da
+        # clinica exportasse um. Ver `pode_ver_export`.
+        permitidos = [
+            nome for nome in ('acervo_pacientes', 'acervo_atendimentos')
+            if pode_ver_export(request.access_context, nome)
+        ]
         recentes = scope_to_tenant(
-            ReportExport.objects.filter(report_name__startswith='acervo_'),
+            ReportExport.objects.filter(report_name__in=permitidos),
             request.access_context,
         ).order_by('-created_at')[:10]
         return render(request, 'reporting/acervo.html', {
@@ -188,6 +201,12 @@ class ExportDetailView(TenantScopedView):
         from tenancy.selectors import scope_to_tenant
 
         export = get_object_or_404(scope_to_tenant(ReportExport.objects.all(), request.access_context), id=export_id)
+        # A capacidade e declarada POR RELATORIO (`reporting/apps.py`) e era
+        # conferida so em `request_export`. Escopar por inquilino nao basta
+        # aqui: o arquivo do acervo clinico tem o prontuario de todos os
+        # pacientes, e quem alcanca esta tela nem sempre pode le-lo.
+        if not pode_ver_export(request.access_context, export.report_name):
+            raise Http404
         return render(request, 'reporting/export_detail.html', {'export': export})
 
 
@@ -196,6 +215,12 @@ class ExportDownloadView(TenantScopedView):
         from tenancy.selectors import scope_to_tenant
 
         export = get_object_or_404(scope_to_tenant(ReportExport.objects.all(), request.access_context), id=export_id)
+        # A capacidade e declarada POR RELATORIO (`reporting/apps.py`) e era
+        # conferida so em `request_export`. Escopar por inquilino nao basta
+        # aqui: o arquivo do acervo clinico tem o prontuario de todos os
+        # pacientes, e quem alcanca esta tela nem sempre pode le-lo.
+        if not pode_ver_export(request.access_context, export.report_name):
+            raise Http404
         if export.status != ReportExportStatus.READY or not export.storage_key:
             raise Http404
         from .services import FORMATOS
