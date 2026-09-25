@@ -31,7 +31,7 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 - [x] Download do acervo clínico cobra a capacidade do relatório, não a da tela
 - [x] Data do sistema lida no fuso da clínica, não em UTC
 - [x] **D-01 decidido e implementado**: endereço da IA por lista de permissão (`AI_BASE_URL_ALLOWLIST`, vazia por padrão)
-- [ ] Se alguma clínica for usar servidor próprio (Ollama/vLLM), liberar o host em `AI_BASE_URL_ALLOWLIST`
+- [ ] Se alguma clínica for usar servidor próprio (Ollama/vLLM), liberar o host em **`/instalacao/operacao/`** (não no `.env`: ele só semeia)
 - [ ] Avaliar subir `cryptography` para 49.0.0 (exercitando a assinatura)
 
 ### Dados e privacidade
@@ -39,7 +39,8 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 - [x] Trilha de auditoria imutável por gatilho
 - [x] **D-02 decidido e implementado**: coleta semanal agendada, começando em ensaio (`DOCUMENTS_GC_DRY_RUN=True`)
 - [ ] Após **um mês** de ensaio, ler na trilha quantos arquivos seriam removidos
-- [ ] Só então virar `DOCUMENTS_GC_DRY_RUN=False` — e **só depois** de a restauração ter sido testada num host separado
+- [ ] Só então autorizar o apagamento em **`/instalacao/operacao/`** (digitando `APAGAR` + motivo) — e **só depois** de a restauração ter sido testada num host separado
+- [ ] Saber que o freio existe: "Voltar ao ensaio agora", um clique, na mesma tela
 
 ## Na VPS
 

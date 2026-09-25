@@ -1,0 +1,172 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Operação — NeuroDoc{% endblock %}
+{% block page_title %}Operação da instalação{% endblock %}
+{% block super_section %}Operação{% endblock %}
+{% block super_content %}
+
+{% comment %}As duas chaves que se viram sem republicar o stack.
+
+Elas moravam só no `.env`, e o defeito disso não era conveniência: era que
+**desligar demorava um ciclo de deploy**. Uma trava que só se solta editando
+arquivo, regerando o runtime e republicando não serve de freio de
+emergência — e as duas são exatamente isso.{% endcomment %}
+<p class="fs-12 text-muted border-start border-3 ps-2 mb-4">
+    O que está nesta tela vale <strong>agora</strong>, sem republicar o sistema.
+    As variáveis <code>AI_BASE_URL_ALLOWLIST</code> e
+    <code>DOCUMENTS_GC_DRY_RUN</code> do <code>.env</code> só valeram para criar
+    esta configuração na primeira vez — depois disso, quem manda é esta tela.
+    Mexer no <code>.env</code> agora não muda nada aqui.
+</p>
+
+<div class="row g-4">
+
+    {# ------------------------------------------------ coleta de lixo #}
+    <div class="col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Coleta de arquivos apagados</h5>
+                {% if config.documents_gc_dry_run %}
+                <span class="badge bg-soft-primary text-primary">Em ensaio</span>
+                {% else %}
+                <span class="badge bg-soft-danger text-danger">Apagando</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    Toda semana, domingo às 2h, o sistema percorre os anexos que
+                    <strong>o usuário já apagou</strong> há mais de 30 dias e cujo
+                    prazo legal de guarda (20 anos) já venceu.
+                </p>
+
+                {% if config.documents_gc_dry_run %}
+                <div class="alert alert-light-primary fade show fs-13" role="alert">
+                    <strong>Em ensaio: nada é apagado.</strong>
+                    <span class="d-block fs-12 mt-1">
+                        A passagem conta quantos arquivos removeria e quantos a guarda
+                        legal reteve, e grava os dois números na trilha. É assim que se
+                        confere o comportamento antes de autorizar o apagamento.
+                    </span>
+                </div>
+
+                {% comment %}Ligar exige digitar e justificar. Um clique não é
+                proporcional: do outro lado há arquivo clínico que não volta.
+                {% endcomment %}
+                <form method="post" action="{% url 'superadmin:operations-gc' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="apagar">
+                    <div class="mb-3">
+                        <label class="form-label fs-12" for="gc-motivo">
+                            Por que autorizar o apagamento?
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="gc-motivo"
+                               name="motivo" maxlength="255"
+                               placeholder="Ex.: um mês de ensaio conferido e restauração testada">
+                        <span class="form-text fs-11">
+                            Fica na trilha. É o que responde “por que isto está ligado?”
+                            um ano depois.
+                        </span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fs-12" for="gc-confirmacao">
+                            Digite <code>{{ confirmacao }}</code> para confirmar
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="gc-confirmacao"
+                               name="confirmacao" autocomplete="off">
+                    </div>
+                    <button type="submit" class="btn btn-danger" data-nd-busy>
+                        Autorizar o apagamento
+                    </button>
+                </form>
+
+                <p class="fs-11 text-muted mt-3 mb-0">
+                    Antes de ligar: um mês de ensaio conferido <strong>e</strong> a
+                    restauração do backup testada num host separado. Apagar arquivo só
+                    é seguro quando se provou que se sabe trazê-lo de volta.
+                </p>
+
+                {% else %}
+                <div class="alert alert-light-danger fade show fs-13" role="alert">
+                    <strong>A coleta está apagando arquivo.</strong>
+                    {% if config.documents_gc_note %}
+                    <span class="d-block fs-12 mt-1">
+                        Motivo registrado: {{ config.documents_gc_note }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% comment %}Voltar ao ensaio é um clique só, de propósito: é o freio
+                de emergência, e freio que pede confirmação chega tarde.{% endcomment %}
+                <form method="post" action="{% url 'superadmin:operations-gc' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="ensaio">
+                    <button type="submit" class="btn btn-primary" data-nd-busy>
+                        Voltar ao ensaio agora
+                    </button>
+                </form>
+                <p class="fs-11 text-muted mt-3 mb-0">
+                    Um clique, sem confirmação: parar de apagar é a direção segura, e
+                    uma pergunta a mais aqui custaria justamente o tempo que importa.
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {# ------------------------------------------ endereços de IA liberados #}
+    <div class="col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Endereços de API liberados</h5>
+                <span class="badge bg-gray-200 text-dark">{{ hosts|length }}</span>
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    A clínica pode apontar a IA para um servidor próprio (Ollama, vLLM).
+                    Como o processo do sistema alcança a <strong>rede interna</strong> do
+                    servidor, e não a internet, só os endereços listados aqui — mais os
+                    provedores do catálogo — podem ser consultados.
+                </p>
+                <p class="fs-12 text-muted">
+                    Vazio é o normal: quem usa provedor público nunca precisa mexer nisto.
+                </p>
+                <form method="post" action="{% url 'superadmin:operations-ai-allowlist' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label fs-12" for="ia-allowlist">
+                            Um endereço por linha
+                        </label>
+                        <textarea class="form-control form-control-sm" id="ia-allowlist"
+                                  name="allowlist" rows="6"
+                                  placeholder="ollama.interno&#10;10.0.0.7:11434">{{ config.ai_base_url_allowlist }}</textarea>
+                        <span class="form-text fs-11">
+                            Só o host (e a porta, se houver) — sem <code>http://</code> e
+                            sem caminho.
+                        </span>
+                    </div>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Gravar lista</button>
+                </form>
+
+                {% if hosts %}
+                <div class="border-top mt-3 pt-3">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                        Liberados agora
+                    </span>
+                    {% for host in hosts %}
+                    <code class="d-block fs-12">{{ host }}</code>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<p class="fs-11 text-muted mt-4 mb-0">
+    Toda mudança nesta tela entra na trilha de auditoria com quem fez e quando.
+    {% if config.updated_by %}
+    Última alteração por {{ config.updated_by.get_full_name|default:config.updated_by.email }},
+    em {{ config.updated_at|date:"d/m/Y H:i" }}.
+    {% endif %}
+</p>
+
+{% endblock %}

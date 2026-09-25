@@ -459,6 +459,148 @@ class TenantStatusView(SuperAdminView):
         return redirect('superadmin:tenants')
 
 
+# ------------------------------------------------------------------- operação
+
+#: O que se digita para autorizar o apagamento. Existe porque um clique so
+#: nao e proporcional ao que a acao faz: o botao do freio de emergencia
+#: (voltar ao ensaio) e um clique, e o botao que libera apagar arquivo
+#: clinico nao pode ser o mesmo gesto.
+CONFIRMACAO_APAGAR = 'APAGAR'
+
+
+class OperationsView(SuperAdminView):
+    """As chaves da instalacao que se viram sem republicar o stack.
+
+    Duas moram aqui, e as duas vieram das decisoes da auditoria pre-deploy:
+
+    - **enderecos de API liberados** para provedor de IA proprio. O processo
+      `app` nao alcanca a internet; o que ele alcanca e a rede interna. A
+      lista diz o que, alem do catalogo, ele pode procurar;
+    - **o ensaio da coleta de lixo** do disco. Ligado, a passagem semanal
+      conta e registra sem apagar.
+
+    Por que no console e nao no `.env`. Nao e conveniencia: e que **desligar
+    demorava**. Uma trava que so se solta editando arquivo, regerando o
+    runtime e republicando nao serve de freio de emergencia -- e as duas sao
+    exatamente isso. Descobrir na segunda-feira que a coleta apagou demais e
+    ter de esperar um ciclo de deploy para para-la e o cenario que esta tela
+    impede.
+
+    Quem entra aqui e `is_superuser` com MFA, como no resto do console: a
+    rede que sera alcancada e a do servidor, e o arquivo que sera apagado
+    esta no disco dele.
+    """
+
+    def get(self, request):
+        from base.models import InstallationSettings
+
+        config = InstallationSettings.carregar()
+        return render(request, 'ops/superadmin/operations.html', {
+            'nav_active': 'operations',
+            'config': config,
+            'hosts': sorted(config.hosts_de_ia()),
+            'confirmacao': CONFIRMACAO_APAGAR,
+        })
+
+
+class AIAllowlistView(SuperAdminView):
+    """Grava a lista de enderecos de API liberados."""
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from base.models import InstallationSettings
+
+        config = InstallationSettings.carregar()
+        antes = sorted(config.hosts_de_ia())
+        config.ai_base_url_allowlist = (request.POST.get('allowlist') or '').strip()
+        config.updated_by = request.user
+        config.full_clean()
+        config.save(update_fields=['ai_base_url_allowlist', 'updated_by', 'updated_at'])
+        depois = sorted(config.hosts_de_ia())
+        record_audit_event(
+            request.user, None, 'ops.ai_allowlist_changed',
+            object_type='installation', object_id=config.id, outcome='success',
+            # Host nao e dado pessoal: e configuracao de rede, e e
+            # justamente o que se quer poder auditar depois.
+            integrity_metadata={'from': antes, 'to': depois},
+        )
+        if depois:
+            messages.success(
+                request,
+                f'Lista gravada: {len(depois)} endereço(s) liberado(s) além do catálogo.',
+            )
+        else:
+            messages.success(
+                request,
+                'Lista limpa: só os provedores do catálogo são alcançáveis.',
+            )
+        return redirect('superadmin:operations')
+
+
+class GarbageCollectionView(SuperAdminView):
+    """Liga e desliga o ensaio da coleta de lixo.
+
+    **Assimetrico de proposito.** Voltar ao ensaio -- a direcao segura -- e
+    um clique: e o freio de emergencia, e freio que pede confirmacao chega
+    tarde. Autorizar o apagamento exige digitar a palavra e escrever o
+    motivo, porque e a direcao que destroi arquivo e nao tem volta.
+    """
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from base.models import InstallationSettings
+
+        config = InstallationSettings.carregar()
+        quer_apagar = request.POST.get('acao') == 'apagar'
+
+        if quer_apagar:
+            if (request.POST.get('confirmacao') or '').strip() != CONFIRMACAO_APAGAR:
+                messages.error(
+                    request,
+                    f'Para autorizar o apagamento, digite {CONFIRMACAO_APAGAR} no campo '
+                    f'de confirmação. Nada foi alterado.',
+                )
+                return redirect('superadmin:operations')
+            motivo = (request.POST.get('motivo') or '').strip()
+            if not motivo:
+                messages.error(
+                    request,
+                    'Escreva o motivo. É o que responde "por que a coleta está '
+                    'apagando?" quando alguém perguntar depois.',
+                )
+                return redirect('superadmin:operations')
+            config.documents_gc_dry_run = False
+            config.documents_gc_note = motivo[:255]
+        else:
+            config.documents_gc_dry_run = True
+            config.documents_gc_note = ''
+
+        config.updated_by = request.user
+        config.full_clean()
+        config.save(update_fields=[
+            'documents_gc_dry_run', 'documents_gc_note', 'updated_by', 'updated_at',
+        ])
+        evento = ('ops.documents_gc_disarmed' if config.documents_gc_dry_run
+                  else 'ops.documents_gc_armed')
+        record_audit_event(
+            request.user, None, evento,
+            object_type='installation', object_id=config.id, outcome='success',
+            integrity_metadata={'dry_run': config.documents_gc_dry_run,
+                                'note': config.documents_gc_note},
+        )
+        if config.documents_gc_dry_run:
+            messages.success(
+                request,
+                'Coleta de volta ao ensaio: ela conta e registra, e não apaga nada.',
+            )
+        else:
+            messages.success(
+                request,
+                'Coleta autorizada a apagar. A próxima passagem é domingo, 02h.',
+            )
+        return redirect('superadmin:operations')
+
+
 # -------------------------------------------------------------------- usuários
 
 class UsersView(SuperAdminView):

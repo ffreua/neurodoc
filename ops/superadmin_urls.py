@@ -40,5 +40,14 @@ urlpatterns = [
     ),
     path('contratos/', superadmin.ContractsView.as_view(), name='contracts'),
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
+    path('operacao/', superadmin.OperationsView.as_view(), name='operations'),
+    path(
+        'operacao/ia/',
+        superadmin.AIAllowlistView.as_view(), name='operations-ai-allowlist',
+    ),
+    path(
+        'operacao/coleta/',
+        superadmin.GarbageCollectionView.as_view(), name='operations-gc',
+    ),
     path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
 ]

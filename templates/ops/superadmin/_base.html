@@ -24,9 +24,10 @@ resolvido.{% endcomment %}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
     <span class="fw-semibold">Console da instalação.</span>
     <span class="flex-grow-1">
-        Estas telas atravessam todas as organizações e são <strong>somente de leitura</strong>.
-        Nenhum conteúdo clínico aparece aqui — auditar é saber quem fez o quê, não ler o que
-        foi escrito.
+        Estas telas atravessam todas as organizações. <strong>Nenhum conteúdo clínico
+        aparece aqui</strong> — auditar é saber quem fez o quê, não ler o que foi escrito.
+        O que estas telas gravam é estado comercial e operacional, e cada gravação entra
+        na trilha com autor e data.
     </span>
 </div>
 
@@ -61,6 +62,13 @@ resolvido.{% endcomment %}
     <li class="nav-item">
         <a class="nav-link {% if nav_active == 'users' %}active{% endif %}"
            href="{% url 'superadmin:users' %}">Usuários</a>
+    </li>
+    <li class="nav-item">
+        {% comment %}As chaves que se viram sem republicar o stack. Separada
+        de "Visão geral" porque aquela é leitura e esta escreve — e escreve
+        coisa que mexe em rede e em arquivo.{% endcomment %}
+        <a class="nav-link {% if nav_active == 'operations' %}active{% endif %}"
+           href="{% url 'superadmin:operations' %}">Operação</a>
     </li>
     <li class="nav-item">
         <a class="nav-link {% if nav_active == 'audit' %}active{% endif %}"

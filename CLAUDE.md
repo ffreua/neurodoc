@@ -113,7 +113,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `reporting` | indicadores e **exportação do acervo** (cadastro e prontuário em Markdown e JSON); CSV protegido contra injeção de fórmula, tudo expira em 24 h |
 | `integrations` | captura por scanner, antivírus, CEP, TUSS |
 | `events` | outbox de eventos de domínio com dispatcher idempotente e múltiplos consumidores por tópico |
-| `ops` | deploy, backup/restauração, saúde, console do superadministrador, geração do compose local |
+| `ops` | deploy, backup/restauração, saúde, console do superadministrador (inclusive **Operação**, as chaves que se viram sem republicar), geração do compose local |
 
 ## 5. Planos, limites e preço
 
@@ -347,6 +347,33 @@ entre abrir a sessão e enviar cabe o médico mudar a opção.
 precedência das escolhas, as três portas, e que a tela **cite as duas
 normas com a redação que consta nelas** — inclusive uma asserção contra a
 exceção inventada "emergência comunicada ao CRM", que o art. 37 não tem.
+
+## 7-D. Chaves que se viram sem deploy
+
+**`base.models.InstallationSettings`** — uma linha só, e a tela é
+`/instalacao/operacao/` (superusuário com MFA). Duas chaves moram nela:
+
+| Chave | O que faz |
+| --- | --- |
+| `ai_base_url_allowlist` | Endereços de API que a instalação libera **além** do catálogo, para provedor de IA próprio (Ollama, vLLM). Vazio = só o catálogo |
+| `documents_gc_dry_run` | Ensaio da coleta semanal de arquivos apagados. `True` conta e registra sem apagar |
+
+**O `.env` semeia, o banco decide.** `AI_BASE_URL_ALLOWLIST` e
+`DOCUMENTS_GC_DRY_RUN` valem para criar a linha na primeira vez; depois
+disso quem manda é o console, e mexer no `.env` não muda mais nada. A tela
+diz isso com todas as letras — regra dessas, descoberta por tentativa,
+custa uma madrugada.
+
+**Por que no console e não só no `.env`.** Não é conveniência: é que
+*desligar demorava*. Uma trava que só se solta editando arquivo, regerando o
+runtime e republicando não serve de freio de emergência — e as duas são
+exatamente isso.
+
+**A assimetria é deliberada.** Voltar a coleta ao ensaio é **um clique**:
+parar de apagar é a direção segura, e uma pergunta a mais ali custaria o
+tempo que importa. Autorizar o apagamento exige digitar `APAGAR` e escrever
+o motivo, que vai para a trilha — do outro lado há arquivo clínico que não
+volta. `check_decisoes.py` cobra as duas direções.
 
 ## 8. Deploy
 

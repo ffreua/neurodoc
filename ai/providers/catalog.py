@@ -149,14 +149,26 @@ def hosts_permitidos():
 
     Vazio por padrao, e o padrao e a resposta certa para quase toda
     instalacao: quem usa provedor publico nunca precisa mexer nisto.
-    """
-    from django.conf import settings
 
-    return {
-        h.strip().lower().rstrip('/')
-        for h in getattr(settings, 'AI_BASE_URL_ALLOWLIST', [])
-        if h and h.strip()
-    }
+    Lido do **banco** (`/instalacao/operacao/`), e nao do `.env`: liberar ou
+    retirar um endereco e operacao, e operacao que exige republicar o stack
+    nao se faz com urgencia. O `.env` semeia a primeira linha e depois nao
+    manda mais -- ver `base.models.InstallationSettings`.
+
+    Sem cache de proposito: sao duas chamadas por acao do gestor na tela de
+    IA, e uma lista de permissao servida de cache velho e pior que uma
+    consulta a mais.
+    """
+    from base.models import InstallationSettings
+
+    try:
+        return InstallationSettings.carregar().hosts_de_ia()
+    except Exception:                                       # noqa: BLE001
+        # Banco fora, migration ainda nao aplicada, o que for: cair para
+        # "nenhum host extra" e a direcao segura. Errar aqui para o lado
+        # permissivo abriria a rede interna justamente quando o sistema ja
+        # esta com problema.
+        return set()
 
 
 def assert_endereco_permitido(endpoint):

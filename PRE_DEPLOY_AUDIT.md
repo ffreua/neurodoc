@@ -459,6 +459,7 @@ já montou o Ollama dele.
 | **E ao gravar** — salvar não chama ninguém, mas quem usa o valor depois é o worker, que alcança a internet | `ai/forms.py::clean` |
 | Esquema fechado em `http`/`https` | idem (`file://`, `gopher://` recusados) |
 | **O oráculo fechado**: uma mensagem só para toda falha; o status vai para o log, não para a tela | `_friendly_http_error` |
+| A lista é editável **no console**, sem republicar | `/instalacao/operacao/` |
 
 ### D-02 · Coleta de lixo do disco → **ligada, em ensaio**
 
@@ -477,9 +478,11 @@ entre a janela do backup e o atendimento) e nasce com
 `DOCUMENTS_GC_DRY_RUN=True`: percorre tudo, registra na trilha quantos
 arquivos removeria e quantos a guarda reteve, e não apaga nada.
 
-Virar para `False` é **mudança de `.env`, não de código** — de propósito:
-autorizar apagamento permanente de arquivo clínico é decisão do controlador
-e não cabe num commit.
+Virar o ensaio é feito em **`/instalacao/operacao/`**, no console
+(superusuário com MFA) — não no `.env` e não num commit. E é
+**assimétrico**: voltar ao ensaio é um clique, porque é o freio de
+emergência; autorizar o apagamento exige digitar `APAGAR` e escrever o
+motivo, que vai para a trilha.
 
 **Duas condições antes de virar**, ambas no `DEPLOY_CHECKLIST.md`:
 

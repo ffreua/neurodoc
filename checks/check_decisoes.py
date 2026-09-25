@@ -34,16 +34,40 @@ Tenta quebrar. As perguntas sao:
 - a coleta de lixo esta agendada, e comeca em ensaio?
 - o interruptor do ensaio chega ao worker, ou fica so no settings?
 """
+import atexit
 from unittest.mock import patch
 
 from django.conf import settings
-from django.test.utils import override_settings
 
 falhas = []
 
 from ai.providers.catalog import (
     PROVIDERS, ProviderProbeFailed, assert_endereco_permitido, enderecos_do_catalogo,
 )
+
+from base.models import InstallationSettings
+
+#: A lista mora no BANCO, e nao no `.env` -- ver `/instalacao/operacao/`.
+#: `override_settings` nao a alcanca mais, e um roteiro que continuasse
+#: usando aquilo passaria por acidente: estaria testando uma lista vazia
+#: achando que testava uma cheia.
+_config = InstallationSettings.carregar()
+_lista_original = _config.ai_base_url_allowlist
+
+
+@atexit.register
+def _restaurar_lista():
+    InstallationSettings.objects.filter(pk=_config.pk).update(
+        ai_base_url_allowlist=_lista_original,
+    )
+
+
+def com_lista(*hosts):
+    """Deixa a instalacao com exatamente estes hosts liberados."""
+    InstallationSettings.objects.filter(pk=_config.pk).update(
+        ai_base_url_allowlist=chr(10).join(hosts),
+    )
+
 
 print('=== 1. os provedores do catalogo passam ===')
 for endereco in sorted(enderecos_do_catalogo()):
@@ -67,33 +91,33 @@ RECUSAR = [
     'gopher://interno/',
     'https://provedor-que-ninguem-liberou.invalid/v1',
 ]
-with override_settings(AI_BASE_URL_ALLOWLIST=[]):
-    for endereco in RECUSAR:
-        try:
-            assert_endereco_permitido(endereco)
-            print(f'  {endereco[:46]:46} ACEITOU (nao deveria)')
-            falhas.append(f'{endereco} foi aceito sem estar na lista de permissao')
-        except ProviderProbeFailed:
-            print(f'  {endereco[:46]:46} recusado')
+com_lista()
+for endereco in RECUSAR:
+    try:
+        assert_endereco_permitido(endereco)
+        print(f'  {endereco[:46]:46} ACEITOU (nao deveria)')
+        falhas.append(f'{endereco} foi aceito sem estar na lista de permissao')
+    except ProviderProbeFailed:
+        print(f'  {endereco[:46]:46} recusado')
 
 print('=== 3. a lista da instalacao libera o servidor proprio ===')
-with override_settings(AI_BASE_URL_ALLOWLIST=['ollama.interno', '10.0.0.7:11434']):
-    for endereco, deve_passar in [
-        ('http://ollama.interno:11434/v1', True),
-        ('http://10.0.0.7:11434/v1', True),
-        ('http://outro.interno:11434/v1', False),
-        ('http://169.254.169.254/', False),
-    ]:
-        try:
-            assert_endereco_permitido(endereco)
-            passou = True
-        except ProviderProbeFailed:
-            passou = False
-        print(f'  {endereco[:40]:40} -> {"aceito" if passou else "recusado"}')
-        if passou != deve_passar:
-            falhas.append(
-                f'{endereco}: esperava {"aceito" if deve_passar else "recusado"}'
-            )
+com_lista('ollama.interno', '10.0.0.7:11434')
+for endereco, deve_passar in [
+    ('http://ollama.interno:11434/v1', True),
+    ('http://10.0.0.7:11434/v1', True),
+    ('http://outro.interno:11434/v1', False),
+    ('http://169.254.169.254/', False),
+]:
+    try:
+        assert_endereco_permitido(endereco)
+        passou = True
+    except ProviderProbeFailed:
+        passou = False
+    print(f'  {endereco[:40]:40} -> {"aceito" if passou else "recusado"}')
+    if passou != deve_passar:
+        falhas.append(
+            f'{endereco}: esperava {"aceito" if deve_passar else "recusado"}'
+        )
 
 print('=== 4. nenhuma requisicao sai de endereco nao liberado ===')
 # A pergunta que importa nao e "deu erro?" e sim "chegou a sair pacote?".
@@ -101,35 +125,35 @@ print('=== 4. nenhuma requisicao sai de endereco nao liberado ===')
 # tivesse saido e falhado depois.
 from ai.providers import catalog
 
-with override_settings(AI_BASE_URL_ALLOWLIST=[]):
-    with patch.object(catalog.httpx, 'Client') as cliente_falso:
-        for funcao, args in [
-            (catalog.list_models, ('custom', 'chave-de-mentira', 'http://169.254.169.254/')),
-            (catalog.probe_model, ('custom', 'chave-de-mentira', 'modelo', 'http://db:5432')),
-        ]:
-            try:
-                funcao(*args)
-            except ProviderProbeFailed:
-                pass
-        saiu = cliente_falso.called
-        print(f'  httpx.Client foi instanciado: {saiu} (tem de ser False)')
-        if saiu:
-            falhas.append('saiu requisicao para endereco nao liberado')
+com_lista()
+with patch.object(catalog.httpx, 'Client') as cliente_falso:
+    for funcao, args in [
+        (catalog.list_models, ('custom', 'chave-de-mentira', 'http://169.254.169.254/')),
+        (catalog.probe_model, ('custom', 'chave-de-mentira', 'modelo', 'http://db:5432')),
+    ]:
+        try:
+            funcao(*args)
+        except ProviderProbeFailed:
+            pass
+    saiu = cliente_falso.called
+    print(f'  httpx.Client foi instanciado: {saiu} (tem de ser False)')
+    if saiu:
+        falhas.append('saiu requisicao para endereco nao liberado')
 
 print('=== 5. a recusa vale tambem ao SALVAR ===')
 # Salvar nao chama o provedor -- mas grava o endereco, e quem o usa depois e
 # o worker, que alcanca a internet.
 from ai.forms import AIProviderSettingsForm
 
-with override_settings(AI_BASE_URL_ALLOWLIST=[]):
-    formulario = AIProviderSettingsForm(data={
-        'provider': 'custom', 'base_url': 'http://169.254.169.254/', 'model': '',
-    })
-    formulario.is_valid()
-    recusou = 'base_url' in formulario.errors
-    print(f'  salvar endereco de metadados -> {"recusado" if recusou else "ACEITOU"}')
-    if not recusou:
-        falhas.append('o formulario gravaria um endereco que a lista nao libera')
+com_lista()
+formulario = AIProviderSettingsForm(data={
+    'provider': 'custom', 'base_url': 'http://169.254.169.254/', 'model': '',
+})
+formulario.is_valid()
+recusou = 'base_url' in formulario.errors
+print(f'  salvar endereco de metadados -> {"recusado" if recusou else "ACEITOU"}')
+if not recusou:
+    falhas.append('o formulario gravaria um endereco que a lista nao libera')
 
 print('=== 6. a mensagem de erro nao distingue status ===')
 # Uma mensagem por faixa de status da um oraculo de varredura: aponta-se o
@@ -159,8 +183,9 @@ print(f'  agendada: {entrada is not None}')
 if entrada is None:
     falhas.append('a coleta de lixo do disco continua sem agendamento')
 
+# O padrao vem do `.env` e semeia a linha; quem decide depois e o banco.
 ensaio = getattr(settings, 'DOCUMENTS_GC_DRY_RUN', None)
-print(f'  DOCUMENTS_GC_DRY_RUN = {ensaio!r} (o padrao tem de ser True)')
+print(f'  DOCUMENTS_GC_DRY_RUN (semente do .env) = {ensaio!r}')
 if ensaio is not True:
     falhas.append(
         'o ensaio da coleta nao esta ligado por padrao — ligar o apagamento '
@@ -191,6 +216,120 @@ else:
             falhas.append(f'a tarefa nao informa {chave} — o ensaio serve para ler esses numeros')
     if resultado.get('dry_run') is not True:
         falhas.append('a tarefa rodou FORA do ensaio com o padrao do settings')
+
+print('=== 10. a tela de operacao existe e exige MFA ===')
+# As duas chaves acima se viram por aqui, sem republicar o stack. O motivo
+# nao e conveniencia: e que **desligar demorava um ciclo de deploy**, e uma
+# trava que so se solta republicando nao serve de freio de emergencia.
+from django.conf import settings as dj_settings
+from django.test import Client
+from django_otp import DEVICE_ID_SESSION_KEY
+from django_otp.plugins.otp_totp.models import TOTPDevice
+
+from accounts.models import User
+from audit.models import AuditEvent
+from base.models import InstallationSettings
+
+dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
+
+superadmin = User.objects.filter(is_superuser=True, is_active=True).first()
+if superadmin is None:
+    print('  (sem superusuario nesta instalacao; secoes 10-14 puladas)')
+else:
+    config = InstallationSettings.carregar()
+    _antes = (config.ai_base_url_allowlist, config.documents_gc_dry_run, config.documents_gc_note)
+
+    @atexit.register
+    def _restaurar_operacao():
+        InstallationSettings.objects.filter(pk=config.pk).update(
+            ai_base_url_allowlist=_antes[0],
+            documents_gc_dry_run=_antes[1],
+            documents_gc_note=_antes[2],
+        )
+        TOTPDevice.objects.filter(user=superadmin, name='roteiro-decisoes').delete()
+
+    cliente = Client(SERVER_NAME='localhost')
+    cliente.force_login(superadmin)
+    sem_mfa = cliente.get('/instalacao/operacao/').status_code
+    print(f'  GET sem MFA -> {sem_mfa} (404 esperado)')
+    if sem_mfa != 404:
+        falhas.append(
+            f'a tela de operacao abriu sem MFA ({sem_mfa}) — ela liga e desliga '
+            f'apagamento de arquivo clinico'
+        )
+
+    aparelho, _ = TOTPDevice.objects.get_or_create(
+        user=superadmin, name='roteiro-decisoes', defaults={'confirmed': True},
+    )
+    if not aparelho.confirmed:
+        aparelho.confirmed = True
+        aparelho.save(update_fields=['confirmed'])
+    sessao = cliente.session
+    sessao[DEVICE_ID_SESSION_KEY] = aparelho.persistent_id
+    sessao.save()
+    com_mfa = cliente.get('/instalacao/operacao/').status_code
+    print(f'  GET com MFA -> {com_mfa}')
+    if com_mfa != 200:
+        falhas.append(f'a tela de operacao nao abriu para superusuario com MFA ({com_mfa})')
+
+    print('=== 11. o banco manda, e vale sem republicar ===')
+    # Se o `.env` continuasse mandando, virar a chave na tela nao faria nada
+    # -- e o operador acharia que fez.
+    cliente.post('/instalacao/operacao/ia/', {'allowlist': 'ollama.doroteiro\n10.9.9.9:11434'})
+    try:
+        assert_endereco_permitido('http://ollama.doroteiro:11434/v1')
+        valeu = True
+    except ProviderProbeFailed:
+        valeu = False
+    print(f'  endereco gravado pela tela vale na hora: {valeu}')
+    if not valeu:
+        falhas.append(
+            'o que se grava na tela nao vale: a validacao continua lendo o `.env`, '
+            'e virar a lista no console nao teria efeito'
+        )
+
+    print('=== 12. ligar o apagamento exige confirmacao E motivo ===')
+    for rotulo, dados in [
+        ('so o motivo', {'acao': 'apagar', 'motivo': 'porque sim'}),
+        ('so a confirmacao', {'acao': 'apagar', 'confirmacao': 'APAGAR'}),
+        ('confirmacao errada', {'acao': 'apagar', 'confirmacao': 'apagar', 'motivo': 'x'}),
+    ]:
+        cliente.post('/instalacao/operacao/coleta/', dados)
+        config.refresh_from_db()
+        print(f'  {rotulo:20} -> ensaio continua ligado: {config.documents_gc_dry_run}')
+        if not config.documents_gc_dry_run:
+            falhas.append(f'o apagamento foi ligado com "{rotulo}"')
+            config.documents_gc_dry_run = True
+            config.save(update_fields=['documents_gc_dry_run'])
+
+    cliente.post('/instalacao/operacao/coleta/', {
+        'acao': 'apagar', 'confirmacao': 'APAGAR', 'motivo': 'roteiro de verificacao',
+    })
+    config.refresh_from_db()
+    print(f'  confirmacao + motivo -> apagando: {not config.documents_gc_dry_run}')
+    if config.documents_gc_dry_run:
+        falhas.append('nao foi possivel autorizar o apagamento nem com confirmacao e motivo')
+
+    print('=== 13. voltar ao ensaio e UM clique ===')
+    # Assimetria de proposito: parar de apagar e a direcao segura, e uma
+    # pergunta a mais aqui custaria justamente o tempo que importa.
+    cliente.post('/instalacao/operacao/coleta/', {'acao': 'ensaio'})
+    config.refresh_from_db()
+    print(f'  sem confirmacao, sem motivo -> de volta ao ensaio: {config.documents_gc_dry_run}')
+    if not config.documents_gc_dry_run:
+        falhas.append('o freio de emergencia nao funcionou com um clique')
+
+    print('=== 14. as tres acoes entram na trilha ===')
+    registradas = set(
+        AuditEvent.objects.filter(action__startswith='ops.')
+        .values_list('action', flat=True)[:20]
+    )
+    for acao in ('ops.ai_allowlist_changed', 'ops.documents_gc_armed', 'ops.documents_gc_disarmed'):
+        print(f'  {acao:32} na trilha: {acao in registradas}')
+        if acao not in registradas:
+            falhas.append(f'{acao} nao foi registrada na trilha')
+
+    _restaurar_operacao()
 
 print('---')
 if falhas:

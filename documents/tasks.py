@@ -94,11 +94,14 @@ def garbage_collect_task():
     Falha em silencio quando ha backup em andamento, como a compactacao, e
     pelo mesmo motivo: mexer nos arquivos durante a copia custa o backup.
     """
-    from django.conf import settings
+    from base.models import InstallationSettings
 
     from .retention import BackupInProgress, garbage_collect
 
-    ensaio = getattr(settings, 'DOCUMENTS_GC_DRY_RUN', True)
+    # Lido do banco, e nao do `.env`: virar o ensaio de volta e o freio de
+    # emergencia desta tarefa, e freio que exige republicar o stack chega
+    # tarde. Ver `/instalacao/operacao/`.
+    ensaio = InstallationSettings.carregar().documents_gc_dry_run
     try:
         removidos, retidos = garbage_collect(dry_run=ensaio)
     except BackupInProgress as exc:
