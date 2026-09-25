@@ -13,7 +13,11 @@ em produção: o nome está certo hoje, o provedor o aposenta, e o erro só
 aparece quando alguém pede um resumo no meio de um atendimento.
 """
 
+import logging
+
 import httpx
+
+logger = logging.getLogger(__name__)
 
 #: Curto porque isto roda dentro de uma requisição de tela, com o gestor
 #: esperando. Provedor lento é resultado — não é motivo para segurar a
@@ -131,28 +135,101 @@ def resolve_base_url(provider, override=''):
     return PROVIDERS.get(provider, {}).get('base_url', '')
 
 
+def enderecos_do_catalogo():
+    """Os enderecos que o proprio catalogo traz. Sempre permitidos."""
+    return {
+        (config.get('base_url') or '').rstrip('/')
+        for config in PROVIDERS.values()
+        if config.get('base_url')
+    }
+
+
+def hosts_permitidos():
+    """Hosts que a INSTALACAO liberou alem do catalogo.
+
+    Vazio por padrao, e o padrao e a resposta certa para quase toda
+    instalacao: quem usa provedor publico nunca precisa mexer nisto.
+    """
+    from django.conf import settings
+
+    return {
+        h.strip().lower().rstrip('/')
+        for h in getattr(settings, 'AI_BASE_URL_ALLOWLIST', [])
+        if h and h.strip()
+    }
+
+
+def assert_endereco_permitido(endpoint):
+    """Recusa endereco que a instalacao nao liberou -- ANTES de qualquer HTTP.
+
+    O campo "endereco da API" existe para servidor proprio (Ollama, vLLM), e
+    isso e um caso de uso real do produto. Mas ele chegava do POST sem
+    validacao nenhuma e era entregue ao `httpx` de dentro do processo `app`
+    -- que em producao **nao alcanca a internet**. O que ele alcanca e a rede
+    interna: `db`, `rabbitmq`, `redis`, `traefik` e o endereco de metadados
+    do provedor de nuvem. Um gestor de clinica (cliente, nao operador)
+    apontava o campo para `http://169.254.169.254/` ou `http://db:5432` e o
+    servidor ia la por ele.
+
+    A escolha aqui e **lista de permissao**, e nao "bloquear faixa privada".
+    Bloquear faixa privada quebraria o Ollama, que e justamente um endereco
+    privado, e ainda seria contornavel por um hostname publico que resolve
+    para IP interno -- a menos que se resolvesse e fixasse o IP, o que
+    complica sem fechar. Lista de permissao nao tem esses dois problemas, e
+    poe a decisao em quem opera o servidor: e a rede dele que sera alcancada.
+
+    Decidido antes de qualquer cliente configurar provedor proprio, de
+    proposito: restringir hoje nao quebra ninguem; restringir depois quebra
+    quem ja montou o Ollama dele.
+    """
+    from urllib.parse import urlsplit
+
+    endpoint = (endpoint or '').strip().rstrip('/')
+    if not endpoint:
+        raise ProviderProbeFailed('Informe o endereco da API deste provedor.')
+    if endpoint in enderecos_do_catalogo():
+        return endpoint
+
+    partes = urlsplit(endpoint)
+    # Esquema fechado: `file://`, `gopher://` e afins nao tem o que fazer aqui.
+    if partes.scheme not in ('http', 'https') or not partes.hostname:
+        raise ProviderProbeFailed(
+            'O endereco da API precisa comecar com http:// ou https://.',
+        )
+    permitidos = hosts_permitidos()
+    if partes.hostname.lower() in permitidos or partes.netloc.lower() in permitidos:
+        return endpoint
+    raise ProviderProbeFailed(
+        'Este endereco nao esta liberado nesta instalacao. Escolha um provedor '
+        'da lista ou peca a quem administra o servidor para liberar o endereco '
+        'do seu provedor proprio.',
+    )
+
+
 def provider_kind(provider):
     return PROVIDERS.get(provider, {}).get('kind', OPENAI_COMPATIBLE)
 
 
 def _friendly_http_error(exc):
-    """Transforma a falha HTTP em algo que se leia na tela.
+    """Uma mensagem so, para toda falha do provedor.
 
-    O corpo da resposta não entra: provedor que devolve eco da requisição
-    devolveria a chave junto, e ela iria parar numa mensagem de tela e num
-    log.
+    Antes havia uma por faixa de status -- 401/403, 404, 429, 5xx e outra
+    qualquer. Cada uma virava um `messages.error` na tela, e o conjunto dava
+    um oraculo limpo de varredura: apontar o "endereco da API" para
+    `http://db:5432` e ler pela mensagem se o host existe, se a porta
+    responde e se ela pede credencial. A lista de permissao acima ja fecha a
+    porta; isto fecha a fresta, para o caso de um endereco liberado servir de
+    trampolim.
+
+    O status vai para o log, que quem opera o servidor le -- nao para a tela,
+    que o cliente le. O corpo da resposta continua fora dos dois: provedor
+    que ecoa a requisicao devolveria a chave junto.
     """
-    status = exc.response.status_code
-    if status in (401, 403):
-        return 'A chave não foi aceita pelo provedor (401/403). Confira se ela é válida e tem permissão.'
-    if status == 404:
-        return ('O endereço da API não respondeu como esperado (404). '
-                'Confira o endereço, principalmente em provedor próprio.')
-    if status == 429:
-        return 'O provedor recusou por excesso de requisições (429). Tente de novo em instantes.'
-    if status >= 500:
-        return f'O provedor respondeu com erro interno ({status}).'
-    return f'O provedor recusou a consulta (HTTP {status}).'
+    logger.info('provedor respondeu HTTP %s', exc.response.status_code)
+    return (
+        'Nao foi possivel falar com o provedor. Confira a chave e o endereco '
+        'da API; se o provedor for proprio, confira se ele esta no ar.'
+    )
 
 
 def _request(method, url, headers):
@@ -192,9 +269,7 @@ def list_models(provider, api_key, base_url=''):
     """
     if not api_key:
         raise ProviderProbeFailed('Informe a chave da API antes de consultar os modelos.')
-    endpoint = resolve_base_url(provider, base_url)
-    if not endpoint:
-        raise ProviderProbeFailed('Informe o endereço da API deste provedor.')
+    endpoint = assert_endereco_permitido(resolve_base_url(provider, base_url))
 
     if provider_kind(provider) == ANTHROPIC_NATIVE:
         payload = _request('GET', f'{endpoint}/models', {
@@ -237,7 +312,7 @@ def probe_model(provider, api_key, model, base_url=''):
     """
     if not model:
         raise ProviderProbeFailed('Escolha um modelo antes de testar.')
-    endpoint = resolve_base_url(provider, base_url)
+    endpoint = assert_endereco_permitido(resolve_base_url(provider, base_url))
 
     try:
         with httpx.Client(timeout=REQUEST_TIMEOUT_SECONDS) as client:

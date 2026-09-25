@@ -41,7 +41,8 @@ COMMON_KEYS = [
 #: toda instalacao existente na primeira publicacao depois da
 #: atualizacao, por uma configuracao que tem padrao e que quase ninguem
 #: precisa mudar. Estas entram so quando existem.
-OPTIONAL_KEYS = ['TRUSTED_PROXIES']
+OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
+                 'DOCUMENTS_GC_DRY_RUN']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 

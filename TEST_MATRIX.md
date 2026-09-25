@@ -1,7 +1,7 @@
 # Matriz de testes — NeuroDoc 1.0
 
 **Resultado apurado em 2026-09-25.** Não existe suíte automatizada, por
-decisão registrada (DEC-20); o substituto são os **53 roteiros de
+decisão registrada (DEC-20); o substituto são os **54 roteiros de
 verificação** em `checks/`, rodados por `manage.py rodar_roteiros`.
 
 Legenda de cobertura: **auto** = roteiro na bateria · **manual** = exercitado
@@ -41,6 +41,9 @@ nesta auditoria · **nenhuma** = sem cobertura.
 | Exportação | MD e JSON, capacidade, expiração 24 h | segurança | ✅ | auto | `check_exportacao` |
 | **Exportação** | **Baixar o acervo clínico sem `READ_CLINICAL`** | **autorização** | ✅ | **auto** | `check_exportacao` — **defeito encontrado e corrigido**: a capacidade valia só para pedir |
 | IA | Gate por plano nas duas camadas | autorização | ✅ | auto | `check_ia_plano` (8 seções) |
+| **IA** | **`base_url` apontado para a rede interna do servidor** | **SSRF** | ✅ | **auto** | `check_decisoes` — lista de permissão; provado que **nenhum pacote sai** |
+| **IA** | **Mensagem de erro distinguindo 401/404/429** | **oráculo** | ✅ | **auto** | `check_decisoes` §6 — uma mensagem só |
+| **Arquivos** | **Coleta de lixo do disco agendada** | **operação** | ✅ | **auto** | `check_decisoes` §7-9 — semanal, em ensaio |
 | **IA** | **Nome de paciente com aspa na lista do chat** | **XSS** | ✅ | **manual** | **defeito encontrado e corrigido**, provado em Chromium |
 | Chat da equipe | Conversa por par, fronteira entre clínicas | isolamento | ✅ | auto | `check_mensagens` |
 | Códigos | Busca CID-10 e TUSS | integração | ✅ | auto | `check_codigos` |

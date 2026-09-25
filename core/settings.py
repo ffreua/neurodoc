@@ -162,7 +162,25 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'reporting.tasks.expire_exports',
         'schedule': 300,
     },
+    # Coleta do arquivo de anexo ja apagado: domingo, 02h.
+    #
+    # Semanal e nao diaria porque ela segura a trava do backup enquanto roda,
+    # e a janela do backup e noturna; domingo 02h e o vale entre as duas.
+    # Comeca em ENSAIO (`DOCUMENTS_GC_DRY_RUN=True`): conta e registra, nao
+    # apaga. Ver `documents/tasks.py::garbage_collect_task`.
+    'documents-garbage-collect': {
+        'task': 'documents.tasks.garbage_collect',
+        'schedule': crontab(hour=2, minute=0, day_of_week=0),
+    },
 }
+
+# Ensaio da coleta de lixo. `True` conta e registra sem apagar.
+#
+# Vira `False` por `.env`, e nao por commit: autorizar apagamento permanente
+# de arquivo clinico e decisao do controlador. Ligue **depois** de um mes de
+# ensaio e **depois** de a restauracao do backup ter sido testada num host
+# separado -- apagar so e seguro quando se provou que se sabe restaurar.
+DOCUMENTS_GC_DRY_RUN = env.bool('DOCUMENTS_GC_DRY_RUN', default=True)
 CACHES = {'default': {
     'BACKEND': 'django.core.cache.backends.redis.RedisCache',
     'LOCATION': f'{REDIS_BASE}/1', 'TIMEOUT': 900,
@@ -320,6 +338,18 @@ AI_MODEL = env('AI_MODEL', default='nvidia/llama-3.3-nemotron-super-49b-v1.5')
 # nome dele e apontar `AI_PROVIDER`. A chave da **clínica** não passa por
 # aqui: fica cifrada no banco (`ai.models.AIProviderSettings`).
 AI_API_KEY = secret(f'{AI_PROVIDER.upper()}_API_KEY', required=False)
+# Enderecos de API que esta instalacao libera **alem** dos provedores do
+# catalogo. Vazio -- o padrao -- significa "so os do catalogo", e e a
+# resposta certa para quem usa provedor publico.
+#
+# Existe porque o campo "endereco da API" da tela da clinica aceita servidor
+# proprio (Ollama, vLLM), e o processo `app` nao alcanca a internet: o que
+# ele alcanca e a rede interna. Sem lista, um gestor de clinica apontava o
+# campo para `http://169.254.169.254/` e o servidor ia la por ele.
+#
+# Quem libera e quem opera o servidor, e nao o cliente -- e a rede dele que
+# sera alcancada. Um host por entrada: `AI_BASE_URL_ALLOWLIST=ollama.interno,10.0.0.7:11434`
+AI_BASE_URL_ALLOWLIST = env.list('AI_BASE_URL_ALLOWLIST', default=[])
 NEURODOC_DEMO_ALLOWED = env.bool('NEURODOC_DEMO_ALLOWED', default=False)
 NEURODOC_RECOVERY_MODE = env.bool('NEURODOC_RECOVERY_MODE', default=False)
 NEURODOC_DOCS_ENABLED = env.bool('NEURODOC_DOCS_ENABLED', default=True)

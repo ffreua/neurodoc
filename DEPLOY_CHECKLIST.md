@@ -11,7 +11,7 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 ## Antes de sair da máquina de desenvolvimento
 
 ### Código e verificação
-- [x] Os 53 roteiros de `checks/` passam (`manage.py rodar_roteiros`)
+- [x] Os 54 roteiros de `checks/` passam (`manage.py rodar_roteiros`)
 - [x] 479 arquivos `.py` sem erro de sintaxe
 - [x] `makemigrations --check --dry-run` limpo
 - [x] `manage.py check --deploy` — só os 2 avisos deliberados de HSTS
@@ -30,13 +30,16 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 - [x] As duas entradas de dinheiro validadas (`150,00` não derruba mais a tela)
 - [x] Download do acervo clínico cobra a capacidade do relatório, não a da tela
 - [x] Data do sistema lida no fuso da clínica, não em UTC
-- [ ] **Decidir D-01** (SSRF do `base_url` da IA) — ver auditoria §9
+- [x] **D-01 decidido e implementado**: endereço da IA por lista de permissão (`AI_BASE_URL_ALLOWLIST`, vazia por padrão)
+- [ ] Se alguma clínica for usar servidor próprio (Ollama/vLLM), liberar o host em `AI_BASE_URL_ALLOWLIST`
 - [ ] Avaliar subir `cryptography` para 49.0.0 (exercitando a assinatura)
 
 ### Dados e privacidade
 - [x] Exportação do acervo com permissão 0600 e expiração de 24 h
 - [x] Trilha de auditoria imutável por gatilho
-- [ ] **Decidir D-02** (agendar a coleta de lixo do disco) — ver auditoria §9
+- [x] **D-02 decidido e implementado**: coleta semanal agendada, começando em ensaio (`DOCUMENTS_GC_DRY_RUN=True`)
+- [ ] Após **um mês** de ensaio, ler na trilha quantos arquivos seriam removidos
+- [ ] Só então virar `DOCUMENTS_GC_DRY_RUN=False` — e **só depois** de a restauração ter sido testada num host separado
 
 ## Na VPS
 
@@ -48,7 +51,7 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 - [ ] Firewall: 80 e 443 abertas; 22 restrita
 
 ### Configuração
-- [ ] `.env` preenchido a partir de `.env.example` (42 variáveis)
+- [ ] `.env` preenchido a partir de `.env.example` (44 variáveis)
 - [ ] `PUBLIC_BASE_URL=https://neurodoc.app.br` (o preflight recusa outro valor)
 - [ ] `ALLOWED_HOSTS` e `CSRF_TRUSTED_ORIGINS` com o domínio real
 - [ ] `DEBUG=False` (o preflight recusa `True`)
@@ -95,7 +98,7 @@ Detalhe de cada item: `PRE_DEPLOY_AUDIT.md`. Passo a passo: `DEPLOY.md` e
 ### Operação
 - [ ] `testar_email` com SMTP real
 - [ ] Celery: `dispatch_outbox` rodando (a cada minuto)
-- [ ] `celery_beat` com as 6 tarefas agendadas
+- [ ] `celery_beat` com as 7 tarefas agendadas (a coleta de lixo entrou)
 - [ ] Primeiro backup executado **e restauração testada num host separado**
 - [ ] Chave `age` de recuperação em posse de quem restaura, fora da VPS
 - [ ] `BACKUP_DIR` com destino **externo** à VPS (P-10)

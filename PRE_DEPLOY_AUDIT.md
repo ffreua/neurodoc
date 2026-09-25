@@ -428,46 +428,71 @@ de dado, não de correção:
 | B-03 | `documents/issuance.py:141` | O número do documento vem de `COUNT(*) + 1` e **não há `UNIQUE` em `document_number`**. Não é explorável hoje — `discard_document` recusa apagar documento emitido, e rascunho não tem número —, mas a constraint é seguro barato |
 | B-04 | `templates/registration/password_reset_email.html` | Morto: o projeto sobrescreve `email_template_name`. **Deixado no lugar de propósito** — é o caminho padrão do Django, e removê-lo transforma um futuro `TemplateDoesNotExist` numa surpresa |
 
-## 9. `DECISÃO DE NEGÓCIO NECESSÁRIA`
+## 9. As duas decisões de negócio — **decididas e implementadas**
 
-Dois achados confirmados cuja correção altera regra de negócio. **Não os
-corrigi** — a escolha é sua.
+Duas questões desta auditoria dependiam de escolha do controlador. Foram
+decididas em 2026-09-25 e estão em código.
 
-### D-01 · SSRF pelo `base_url` do provedor de IA
+### D-01 · SSRF pelo `base_url` do provedor de IA → **lista de permissão**
 
-O produto **documenta e oferece** servidor próprio (Ollama, vLLM) via
-`base_url` — que, por definição, é um endereço de rede interna. Bloquear
-faixas privadas fecharia o SSRF **e quebraria o caso de uso documentado**.
+**O que mudou a urgência.** `AI_ENABLED` aparece em `ai/admin_views.py`
+apenas como flag de exibição do template. Ele **não** gateia `list_models`
+nem `probe_model`, que chamam `httpx` direto. O SSRF estava vivo no
+lançamento, mesmo com a IA desligada: qualquer dono ou gestor de clínica
+Completo apertava "Carregar modelos" e o servidor ia ao endereço informado.
 
-As opções, com o que cada uma custa:
+**A escolha, e por que não a outra.** Bloquear faixa privada fecharia o
+buraco e quebraria o Ollama/vLLM — que é justamente um endereço privado — e
+ainda seria contornável por hostname público resolvendo para IP interno.
+Lista de permissão (`AI_BASE_URL_ALLOWLIST`, vazia por padrão) não tem
+nenhum dos dois problemas, e põe a decisão em quem opera o servidor: é a
+rede dele que será alcançada.
 
-| Opção | Fecha o SSRF | Mantém Ollama/vLLM |
-| --- | --- | --- |
-| Exigir `https://` e recusar faixa privada | sim | **não** |
-| Lista explícita de hosts permitidos por instalação | sim | sim, com configuração |
-| Manter como está | não | sim |
+Decidido **antes** de qualquer cliente configurar provedor próprio, de
+propósito: restringir hoje não quebra ninguém; restringir depois quebra quem
+já montou o Ollama dele.
 
-A mensagem de erro distinta por status (401/404/timeout) também dá um oráculo
-limpo de varredura de porta interna. Mitigação parcial já em vigor: só
-`MANAGE_INTEGRATIONS` alcança a tela, e o gate por plano (commit `00e094e`)
-recusa o POST em planos sem IA.
+| O quê | Onde |
+| --- | --- |
+| Validação antes de qualquer HTTP | `ai/providers/catalog.py::assert_endereco_permitido` |
+| Nas duas portas que consultam o provedor | `list_models`, `probe_model` |
+| **E ao gravar** — salvar não chama ninguém, mas quem usa o valor depois é o worker, que alcança a internet | `ai/forms.py::clean` |
+| Esquema fechado em `http`/`https` | idem (`file://`, `gopher://` recusados) |
+| **O oráculo fechado**: uma mensagem só para toda falha; o status vai para o log, não para a tela | `_friendly_http_error` |
 
-### D-02 · Coleta de lixo do disco nunca executada
+### D-02 · Coleta de lixo do disco → **ligada, em ensaio**
 
-`garbage_collect()` é cuidadoso: idade mínima, respeita a guarda de 20 anos,
-nunca toca arquivo ainda referenciado, segura a trava de backup e audita a
-passagem. Ele foi **escrito para rodar** — e não roda: `beat_schedule` tem seis
-tarefas e nenhuma é essa.
+`garbage_collect` existia pronta — idade mínima de 30 dias, guarda de 20
+anos respeitada, nunca toca arquivo ainda referenciado, segura a trava do
+backup, audita a passagem — e **nunca era chamada** em produção. O arquivo de
+um anexo que o usuário mandou remover ficava legível em disco para sempre.
 
-**Consequência hoje:** o arquivo de um anexo apagado pelo usuário permanece
-legível em disco, para sempre, e o disco só cresce.
+**A assimetria decidiu.** Não ligar é problema de privacidade, não de disco:
+o paciente pede exclusão, a tela diz que apagou, e o arquivo continua lá — e
+isso não é recuperável no sentido da LGPD. Ligar arrisca um defeito na
+retenção apagar algo sob guarda — e **isso é recuperável do backup cifrado**.
 
-**Por que não liguei sozinho:** `dry_run=True` é o padrão da função, e
-agendá-la com `dry_run=False` é autorizar apagamento permanente de arquivo
-clínico. Isso é decisão do controlador, não do auditor. A mudança é de uma
-entrada em `CELERY_BEAT_SCHEDULE` — me diga a periodicidade e eu faço.
+**Ligada em dois passos, não um.** A tarefa é semanal (domingo, 02h — o vale
+entre a janela do backup e o atendimento) e nasce com
+`DOCUMENTS_GC_DRY_RUN=True`: percorre tudo, registra na trilha quantos
+arquivos removeria e quantos a guarda reteve, e não apaga nada.
 
----
+Virar para `False` é **mudança de `.env`, não de código** — de propósito:
+autorizar apagamento permanente de arquivo clínico é decisão do controlador
+e não cabe num commit.
+
+**Duas condições antes de virar**, ambas no `DEPLOY_CHECKLIST.md`:
+
+1. um mês de ensaio, lendo "teria removido N, reteve M" — esta função nunca
+   executou em produção, e sua lógica de retenção foi verificada contra o
+   banco de demonstração, não contra a mistura real de vinte anos;
+2. a restauração do backup testada num host separado. Apagar arquivo só é
+   seguro quando se provou que se sabe trazê-lo de volta.
+
+**Teste das duas:** `checks/check_decisoes.py` (novo, 9 seções). A seção 4 é
+a que importa: ela não pergunta "deu erro?" e sim **"chegou a sair pacote?"**
+— com `httpx.Client` sob espião, e a asserção é que ele nunca foi
+instanciado.
 
 ## 10. Segurança
 
@@ -480,7 +505,7 @@ entrada em `CELERY_BEAT_SCHEDULE` — me diga a periodicidade e eu faço.
 | Command injection | Nenhum `shell=True`, nenhum `os.system` |
 | Path traversal | `documents/validators.py::sanitize_filename` usa lista branca; `ops/staticfiles.py` e `ops/docs.py` confirmam `is_relative_to` após `resolve()` |
 | Injeção de fórmula em CSV | `reporting/exporters.py::sanitize_cell` cobre `= + - @ \t \r` |
-| SSRF | **1 confirmado** (D-01) |
+| SSRF | 1 confirmado e **fechado** por lista de permissão (D-01), com prova de que nenhum pacote sai |
 | CSRF | Django padrão; a única rota sem CSRF é o agente de captura, com credencial própria |
 | IDOR / escopo por inquilino | O auditor leu 68 arquivos e **não achou um único `get_object_or_404(Model, id=...)` sem filtro de inquilino** nas views de `/app/`, nem `ModelForm` com `fields='__all__'` |
 | MFA | Exigida em `/admin/`, `/instalacao/` e nos painéis técnicos (`is_superuser` **e** `is_verified()`) — confirmado lendo as três guardas |
@@ -550,6 +575,7 @@ falha** (1.157 s).
 | `checks/check_alerta_erro.py` | Segredo e PII no e-mail de alerta; inclui um caso que cria um setting novo com credencial para provar que a filtragem decide pelo **valor**, não por lista de nomes | 6 |
 | `checks/check_dinheiro.py` | As duas entradas de dinheiro: vírgula decimal e separador de milhar aceitos; vazio, ausente, `NaN`, infinito, 14 dígitos, negativo e zero recusados **com mensagem**; limites do formulário conferidos contra a coluna do banco; e a data do produto lida no fuso da clínica | 6 |
 | `checks/check_exportacao.py` (seção nova) | "Pode pedir" e "pode baixar" têm de concordar para todos os vínculos da clínica | 1 |
+| `checks/check_decisoes.py` | As duas decisões: endereço da IA por lista de permissão (com `httpx` sob espião, provando que **nenhum pacote sai**), mensagem de erro sem oráculo de status, e a coleta de lixo agendada em ensaio com o interruptor chegando ao worker | 9 |
 
 ## 16. Resultado dos testes
 
@@ -557,7 +583,8 @@ falha** (1.157 s).
 | --- | --- | --- |
 | Linha de base (antes de qualquer alteração) | 50 | **nenhuma falha** (1.157 s) |
 | Após a 1ª rodada de correções | 52 | **nenhuma falha** (342 s) |
-| Final (8 correções, 3 roteiros novos) | **53** | **nenhuma falha** (350 s) |
+| Após a 2ª rodada de correções | 53 | **nenhuma falha** (350 s) |
+| Final (D-01 e D-02 implementadas) | **54** | **nenhuma falha** (296 s) |
 
 Nenhuma correção desta auditoria quebrou comportamento existente. Os dois
 roteiros novos falham de verdade contra o código anterior — foram escritos
@@ -734,11 +761,14 @@ backup). Ver `docs/decisions.md`.
    defeito.
 2. **Duas vulnerabilidades conhecidas em dependências** (§13), deliberadamente
    não corrigidas na véspera.
-3. **Sem coleta de lixo em produção** (D-02) — o disco só cresce, e arquivo
-   apagado pelo usuário permanece legível.
-4. **SSRF em aberto** (D-01), mitigado por capacidade e por plano.
-5. **Nenhuma medição de desempenho** sob carga.
-6. **Primeiro deploy**: nada aqui foi exercitado numa VPS real.
+3. **A coleta de lixo está em ensaio**, não apagando (D-02). Enquanto não
+   for virada, arquivo apagado pelo usuário continua legível em disco e o
+   disco só cresce — o ensaio é um degrau, não o destino.
+4. **Nenhuma medição de desempenho** sob carga.
+5. **Primeiro deploy**: nada aqui foi exercitado numa VPS real.
+6. **A lista de permissão da IA é vazia por padrão**: uma clínica que
+   contratar servidor próprio depende de quem opera o servidor liberar o
+   endereço. É a troca deliberada de D-01 — conveniência por perímetro.
 
 ## 27. Checklist final
 
@@ -750,7 +780,7 @@ roteiro de auditoria exige:
 | 1 | Todo o repositório foi analisado? | Sim. Determinístico: 826 arquivos. Assistido: **19 de 19 dimensões** |
 | 2 | Os fluxos principais foram identificados? | Sim — §4 |
 | 3 | Os fluxos principais têm testes? | Sim — 52 roteiros; lacunas em `TEST_MATRIX.md` |
-| 4 | A suíte passa? | **Sim — 53/53** |
+| 4 | A suíte passa? | **Sim — 54/54** |
 | 5 | O build funciona? | Sim |
 | 6 | Dependências auditadas? | Sim — 2 pacotes com aviso (§13) |
 | 7 | Segurança revisada? | Sim — §10 |
@@ -781,5 +811,7 @@ dimensões rodaram, mas dos 116 achados automáticos verifiquei 13 — os outros
 abrir o código (§25.2b), o que dá a medida de quanto uma varredura assistida
 precisa ser conferida antes de virar decisão.
 
-**Duas decisões suas antes de produção** (§9): D-01 (SSRF do `base_url` da IA)
-e D-02 (agendar a coleta de lixo do disco).
+**As duas decisões de negócio foram tomadas e implementadas** (§9). O que
+resta delas não é decisão, é calendário: virar `DOCUMENTS_GC_DRY_RUN` para
+`False` depois de um mês de ensaio **e** de a restauração ter sido testada
+num host separado.

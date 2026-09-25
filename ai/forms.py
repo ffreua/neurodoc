@@ -75,6 +75,21 @@ class AIProviderSettingsForm(forms.ModelForm):
         elif provider and provider not in PROVIDERS:
             self.add_error('provider', 'Provedor desconhecido.')
 
+        # O endereço também é conferido **ao gravar**, e não só ao consultar
+        # o provedor. As duas coisas são portas diferentes: "Carregar
+        # modelos" e "Testar" chamam o endereço na hora e passam por
+        # `assert_endereco_permitido`; **salvar** não chama ninguém — grava
+        # o valor, e quem o usa depois é o worker, que em produção *alcança*
+        # a internet. Sem esta conferência dava para salvar um endereço
+        # arbitrário sem apertar nenhum dos dois botões.
+        if base_url:
+            from .providers.catalog import ProviderProbeFailed, assert_endereco_permitido
+
+            try:
+                assert_endereco_permitido(base_url)
+            except ProviderProbeFailed as exc:
+                self.add_error('base_url', str(exc))
+
         if cleaned.get('enabled'):
             if not entered and not self.instance.has_api_key:
                 self.add_error('api_key', 'Para ativar a IA é preciso informar a chave da API.')
