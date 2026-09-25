@@ -389,6 +389,78 @@ def _remover_anexos_dos_documentos(ids):
 _anexos = _remover_anexos_dos_documentos([d.id for d in criados])
 print(f'  {len(criados)} documento(s) e {_anexos} anexo(s) removido(s)')
 
+print()
+print('=== a busca de medicamento nao engole o que foi digitado ===')
+# Defeito relatado em 2026-09-25, com o PDF na mao: saiu um Receituario de
+# Controle Especial assinado com "1 cp VO a noite" e **sem o medicamento**.
+#
+# A causa nao estava no gerador do PDF. A caixa "Buscar medicamento na
+# tabela da Anvisa" fica DENTRO do formulario e **nao tem `name`**: o que se
+# digita nela nunca e enviado. Quem procurava um remedio que a CMED nao tem
+# via a frase "pode escrever a mao, o campo aceita", entendia que aquele
+# campo aceitava, escrevia a posologia no campo de baixo e enviava.
+#
+# O conserto nao foi por o `name` -- a caixa e busca, nao dado da receita --
+# e sim transformar o estado vazio numa ACAO: um botao que leva o termo
+# digitado para a prescricao, que e o campo que existe de verdade.
+from django.conf import settings as _dj
+
+_RAIZ = _dj.BASE_DIR
+_js = (_RAIZ / 'static' / 'catalogs' / 'medicamentos.js').read_text(encoding='utf-8')
+_form = (_RAIZ / 'templates' / 'documents' / 'medical_form.html').read_text(encoding='utf-8')
+
+_i = _form.index('id="nd-med-busca"')
+_tag = _form[_form.rfind('<input', 0, _i):_form.index('>', _i) + 1]
+_tem_name = 'name=' in _tag
+print(f'  a caixa de busca e enviada com o formulario: {_tem_name} (False esperado)')
+
+# Se um dia ganhar `name`, o que se digita passa a ser enviado e esta secao
+# perde o sentido -- mas ai o campo vira dado da receita sem ninguem ter
+# decidido isso, e e melhor o roteiro avisar.
+if _tem_name:
+    failures.append(
+        'a caixa de busca de medicamento ganhou `name` e passou a ser enviada — '
+        'ela e busca, nao dado da receita; se a mudanca foi de proposito, refaca '
+        'esta secao'
+    )
+
+_saida = 'assim mesmo' in _js
+print(f'  ha saida para o que a CMED nao tem (botao "assim mesmo"): {_saida}')
+if not _saida:
+    failures.append(
+        'o estado "nada na lista" voltou a ser um beco sem saida: o medico digita '
+        'o remedio, nada acontece, e a receita sai com a posologia e sem o medicamento'
+    )
+
+_leva = 'acrescentarNaReceita' in _js and _js.count('acrescentarNaReceita(') >= 3
+print(f'  o botao leva o termo para a prescricao: {_leva}')
+if not _leva:
+    failures.append(
+        'o botao do estado vazio nao usa o mesmo caminho que o item escolhido da '
+        'lista — os dois tem de acrescentar linha na prescricao'
+    )
+
+# A tela precisa dizer que a caixa nao vale como prescricao. O texto antigo
+# ("voce continua escrevendo a vontade -- inclusive o que nao esta na
+# tabela") era verdadeiro e foi lido ao contrario.
+_avisa = 'só para buscar' in _form or 'so para buscar' in _form
+print(f'  a tela avisa que a caixa e so para buscar: {_avisa}')
+if not _avisa:
+    failures.append(
+        'a ajuda da caixa de busca nao diz que o que se digita nela nao vai para '
+        'a receita sozinho'
+    )
+
+# E o gerador do PDF nao pode comer nada do que foi escrito -- foi o outro
+# lado do mesmo sintoma, corrigido na auditoria pre-deploy.
+from documents.pdf.common import paragrafo_de_texto, texto_seguro
+
+_amostra = 'Melatonina <3mg> & cia'
+_saiu = texto_seguro(_amostra)
+print(f'  texto com < > & sobrevive ao escape: {_amostra!r} -> {_saiu!r}')
+if 'Melatonina' not in _saiu or '3mg' not in _saiu:
+    failures.append('o escape do PDF esta comendo parte do texto da prescricao')
+
 if failures:
     for line in failures:
         print('FALHA:', line)

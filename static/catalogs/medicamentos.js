@@ -132,6 +132,19 @@
             return document.getElementById(valor);
         }
 
+        /* Acrescenta uma linha ao fim da prescrição, sem apagar o que já
+         * estava escrito, e esvazia a busca.
+         *
+         * Serve aos dois caminhos: o item escolhido da lista e o termo que
+         * a lista não tem. O segundo existe porque a falta dele era uma
+         * armadilha — ver `semResultado`. */
+        function acrescentarNaReceita(alvoTexto, texto) {
+            var atual = alvoTexto.value.replace(/\s+$/, '');
+            alvoTexto.value = (atual ? atual + '\n' : '') + texto + '\n';
+            alvoTexto.dispatchEvent(new Event('input', { bubbles: true }));
+            campo.value = '';
+        }
+
         function escolher(item) {
             /* Para onde vai o que foi escolhido. Três destinos possíveis,
              * declarados no HTML — o componente não sabe de tela nenhuma. */
@@ -139,12 +152,7 @@
             var alvoTexto = destino(campo.dataset.ndMedTexto);
 
             if (alvoTexto) {
-                /* Receita: acrescenta uma linha ao fim da prescrição, sem
-                 * apagar o que já estava escrito. */
-                var atual = alvoTexto.value.replace(/\s+$/, '');
-                alvoTexto.value = (atual ? atual + '\n' : '') + item.rotulo + '\n';
-                alvoTexto.dispatchEvent(new Event('input', { bubbles: true }));
-                campo.value = '';
+                acrescentarNaReceita(alvoTexto, item.rotulo);
             } else if (alvoDose) {
                 /* Portal: nome num campo, apresentação no outro. */
                 campo.value = item.produto || item.substancia;
@@ -154,6 +162,51 @@
             }
             avisar(campo, item, campo.dataset.ndMedFormato);
             fechar();
+        }
+
+        /* O que aparece quando a CMED não tem o termo.
+         *
+         * Era só uma frase: "pode escrever à mão, o campo aceita". A frase
+         * está certa e a armadilha era outra: **este** campo não tem `name`
+         * e não é enviado com o formulário. Quem lia "o campo aceita" como
+         * "este campo aceita" digitava o remédio aqui, escrevia a posologia
+         * no campo de baixo e enviava — e saía uma receita de controle
+         * especial assinada com "1 cp VO a noite" e sem o medicamento.
+         * Relatado em 2026-09-25, com o PDF.
+         *
+         * Agora o estado vazio é uma AÇÃO: um botão que leva o que foi
+         * digitado para a prescrição, que é o campo que existe de verdade.
+         * O caminho que o médico já tentava seguir passa a funcionar, em
+         * vez de terminar em silêncio. */
+        function semResultado(termo) {
+            var caixa = document.createElement('div');
+            caixa.className = 'nd-med-vazio';
+
+            var frase = document.createElement('span');
+            frase.textContent = 'Nada na lista da CMED com esse termo.';
+            caixa.appendChild(frase);
+
+            var alvoTexto = destino(campo.dataset.ndMedTexto);
+            if (!alvoTexto) {
+                /* Portal do paciente: ali o campo de busca É o campo do
+                 * pedido, e o que foi digitado já está onde precisa. */
+                frase.textContent += ' Pode deixar escrito como está.';
+                return caixa;
+            }
+
+            var usar = document.createElement('button');
+            usar.type = 'button';
+            usar.className = 'btn btn-sm btn-light-primary ms-2';
+            /* `textContent` e não `innerHTML`: o termo é o que o usuário
+             * digitou, e a regra do arquivo vale também para ele. */
+            usar.textContent = 'Usar “' + termo + '” assim mesmo';
+            usar.addEventListener('click', function () {
+                acrescentarNaReceita(alvoTexto, termo);
+                fechar();
+                alvoTexto.focus();
+            });
+            caixa.appendChild(usar);
+            return caixa;
         }
 
         function buscar() {
@@ -167,11 +220,7 @@
             }).then(function (dados) {
                 lista.textContent = '';
                 if (!dados.results.length) {
-                    var vazio = document.createElement('p');
-                    vazio.className = 'nd-med-vazio';
-                    vazio.textContent = 'Nada na lista da CMED com esse termo — '
-                        + 'pode escrever à mão, o campo aceita.';
-                    lista.appendChild(vazio);
+                    lista.appendChild(semResultado(termo));
                 } else {
                     dados.results.forEach(function (item) {
                         lista.appendChild(montarOpcao(item, escolher));

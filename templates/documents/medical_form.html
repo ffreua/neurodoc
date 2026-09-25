@@ -113,10 +113,18 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                                    data-nd-med-url="{% url 'catalogs:medicamento-search' %}"
                                    data-nd-med-texto="id_prescription_text"
                                    data-nd-med-formato="id_prescription_format">
+                            {% comment %}O texto diz que esta caixa NÃO vai para a
+                            receita sozinha. A versão anterior dizia "você continua
+                            escrevendo à vontade — inclusive o que não está na tabela",
+                            o que é verdade e foi lido como "escreva aqui": esta caixa
+                            não tem `name`, não é enviada, e saiu receita de controle
+                            especial com a posologia e sem o medicamento.{% endcomment %}
                             <div class="form-text fs-11">
-                                Opcional. O que for escolhido entra como uma linha na
-                                prescrição, e você continua escrevendo à vontade —
-                                inclusive o que não está na tabela.
+                                Opcional, e <strong>só para buscar</strong> — o que você
+                                digita aqui não vai para a receita sozinho. Escolha um item
+                                da lista, ou use o botão <em>“Usar … assim mesmo”</em> quando
+                                a Anvisa não tiver o medicamento. A prescrição abaixo é o
+                                campo que vale, e nela você escreve à vontade.
                             </div>
                         </div>
                         {% include "partials/field.html" with field=form.prescription_text col="col-12" %}
