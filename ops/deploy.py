@@ -47,6 +47,27 @@ def run(args, env=None, input_text=None):
     return result.stdout.strip()
 
 
+#: Como este deploy se identifica nas requisicoes HTTP que faz.
+#:
+#: A Cloudflare devolve **403** para o `Python-urllib/3.x` que o urllib
+#: manda por padrao. O deploy parava ao buscar as faixas de IP dela --
+#: depois de ja ter construido e publicado a imagem, no passo que apenas
+#: monta a configuracao do Traefik -- e a mensagem, um `HTTP Error 403`
+#: sem URL, nao dizia de onde vinha.
+#:
+#: Identificar-se pelo nome do produto, e nao imitar um navegador: quem le
+#: o log do outro lado precisa saber quem bateu na porta, e um User-Agent
+#: de Chrome vindo de um servidor e o tipo de disfarce que volta como
+#: bloqueio mais duro no dia em que for percebido.
+USER_AGENT = f'NeuroDoc/{VERSION} (+https://neurodoc.app.br)'
+
+
+def buscar(url, timeout):
+    """GET com o `USER_AGENT` desta instalacao."""
+    pedido = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
+    return urllib.request.urlopen(pedido, timeout=timeout)
+
+
 def configuration():
     defaults = read_env(ROOT / '.env.example')
     custom = read_env(ROOT / '.env')
@@ -309,7 +330,7 @@ def main():
     initialize_volumes(app_image)
     cidrs = []
     for suffix in ['ips-v4', 'ips-v6']:
-        with urllib.request.urlopen(f'https://www.cloudflare.com/{suffix}', timeout=10) as response:
+        with buscar(f'https://www.cloudflare.com/{suffix}', timeout=10) as response:
             cidrs.extend(response.read().decode().splitlines())
     traefik_file = make_traefik(config, cidrs)
     params = dict(images, APP_IMAGE=app_image, RELEASE_ID=release,
@@ -332,7 +353,7 @@ def main():
          '--resolve-image', 'always', '--compose-file', 'docker-stack.yml', STACK], env=command_env)
     wait_for_stack(int(config['DEPLOY_TIMEOUT_SECONDS']))
     if 'staging' not in config['ACME_DIRECTORY']:
-        with urllib.request.urlopen(config['PUBLIC_BASE_URL'] + '/health/', timeout=15) as response:
+        with buscar(config['PUBLIC_BASE_URL'] + '/health/', timeout=15) as response:
             if response.status != 200:
                 raise RuntimeError('External HTTPS health check failed')
     if record_path.exists():
