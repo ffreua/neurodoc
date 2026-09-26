@@ -50,6 +50,11 @@ BASE_URL = 'https://consulta-ocl.apps.sa-1a.mendixcloud.com/rest/oclservice'
 #: esperando na tela. O aperto é o da busca, e a busca não passa por aqui.
 REQUEST_TIMEOUT_SECONDS = 30
 
+#: Teto da sonda de diagnóstico (`_diagnostico`). Curto de propósito: ela
+#: roda **depois** de a sincronização já ter falhado, e quem espera a
+#: mensagem de erro não deve esperar mais meio minuto por ela.
+SONDA_TIMEOUT_SECONDS = 10
+
 #: Quantas vezes insistir na **mesma** pagina antes de desistir da tabela.
 #:
 #: Nao e zelo excessivo: a API da ANS falha no meio de um download longo.
@@ -167,8 +172,54 @@ def _fetch_page(http, table, pagina):
     motivo = 'não respondeu a tempo' if isinstance(ultima, requests.Timeout) else 'falhou'
     raise TussUnavailable(
         f'A ANS {motivo} na página {pagina} da tabela {table}, '
-        f'mesmo após {PAGE_ATTEMPTS} tentativas.'
+        f'mesmo após {PAGE_ATTEMPTS} tentativas. {_diagnostico(http)}'
     ) from ultima
+
+
+def _diagnostico(http):
+    """Uma frase dizendo de quem é o problema.
+
+    Timeout sozinho é ambíguo e manda procurar no lugar errado: parece
+    rede do servidor, firewall, proxy, DNS. Quem recebe isso vai conferir
+    o egresso do worker, e o egresso está bom.
+
+    `/ANS/source` é o **outro** endpoint da mesma API (o catálogo de
+    tabelas). Ele é barato, devolve poucos KB e não pagina. Se ele responde
+    e o de conceitos não, a aplicação da ANS está no ar e é o endpoint de
+    dados que está quebrado -- o que encerra a investigação do nosso lado e
+    é exatamente a evidência que um chamado à ANS precisa.
+
+    Isto foi descoberto à mão, em 26/09/2026, quando a sincronização falhou
+    três vezes em dois dias: `/ANS/source` respondia em 0,3s enquanto
+    `/ANS/concepts/` travava até para a tabela de **dois** registros --
+    inclusive no exemplo publicado pela própria ANS na documentação dela.
+    Está codificado aqui para ninguém repetir o diagnóstico.
+
+    Nunca levanta: é texto para uma mensagem de erro, e falhar ao explicar
+    uma falha só troca a mensagem útil por outra pior.
+    """
+    try:
+        resposta = http.get(
+            f'{BASE_URL}/ANS/source', timeout=SONDA_TIMEOUT_SECONDS,
+            headers={'Accept': 'application/json'},
+        )
+        if resposta.ok:
+            return (
+                'O catálogo de tabelas da ANS (/ANS/source) respondeu normalmente, '
+                'então a aplicação deles está no ar e é o endpoint de conceitos que '
+                'não responde — é do lado da ANS, e não desta instalação. '
+                'A sincronização semanal tenta de novo no domingo.'
+            )
+        return (
+            f'O catálogo de tabelas da ANS devolveu HTTP {resposta.status_code}: '
+            'o serviço deles está com problema.'
+        )
+    except requests.RequestException:
+        return (
+            'O catálogo de tabelas da ANS também não respondeu: ou a ANS está fora '
+            'do ar, ou este servidor perdeu a saída para a internet. Confira o '
+            'egresso do worker antes de abrir chamado.'
+        )
 
 
 def fetch_table(table=DEFAULT_TABLE, session=None):
