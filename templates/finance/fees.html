@@ -41,6 +41,7 @@
                         <th class="ps-4" scope="col">Médico</th>
                         <th scope="col">Pagamento</th>
                         <th scope="col">Procedimento</th>
+                        <th scope="col">Tipo</th>
                         <th class="text-end" scope="col">Valor cheio</th>
                         <th class="text-end" scope="col">Repasse</th>
                         <th scope="col">Vigência</th>
@@ -72,6 +73,11 @@
                             {{ row.obj.procedure.code }}
                             <span class="d-block text-muted">{{ row.obj.procedure.description|truncatechars:44 }}</span>
                             {% else %}<span class="fst-italic text-muted">Consulta</span>{% endif %}
+                        </td>
+                        <td class="fs-12">
+                            {% if row.obj.appointment_type %}
+                            {{ row.obj.get_appointment_type_display }}
+                            {% else %}<span class="fst-italic text-muted">Qualquer tipo</span>{% endif %}
                         </td>
                         <td class="text-end fw-semibold text-dark">R$ {{ row.obj.gross_amount }}</td>
                         <td class="text-end">R$ {{ row.obj.doctor_share_amount }}</td>
@@ -105,7 +111,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="ps-4 py-4 text-muted">
+                        <td colspan="8" class="ps-4 py-4 text-muted">
                             Nenhum valor cadastrado. Enquanto não houver, o sistema não consegue
                             gerar cobrança de consulta.
                         </td>
@@ -148,6 +154,7 @@ nada no console do navegador.{% endcomment %}
                         {% include "partials/field.html" with field=form.payment_category col="col-md-6" %}
                         {% include "partials/field.html" with field=form.plan col="col-md-6" %}
                         {% include "partials/field.html" with field=form.procedure col="col-md-6" %}
+                        {% include "partials/field.html" with field=form.appointment_type col="col-md-6" %}
                         {% include "partials/field.html" with field=form.gross_amount col="col-md-6" %}
                         {% include "partials/field.html" with field=form.doctor_share_amount col="col-md-6" %}
                         {% include "partials/field.html" with field=form.effective_from col="col-md-6" %}

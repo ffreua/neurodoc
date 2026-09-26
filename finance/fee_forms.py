@@ -14,6 +14,7 @@ from django import forms
 from base.widgets import HTML5DateInput
 from catalogs.models import CatalogSystem, ProcedureCode
 from patients.models import HealthPlan
+from scheduling.models import AppointmentType
 from tenancy.models import Membership, MembershipStatus, Role
 
 from .models import PaymentCategory
@@ -33,6 +34,12 @@ class FeeScheduleForm(forms.Form):
     payment_category = forms.ChoiceField(label='Forma de pagamento', choices=PaymentCategory.choices)
     plan = forms.ChoiceField(label='Plano', required=False)
     procedure = forms.ChoiceField(label='Procedimento', required=False)
+    appointment_type = forms.ChoiceField(
+        label='Tipo de atendimento', required=False,
+        choices=[('', 'Qualquer tipo')] + list(AppointmentType.choices),
+        help_text='Primeira consulta, seguimento e retorno costumam custar valores '
+                  'diferentes. Em branco, o valor vale para todos eles.',
+    )
     gross_amount = forms.DecimalField(
         label='Valor cheio (R$)', max_digits=12, decimal_places=2, min_value=0,
         widget=forms.NumberInput(attrs={'step': '0.01', 'placeholder': '0,00'}),
@@ -98,6 +105,17 @@ class FeeScheduleForm(forms.Form):
 
     def procedure_object(self):
         return self._procedures.get(self.cleaned_data.get('procedure') or '')
+
+    def appointment_type_value(self):
+        """String vazia do `<select>` vira `None`.
+
+        As duas significam "qualquer tipo" para quem preenche, e apenas uma
+        delas significa isso para o banco: com `''` gravado, a coluna deixa
+        de ser nula e a regra passa a nao casar nem com um tipo especifico
+        nem com a busca por nulo -- um valor que nunca seria cobrado de
+        ninguem, e que na tela parece estar la.
+        """
+        return self.cleaned_data.get('appointment_type') or None
 
     # ------------------------------------------------------------ validação
     def clean_physician(self):

@@ -1,6 +1,7 @@
 from django.db import models
 
 from base.models import TenantModel
+from scheduling.models import AppointmentType
 
 
 class PaymentCategory(models.TextChoices):
@@ -35,6 +36,22 @@ class FeeSchedule(TenantModel):
     procedure = models.ForeignKey(
         'catalogs.ProcedureCode', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
     )
+    #: Primeira consulta, seguimento, retorno -- o que a agenda ja
+    #: distingue, e que ate aqui nao tinha como custar diferente.
+    #:
+    #: A clinica cobra tres valores por aquilo que, para a TUSS, e um
+    #: codigo so: "consulta em consultorio". A distincao e comercial, nao
+    #: da ANS, entao amarra-la a `procedure` seria inventar codigo de
+    #: tabela nacional para uso interno -- o mesmo codigo sairia numa guia
+    #: de convenio e voltaria glosado.
+    #:
+    #: Nulo e "vale para qualquer tipo", como os tres campos acima, e e o
+    #: que toda regra ja existente continua sendo. Atendimento sem
+    #: agendamento (encaixe, paciente que chega sem marcar) tambem chega
+    #: aqui com nulo e cai na regra geral, que e o comportamento de antes.
+    appointment_type = models.CharField(
+        max_length=40, choices=AppointmentType.choices, null=True, blank=True,
+    )
     payment_category = models.CharField(max_length=20, choices=PaymentCategory.choices)
     gross_amount = models.DecimalField(max_digits=12, decimal_places=2)
     doctor_share_amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -43,7 +60,10 @@ class FeeSchedule(TenantModel):
 
     class Meta(TenantModel.Meta):
         indexes = [
-            models.Index(fields=['tenant', 'physician', 'plan', 'procedure'], name='finance_fee_lookup_idx'),
+            models.Index(
+                fields=['tenant', 'physician', 'plan', 'procedure', 'appointment_type'],
+                name='finance_fee_lookup_idx',
+            ),
         ]
 
     def __str__(self):

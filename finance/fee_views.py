@@ -108,6 +108,7 @@ class FeeScheduleCreateView(FeeAdminView):
                 physician=form.physician_object(),
                 plan=form.plan_object(),
                 procedure=form.procedure_object(),
+                appointment_type=form.appointment_type_value(),
             )
         except OverlappingFeeSchedule:
             # Duas regras iguais valendo ao mesmo tempo tornam o preço

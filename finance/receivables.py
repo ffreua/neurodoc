@@ -35,9 +35,19 @@ def create_receivable_for_encounter(encounter, actor_id, charge_kind=ChargeKind.
     coverage = _active_coverage(encounter.patient, occurred_date)
     payment_category = PaymentCategory.INSURANCE if coverage else PaymentCategory.PRIVATE
     try:
+        # De que tipo foi este atendimento -- primeira consulta,
+        # seguimento, retorno. Vem do agendamento que o originou, que e
+        # onde a agenda ja registra isso.
+        #
+        # Encaixe e paciente que chega sem marcar nao tem agendamento:
+        # passam nulo, caem na regra que vale para qualquer tipo, e e
+        # exatamente o que acontecia com todo atendimento antes deste
+        # campo existir.
+        tipo_de_atendimento = encounter.appointment.type if encounter.appointment_id else None
         fee_schedule = resolve_price(
             encounter.tenant, encounter.physician_membership, payment_category, occurred_date,
             plan=coverage.plan if coverage else None,
+            appointment_type=tipo_de_atendimento,
         )
     except NoApplicableFeeSchedule:
         record_audit_event(
