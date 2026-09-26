@@ -99,6 +99,7 @@ class MessagingSettingsView(ManagerRequiredView):
                 form = DoctorEmailSettingsForm(instance=row)
             rows.append({'doctor': doctor, 'settings': row, 'form': form})
         from .forms import ClinicEmailSettingsForm, EmailTestForm
+        from tenancy.plans import has_sms, plan_label
 
         context = {
             'email_form_membership': failed,
@@ -108,6 +109,12 @@ class MessagingSettingsView(ManagerRequiredView):
             'email_test_form': EmailTestForm(),
             'doctor_rows': rows,
             'sms_globally_enabled': django_settings.SMS_ENABLED,
+            # Duas coisas diferentes, e a tela distingue as duas: o
+            # interruptor da instalacao inteira (acima) e o que ESTE plano
+            # contratou (abaixo). Juntar as duas numa mensagem so mandaria
+            # a clinica do Gratuito esperar uma liberacao que nunca vem.
+            'sms_contratado': has_sms(self.membership.tenant.plan),
+            'plano_da_clinica': plan_label(self.membership.tenant.plan),
             'email_globally_enabled': django_settings.EMAIL_ENABLED,
             'default_from_email': django_settings.DEFAULT_FROM_EMAIL,
             'has_master_key': master_key_available(),
@@ -122,6 +129,22 @@ class MessagingSettingsView(ManagerRequiredView):
 
 class SmsSettingsSaveView(ManagerRequiredView):
     def post(self, request):
+        # O plano, antes de qualquer coisa. O gate de verdade esta em
+        # `smsdev.resolve_api_key`, por onde todo envio passa; este aqui
+        # existe para a clinica nao cadastrar uma chave, apertar "testar" e
+        # ficar procurando defeito no proprio celular. O nome do plano vai
+        # na mensagem porque "nao incluido" sem dizer em que plano manda a
+        # pessoa adivinhar.
+        from tenancy.plans import has_sms, plan_label
+
+        tenant = self.membership.tenant
+        if not has_sms(tenant.plan):
+            messages.error(
+                request,
+                f'O plano {plan_label(tenant.plan)} nao inclui envio de SMS. '
+                f'O aviso por e-mail continua funcionando normalmente.',
+            )
+            return redirect('messaging:settings')
         tenant_id = request.access_context.tenant_id
         sms = _sms_settings(tenant_id)
         form = SmsSettingsForm(request.POST, instance=sms)

@@ -28,6 +28,29 @@ def resolve_api_key(tenant_id=None):
     montado por Docker Secret.
     """
     if tenant_id is not None:
+        # O plano da clinica, conferido aqui e nao so na tela.
+        #
+        # Esta funcao e o ponto por onde passa **todo** SMS: o lembrete de
+        # consulta, o codigo de acesso a documento e a consulta de saldo.
+        # Os dois primeiros nascem de evento e de tarefa do worker, sem
+        # tela nenhuma e sem ninguem clicando -- deixar o corte so na tela
+        # de configuracao fecharia a porta que tem tela e deixaria aquelas
+        # abertas, gastando o credito da instalacao numa clinica que nao
+        # contratou o recurso.
+        #
+        # Antes da leitura da chave da clinica, de proposito: o corte e por
+        # plano, e vale inclusive para quem trouxe a propria chave. Ver
+        # `tenancy.plans.has_sms`.
+        from tenancy.models import Tenant
+        from tenancy.plans import has_sms
+
+        plano = Tenant.objects.filter(id=tenant_id).values_list('plan', flat=True).first()
+        if plano is not None and not has_sms(plano):
+            raise SmsChannelDisabled(
+                'O plano desta clinica nao inclui envio de SMS. O aviso por e-mail '
+                'continua funcionando.'
+            )
+
         from base.crypto import SecretUnavailable
 
         from .models import MessagingSettings

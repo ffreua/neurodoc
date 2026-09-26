@@ -102,6 +102,7 @@ PLANS = {
         'max_patients': 50,
         'max_doctors': 1,
         'clinical_ai': False,
+        'sms': False,
         # `price_monthly` em centavos. Zero é grátis; `None` é "não há
         # preço de tabela", que é coisa diferente e só o Personalizado tem.
         'price_monthly': 0,
@@ -121,12 +122,14 @@ PLANS = {
         'max_patients': 3500,
         'max_doctors': 2,
         'clinical_ai': False,
+        'sms': True,
         'price_monthly': 15800,
         'summary': 'Para o consultório que cresceu: dois médicos, convênios e '
                    'dinheiro entrando por mais de uma porta.',
         'features': [
             'Tudo do Gratuito',
             'Dois médicos, cada um com a própria grade de horários',
+            'Lembrete de consulta por SMS, e código por SMS no acesso a documento',
             'Honorários com vigência, repasses e recebíveis por convênio',
             'Portal do paciente: renovação de receita sem ligar para a recepção',
         ],
@@ -138,6 +141,7 @@ PLANS = {
         'max_patients': 12000,
         'max_doctors': 5,
         'clinical_ai': True,
+        'sms': True,
         'price_monthly': 26200,
         'summary': 'Para a clínica consolidada, com equipe multiprofissional e '
                    'agenda cheia nos cinco dias.',
@@ -157,6 +161,7 @@ PLANS = {
         'max_patients': None,
         'max_doctors': None,
         'clinical_ai': True,
+        'sms': True,
         # Aqui `None` não é grátis: é "não há preço de tabela". A tela
         # precisa dizer isso, e não estampar um zero.
         'price_monthly': None,
@@ -225,6 +230,33 @@ def has_clinical_ai(code):
     e errar para o outro lado gasta a chave da instalação sem contrato.
     """
     return plan_config(code).get('clinical_ai', False)
+
+
+def has_sms(code):
+    """Se o plano inclui o envio de SMS.
+
+    Mesmo desenho de `has_clinical_ai`, e pela mesma razao: SMS custa
+    dinheiro por mensagem, e a clinica que nao configurou chave propria
+    gasta a **da instalacao** -- quem hospeda o sistema paga a conta de
+    quem usa. A IA ja era recurso de plano; o SMS nao era, e uma clinica no
+    Gratuito, que nao paga nada, consumia os creditos de quem hospeda. O
+    sintoma chega como "os lembretes pararam de sair", sem dizer por que.
+
+    Corta no Gratuito e so nele. Do Basico para cima o SMS entra no
+    pacote, e a linha de venda daquele plano passou a dize-lo -- que e o
+    acoplamento que o cabecalho deste modulo existe para manter: o que se
+    anuncia e o que o servidor cumpre moram no mesmo arquivo.
+
+    O corte e por plano e vale **inclusive** para a clinica do Gratuito que
+    trouxe a propria chave. Nao e descuido: e a mesma regra do
+    `clinical_ai`, e um recurso que aparece ou some conforme a clinica
+    cadastrou credencial seria impossivel de explicar na pagina de precos.
+
+    `.get` com `False` pela razao de sempre: plano sem a chave fica **sem**
+    o recurso. Errar para o lado do menor direito aparece como "recurso nao
+    disponivel"; errar para o outro gasta credito sem contrato.
+    """
+    return plan_config(code).get('sms', False)
 
 
 def pricing(code):

@@ -53,6 +53,20 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
                 {% endif %}
             </div>
             <div class="card-body">
+                {% if not sms_contratado %}
+                {% comment %}O plano nao inclui SMS. Diferente de "o canal ainda
+                nao foi ligado": aquilo passa, isto nao passa sozinho. O formulario
+                sai da tela -- deixa-lo visivel e desabilitado convida a preencher
+                e nao explica nada.{% endcomment %}
+                <p class="fs-13 text-muted mb-0">
+                    O plano <strong>{{ plano_da_clinica }}</strong> nao inclui envio de SMS.
+                    Os avisos por <strong>e-mail</strong> continuam funcionando, e o codigo
+                    de acesso a documento tambem chega por e-mail.
+                </p>
+                <p class="fs-12 text-muted mb-0 mt-2">
+                    O SMS entra a partir do plano Basico.
+                </p>
+                {% else %}
                 {% if not sms_globally_enabled %}
                 {% comment %}Discreto, e sem nome de variavel de ambiente. Some
                 sozinho quando o canal e ligado. Nao pode sumir antes disso: quem
@@ -97,6 +111,7 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
                     </span>
                 </form>
                 {% endif %}
+                {% endif %}{# fecha sms_contratado #}
             </div>
         </div>
     </div>
