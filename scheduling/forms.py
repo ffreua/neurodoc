@@ -18,7 +18,7 @@ def _doctor_queryset(tenant_id):
         return Membership.objects.none()
     return Membership.objects.filter(
         tenant_id=tenant_id, status=MembershipStatus.ACTIVE, roles__contains=[Role.DOCTOR],
-    ).select_related('user')
+    ).select_related('user', 'user__physician_profile')
 
 
 def _doctor_label(membership):

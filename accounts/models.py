@@ -63,11 +63,56 @@ class User(AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
     def get_full_name(self):
+        """O nome a mostrar, na ordem em que ele importa.
+
+        O nome da conta vem primeiro, e o **nome profissional** vem logo
+        depois — antes de cair no e-mail. A ordem existe porque não há tela
+        no produto que edite `first_name`/`last_name`: elas só se preenchem
+        pelo admin técnico, que é de quem opera o servidor. O médico que se
+        cadastra e preenche o perfil profissional — nome, CRM, RQE — fica
+        com a conta sem nome, e as trinta e duas telas que chamam este
+        método passavam a estampar o **e-mail dele** onde deveria estar o
+        nome: na agenda, no cabeçalho do atendimento, na lista de
+        documentos, na tabela de honorários.
+
+        O pior não era a feiura, era a **incoerência**: a receita assinada
+        e a verificação pública do QR já usavam `professional_name`
+        (`documents/issuance.py`, `documents/verification.py`). O mesmo
+        médico saía "Fernando Freua" no documento que o paciente leva à
+        farmácia e "dr.freua@gmail.com" na agenda de quem o atende.
+
+        `getattr` com `None`: a relação reversa levanta
+        `RelatedObjectDoesNotExist` quando não há perfil, e ela herda de
+        `AttributeError` justamente para que este `getattr` funcione. Quem
+        não é médico — secretaria, gestão — não tem perfil e segue caindo
+        no e-mail, como antes.
+
+        **Custo:** uma consulta por usuário sem nome de conta, e só na
+        primeira vez — o Django guarda a relação um-para-um na instância.
+        Onde isso aparecer numa lista, o `select_related` da consulta
+        resolve; as da agenda ja o trazem (`scheduling/views.py`,
+        `scheduling/forms.py`).
+        """
         full_name = f'{self.first_name} {self.last_name}'.strip()
-        return full_name or self.email
+        if full_name:
+            return full_name
+        perfil = getattr(self, 'physician_profile', None)
+        if perfil is not None and perfil.professional_name:
+            return perfil.professional_name
+        return self.email
 
     def get_short_name(self):
-        return self.first_name or self.email
+        """O primeiro nome, com a mesma cascata de `get_full_name`.
+
+        Sem isto, a saudação do topo diria "Olá, dr.freua@gmail.com" para o
+        médico cuja agenda, na tela ao lado, já o chama pelo nome.
+        """
+        if self.first_name:
+            return self.first_name
+        perfil = getattr(self, 'physician_profile', None)
+        if perfil is not None and perfil.professional_name:
+            return perfil.professional_name.split()[0]
+        return self.email
 
 
 class RecoveryCode(TimestampedModel):

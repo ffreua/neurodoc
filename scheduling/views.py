@@ -72,7 +72,9 @@ def _doctors(request):
         Membership.objects.filter(
             tenant_id=request.access_context.tenant_id, status=MembershipStatus.ACTIVE,
             roles__contains=[Role.DOCTOR],
-        ).select_related('user').order_by('user__first_name', 'user__email')
+        ).select_related('user', 'user__physician_profile').order_by(
+            'user__first_name', 'user__email',
+        )
     )
 
 
@@ -799,7 +801,10 @@ class RescheduleAppointmentView(TenantScopedView):
 
         return get_object_or_404(
             scope_to_tenant(
-                Appointment.objects.select_related('patient', 'physician_membership__user'),
+                Appointment.objects.select_related(
+                    'patient', 'physician_membership__user',
+                    'physician_membership__user__physician_profile',
+                ),
                 request.access_context,
             ),
             id=appointment_id,
@@ -1039,7 +1044,13 @@ class SecretaryDeskView(TenantScopedView):
             scope_to_tenant(Appointment.objects.all(), request.access_context)
             .filter(starts_at__date=day)
             .exclude(status=AppointmentStatus.CANCELLED)
-            .select_related('patient', 'physician_membership__user')
+            .select_related(
+                'patient', 'physician_membership__user',
+                # O nome mostrado cai no perfil profissional quando a conta
+                # nao tem nome (`accounts.User.get_full_name`). Sem isto, a
+                # grade do dia faria uma consulta por agendamento.
+                'physician_membership__user__physician_profile',
+            )
             .order_by('starts_at')
         )
         pending = [
