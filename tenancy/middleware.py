@@ -44,11 +44,27 @@ class TenantMiddleware:
             return self.get_response(request)
         if not request.user.is_authenticated:
             return redirect_to_login(request.get_full_path())
-        if request.user.email_verified_at is not None and not request.session.get('tenant_id'):
-            # Authenticated, verified, but no organization chosen yet in
-            # this browser session (fresh login, or a deep link opened
-            # before ever picking one) -- send them to pick one and come
-            # straight back here, instead of a bare 404 with no way out.
+        # Cadastrou-se e ainda nao clicou no link do e-mail.
+        #
+        # Esta pessoa caia no `raise Http404` de tres linhas abaixo, porque
+        # a condicao seguinte exigia `email_verified_at is not None` para
+        # oferecer a saida: quem mais precisava de orientacao era
+        # exatamente quem nao a recebia. O sintoma enganava --  a senha
+        # funciona, o login responde 302, e a primeira tela depois de
+        # entrar e um "Not Found" cru, que nao diz que falta uma etapa nem
+        # como cumpri-la. Quem recebeu isso concluiu que a conta nao tinha
+        # sido criada.
+        #
+        # 403 e nao 404: aqui a recusa e sobre o estado da conta, e
+        # escondar a existencia de `/app/` de alguem que acabou de se
+        # cadastrar nao protege nada.
+        if request.user.email_verified_at is None:
+            return render(request, 'accounts/email_verification_required.html', status=403)
+        if not request.session.get('tenant_id'):
+            # Autenticado e verificado, mas sem organizacao escolhida nesta
+            # sessao do navegador (login novo, ou link profundo aberto
+            # antes de escolher uma) -- manda escolher e volta para ca, em
+            # vez de um 404 sem saida.
             return redirect_to_login(request.get_full_path(), login_url='accounts:tenant-picker')
         context = build_access_context(request)
         if context is None:

@@ -1,0 +1,39 @@
+{% extends "base_auth.html" %}
+{% comment %}Entrou, mas ainda não confirmou o e-mail.
+
+Esta tela substitui um `Http404`. Quem se cadastra, digita a senha certa e
+recebe "Not Found" conclui que a conta não foi criada — e tenta se
+cadastrar de novo, agora com o e-mail já em uso, que é a segunda mensagem
+de erro seguida sem explicação.
+
+O botão de reenviar fica aqui e não numa página de ajuda: o link de
+confirmação some na caixa de spam com frequência suficiente para que
+pedir outro seja a ação mais provável de quem está lendo isto.
+{% endcomment %}
+{% block title %}Confirme seu e-mail — NeuroDoc{% endblock %}
+{% block heading %}Falta confirmar seu e-mail{% endblock %}
+{% block subheading %}Sua conta existe e a senha está correta. As áreas clínicas abrem depois da confirmação.{% endblock %}
+{% block content %}
+
+<div class="alert alert-primary fade show fs-13" role="alert">
+    <span class="fw-semibold d-block">Procure o e-mail de confirmação</span>
+    Enviamos um link para <strong>{{ request.user.email }}</strong>. Confira também
+    a caixa de spam — é onde ele costuma parar.
+</div>
+
+<p class="fs-13 text-muted">
+    A confirmação existe para garantir que o endereço é mesmo seu antes de o
+    prontuário abrir: é por ele que vão o contrato, a recuperação de senha e os
+    avisos da clínica.
+</p>
+
+<form method="post" action="{% url 'accounts:verify-email-resend' %}" class="mb-2">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary w-100">Reenviar o e-mail de confirmação</button>
+</form>
+
+<form method="post" action="{% url 'accounts:logout' %}">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-light-danger w-100">Sair</button>
+</form>
+{% endblock %}
