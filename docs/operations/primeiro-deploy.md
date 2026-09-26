@@ -866,6 +866,19 @@ caminho e o usuário padrão (`/srv/neurodoc`, `neurodocops`), que precisam
 ser trocados se esta instalação usa outros — uma unidade apontando para o
 caminho errado falha em silêncio até a noite em que o backup faria falta.
 
+A pasta de destino tem de existir **antes**, e pertencer a quem roda o
+backup. Ela mora em `/srv`, que é do `root`, e o backup roda como o
+usuário de operação: `ops/backup.py` tenta criá-la e morre com
+`PermissionError: [Errno 13] ... '/srv/neurodoc-backups'`. A falha não
+aparece agora — o timer fica ligado e verde — e sim às 03:00 da primeira
+madrugada, no `journal`, onde ninguém olha.
+
+```bash
+sudo mkdir -p /srv/neurodoc-backups
+sudo chown $(id -un):$(id -gn) /srv/neurodoc-backups
+sudo chmod 700 /srv/neurodoc-backups
+```
+
 ```bash
 sudo cp ops/neurodoc-backup.service ops/neurodoc-backup.timer /etc/systemd/system/
 sudo cp ops/neurodoc-signing-cleanup.service ops/neurodoc-signing-cleanup.timer /etc/systemd/system/

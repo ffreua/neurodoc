@@ -1129,6 +1129,26 @@ SSHCFG
   sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer >>"$LOG_FILE" 2>&1
   ok "Timers instalados e ligados (backup às 03:00, limpeza a cada 5 min)"
 
+  # A pasta de destino, antes de o primeiro backup tentar cria-la. Ela mora
+  # em /srv, que e do root, e o backup roda como o usuario de operacao:
+  # `ops/backup.py` chamava `mkdir(parents=True)` e morria com
+  # `PermissionError: [Errno 13] ... '/srv/neurodoc-backups'`.
+  #
+  # Ninguem criava esta pasta -- nem este script, nem a secao 15.4 do
+  # roteiro. A falha nao aparecia na instalacao: o timer ficava ligado e
+  # verde, e quem seguisse o resumo final ia dormir achando que tinha
+  # backup. Ela aparecia as 03:00 da primeira madrugada, no journal, onde
+  # ninguem olha -- e de novo em todas as seguintes, ate a noite em que o
+  # backup fizesse falta.
+  local pasta_backup
+  pasta_backup="$(get_env BACKUP_DIR)"
+  if [[ -n "$pasta_backup" ]]; then
+    sudo mkdir -p "$pasta_backup"
+    sudo chown "$(id -un):$(id -gn)" "$pasta_backup"
+    sudo chmod 700 "$pasta_backup"
+    ok "Pasta de backup ${pasta_backup} pronta (0700, dona: $(id -un))"
+  fi
+
   # A chave do backup é a única coisa deste servidor que não pode morar
   # neste servidor. Sem ela o arquivo cifrado é lixo — inclusive para você.
   if [[ "$(get_env BACKUP_AGE_RECIPIENT)" == "CHANGE_ME" || -z "$(get_env BACKUP_AGE_RECIPIENT)" ]]; then
