@@ -9,9 +9,6 @@ services:
       RELEASE_ID: dev
       ROLLOUT_ID: dev
     read_only: true
-    tmpfs:
-    - /tmp:size=128m,mode=1777
-    - /run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700
     volumes:
     - media:/data/media
     - staticfiles:/data/staticfiles
@@ -36,6 +33,9 @@ services:
       start_period: 120s
       retries: 5
     stop_grace_period: 60s
+    tmpfs:
+    - /tmp:size=134217728,mode=1777
+    - /run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700
     restart: on-failure:10
     build:
       context: .
@@ -54,8 +54,6 @@ services:
       RELEASE_ID: dev
       ROLLOUT_ID: dev
     read_only: true
-    tmpfs:
-    - /tmp:size=256m,mode=1777
     volumes:
     - media:/data/media
     - clamav:/data/clamav
@@ -84,6 +82,8 @@ services:
       start_period: 180s
       retries: 5
     stop_grace_period: 390s
+    tmpfs:
+    - /tmp:size=268435456,mode=1777
     restart: on-failure:10
   celery_beat:
     image: neurodoc:dev
@@ -95,8 +95,6 @@ services:
       RELEASE_ID: dev
       ROLLOUT_ID: dev
     read_only: true
-    tmpfs:
-    - /tmp:size=64m,mode=1777
     volumes:
     - beat:/data/beat
     secrets:
@@ -117,6 +115,8 @@ services:
       start_period: 180s
       retries: 5
     stop_grace_period: 30s
+    tmpfs:
+    - /tmp:size=67108864,mode=1777
     restart: on-failure:10
   db:
     image: postgres:17.11-bookworm
@@ -216,8 +216,6 @@ services:
     - --providers.file.filename=/etc/traefik/local.yml
     environment: {}
     read_only: true
-    tmpfs:
-    - /tmp:size=32m,mode=1777
     ports:
     - 0.0.0.0:8080:80
     volumes: []
@@ -239,6 +237,8 @@ services:
       timeout: 5s
       start_period: 30s
       retries: 5
+    tmpfs:
+    - /tmp:size=33554432,mode=1777
     restart: on-failure:10
   mailpit:
     image: axllent/mailpit:v1.21

@@ -86,7 +86,35 @@ for key in list(stack):
         stack.pop(key)
 images = {'db': config['POSTGRES_IMAGE'], 'rabbitmq': config['RABBITMQ_IMAGE'],
           'redis': config['REDIS_IMAGE'], 'traefik': config['TRAEFIK_IMAGE']}
+def tmpfs_para_o_compose(service):
+    """Traduz o tmpfs da forma do Swarm para a do Compose.
+
+    Os dois escrevem a mesma coisa de jeitos diferentes, e o
+    `docker-stack.yml` usa a forma longa (`volumes: [{type: tmpfs}]`)
+    porque a curta o `docker stack deploy` **ignora em silencio** -- o
+    comentario no servico `app` daquele arquivo conta o que isso custou.
+
+    O `docker compose` entende as duas, mas a curta e a que este gerador
+    sempre produziu, e mante-la deixa o `compose.yml` legivel para quem o
+    abre procurando o que mudou.
+
+    Sem esta traducao o ambiente local subiria sem /tmp gravavel: o filtro
+    de `volumes` logo abaixo so conserva strings, e descartaria a montagem
+    inteira sem dizer nada.
+    """
+    montagens = [v for v in service.get('volumes', [])
+                 if isinstance(v, dict) and v.get('type') == 'tmpfs']
+    if not montagens:
+        return
+    service['volumes'] = [v for v in service['volumes'] if v not in montagens]
+    curtas = service.setdefault('tmpfs', [])
+    for m in montagens:
+        tamanho = (m.get('tmpfs') or {}).get('size')
+        curtas.append(f'{m["target"]}:size={tamanho},mode=1777' if tamanho else m['target'])
+
+
 for name, service in stack['services'].items():
+    tmpfs_para_o_compose(service)
     service.pop('deploy', None)
     service['restart'] = 'on-failure:10'
     service['image'] = images.get(name, 'neurodoc:dev')
@@ -99,7 +127,9 @@ for name, service in stack['services'].items():
         }}
         service['ports'] = [f'{BIND}:8000:8000']
         service['volumes'] = [item for item in service['volumes'] if isinstance(item, str)]
-        service['tmpfs'].append('/run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700')
+        service.setdefault('tmpfs', []).append(
+            '/run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700',
+        )
     if name == 'traefik':
         service['command'] = [
             '--entrypoints.web.address=:80', '--entrypoints.ping.address=:8082',
