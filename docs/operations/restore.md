@@ -25,6 +25,73 @@ e cada volume, confirma que `django_migrations` não está vazio, e só então
 permite `--activate` (que exige `NEURODOC_RECOVERY_MODE=True` e todos os
 canais externos desligados antes de subir o stack real).
 
+## O que o host de recuperação precisa ter ANTES
+
+`ops/restore.py --prepare-data` sobe o Postgres de recuperação com
+`docker service create`, e isso traz pré-condições que não são óbvias
+lendo só o comando. Nenhuma delas produz mensagem útil quando falta: o
+`run()` de `ops/deploy.py` esconde a saída dos comandos de propósito
+(ela pode conter dado de aplicação), então o que aparece é
+`Command failed: docker service (exit 1)` e nada mais — na noite de
+restaurar, que é a pior noite para descobrir isso.
+
+| Precisa | Por quê |
+| --- | --- |
+| `age` no host | é ele que decifra; `restore.py` o chama direto |
+| Docker em **modo Swarm** | usa `docker service create` e `docker config create` |
+| Rótulo `neurodoc_data=true` no nó | o serviço tem `--constraint` para ele |
+| Rede `neurodoc_v1_internal` (overlay, `--internal`) | é a rede do Postgres de recuperação |
+| Segredos `NEURODOC_DB_ADMIN_PASSWORD`, `NEURODOC_DB_OWNER_PASSWORD`, `NEURODOC_DB_APP_PASSWORD` | o Postgres nasce com eles |
+| `docker login` no registry | `resolve_image` puxa a imagem da release |
+| `.env` com o mesmo `REGISTRY` | `read_manifest` recusa manifesto de outro registry |
+| Nenhum serviço ou volume `neurodoc_v1_*` | a recusa deliberada de host não-vazio |
+
+**Os três segredos de banco não precisam ser os de produção.** O Postgres
+da recuperação é inicializado do zero com eles, e `pg_dump --format=custom`
+de um banco não carrega definição de papel — então valores novos servem.
+Isso é bom saber sob pressão: **a senha do banco não faz parte do que você
+precisa ter guardado para restaurar.**
+
+O que **precisa** ser o de produção são `NEURODOC_PFX_MASTER_KEY` e
+`NEURODOC_SECRETS_MASTER_KEY`, e só na hora do `--activate`: sem elas o
+banco volta inteiro e os campos cifrados (certificado de assinatura,
+credenciais de SMTP das clínicas) voltam ilegíveis.
+
+```bash
+docker swarm init
+docker node update --label-add neurodoc_data=true $(docker node ls -q)
+docker network create --driver overlay --internal neurodoc_v1_internal
+for s in NEURODOC_DB_ADMIN_PASSWORD NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD; do
+  openssl rand -base64 48 | tr -d '
+' | docker secret create "$s" -
+done
+```
+
+## Primeiro drill real — 2026-09-26
+
+Feito na **máquina de trabalho do responsável**, e não na VPS, que é o
+ponto: um backup restaurado no mesmo servidor que o gerou não prova nada,
+porque um incêndio leva os dois juntos.
+
+- Backup usado: o do **timer**, não um feito à mão — `20260926T060116Z`,
+  gerado sozinho às 03:00 da primeira madrugada.
+- Integridade de cada arquivo conferida por SHA-256 antes de tocar em nada.
+- Restaurados: banco, `media`, `signing`, `letsencrypt`.
+- Conferido no banco de recuperação: 109 migrations, a clínica com plano e
+  estado corretos, as contas, CID-10 (14.233) e CMED (26.242) íntegros, e a
+  **última migration publicada presente** — o backup do timer pegou o
+  esquema de depois do deploy daquele dia, não um anterior.
+- **Aceite do contrato**: o SHA-256 recalculado do texto arquivado bate com
+  o hash gravado. A cópia integral exigida pela cláusula 2.3 sobreviveu à
+  volta e continua verificável.
+- `acme.json` restaurado aponta para `acme-v02` — o certificado de
+  produção, não o de teste.
+
+Fica aberto o `--activate` num host separado com as chaves-mestras reais, e
+com ele a medição de RPO/RTO. **H-22 deixa de estar sem nenhuma evidência**:
+a metade que não dependia de chave-mestra está exercitada contra backup
+real gerado por timer real.
+
 ## Verificado nesta etapa (sem VPS/backup externo real)
 
 - **Mecânica criptográfica do `age`**: roundtrip completo testado com um
