@@ -11,7 +11,7 @@ from tenancy.invitations import peek_invitation
 from tenancy.models import InvitationPurpose
 from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
 
-from .content import FAQ, RECURSOS
+from .content import AUTOR, FAQ, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
@@ -149,6 +149,7 @@ class LandingView(View):
             # pagina o anuncia uma vez, em prosa, acima deles. Zero
             # apaga a frase e os valores riscados de uma vez so.
             'desconto_promocional': DESCONTO_PROMOCIONAL,
+            'autor': AUTOR,
             'recursos': RECURSOS,
             'faq': FAQ,
             # Quatro artigos do manual, para a pagina mostrar que ele existe

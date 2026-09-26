@@ -16,6 +16,12 @@ from django.conf import settings as dj_settings
 from django.test import Client
 
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
+# O cliente de teste fala HTTP. Com a configuracao de producao carregada,
+# `SECURE_SSL_REDIRECT` devolve 301 para tudo, e este roteiro passaria a
+# medir o redirecionamento em vez do que veio conferir -- com todas as
+# assercoes falhando por 301, o que parece defeito na pagina. No ambiente
+# local, onde `DEBUG=True`, esta linha nao muda nada.
+dj_settings.SECURE_SSL_REDIRECT = False
 # A caixa em memoria, independentemente do que o ambiente diga.
 #
 # Este roteiro afirma sobre `mail.outbox`, que so existe no backend
@@ -542,8 +548,76 @@ if _criou or not _avisou:
     falhas.append('o cadastro aceitou senha e confirmacao diferentes')
 
 print('---')
+print('IA e SMS: a pagina diz o que cada plano tem, inclusive o que NAO tem')
+# A lista de itens de um plano so acrescenta linhas, e "nao tem" nao se
+# anuncia acrescentando linha. Quem compara quatro cartoes lado a lado
+# precisa ver o ausente na mesma posicao do presente -- senao conclui que
+# tem, e descobre depois de contratar.
+from tenancy.plans import PlanCode, has_clinical_ai, has_sms
+
+_pagina = _c.get('/').content.decode(errors='replace')
+for _rotulo, _quantos in [('não incluída', 1), ('não incluído', 1)]:
+    _achou = _pagina.count(_rotulo)
+    print(f'  "{_rotulo}" aparece {_achou}x')
+    if _achou < _quantos:
+        falhas.append(f'a vitrine nao marca "{_rotulo}" em plano nenhum')
+if 'incluída' not in _pagina or 'incluído' not in _pagina:
+    falhas.append('a vitrine nao marca o que esta incluido')
+
+# O numero de "nao incluida/o" tem de bater com o catalogo: se um plano
+# ganhar IA amanha e a pagina continuar dizendo que nao tem, a divergencia
+# entre venda e produto volta -- que e o que `plans.py` existe para impedir.
+_sem_ia = sum(1 for _p in [PlanCode.FREE, PlanCode.BASIC, PlanCode.COMPLETE, PlanCode.CUSTOM]
+              if not has_clinical_ai(_p))
+_sem_sms = sum(1 for _p in [PlanCode.FREE, PlanCode.BASIC, PlanCode.COMPLETE, PlanCode.CUSTOM]
+               if not has_sms(_p))
+print(f'  catalogo: {_sem_ia} plano(s) sem IA, {_sem_sms} sem SMS')
+if _pagina.count('não incluída') != _sem_ia:
+    falhas.append(f'a pagina marca IA ausente em {_pagina.count("não incluída")} planos, '
+                  f'e o catalogo tem {_sem_ia}')
+if _pagina.count('não incluído') != _sem_sms:
+    falhas.append(f'a pagina marca SMS ausente em {_pagina.count("não incluído")} planos, '
+                  f'e o catalogo tem {_sem_sms}')
+
+# O bloco explicativo: os dois custam por uso, e a clinica precisa saber
+# que pode apontar para o contrato proprio.
+for _trecho, _oquee in [
+    ('contrato próprio', 'que a clinica pode usar o provedor dela'),
+    ('não estão disponíveis', 'que o Gratuito nao tem os dois'),
+    ('e-mail', 'que os avisos do Gratuito seguem por e-mail'),
+]:
+    if _trecho not in _pagina:
+        falhas.append(f'a pagina nao explica {_oquee} (faltou "{_trecho}")')
+print(f'  bloco explicativo presente: {"contrato próprio" in _pagina}')
+
+print('---')
+print('Autor: a pagina diz quem escreveu o sistema')
+from base.content import AUTOR
+
+for _campo in ['nome', 'frase', 'resumo']:
+    if AUTOR[_campo] not in _pagina:
+        falhas.append(f'a pagina nao traz o campo "{_campo}" do autor')
+for _linguagem in AUTOR['linguagens']:
+    if _linguagem not in _pagina:
+        falhas.append(f'a pagina nao cita a linguagem {_linguagem}')
+_credenciais_na_pagina = sum(1 for _c_ in AUTOR['credenciais'] if _c_[:40] in _pagina)
+print(f'  nome, frase e resumo presentes; {_credenciais_na_pagina}/{len(AUTOR["credenciais"])} credenciais')
+if _credenciais_na_pagina != len(AUTOR['credenciais']):
+    falhas.append('a pagina nao lista todas as credenciais de `content.AUTOR`')
+
+# A foto e arquivo, e arquivo some. Com `ManifestStaticFilesStorage` a
+# pagina inteira quebra na renderizacao se ela faltar -- este roteiro
+# falha antes, dizendo qual arquivo.
+from django.contrib.staticfiles import finders
+
+if finders.find(AUTOR['foto']) is None:
+    falhas.append(f'a foto do autor nao existe: static/{AUTOR["foto"]}')
+print(f'  foto encontrada: {finders.find(AUTOR["foto"]) is not None}')
+
+print('---')
 if falhas:
     for line in falhas:
         print('FALHA:', line)
     raise SystemExit(1)
-print('OK: a pagina anuncia o catalogo, e o pedido de contato nao se perde.')
+print('OK: a pagina anuncia o catalogo, diz o que cada plano nao tem,')
+print('    apresenta quem escreveu o sistema, e o pedido de contato nao se perde.')

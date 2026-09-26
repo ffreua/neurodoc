@@ -25,6 +25,50 @@ que o produto faz: o ganho aparece quando se diz exatamente o que
 acontece na tela e o que deixa de acontecer na rotina.
 """
 
+#: Quem escreveu o sistema.
+#:
+#: A única seção da página que fala de pessoa, e ela existe por uma razão
+#: comercial concreta: prontuário é a coisa mais sensível que um médico
+#: entrega a um fornecedor, e a primeira pergunta de quem avalia um é
+#: "quem está do outro lado". Um CNPJ não responde isso.
+#:
+#: As linguagens entram porque contam uma história que o currículo médico
+#: sozinho não conta — Clipper e COBOL não são enfeite de nostalgia: são
+#: a prova de que quem escreveu isto programa há décadas, e não aprendeu a
+#: programar para fazer este produto.
+#:
+#: Aqui, e não no template, pela mesma razão do resto deste módulo: um
+#: roteiro de verificação consegue afirmar que a seção existe e que a
+#: frase de impacto está na página.
+AUTOR = {
+    'nome': 'Dr. Fernando Freua',
+    'foto': 'onboarding/fernando-freua.jpeg',
+    'frase': 'Feito por um neurologista para neurologistas e neurocirurgiões',
+    'resumo': 'Neurologista pelo HC-FMUSP e doutor em Ciências pela USP. '
+              'Programa em Clipper, COBOL e Python — o prontuário que você '
+              'está vendo foi escrito por quem atende no pronto-socorro de '
+              'neurologia e sabe o que falta na tela às três da manhã.',
+    'linguagens': ['Clipper', 'COBOL', 'Python'],
+    'credenciais': [
+        'Médico neurologista pelo Hospital das Clínicas da Universidade de São Paulo (HC-FMUSP)',
+        'Doutor em Ciências pela Universidade de São Paulo (USP), programa de Neurologia',
+        'Coordenador executivo do ambulatório de doenças neurológicas raras e '
+        'neurogenética do HC-FMUSP (Ambulatório NCL6500) e vice-coordenador do '
+        'fellow em neurogenética e doenças raras da USP',
+        'Cocoordenador da disciplina de Neurogenética da pós-graduação da USP',
+        'Neurologista do pronto atendimento de neurologia do HC-FMUSP',
+        'Neurologista do grupo de interconsultas neurológicas do HC-FMUSP',
+        'Médico e pesquisador da Divisão de Neurologia Clínica do HC-FMUSP',
+        'Professor dos residentes de neurologia da USP e dos alunos do sexto ano',
+        'Médico do corpo clínico do Hospital Sírio-Libanês de São Paulo',
+        'Neurologista do núcleo de neurogenética e doenças raras do Hospital Sírio-Libanês',
+        'Líder da Neurologia no Hospital Samaritano Higienópolis',
+        'MSL no Laboratório de Neurodiagnóstico Senne Liquor',
+        'CEO do Centro de Pesquisa Raros Brasil',
+    ],
+    'site': {'rotulo': 'rarosbrasil.com.br', 'url': 'https://www.rarosbrasil.com.br'},
+}
+
 #: Cada item: o que a clínica ganha, não o que o código faz.
 RECURSOS = [
     {

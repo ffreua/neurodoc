@@ -234,6 +234,32 @@ só não precisa estar na página, onde lia como defesa.{% endcomment %}
                                     {% if plan.max_doctors %}{{ plan.max_doctors }}{% else %}ilimitado{% endif %}
                                 </span>
                             </div>
+                            {% comment %}IA e SMS ficam **aqui**, junto dos limites, e
+                            não só na lista de itens abaixo.
+
+                            Os dois custam por uso a quem hospeda o sistema, e são a
+                            única diferença entre planos que a lista de itens não
+                            conseguia mostrar: ela só acrescenta linhas, e "não tem"
+                            não se anuncia acrescentando linha. Quem compara quatro
+                            cartões lado a lado precisa ver o **ausente** na mesma
+                            posição em que vê o presente — senão conclui que tem, e
+                            descobre depois de contratar.{% endcomment %}
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">IA clínica</span>
+                                {% if plan.clinical_ai %}
+                                <span class="fw-bold text-success">incluída</span>
+                                {% else %}
+                                <span class="fw-bold text-muted">não incluída</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">SMS</span>
+                                {% if plan.sms %}
+                                <span class="fw-bold text-success">incluído</span>
+                                {% else %}
+                                <span class="fw-bold text-muted">não incluído</span>
+                                {% endif %}
+                            </div>
                         </div>
 
                         <ul class="nd-tick list-unstyled fs-12 mb-4">
@@ -277,6 +303,51 @@ só não precisa estar na página, onde lia como defesa.{% endcomment %}
                 </div>
             </div>
             {% endfor %}
+        </div>
+        {% comment %}IA e SMS explicados por extenso, e não só pelo "incluída"
+        do cartão.
+
+        Os dois têm uma propriedade que nenhum outro recurso desta página
+        tem: **custam por uso**, e a conta é de quem hospeda o sistema. Isso
+        obriga a dizer duas coisas que o cartão não cabe — que nos planos
+        pagos eles funcionam no primeiro login, sem contratar nada à parte,
+        e que a clínica que já tem contrato próprio pode usar o dela.
+
+        A segunda não é detalhe técnico, é argumento de venda: a clínica
+        grande que já negociou um contrato de IA não quer o prontuário dela
+        saindo por outro fornecedor — e saber que pode apontar para o
+        contrato próprio é o que a deixa avançar.{% endcomment %}
+        <div class="row justify-content-center mt-5">
+            <div class="col-lg-9">
+                <div class="card border-0 bg-light">
+                    <div class="card-body p-4">
+                        <h6 class="fw-bold text-dark mb-3">Sobre a IA clínica e o SMS</h6>
+                        <p class="fs-13 text-muted mb-3">
+                            Nos planos <strong>Básico</strong> e acima, o <strong>SMS</strong>
+                            funciona desde o primeiro acesso; a <strong>IA clínica</strong>
+                            entra a partir do <strong>Completo</strong>. Não há serviço
+                            para contratar à parte, nem chave para providenciar: já vem
+                            ligado.
+                        </p>
+                        <p class="fs-13 text-muted mb-3">
+                            <strong>Se a sua clínica já tem contrato próprio</strong> de
+                            provedor de IA ou de envio de SMS, dá para apontar o sistema
+                            para ele — provedor, chave e modelo são configuráveis na área
+                            da clínica, e a sua escolha passa a valer no lugar da nossa.
+                            É o caminho de quem precisa que os dados trafeguem dentro de
+                            um contrato específico.
+                        </p>
+                        <p class="fs-12 text-muted mb-0 border-start border-3 ps-3">
+                            No <strong>plano Gratuito</strong>, a IA clínica e o SMS
+                            <strong>não estão disponíveis</strong> — nem com chave própria.
+                            Todo o resto funciona: prontuário, roteiro de exame, escalas,
+                            agenda, receita e laudo assinados. Os avisos que iriam por SMS
+                            seguem por <strong>e-mail</strong>, inclusive o código de
+                            acesso a documento.
+                        </p>
+                    </div>
+                </div>
+            </div>
         </div>
         <p class="fs-11 text-muted text-center mt-4 mb-0">
             O limite de pacientes conta quem está ativo — arquivar um paciente que
@@ -322,6 +393,53 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
                     </div>
                     {% endfor %}
                 </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ------------------------------------------------------------- autor -->
+{% comment %}A única seção que fala de pessoa, e ela vem depois dos planos
+de propósito.
+
+Quem leu preço e limites já decidiu se o produto serve; o que falta é
+decidir se confia. Prontuário é a coisa mais sensível que um médico entrega
+a um fornecedor, e a pergunta seguinte é sempre "quem está do outro lado".
+Pôr isto antes dos planos responderia a pergunta antes de ela existir.
+
+A foto é grande e o currículo é longo por escolha: a alternativa seria um
+parágrafo genérico de "fundado por médicos", que é o que todo mundo
+escreve e ninguém verifica.{% endcomment %}
+<section class="nd-section bg-white" id="autor">
+    <div class="container">
+        <div class="row justify-content-center align-items-center g-4 g-lg-5">
+            <div class="col-lg-4 text-center">
+                <img src="{% static autor.foto %}" alt="{{ autor.nome }}"
+                     class="img-fluid rounded-4 shadow-sm nd-autor-foto">
+                <h5 class="fw-bold text-dark mt-4 mb-1">{{ autor.nome }}</h5>
+                <p class="fs-12 text-muted mb-3">Neurologista · HC-FMUSP</p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    {% for linguagem in autor.linguagens %}
+                    <span class="badge bg-soft-primary text-primary fs-11">{{ linguagem }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-lg-7">
+                {% comment %}A frase de impacto é um blockquote e não um h2: ela
+                é uma afirmação de quem assina, não um título de seção. O
+                título da seção é a linha discreta acima dela.{% endcomment %}
+                <span class="fs-11 fw-bold text-uppercase text-primary">Quem fez o sistema</span>
+                <blockquote class="nd-autor-frase fs-20 fw-bold text-dark mt-2 mb-4">
+                    “{{ autor.frase }}”
+                </blockquote>
+                <p class="fs-14 text-muted">{{ autor.resumo }}</p>
+                <ul class="nd-tick list-unstyled fs-12 text-muted mb-4">
+                    {% for credencial in autor.credenciais %}<li>{{ credencial }}</li>{% endfor %}
+                </ul>
+                <a class="btn btn-outline-secondary btn-sm" href="{{ autor.site.url }}"
+                   target="_blank" rel="noopener noreferrer">
+                    {{ autor.site.rotulo }}
+                </a>
             </div>
         </div>
     </div>

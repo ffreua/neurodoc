@@ -180,3 +180,25 @@
     border-top: 1px solid var(--bs-gray-200, #e9ecef);
     background: #fff;
 }
+
+/* ------------------------------------------------------------- autor --
+ *
+ * A foto tem fundo branco recortado, então ela **não** leva moldura
+ * escura nem fundo colorido: o recorte apareceria como um halo. O que dá
+ * forma é o raio da borda e a sombra suave, e o limite de largura existe
+ * porque numa tela grande a coluna de 4/12 ainda renderiza um retrato de
+ * meio metro.
+ */
+.nd-autor-foto {
+    max-width: 320px;
+    width: 100%;
+}
+
+/* A frase de impacto: aspas tipográficas já vêm no texto, então aqui só a
+ * entrelinha e a barra que a separa do currículo ao lado. Sem itálico —
+ * em bloco de vinte pixels ele atrapalha a leitura em vez de destacar. */
+.nd-autor-frase {
+    line-height: 1.35;
+    border-left: 3px solid var(--bs-primary, #3454d1);
+    padding-left: 1rem;
+}
