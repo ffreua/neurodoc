@@ -114,6 +114,41 @@ lá agora.
 
 ---
 
+## 5-A. A bateria de verificação estava muda fora do ambiente local
+
+Descoberto ao montar um ambiente de prova na própria VPS, com a
+configuração de produção: **40 dos 56 roteiros falhavam**, e quase todos
+pelo mesmo motivo bobo. O cliente de teste do Django fala HTTP; com
+`DEBUG=False`, `SECURE_SSL_REDIRECT` devolve `301` para tudo, e o roteiro
+passava a medir o redirecionamento em vez da tela. As asserções falhavam
+por `301` — o que parece defeito no código testado, e manda quem
+investiga para o lugar errado.
+
+Cada roteiro que usa o cliente de teste passou a declarar
+`SECURE_SSL_REDIRECT = False` junto do `ALLOWED_HOSTS` que ele já
+declarava. No ambiente local, onde `DEBUG=True`, a linha não muda nada.
+
+| | |
+| --- | --- |
+| Antes | 40 falhas de 56 — 29% passando |
+| Depois | **8 falhas de 57 — 86% passando**, zero regressões |
+
+**Por que isso vale o trabalho.** A rede de proteção existia e estava
+desligada em quase todo lugar onde seria usada: só o ambiente local
+completo a acionava, e ele exige uma máquina que aguente um build de vinte
+minutos. Com a correção a bateria roda em qualquer ambiente descartável —
+que é como esta sessão pegou o `AttributeError` do motor de preço (que
+quebraria a primeira consulta finalizada) e o `g-5` sem variante
+responsiva (que quebrava a página de vendas no celular).
+
+**As 8 que sobram são dado de catálogo, não produto**, e ficam registradas
+para não serem reinvestigadas: `check_receitas` precisa da CMED importada;
+`check_codigos` precisa do CID-10 completo, e o `seed_demo` cria só um
+subconjunto; as demais dependem de estado que a subida real monta e um
+ambiente efêmero não tem. `check_chave` estava entre elas por culpa do
+ambiente — as duas chaves-mestras tinham sido geradas com o mesmo valor, e
+o roteiro existe exatamente para acusar isso. Corrigido o ambiente, passou.
+
 ## 6. O que fica em aberto
 
 | | |

@@ -45,9 +45,10 @@ AUTOR = {
     'foto': 'onboarding/fernando-freua.jpeg',
     'frase': 'Feito por um neurologista para neurologistas e neurocirurgiões',
     'resumo': 'Neurologista pelo HC-FMUSP e doutor em Ciências pela USP. '
-              'Programa em Clipper, COBOL e Python — o prontuário que você '
-              'está vendo foi escrito por quem atende no pronto-socorro de '
-              'neurologia e sabe o que falta na tela às três da manhã.',
+              'Programa em Clipper, COBOL e Python — o prontuário que você está '
+              'vendo foi escrito por quem atende há muitos anos e sabe, de '
+              'consulta em consulta, qual informação faz falta na hora de '
+              'conduzir um caso e de acompanhá-lo ao longo do tempo.',
     'linguagens': ['Clipper', 'COBOL', 'Python'],
     'credenciais': [
         'Médico neurologista pelo Hospital das Clínicas da Universidade de São Paulo (HC-FMUSP)',

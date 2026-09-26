@@ -18,6 +18,12 @@ from django.conf import settings as dj_settings
 from django.test import Client
 
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
+# O cliente de teste fala HTTP. Com a configuracao de producao carregada,
+# `SECURE_SSL_REDIRECT` devolve 301 para tudo, e o roteiro passa a medir o
+# redirecionamento em vez da tela que veio conferir -- com as assercoes
+# falhando por 301, o que parece defeito no codigo testado. No ambiente
+# local, onde `DEBUG=True`, esta linha nao muda nada.
+dj_settings.SECURE_SSL_REDIRECT = False
 
 from django.utils import timezone
 

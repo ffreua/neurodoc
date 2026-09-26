@@ -24,6 +24,12 @@ from django.conf import settings as dj
 from django.test import Client
 
 dj.ALLOWED_HOSTS = list(dj.ALLOWED_HOSTS) + ['testserver']
+# O cliente de teste fala HTTP. Com a configuracao de producao carregada,
+# `SECURE_SSL_REDIRECT` devolve 301 para tudo, e o roteiro passa a medir o
+# redirecionamento em vez da tela que veio conferir -- com as assercoes
+# falhando por 301, o que parece defeito no codigo testado. No ambiente
+# local, onde `DEBUG=True`, esta linha nao muda nada.
+dj.SECURE_SSL_REDIRECT = False
 dj.EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
 from accounts.models import User
