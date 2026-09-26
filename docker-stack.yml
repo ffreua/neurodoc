@@ -15,8 +15,22 @@ services:
       RELEASE_ID: ${RELEASE_ID}
       ROLLOUT_ID: ${ROLLOUT_ID}
     read_only: true
-    tmpfs: ['/tmp:size=128m,mode=1777']
     volumes:
+      # Forma longa, e nao a chave curta `tmpfs:`. O `docker stack deploy`
+      # **ignora `tmpfs:` em silencio** -- so o `docker compose` a entende.
+      # O servico subia com `read_only: true` e nenhum /tmp gravavel, e a
+      # falha nao aparecia aqui: o `app` passava no healthcheck e so
+      # quebraria no primeiro anexo, assinatura de PDF, OCR ou exportacao,
+      # com paciente na sala. O worker, que precisa de /tmp para o
+      # `billiard` nascer, morria no boot em laco -- e era esse laco, e nao
+      # o app saudavel, que denunciava o problema dos quatro servicos.
+      #
+      # Sem `mode`: o padrao do Docker para mount tmpfs ja e 1777
+      # (`drwxrwxrwt`), que e o que o processo UID 10001 precisa. Declarar
+      # `mode` na forma longa depende de como o YAML interpreta o zero a
+      # esquerda, e um 01777 lido como decimal daria uma pasta sem
+      # permissao nenhuma.
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 134217728}}
       - media:/data/media
       - staticfiles:/data/staticfiles
       - signing:/data/signing
@@ -80,8 +94,10 @@ services:
     env_file: [.runtime/worker.env]
     environment: {RELEASE_ID: '${RELEASE_ID}', ROLLOUT_ID: '${ROLLOUT_ID}'}
     read_only: true
-    tmpfs: ['/tmp:size=256m,mode=1777']
-    volumes: [media:/data/media, clamav:/data/clamav]
+    volumes:  # forma longa por causa do Swarm -- ver o servico `app`
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 268435456}}
+      - media:/data/media
+      - clamav:/data/clamav
     secrets:
       - NEURODOC_DJANGO_SECRET_KEY
       - NEURODOC_DB_APP_PASSWORD
@@ -116,8 +132,9 @@ services:
     env_file: [.runtime/beat.env]
     environment: {RELEASE_ID: '${RELEASE_ID}', ROLLOUT_ID: '${ROLLOUT_ID}'}
     read_only: true
-    tmpfs: ['/tmp:size=64m,mode=1777']
-    volumes: [beat:/data/beat]
+    volumes:  # forma longa por causa do Swarm -- ver o servico `app`
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 67108864}}
+      - beat:/data/beat
     secrets:
       - NEURODOC_DJANGO_SECRET_KEY
       - NEURODOC_DB_APP_PASSWORD
@@ -228,11 +245,11 @@ services:
     environment:
       CF_DNS_API_TOKEN_FILE: /run/secrets/CLOUDFLARE_DNS_API_TOKEN
     read_only: true
-    tmpfs: ['/tmp:size=32m,mode=1777']
     ports:
       - {target: 80, published: 80, protocol: tcp, mode: host}
       - {target: 443, published: 443, protocol: tcp, mode: host}
-    volumes:
+    volumes:  # forma longa por causa do Swarm -- ver o servico `app`
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 33554432}}
       - letsencrypt:/letsencrypt
       - /var/run/docker.sock:/var/run/docker.sock:ro
     configs:
