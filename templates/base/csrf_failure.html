@@ -1,0 +1,29 @@
+{% extends "base_auth.html" %}
+{% comment %}Substitui o 403 cru do Django. O porquê está em `base/csrf.py`.
+
+A palavra "CSRF" não aparece na tela. Quem lê isto não tem o que fazer com
+ela, e um termo técnico numa página de erro produz o chamado de suporte
+que esta página deveria evitar.
+{% endcomment %}
+{% block title %}Sessão expirada nesta aba — NeuroDoc{% endblock %}
+{% block heading %}Esta aba ficou para trás{% endblock %}
+{% block subheading %}Por segurança, o envio foi recusado. Nada foi perdido e nada foi alterado.{% endblock %}
+{% block content %}
+
+<p class="fs-13 text-muted">
+    Isso acontece quando a página ficou aberta enquanto a sessão mudou noutro
+    lugar — normalmente depois de sair do sistema, ou de entrar numa segunda
+    aba. A página que você estava vendo envelheceu; o sistema está inteiro.
+</p>
+
+<p class="fs-13 text-muted">
+    Abrir a tela de novo resolve, e é o que o botão abaixo faz.
+</p>
+
+{% if autenticado %}
+<a class="btn btn-primary w-100 mb-2" href="{{ caminho_de_volta }}">Abrir a página de novo</a>
+<a class="btn btn-light-primary w-100" href="/app/">Ir para o início</a>
+{% else %}
+<a class="btn btn-primary w-100 mb-2" href="{% url 'accounts:login' %}">Ir para a tela de entrada</a>
+{% endif %}
+{% endblock %}

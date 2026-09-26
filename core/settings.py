@@ -245,6 +245,14 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 28800
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
+#: A recusa por token CSRF tem tela propria (`base/csrf.py`).
+#:
+#: O padrao do Django e um 403 sem estilo nem saida, e ele aparece na
+#: situacao mais banal que existe: sair do sistema e entrar de novo na aba
+#: que ja estava aberta. `auth_login` troca o cookie CSRF, o formulario que
+#: ficou na aba carrega o token de antes, e o servidor recusa -- com uma
+#: pagina que nao diz o que fazer.
+CSRF_FAILURE_VIEW = 'base.csrf.csrf_failure'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 EMAIL_ENABLED = env.bool('EMAIL_ENABLED', default=False)
