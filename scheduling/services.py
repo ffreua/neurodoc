@@ -183,10 +183,10 @@ def reserve_from_grid(
 
 
 @transaction.atomic
-def quick_register_patient(context, name, phone, note=''):
+def quick_register_patient(context, name, phone, note='', email='', accepts_messages=True):
     """Pré-cadastro de paciente para o agendamento por telefone.
 
-    Grava o mínimo que a secretária tem na ligação — nome e telefone — e
+    Grava o mínimo que a secretária tem na ligação — nome e contato — e
     marca `registration_stage='preliminary'`. O motivo de a data de
     nascimento faltar fica **escrito** no próprio cadastro em vez de o campo
     ficar vazio sem explicação: `Patient.clean()` exige data ou motivo, e a
@@ -216,11 +216,31 @@ def quick_register_patient(context, name, phone, note=''):
     patient.save()
 
     digits = ''.join(ch for ch in (phone or '') if ch.isdigit())
-    if digits:
+    endereco = (email or '').strip().lower()
+    if digits or endereco:
+        # `sms_enabled`/`email_enabled` seguem o que a secretária marcou, e
+        # não `False` fixo como antes.
+        #
+        # O `False` fixo contrariava o princípio que o cadastro completo
+        # escreve em `patients/forms.py`: mensagem transacional é execução
+        # do que a pessoa pediu, e quem deu o telefone para marcar deu para
+        # ser chamado. O efeito era mudo e só aparecia depois — o
+        # pré-cadastro guardava o telefone e o sistema não mandava a
+        # confirmação, sem nada na tela dizendo por quê.
+        #
+        # Cada canal segue o próprio dado: autorizar SMS sem telefone, ou
+        # e-mail sem endereço, grava um consentimento que não se exerce e
+        # que depois se lê como se a pessoa tivesse recusado.
+        #
+        # Divulgação continua de fora: `marketing_opt_in_at` fica nulo, e é
+        # ele que a LGPD (art. 11, I) exige específico e destacado.
         contact = PatientContact(
             tenant_id=context.tenant_id, patient=patient,
             name=name.strip()[:255], relationship='Próprio paciente',
-            phone=digits[:16], sms_enabled=False, email_enabled=False,
+            phone=digits[:16], email=endereco[:254],
+            sms_enabled=bool(accepts_messages and digits),
+            email_enabled=bool(accepts_messages and endereco),
+            authorized_for_documents=bool(accepts_messages),
         )
         contact.full_clean()
         contact.save()

@@ -70,29 +70,57 @@ clicado diz qual horário e qual paciente.
                         <hr class="flex-grow-1 my-0">
                     </div>
 
-                    {% comment %}Pré-cadastro: nome e telefone é o que a
+                    {% comment %}Pré-cadastro: nome e um contato é o que a
                     secretária tem na ligação. O cadastro completo é pedido no
-                    check-in, com o paciente na recepção.{% endcomment %}
+                    check-in, com o paciente na recepção.
+
+                    Telefone e e-mail lado a lado, e **um dos dois basta**: o
+                    SMS confirma para quem atende o celular, e o e-mail alcança
+                    quem não atende número desconhecido — que é muita gente. A
+                    regra que continua valendo é a de sempre: pré-cadastro sem
+                    contato nenhum é horário que ninguém consegue confirmar
+                    depois.{% endcomment %}
                     <div class="row g-2" id="book-new-patient">
-                        <div class="col-7">
+                        <div class="col-12">
                             <label class="form-label fw-semibold" for="book-new-name">Nome do paciente</label>
                             <input type="text" class="form-control" id="book-new-name" name="new_name"
                                    placeholder="Nome completo, como ele falou">
                         </div>
-                        <div class="col-5">
+                        <div class="col-md-6">
                             <label class="form-label fw-semibold" for="book-new-phone">Telefone</label>
                             <input type="text" class="form-control" id="book-new-phone" name="new_phone"
                                    inputmode="tel" placeholder="(11) 98888-7777">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label fw-semibold" for="book-new-email">E-mail</label>
+                            <input type="email" class="form-control" id="book-new-email" name="new_email"
+                                   inputmode="email" autocomplete="off"
+                                   placeholder="paciente@email.com">
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold" for="book-note">Observação para a recepção</label>
                             <input type="text" class="form-control" id="book-note" name="note"
                                    placeholder="Ex.: primeira vez, indicado pela Dra. Ana">
                         </div>
+                        {% comment %}Nasce marcada, e a secretária desmarca se a
+                        pessoa pedir. Marcada porque confirmar o horário que ela
+                        acabou de marcar é executar o que ela pediu; oferecida
+                        porque deduzir o aceite sem dar como recusar transforma
+                        consentimento em presunção. Divulgação não passa por
+                        aqui.{% endcomment %}
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="1"
+                                       id="book-accepts" name="contact_accepts_messages" checked>
+                                <label class="form-check-label fs-12" for="book-accepts">
+                                    Pode receber confirmação e lembrete deste horário
+                                </label>
+                            </div>
+                        </div>
                     </div>
                     <div class="form-text fs-11 mt-2">
-                        O pré-cadastro guarda só nome e telefone. A ficha completa é pedida no
-                        check-in, quando o paciente chega.
+                        O pré-cadastro guarda só nome e contato — telefone, e-mail ou os dois.
+                        A ficha completa é pedida no check-in, quando o paciente chega.
                     </div>
 
                     <details class="mt-3">

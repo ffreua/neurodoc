@@ -603,7 +603,10 @@ class QuickBookingView(TenantScopedView):
             try:
                 patient = services.quick_register_patient(
                     request.access_context, form.cleaned_data['new_name'],
-                    form.cleaned_data.get('new_phone', ''), note=form.cleaned_data.get('note', ''),
+                    form.cleaned_data.get('new_phone', ''),
+                    note=form.cleaned_data.get('note', ''),
+                    email=form.cleaned_data.get('new_email', ''),
+                    accepts_messages=form.cleaned_data.get('contact_accepts_messages', True),
                 )
             except PlanLimitReached as limite:
                 messages.error(request, limite.message())

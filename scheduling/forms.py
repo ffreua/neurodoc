@@ -264,6 +264,27 @@ class QuickBookingForm(forms.Form):
             'placeholder': 'Ex.: (11) 98888-7777', 'inputmode': 'tel',
         }),
     )
+    new_email = forms.EmailField(
+        label='E-mail', required=False, max_length=254,
+        widget=forms.EmailInput(attrs={
+            'placeholder': 'Ex.: paciente@email.com', 'inputmode': 'email',
+            'autocomplete': 'off',
+        }),
+    )
+    #: Nasce marcada, como no cadastro completo (`patients/forms.py`), e pela
+    #: mesma razao: mensagem transacional e execucao do que a pessoa pediu --
+    #: confirmar o horario que ela acabou de marcar --, e quem deu o telefone
+    #: na ligacao deu para ser chamado. Divulgacao e outra coisa, exige
+    #: consentimento especifico e destacado (LGPD art. 11, I) e nao se decide
+    #: aqui: `marketing_opt_in_at` continua nulo.
+    #:
+    #: Marcada e nao implicita: a secretaria esta ao telefone com a pessoa e
+    #: pode desmarcar quando ela pedir para nao ser contatada. Deduzir o
+    #: consentimento sem oferecer a recusa e o que transforma um aceite em
+    #: presuncao.
+    contact_accepts_messages = forms.BooleanField(
+        label='Pode receber confirmação e lembrete', required=False, initial=True,
+    )
     note = forms.CharField(
         label='Observação para a recepção', required=False, max_length=255,
         widget=forms.TextInput(attrs={'placeholder': 'Ex.: primeira vez, indicado pela Dra. Ana'}),
@@ -283,11 +304,19 @@ class QuickBookingForm(forms.Form):
                 'new_name',
                 'Escolha um paciente já cadastrado ou informe o nome para o pré-cadastro.',
             )
-        if not has_existing and name and not (cleaned.get('new_phone') or '').strip():
-            # Telefone é o que permite confirmar e avisar de mudança. Um
-            # pré-cadastro sem contato é um horário que ninguém consegue
-            # confirmar depois.
-            self.add_error('new_phone', 'Informe um telefone de contato.')
+        if not has_existing and name:
+            tem_telefone = bool((cleaned.get('new_phone') or '').strip())
+            tem_email = bool((cleaned.get('new_email') or '').strip())
+            # Um dos dois basta, e nao mais o telefone obrigatoriamente.
+            # O que a regra protege e o mesmo de antes: um pre-cadastro sem
+            # contato nenhum e um horario que ninguem consegue confirmar
+            # depois. O e-mail cumpre esse papel tao bem quanto -- e para
+            # quem nao atende numero desconhecido, melhor.
+            if not tem_telefone and not tem_email:
+                self.add_error(
+                    'new_phone',
+                    'Informe telefone ou e-mail — é por onde a confirmação sai.',
+                )
         if cleaned.get('is_overbook') and not (cleaned.get('override_reason') or '').strip():
             self.add_error('override_reason', 'Encaixe exige justificativa.')
         return cleaned
