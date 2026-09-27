@@ -14,7 +14,19 @@ from .reconciliation import POLL_OFFSETS_MINUTES
 from .smsdev import SmsChannelDisabled, SmsSendFailed, send_sms
 
 DOCUMENT_MESSAGE = 'Seu documento está disponível no NeuroDoc. Acesse o link para visualizá-lo com segurança.'
-REMINDER_MESSAGE_TEMPLATE = 'Lembrete NeuroDoc: consulta em {when}. Em caso de duvida, contate a clinica.'
+#: O lembrete se apresenta pela **clinica**, e nao pelo NeuroDoc.
+#:
+#: O paciente nao sabe o que e NeuroDoc -- ele conhece o consultorio onde
+#: marcou. "Lembrete NeuroDoc" chega como mensagem de remetente
+#: desconhecido, que e o que se apaga sem ler, e ainda expoe o nome do
+#: fornecedor onde deveria estar o de quem atende.
+#:
+#: Tambem nao pede resposta, pela mesma razao do template de confirmacao:
+#: ninguem le resposta de SMS.
+REMINDER_MESSAGE_TEMPLATE = (
+    '{clinic}: lembrete de consulta em {when}. Nao responda; '
+    'duvidas, ligue para a clinica.'
+)
 
 
 def _still_valid(contact):
@@ -217,8 +229,16 @@ def deliver_appointment_reminder(appointment, event_version):
         _notify_no_contact(appointment.patient, f'lembrete do horário de {quando}')
         return []
 
-    when = appointment.starts_at.strftime('%d/%m %H:%M')
-    message = REMINDER_MESSAGE_TEMPLATE.format(when=when)
+    # `localtime`, e nao `starts_at` cru: aquele imprime em UTC, e o
+    # lembrete chegava com o horario deslocado tres horas -- o paciente
+    # aparecendo cedo ou perdendo a consulta, com a mensagem "certa".
+    when = timezone.localtime(appointment.starts_at).strftime('%d/%m às %H:%M')
+    clinic = (
+        appointment.tenant.trade_name or appointment.tenant.legal_name or 'Clinica'
+    )[:24]
+    message = _encurtar_para_sms(
+        REMINDER_MESSAGE_TEMPLATE, clinic, '', when, '',
+    )
     deliveries = []
     for contact in contacts:
         for channel in _channels_for(contact):
@@ -243,22 +263,48 @@ def deliver_appointment_reminder(appointment, event_version):
 # Confirmação enviada à mão pela secretaria
 # --------------------------------------------------------------------------
 
+#: Teto de um SMS. Acima disso a operadora quebra em duas mensagens, que
+#: sao cobradas como duas e podem chegar fora de ordem.
+SMS_MAX_CHARS = 160
+
+#: O SMS **informa**, e nao pede resposta.
+#:
+#: A versao anterior dizia "Confirme respondendo a esta mensagem", e
+#: ninguem le resposta de SMS: nao ha webhook, nao ha caixa de entrada, nao
+#: ha nada. O paciente respondia "confirmo" e a mensagem morria no
+#: provedor -- ele achando que tinha confirmado, a clinica sem saber.
+#: Pedir uma acao que o sistema nao recebe e pior que nao pedir nada.
+#:
+#: "Nao responda" antes do caminho certo, e nao depois: quem le SMS le a
+#: primeira linha e age. A instrucao de ligar so vale se a pessoa souber
+#: antes que responder nao serve.
 CONFIRMATION_SMS_TEMPLATE = (
-    '{clinic}: consulta com {doctor} em {when}. Confirme respondendo a esta '
-    'mensagem ou ligue para a clinica.'
+    '{clinic}: consulta com {doctor} em {when}. Nao responda. '
+    'Confirmar ou cancelar: ligue para a clinica{contato}.'
 )
 CONFIRMATION_EMAIL_SUBJECT = 'Confirmação de consulta'
+#: O e-mail tem espaco, entao ele explica o que o SMS so consegue apontar.
+#:
+#: Duas frases carregam o essencial e estao la de proposito: que a caixa
+#: nao recebe resposta -- senao a pessoa responde e espera retorno --, e
+#: que o telefone e o unico caminho. A ausencia de informacao clinica
+#: continua dita: e-mail nao e canal seguro, e quem recebe precisa saber
+#: que nao ha diagnostico ali antes de encaminhar a mensagem para alguem.
 CONFIRMATION_EMAIL_TEMPLATE = """Olá, {patient}.
 
 Sua consulta está marcada:
 
-  Data e hora: {when}
-  Profissional: {doctor}
-  Local: {clinic}
+  Data e hora .... {when}
+  Profissional ... {doctor}
+  Local .......... {clinic}
 
-Se precisar remarcar ou cancelar, entre em contato com a clínica.
+Para confirmar, remarcar ou cancelar, ligue para a clínica{contato}.
 
-Esta mensagem é apenas uma confirmação de horário e não contém informação clínica.
+Esta mensagem é automática e esta caixa não recebe respostas — se você
+responder a este e-mail, ninguém vai ler.
+
+É apenas uma confirmação de horário: não contém informação clínica, nem
+diagnóstico, nem resultado de exame.
 """
 
 
@@ -288,6 +334,64 @@ def confirmation_contacts(appointment, channel):
     ]
 
 
+def _telefone_da_clinica(tenant):
+    """O telefone cadastrado na identidade da clínica, ou vazio.
+
+    Sem ele, a mensagem diz "ligue para a clínica" e a pessoa tem de
+    procurar o número. Com ele, a instrução é acionável no próprio texto —
+    que é o ponto de mandar a mensagem.
+
+    Nunca levanta: perfil ausente é o estado de uma clínica que acabou de
+    nascer, e uma confirmação de horário não deve falhar porque ninguém
+    preencheu o cadastro ainda.
+    """
+    # `ClinicProfile.objects.filter(tenant_id=...)`, e nao um acessor
+    # reverso: o relacionamento nao declara `related_name`, entao
+    # `tenant.clinic_profile` nao existe -- `getattr` com `None` devolvia
+    # sempre `None` e o telefone nunca entrava na mensagem, em silencio. E
+    # a forma que o resto do codigo ja usa (`documents/pdf/common.py`).
+    from tenancy.models import ClinicProfile
+
+    perfil = ClinicProfile.objects.filter(tenant_id=tenant.id).first()
+    return (getattr(perfil, 'phone', '') or '').strip()
+
+
+def _encurtar_para_sms(modelo, clinic, doctor, when, contato):
+    """Monta o SMS garantindo o teto, sem decepar a frase.
+
+    O corte cego `texto[:160]` que existia aqui cabia enquanto o texto
+    fosse este; qualquer palavra a mais na redação passava a cortar o fim
+    da instrução — e o fim é justamente onde está o que a pessoa deve
+    fazer. Uma mensagem que termina em "ligue para a cl" é pior que uma
+    sem instrução nenhuma.
+
+    A ordem em que se cede é deliberada, e vai do menos ao mais
+    informativo:
+
+    1. o telefone sai — quem marcou consulta tem o número da clínica;
+    2. o sobrenome do médico sai, ficando o primeiro nome;
+    3. o nome da clínica encolhe — ela já se identifica pelo remetente do
+       SMS (`sms_sender_name`).
+
+    O texto fixo nunca é tocado: ele é a mensagem.
+    """
+    def montar(c, d, ct):
+        return modelo.format(clinic=c, doctor=d, when=when, contato=ct)
+
+    for candidato in (
+        montar(clinic, doctor, contato),
+        montar(clinic, doctor, ''),
+        montar(clinic, doctor.split()[0] if doctor else '', ''),
+        montar(clinic[:24], doctor.split()[0] if doctor else '', ''),
+        montar(clinic[:14], doctor.split()[0] if doctor else '', ''),
+    ):
+        if len(candidato) <= SMS_MAX_CHARS:
+            return candidato
+    # Fim de linha: nomes absurdamente longos. Corta, mas no espaço, para
+    # a mensagem terminar numa palavra inteira.
+    return montar(clinic[:14], doctor.split()[0] if doctor else '', '')[:SMS_MAX_CHARS].rsplit(' ', 1)[0]
+
+
 def _confirmation_message(appointment, channel):
     tenant = appointment.tenant
     clinic = (tenant.trade_name or tenant.legal_name or 'Clinica')[:40]
@@ -295,20 +399,21 @@ def _confirmation_message(appointment, channel):
         appointment.physician_membership.user.get_full_name()
         or appointment.physician_membership.user.email
     )
+    telefone = _telefone_da_clinica(tenant)
     when = timezone.localtime(appointment.starts_at).strftime('%d/%m/%Y às %H:%M')
     if channel == DeliveryChannel.EMAIL:
         return CONFIRMATION_EMAIL_TEMPLATE.format(
             patient=appointment.patient.full_name.split()[0],
             when=when, doctor=doctor, clinic=clinic,
+            contato=f': {telefone}' if telefone else '',
         )
-    # SMS tem 160 caracteres: o nome do médico entra encurtado quando
-    # precisa, e a data sem o ano, que a pessoa já sabe.
+    # SMS: a data perde o ano, que a pessoa já sabe, e o resto cede na
+    # ordem de `_encurtar_para_sms`.
     short_when = timezone.localtime(appointment.starts_at).strftime('%d/%m às %H:%M')
-    short_doctor = doctor if len(doctor) <= 24 else doctor.split()[0]
-    text = CONFIRMATION_SMS_TEMPLATE.format(
-        clinic=clinic[:24], doctor=short_doctor, when=short_when,
+    return _encurtar_para_sms(
+        CONFIRMATION_SMS_TEMPLATE, clinic, doctor, short_when,
+        f': {telefone}' if telefone else '',
     )
-    return text[:160]
 
 
 @transaction.atomic
