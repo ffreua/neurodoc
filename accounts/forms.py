@@ -57,3 +57,50 @@ class ThrottledAdminAuthenticationForm(ThrottledAuthenticationForm, AdminAuthent
 
 class MFAChallengeForm(forms.Form):
     code = forms.CharField(max_length=32, label='Código de autenticação')
+
+
+class MinhaContaForm(forms.ModelForm):
+    """Nome e sobrenome da própria conta.
+
+    Existiu uma lacuna aqui: `first_name` e `last_name` só se preenchiam
+    pelo admin técnico do Django, que é de quem opera o servidor. Quem se
+    cadastrava ficava com a conta sem nome, e as telas que mostram pessoa
+    passavam a estampar o **endereço de e-mail** no lugar do nome. Para o
+    médico, `PhysicianProfile.professional_name` cobre o buraco; para a
+    secretária e para quem administra, não havia nada.
+
+    Só estes dois campos, e de propósito. O e-mail é a identidade de
+    login, e trocá-lo é outro procedimento — envolve reverificação, porque
+    é para onde vão a recuperação de senha e a via do contrato. Um
+    `<input>` de e-mail nesta tela convidaria a uma troca que ela não sabe
+    concluir com segurança.
+    """
+
+    class Meta:
+        from .models import User
+
+        model = User
+        fields = ['first_name', 'last_name']
+        labels = {'first_name': 'Nome', 'last_name': 'Sobrenome'}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['first_name'].required = True
+        self.fields['first_name'].widget.attrs.update({'autocomplete': 'given-name'})
+        self.fields['last_name'].widget.attrs.update({'autocomplete': 'family-name'})
+        self.fields['last_name'].help_text = 'Opcional.'
+
+    def clean_first_name(self):
+        """Espaço em branco não é nome.
+
+        Sem isto, `'   '` passaria na exigência de preenchimento, seria
+        gravado, e `get_full_name` voltaria a cair no e-mail — com a tela
+        dizendo que salvou.
+        """
+        valor = (self.cleaned_data.get('first_name') or '').strip()
+        if not valor:
+            raise ValidationError('Informe ao menos o primeiro nome.')
+        return valor
+
+    def clean_last_name(self):
+        return (self.cleaned_data.get('last_name') or '').strip()

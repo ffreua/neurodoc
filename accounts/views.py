@@ -1,4 +1,5 @@
 from django.contrib.auth import login as auth_login
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django_otp import login as django_otp_login
 from django.contrib.auth.views import LoginView
@@ -133,6 +134,57 @@ class TenantPickerView(LoginRequiredMixin, View):
         if not memberships:
             return render(request, 'accounts/no_organizations.html')
         return render(request, 'accounts/tenant_picker.html', {'memberships': memberships, 'next': next_url})
+
+
+class MinhaContaView(LoginRequiredMixin, View):
+    """O nome da própria conta, editável pela própria pessoa.
+
+    Fora de `/app/` de propósito. Aquele prefixo significa "dentro de uma
+    clínica", e `TenantMiddleware` manda escolher uma antes de deixar
+    entrar — mas quem opera o servidor não tem vínculo com clínica
+    nenhuma, e também precisa de nome. Aqui, ao lado da MFA, a tela
+    responde para todo mundo que tem conta.
+
+    Sem verificação de papel: cada um edita o próprio nome, e `request.user`
+    é a garantia disso. Não há `<id>` na rota justamente para que não
+    exista o caminho de editar o de outro — a alternativa seria uma
+    verificação de dono em cada requisição, e a que fosse esquecida seria a
+    que ninguém testaria.
+    """
+
+    def get(self, request):
+        return render(request, 'accounts/minha_conta.html', self._contexto(request))
+
+    def post(self, request):
+        from .forms import MinhaContaForm
+
+        form = MinhaContaForm(request.POST, instance=request.user)
+        if not form.is_valid():
+            return render(
+                request, 'accounts/minha_conta.html',
+                self._contexto(request, form=form), status=400,
+            )
+        form.save()
+        record_audit_event(
+            request.user, getattr(request.access_context, 'tenant_id', None),
+            'accounts.profile_updated', outcome='success',
+        )
+        messages.success(request, 'Nome atualizado.')
+        return redirect('accounts:minha-conta')
+
+    @staticmethod
+    def _contexto(request, form=None):
+        from .forms import MinhaContaForm
+
+        return {
+            'form': form or MinhaContaForm(instance=request.user),
+            # A tela diz de onde vem o nome que aparece hoje. Sem isso, o
+            # médico que ja preencheu o perfil profissional nao entende por
+            # que este campo esta vazio se a agenda ja o chama pelo nome.
+            'nome_em_uso': request.user.get_full_name(),
+            'perfil_medico': getattr(request.user, 'physician_profile', None),
+            'mfa_ativa': mfa.user_has_confirmed_totp(request.user),
+        }
 
 
 class MFASetupView(LoginRequiredMixin, View):
