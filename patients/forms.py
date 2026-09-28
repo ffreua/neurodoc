@@ -135,8 +135,10 @@ class PatientForm(forms.ModelForm):
         widget=forms.EmailInput(attrs={'placeholder': 'Ex.: maria.souza@email.com'}),
     )
     contact_accepts_messages = forms.BooleanField(
-        label='Pode receber mensagens do atendimento', required=False, initial=True,
-        help_text='Confirmação de horário, lembrete e o documento que a pessoa pediu — '
+        label='Contato conferido e autorizado para mensagens do atendimento',
+        required=False, initial=True,
+        help_text='Marque depois de conferir o telefone/e-mail com a pessoa. Vale para '
+                  'confirmação de horário, lembrete e o documento que ela pediu — '
                   'nada de divulgação. A autorização para divulgação é outra, exige '
                   'consentimento específico pela LGPD e fica na área de Contatos.',
     )
@@ -487,8 +489,8 @@ class PatientContactForm(forms.ModelForm):
             'phone': 'Telefone',
             'email': 'E-mail',
             'authorized_for_documents': 'Autorizado a receber documentos',
-            'sms_enabled': 'Aceita SMS',
-            'email_enabled': 'Aceita e-mail',
+            'sms_enabled': 'Telefone conferido e aceita SMS',
+            'email_enabled': 'E-mail conferido e aceita e-mail',
             'legal_authority': 'Representante legal',
             'authority_evidence': 'Comprovação da representação',
         }
@@ -508,6 +510,10 @@ class PatientContactForm(forms.ModelForm):
         cleaned = super().clean()
         if not cleaned.get('phone') and not cleaned.get('email'):
             raise forms.ValidationError('Informe telefone ou e-mail.')
+        if cleaned.get('sms_enabled') and not (cleaned.get('phone') or '').strip():
+            self.add_error('sms_enabled', 'Informe o telefone antes de habilitar SMS.')
+        if cleaned.get('email_enabled') and not (cleaned.get('email') or '').strip():
+            self.add_error('email_enabled', 'Informe o e-mail antes de habilitar este canal.')
         if cleaned.get('accepts_marketing'):
             if not (cleaned.get('email') or '').strip():
                 self.add_error(

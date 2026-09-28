@@ -253,10 +253,10 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
 
 {% block scripts %}
 {% comment %}`cid.js` é o autocomplete do CID-10 no formulário de hipótese —
-o mesmo do estruturado. `exam.js` não entra: não há roteiro de exame nesta
-tela. `medicamentos.js` também não: o autocomplete da Anvisa é do formulário
-de receita, e o campo de medicação do prontuário não tem o gancho dele —
-carregá-lo aqui seria um arquivo a mais sem efeito nenhum.{% endcomment %}
+o mesmo do estruturado. `medicamentos.js` atende o campo livre de medicação e
+preenche nome e dose compacta; é o mesmo componente usado no portal. `exam.js`
+não entra: não há roteiro de exame nesta tela.{% endcomment %}
 <script src="{% static 'clinical/atendimento.js' %}" defer></script>
+<script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
 {% endblock %}

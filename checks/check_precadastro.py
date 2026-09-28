@@ -138,11 +138,51 @@ try:
                  patient_id__in=criados, marketing_opt_in_at__isnull=False,
              ).count(), 0)
 
+    print('\n5b. A migracao repara so o legado com prova auditavel')
+    legado, contato_legado = registrar(
+        'Legado Com Ficha Salva', '11922223333', 'legado@example.invalid',
+    )
+    controle, contato_controle = registrar(
+        'Pre Cadastro Sem Ficha', '11922224444', 'controle@example.invalid',
+    )
+    from audit.services import record_audit_event
+    record_audit_event(
+        vinculo.user_id, tenant.id, 'patients.patient_updated',
+        object_type='patient', object_id=legado.id, outcome='success',
+    )
+    from django.apps import apps as django_apps
+    from importlib import import_module
+    repair = import_module(
+        'patients.migrations.0009_repair_confirmed_patients_and_contacts'
+    ).repair_confirmed_patients_and_contacts
+    repair(django_apps, None)
+    # Segunda chamada: deploy repetido/retomado precisa ser inofensivo.
+    repair(django_apps, None)
+    legado.refresh_from_db()
+    controle.refresh_from_db()
+    contato_legado.refresh_from_db()
+    contato_controle.refresh_from_db()
+    conferir('evento patient_updated promove o legado',
+             legado.registration_stage, RegistrationStage.COMPLETE)
+    conferir('promocao repara os canais habilitados',
+             (contato_legado.verified_phone_at is not None,
+              contato_legado.verified_email_at is not None), (True, True))
+    conferir('sem patient_updated continua preliminar',
+             controle.registration_stage, RegistrationStage.PRELIMINARY)
+    conferir('e os canais do pre-cadastro continuam sem verificacao',
+             (contato_controle.verified_phone_at, contato_controle.verified_email_at),
+             (None, None))
+
     print('\n6. O pre-cadastro fica fora da lista, mas continua reutilizavel na agenda')
     paciente, _ = registrar(
         'Pre Cadastro Aguarda Confirmacao', '11944443333',
         'aguarda.confirmacao@example.invalid',
     )
+    contato_preliminar = PatientContact.objects.get(patient=paciente)
+    conferir('pre-cadastro ainda nao confirma o telefone',
+             contato_preliminar.verified_phone_at is None, True)
+    conferir('pre-cadastro ainda nao confirma o e-mail',
+             contato_preliminar.verified_email_at is None, True)
     ids_da_lista = {p.id for p in list_patients(ctx).object_list}
     ids_da_agenda = {p.id for p in autocomplete_patients(ctx, 'Pre Cadastro Aguarda')}
     conferir('nao aparece na lista de pacientes', paciente.id in ids_da_lista, False)
@@ -179,6 +219,14 @@ try:
     conferir('o estagio passa a completo', paciente.registration_stage, RegistrationStage.COMPLETE)
     ids_da_lista = {p.id for p in list_patients(ctx).object_list}
     conferir('o cadastro confirmado passa a aparecer', paciente.id in ids_da_lista, True)
+    contato_preliminar.refresh_from_db()
+    conferir('concluir a ficha confirma o telefone informado',
+             contato_preliminar.verified_phone_at is not None, True)
+    conferir('concluir a ficha confirma o e-mail informado',
+             contato_preliminar.verified_email_at is not None, True)
+    from communications.services import _eligible_document_contacts
+    conferir('o contato confirmado fica apto a receber documento',
+             contato_preliminar in _eligible_document_contacts(paciente), True)
 
     print('\n8. A tela oferece o campo')
     from django.template.loader import render_to_string

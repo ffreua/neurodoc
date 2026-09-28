@@ -35,7 +35,7 @@
          * segundos, e guardar tudo encheria o `localStorage` do navegador
          * com o que não compensa restaurar. */
         return Array.prototype.slice.call(
-            raiz.querySelectorAll('textarea[name]')
+            raiz.querySelectorAll('textarea[name][data-nd-encounter-draft]')
         ).filter(function (el) { return !el.disabled && !el.readOnly; });
     }
 
@@ -88,10 +88,36 @@
             var dados;
             try { dados = JSON.parse(bruto); } catch (e) { return; }
             if (!dados || typeof dados.texto !== 'string') { return; }
-            if (dados.texto === valorGravado(campo) || !dados.texto.trim()) { return; }
+            if (dados.texto === valorGravado(campo) || !dados.texto.trim()) {
+                /* Depois de um salvamento bem-sucedido, o valor guardado na
+                 * saída da página é igual ao que o servidor devolveu. Ele já
+                 * não é rascunho e não deve ficar esperando uma mudança futura
+                 * para reaparecer como aviso antigo. */
+                try { window.localStorage.removeItem(chave(campo)); } catch (e) { /* idem */ }
+                return;
+            }
             achados.push({ campo: campo, texto: dados.texto, em: dados.em || 0 });
         });
         return achados;
+    }
+
+    function limparRascunhosObsoletos() {
+        /* Versões anteriores guardavam qualquer textarea da página, inclusive
+         * `notes` da medicação e `physician_note` da hipótese. Remover só as
+         * chaves deste atendimento que não correspondem mais a um campo
+         * clínico evita que o defeito sobreviva ao deploy no navegador. */
+        var validas = {};
+        campos().forEach(function (campo) { validas[chave(campo)] = true; });
+        var remover = [];
+        try {
+            for (var i = 0; i < window.localStorage.length; i += 1) {
+                var item = window.localStorage.key(i);
+                if (item && item.indexOf(PREFIXO) === 0 && !validas[item]) {
+                    remover.push(item);
+                }
+            }
+            remover.forEach(function (item) { window.localStorage.removeItem(item); });
+        } catch (e) { /* armazenamento bloqueado; o atendimento continua */ }
     }
 
     function limpar() {
@@ -362,6 +388,7 @@
     /* ------------------------------------------------------------- ligar */
 
     ligarBotoesDoRascunho();
+    limparRascunhosObsoletos();
     var achados = lerRascunhos();
     if (achados.length) { avisarRascunho(achados); }
 

@@ -27,7 +27,7 @@ from .schemas import (
 DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_MAX_OUTPUT_CHARS = 20000
 
-PROMPT_VERSION = 'v2'
+PROMPT_VERSION = 'v3'
 
 _JSON_ONLY = (
     'Responda apenas com um objeto JSON válido, sem texto, comentário ou cerca de código '
@@ -36,7 +36,9 @@ _JSON_ONLY = (
 
 SUMMARY_PROMPT = """Você é um assistente que organiza informações administrativas e clínicas \
 já autorizadas e desidentificadas para apoio à revisão médica. NUNCA invente dados que não \
-estejam no contexto abaixo. {json_only} Campos: "summary" (string), \
+estejam no contexto abaixo. Escreva TODOS os valores textuais em português brasileiro (pt-BR), \
+mesmo quando o contexto ou os nomes das chaves JSON estiverem em outro idioma. {json_only} \
+Campos: "summary" (string), \
 "qualitative_hypotheses" (lista de strings, NUNCA com percentuais ou probabilidades \
 numéricas), "missing_information" (string), "limitations" (string), "source_refs" (lista de \
 objetos com "type", "id", "version_or_hash").

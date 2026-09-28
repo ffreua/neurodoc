@@ -16,7 +16,10 @@ from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import photo as photo_storage
 from . import selectors
-from .contacts import create_contact, sync_self_contact_name
+from .contacts import (
+    confirm_contact_channels, confirm_self_contact_channels, create_contact,
+    sync_self_contact_name,
+)
 from .coverage import add_coverage, set_patient_coverage
 from .forms import (
     PatientContactForm, PatientCoverageForm, PatientForm, PatientMeasurementForm,
@@ -215,7 +218,11 @@ class PatientCreateView(TenantScopedView):
                 for kind, value, unit in measurements:
                     record_observation(request.access_context, patient, kind, value, unit)
                 if contact_data:
-                    create_contact(request.access_context, patient, **contact_data)
+                    contact = create_contact(request.access_context, patient, **contact_data)
+                    # O cadastro completo é feito com a pessoa (ou responsável)
+                    # presente. Marcar o canal na mesma tela é a conferência que
+                    # faltava para a entrega de documentos poder usá-lo.
+                    confirm_contact_channels(contact)
                 if incoming_photo is not None:
                     # Por último de propósito. `store_photo` escreve no
                     # disco, e disco não entra em rollback: se a cobertura
@@ -329,11 +336,15 @@ class PatientUpdateView(TenantScopedView):
                 # enviada" — errado ali, é registro apontando para outra
                 # pessoa.
                 renomeados = sync_self_contact_name(updated)
+                canais_confirmados = (
+                    confirm_self_contact_channels(updated) if confirmando_cadastro else 0
+                )
             metadados = {}
             if renomeados:
                 metadados['self_contacts_renamed'] = renomeados
             if confirmando_cadastro:
                 metadados['registration_stage'] = RegistrationStage.COMPLETE
+                metadados['contact_channels_verified'] = canais_confirmados
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_updated', object_type='patient',
                 object_id=updated.id, outcome='success',
@@ -503,6 +514,8 @@ class PatientContactCreateView(TenantScopedView):
                 contact.patient = patient
                 contact.full_clean()
                 contact.save()
+                if patient.registration_stage == RegistrationStage.COMPLETE:
+                    confirm_contact_channels(contact)
             except Exception as exc:
                 form.add_error(None, str(exc))
             else:

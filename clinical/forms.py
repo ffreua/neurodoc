@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django import forms
+from django.urls import reverse
 
 from base.widgets import HTML5DateInput
 
@@ -65,6 +66,15 @@ class EncounterForm(forms.ModelForm):
                                'para a próxima consulta.',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # A página também contém textareas de medicação, hipótese, achado e
+        # exame. Só estes campos pertencem ao corpo do atendimento e podem
+        # virar rascunho local/restaurável.
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.Textarea):
+                field.widget.attrs['data-nd-encounter-draft'] = '1'
 
 
 #: Identificador do formulário do atendimento em texto livre.
@@ -244,6 +254,16 @@ class MedicationForm(forms.ModelForm):
                 'rows': 2, 'placeholder': 'Efeito adverso, aderência, motivo da suspensão…',
             }),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['name'].widget.attrs.update({
+            'autocomplete': 'off',
+            'data-nd-med-url': reverse('catalogs:medicamento-search'),
+            # Seletor relativo ao `data-nd-med-grupo`: funciona nas duas
+            # telas sem depender de id global ou de posição no HTML.
+            'data-nd-med-dose': "[name='dose']",
+        })
 
 
 class ExamResultForm(forms.ModelForm):

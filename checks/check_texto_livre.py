@@ -231,6 +231,45 @@ for marca in ['data-cid-url', 'data-nd-cid-search', 'name="diagnosis_code_id"']:
     if not presente:
         failures.append(f'o autocomplete do CID-10 nao esta ligado: falta {marca}')
 
+# O mesmo componente de medicamento que funciona no portal deve estar ligado
+# nas duas modalidades do prontuario. A escolha preenche nome comercial e
+# apenas a dosagem no campo Dose; sem estes ganchos, digitar "Keppra" nao faz
+# sequer uma requisicao ao catalogo.
+estruturado_autocomplete = abrir(EncounterKind.STRUCTURED)
+corpo_estruturado = cliente.get(
+    f'/app/clinical/{estruturado_autocomplete.id}/',
+).content.decode()
+for rotulo, pagina in [('texto livre', corpo), ('estruturado', corpo_estruturado)]:
+    for marca in [
+        'data-nd-med-url=', 'data-nd-med-dose="[name=&#x27;dose&#x27;]"',
+        'data-nd-med-grupo', 'catalogs/medicamentos.js',
+    ]:
+        presente = marca in pagina
+        print(f'  medicamento {rotulo:<11} {marca:<43} {presente}')
+        if not presente:
+            failures.append(f'autocomplete de medicamento no {rotulo}: falta {marca}')
+
+# Rascunho local e texto do prontuario sao a mesma fronteira. Observacao de
+# medicacao e nota de hipotese pertencem aos seus formularios auxiliares e
+# nao podem reaparecer como "texto nao salvo deste atendimento".
+for campo_id in ['id_free_text', 'id_impressions', 'id_plan_text']:
+    inicio = corpo.rfind('<textarea', 0, corpo.index(f'id="{campo_id}"'))
+    tag = corpo[inicio:corpo.index('>', inicio) + 1]
+    if 'data-nd-encounter-draft' not in tag:
+        failures.append(f'{campo_id} nao foi marcado como texto do rascunho clinico')
+inicio_notes = corpo.rfind('<textarea', 0, corpo.index('id="id_notes"'))
+tag_notes = corpo[inicio_notes:corpo.index('>', inicio_notes) + 1]
+print('  observacao de medicacao fora do rascunho ->',
+      'data-nd-encounter-draft' not in tag_notes)
+if 'data-nd-encounter-draft' in tag_notes:
+    failures.append('observacao de medicacao entrou no rascunho do atendimento')
+
+_js_rascunho = (settings.BASE_DIR / 'static' / 'clinical' / 'atendimento.js').read_text(
+    encoding='utf-8',
+)
+if "textarea[name][data-nd-encounter-draft]" not in _js_rascunho:
+    failures.append('o JavaScript ainda captura textarea auxiliar como rascunho clinico')
+
 # O atributo estar na tela nao prova que a busca responde: o endereco tem de
 # devolver resultado para o mesmo usuario que abriu o atendimento.
 r = cliente.get('/app/clinical/cid-lookup/', {'q': 'enxaqueca'})
@@ -554,6 +593,8 @@ else:
             failures.append(f'o telefone guardou a mascara: {contato.phone!r}')
         if contato.email != 'roteiro@exemplo.local':
             failures.append('o e-mail do cadastro nao chegou ao contato')
+        if contato.verified_phone_at is None or contato.verified_email_at is None:
+            failures.append('o contato conferido no cadastro completo ficou sem verificacao')
         if not contato.name:
             failures.append('o contato do cadastro ficou sem nome')
         # Divulgacao NAO se deduz do contato dado no balcao: a LGPD exige

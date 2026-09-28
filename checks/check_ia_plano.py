@@ -27,6 +27,7 @@ from django.test.utils import override_settings
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 
 from ai.context import AIAuthorizationDenied, build_ai_authorization
+from ai.graphs import PROMPT_VERSION, build_prompt
 from ai.handlers import handle_encounter_finalized
 from ai.models import AIJob
 from clinical.models import Encounter, EncounterStatus
@@ -143,6 +144,18 @@ for codigo, esperado in ESPERADO.items():
 # cobrando. Se sumir do texto, o gate perde o fundamento.
 if not any('IA' in linha for linha in PLANS[PlanCode.COMPLETE]['features']):
     falhas.append('o Completo deixou de anunciar a IA na vitrine')
+
+print('=== 1b. o resumo clinico responde em portugues brasileiro ===')
+prompt_resumo = build_prompt('encounter_summary', 'Patient reports headache.')
+contrato_ptbr = (
+    'português brasileiro' in prompt_resumo.lower()
+    and 'valores' in prompt_resumo.lower()
+)
+print(f'  contrato de idioma no prompt={contrato_ptbr} versao={PROMPT_VERSION}')
+if not contrato_ptbr:
+    falhas.append('o prompt de resumo nao exige valores textuais em portugues brasileiro')
+if PROMPT_VERSION != 'v3':
+    falhas.append(f'a mudanca de idioma nao versionou o prompt (esta em {PROMPT_VERSION})')
 
 print(f'  plano inexistente -> {has_clinical_ai("nao-existe")} (tem de ser False)')
 if has_clinical_ai('nao-existe'):

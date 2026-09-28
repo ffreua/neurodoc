@@ -11,6 +11,36 @@ from .models import PatientContact
 SELF_RELATIONSHIP = 'Próprio paciente'
 
 
+def confirm_contact_channels(contact, confirmed_at=None):
+    """Registra os canais que a equipe conferiu ao salvar o contato.
+
+    Habilitar SMS/e-mail na ficha é um ato explícito da equipe, não uma
+    inferência a partir da mera existência do dado. Só o canal habilitado e
+    preenchido recebe a data; o outro continua inelegível para entrega.
+    """
+    from django.utils import timezone
+
+    confirmed_at = confirmed_at or timezone.now()
+    fields = []
+    if contact.sms_enabled and contact.phone and contact.verified_phone_at is None:
+        contact.verified_phone_at = confirmed_at
+        fields.append('verified_phone_at')
+    if contact.email_enabled and contact.email and contact.verified_email_at is None:
+        contact.verified_email_at = confirmed_at
+        fields.append('verified_email_at')
+    if fields:
+        contact.save(update_fields=[*fields, 'updated_at'])
+    return fields
+
+
+def confirm_self_contact_channels(patient, confirmed_at=None):
+    """Confirma o contato do próprio paciente ao concluir o pré-cadastro."""
+    confirmed = 0
+    for contact in patient.contacts.filter(relationship=SELF_RELATIONSHIP):
+        confirmed += len(confirm_contact_channels(contact, confirmed_at=confirmed_at))
+    return confirmed
+
+
 def sync_self_contact_name(patient):
     """Renomeia o contato do próprio paciente quando o paciente é renomeado.
 

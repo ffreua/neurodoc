@@ -190,6 +190,10 @@ try:
     if novo_contato is not None:
         conferir('pode receber documentos', novo_contato.authorized_for_documents, True)
         conferir('aceita entrega por e-mail', novo_contato.email_enabled, True)
+        conferir('o e-mail conferido pela equipe fica verificado',
+                 novo_contato.verified_email_at is not None, True)
+        conferir('canal SMS nao habilitado continua sem verificacao',
+                 novo_contato.verified_phone_at is None, True)
         conferir('nao inventa consentimento de divulgacao',
                  novo_contato.marketing_opt_in_at is None, True)
 
