@@ -4,7 +4,7 @@ from django.http import Http404
 
 from tenancy.selectors import scope_to_tenant
 
-from .models import Patient, PatientStatus
+from .models import Patient, PatientStatus, RegistrationStage
 
 AUTOCOMPLETE_MIN_CHARS = 2
 AUTOCOMPLETE_LIMIT = 20
@@ -77,7 +77,12 @@ def busca_rapida(context, query, limite=BUSCA_RAPIDA_LIMITE):
 
 
 def list_patients(context, query='', page=1, include_archived=False):
-    queryset = _base_queryset(context)
+    # O agendamento rapido cria uma linha de paciente para que o horario
+    # tenha dono, mas ela ainda e so nome e contato. Exibi-la aqui antes de
+    # a recepcao confirmar a ficha fazia um telefonema parecer cadastro.
+    # O autocomplete da agenda continua separado e inclui o preliminar para
+    # que uma segunda marcacao reutilize a mesma pessoa em vez de duplica-la.
+    queryset = _base_queryset(context).filter(registration_stage=RegistrationStage.COMPLETE)
     if not include_archived:
         queryset = queryset.filter(status=PatientStatus.ACTIVE)
     query = (query or '').strip()

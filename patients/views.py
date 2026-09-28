@@ -21,7 +21,7 @@ from .coverage import add_coverage, set_patient_coverage
 from .forms import (
     PatientContactForm, PatientCoverageForm, PatientForm, PatientMeasurementForm,
 )
-from .models import Patient, PatientStatus
+from .models import Patient, PatientStatus, RegistrationStage
 from .observations import age_at, compute_bmi, missing_measurement_hint, record_observation
 
 
@@ -302,7 +302,13 @@ class PatientUpdateView(TenantScopedView):
             return HttpResponse('Conflict: this record changed since you opened it.', status=409)
         form = PatientForm(request.POST, instance=patient, tenant_id=request.access_context.tenant_id)
         if form.is_valid():
+            confirmando_cadastro = patient.registration_stage == RegistrationStage.PRELIMINARY
             updated = form.save(commit=False)
+            if confirmando_cadastro:
+                # Um POST valido passou por todos os campos obrigatorios da
+                # ficha. Este e o ato de confirmacao: manter `preliminary`
+                # faria o cadastro completo continuar invisivel na lista.
+                updated.registration_stage = RegistrationStage.COMPLETE
             updated.row_version += 1
             coverage_data = form.coverage_data
             measurements = form.measurements
@@ -323,10 +329,15 @@ class PatientUpdateView(TenantScopedView):
                 # enviada" — errado ali, é registro apontando para outra
                 # pessoa.
                 renomeados = sync_self_contact_name(updated)
+            metadados = {}
+            if renomeados:
+                metadados['self_contacts_renamed'] = renomeados
+            if confirmando_cadastro:
+                metadados['registration_stage'] = RegistrationStage.COMPLETE
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_updated', object_type='patient',
                 object_id=updated.id, outcome='success',
-                integrity_metadata={'self_contacts_renamed': renomeados} if renomeados else None,
+                integrity_metadata=metadados or None,
             )
             return redirect('patients:detail', patient_id=updated.id)
         return render(request, 'patients/form.html', {

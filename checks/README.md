@@ -103,6 +103,8 @@ sai com código 1 listando as falhas quando não passa.
 | `check_isolation` | Documento no prontuário do paciente certo |
 | `check_links` | Nenhum perfil vê link que não consegue abrir |
 | `check_matrix` | A matriz de acesso confere com o PRD seção 4 |
+| `check_mfa_certificado` | QR e percurso da MFA, verificação recente e certificado isolado por médico |
+| `check_nome_do_contato` | Nome do contato próprio acompanha a ficha sem alterar parentes |
 | `check_notificacoes` | Aviso nomeia o paciente, leva à resolução, e alcança só quem pode agir |
 | `check_convite` | Entrada do superadministrador: link, senha, MFA, console |
 | `check_landing` | Página de vendas, formulário de contato e a tela de leads |
@@ -114,6 +116,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_inativacao` | Suspender congela, encerrar fecha, e nada e apagado |
 | `check_convite_plano` | Convite carregando o plano, e o console que emite e troca |
 | `check_planos` | Limites de plano nas seis portas, e o que acontece ao rebaixar |
+| `check_precadastro` | Contato do pré-cadastro e confirmação antes de entrar na lista de pacientes |
 | `check_prontuario` | Número do prontuário e documentos por paciente |
 | `check_roles` | Resposta de cada papel nas telas principais |
 | `check_roteiro` | A clínica nasce com o roteiro de exame instalado |

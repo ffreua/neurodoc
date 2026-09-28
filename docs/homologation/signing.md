@@ -115,3 +115,30 @@ foi usada.
   sem TOTP confirmado nunca consegue habilitar assinatura, o que é a
   política pretendida ("MFA obrigatório para... médicos que habilitem
   assinatura"), não uma lacuna.
+
+## Correção pós-deploy — QR e percurso até o certificado (27/09/2026)
+
+O primeiro uso real mostrou dois pontos que a prova criptográfica anterior
+não cobria: a configuração exibia somente a URL `otpauth://` e a tela de
+certificados oferecia o formulário mesmo quando a requisição seria recusada
+por falta de MFA recente.
+
+- [x] A mesma `TOTPDevice.config_url` agora é renderizada como QR SVG e
+  continua disponível em texto para cadastro manual. O SVG nasce localmente
+  com o `QrCodeWidget` já usado pelo produto e viaja como `data:` URI: a
+  chave TOTP não é enviada a gerador externo.
+- [x] Confirmar o primeiro código chama tanto `django_otp_login` quanto
+  `mark_recent_mfa`; a sessão que acabou de provar o segundo fator pode
+  enviar o PFX sem sair e entrar novamente.
+- [x] Sem MFA configurada, o formulário de PFX não é renderizado. A tela
+  explica a exigência e leva à configuração preservando o retorno; um POST
+  direto segue a mesma rota, em vez de devolver uma página 403 crua.
+- [x] Quando a janela recente expira, o formulário volta a ficar oculto e
+  a página orienta a nova entrada, que solicita o TOTP depois da senha.
+- [x] `check_mfa_certificado.py` confirmou ainda a fronteira por médico:
+  uma credencial ligada a outro `Membership` da mesma clínica não aparece
+  na lista, não pode ser revogada nem selecionada pela conta testada. O
+  upload grava sempre o `Membership` do médico logado; sessão e assinatura
+  repetem o mesmo filtro.
+
+Evidência focada: `check_mfa_certificado.py`, cinco seções, `EXIT=0`.

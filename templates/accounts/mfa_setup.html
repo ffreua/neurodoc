@@ -6,13 +6,19 @@
 {% if error %}
 <div class="alert alert-danger fade show fs-13" role="alert">{{ error }}</div>
 {% endif %}
-<p class="fs-13 text-muted">Adicione a chave abaixo a um aplicativo autenticador
+<p class="fs-13 text-muted">Escaneie o QR abaixo em um aplicativo autenticador
 (Google Authenticator, Authy, 1Password, entre outros):</p>
+<div class="text-center mb-3">
+    <img src="{{ qr_code_data_uri }}" alt="QR para configurar a autenticação em duas etapas"
+         width="220" height="220" class="img-fluid border rounded-3">
+</div>
+<p class="fs-12 text-muted mb-2">Se não puder escanear, adicione esta chave manualmente:</p>
 <div class="bg-gray-100 border rounded-3 p-3 mb-4">
     <code class="fs-11 text-break">{{ otpauth_url }}</code>
 </div>
 <form method="post" novalidate>
     {% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     <div class="mb-3">
         <label class="form-label fw-semibold" for="code">Código do aplicativo <span class="text-danger" aria-hidden="true">*</span></label>
         <input type="text" class="form-control" id="code" name="code" inputmode="numeric"

@@ -28,7 +28,10 @@ from django.conf import settings as dj_settings
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 dj_settings.SECURE_SSL_REDIRECT = False
 
-from patients.models import Patient, PatientContact
+from django.test import Client
+
+from patients.models import Patient, PatientContact, RegistrationStage
+from patients.selectors import autocomplete_patients, list_patients
 from scheduling.forms import QuickBookingForm
 from scheduling.services import quick_register_patient
 from tenancy.context import AccessContext
@@ -43,6 +46,14 @@ def conferir(rotulo, obtido, esperado):
     print(f'  {"ok " if ok else "FALHA"}  {rotulo:58} -> {obtido}')
     if not ok:
         falhas.append(f'{rotulo}: esperado {esperado}, obtido {obtido}')
+
+
+def _cpf_valido(base):
+    """Completa os dois digitos verificadores exigidos pela ficha."""
+    n = [int(x) for x in base]
+    d1 = (sum(v * p for v, p in zip(n, range(10, 1, -1))) * 10) % 11 % 10
+    d2 = (sum(v * p for v, p in zip(n + [d1], range(11, 1, -1))) * 10) % 11 % 10
+    return base + str(d1) + str(d2)
 
 
 tenant = Tenant.objects.get(slug='demo-clinica-a')
@@ -127,7 +138,49 @@ try:
                  patient_id__in=criados, marketing_opt_in_at__isnull=False,
              ).count(), 0)
 
-    print('\n6. A tela oferece o campo')
+    print('\n6. O pre-cadastro fica fora da lista, mas continua reutilizavel na agenda')
+    paciente, _ = registrar(
+        'Pre Cadastro Aguarda Confirmacao', '11944443333',
+        'aguarda.confirmacao@example.invalid',
+    )
+    ids_da_lista = {p.id for p in list_patients(ctx).object_list}
+    ids_da_agenda = {p.id for p in autocomplete_patients(ctx, 'Pre Cadastro Aguarda')}
+    conferir('nao aparece na lista de pacientes', paciente.id in ids_da_lista, False)
+    conferir('a agenda ainda consegue reutiliza-lo', paciente.id in ids_da_agenda, True)
+
+    print('\n7. Salvar a ficha completa confirma o cadastro e libera a lista')
+    cliente = Client()
+    cliente.force_login(vinculo.user)
+    sessao = cliente.session
+    sessao['tenant_id'] = str(tenant.id)
+    sessao.save()
+
+    from patients.forms import PatientForm
+
+    molde = PatientForm(instance=paciente, tenant_id=tenant.id)
+    corpo = {'row_version': str(paciente.row_version)}
+    for nome_campo, campo in molde.fields.items():
+        if not campo.required:
+            continue
+        if nome_campo == 'full_name':
+            corpo[nome_campo] = paciente.full_name
+        elif nome_campo == 'cpf':
+            corpo[nome_campo] = _cpf_valido('529982246')
+        elif hasattr(campo, 'choices'):
+            opcoes = [v for v, _ in campo.choices if v not in ('', None)]
+            corpo[nome_campo] = opcoes[0]
+        else:
+            corpo[nome_campo] = 'Roteiro'
+    corpo['birth_date_unknown_reason'] = 'Roteiro de verificacao.'
+
+    resposta = cliente.post(f'/app/patients/{paciente.id}/edit/', corpo)
+    paciente.refresh_from_db()
+    conferir('a ficha valida salva', resposta.status_code, 302)
+    conferir('o estagio passa a completo', paciente.registration_stage, RegistrationStage.COMPLETE)
+    ids_da_lista = {p.id for p in list_patients(ctx).object_list}
+    conferir('o cadastro confirmado passa a aparecer', paciente.id in ids_da_lista, True)
+
+    print('\n8. A tela oferece o campo')
     from django.template.loader import render_to_string
 
     try:

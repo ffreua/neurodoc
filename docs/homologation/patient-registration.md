@@ -178,3 +178,22 @@ document_date:      <input type="date" value="2025-03-09" ...>
   tem CEP por logradouro; uma base de ruas (DNE dos Correios) é licenciada
   e não é pública. Enquanto ela não existir aqui, logradouro e bairro vêm
   do ViaCEP ou são digitados.
+
+## Correção pós-deploy — pré-cadastro não é ficha confirmada (27/09/2026)
+
+O agendamento por telefone precisa criar uma linha mínima para que o horário
+tenha paciente, mas nome e contato não significam que a clínica confirmou a
+ficha. A lista administrativa confundia os dois estados porque filtrava só
+`status=active` e ignorava `registration_stage`.
+
+- [x] `list_patients` exige agora `registration_stage=complete`, tanto com
+  quanto sem busca textual.
+- [x] O autocomplete da agenda continua aceitando `preliminary`: assim uma
+  segunda marcação reutiliza o pré-cadastro existente em vez de duplicá-lo.
+- [x] Um POST válido da ficha pela recepção promove `preliminary` para
+  `complete` na mesma transação do salvamento e registra a promoção nos
+  metadados da auditoria. Só então o paciente aparece na lista.
+- [x] O limite do plano continua contando pré-cadastros ativos; esta mudança
+  é de confirmação e visibilidade, não uma forma de contornar a cota.
+
+Evidência focada: seções 6 e 7 de `check_precadastro.py`, `EXIT=0`.

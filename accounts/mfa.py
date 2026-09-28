@@ -1,3 +1,4 @@
+import base64
 import secrets
 from functools import wraps
 
@@ -10,6 +11,50 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 RECENT_MFA_SESSION_KEY = 'mfa_verified_at'
 RECENT_MFA_MAX_AGE_SECONDS = 1800
 RECOVERY_CODE_COUNT = 10
+
+
+def qr_code_data_uri(payload):
+    """Transforma a chave TOTP em um QR local, sem entregar o segredo.
+
+    Gerar a imagem num servico de QR externo parece simples, mas a URL
+    ``otpauth://`` contem a chave que produz todos os codigos futuros. Uma
+    requisicao para esse servico entregaria o segundo fator a um terceiro.
+
+    O ReportLab ja faz parte da aplicacao para os QR dos documentos. A
+    matriz vira um SVG compacto em uma ``data:`` URI: o navegador recebe a
+    imagem no proprio HTML e nao faz nenhuma requisicao com o segredo.
+    """
+    from reportlab.graphics.barcode.qr import QrCodeWidget
+
+    widget = QrCodeWidget(payload, barLevel='M')
+    # O ReportLab so monta a matriz quando calcula os limites do widget.
+    # Ler `modules` antes disso devolve None, embora o objeto ja exista.
+    widget.getBounds()
+    modules = widget.qr.modules
+    border = 4
+    side = len(modules) + (border * 2)
+    commands = []
+    for row_index, row in enumerate(modules):
+        column = 0
+        while column < len(row):
+            if not row[column]:
+                column += 1
+                continue
+            start = column
+            while column < len(row) and row[column]:
+                column += 1
+            length = column - start
+            commands.append(
+                f'M{start + border} {row_index + border}h{length}v1h-{length}z'
+            )
+    path = ''.join(commands)
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {side} {side}" '
+        f'shape-rendering="crispEdges"><rect width="{side}" height="{side}" fill="#fff"/>'
+        f'<path d="{path}" fill="#111827"/></svg>'
+    )
+    encoded = base64.b64encode(svg.encode('utf-8')).decode('ascii')
+    return f'data:image/svg+xml;base64,{encoded}'
 
 
 def get_confirmed_device(user):

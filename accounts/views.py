@@ -188,9 +188,18 @@ class MinhaContaView(LoginRequiredMixin, View):
 
 
 class MFASetupView(LoginRequiredMixin, View):
+    @staticmethod
+    def _context(request, device, error=None):
+        return {
+            'otpauth_url': device.config_url,
+            'qr_code_data_uri': mfa.qr_code_data_uri(device.config_url),
+            'next': _safe_next(request),
+            'error': error,
+        }
+
     def get(self, request):
         device = mfa.get_or_create_pending_device(request.user)
-        return render(request, 'accounts/mfa_setup.html', {'otpauth_url': device.config_url})
+        return render(request, 'accounts/mfa_setup.html', self._context(request, device))
 
     def post(self, request):
         device = mfa.get_or_create_pending_device(request.user)
@@ -207,8 +216,12 @@ class MFASetupView(LoginRequiredMixin, View):
             # quem acabou de configurar o segundo fator é a coisa que ele
             # existe para abrir continuar fechada, sem dizer por quê.
             django_otp_login(request, device)
+            mfa.mark_recent_mfa(request)
             record_audit_event(request.user, None, 'accounts.mfa_enabled', outcome='success')
-            return render(request, 'accounts/mfa_recovery_codes.html', {'codes': codes})
-        return render(request, 'accounts/mfa_setup.html', {
-            'otpauth_url': device.config_url, 'error': 'Invalid code.',
-        })
+            return render(request, 'accounts/mfa_recovery_codes.html', {
+                'codes': codes, 'next': _safe_next(request),
+            })
+        return render(
+            request, 'accounts/mfa_setup.html',
+            self._context(request, device, error='Código inválido.'),
+        )

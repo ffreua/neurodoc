@@ -1,6 +1,9 @@
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from audit.services import record_audit_event
 from patients.models import Patient
@@ -548,8 +551,19 @@ class SigningCredentialUploadView(SigningView):
             return HttpResponseForbidden('Only a doctor membership may upload a signing credential.')
         from accounts import mfa
 
+        if not mfa.user_has_confirmed_totp(request.user):
+            messages.warning(
+                request,
+                'Configure a MFA antes de enviar seu certificado digital.',
+            )
+            setup_url = reverse('accounts:mfa-setup')
+            return redirect(f'{setup_url}?{urlencode({"next": reverse("documents:credential-list")})}')
         if not mfa.mfa_verified_recently(request):
-            return HttpResponseForbidden('Recent MFA verification required.')
+            messages.warning(
+                request,
+                'A verificação recente da MFA expirou. Saia e entre novamente antes de enviar o certificado.',
+            )
+            return redirect('documents:credential-list')
         form = CredentialUploadForm(request.POST, request.FILES)
         if not form.is_valid():
             return HttpResponseForbidden('Invalid form.')
@@ -569,6 +583,8 @@ class SigningCredentialUploadView(SigningView):
 
 class SigningCredentialListView(SigningView):
     def get(self, request):
+        from accounts import mfa
+
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
             return HttpResponseForbidden('Only a doctor membership has signing credentials.')
@@ -577,6 +593,8 @@ class SigningCredentialListView(SigningView):
         return render(request, 'documents/credentials.html', {
             'credentials': creds, 'active_session': active_session,
             'credential_form': CredentialUploadForm(), 'session_form': SigningSessionStartForm(),
+            'mfa_ativa': mfa.user_has_confirmed_totp(request.user),
+            'mfa_recente': mfa.mfa_verified_recently(request),
         })
 
 

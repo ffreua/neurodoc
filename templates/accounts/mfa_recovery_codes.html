@@ -14,5 +14,5 @@
     </li>
     {% endfor %}
 </ul>
-<a class="btn btn-primary w-100" href="{% url 'accounts:tenant-picker' %}">Continuar</a>
+<a class="btn btn-primary w-100" href="{% if next %}{{ next }}{% else %}{% url 'accounts:tenant-picker' %}{% endif %}">Continuar</a>
 {% endblock %}
