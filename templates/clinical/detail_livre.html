@@ -203,6 +203,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                 da hipótese que ainda não tem código.{% endcomment %}
                 <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
                       class="border rounded-3 p-3 bg-gray-100"
+                      data-nd-save-encounter-before-submit
                       data-cid-url="{% url 'clinical:cid-lookup' %}">
                     {% csrf_token %}
                     {{ diagnosis_form.diagnosis_code_id }}

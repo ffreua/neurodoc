@@ -252,6 +252,17 @@ print(f'  campos amarrados ao formulario: {livre_form_attrs} (4 esperados: 3 cam
 if livre_form_attrs < 4:
     failures.append(f'so {livre_form_attrs} elemento(s) apontam para o formulario do atendimento')
 
+# Medicacao e hipotese fazem POST proprio e recarregam a pagina. Antes de
+# navegar, os dois precisam salvar os tres campos do atendimento pelo
+# endpoint acima; sem esse contrato, o texto digitado some e reaparece so
+# na faixa "Restaurar", que foi o defeito reproduzido num navegador real.
+salvamentos_auxiliares = corpo.count('data-nd-save-encounter-before-submit')
+print(f'  formularios que preservam o texto: {salvamentos_auxiliares} (2 esperados)')
+if salvamentos_auxiliares != 2:
+    failures.append(
+        'medicacao e hipotese nao salvam o texto livre antes de recarregar a pagina'
+    )
+
 print('=== 4. o que se digita e gravado ===')
 cliente.post(f'/app/clinical/{livre.id}/autosave/', {
     'row_version': livre.row_version,

@@ -100,6 +100,85 @@
         });
     }
 
+    function haMudanca() {
+        return campos().some(function (campo) {
+            return (campo.value || '') !== valorGravado(campo);
+        });
+    }
+
+    function mostrarFalhaAoPreservar(mensagem) {
+        var anterior = document.getElementById('nd-preservar-falhou');
+        if (anterior) { anterior.remove(); }
+        var aviso = document.createElement('div');
+        aviso.id = 'nd-preservar-falhou';
+        aviso.className = 'alert alert-danger';
+        aviso.setAttribute('role', 'alert');
+        aviso.textContent = mensagem;
+        raiz.insertBefore(aviso, raiz.firstChild);
+        aviso.scrollIntoView({ block: 'nearest' });
+    }
+
+    /* Medicação e hipótese têm formulários próprios e recarregam a página.
+     * Se houver texto ainda não salvo, grava primeiro o formulário do
+     * atendimento pelo endpoint que já protege versão e concorrência. O
+     * clique no formulário auxiliar é uma ação explícita do médico; deixar
+     * a nota para trás e obrigá-lo a restaurá-la na volta não é aceitável.
+     *
+     * O listener roda em captura para parar antes do spinner global, que
+     * desabilita o botão contando que a navegação comece imediatamente. */
+    raiz.addEventListener('submit', function (event) {
+        var auxiliar = event.target;
+        if (!auxiliar.matches || !auxiliar.matches('[data-nd-save-encounter-before-submit]')) {
+            return;
+        }
+        if (auxiliar.dataset.ndEncounterSaved === '1') {
+            delete auxiliar.dataset.ndEncounterSaved;
+            return;
+        }
+        var principal = document.getElementById('nd-atendimento-livre');
+        if (!principal || !haMudanca()) { return; }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        guardar();
+        var botao = event.submitter;
+
+        window.fetch(principal.action, {
+            method: 'POST',
+            body: new FormData(principal),
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (dados) {
+                if (!response.ok || !dados.ok) {
+                    throw new Error(dados.error || 'Não foi possível salvar o atendimento.');
+                }
+                return dados;
+            });
+        }).then(function (dados) {
+            var versao = principal.querySelector('[name="row_version"]');
+            if (versao) { versao.value = dados.row_version; }
+            campos().forEach(function (campo) {
+                doServidor[campo.name] = campo.value || '';
+            });
+            limpar();
+            auxiliar.dataset.ndEncounterSaved = '1';
+            if (auxiliar.requestSubmit) {
+                auxiliar.requestSubmit(botao || undefined);
+            } else {
+                auxiliar.submit();
+            }
+        }).catch(function (error) {
+            mostrarFalhaAoPreservar(
+                (error && error.message ? error.message : 'Não foi possível salvar o atendimento.')
+                + ' A medicação ou hipótese não foi incluída; seu texto continua neste navegador.'
+            );
+        });
+    }, true);
+
     /* Os rascunhos que a faixa está oferecendo agora. Vive aqui fora
      * porque os cliques são ligados **uma vez**, no arranque, e não
      * dentro de quem mostra a faixa.
@@ -296,6 +375,11 @@
          * deste atendimento deixa de existir. Roda no `submit`, e não na
          * volta da página, porque a volta é uma página nova — este código já
          * não está rodando quando ela chega. */
-        raiz.addEventListener('submit', function () { limpar(); });
+        raiz.addEventListener('submit', function (event) {
+            if (event.target.id === 'nd-atendimento-livre'
+                    || event.target.dataset.ndEncounterSaved === '1') {
+                limpar();
+            }
+        });
     }
 })();

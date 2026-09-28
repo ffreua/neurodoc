@@ -1,3 +1,5 @@
+import re
+
 from django.db import models
 
 from base.models import TimestampedModel
@@ -213,9 +215,51 @@ class MedicationProduct(TimestampedModel):
         return self.tarja in TARJAS_QUE_SUGEREM_CONTROLE_ESPECIAL
 
     def rotulo(self):
-        """Uma linha só, como o médico lê no autocomplete."""
-        partes = [self.product or self.substance, self.presentation]
-        return ' — '.join(p for p in partes if p)
+        """Nome e concentração, sem a descrição comercial da embalagem.
+
+        A apresentação da CMED termina em blister, material e quantidade
+        (``CT BL AL PLAS ... X 60``). Isso identifica uma linha da tabela de
+        preços, mas não ajuda a escolher o medicamento e fazia uma opção
+        simples ocupar várias linhas. A apresentação integral continua no
+        campo próprio; o autocomplete mostra só a decisão clínica.
+        """
+        partes = [self.product or self.substance, self.dosagem_resumida()]
+        return ' '.join(p for p in partes if p)
+
+    def dosagem_resumida(self):
+        """Extrai a concentração inicial da apresentação da CMED.
+
+        A planilha não oferece uma coluna separada para a dose. Ela abre a
+        apresentação pela concentração e depois informa a forma farmacêutica
+        (comprimido, solução, cápsula...). Cortar nessa fronteira preserva
+        combinações e concentrações como ``100 mg/ml`` sem levar embalagem
+        e quantidade para a tela.
+        """
+        apresentacao = ' '.join((self.presentation or '').replace('\u00a0', ' ').split())
+        if not apresentacao:
+            return ''
+        formas = (
+            'COM', 'CAP', 'SOL', 'SUS', 'EMU', 'GEL', 'CREM', 'POM', 'PO', 'PÓ',
+            'GRAN', 'ADES', 'XPE', 'ELX', 'LOC', 'PAS', 'LIQ', 'SUP', 'AER',
+            'SPR', 'INJ', 'COL', 'OVU', 'SAB',
+        )
+        inicio_forma = re.compile(r'\s+(?=(?:' + '|'.join(formas) + r')\b)', re.IGNORECASE)
+        dosagem = inicio_forma.split(apresentacao, maxsplit=1)[0].strip()
+        if not re.search(r'\d', dosagem):
+            return ''
+        if not re.search(r'(?i)(?:mcg|mg|ml|ui|g|u)\b', dosagem):
+            return ''
+        dosagem = re.sub(
+            r'(?i)(?<=\d)(MCG|MG|ML|UI|G|U)\b',
+            lambda achado: f' {achado.group(1).lower()}', dosagem,
+        )
+        dosagem = re.sub(
+            r'(?i)\b(MCG|MG|ML|UI|G|U)\b',
+            lambda achado: achado.group(1).lower(), dosagem,
+        )
+        dosagem = re.sub(r'\s*/\s*', '/', dosagem)
+        dosagem = re.sub(r'\s*\+\s*', ' + ', dosagem)
+        return dosagem
 
     def __str__(self):
         return f'{self.product} ({self.substance[:40]})'

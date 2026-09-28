@@ -251,10 +251,20 @@ def search_medications(term, limit=MAX_MEDICAMENTOS):
         return (2, cedo, substancia, linha.presentation)
 
     resultados = []
-    for linha in sorted(linhas, key=posicao)[:limit]:
+    rotulos_vistos = set()
+    for linha in sorted(linhas, key=posicao):
+        rotulo = linha.rotulo()
+        chave = normalize_for_search(rotulo)
+        # A CMED tem uma linha por embalagem. Quando a tela mostra apenas
+        # nome e concentração, caixas de 30 e 60 virariam duas opções
+        # idênticas; uma só representa a escolha que o médico está fazendo.
+        if chave in rotulos_vistos:
+            continue
+        rotulos_vistos.add(chave)
         resultados.append({
             'id': str(linha.id),
-            'rotulo': linha.rotulo(),
+            'rotulo': rotulo,
+            'dosagem': linha.dosagem_resumida(),
             'substancia': linha.substance[:200],
             'produto': linha.product,
             'apresentacao': linha.presentation,
@@ -263,4 +273,6 @@ def search_medications(term, limit=MAX_MEDICAMENTOS):
             'tarja_label': linha.get_tarja_display(),
             'controle_especial': linha.sugere_controle_especial,
         })
+        if len(resultados) >= limit:
+            break
     return resultados

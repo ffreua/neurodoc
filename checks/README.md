@@ -104,7 +104,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_links` | Nenhum perfil vê link que não consegue abrir |
 | `check_matrix` | A matriz de acesso confere com o PRD seção 4 |
 | `check_mfa_certificado` | QR e percurso da MFA, verificação recente e certificado isolado por médico |
-| `check_nome_do_contato` | Nome do contato próprio acompanha a ficha sem alterar parentes |
+| `check_nome_do_contato` | Nome do contato próprio acompanha a ficha e a inclusão de novos contatos funciona |
 | `check_notificacoes` | Aviso nomeia o paciente, leva à resolução, e alcança só quem pode agir |
 | `check_convite` | Entrada do superadministrador: link, senha, MFA, console |
 | `check_landing` | Página de vendas, formulário de contato e a tela de leads |

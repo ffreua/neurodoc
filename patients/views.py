@@ -492,7 +492,17 @@ class PatientContactCreateView(TenantScopedView):
         form = PatientContactForm(request.POST)
         if form.is_valid():
             try:
-                create_contact(request.access_context, patient, **form.cleaned_data)
+                # O formulário tem campos que não existem como booleanos no
+                # modelo (`accepts_marketing` vira duas datas). Repassar o
+                # `cleaned_data` inteiro para `PatientContact(**fields)`
+                # fazia TODO contato novo falhar com argumento inesperado.
+                # `form.save()` é a fronteira que traduz a escolha da tela
+                # para o registro demonstrável do consentimento.
+                contact = form.save(commit=False)
+                contact.tenant_id = request.access_context.tenant_id
+                contact.patient = patient
+                contact.full_clean()
+                contact.save()
             except Exception as exc:
                 form.add_error(None, str(exc))
             else:

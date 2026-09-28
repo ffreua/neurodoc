@@ -91,6 +91,12 @@ No portal, escolher preenche nome e apresentação em campos separados; na
 receita, acrescenta uma linha ao texto da prescrição sem apagar o que já
 estava escrito.
 
+Desde 27/09/2026, a lista mostra somente **nome e concentração** — por
+exemplo, `KEPPRA 250 mg` — e elimina opções repetidas que diferiam apenas
+pelo tamanho da caixa. A apresentação CMED integral continua preservada no
+catálogo; blister, material e quantidade não ocupam mais o autocomplete, e
+o campo de dose do portal recebe somente a concentração.
+
 O destino de cada campo é declarado no HTML por **seletor dentro do
 grupo**, e não por id. O portal CLONA a linha de medicação para
 acrescentar outra, e ids clonados se repetem: com `getElementById`, a

@@ -154,9 +154,11 @@
             if (alvoTexto) {
                 acrescentarNaReceita(alvoTexto, item.rotulo);
             } else if (alvoDose) {
-                /* Portal: nome num campo, apresentação no outro. */
+                /* Portal: nome num campo, concentração no outro. A
+                 * apresentação integral da CMED inclui blister, material e
+                 * tamanho da caixa, que não são a dose pedida aqui. */
                 campo.value = item.produto || item.substancia;
-                alvoDose.value = item.apresentacao;
+                alvoDose.value = item.dosagem || item.apresentacao;
             } else {
                 campo.value = item.rotulo;
             }

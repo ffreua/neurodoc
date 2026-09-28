@@ -197,3 +197,13 @@ ficha. A lista administrativa confundia os dois estados porque filtrava só
   é de confirmação e visibilidade, não uma forma de contornar a cota.
 
 Evidência focada: seções 6 e 7 de `check_precadastro.py`, `EXIT=0`.
+
+## Correção pós-deploy — inclusão de contato na ficha (27/09/2026)
+
+O formulário de contato possui escolhas de consentimento que são traduzidas
+em datas no momento de salvar. A view repassava esses campos auxiliares
+diretamente ao modelo, que os recusava; por isso nenhum contato novo era
+criado. A inclusão agora usa a própria tradução do formulário, preserva o
+isolamento por clínica e deixa a seção aberta quando houver erro de
+validação. Foi conferido no navegador com um contato autorizado a receber
+documentos por e-mail.

@@ -238,12 +238,13 @@ sem caçar em cartões laterais.{% endcomment %}
         <div class="card" id="contatos">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Contatos</h5>
-                <button class="btn btn-sm btn-light-primary collapsed" type="button"
-                        data-bs-toggle="collapse" data-bs-target="#contact-form" aria-expanded="false">
+                <button class="btn btn-sm btn-light-primary {% if not contact_form.errors %}collapsed{% endif %}" type="button"
+                        data-bs-toggle="collapse" data-bs-target="#contact-form"
+                        aria-expanded="{% if contact_form.errors %}true{% else %}false{% endif %}">
                     Adicionar contato
                 </button>
             </div>
-            <div class="collapse" id="contact-form">
+            <div class="collapse {% if contact_form.errors %}show{% endif %}" id="contact-form">
                 <div class="card-body border-bottom">
                     <form method="post" action="{% url 'patients:add-contact' patient.id %}" novalidate>
                         {% csrf_token %}

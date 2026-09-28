@@ -3,6 +3,12 @@
 > **Homologado na pilha local (2026-09-17).** Evidência de
 > `checks/check_texto_livre.py` (13 seções, `EXIT=0`) e da suíte inteira.
 
+> **Correção de 27/09/2026.** Incluir uma medicação ou hipótese agora salva
+> primeiro o texto livre, as impressões e a conduta que ainda estiverem na
+> tela. O POST auxiliar só prossegue depois dessa gravação; se ela falhar, o
+> item não é incluído e o texto permanece no navegador com uma mensagem
+> explícita. Assim, o recarregamento não apaga o que estava sendo digitado.
+
 ## Por que existe
 
 O prontuário estruturado é bom e continua sendo o padrão: queixa, história,

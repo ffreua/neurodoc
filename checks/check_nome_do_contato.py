@@ -24,6 +24,8 @@ O que este roteiro cobra:
   contato do paciente passar a ser tratado como o de um terceiro -- sem
   erro nenhum, so deixando de sincronizar;
 - o pre-cadastro nasce coerente.
+- a ficha consegue criar um contato novo pela view, inclusive autorizado
+  para receber documento.
 """
 from django.conf import settings as dj_settings
 from django.test import Client
@@ -171,6 +173,37 @@ try:
     c3 = PatientContact.objects.filter(patient=p3).first()
     conferir('nome do contato bate com o da ficha', c3.name, p3.full_name)
     conferir('e a relacao e a constante', c3.relationship, SELF_RELATIONSHIP)
+
+    print('\n7. A ficha cria um contato novo que pode receber documento')
+    resposta = cliente.post(f'/app/patients/{paciente2.id}/contacts/', {
+        'name': 'Contato Novo Do Roteiro',
+        'relationship': 'Filha',
+        'email': 'contato-novo-roteiro@example.test',
+        'authorized_for_documents': 'on',
+        'email_enabled': 'on',
+    })
+    novo_contato = PatientContact.objects.filter(
+        patient=paciente2, email='contato-novo-roteiro@example.test',
+    ).first()
+    conferir('o POST redireciona depois de criar', resposta.status_code, 302)
+    conferir('o contato foi criado', novo_contato is not None, True)
+    if novo_contato is not None:
+        conferir('pode receber documentos', novo_contato.authorized_for_documents, True)
+        conferir('aceita entrega por e-mail', novo_contato.email_enabled, True)
+        conferir('nao inventa consentimento de divulgacao',
+                 novo_contato.marketing_opt_in_at is None, True)
+
+    # Se faltar telefone e e-mail, a mesma secao precisa continuar aberta
+    # para mostrar o erro. Recolher o formulario transforma uma validacao
+    # correta em um botao que parece nao fazer nada.
+    resposta = cliente.post(f'/app/patients/{paciente2.id}/contacts/', {
+        'name': 'Contato Invalido Do Roteiro', 'relationship': 'Filho',
+    })
+    corpo = resposta.content.decode('utf-8', 'replace')
+    abriu_com_erro = bool(__import__('re').search(
+        r'class="collapse[^\"]*show[^\"]*"\s+id="contact-form"', corpo,
+    ))
+    conferir('erro deixa o formulario de contato aberto', abriu_com_erro, True)
 
 finally:
     n = PatientContact.objects.filter(patient_id__in=criados).delete()[0]

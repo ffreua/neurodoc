@@ -76,6 +76,33 @@ for termo, esperado in [('clonazepam', 'substancia'), ('rivotril', 'nome comerci
     if not r:
         failures.append(f'a busca nao achou nada para {termo!r}')
 
+# A CMED descreve a embalagem inteira (blister, material e quantidade),
+# mas a escolha clinica precisa mostrar medicamento e concentracao. O caso
+# relatado foi "KEPPRA 250 MG COM REV CT BL ... X 60" ocupando a lista toda.
+keppra = [
+    item for item in search_medications('keppra 250')
+    if item['produto'].upper() == 'KEPPRA' and item['apresentacao'].startswith('250 MG')
+]
+rotulo_keppra = keppra[0]['rotulo'] if keppra else ''
+print(f'  rotulo compacto do Keppra     -> {rotulo_keppra!r}')
+if not keppra:
+    failures.append('a busca nao achou a apresentacao Keppra 250 MG')
+elif rotulo_keppra.casefold() != 'keppra 250 mg':
+    failures.append(f'o autocomplete ainda mostra a embalagem inteira: {rotulo_keppra!r}')
+
+casos_dosagem = {
+    '100 MG/ML SOL ORAL': '100 mg/ml',
+    '1G PO LIOF': '1 g',
+    '500UI COM': '500 ui',
+    '(20,0 + 12,5 + 5,0) MG COM': '(20,0 + 12,5 + 5,0) mg',
+}
+for apresentacao, esperado in casos_dosagem.items():
+    obtido = MedicationProduct(presentation=apresentacao).dosagem_resumida()
+    if obtido != esperado:
+        failures.append(
+            f'dosagem resumida incorreta para {apresentacao!r}: {obtido!r} != {esperado!r}'
+        )
+
 print('=== 3. a tarja e a sugestao andam juntas ===')
 amostra = search_medications('clonazepam')
 if amostra:
