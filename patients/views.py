@@ -16,7 +16,7 @@ from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import photo as photo_storage
 from . import selectors
-from .contacts import create_contact
+from .contacts import create_contact, sync_self_contact_name
 from .coverage import add_coverage, set_patient_coverage
 from .forms import (
     PatientContactForm, PatientCoverageForm, PatientForm, PatientMeasurementForm,
@@ -315,9 +315,18 @@ class PatientUpdateView(TenantScopedView):
                 # inserir uma segunda medida idêntica na série.
                 for kind, value, unit in measurements:
                     record_observation(request.access_context, updated, kind, value, unit)
+                # O contato do próprio paciente guarda uma cópia do nome, e
+                # ela não acompanhava a ficha: renomear o paciente deixava a
+                # lista de Contatos com o nome antigo ao lado do telefone
+                # certo. O mesmo nome aparece no comprovante de entrega de
+                # documento, onde responde "para quem esta receita foi
+                # enviada" — errado ali, é registro apontando para outra
+                # pessoa.
+                renomeados = sync_self_contact_name(updated)
             record_audit_event(
                 request.user, request.access_context.tenant_id, 'patients.patient_updated', object_type='patient',
                 object_id=updated.id, outcome='success',
+                integrity_metadata={'self_contacts_renamed': renomeados} if renomeados else None,
             )
             return redirect('patients:detail', patient_id=updated.id)
         return render(request, 'patients/form.html', {

@@ -200,6 +200,7 @@ def quick_register_patient(context, name, phone, note='', email='', accepts_mess
     marcando horário, sem nunca abrir a tela de cadastro. Deixá-lo de fora
     faria a cota valer só pela porta da frente.
     """
+    from patients.contacts import SELF_RELATIONSHIP
     from patients.models import Patient, PatientContact, RegistrationStage
     from tenancy.limits import assert_can_add_patient
 
@@ -236,7 +237,7 @@ def quick_register_patient(context, name, phone, note='', email='', accepts_mess
         # ele que a LGPD (art. 11, I) exige específico e destacado.
         contact = PatientContact(
             tenant_id=context.tenant_id, patient=patient,
-            name=name.strip()[:255], relationship='Próprio paciente',
+            name=name.strip()[:255], relationship=SELF_RELATIONSHIP,
             phone=digits[:16], email=endereco[:254],
             sms_enabled=bool(accepts_messages and digits),
             email_enabled=bool(accepts_messages and endereco),

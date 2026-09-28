@@ -425,6 +425,8 @@ class PatientForm(forms.ModelForm):
         """
         if not self.instance._state.adding:
             return None
+        from .contacts import SELF_RELATIONSHIP
+
         phone = (self.cleaned_data.get('contact_phone') or '').strip()
         email = (self.cleaned_data.get('contact_email') or '').strip()
         if not phone and not email:
@@ -437,7 +439,7 @@ class PatientForm(forms.ModelForm):
         aceita = bool(self.cleaned_data.get('contact_accepts_messages'))
         return {
             'name': self.cleaned_data.get('full_name') or '',
-            'relationship': 'Próprio paciente',
+            'relationship': SELF_RELATIONSHIP,
             'phone': phone,
             'email': email,
             'sms_enabled': aceita and bool(phone),
