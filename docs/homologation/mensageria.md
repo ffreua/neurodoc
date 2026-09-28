@@ -117,6 +117,15 @@ enviar e-mail.
 Validação: TLS e SSL são alternativos (587 costuma usar TLS; 465, SSL), e a
 tela recusa os dois juntos em vez de deixar o envio falhar depois.
 
+Na bateria pós-deploy de 27/09/2026, essa recusa revelou um defeito no
+caminho de erro: o formulário detectava corretamente TLS+SSL, mas ao
+redesenhar a tela criava `MessagingSettingsView()` sem passar pelo
+`dispatch`; depois que o contexto passou a mostrar o plano da clínica,
+`self.membership` deixou de existir nessa instância e a resposta virou 500.
+O construtor do contexto agora recebe explicitamente o vínculo já validado
+pela view que atendeu o POST. `check_g45` voltou a percorrer a validação com
+resposta 200 e a bateria completa fechou 63/63.
+
 ### Cifragem
 
 `base/crypto.py` usa o mesmo desenho de envelope do PFX: uma chave de dados

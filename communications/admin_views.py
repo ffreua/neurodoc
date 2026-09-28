@@ -77,7 +77,17 @@ def _email_settings(tenant_id, membership):
 
 
 class MessagingSettingsView(ManagerRequiredView):
-    def _context(self, request, **overrides):
+    @staticmethod
+    def _context(request, manager_membership, **overrides):
+        """Monta a tela inclusive quando quem recebeu o POST e outra view.
+
+        As views de salvamento precisam redesenhar esta tela com o formulario
+        invalido. Criar `MessagingSettingsView()` ali nao executa `dispatch`,
+        portanto nunca cria `self.membership`; quando o contexto passou a
+        consultar o plano, qualquer erro de validacao virou um 500. O vinculo
+        entra agora como dependencia explicita, ja validada pelo `dispatch`
+        da view que esta atendendo a requisicao.
+        """
         from django.conf import settings as django_settings
 
         tenant_id = request.access_context.tenant_id
@@ -113,8 +123,8 @@ class MessagingSettingsView(ManagerRequiredView):
             # interruptor da instalacao inteira (acima) e o que ESTE plano
             # contratou (abaixo). Juntar as duas numa mensagem so mandaria
             # a clinica do Gratuito esperar uma liberacao que nunca vem.
-            'sms_contratado': has_sms(self.membership.tenant.plan),
-            'plano_da_clinica': plan_label(self.membership.tenant.plan),
+            'sms_contratado': has_sms(manager_membership.tenant.plan),
+            'plano_da_clinica': plan_label(manager_membership.tenant.plan),
             'email_globally_enabled': django_settings.EMAIL_ENABLED,
             'default_from_email': django_settings.DEFAULT_FROM_EMAIL,
             'has_master_key': master_key_available(),
@@ -124,7 +134,10 @@ class MessagingSettingsView(ManagerRequiredView):
         return context
 
     def get(self, request):
-        return render(request, 'communications/settings.html', self._context(request))
+        return render(
+            request, 'communications/settings.html',
+            self._context(request, self.membership),
+        )
 
 
 class SmsSettingsSaveView(ManagerRequiredView):
@@ -151,7 +164,7 @@ class SmsSettingsSaveView(ManagerRequiredView):
         if not form.is_valid():
             return render(
                 request, 'communications/settings.html',
-                MessagingSettingsView()._context(request, sms_form=form),
+                MessagingSettingsView._context(request, self.membership, sms_form=form),
             )
         entered = (form.cleaned_data.get('api_key') or '').strip()
         row = form.save(commit=False)
@@ -218,8 +231,9 @@ class DoctorEmailSettingsSaveView(ManagerRequiredView):
         if not form.is_valid():
             return render(
                 request, 'communications/settings.html',
-                MessagingSettingsView()._context(
-                    request, email_form=form, email_form_membership=doctor,
+                MessagingSettingsView._context(
+                    request, self.membership,
+                    email_form=form, email_form_membership=doctor,
                 ),
             )
         entered = (form.cleaned_data.get('smtp_password') or '').strip()
@@ -323,7 +337,9 @@ class ClinicEmailSaveView(ManagerRequiredView):
         if not form.is_valid():
             return render(
                 request, 'communications/settings.html',
-                MessagingSettingsView()._context(request, clinic_email_form=form),
+                MessagingSettingsView._context(
+                    request, self.membership, clinic_email_form=form,
+                ),
             )
         entered = (form.cleaned_data.get('smtp_password') or '').strip()
         saved = form.save(commit=False)
