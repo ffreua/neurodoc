@@ -6,7 +6,10 @@ convidada abre a partir do link, antes de ter vínculo, e às vezes antes de
 ter conta.
 """
 
+from urllib.parse import urlencode
+
 from django.shortcuts import redirect, render
+from django.urls import reverse
 from django.views import View
 
 from accounts.services import send_email_verification
@@ -36,6 +39,22 @@ class AcceptCollaboratorInvitationView(View):
             return render(request, 'onboarding/invitation_invalid.html', status=400)
         if request.user.is_authenticated:
             return render(request, 'tenancy/accept_invitation_confirm.html', {'invitation': invitation})
+        # A conta global sobrevive à revogação para preservar autoria e
+        # trilha. Num convite de recontratação, oriente o login em vez de
+        # oferecer um cadastro que terminaria em "e-mail já possui conta".
+        from accounts.models import User
+
+        if invitation.email_binding and User.objects.filter(
+            email__iexact=invitation.email_binding,
+        ).exists():
+            login_url = (
+                f"{reverse('accounts:login')}?"
+                f"{urlencode({'next': request.get_full_path()})}"
+            )
+            return render(request, 'tenancy/accept_invitation_existing.html', {
+                'invitation': invitation,
+                'login_url': login_url,
+            })
         return render(request, 'tenancy/accept_invitation_signup.html', {
             'invitation': invitation, 'form': AcceptInvitationAccountForm(initial={'email': invitation.email_binding}),
         })
@@ -55,7 +74,10 @@ class AcceptCollaboratorInvitationView(View):
                 # com a clínica em vez de sugerir uma ação que não existe.
                 return render(request, 'tenancy/invitation_limit_reached.html',
                               {'limite': limite, 'invitation': invitation}, status=409)
-            return redirect('accounts:login')
+            if request.user.email_verified_at is None:
+                send_email_verification(request.user, request)
+                return render(request, 'accounts/email_verification_sent.html')
+            return redirect('accounts:tenant-picker')
         form = AcceptInvitationAccountForm(request.POST)
         if not form.is_valid():
             return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})

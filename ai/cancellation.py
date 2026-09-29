@@ -1,8 +1,8 @@
-from django.utils import timezone
+from django.db import transaction
 
 from audit.services import record_audit_event
 
-from .chat_models import ChatMessageState
+from .chat_models import ChatMessage, ChatMessageState
 from .services import cancel_job
 from .streaming import publish_event
 
@@ -23,12 +23,19 @@ def check_concurrency_limit(tenant_id, user_id):
         raise ConcurrencyLimitExceeded(f'Already streaming {active} response(s); wait or cancel one first')
 
 
+@transaction.atomic
 def cancel_message(message, actor_id):
     """Cancellation is a persisted state transition, nothing more -- it
     makes no claim about token/cost refund from the provider (a partially
     generated response may already have been billed upstream), and it does
     not retroactively delete whatever partial content was streamed.
     """
+    # Um botão atrasado no navegador não pode desfazer uma resposta que o
+    # worker já concluiu. A trava também resolve a corrida entre os dois.
+    message = ChatMessage.objects.select_for_update().select_related('session').get(pk=message.pk)
+    if message.state != ChatMessageState.STREAMING:
+        return message
+
     message.state = ChatMessageState.CANCELLED
     message.save(update_fields=['state'])
     if message.ai_job_id:

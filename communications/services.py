@@ -1,4 +1,5 @@
 import secrets
+from urllib.parse import quote_plus
 
 from django.conf import settings
 from django.db import transaction
@@ -297,6 +298,7 @@ Sua consulta está marcada:
   Data e hora .... {when}
   Profissional ... {doctor}
   Local .......... {clinic}
+{address_block}
 
 Para confirmar, remarcar ou cancelar, ligue para a clínica{contato}.
 
@@ -334,8 +336,8 @@ def confirmation_contacts(appointment, channel):
     ]
 
 
-def _telefone_da_clinica(tenant):
-    """O telefone cadastrado na identidade da clínica, ou vazio.
+def _contato_e_endereco_da_clinica(tenant):
+    """Telefone, endereço e mapa cadastrados na identidade da clínica.
 
     Sem ele, a mensagem diz "ligue para a clínica" e a pessoa tem de
     procurar o número. Com ele, a instrução é acionável no próprio texto —
@@ -353,7 +355,15 @@ def _telefone_da_clinica(tenant):
     from tenancy.models import ClinicProfile
 
     perfil = ClinicProfile.objects.filter(tenant_id=tenant.id).first()
-    return (getattr(perfil, 'phone', '') or '').strip()
+    if perfil is None:
+        return '', '', ''
+    telefone = (perfil.phone or '').strip()
+    endereco = perfil.address_summary().strip()
+    mapa = (
+        f'https://www.google.com/maps/search/?api=1&query={quote_plus(endereco)}'
+        if endereco else ''
+    )
+    return telefone, endereco, mapa
 
 
 def _encurtar_para_sms(modelo, clinic, doctor, when, contato):
@@ -399,13 +409,17 @@ def _confirmation_message(appointment, channel):
         appointment.physician_membership.user.get_full_name()
         or appointment.physician_membership.user.email
     )
-    telefone = _telefone_da_clinica(tenant)
+    telefone, endereco, mapa = _contato_e_endereco_da_clinica(tenant)
     when = timezone.localtime(appointment.starts_at).strftime('%d/%m/%Y às %H:%M')
     if channel == DeliveryChannel.EMAIL:
+        address_block = ''
+        if endereco:
+            address_block = f'  Endereço ....... {endereco}\n  Google Maps .... {mapa}'
         return CONFIRMATION_EMAIL_TEMPLATE.format(
             patient=appointment.patient.full_name.split()[0],
             when=when, doctor=doctor, clinic=clinic,
             contato=f': {telefone}' if telefone else '',
+            address_block=address_block,
         )
     # SMS: a data perde o ano, que a pessoa já sabe, e o resto cede na
     # ordem de `_encurtar_para_sms`.

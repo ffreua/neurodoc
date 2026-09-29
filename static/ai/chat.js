@@ -17,6 +17,16 @@
     var textNode = document.createTextNode('');
     el.appendChild(textNode);
 
+    function finish(state) {
+      var message = el.closest('.message');
+      if (message) {
+        message.dataset.state = state;
+        var controls = message.querySelector('[data-stream-controls]');
+        if (controls) controls.remove();
+      }
+      source.close();
+    }
+
     source.addEventListener('delta', function (event) {
       var payload = JSON.parse(event.data);
       textNode.textContent += payload.text;
@@ -25,7 +35,7 @@
     source.addEventListener('complete', function (event) {
       var payload = JSON.parse(event.data);
       el.innerHTML = payload.html;
-      source.close();
+      finish('complete');
     });
 
     source.addEventListener('error', function (event) {
@@ -34,17 +44,17 @@
         message = JSON.parse(event.data).message || message;
       } catch (e) { /* connection-level error, no payload */ }
       el.textContent = message;
-      source.close();
+      finish('failed');
     });
 
     source.addEventListener('cancelled', function () {
       el.textContent = 'Cancelado.';
-      source.close();
+      finish('cancelled');
     });
 
     source.addEventListener('revoked', function () {
       el.textContent = 'Sessão revogada. Faça login novamente.';
-      source.close();
+      finish('revoked');
     });
   });
 })();

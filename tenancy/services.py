@@ -128,10 +128,19 @@ def accept_collaborator_invitation_for_user(token, user):
         },
     )
     if not created:
-        merged_roles = sorted(set(membership.roles) | set(invitation.role_grants))
-        membership.roles = merged_roles
+        # A conta e o vínculo continuam sendo os mesmos para preservar
+        # autoria e auditoria. O convite novo, porém, é a autorização atual:
+        # ele substitui os papéis antigos e encerra a revogação.
+        membership.roles = list(invitation.role_grants)
+        membership.status = MembershipStatus.ACTIVE
+        membership.activated_at = timezone.now()
+        membership.revoked_at = None
+        membership.invited_by = invitation.issued_by
         membership.row_version += 1
-        membership.save(update_fields=['roles', 'row_version', 'updated_at'])
+        membership.save(update_fields=[
+            'roles', 'status', 'activated_at', 'revoked_at', 'invited_by',
+            'row_version', 'updated_at',
+        ])
     return membership
 
 

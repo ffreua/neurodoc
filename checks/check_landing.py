@@ -69,6 +69,13 @@ corpo = publica.content.decode()
 print(f'  GET / -> {publica.status_code}')
 if publica.status_code != 200:
     falhas.append('a pagina de vendas nao abriu')
+codigo_aberto = all(trecho in corpo for trecho in [
+    'Open Source', 'licença MIT', 'fernando.freua@hc.fm.usp.br',
+    'mailto:fernando.freua@hc.fm.usp.br',
+])
+print(f'  Open Source, MIT e contato para GitHub presentes={codigo_aberto}')
+if not codigo_aberto:
+    falhas.append('a landing nao explica o acesso Open Source sob MIT e como solicitar o GitHub')
 for code in PUBLIC_ORDER:
     cfg = PLANS[code]
     if cfg['max_patients'] is None:

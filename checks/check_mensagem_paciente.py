@@ -60,6 +60,10 @@ from tenancy.models import ClinicProfile
 
 perfil = ClinicProfile.objects.filter(tenant_id=agendamento.tenant_id).first()
 telefone_antes = getattr(perfil, 'phone', None)
+endereco_antes = {
+    campo: getattr(perfil, campo, '')
+    for campo in ['address_line', 'address_district', 'city', 'state', 'postal_code']
+} if perfil is not None else None
 
 PEDIDOS_DE_RESPOSTA = [
     'respondendo a esta', 'responda esta mensagem', 'responda com',
@@ -144,6 +148,29 @@ try:
         conferir('sem numero cadastrado, a frase segue inteira',
                  'ligue para a clínica.' in email3, True)
 
+        print('\n5b. O e-mail traz endereco e link de mapa somente quando ha endereco')
+        perfil.address_line = 'Rua Dr. Ovidio Pires de Campos, 225'
+        perfil.address_district = 'Cerqueira Cesar'
+        perfil.city = 'Sao Paulo'
+        perfil.state = 'SP'
+        perfil.postal_code = '05403-010'
+        perfil.save(update_fields=[
+            'address_line', 'address_district', 'city', 'state', 'postal_code',
+        ])
+        email_com_endereco = services._confirmation_message(agendamento, DeliveryChannel.EMAIL)
+        conferir('o endereco cadastrado aparece no e-mail',
+                 'Rua Dr. Ovidio Pires de Campos, 225' in email_com_endereco, True)
+        conferir('o e-mail oferece busca do endereco no Google Maps',
+                 'https://www.google.com/maps/search/?api=1&query=' in email_com_endereco, True)
+        for campo in ['address_line', 'address_district', 'city', 'state', 'postal_code']:
+            setattr(perfil, campo, '')
+        perfil.save(update_fields=[
+            'address_line', 'address_district', 'city', 'state', 'postal_code',
+        ])
+        email_sem_endereco = services._confirmation_message(agendamento, DeliveryChannel.EMAIL)
+        conferir('sem endereco, o e-mail nao inventa link de mapa',
+                 'google.com/maps' in email_sem_endereco, False)
+
     print('\n6. O lembrete se apresenta pela clinica, nao pelo fornecedor')
     lembrete = services.REMINDER_MESSAGE_TEMPLATE.format(
         clinic='Consultorio Dr Fernando', when='28/09 às 13:00',
@@ -171,8 +198,12 @@ finally:
         print('\n  perfil de clinica criado por este roteiro foi removido')
     elif perfil is not None and telefone_antes is not None:
         perfil.phone = telefone_antes
-        perfil.save(update_fields=['phone'])
-        print('\n  telefone da clinica restaurado')
+        for campo, valor in (endereco_antes or {}).items():
+            setattr(perfil, campo, valor)
+        perfil.save(update_fields=[
+            'phone', 'address_line', 'address_district', 'city', 'state', 'postal_code',
+        ])
+        print('\n  telefone e endereco da clinica restaurados')
 
 if falhas:
     for item in falhas:

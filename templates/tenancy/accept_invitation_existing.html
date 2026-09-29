@@ -1,0 +1,16 @@
+{% extends "base_auth.html" %}
+{% block title %}Aceitar convite — NeuroDoc{% endblock %}
+{% block heading %}Sua conta já existe{% endblock %}
+{% block subheading %}{{ invitation.target_tenant.legal_name }}{% endblock %}
+{% block content %}
+<p class="fs-13 text-muted">
+    Este convite é para <strong>{{ invitation.email_binding }}</strong>. Entre com
+    essa conta para reativar o vínculo e aceitar os novos papéis.
+</p>
+<a class="btn btn-primary w-100" href="{{ login_url }}">Entrar e aceitar</a>
+<div class="text-center mt-3">
+    <a class="fs-12 fw-semibold" href="{% url 'accounts:password_reset' %}">
+        Esqueci minha senha
+    </a>
+</div>
+{% endblock %}

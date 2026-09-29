@@ -433,6 +433,12 @@ escreve e ninguém verifica.{% endcomment %}
                     “{{ autor.frase }}”
                 </blockquote>
                 <p class="fs-14 text-muted">{{ autor.resumo }}</p>
+                <div class="alert alert-primary fs-13" role="note">
+                    <strong>Open Source — licença MIT.</strong>
+                    O código-fonte do NeuroDoc é aberto. Para solicitar acesso ao
+                    repositório no GitHub, escreva para
+                    <a href="mailto:fernando.freua@hc.fm.usp.br">fernando.freua@hc.fm.usp.br</a>.
+                </div>
                 <ul class="nd-tick list-unstyled fs-12 text-muted mb-4">
                     {% for credencial in autor.credenciais %}<li>{{ credencial }}</li>{% endfor %}
                 </ul>

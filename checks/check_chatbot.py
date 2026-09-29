@@ -182,6 +182,17 @@ for rotulo, ok in itens.items():
     if not ok:
         falhas.append(f'a tela do chat perdeu: {rotulo}')
 
+print('=== 10b. um clique atrasado em Parar nao desfaz resposta concluida ===')
+from ai.cancellation import cancel_message
+
+concluida = chat_services.start_assistant_message(sessao)
+chat_services.finalize_assistant_message(concluida, 'Resposta ja concluida.')
+cancel_message(concluida, medico.id)
+concluida.refresh_from_db()
+print(f'  estado depois do cancelamento atrasado={concluida.state} (complete esperado)')
+if concluida.state != ChatMessageState.COMPLETE:
+    falhas.append('o botao Parar atrasado cancelou uma resposta que ja estava concluida')
+
 print('=== 11. apagar: so o dono, e a trilha guarda o fato sem o texto ===')
 from audit.models import AuditEvent
 
