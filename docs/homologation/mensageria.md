@@ -150,6 +150,11 @@ Tela com as últimas 100 entregas: canal, destino, origem, estado e tentativas
 — **sem o texto da mensagem**. É o suficiente para diagnosticar "o SMS não
 chegou" sem transformar a tela num arquivo de mensagens do paciente.
 
+O log é transitório: entrega e tentativas são excluídas fisicamente depois de
+**15 dias**. O documento, o agendamento, o contato e a trilha de auditoria não
+são apagados por essa rotina. A limpeza diária ocorre às 01:20, depois que até
+a reconciliação mais longa do SMS já terminou.
+
 ## Verificação executada
 
 **69 casos, 0 falhas.**

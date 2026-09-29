@@ -502,8 +502,8 @@ Todas as linhas abaixo herdam campos comuns e tenant, salvo GLOBAL. O conteúdo 
 | SigningCredential | physician; ciphertext_path; wrapped_key_metadata; certificate_serial/fingerprint; issuer; not_before/not_after; status | Não persistir senha PFX; separado de media; acesso apenas próprio autorizado |
 | SigningSession | physician; membership; expires_at; revoked_at; mfa_at; session_binding_hash; encrypted_unlock_material; ephemeral_key_id | TTL no servidor, artefato de desbloqueio transitório cifrado; nunca senha/chave em plaintext |
 | DocumentAccessToken | document; contact; token_hash; expires_at; revoked_at; last_access_at; otp_hash/expiry/attempts | Código e token com hash; erro genérico e limite por token/IP |
-| Delivery | document ou appointment; contact; channel; event_version; status; provider_id; idempotency_key; next_attempt_at | Unique(tenant,idempotency_key); conteúdo mínimo e destino protegido |
-| DeliveryAttempt | delivery; attempt_number; started_at/ended_at; outcome; provider_code; sanitized_error | Append-only; não guardar API key/body clínico |
+| Delivery | document ou appointment; contact; channel; event_version; status; provider_id; idempotency_key; next_attempt_at | Unique(tenant,idempotency_key); conteúdo mínimo e destino protegido; exclusão física após 15 dias |
+| DeliveryAttempt | delivery; attempt_number; started_at/ended_at; outcome; provider_code; sanitized_error | Append-only durante a retenção da entrega; não guardar API key/body clínico; excluída com a entrega após 15 dias |
 | CRMStage | name; order; active; color_token | Token do design system; mesmo tenant |
 | CRMCard | patient; appointment opcional; stage; assigned_membership; due_at; administrative_summary | Histórico separado; sem diagnóstico em texto administrativo |
 | CRMTransition | card; from_stage; to_stage; actor; reason | Append-only |
@@ -515,7 +515,7 @@ Todas as linhas abaixo herdam campos comuns e tenant, salvo GLOBAL. O conteúdo 
 | AIArtifact | job; schema_version; provider/model; prompt_version; source_refs; result JSON; review_state; reviewer; reviewed_at; supersedes | Conteúdo cifrado quando necessário; aprovação humana rastreada |
 | ChatSession | owner_user; tenant; patient opcional; title; status; last_message_at | Unique contexto de owner; troca de paciente cria nova sessão |
 | ChatMessage | session; role; content; source_refs; ai_job opcional; state; sequence | Unique(session,sequence); Markdown sanitizado; mensagens preservadas conforme política |
-| Notification | user; tenant; kind; target_type/id; sanitized_title; read_at | Não mostrar diagnóstico em toast de tela compartilhada |
+| Notification | user; tenant; kind; target_type/id; sanitized_title; read_at | Não mostrar diagnóstico em toast de tela compartilhada; excluir lida após 7 dias e não lida após 15 dias |
 | OutboxEvent | topic; aggregate_type/id; event_version; payload_minimal; status; available_at; locked_until; attempts | Chave única de evento; payload apenas IDs e metadados mínimos |
 | ProcessedEvent | event; consumer; processed_at | Unique(event,consumer); impede efeito local duplicado |
 | AuditEvent | actor; tenant nullable; action; object_type/id; purpose; outcome; request_id; origin_ip_protected; integrity_metadata | Append-only; índice por tenant/data/objeto; retenção própria |
@@ -837,7 +837,7 @@ No modo `NEURODOC_RECOVERY_MODE=True`, worker consome somente fila `recovery`, s
 
 Jobs: queued → running → succeeded/failed/cancelled/blocked_privacy; stalled após ausência de heartbeat e reconciliação. Resultados definitivos e autoria ficam no banco; Celery result backend contém apenas referência/status mínimo. `acks_late` só em tarefas idempotentes; proteção contra worker perdido não autoriza duplicar envio SMS.
 
-Mudança do paciente após iniciar resumo compara source_hash no retorno: artefato vira stale, não sobrescreve resultado aprovado. Se usuário perde acesso antes da execução, job é cancelado/negado sem obter os dados. Notificações mostram mensagem mínima, tenant e link autorizado; estado read_at persiste entre navegações.
+Mudança do paciente após iniciar resumo compara source_hash no retorno: artefato vira stale, não sobrescreve resultado aprovado. Se usuário perde acesso antes da execução, job é cancelado/negado sem obter os dados. Notificações mostram mensagem mínima, tenant e link autorizado; estado read_at persiste entre navegações. A caixa é transitória: lidas são excluídas fisicamente 7 dias depois da leitura e não lidas 15 dias depois da criação. O log de entrega e suas tentativas são excluídos após 15 dias; objetos clínicos e auditoria permanecem sob suas próprias políticas.
 
 ## 16. Design system e acessibilidade
 
@@ -1604,7 +1604,7 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 - [x] **S08-T08 — Implementar unknown, reconciliação e reenvio autorizado.** Dependências: S08-T04, S08-T06. Componente: `communications/reconciliation.py`. Requisitos: RF-09.04. **Aceite:** Timeout ambíguo não gera retry cego.
 
-- [x] **S08-T09 — Criar Notification e caixa interna com read_at.** Dependências: S08-T01. Componente: `notifications/models.py, views.py`. Requisitos: RF-11, RT-02. **Aceite:** Notificação persiste e não aparece em outro tenant.
+- [x] **S08-T09 — Criar Notification e caixa interna com read_at.** Dependências: S08-T01. Componente: `notifications/models.py, views.py`. Requisitos: RF-11, RT-02. **Aceite:** Notificação persiste entre navegações até a retenção de 7/15 dias e não aparece em outro tenant.
 
 - [x] **S08-T10 — Homologar comunicação e falhas de dependência.** Dependências: S08-T07, S08-T08, S08-T09. Componente: `docs/homologation/communications.md`. Requisitos: RF-09, RT-08. **Aceite:** H-09 diferencia accepted/delivered/unknown sem envio clínico no texto.
 

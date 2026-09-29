@@ -56,6 +56,10 @@ TELAS = [
     ('clinica-identidade.png', '/app/org/clinica/', None),
     ('clinica-logotipo.png', '/app/org/clinica/', 'foco_logotipo'),
     ('clinica-encarregado.png', '/app/org/clinica/', 'foco_encarregado'),
+    ('convenios-lista.png', '/app/org/convenios/', None),
+    ('convenios-valores.png', '/app/org/valores/', None),
+    ('equipe-lista.png', '/app/org/equipe/', None),
+    ('equipe-registro.png', '/app/org/equipe/', 'abre_registro_profissional'),
     ('mensageria-config.png', '/app/org/mensageria/', None),
     ('mensageria-entregas.png', '/app/org/mensageria/entregas/', None),
     ('campanhas-nova.png', '/app/org/campanhas/nova/', None),
@@ -103,6 +107,22 @@ def foco_logotipo(page):
 
 def foco_encarregado(page):
     _centrar(page, page.locator('#id_dpo_name'))
+
+
+def abre_registro_profissional(page):
+    """Abre o formulário que vive no modal da equipe.
+
+    A URL `registro-profissional/` recebe somente POST. Navegar até ela foi o
+    que gerou a captura HTTP 405 publicada anteriormente; a tela real é este
+    modal, aberto pelo botão Registro.
+    """
+    botao = page.locator('button[data-bs-target^="#crm-"]').first
+    botao.wait_for(state='visible', timeout=5000)
+    alvo = botao.get_attribute('data-bs-target')
+    botao.click()
+    modal = page.locator(alvo)
+    modal.wait_for(state='visible', timeout=5000)
+    return modal.locator('.modal-content')
 
 
 def abre_pagamento(page):
@@ -266,11 +286,19 @@ def main():
             return 1
 
         for arquivo, caminho, preparo in TELAS:
-            page.goto(BASE + caminho, wait_until='domcontentloaded')
+            resposta = page.goto(BASE + caminho, wait_until='domcontentloaded')
             assentar(page, 700)
             _fechar_chat(page)
+            if resposta is None or not resposta.ok:
+                status = resposta.status if resposta is not None else 'sem resposta'
+                falhas.append(f'{arquivo}: {caminho} respondeu {status}')
+                continue
             if page.url.rstrip('/').endswith('/accounts/login'):
                 falhas.append(f'{arquivo}: a tela exigiu login de novo')
+                continue
+            texto = page.locator('body').inner_text().lower()
+            if 'page not found' in texto or 'esta página não está funcionando' in texto:
+                falhas.append(f'{arquivo}: a captura contém uma página de erro')
                 continue
             # Um preparo pode devolver um elemento, e entao e ele que sai
             # na imagem. E o caminho para o que nao se resolve rolando a

@@ -684,6 +684,7 @@
         initTabs();
         initCollapse();
         initModals();
+        initAccountModal();
         initAlerts();
         initTooltips();
         initCounters();
@@ -692,6 +693,71 @@
         initConfirm();
         initAutoGrow();
         initMasks();
+    }
+
+    /* ------------------------------------------------------- Minha conta
+     *
+     * A rota continua sendo uma página completa para quem está sem clínica e
+     * como fallback sem JavaScript. Dentro do shell, o mesmo formulário vem
+     * como fragmento: assim salvar o próprio nome não desmonta a navegação nem
+     * obriga a pessoa a escolher a organização outra vez. */
+    function initAccountModal() {
+        var opener = document.querySelector('[data-nd-account-open]');
+        var modal = document.getElementById('nd-account-modal');
+        var body = modal && modal.querySelector('[data-nd-account-body]');
+        if (!opener || !modal || !body) return;
+
+        function failure() {
+            body.innerHTML =
+                '<div class="alert alert-danger fs-13" role="alert">' +
+                'Não foi possível carregar esta tela. ' +
+                '<a data-nd-account-fallback>Abrir Minha conta</a>.' +
+                '</div>';
+            body.querySelector('[data-nd-account-fallback]').setAttribute('href', opener.href);
+        }
+
+        function replace(response) {
+            return response.text().then(function (htmlText) {
+                if (!response.ok && response.status !== 400) throw new Error('account request failed');
+                body.innerHTML = htmlText;
+                var panel = body.querySelector('[data-nd-account-panel]');
+                var savedName = panel && panel.getAttribute('data-nd-account-saved-name');
+                if (savedName) {
+                    document.querySelectorAll('[data-nd-account-name]').forEach(function (node) {
+                        node.textContent = savedName;
+                    });
+                }
+            });
+        }
+
+        opener.addEventListener('click', function (event) {
+            event.preventDefault();
+            body.innerHTML = '<p class="fs-13 text-muted mb-0">Carregando…</p>';
+            openModal(modal);
+            window.fetch(opener.href, {
+                credentials: 'same-origin',
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            }).then(replace).catch(failure);
+        });
+
+        modal.addEventListener('submit', function (event) {
+            var form = event.target.closest('[data-nd-account-form]');
+            if (!form) return;
+            event.preventDefault();
+            var data = new FormData(form);
+            var button = form.querySelector('[data-nd-busy]');
+            if (button) {
+                button.disabled = true;
+                button.insertAdjacentHTML(
+                    'afterbegin',
+                    '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>'
+                );
+            }
+            window.fetch(form.action, {
+                method: 'POST', credentials: 'same-origin', body: data,
+                headers: {'X-Requested-With': 'XMLHttpRequest'},
+            }).then(replace).catch(failure);
+        });
     }
 
 

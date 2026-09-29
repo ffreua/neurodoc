@@ -29,6 +29,7 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 dj_settings.SECURE_SSL_REDIRECT = False
 
 from base.help_content import ARTICLES, FAQ_USO, screenshots
+from ops.capturar_ajuda import TELAS
 
 falhas = []
 DIRETORIO = os.path.join(dj_settings.BASE_DIR, 'static', 'help')
@@ -120,6 +121,22 @@ for artigo in ARTICLES:
     if problemas:
         falhas.append(f'{artigo["slug"]}: {", ".join(problemas)}')
 print(f'  artigos completos: {len(ARTICLES) - len([f for f in falhas if "sem " in f])}/{len(ARTICLES)}')
+
+print('=== 10. capturador conhece as telas que o manual publica ===')
+capturadas = {arquivo: (caminho, preparo) for arquivo, caminho, preparo in TELAS}
+criticas = {
+    'convenios-lista.png': ('/app/org/convenios/', None),
+    'convenios-valores.png': ('/app/org/valores/', None),
+    'equipe-lista.png': ('/app/org/equipe/', None),
+    # Registro profissional é modal na equipe. A rota própria recebe POST e
+    # foi exatamente o que produziu o print HTTP 405 que chegou ao manual.
+    'equipe-registro.png': ('/app/org/equipe/', 'abre_registro_profissional'),
+}
+for arquivo, esperado in criticas.items():
+    obtido = capturadas.get(arquivo)
+    print(f'  {arquivo:28} -> {obtido}')
+    if obtido != esperado:
+        falhas.append(f'capturador de {arquivo}: esperado {esperado}, obtido {obtido}')
 
 print('---')
 if falhas:

@@ -1,5 +1,13 @@
 # Homologação — Comunicações, outbox e notificações (S08)
 
+## Retenção da caixa de notificações
+
+O sino é uma caixa transitória, não a trilha de auditoria do sistema.
+Notificações lidas são excluídas fisicamente **7 dias após a leitura**; as não
+lidas, **15 dias após a criação**. A limpeza roda diariamente às 01:10 e não
+remove o prontuário, documento, solicitação ou evento de auditoria que originou
+o aviso.
+
 Evidência coletada via scripts de verificação (`python manage.py shell`) contra
 a pilha real e via `django.test.Client` contra as views públicas reais.
 Nenhuma conta SMSDEV real foi usada (P-03 permanece pendente,

@@ -152,23 +152,36 @@ class MinhaContaView(LoginRequiredMixin, View):
     que ninguém testaria.
     """
 
+    @staticmethod
+    def _fragmento(request):
+        return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+    def _render(self, request, *, form=None, status=200, salvo=False):
+        template = (
+            'accounts/_minha_conta_panel.html'
+            if self._fragmento(request)
+            else 'accounts/minha_conta.html'
+        )
+        contexto = self._contexto(request, form=form)
+        contexto['conta_salva'] = salvo
+        return render(request, template, contexto, status=status)
+
     def get(self, request):
-        return render(request, 'accounts/minha_conta.html', self._contexto(request))
+        return self._render(request)
 
     def post(self, request):
         from .forms import MinhaContaForm
 
         form = MinhaContaForm(request.POST, instance=request.user)
         if not form.is_valid():
-            return render(
-                request, 'accounts/minha_conta.html',
-                self._contexto(request, form=form), status=400,
-            )
+            return self._render(request, form=form, status=400)
         form.save()
         record_audit_event(
             request.user, getattr(request.access_context, 'tenant_id', None),
             'accounts.profile_updated', outcome='success',
         )
+        if self._fragmento(request):
+            return self._render(request, salvo=True)
         messages.success(request, 'Nome atualizado.')
         return redirect('accounts:minha-conta')
 

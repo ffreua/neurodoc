@@ -106,6 +106,28 @@ header, sidebar e container enquanto um modal está aberto (body.modal-open), e
 um modal declarado lá dentro sairia borrado junto com o fundo.{% endcomment %}
 {% block modals %}{% endblock %}
 
+{% if request.access_context %}
+{% comment %}O formulário é buscado só quando o modal abre. Renderizá-lo em
+toda página acrescentaria consultas de perfil médico e MFA a cada navegação,
+mesmo que a pessoa nunca abrisse "Minha conta". O link do menu continua com
+`href`, então falha de JavaScript cai na página autônoma em vez de bloquear a
+edição do perfil.{% endcomment %}
+<div class="modal fade" id="nd-account-modal" tabindex="-1" aria-hidden="true"
+     aria-labelledby="nd-account-title" data-nd-opener="nd-account-opener">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="nd-account-title">Minha conta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+            </div>
+            <div class="modal-body" data-nd-account-body>
+                <p class="fs-13 text-muted mb-0">Carregando…</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% comment %}Confirmação de ação destrutiva, uma só para todo o produto.
 
 Fica aqui, fora de `.nxl-container`, pela mesma razão do bloco acima: o tema

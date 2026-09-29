@@ -158,3 +158,12 @@ o roteiro existe exatamente para acusar isso. Corrigido o ambiente, passou.
 | **`--activate`** | A outra metade do drill, que mede o tempo de volta ao ar (RTO). Exige as chaves-mestras reais numa máquina separada; só vale quando houver dado real |
 | **`accepted_name` vazio** | O aceite do contrato guardou e-mail, IP e texto, mas não o nome de quem aceitou. Veio assim da produção — vale conferir o formulário |
 | **Proxy da Cloudflare** | Desligado (nuvem cinza). Ligá-lo esconde o IP do servidor, mas o proxy costuma bufferizar SSE, que é o que o chat da equipe e o streaming da IA usam |
+
+### Verificação da TUSS em 28/09/2026
+
+A tabela continua vazia, mas a fronteira da falha está comprovada. Do worker
+de produção, `/ANS/source` respondeu HTTP 200 em 0,63 s, enquanto
+`/ANS/concepts/tuss-22?page=1` excedeu 35 s. A tentativa automática de domingo
+registrou a mesma falha depois das quatro repetições previstas. Portanto a VPS
+tem DNS e egresso normais; é o endpoint de conceitos da **ANS** que permanece
+indisponível. TUSS é ANS; a Anvisa é a fonte da CMED de medicamentos.

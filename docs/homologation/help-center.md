@@ -91,7 +91,7 @@ o navegador de quem está trabalhando é exatamente o caso que estoura.
 Mudar de lugar resolveu: `scripts/capturar_ajuda.sh` refaz o manual
 inteiro num comando.
 
-Quatro defeitos que só apareceram porque o roteiro passou a conferir a si
+Cinco defeitos que só apareceram porque o roteiro passou a conferir a si
 mesmo, e que valem registro porque nenhum deles levantava erro:
 
 - **A captura saía da clínica errada.** O dono da demonstração tem vínculo
@@ -112,6 +112,11 @@ mesmo, e que valem registro porque nenhum deles levantava erro:
 - **`networkidle` nunca dispara em `/app/`**: chat e notificações mantêm
   conexões SSE abertas, e a rede não fica ociosa. A espera é
   `domcontentloaded` mais um tempo fixo.
+- **Duas capturas publicavam erros como se fossem telas.** Valores apontava
+  para a rota antiga `/app/finance/valores/` (404), e registro profissional
+  navegava até uma ação que aceita somente POST (405). O capturador agora
+  visita `/app/org/valores/`, abre o modal de registro dentro da equipe e
+  recusa qualquer resposta HTTP malsucedida antes de gravar o PNG.
 
 ## O banco de demonstração tinha zero recebíveis
 
@@ -147,7 +152,7 @@ texto inerte, não markup.
 
 ## O que foi verificado
 
-`checks/check_ajuda.py`, nove seções, todas verdes:
+`checks/check_ajuda.py`, dez seções, todas verdes:
 
 | # | Pergunta | Resultado |
 | --- | --- | --- |
@@ -160,6 +165,7 @@ texto inerte, não markup.
 | 7 | As capturas são servidas? | `<img>` renderizado |
 | 8 | Promete o que está fora do escopo? | Nada |
 | 9 | Todo artigo tem público, resumo e passos? | 23 de 23 |
+| 10 | As quatro telas administrativas estão no capturador? | Rotas atuais e modal de registro |
 
 A seção 2 é a que costuma faltar em verificação de manual: ela pega a
 captura que ficou no repositório depois de o texto que a usava ser

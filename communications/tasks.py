@@ -3,6 +3,13 @@ from celery import shared_task
 from .reconciliation import reconcile_pending_sms
 
 
+@shared_task(name='communications.tasks.purge_expired')
+def purge_expired_deliveries_task():
+    from .retention import purge_expired_deliveries
+
+    return purge_expired_deliveries()
+
+
 @shared_task(name='communications.tasks.reconcile_pending_sms')
 def reconcile_pending_sms_task():
     return reconcile_pending_sms()

@@ -158,6 +158,18 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'communications.tasks.reconcile_pending_sms',
         'schedule': 60,
     },
+    # Avisos e diagnósticos de transporte são dados transitórios. A trilha
+    # permanente continua nos objetos de origem e em `audit`; conservar estas
+    # caixas indefinidamente só aumenta o banco e repete identificação de
+    # paciente sem finalidade operacional.
+    'notifications-purge-expired': {
+        'task': 'notifications.tasks.purge_expired',
+        'schedule': crontab(hour=1, minute=10),
+    },
+    'communications-purge-expired': {
+        'task': 'communications.tasks.purge_expired',
+        'schedule': crontab(hour=1, minute=20),
+    },
     'reporting-expire-exports': {
         'task': 'reporting.tasks.expire_exports',
         'schedule': 300,
