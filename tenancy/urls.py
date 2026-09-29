@@ -19,6 +19,14 @@ urlpatterns = [
         'app/org/equipe/<uuid:membership_id>/registro-profissional/<str:decision>/',
         admin_views.PhysicianVerificationView.as_view(), name='physician-verification',
     ),
+    path(
+        'app/org/equipe/<uuid:membership_id>/redefinir-senha/',
+        admin_views.MembershipPasswordResetView.as_view(), name='membership-password-reset',
+    ),
+    path(
+        'app/org/equipe/<uuid:membership_id>/resetar-mfa/',
+        admin_views.MembershipMFAResetView.as_view(), name='membership-mfa-reset',
+    ),
     # Genérica por último, de propósito: `<str:action>` casa com qualquer
     # segmento, inclusive `papeis` e `registro-profissional`. Declarada
     # antes delas, engoliria as duas e devolveria 404 por ação inválida.

@@ -157,10 +157,13 @@ def doctor_limit(tenant):
 
 
 def patient_usage(tenant):
-    from patients.models import Patient, PatientStatus
+    from patients.models import Patient, PatientStatus, RegistrationStage
 
     tenant = resolve_tenant(tenant)
-    return Patient.objects.filter(tenant_id=tenant.id, status=PatientStatus.ACTIVE).count()
+    return Patient.objects.filter(
+        tenant_id=tenant.id, status=PatientStatus.ACTIVE,
+        registration_stage=RegistrationStage.COMPLETE,
+    ).count()
 
 
 def doctor_usage(tenant):

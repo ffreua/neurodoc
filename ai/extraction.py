@@ -199,9 +199,59 @@ def accept_draft(artifact, exam_result, reviewer_membership, actor_id):
     return exam_result
 
 
+def _draft_as_amendment_text(artifact, exam_result):
+    """Representação legível do que o médico revisou, sem alterar o registro fechado."""
+    result = artifact.result or {}
+    lines = [f'Exame: {exam_result.name}', 'Leitura automatizada revisada pelo médico:']
+    if artifact.job.kind == AIJobKind.LAB_EXTRACTION:
+        for item in result.get('analytes') or []:
+            value = item.get('value_text') or item.get('numeric_value') or 'não informado'
+            unit = item.get('unit') or ''
+            reference = item.get('reference_text') or ''
+            line = f"- {item.get('analyte') or 'Analito não identificado'}: {value} {unit}".strip()
+            if reference:
+                line += f' (referência no laudo: {reference})'
+            lines.append(line)
+    else:
+        if result.get('report_text'):
+            lines.extend(['Laudo transcrito:', str(result['report_text'])])
+        if result.get('conclusion'):
+            lines.extend(['Conclusão transcrita:', str(result['conclusion'])])
+    if result.get('limitations'):
+        lines.extend(['Limitações informadas:', str(result['limitations'])])
+    lines.append('Conteúdo extraído/transcrito; não constitui diagnóstico automático.')
+    return '\n'.join(lines)[:20000]
+
+
+@transaction.atomic
+def accept_draft_as_amendment(artifact, exam_result, reviewer_membership, access_context):
+    """Aceita uma leitura que terminou depois do fechamento como adendo imutável."""
+    from clinical import finalization
+    if artifact.review_state != AIReviewState.PENDING:
+        raise ExtractionUnavailable(f'Este rascunho já foi {artifact.get_review_state_display().lower()}.')
+    amendment = finalization.add_amendment(
+        access_context, exam_result.encounter, reviewer_membership,
+        'Revisão tardia de leitura de laudo por IA',
+        _draft_as_amendment_text(artifact, exam_result),
+    )
+    artifact.review_state = AIReviewState.ACCEPTED
+    artifact.reviewer = reviewer_membership
+    artifact.reviewed_at = timezone.now()
+    artifact.save(update_fields=['review_state', 'reviewer', 'reviewed_at'])
+    record_audit_event(
+        access_context.user_id, artifact.tenant_id, 'ai.extraction_accepted_as_amendment',
+        object_type='exam_result', object_id=exam_result.id, outcome='success',
+        integrity_metadata={
+            'artifact_id': str(artifact.id), 'amendment_id': str(amendment.id),
+            'kind': artifact.job.kind,
+        },
+    )
+    return amendment
+
+
 @transaction.atomic
 def reject_draft(artifact, exam_result, reviewer_membership, actor_id, reason=''):
-    from clinical.models import ExtractionStatus
+    from clinical.models import EncounterStatus, ExtractionStatus
 
     if artifact.review_state != AIReviewState.PENDING:
         raise ExtractionUnavailable(f'Este rascunho já foi {artifact.get_review_state_display().lower()}.')
@@ -210,9 +260,10 @@ def reject_draft(artifact, exam_result, reviewer_membership, actor_id, reason=''
     artifact.reviewed_at = timezone.now()
     artifact.save(update_fields=['review_state', 'reviewer', 'reviewed_at'])
 
-    exam_result.extraction_status = ExtractionStatus.REJECTED
-    exam_result.extraction_detail = reason[:255]
-    exam_result.save(update_fields=['extraction_status', 'extraction_detail'])
+    if exam_result.encounter.status != EncounterStatus.FINALIZED:
+        exam_result.extraction_status = ExtractionStatus.REJECTED
+        exam_result.extraction_detail = reason[:255]
+        exam_result.save(update_fields=['extraction_status', 'extraction_detail'])
 
     record_audit_event(
         actor_id, artifact.tenant_id, 'ai.extraction_rejected',

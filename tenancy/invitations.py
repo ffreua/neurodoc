@@ -1,13 +1,36 @@
 import hashlib
 import secrets
 
+from django.conf import settings
+from django.core.mail import send_mail
 from django.db import transaction
+from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 
 from .models import Invitation, InvitationPurpose
 from .plans import DEFAULT_PLAN, PLANS
 
 DEFAULT_TTL_DAYS = 7
+
+
+def collaborator_invitation_url(request, raw_token):
+    return request.build_absolute_uri(reverse('tenancy:accept-invite', args=[raw_token]))
+
+
+def send_collaborator_invitation(invitation, raw_token, request):
+    """Envia o convite sem retirar a opção de copiá-lo na tela."""
+    url = collaborator_invitation_url(request, raw_token)
+    send_mail(
+        subject='Convite para acessar a NeuroDoc',
+        message=render_to_string('tenancy/email/collaborator_invitation.txt', {
+            'invitation': invitation,
+            'url': url,
+        }),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[invitation.email_binding],
+    )
+    return url
 
 
 def hash_token(raw_token):

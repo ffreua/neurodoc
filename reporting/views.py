@@ -94,7 +94,6 @@ class DashboardView(HomeRedirectMixin, TenantScopedView):
             'returning_patients': patients.returning_patients_count(tenant, start, end),
             'no_show': patients.no_show_rate(tenant, start, end),
             'age': patients.age_distribution(tenant, end),
-            'location': patients.location_distribution(tenant),
             'revenue_by_competence': operations.revenue_by_competence(tenant, start, end),
             'cash_received': operations.cash_received(tenant, start, end),
             'outstanding_balance': operations.outstanding_balance(tenant, end),

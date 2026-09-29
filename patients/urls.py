@@ -22,6 +22,10 @@ urlpatterns = [
     # coisa a confundir quem depurasse um retrato que nao abre.
     path('<uuid:patient_id>/foto.img', views.PatientPhotoFileView.as_view(), name='photo-file'),
     path('<uuid:patient_id>/contacts/', views.PatientContactCreateView.as_view(), name='add-contact'),
+    path(
+        '<uuid:patient_id>/contacts/<uuid:contact_id>/edit/',
+        views.PatientContactUpdateView.as_view(), name='edit-contact',
+    ),
     path('<uuid:patient_id>/coverage/', views.PatientCoverageCreateView.as_view(), name='add-coverage'),
     path(
         '<uuid:patient_id>/medidas/',

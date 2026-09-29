@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.db import transaction
 from django.http import Http404, HttpResponse, JsonResponse
-from django.shortcuts import redirect, render
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
@@ -24,7 +24,7 @@ from .coverage import add_coverage, set_patient_coverage
 from .forms import (
     PatientContactForm, PatientCoverageForm, PatientForm, PatientMeasurementForm,
 )
-from .models import Patient, PatientStatus, RegistrationStage
+from .models import Patient, PatientContact, PatientStatus, RegistrationStage
 from .observations import age_at, compute_bmi, missing_measurement_hint, record_observation
 
 
@@ -525,6 +525,50 @@ class PatientContactCreateView(TenantScopedView):
                 )
                 return redirect('patients:detail', patient_id=patient.id)
         return render(request, 'patients/detail.html', _detail_context(request, patient, contact_form=form))
+
+
+class PatientContactUpdateView(TenantScopedView):
+    def _objects(self, request, patient_id, contact_id):
+        patient = selectors.get_patient_or_404(request.access_context, patient_id)
+        contact = get_object_or_404(
+            PatientContact, id=contact_id, patient=patient,
+            tenant_id=request.access_context.tenant_id,
+        )
+        return patient, contact
+
+    def get(self, request, patient_id, contact_id):
+        patient, contact = self._objects(request, patient_id, contact_id)
+        return render(request, 'patients/contact_form.html', {
+            'patient': patient, 'contact': contact,
+            'form': PatientContactForm(instance=contact),
+        })
+
+    def post(self, request, patient_id, contact_id):
+        patient, contact = self._objects(request, patient_id, contact_id)
+        old_phone, old_email = contact.phone, contact.email
+        form = PatientContactForm(request.POST, instance=contact)
+        if not form.is_valid():
+            return render(request, 'patients/contact_form.html', {
+                'patient': patient, 'contact': contact, 'form': form,
+            }, status=400)
+        changed = list(form.changed_data)
+        with transaction.atomic():
+            updated = form.save(commit=False)
+            if updated.phone != old_phone:
+                updated.verified_phone_at = None
+            if updated.email != old_email:
+                updated.verified_email_at = None
+            updated.full_clean()
+            updated.save()
+            if patient.registration_stage == RegistrationStage.COMPLETE:
+                confirm_contact_channels(updated)
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'patients.contact_updated',
+            object_type='patient', object_id=patient.id, outcome='success',
+            integrity_metadata={'contact_id': str(contact.id), 'changed_fields': changed},
+        )
+        messages.success(request, 'Contato atualizado.')
+        return redirect('patients:detail', patient_id=patient.id)
 
 
 class PatientCoverageCreateView(TenantScopedView):

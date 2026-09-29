@@ -235,6 +235,34 @@ seria mais código para o mesmo resultado.{% endcomment %}
 
             Formulários irmãos, porque HTML não aninha formulário.{% endcomment %}
             <div class="modal-footer d-block border-top">
+                {% if row.membership.status == 'active' %}
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                    Credenciais da conta
+                </span>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                    <form method="post" action="{% url 'tenancy:membership-password-reset' row.membership.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
+                            Enviar redefinição de senha
+                        </button>
+                    </form>
+                    {% if row.has_mfa and row.membership.id != request.access_context.membership_id %}
+                    <form method="post" action="{% url 'tenancy:membership-mfa-reset' row.membership.id %}"
+                          class="d-flex gap-1">
+                        {% csrf_token %}
+                        <input type="text" name="code" class="form-control form-control-sm"
+                               inputmode="numeric" autocomplete="one-time-code"
+                               placeholder="Seu código MFA" required style="max-width: 145px">
+                        <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>
+                            Resetar MFA
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                <span class="d-block fs-10 text-muted mb-3">
+                    A senha é escolhida pelo próprio usuário no link recebido. Resetar MFA exige o código do responsável e encerra as sessões da conta.
+                </span>
+                {% endif %}
                 <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
                     Situação do vínculo
                 </span>

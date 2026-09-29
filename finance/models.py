@@ -72,7 +72,14 @@ class FeeSchedule(TenantModel):
 
 class Receivable(TenantModel):
     patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='receivables')
-    encounter = models.ForeignKey('clinical.Encounter', on_delete=models.PROTECT, related_name='receivables')
+    encounter = models.ForeignKey(
+        'clinical.Encounter', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='receivables',
+    )
+    appointment = models.ForeignKey(
+        'scheduling.Appointment', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='receivables',
+    )
     charge_kind = models.CharField(max_length=20, choices=ChargeKind.choices, default=ChargeKind.CONSULTATION)
     fee_snapshot = models.JSONField(default=dict)
     expected_amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -84,11 +91,25 @@ class Receivable(TenantModel):
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
-            models.UniqueConstraint(fields=['tenant', 'encounter', 'charge_kind'], name='finance_receivable_origin_uniq'),
+            models.CheckConstraint(
+                condition=models.Q(encounter__isnull=False) | models.Q(appointment__isnull=False),
+                name='finance_receivable_has_origin',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'encounter', 'charge_kind'],
+                condition=models.Q(encounter__isnull=False),
+                name='finance_receivable_encounter_uniq',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'appointment', 'charge_kind'],
+                condition=models.Q(appointment__isnull=False),
+                name='finance_receivable_appointment_uniq',
+            ),
         ]
 
     def __str__(self):
-        return f'{self.encounter_id}:{self.charge_kind} ({self.status})'
+        origin = self.encounter_id or self.appointment_id
+        return f'{origin}:{self.charge_kind} ({self.status})'
 
 
 class Payment(TenantModel):

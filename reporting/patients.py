@@ -4,7 +4,7 @@ from decimal import Decimal
 from django.db.models import Count, Min
 
 from clinical.models import Encounter, EncounterDiagnosis, EncounterStatus
-from patients.models import Patient, PatientStatus
+from patients.models import Patient, PatientStatus, RegistrationStage
 from scheduling.models import Appointment, AppointmentStatus
 
 SMALL_CELL_THRESHOLD = 5
@@ -15,7 +15,10 @@ def active_patients_count(tenant):
     not versioned over time, so this is always "as of now", never a true
     historical point-in-time reconstruction (documented limitation).
     """
-    return Patient.objects.filter(tenant=tenant, status=PatientStatus.ACTIVE).count()
+    return Patient.objects.filter(
+        tenant=tenant, status=PatientStatus.ACTIVE,
+        registration_stage=RegistrationStage.COMPLETE,
+    ).count()
 
 
 def patients_seen(tenant, start, end, physician_membership=None):
@@ -89,7 +92,10 @@ def age_distribution(tenant, as_of_date):
     """Idade na data de corte; desconhecidos (sem birth_date) separados,
     nunca misturados na mediana/IQR.
     """
-    patients = Patient.objects.filter(tenant=tenant)
+    patients = Patient.objects.filter(
+        tenant=tenant, status=PatientStatus.ACTIVE,
+        registration_stage=RegistrationStage.COMPLETE,
+    )
     known_ages = []
     unknown_count = 0
     for patient in patients.only('birth_date', 'estimated_birth_year'):

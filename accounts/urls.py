@@ -13,8 +13,8 @@ urlpatterns = [
     path('mfa/setup/', views.MFASetupView.as_view(), name='mfa-setup'),
     path('switch-tenant/', views.SwitchTenantView.as_view(), name='switch-tenant'),
     path('select-organization/', views.TenantPickerView.as_view(), name='tenant-picker'),
-    path('verify-email/<str:token>/', views.VerifyEmailView.as_view(), name='verify-email'),
     path('verify-email/resend/', views.ResendVerificationEmailView.as_view(), name='verify-email-resend'),
+    path('verify-email/<str:token>/', views.VerifyEmailView.as_view(), name='verify-email'),
     # `success_url` explícito nas duas views abaixo.
     #
     # As views prontas do Django apontam para `password_reset_done` e

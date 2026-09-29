@@ -1,4 +1,5 @@
 from celery import shared_task
+import logging
 
 from .chat_models import ChatMessage
 from .chat_services import fail_assistant_message, finalize_assistant_message
@@ -9,6 +10,34 @@ from .rendering import render_markdown
 from .services import JobNotRunnable, run_job
 from .streaming import publish_event
 
+logger = logging.getLogger(__name__)
+
+
+def _notify_job_completion(job):
+    if job.status not in {
+        AIJobStatus.SUCCEEDED, AIJobStatus.FAILED, AIJobStatus.STALE,
+        AIJobStatus.BLOCKED_PRIVACY, AIJobStatus.CANCELLED,
+    }:
+        return
+    from notifications.models import Notification
+    from notifications.services import notify_user
+
+    kind = 'ai_job_succeeded' if job.status == AIJobStatus.SUCCEEDED else 'ai_job_failed'
+    if Notification.objects.filter(
+        tenant_id=job.tenant_id, user_id=job.user_id, kind=kind,
+        target_type='ai_job', target_id=job.id,
+    ).exists():
+        return
+    document_job = job.kind in {'lab_extraction', 'report_transcription'}
+    if job.status == AIJobStatus.SUCCEEDED:
+        title = 'Leitura do laudo pronta para revisão' if document_job else 'Tarefa de IA concluída'
+    else:
+        title = 'A leitura do laudo não foi concluída' if document_job else 'A tarefa de IA não foi concluída'
+    notify_user(
+        job.tenant, job.user_id, kind=kind, sanitized_title=title,
+        target_type='ai_job', target_id=job.id,
+    )
+
 
 @shared_task(name='ai.tasks.run_ai_job', expires=900)
 def run_ai_job(job_id):
@@ -16,6 +45,18 @@ def run_ai_job(job_id):
         artifact = run_job(job_id)
     except JobNotRunnable:
         return {'status': 'skipped'}
+    except Exception:
+        logger.exception('Unexpected AI job failure', extra={'job_id': str(job_id)})
+        job = AIJob.objects.filter(id=job_id).first()
+        if job is not None and job.status in (AIJobStatus.QUEUED, AIJobStatus.RUNNING):
+            job.status = AIJobStatus.FAILED
+            job.status_detail = 'A tarefa não foi concluída. Tente novamente.'
+            job.save(update_fields=['status', 'status_detail'])
+        if job is not None:
+            from .extraction import sync_exam_result_status
+            sync_exam_result_status(job)
+            _notify_job_completion(job)
+        return {'status': 'failed'}
 
     job = AIJob.objects.filter(id=job_id).first()
     if job is not None:
@@ -25,6 +66,7 @@ def run_ai_job(job_id):
         from .extraction import sync_exam_result_status
 
         sync_exam_result_status(job)
+        _notify_job_completion(job)
 
     if artifact is None:
         return {'status': job.status if job else 'unknown'}
@@ -35,6 +77,17 @@ def run_ai_job(job_id):
 #: falhar é o que faz o botão "ler o laudo" funcionar no mesmo gesto do envio.
 SCAN_WAIT_SECONDS = 10
 SCAN_MAX_ATTEMPTS = 30
+
+
+def _fail_document_preparation(job, detail, reason):
+    from .extraction import sync_exam_result_status
+
+    job.status = AIJobStatus.FAILED
+    job.status_detail = detail[:255]
+    job.save(update_fields=['status', 'status_detail'])
+    sync_exam_result_status(job)
+    _notify_job_completion(job)
+    return {'status': 'failed', 'reason': reason}
 
 
 @shared_task(name='ai.tasks.prepare_document_and_run', bind=True, max_retries=SCAN_MAX_ATTEMPTS, expires=1800)
@@ -64,9 +117,6 @@ def prepare_document_and_run(self, job_id):
         with local_path(att) as caminho:
             return _pdf_text_layer(caminho)
 
-    from .extraction import sync_exam_result_status
-    from .models import AIJobStatus
-
     job = AIJob.objects.filter(id=job_id).first()
     if job is None or job.status != AIJobStatus.QUEUED:
         return {'status': 'skipped'}
@@ -78,37 +128,43 @@ def prepare_document_and_run(self, job_id):
     ).select_related('attachment').first()
     attachment = exam_result.attachment if exam_result else None
     if attachment is None:
-        job.status = AIJobStatus.FAILED
-        job.status_detail = 'Laudo não encontrado para este exame.'
-        job.save(update_fields=['status', 'status_detail'])
-        sync_exam_result_status(job)
-        return {'status': 'failed', 'reason': 'no attachment'}
+        return _fail_document_preparation(
+            job, 'Laudo não encontrado para este exame.', 'no attachment',
+        )
 
     if attachment.scan_status == AttachmentScanStatus.REJECTED:
-        job.status = AIJobStatus.FAILED
-        job.status_detail = 'O laudo foi recusado na verificação de malware.'
-        job.save(update_fields=['status', 'status_detail'])
-        sync_exam_result_status(job)
-        return {'status': 'failed', 'reason': 'rejected'}
+        return _fail_document_preparation(
+            job, 'O laudo foi recusado na verificação de malware.', 'rejected',
+        )
 
     if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
+        if self.request.retries >= SCAN_MAX_ATTEMPTS:
+            return _fail_document_preparation(
+                job,
+                'O laudo não ficou disponível após a verificação de segurança. Tente novamente.',
+                'scan timeout',
+            )
         raise self.retry(countdown=SCAN_WAIT_SECONDS)
 
     # OCR só quando faz falta: laudo emitido por sistema tem camada de texto,
     # e rasterizar cem páginas à toa custa minutos de worker.
-    needs_ocr = (
-        attachment.original_name.lower().endswith('.pdf')
-        and len(_text_layer_of(attachment).strip()) < MIN_TEXT_LAYER_CHARS
-    ) or not attachment.original_name.lower().endswith('.pdf')
-    if needs_ocr and len(_ocr_text(attachment).strip()) < MIN_TEXT_LAYER_CHARS:
-        try:
+    try:
+        needs_ocr = (
+            attachment.original_name.lower().endswith('.pdf')
+            and len(_text_layer_of(attachment).strip()) < MIN_TEXT_LAYER_CHARS
+        ) or not attachment.original_name.lower().endswith('.pdf')
+        if needs_ocr and len(_ocr_text(attachment).strip()) < MIN_TEXT_LAYER_CHARS:
             run_ocr(attachment)
-        except OcrError as exc:
-            job.status = AIJobStatus.FAILED
-            job.status_detail = f'Não foi possível reconhecer o texto do laudo: {exc}'[:255]
-            job.save(update_fields=['status', 'status_detail'])
-            sync_exam_result_status(job)
-            return {'status': 'failed', 'reason': 'ocr'}
+    except OcrError as exc:
+        return _fail_document_preparation(
+            job, f'Não foi possível reconhecer o texto do laudo: {exc}', 'ocr',
+        )
+    except Exception:
+        logger.exception('Falha ao preparar laudo para IA', extra={'job_id': str(job.id)})
+        return _fail_document_preparation(
+            job, 'Não foi possível preparar o laudo para leitura. Tente novamente.',
+            'document preparation',
+        )
 
     return run_ai_job(str(job.id))
 

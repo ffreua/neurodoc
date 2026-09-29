@@ -41,9 +41,9 @@ dado conferido.
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <span class="fw-bold text-dark fs-14">{{ result.name }}</span>
                     <span class="badge bg-soft-primary text-primary">{{ result.get_category_display }}</span>
-                    {% if result.extraction_status != 'none' %}
-                    <span class="badge bg-soft-{{ result.extraction_status|nd_tone }} text-{{ result.extraction_status|nd_tone }}">
-                        IA: {{ result.get_extraction_status_display }}
+                    {% if result.display_extraction_status != 'none' %}
+                    <span class="badge bg-soft-{{ result.display_extraction_status|nd_tone }} text-{{ result.display_extraction_status|nd_tone }}">
+                        IA: {{ result.display_extraction_status_label }}
                     </span>
                     {% endif %}
                 </div>
@@ -75,7 +75,7 @@ dado conferido.
                 sem a IA no plano -- e o registro do que ja foi lido, e escondê-lo
                 apagaria informacao de quem foi rebaixado. O que sai e o botao de
                 pedir de novo.{% endcomment %}
-                {% if encounter.status != 'finalized' and result.attachment and nd_can.clinical_ai %}
+                {% if result.attachment and nd_can.clinical_ai %}
                 <form method="post" action="{% url 'clinical:extract-exam-result' encounter.id result.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
@@ -96,7 +96,7 @@ dado conferido.
         </div>
 
         {% comment %}Rascunho da IA aguardando revisão.{% endcomment %}
-        {% if result.draft and result.draft.review_state == 'pending' and encounter.status != 'finalized' %}
+        {% if result.draft and result.draft.review_state == 'pending' %}
         {% include "clinical/_exam_draft.html" with result=result draft=result.draft %}
         {% endif %}
 

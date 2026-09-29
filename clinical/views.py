@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.contrib import messages
 from django.db import transaction
 from django.forms import modelform_factory
@@ -149,9 +151,26 @@ class EncounterCreateView(TenantScopedView):
         kind = request.POST.get('kind')
         if kind not in EncounterKind.values:
             kind = EncounterKind.STRUCTURED
+        from scheduling.models import Appointment, AppointmentStatus
+
+        today = timezone.localdate()
+        candidates = list(
+            Appointment.objects.filter(
+                tenant_id=request.access_context.tenant_id,
+                patient=patient,
+                physician_membership=membership,
+                status__in=[AppointmentStatus.CHECKED_IN, AppointmentStatus.IN_PROGRESS],
+                encounters__isnull=True,
+                starts_at__date__range=(today - timedelta(days=1), today + timedelta(days=1)),
+            ).order_by('-starts_at')[:2]
+        )
+        # Só liga automaticamente quando a agenda responde sem ambiguidade.
+        # Um check-in antigo ou dois horários abertos do mesmo paciente não
+        # podem decidir silenciosamente qual cobrança pertence ao prontuário.
+        appointment = candidates[0] if len(candidates) == 1 else None
         encounter = Encounter.objects.create(
             tenant_id=request.access_context.tenant_id, patient=patient, physician_membership=membership,
-            occurred_at=timezone.now(), status=EncounterStatus.DRAFT, kind=kind,
+            appointment=appointment, occurred_at=timezone.now(), status=EncounterStatus.DRAFT, kind=kind,
         )
         source = cf.default_source_encounter(encounter)
         if source is not None:
@@ -257,6 +276,15 @@ class EncounterDetailView(TenantScopedView):
                                                 ExtractionStatus.REJECTED)
                 else None
             )
+            result.display_extraction_status = result.extraction_status
+            result.display_extraction_status_label = result.get_extraction_status_display()
+            if encounter.status == EncounterStatus.FINALIZED and result.draft is not None:
+                if result.draft.review_state == 'accepted':
+                    result.display_extraction_status = ExtractionStatus.ACCEPTED
+                    result.display_extraction_status_label = ExtractionStatus.ACCEPTED.label
+                elif result.draft.review_state == 'rejected':
+                    result.display_extraction_status = ExtractionStatus.REJECTED
+                    result.display_extraction_status_label = ExtractionStatus.REJECTED.label
 
         support_job, support_artifact = latest_diagnostic_support(encounter)
         support_hypotheses, support_steps = [], []
@@ -875,8 +903,6 @@ class ExamResultExtractView(TenantScopedView):
         from ai.extraction import ExtractionUnavailable, request_extraction
 
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
-            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
         exam_result = _exam_result_or_404(request, encounter, exam_result_id)
         try:
             job = request_extraction(request.access_context, exam_result)
@@ -898,11 +924,12 @@ class ExamResultDraftReviewView(TenantScopedView):
     """
 
     def post(self, request, encounter_id, exam_result_id):
-        from ai.extraction import ExtractionUnavailable, accept_draft, latest_draft, reject_draft
+        from ai.extraction import (
+            ExtractionUnavailable, accept_draft, accept_draft_as_amendment,
+            latest_draft, reject_draft,
+        )
 
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
-            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
         exam_result = _exam_result_or_404(request, encounter, exam_result_id)
         artifact = latest_draft(exam_result)
         if artifact is None:
@@ -917,8 +944,14 @@ class ExamResultDraftReviewView(TenantScopedView):
         action = request.POST.get('action')
         try:
             if action == 'accept':
-                accept_draft(artifact, exam_result, membership, request.access_context.user_id)
-                messages.success(request, 'Rascunho revisado e incorporado ao prontuário.')
+                if encounter.is_editable():
+                    accept_draft(artifact, exam_result, membership, request.access_context.user_id)
+                    messages.success(request, 'Rascunho revisado e incorporado ao prontuário.')
+                else:
+                    accept_draft_as_amendment(
+                        artifact, exam_result, membership, request.access_context,
+                    )
+                    messages.success(request, 'Leitura revisada e registrada como adendo ao atendimento finalizado.')
             elif action == 'reject':
                 reject_draft(
                     artifact, exam_result, membership, request.access_context.user_id,

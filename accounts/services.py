@@ -1,4 +1,6 @@
 from django.conf import settings
+from django.contrib.auth.forms import PasswordResetForm
+from django.contrib.sessions.models import Session
 from django.core import signing
 from django.core.mail import send_mail
 from django.db import transaction
@@ -35,6 +37,29 @@ def send_email_verification(user, request):
         from_email=settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
     )
+
+
+def send_password_reset(user, request):
+    """Envia o fluxo padrão; o responsável nunca escolhe a senha alheia."""
+    form = PasswordResetForm({'email': user.email})
+    if not form.is_valid():
+        return False
+    form.save(
+        request=request,
+        use_https=request.is_secure(),
+        from_email=settings.DEFAULT_FROM_EMAIL,
+        email_template_name='accounts/email/password_reset_email.txt',
+        subject_template_name='accounts/email/password_reset_subject.txt',
+    )
+    return True
+
+
+def invalidate_user_sessions(user):
+    """Encerra sessões existentes após uma alteração administrativa de MFA."""
+    user_id = str(user.pk)
+    for session in Session.objects.filter(expire_date__gte=timezone.now()).iterator():
+        if str(session.get_decoded().get('_auth_user_id', '')) == user_id:
+            session.delete()
 
 
 @transaction.atomic

@@ -41,6 +41,9 @@ REGISTRY = {
     'chat_session': Target(
         'ai:chat-session-detail', 'ai.ChatSession', 'Abrir conversa',
     ),
+    'ai_job': Target(
+        'ai:job-detail', 'ai.AIJob', 'Abrir resultado',
+    ),
     'report_export': Target(
         'reporting:export-detail', 'reporting.ReportExport', 'Abrir exportação',
     ),

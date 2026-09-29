@@ -17,6 +17,8 @@ está no prontuário. Enquanto ninguém aceita, o registro segue vazio.
 
     <p class="fs-12 text-muted mb-3">
         Confira contra o laudo antes de aceitar. Nada disto está no prontuário ainda.
+        A IA extrai ou transcreve o conteúdo; ela não interpreta clinicamente nem fecha diagnóstico.
+        {% if encounter.status == 'finalized' %}Como o atendimento está finalizado, a aceitação será registrada como adendo.{% endif %}
     </p>
 
     {% with data=draft.result %}
@@ -87,7 +89,7 @@ está no prontuário. Enquanto ninguém aceita, o registro segue vazio.
             {% csrf_token %}
             <input type="hidden" name="action" value="accept">
             <button type="submit" class="btn btn-sm btn-primary" data-nd-busy>
-                Revisei e aceito no prontuário
+                {% if encounter.status == 'finalized' %}Revisei e aceito como adendo{% else %}Revisei e aceito no prontuário{% endif %}
             </button>
         </form>
         <form method="post" action="{% url 'clinical:review-exam-draft' encounter.id result.id %}"

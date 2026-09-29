@@ -272,7 +272,7 @@ sem caçar em cartões laterais.{% endcomment %}
                                 <th class="ps-4" scope="col">Nome</th>
                                 <th scope="col">Relação</th>
                                 <th scope="col">Contato</th>
-                                <th class="text-end pe-4" scope="col">Autorizações</th>
+                                <th class="text-end pe-4" scope="col">Autorizações / ações</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -291,6 +291,8 @@ sem caçar em cartões laterais.{% endcomment %}
                                     {% if not contact.authorized_for_documents and not contact.legal_authority %}
                                     <span class="fs-12 text-muted">—</span>
                                     {% endif %}
+                                    <a class="btn btn-sm btn-light ms-2"
+                                       href="{% url 'patients:edit-contact' patient.id contact.id %}">Editar</a>
                                 </td>
                             </tr>
                             {% empty %}

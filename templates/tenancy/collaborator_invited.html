@@ -12,12 +12,19 @@
         <div class="card stretch stretch-full">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Link do convite</h5>
-                <span class="badge bg-soft-warning text-warning">Compartilhe manualmente</span>
+                {% if email_sent %}
+                <span class="badge bg-soft-success text-success">Enviado por e-mail</span>
+                {% else %}
+                <span class="badge bg-soft-warning text-warning">Envio falhou — copie o link</span>
+                {% endif %}
             </div>
             <div class="card-body">
-                <p class="fs-13 text-muted">Copie o link abaixo e envie ao colaborador:</p>
-                <div class="bg-gray-100 border rounded-3 p-3 mb-3">
-                    <code class="fs-12 text-break">/invite/{{ token }}/</code>
+                <p class="fs-13 text-muted">
+                    {% if email_sent %}O convite foi enviado. Você também pode copiar o link completo:{% else %}Copie o link completo e envie ao colaborador:{% endif %}
+                </p>
+                <div class="input-group mb-3">
+                    <input class="form-control fs-12" id="invitation-url" value="{{ invitation_url }}" readonly>
+                    <button class="btn btn-light" type="button" id="copy-invitation">Copiar</button>
                 </div>
                 <p class="fs-12 text-muted mb-0">Expira em {{ invitation.expires_at|date:"d/m/Y H:i" }}.</p>
             </div>
@@ -27,4 +34,13 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+document.getElementById('copy-invitation').addEventListener('click', async function () {
+    const input = document.getElementById('invitation-url');
+    await navigator.clipboard.writeText(input.value);
+    this.textContent = 'Copiado';
+});
+</script>
 {% endblock %}

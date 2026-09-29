@@ -11,15 +11,21 @@ sessão e sem organização escolhida. Misturar as duas num arquivo só
 misturaria a tela que exige ser dono com a tela que qualquer um abre.
 """
 
+import logging
+
 from django.contrib import messages
+from django.conf import settings
+from django.core.mail import send_mail
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views import View
 
-from accounts.models import PhysicianProfile
-from accounts.services import revoke_membership
+from accounts import mfa
+from accounts.models import PhysicianProfile, RecoveryCode
+from accounts.services import invalidate_user_sessions, revoke_membership, send_password_reset
+from django_otp.plugins.otp_totp.models import TOTPDevice
 from audit.services import record_audit_event
 
 from . import branding, clinic_messages
@@ -27,13 +33,17 @@ from .forms import (
     ClinicMessageForm, ClinicPortalForm, ClinicProfileForm, CollaboratorInvitationForm,
     MembershipRolesForm, PhysicianProfileForm,
 )
-from .invitations import issue_invitation
+from .invitations import (
+    collaborator_invitation_url, issue_invitation, send_collaborator_invitation,
+)
 from .limits import PlanLimitReached, assert_can_add_doctor
 from .models import (
     ClinicMessageKind, ClinicProfile, Invitation, InvitationPurpose, Membership,
     MembershipStatus, Role, Tenant,
 )
 from .permissions import Capability, CapabilityRequiredView
+
+logger = logging.getLogger(__name__)
 
 
 class OrgAdminView(CapabilityRequiredView):
@@ -78,6 +88,11 @@ def _team_rows(tenant_id):
             user_id__in=[m.user_id for m in memberships],
         )
     }
+    mfa_user_ids = set(
+        TOTPDevice.objects.filter(
+            user_id__in=[m.user_id for m in memberships], confirmed=True,
+        ).values_list('user_id', flat=True)
+    )
     rows = []
     for membership in memberships:
         profile = profiles.get(membership.user_id)
@@ -102,6 +117,7 @@ def _team_rows(tenant_id):
             'is_doctor': is_doctor,
             'can_sign': is_doctor and not blocker,
             'signing_blocker': blocker,
+            'has_mfa': membership.user_id in mfa_user_ids,
             'roles_form': MembershipRolesForm(initial={'roles': membership.roles or []}),
             # Formulário do registro profissional só para quem tem o papel:
             # instanciar para toda a equipe montaria um formulário por
@@ -194,9 +210,78 @@ class TeamView(OrgAdminView):
             object_id=invitation.id, outcome='success',
             integrity_metadata={'roles': form.cleaned_data['roles']},
         )
+        invitation_url = collaborator_invitation_url(request, raw_token)
+        email_sent = True
+        try:
+            send_collaborator_invitation(invitation, raw_token, request)
+        except Exception:
+            logger.exception(
+                'Falha ao enviar convite de colaborador',
+                extra={'invitation_id': str(invitation.id), 'tenant_id': str(tenant.id)},
+            )
+            email_sent = False
         return render(request, 'tenancy/collaborator_invited.html', {
             'token': raw_token, 'invitation': invitation,
+            'invitation_url': invitation_url, 'email_sent': email_sent,
         })
+
+
+class MembershipPasswordResetView(OrgAdminView):
+    def post(self, request, membership_id):
+        membership = get_object_or_404(
+            Membership.objects.select_related('user', 'tenant'),
+            id=membership_id, tenant_id=self.tenant_id, status=MembershipStatus.ACTIVE,
+        )
+        sent = send_password_reset(membership.user, request)
+        record_audit_event(
+            request.user, membership.tenant, 'accounts.password_reset_requested_by_owner',
+            object_type='membership', object_id=membership.id,
+            outcome='success' if sent else 'failure',
+        )
+        if sent:
+            messages.success(request, f'Redefinição de senha enviada para {membership.user.email}.')
+        else:
+            messages.error(request, 'Não foi possível iniciar a redefinição de senha.')
+        return redirect('tenancy:team')
+
+
+class MembershipMFAResetView(OrgAdminView):
+    def post(self, request, membership_id):
+        membership = get_object_or_404(
+            Membership.objects.select_related('user', 'tenant'),
+            id=membership_id, tenant_id=self.tenant_id, status=MembershipStatus.ACTIVE,
+        )
+        if membership.id == self.membership.id:
+            messages.error(request, 'O responsável não pode resetar o próprio MFA por esta tela.')
+            return redirect('tenancy:team')
+        code = request.POST.get('code', '').strip()
+        if not (mfa.verify_totp_token(request.user, code) or mfa.consume_recovery_code(request.user, code)):
+            record_audit_event(
+                request.user, membership.tenant, 'accounts.mfa_reset_by_owner',
+                object_type='membership', object_id=membership.id, outcome='denied',
+            )
+            messages.error(request, 'Código MFA do responsável inválido.')
+            return redirect('tenancy:team')
+
+        TOTPDevice.objects.filter(user=membership.user).delete()
+        RecoveryCode.objects.filter(user=membership.user).delete()
+        invalidate_user_sessions(membership.user)
+        record_audit_event(
+            request.user, membership.tenant, 'accounts.mfa_reset_by_owner',
+            object_type='membership', object_id=membership.id, outcome='success',
+        )
+        send_mail(
+            subject='Seu MFA foi resetado — NeuroDoc',
+            message=(
+                f'O responsável por {membership.tenant.legal_name} resetou seu segundo fator. '
+                'Entre novamente e configure um novo autenticador. Se você não reconhece esta ação, '
+                'contate a clínica imediatamente.'
+            ),
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[membership.user.email],
+        )
+        messages.success(request, f'MFA de {membership.user.email} resetado; sessões encerradas.')
+        return redirect('tenancy:team')
 
 
 class MembershipRolesView(OrgAdminView):

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd %}
+{% load nd static %}
 {% block title %}Rascunho de IA — NeuroDoc{% endblock %}
 {% block page_title %}Rascunho de IA{% endblock %}
 {% block breadcrumb %}
@@ -11,6 +11,7 @@
 <span class="badge bg-soft-{{ job.status|nd_tone }} text-{{ job.status|nd_tone }} fs-12 px-3 py-2">{{ job.get_status_display }}</span>
 {% endblock %}
 {% block content %}
+{% if job.status == 'queued' or job.status == 'running' %}<span data-nd-ai-job-pending hidden></span>{% endif %}
 {% if job.status_detail %}
 <div class="alert alert-primary fade show fs-12" role="alert">{{ job.status_detail }}</div>
 {% endif %}
@@ -97,4 +98,7 @@
     </div>
     {% endfor %}
 </div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'ai/job-status.js' %}" defer></script>
 {% endblock %}

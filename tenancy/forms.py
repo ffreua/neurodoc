@@ -200,15 +200,24 @@ class ClinicPortalForm(forms.ModelForm):
 
 class AcceptInvitationAccountForm(forms.Form):
     email = forms.EmailField(label='E-mail')
-    password = forms.CharField(label='Senha', widget=forms.PasswordInput)
+    password1 = forms.CharField(label='Senha', widget=forms.PasswordInput)
+    password2 = forms.CharField(label='Confirme a senha', widget=forms.PasswordInput)
 
     def clean_email(self):
         return self.cleaned_data['email'].strip().lower()
 
-    def clean_password(self):
-        password = self.cleaned_data['password']
-        validate_password(password)
-        return password
+    def clean(self):
+        cleaned = super().clean()
+        password1 = cleaned.get('password1')
+        password2 = cleaned.get('password2')
+        if password1 and password2 and password1 != password2:
+            self.add_error('password2', 'As senhas não coincidem.')
+        if password1:
+            try:
+                validate_password(password1)
+            except forms.ValidationError as error:
+                self.add_error('password1', error)
+        return cleaned
 
 
 class ClinicMessageForm(forms.Form):

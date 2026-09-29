@@ -118,8 +118,13 @@ def cancel_appointment(appointment, actor_id, reason=''):
     return result
 
 
+@transaction.atomic
 def check_in(appointment, actor_id):
-    return transition_appointment(appointment, AppointmentStatus.CHECKED_IN, actor_id)
+    appointment = transition_appointment(appointment, AppointmentStatus.CHECKED_IN, actor_id)
+    from finance.receivables import create_receivable_for_appointment
+
+    create_receivable_for_appointment(appointment, actor_id)
+    return appointment
 
 
 def start_appointment(appointment, actor_id):

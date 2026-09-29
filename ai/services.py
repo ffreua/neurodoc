@@ -23,7 +23,7 @@ DEFAULT_LIMITS = {'timeout_seconds': 30, 'max_output_chars': 20000}
 
 #: Ler um laudo de dez páginas é mais lento que resumir um atendimento, e o
 #: laudo laboratorial pode devolver duzentos analitos.
-DOCUMENT_LIMITS = {'timeout_seconds': 90, 'max_output_chars': 60000}
+DOCUMENT_LIMITS = {'timeout_seconds': 180, 'max_output_chars': 60000}
 
 
 class JobNotRunnable(Exception):

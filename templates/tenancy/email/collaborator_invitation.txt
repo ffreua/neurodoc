@@ -1,0 +1,7 @@
+Você foi convidado para colaborar em {{ invitation.target_tenant.legal_name }} na NeuroDoc.
+
+Crie sua conta ou entre com seu e-mail para aceitar o convite:
+{{ url }}
+
+Este link é individual, de uso único, e expira em {{ invitation.expires_at|date:"d/m/Y H:i" }}.
+Se você não esperava este convite, ignore esta mensagem.

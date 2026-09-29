@@ -9,6 +9,7 @@ ter conta.
 from django.shortcuts import redirect, render
 from django.views import View
 
+from accounts.services import send_email_verification
 from .forms import AcceptInvitationAccountForm
 from .invitations import peek_invitation
 from .limits import PlanLimitReached
@@ -59,8 +60,8 @@ class AcceptCollaboratorInvitationView(View):
         if not form.is_valid():
             return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})
         try:
-            accept_collaborator_invitation_new_user(
-                token, form.cleaned_data['email'], form.cleaned_data['password'],
+            user, _membership = accept_collaborator_invitation_new_user(
+                token, form.cleaned_data['email'], form.cleaned_data['password1'],
             )
         except InvalidInvitation:
             return render(request, 'onboarding/invitation_invalid.html', status=400)
@@ -73,4 +74,5 @@ class AcceptCollaboratorInvitationView(View):
         except PlanLimitReached as limite:
             return render(request, 'tenancy/invitation_limit_reached.html',
                           {'limite': limite, 'invitation': invitation}, status=409)
+        send_email_verification(user, request)
         return redirect('accounts:login')
