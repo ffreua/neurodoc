@@ -107,6 +107,42 @@ def _doctor_membership(request):
     ).first()
 
 
+class PatientsByDiagnosisView(TenantScopedView):
+    """Quem, na carteira desta clínica, tem este diagnóstico.
+
+    Vive no app clínico, e não junto da lista de pacientes, porque é aí que
+    fica a fronteira de autorização: `/app/clinical/` inteiro exige
+    `READ_CLINICAL`, e esta tela responde com informação de prontuário. A
+    lista de pacientes do menu administrativo é aberta aos quatro papéis —
+    acrescentar um filtro por CID lá entregaria "quem aqui tem B24" a
+    qualquer pessoa com acesso à agenda.
+
+    `TenantScopedView` deriva a capacidade do método HTTP, e por isso esta
+    view é `GET`: a busca não altera nada, e um POST aqui passaria a exigir
+    `WRITE_CLINICAL` sem que ninguém entendesse por quê.
+    """
+
+    def get(self, request):
+        from .por_cid import ATIVAS, LEITURAS, ROTULOS, buscar
+
+        termo = (request.GET.get('q') or '').strip()
+        leitura = request.GET.get('certeza') or ATIVAS
+        if leitura not in LEITURAS:
+            leitura = ATIVAS
+        arquivados = request.GET.get('arquivados') == '1'
+        resultados = buscar(
+            request.access_context, termo, leitura=leitura,
+            incluir_arquivados=arquivados, page=request.GET.get('page', 1),
+        )
+        return render(request, 'clinical/por_cid.html', {
+            'termo': termo,
+            'resultados': resultados,
+            'leitura': leitura,
+            'leituras': [(chave, ROTULOS[chave]) for chave in LEITURAS],
+            'arquivados': arquivados,
+        })
+
+
 class DiagnosisLookupView(TenantScopedView):
     """Autocomplete do CID-10, por código ou por descrição.
 

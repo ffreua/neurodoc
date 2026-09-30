@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% comment %}Buscar paciente por diagnóstico.
+
+Tela clínica, e a barra lateral só a mostra a quem tem `read_clinical`. A
+lista de pacientes do menu administrativo responde à pergunta da recepção
+— nome, telefone, convênio — e é aberta aos quatro papéis; esta responde à
+pergunta do consultório, e não é.
+
+O aviso sobre o refutado fica na tela, e não só no código: quem procura
+precisa saber que a lista já descartou quem teve a hipótese afastada, ou
+vai procurar de novo por outro caminho achando que faltou gente.
+{% endcomment %}
+{% block title %}Pacientes por diagnóstico{% endblock %}
+{% block page_title %}Pacientes por diagnóstico{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Pacientes por diagnóstico</li>
+{% endblock %}
+{% block content %}
+
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-12 col-lg-5">
+                <label class="form-label fw-semibold fs-13" for="q">Diagnóstico</label>
+                <input type="search" class="form-control" id="q" name="q" value="{{ termo }}"
+                       autofocus placeholder="G35, G40.2 ou esclerose múltipla">
+                <div class="form-text fs-11">
+                    Pelo código ou pelo nome. O acento é dispensável, e o ponto também:
+                    <strong>G40</strong> traz também G40.0 e G40.1.
+                </div>
+            </div>
+            <div class="col-12 col-lg-4">
+                <label class="form-label fw-semibold fs-13" for="certeza">Certeza</label>
+                <select class="form-select" id="certeza" name="certeza">
+                    {% for valor, rotulo in leituras %}
+                    <option value="{{ valor }}" {% if leitura == valor %}selected{% endif %}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12 col-lg-3 d-flex align-items-center gap-3">
+                <div class="form-check mb-0">
+                    <input class="form-check-input" type="checkbox" id="arquivados" name="arquivados"
+                           value="1" {% if arquivados %}checked{% endif %}>
+                    <label class="form-check-label fs-13" for="arquivados">Incluir arquivados</label>
+                </div>
+                <button type="submit" class="btn btn-primary" data-nd-busy>Buscar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if resultados is None %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <p class="fs-13 text-muted mb-1">Digite um código ou o nome de um diagnóstico.</p>
+        <p class="fs-12 text-muted mb-0">
+            A busca lê os diagnósticos gravados nos atendimentos — inclusive os anotados
+            sem código do catálogo.
+        </p>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">
+            {{ resultados.paginator.count }} paciente{{ resultados.paginator.count|pluralize }}
+        </h5>
+        <span class="fs-11 text-muted">
+            {% if leitura == 'refutadas' %}
+            Pacientes em que a hipótese foi investigada e <strong>afastada</strong>.
+            {% else %}
+            Vale a última anotação sobre cada código: quem teve a hipótese afastada depois
+            não aparece aqui.
+            {% endif %}
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Paciente</th>
+                        <th scope="col">Código</th>
+                        <th scope="col">Certeza</th>
+                        <th scope="col">Último registro</th>
+                        <th class="text-end pe-4" scope="col">Prontuário</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linha in resultados %}
+                    <tr>
+                        <td class="ps-4 text-wrap">
+                            <a class="fw-semibold text-dark fs-13"
+                               href="{% url 'patients:detail' linha.patient.id %}">
+                                {{ linha.patient.full_name }}
+                            </a>
+                            {% if linha.patient.record_number %}
+                            <span class="d-block fs-11 text-muted">nº {{ linha.patient.record_number }}</span>
+                            {% endif %}
+                            {% if linha.patient.status != 'active' %}
+                            <span class="badge bg-soft-secondary text-secondary">arquivado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for codigo in linha.codigos %}
+                            <span class="badge bg-soft-primary text-primary">{{ codigo|default:"sem código" }}</span>
+                            {% endfor %}
+                        </td>
+                        <td>
+                            {% if linha.certeza == 'confirmed' %}
+                            <span class="badge bg-soft-success text-success">Confirmada</span>
+                            {% elif linha.certeza == 'suspected' %}
+                            <span class="badge bg-soft-warning text-warning">Suspeita</span>
+                            {% else %}
+                            <span class="badge bg-soft-secondary text-secondary">Refutada</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="fs-12 text-muted">{{ linha.ultimo|date:"d/m/Y" }}</span></td>
+                        <td class="text-end pe-4">
+                            <a class="btn btn-sm btn-light-primary"
+                               href="{% url 'clinical:timeline' linha.patient.id %}">Abrir</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="text-center text-muted py-5 fs-13">
+                        Nenhum paciente com este diagnóstico
+                        {% if not arquivados %}entre os ativos{% endif %}.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if resultados.paginator.num_pages > 1 %}
+    <div class="card-footer d-flex align-items-center justify-content-between">
+        <span class="fs-12 text-muted">
+            Página {{ resultados.number }} de {{ resultados.paginator.num_pages }}
+        </span>
+        <div class="btn-group btn-group-sm">
+            {% if resultados.has_previous %}
+            <a class="btn btn-light"
+               href="?q={{ termo|urlencode }}&amp;certeza={{ leitura }}{% if arquivados %}&amp;arquivados=1{% endif %}&amp;page={{ resultados.previous_page_number }}">Anterior</a>
+            {% endif %}
+            {% if resultados.has_next %}
+            <a class="btn btn-light"
+               href="?q={{ termo|urlencode }}&amp;certeza={{ leitura }}{% if arquivados %}&amp;arquivados=1{% endif %}&amp;page={{ resultados.next_page_number }}">Próxima</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

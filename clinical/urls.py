@@ -6,6 +6,9 @@ app_name = 'clinical'
 
 urlpatterns = [
     path('cid-lookup/', views.DiagnosisLookupView.as_view(), name='cid-lookup'),
+    # Busca de paciente por diagnóstico. Fica sob `/app/clinical/` porque é
+    # aí que a exigência de `READ_CLINICAL` vale para a rota inteira.
+    path('por-cid/', views.PatientsByDiagnosisView.as_view(), name='por-cid'),
     path('patients/<uuid:patient_id>/timeline/', views.TimelineView.as_view(), name='timeline'),
     path('patients/<uuid:patient_id>/new/', views.EncounterCreateView.as_view(), name='new'),
     path('<uuid:encounter_id>/', views.EncounterDetailView.as_view(), name='detail'),

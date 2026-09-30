@@ -151,6 +151,17 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## Buscar paciente por diagnóstico
+
+- [Buscar paciente por CID](homologation/busca-por-cid.md) — a pergunta de
+  quem acompanha doença crônica, com a decisão que define o recurso: a tela
+  mora em `/app/clinical/` e exige `READ_CLINICAL`, porque um filtro por CID
+  na lista de pacientes entregaria "quem aqui tem B24" a qualquer pessoa com
+  acesso à agenda. Inclui o caso que quebra a implementação ingênua — a
+  hipótese levantada numa consulta e descartada na seguinte, cujo registro
+  antigo continua dizendo "suspeita" — e por que vale a última palavra sobre
+  cada código.
+
 ## Retorno programado
 
 - [Retorno programado](homologation/retorno-programado.md) — "volta em seis
