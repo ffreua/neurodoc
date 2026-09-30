@@ -312,7 +312,10 @@ class DeliveryLogView(ManagerRequiredView):
 
         deliveries = list(
             Delivery.objects.filter(tenant_id=request.access_context.tenant_id)
-            .select_related('contact__patient', 'appointment__physician_membership__user')
+            .select_related(
+                'contact__patient', 'appointment__physician_membership__user',
+                'scheduled_return',
+            )
             .order_by('-created_at')[:100]
         )
         return render(request, 'communications/deliveries.html', {

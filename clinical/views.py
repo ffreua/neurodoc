@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from audit.services import record_audit_event
 from patients.models import Patient
+from scheduling.returns import INTERVALOS_MESES, agendar_retorno
 from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.selectors import scope_to_tenant
 
@@ -238,6 +239,10 @@ class EncounterDetailView(TenantScopedView):
             # O que falta para finalizar, tudo de uma vez: a tela mostra a
             # lista antes do clique em vez de recusar um requisito por vez.
             'finalize_pending': finalization.missing_requirements(encounter),
+            # Os intervalos vêm de `scheduling.returns`, e não de uma lista
+            # no template: acrescentar "18 meses" deve aparecer na tela sem
+            # que ninguém precise lembrar de uma segunda lista.
+            'retorno_intervalos': INTERVALOS_MESES,
             # O modal de descarte mostra o que se perde e por que, quando for
             # o caso, não se pode descartar.
             'discard_summary': finalization.discard_summary(encounter),
@@ -621,7 +626,19 @@ class FinalizeEncounterView(TenantScopedView):
             finalization.finalize_encounter(request.access_context, encounter, membership)
         except finalization.FinalizationError as exc:
             return _blocked(request, encounter, _texto_do_erro(exc))
-        messages.success(request, 'Atendimento finalizado. O registro agora é imutável.')
+        # O retorno **depois** da finalização, e não antes: se a finalização
+        # for recusada por requisito faltando, não pode sobrar um retorno
+        # previsto de um atendimento que não fechou.
+        escolhido = (request.POST.get('retorno_meses') or '').strip()
+        aviso = ''
+        if escolhido.isdigit() and int(escolhido) in INTERVALOS_MESES:
+            retorno = agendar_retorno(
+                request.access_context, encounter, int(escolhido), membership,
+            )
+            aviso = f' Retorno previsto para {retorno.due_on:%d/%m/%Y}.'
+        messages.success(
+            request, f'Atendimento finalizado. O registro agora é imutável.{aviso}',
+        )
         return redirect('clinical:detail', encounter_id=encounter.id)
 
 

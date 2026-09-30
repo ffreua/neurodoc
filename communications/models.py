@@ -33,6 +33,17 @@ class Delivery(TenantModel):
     appointment = models.ForeignKey(
         'scheduling.Appointment', on_delete=models.PROTECT, null=True, blank=True, related_name='deliveries',
     )
+    #: O terceiro alvo possível de uma entrega: o aviso de retorno previsto.
+    #:
+    #: Entrou como coluna própria, e não pendurado no `appointment`, porque
+    #: no momento do aviso **não existe agendamento** -- é justamente disso
+    #: que o e-mail trata. Reaproveitar o campo do agendamento obrigaria a
+    #: criar um agendamento falso só para ter onde apontar, e ele apareceria
+    #: na grade do médico.
+    scheduled_return = models.ForeignKey(
+        'scheduling.ScheduledReturn', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='deliveries',
+    )
     contact = models.ForeignKey('patients.PatientContact', on_delete=models.PROTECT, related_name='deliveries')
     channel = models.CharField(max_length=20, choices=DeliveryChannel.choices)
     event_version = models.PositiveBigIntegerField()
@@ -44,10 +55,18 @@ class Delivery(TenantModel):
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
             models.UniqueConstraint(fields=['tenant', 'idempotency_key'], name='communications_delivery_idem_uniq'),
+            # Exatamente **um** alvo, e não "pelo menos um": uma entrega que
+            # apontasse para documento e agendamento ao mesmo tempo deixaria
+            # a tela de entregas dizendo duas coisas diferentes sobre a
+            # mesma mensagem. Com o aviso de retorno são três colunas, e a
+            # condição continua sendo a mesma pergunta -- escrita por
+            # extenso porque um `sum(...) == 1` não existe em SQL de
+            # restrição.
             models.CheckConstraint(
                 condition=(
-                    Q(document__isnull=False, appointment__isnull=True)
-                    | Q(document__isnull=True, appointment__isnull=False)
+                    Q(document__isnull=False, appointment__isnull=True, scheduled_return__isnull=True)
+                    | Q(document__isnull=True, appointment__isnull=False, scheduled_return__isnull=True)
+                    | Q(document__isnull=True, appointment__isnull=True, scheduled_return__isnull=False)
                 ),
                 name='communications_delivery_single_target',
             ),

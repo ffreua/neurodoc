@@ -145,6 +145,32 @@ confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
                         foi escrito pode ser alterado, e correções passam a entrar como adendo
                         identificado.
                     </div>
+                    {% comment %}O retorno se escolhe **aqui**, e não numa tela
+                    depois.
+
+                    É o único instante em que a conduta está inteira na cabeça de
+                    quem atendeu: "volta em seis meses" é decisão clínica tomada no
+                    fim da consulta, e qualquer tela posterior depende de alguém
+                    lembrar de abri-la. Nenhum é o padrão — nem toda consulta gera
+                    retorno, e um valor pré-escolhido produziria fila de retornos
+                    que ninguém pediu.{% endcomment %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold fs-13" for="finalize-retorno">
+                            Retorno previsto
+                        </label>
+                        <select class="form-select" id="finalize-retorno" name="retorno_meses">
+                            <option value="">Sem retorno programado</option>
+                            {% for meses in retorno_intervalos %}
+                            <option value="{{ meses }}">
+                                {% if meses == 1 %}1 mês{% else %}{{ meses }} meses{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-11">
+                            Entra na lista de retornos da recepção, e o paciente recebe um
+                            aviso por e-mail 20 dias antes.
+                        </div>
+                    </div>
                     <p class="fs-13 text-muted mb-0">
                         Confirme que história, exame, hipóteses e conduta estão como você quer
                         que fiquem registrados.

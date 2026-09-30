@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% comment %}A fila de retornos previstos.
+
+A decisão clínica "volta em seis meses" nasce no fechamento do atendimento
+e até agora morria ali. Esta tela é o outro lado dela: a lista que a
+secretária trabalha, em ordem de vencimento e com o atrasado no topo.
+
+**Ordenada por data e não por nome.** A pergunta desta tela é "para quem
+ligo agora", e a resposta é sempre quem venceu primeiro. Ordenar por nome
+faria a lista parecer um cadastro.
+
+**Três saídas, não duas.** "Dispensado" existe porque paciente que mudou de
+cidade, teve alta ou faleceu precisa sair da lista — e uma lista que nunca
+esvazia deixa de ser lida em duas semanas.
+
+A observação ao dar baixa não é enfeite: sem ela, quem ligou ontem e não
+foi atendido não tem como dizer isso para quem abre a lista amanhã.
+{% endcomment %}
+{% block title %}Retornos previstos{% endblock %}
+{% block page_title %}Retornos previstos{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">Retornos previstos</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'scheduling:desk' %}">Balcão do dia</a>
+<a class="btn btn-light-primary" href="{% url 'scheduling:week' %}">Ver a grade</a>
+{% endblock %}
+{% block content %}
+
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+                <label class="fs-11 text-muted mb-0" for="physician-picker">Médico</label>
+                <select class="form-select form-select-sm" id="physician-picker" name="physician"
+                        style="min-width:15rem" onchange="this.form.submit()">
+                    <option value="">Todos</option>
+                    {% for option in doctors %}
+                    <option value="{{ option.id }}" {% if physician_id == option.id|stringformat:"s" %}selected{% endif %}>
+                        {{ option.user.get_full_name|default:option.user.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if historico %}<input type="hidden" name="resolvidos" value="1">{% endif %}
+                <noscript><button type="submit" class="btn btn-sm btn-light-primary">Filtrar</button></noscript>
+            </form>
+
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                {% if not historico %}
+                <span class="badge bg-soft-danger text-danger">{{ atrasados }} atrasado(s)</span>
+                <span class="badge bg-soft-primary text-primary">{{ proximos }} a vencer</span>
+                {% endif %}
+                <div class="btn-group btn-group-sm" role="group" aria-label="O que a lista mostra">
+                    <a class="btn {% if not historico %}btn-primary{% else %}btn-light{% endif %}"
+                       href="?physician={{ physician_id }}">A fazer</a>
+                    <a class="btn {% if historico %}btn-primary{% else %}btn-light{% endif %}"
+                       href="?physician={{ physician_id }}&amp;resolvidos=1">Tudo</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">
+            {% if historico %}Todos os retornos{% else %}Retornos a agendar{% endif %}
+        </h5>
+        <span class="fs-11 text-muted">
+            O paciente recebe um e-mail 20 dias antes da data prevista.
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Previsto para</th>
+                        <th scope="col">Paciente</th>
+                        <th scope="col">Médico</th>
+                        <th scope="col">Intervalo</th>
+                        <th scope="col">Aviso</th>
+                        <th class="text-end pe-4" scope="col">Situação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for registro in registros %}
+                    <tr>
+                        <td class="ps-4">
+                            <span class="fw-bold {% if registro.is_overdue %}text-danger{% else %}text-dark{% endif %}">
+                                {{ registro.due_on|date:"d/m/Y" }}
+                            </span>
+                            {% if registro.is_overdue %}
+                            <span class="d-block fs-11 text-danger">venceu</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-wrap">
+                            <a class="fw-semibold text-dark fs-13"
+                               href="{% url 'patients:detail' registro.patient_id %}">
+                                {{ registro.patient.full_name }}
+                            </a>
+                            {% for contact in registro.patient.contacts.all|slice:":1" %}
+                            <span class="d-block fs-11 text-muted">{{ contact.phone }}</span>
+                            {% endfor %}
+                            {% if registro.note %}
+                            <span class="d-block fs-11 text-muted fst-italic">{{ registro.note }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="fs-12 text-muted">{{ registro.physician_membership.user.get_full_name }}</span></td>
+                        <td><span class="fs-12">{{ registro.interval_months }} mês{{ registro.interval_months|pluralize:"es" }}</span></td>
+                        <td>
+                            {% if registro.notified_at %}
+                            <span class="fs-12 text-muted">enviado em {{ registro.notified_at|date:"d/m" }}</span>
+                            {% else %}
+                            <span class="fs-12 text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if registro.status == 'pending' %}
+                            <form method="post" class="d-inline-flex flex-wrap gap-1 justify-content-end"
+                                  action="{% url 'scheduling:resolve-return' registro.id %}">
+                                {% csrf_token %}
+                                <input type="hidden" name="physician" value="{{ physician_id }}">
+                                {% if historico %}<input type="hidden" name="resolvidos" value="1">{% endif %}
+                                <input type="text" class="form-control form-control-sm" name="note"
+                                       style="max-width:12rem" maxlength="255"
+                                       placeholder="Observação (opcional)"
+                                       aria-label="Observação sobre o contato com {{ registro.patient.full_name }}">
+                                <button type="submit" name="status" value="scheduled"
+                                        class="btn btn-sm btn-primary" data-nd-busy>Agendado</button>
+                                <button type="submit" name="status" value="dismissed"
+                                        class="btn btn-sm btn-light" data-nd-busy>Dispensar</button>
+                            </form>
+                            {% else %}
+                            <span class="badge bg-soft-secondary text-secondary">{{ registro.get_status_display }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-5 fs-13">
+                        {% if historico %}
+                        Nenhum retorno previsto registrado ainda.
+                        {% else %}
+                        Nenhum retorno a agendar. O médico programa o retorno ao fechar o atendimento.
+                        {% endif %}
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

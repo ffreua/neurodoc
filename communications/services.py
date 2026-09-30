@@ -261,6 +261,112 @@ def deliver_appointment_reminder(appointment, event_version):
 
 
 # --------------------------------------------------------------------------
+# Lembrete de retorno previsto
+# --------------------------------------------------------------------------
+
+#: Aviso de que o retorno se aproxima. **Só por e-mail**, e não é economia.
+#:
+#: Confirmação de consulta é transacional: a pessoa marcou, o sistema
+#: confirma. **Este aviso não é.** Não existe consulta marcada -- a clínica
+#: procura o paciente para que uma exista. A leitura que sustenta o envio é
+#: continuidade do cuidado (LGPD art. 11, II, "f" -- tutela da saúde por
+#: profissional de saúde), e é ela que **dispensa consentimento**. A leitura
+#: que não sustenta é captação de paciente, que exigiria opt-in específico.
+#:
+#: A diferença mora no texto, e por isso ele está escrito assim: informa
+#: que o acompanhamento está previsto e diz como agendar. Não convida, não
+#: lamenta ausência, não oferece nada. "Sentimos sua falta, agende já" é a
+#: mesma mensagem do outro lado da linha.
+#:
+#: Por e-mail e não por SMS por três razões que se somam: o e-mail carrega
+#: descadastro, cabe o texto inteiro, e não custa por mensagem -- disparo
+#: recorrente para a base inteira em SMS vira conta.
+RETURN_EMAIL_SUBJECT = 'Seu retorno está próximo'
+RETURN_EMAIL_TEMPLATE = """Olá, {patient}.
+
+No seu último atendimento ficou previsto um retorno com {doctor}, e ele se
+aproxima:
+
+  Retorno previsto para ... {when}
+
+Para marcar, ligue para a clínica{contato}.
+
+Esta mensagem é automática e esta caixa não recebe respostas — se você
+responder a este e-mail, ninguém vai ler.
+
+É apenas um aviso de acompanhamento: não contém informação clínica, nem
+diagnóstico, nem resultado de exame.
+"""
+
+
+def _contatos_para_aviso(patient):
+    """Quem pode receber o aviso de retorno, por e-mail.
+
+    Exige `email_enabled` -- o aviso não é a execução de algo que a pessoa
+    pediu, então a autorização dela é o que o sustenta -- e respeita a
+    revogação de divulgação: quem pediu para não ser procurado não é
+    procurado, ainda que a base legal aqui seja outra. Contato com validade
+    vencida sai da lista, como em todo o resto deste módulo.
+    """
+    return [
+        contato for contato in patient.contacts.all()
+        if _still_valid(contato)
+        and contato.email
+        and contato.email_enabled
+        and contato.marketing_opt_out_at is None
+    ]
+
+
+@transaction.atomic
+def deliver_return_reminder(scheduled_return):
+    """Avisa o paciente de que o retorno previsto se aproxima.
+
+    Idempotente por retorno: a chave inclui o identificador do registro, e
+    quem chama marca `notified_at`. Os dois juntos são o que impede o
+    paciente de receber um e-mail por dia durante as três semanas que
+    antecedem a data.
+
+    Devolve a lista de entregas criadas -- vazia quando não há contato
+    autorizado, que é informação e não falha: significa que a secretária
+    precisa ligar.
+    """
+    from tenancy.models import ClinicProfile
+
+    paciente = scheduled_return.patient
+    contatos = _contatos_para_aviso(paciente)
+    if not contatos:
+        return []
+
+    perfil = ClinicProfile.objects.filter(tenant_id=scheduled_return.tenant_id).first()
+    telefone = (getattr(perfil, 'phone', '') or '').strip()
+    medico = scheduled_return.physician_membership.user.get_full_name()
+    mensagem = RETURN_EMAIL_TEMPLATE.format(
+        patient=paciente.full_name.split()[0],
+        doctor=medico,
+        when=scheduled_return.due_on.strftime('%d/%m/%Y'),
+        contato=f': {telefone}' if telefone else '',
+    )
+
+    entregas = []
+    for contato in contatos:
+        chave = f'return:{scheduled_return.id}:{contato.id}'
+        entrega, criada = Delivery.objects.get_or_create(
+            tenant_id=scheduled_return.tenant_id, idempotency_key=chave,
+            defaults={
+                'contact': contato, 'channel': DeliveryChannel.EMAIL,
+                'event_version': 1, 'scheduled_return': scheduled_return,
+            },
+        )
+        if criada or entrega.status == DeliveryStatus.PENDING:
+            _send(
+                entrega, mensagem, subject=RETURN_EMAIL_SUBJECT,
+                physician_membership=scheduled_return.physician_membership,
+            )
+        entregas.append(entrega)
+    return entregas
+
+
+# --------------------------------------------------------------------------
 # Confirmação enviada à mão pela secretaria
 # --------------------------------------------------------------------------
 

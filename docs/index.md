@@ -151,6 +151,18 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## Retorno programado
+
+- [Retorno programado](homologation/retorno-programado.md) — "volta em seis
+  meses" deixa de morrer na cabeça de quem atendeu: escolha no modal de
+  finalização, aviso por e-mail 20 dias antes pelo worker, e a fila que a
+  recepção trabalha. As decisões com a alternativa recusada — meses de
+  calendário e não 30 dias fixos, `<=` e não `==` na janela do aviso,
+  e-mail e nunca SMS (o SMS não carrega descadastro), capacidade de agenda
+  e não clínica na tela da secretária — e o defeito que a própria
+  restrição do banco reprovou: a entrega nascia sem alvo nenhum, e
+  `Delivery` ganhou o terceiro.
+
 ## Mensagens internas da equipe
 
 - [Mensagens da equipe](homologation/mensagens-equipe.md) — janela flutuante

@@ -265,3 +265,99 @@ def _fold(text):
 
     decomposed = unicodedata.normalize('NFKD', text or '')
     return ''.join(char for char in decomposed if not unicodedata.combining(char)).upper().strip()
+
+
+class ReturnStatus(models.TextChoices):
+    """Onde está cada retorno previsto.
+
+    Quatro estados, e o terceiro é o que evita a lista virar lixo: um
+    retorno que já virou consulta sai da fila sozinho. Sem isso a
+    secretária reencontra todo dia os mesmos nomes que ela já resolveu.
+    """
+
+    PENDING = 'pending', 'A agendar'
+    SCHEDULED = 'scheduled', 'Agendado'
+    DONE = 'done', 'Concluído'
+    DISMISSED = 'dismissed', 'Dispensado'
+
+
+class ScheduledReturn(TenantModel):
+    """O retorno que o médico previu ao fechar o atendimento.
+
+    Até aqui essa informação só existia na cabeça de quem atendeu. O médico
+    pensava "volta em seis meses", fechava o prontuário, e ninguém mais
+    sabia — o paciente com epilepsia estável sumia por dois anos até ter
+    uma crise. Numa especialidade feita de doença crônica com seguimento
+    longo, isso não é comodidade perdida: é paciente perdido.
+
+    **É registro clínico com consequência administrativa**, e por isso mora
+    aqui e não em `clinical`: quem decide é o médico, quem trabalha é a
+    secretária, e o trabalho dela é agenda.
+
+    O que **não** é: consulta marcada. Um retorno previsto é uma intenção
+    com data — a consulta nasce quando alguém a agenda, e é o `appointment`
+    abaixo que liga as duas.
+    """
+
+    patient = models.ForeignKey(
+        'patients.Patient', on_delete=models.PROTECT, related_name='scheduled_returns',
+    )
+    #: De quem é o paciente. O retorno é com **este** médico: em clínica de
+    #: dois ou mais, devolver o paciente para a agenda de outro quebra o
+    #: seguimento, que é justamente o que este registro existe para manter.
+    physician_membership = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, related_name='scheduled_returns',
+    )
+    #: Onde a decisão foi tomada. `SET_NULL` e não `PROTECT`: o atendimento
+    #: é imutável e não se apaga, mas se um dia for anonimizado o retorno
+    #: previsto continua valendo — ele é sobre o futuro, não sobre o
+    #: registro de origem.
+    origin_encounter = models.ForeignKey(
+        'clinical.Encounter', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='scheduled_returns',
+    )
+    #: O que o médico escolheu, em meses. Guardado além da data porque
+    #: "seis meses" e "31/03" dizem coisas diferentes na tela: o primeiro é
+    #: a conduta, o segundo é a consequência dela.
+    interval_months = models.PositiveSmallIntegerField()
+    due_on = models.DateField()
+    status = models.CharField(
+        max_length=20, choices=ReturnStatus.choices, default=ReturnStatus.PENDING,
+    )
+    #: Preenchido quando a consulta nasce. É o que tira a linha da fila.
+    appointment = models.ForeignKey(
+        'scheduling.Appointment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='fulfils_returns',
+    )
+    #: Quando o aviso saiu para o paciente. Existe para o aviso **não sair
+    #: duas vezes**: a tarefa roda todo dia, e sem esta marca ela mandaria
+    #: um e-mail por dia durante os vinte dias que antecedem o retorno.
+    notified_at = models.DateTimeField(null=True, blank=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='+',
+    )
+    #: Por que foi dispensado, ou o que a secretária apurou ao ligar. A
+    #: lista sem isto devolve o mesmo nome amanhã, e quem ligou ontem não
+    #: tem como dizer "já tentei, não atende".
+    note = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        indexes = [
+            # A consulta da tarefa diária e a da tela da secretária são a
+            # mesma: pendentes por data. Sem índice, ela varre a tabela
+            # inteira todo dia às seis da manhã.
+            models.Index(fields=['tenant', 'status', 'due_on'], name='scheduling_return_fila_idx'),
+        ]
+        ordering = ['due_on', 'id']
+
+    @property
+    def is_overdue(self):
+        """Passou da data e ninguém agendou."""
+        from django.utils import timezone as _tz
+
+        return self.status == ReturnStatus.PENDING and self.due_on < _tz.localdate()
+
+    def __str__(self):
+        return f'retorno de {self.patient_id} em {self.due_on}'

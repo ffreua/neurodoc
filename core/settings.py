@@ -162,6 +162,19 @@ CELERY_BEAT_SCHEDULE = {
     # permanente continua nos objetos de origem e em `audit`; conservar estas
     # caixas indefinidamente só aumenta o banco e repete identificação de
     # paciente sem finalidade operacional.
+    # Aviso de retorno previsto: todo dia as 6h.
+    #
+    # Cedo, e antes do expediente: o e-mail chega antes de a pessoa comecar
+    # o dia, e a rodada termina muito antes de a clinica abrir -- disputar
+    # CPU com o atendimento seria o pior momento possivel.
+    #
+    # Diaria e nao semanal porque o corte e por data: um retorno vence num
+    # dia especifico, e uma rodada semanal avisaria alguns com vinte dias e
+    # outros com quatorze, sem que ninguem soubesse por que.
+    'scheduling-avisar-retornos': {
+        'task': 'scheduling.tasks.avisar_retornos',
+        'schedule': crontab(hour=6, minute=0),
+    },
     'notifications-purge-expired': {
         'task': 'notifications.tasks.purge_expired',
         'schedule': crontab(hour=1, minute=10),

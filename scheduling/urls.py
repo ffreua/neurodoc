@@ -10,6 +10,13 @@ urlpatterns = [
     path('dia/', views.AgendaDayView.as_view(), name='day'),
     path('mes/', views.AgendaMonthView.as_view(), name='month'),
     path('balcao/', views.SecretaryDeskView.as_view(), name='desk'),
+    # A fila de retornos fica ao lado do balcão, e não dentro do prontuário:
+    # quem a trabalha é a recepção.
+    path('retornos/', views.ReturnQueueView.as_view(), name='returns'),
+    path(
+        'retornos/<uuid:return_id>/baixa/',
+        views.ReturnResolveView.as_view(), name='resolve-return',
+    ),
 
     # Configuração da grade pelo médico.
     path('configurar/', views.ScheduleSettingsView.as_view(), name='settings'),

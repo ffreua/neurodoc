@@ -7,6 +7,7 @@ from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import urlencode
 
 from patients.models import Patient
 from tenancy.limits import PlanLimitReached
@@ -1078,6 +1079,101 @@ class SecretaryDeskView(TenantScopedView):
             },
         })
 
+
+class ReturnQueueView(TenantScopedView):
+    """A fila de retornos: quem o médico mandou voltar, e quando.
+
+    Tela da recepção, e não do consultório. Quem decide "volta em seis
+    meses" é o médico, ao fechar o atendimento; quem transforma isso em
+    horário marcado é a secretária, e ela precisa de uma lista ordenada por
+    vencimento com o atrasado no topo -- não de um relatório.
+
+    **Capacidade de agenda, e não capacidade clínica.** A lista mostra
+    nome, médico e data: é a mesma informação que a grade do dia já mostra.
+    Exigir `READ_CLINICAL` aqui tiraria a tela exatamente de quem faz o
+    trabalho.
+
+    O filtro por médico existe porque a clínica com três médicos vira três
+    filas na prática -- quem liga precisa saber para qual agenda está
+    oferecendo horário antes de discar.
+    """
+
+    def get(self, request):
+        from .returns import fila
+
+        ctx = request.access_context
+        # Conferido contra os médicos da clínica, e não passado direto ao
+        # filtro: um `?physician=lixo` viraria `ValidationError` e erro 500,
+        # e um UUID de outra clínica não pode sequer ser tentado.
+        doctors = _doctors(request)
+        medico = request.GET.get('physician') or ''
+        if medico not in {str(d.id) for d in doctors}:
+            medico = ''
+        historico = request.GET.get('resolvidos') == '1'
+        registros = list(fila(
+            ctx.tenant_id,
+            physician_membership_id=medico or None,
+            incluir_resolvidos=historico,
+        ))
+        hoje = timezone.now().date()
+        return render(request, 'scheduling/retornos.html', {
+            'registros': registros,
+            'doctors': doctors,
+            'physician_id': medico,
+            'historico': historico,
+            'hoje': hoje,
+            'atrasados': sum(1 for r in registros if r.status == 'pending' and r.due_on < hoje),
+            'proximos': sum(1 for r in registros if r.status == 'pending' and r.due_on >= hoje),
+        })
+
+
+class ReturnResolveView(TenantScopedView):
+    """Dar baixa em uma linha da fila: agendado, concluído ou dispensado.
+
+    Três saídas e não duas porque "não vai voltar" é desfecho legítimo --
+    paciente que mudou de cidade, que teve alta, que morreu. Sem
+    "Dispensado", esses nomes ficariam na lista para sempre, e uma lista que
+    não esvazia deixa de ser lida.
+
+    O `status` chega pelo POST e é conferido contra as escolhas do modelo
+    **antes** de gravar: sem isso, um POST à mão gravaria qualquer string no
+    campo e a linha sumiria da fila por não bater com nenhum filtro.
+    """
+
+    def post(self, request, return_id):
+        from .models import ReturnStatus, ScheduledReturn
+        from .returns import resolver
+
+        registro = get_object_or_404(
+            scope_to_tenant(ScheduledReturn.objects.all(), request.access_context),
+            id=return_id,
+        )
+        status = request.POST.get('status') or ''
+        if status not in ReturnStatus.values or status == ReturnStatus.PENDING:
+            messages.error(request, 'Situação inválida para o retorno.')
+            return redirect('scheduling:returns')
+        resolver(
+            request.access_context, registro, status, _own_membership(request),
+            note=request.POST.get('note', ''),
+        )
+        messages.success(
+            request,
+            f'Retorno de {registro.patient.full_name}: {registro.get_status_display().lower()}.',
+        )
+        # Volta para a fila com o mesmo filtro que a secretária estava
+        # vendo. Redirecionar para a lista "limpa" faria ela reescolher o
+        # médico a cada baixa, e são dezenas de baixas numa manhã.
+        # Remontado a partir de campos conhecidos, e não copiado do POST:
+        # devolver ao cliente uma URL que ele mesmo escreveu é o caminho
+        # curto para um redirecionamento aberto.
+        filtro = urlencode({
+            chave: valor for chave, valor in (
+                ('physician', request.POST.get('physician', '')),
+                ('resolvidos', '1' if request.POST.get('resolvidos') == '1' else ''),
+            ) if valor
+        })
+        destino = reverse('scheduling:returns')
+        return redirect(f'{destino}?{filtro}' if filtro else destino)
 
 # Compatibilidade com as rotas antigas da agenda.
 DayView = AgendaDayView
