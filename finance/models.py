@@ -88,6 +88,20 @@ class Receivable(TenantModel):
     competence_date = models.DateField()
     status = models.CharField(max_length=20, choices=ReceivableStatus.choices, default=ReceivableStatus.PENDING)
     cancellation_reason = models.CharField(max_length=255, blank=True)
+    fiscal_document_number = models.CharField(max_length=100, blank=True)
+    doctor_share_paid_at = models.DateTimeField(null=True, blank=True)
+    doctor_share_paid_amount = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True,
+    )
+    doctor_share_paid_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='+',
+    )
+    archived_at = models.DateTimeField(null=True, blank=True)
+    archived_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='+',
+    )
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
@@ -104,6 +118,12 @@ class Receivable(TenantModel):
                 fields=['tenant', 'appointment', 'charge_kind'],
                 condition=models.Q(appointment__isnull=False),
                 name='finance_receivable_appointment_uniq',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['tenant', 'archived_at', 'doctor_share_paid_at', 'competence_date'],
+                name='fin_recv_visible_comp_idx',
             ),
         ]
 

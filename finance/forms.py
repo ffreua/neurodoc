@@ -82,3 +82,23 @@ class AdjustmentForm(_ValorMonetarioForm):
             # depois — e o motivo já vai para a trilha de auditoria.
             raise forms.ValidationError('Diga por que o valor está sendo ajustado.')
         return motivo
+
+
+class FiscalDocumentForm(forms.Form):
+    fiscal_document_number = forms.CharField(
+        max_length=100, required=False, label='Número do recibo ou nota fiscal',
+    )
+
+    def clean_fiscal_document_number(self):
+        return (self.cleaned_data.get('fiscal_document_number') or '').strip()
+
+
+class DeleteFinancialHistoryForm(forms.Form):
+    confirmation = forms.CharField(max_length=20)
+    understand = forms.BooleanField()
+
+    def clean_confirmation(self):
+        confirmation = (self.cleaned_data.get('confirmation') or '').strip()
+        if confirmation != 'APAGAR':
+            raise forms.ValidationError('Digite APAGAR exatamente como mostrado.')
+        return confirmation

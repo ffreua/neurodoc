@@ -7,6 +7,9 @@
 <li class="breadcrumb-item">Financeiro</li>
 {% endblock %}
 {% block page_actions %}
+{% if can_manage_history %}
+<a class="btn btn-light" href="{% url 'finance:history' %}">Histórico e limpeza</a>
+{% endif %}
 <form method="get" class="d-flex align-items-center gap-2">
     <div class="input-group input-group-sm">
         <span class="input-group-text bg-white">De</span>
@@ -21,9 +24,14 @@
 <div class="row g-4">
     <div class="col-xxl-7">
         <div class="card stretch stretch-full">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Competência</h5>
-                <span class="badge bg-soft-primary text-primary">data do atendimento</span>
+            <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                <div>
+                    <h5 class="card-title mb-1">Competência</h5>
+                    <span class="badge bg-soft-primary text-primary">data do atendimento</span>
+                </div>
+                <a class="btn btn-light-primary btn-sm" href="{% url 'finance:export-competence' %}?start={{ start|date:'Y-m-d' }}&amp;end={{ end|date:'Y-m-d' }}">
+                    Exportar competência
+                </a>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -62,9 +70,14 @@
 
     <div class="col-xxl-5">
         <div class="card stretch stretch-full">
-            <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Caixa</h5>
-                <span class="badge bg-soft-success text-success">data do recebimento</span>
+            <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                <div>
+                    <h5 class="card-title mb-1">Caixa</h5>
+                    <span class="badge bg-soft-success text-success">data do recebimento</span>
+                </div>
+                <a class="btn btn-light-success btn-sm" href="{% url 'finance:export-cash' %}?start={{ start|date:'Y-m-d' }}&amp;end={{ end|date:'Y-m-d' }}">
+                    Exportar caixa
+                </a>
             </div>
             <div class="card-body p-0">
                 <div class="table-responsive">

@@ -96,6 +96,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_g8` | Compactação de anexo e relatório de retenção |
 | `check_g9` | Campanhas: consentimento, lista congelada, descadastro |
 | `check_foto` | Fotografia do paciente: formatos, papéis, isolamento e remoção |
+| `check_financeiro_fechamento` | CSV de competência/caixa, documento fiscal, repasse individual, arquivamento e limpeza restrita |
 | `check_g10` | Portal de solicitações e a fila do médico |
 | `check_hint` | Máscara de segredo com largura fixa |
 | `check_ia_padrao` | Provedor de IA padrão da instalação, e a precedência da clínica |

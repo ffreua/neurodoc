@@ -4,8 +4,9 @@ from decimal import Decimal
 from django.db.models import Q
 from django.utils import timezone
 
-from finance.models import FinancialAdjustment, Payment, Receivable, ReceivableStatus
+from finance.models import FinancialAdjustment, Payment, ReceivableStatus
 from finance.payments import quantize_brl
+from finance.selectors import visible_receivables
 from scheduling.models import OCCUPYING_STATUSES, Appointment, AvailabilityRule, ScheduleBlock
 
 
@@ -72,8 +73,8 @@ def payment_category_breakdown(tenant, start, end, unit='patient'):
     duas visões sem indicar qual foi escolhida, e nunca duplica um
     paciente que tenha ambas as categorias na mesma janela.
     """
-    receivables = Receivable.objects.filter(
-        tenant=tenant, competence_date__gte=start, competence_date__lte=end,
+    receivables = visible_receivables(tenant).filter(
+        competence_date__gte=start, competence_date__lte=end,
     ).exclude(status=ReceivableStatus.CANCELLED)
     result = {}
     for category_field, snapshot_key in [('private', 'private'), ('insurance', 'insurance')]:
@@ -90,8 +91,8 @@ def revenue_by_competence(tenant, start, end):
     S09 diretamente sobre esse campo) das cobranças elegíveis pela
     competence_date -- recebimento em caixa é reportado separadamente.
     """
-    receivables = Receivable.objects.filter(
-        tenant=tenant, competence_date__gte=start, competence_date__lte=end,
+    receivables = visible_receivables(tenant).filter(
+        competence_date__gte=start, competence_date__lte=end,
     ).exclude(status=ReceivableStatus.CANCELLED)
     total = quantize_brl(0)
     for r in receivables:
@@ -103,12 +104,21 @@ def cash_received(tenant, start, end):
     """Soma Payment.amount menos estornos, pela data em que o dinheiro
     efetivamente chegou (paid_at) -- nunca pela competência da cobrança.
     """
-    payments = Payment.objects.filter(tenant=tenant, paid_at__date__gte=start, paid_at__date__lte=end)
+    payments = Payment.objects.filter(
+        tenant=tenant,
+        receivable__archived_at__isnull=True,
+        receivable__doctor_share_paid_at__isnull=True,
+        paid_at__date__gte=start,
+        paid_at__date__lte=end,
+    )
     total_paid = quantize_brl(0)
     for p in payments:
         total_paid += p.amount
     refunds = FinancialAdjustment.objects.filter(
-        tenant=tenant, type='refund', payment__paid_at__date__gte=start, payment__paid_at__date__lte=end,
+        tenant=tenant,
+        receivable__archived_at__isnull=True,
+        receivable__doctor_share_paid_at__isnull=True,
+        type='refund', payment__paid_at__date__gte=start, payment__paid_at__date__lte=end,
     )
     total_refunded = quantize_brl(0)
     for a in refunds:
@@ -123,8 +133,8 @@ def outstanding_balance(tenant, as_of_date):
     """
     from finance.payments import balance
 
-    receivables = Receivable.objects.filter(
-        tenant=tenant, due_date__lte=as_of_date,
+    receivables = visible_receivables(tenant).filter(
+        due_date__lte=as_of_date,
     ).exclude(status=ReceivableStatus.CANCELLED)
     total = quantize_brl(0)
     for r in receivables:
@@ -136,8 +146,8 @@ def doctor_share_forecast(tenant, start, end):
     """Soma do repasse previsto (snapshot congelado no momento da
     cobrança) -- nunca rotulado como repasse efetivamente pago.
     """
-    receivables = Receivable.objects.filter(
-        tenant=tenant, competence_date__gte=start, competence_date__lte=end,
+    receivables = visible_receivables(tenant).filter(
+        competence_date__gte=start, competence_date__lte=end,
     ).exclude(status=ReceivableStatus.CANCELLED)
     total = quantize_brl(0)
     for r in receivables:

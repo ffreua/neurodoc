@@ -9,9 +9,25 @@
 {% endblock %}
 {% block page_actions %}
 <span class="badge bg-soft-{{ receivable.status|nd_tone }} text-{{ receivable.status|nd_tone }} fs-12 px-3 py-2">{{ receivable.get_status_display }}</span>
+{% if can_manage_history and not receivable.doctor_share_paid_at and not receivable.archived_at %}
+<form method="post" action="{% url 'finance:mark-doctor-share-paid' receivable.id %}" class="d-inline" onsubmit="return confirm('Confirmar que o repasse deste recebível foi realizado? Ele sairá do financeiro e dos indicadores.');">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success" data-nd-busy>Marcar repasse realizado</button>
+</form>
+{% endif %}
 <a class="btn btn-light" href="{% url 'finance:overview' %}">Voltar</a>
 {% endblock %}
 {% block content %}
+{% if receivable.doctor_share_paid_at %}
+<div class="alert alert-success" role="status">
+    Repasse realizado em {{ receivable.doctor_share_paid_at|date:"d/m/Y H:i" }}.
+</div>
+{% endif %}
+{% if receivable.archived_at %}
+<div class="alert alert-secondary" role="status">
+    Esta cobrança está arquivada desde {{ receivable.archived_at|date:"d/m/Y H:i" }}.
+</div>
+{% endif %}
 <div class="row g-3 mb-2">
     <div class="col-xxl-3 col-md-6">
         <div class="card stretch stretch-full short-info-card">
@@ -48,6 +64,28 @@
 </div>
 
 <div class="row g-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Documento fiscal</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'finance:update-fiscal-document' receivable.id %}">
+                    {% csrf_token %}
+                    <div class="row g-2 align-items-end">
+                        <div class="col-lg-8">
+                            <label class="form-label fw-semibold" for="fiscal-document-number">Número do recibo ou nota fiscal</label>
+                            <input type="text" class="form-control" id="fiscal-document-number" name="fiscal_document_number" maxlength="100" value="{{ receivable.fiscal_document_number }}" placeholder="Ex.: NF-e 2026/00042 ou Recibo 184">
+                            <div class="form-text">Este campo é separado da referência bancária do pagamento.</div>
+                        </div>
+                        <div class="col-lg-4">
+                            <button type="submit" class="btn btn-primary w-100" data-nd-busy>Salvar documento fiscal</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     <div class="col-xxl-6">
         <div class="card stretch stretch-full">
             <div class="card-header d-flex align-items-center justify-content-between">
@@ -60,6 +98,7 @@
                         <div>
                             <span class="d-block fw-semibold text-dark fs-12">R$ {{ p.amount }}</span>
                             <span class="d-block fs-11 text-muted">{{ p.paid_at|date:"d/m/Y H:i" }}</span>
+                            {% if p.external_reference %}<span class="d-block fs-11 text-muted">Ref.: {{ p.external_reference }}</span>{% endif %}
                         </div>
                         <span class="badge bg-gray-200 text-dark">{{ p.method }}</span>
                     </li>

@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Histórico financeiro — NeuroDoc{% endblock %}
+{% block page_title %}Histórico financeiro{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'finance:overview' %}">Financeiro</a></li>
+<li class="breadcrumb-item">Histórico e limpeza</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'finance:overview' %}">Voltar ao financeiro</a>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-xl-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center gap-2">
+                <div>
+                    <h5 class="card-title mb-1">Itens retirados do financeiro</h5>
+                    <span class="text-muted fs-12">Repasses realizados e cobranças arquivadas continuam rastreáveis aqui.</span>
+                </div>
+                <span class="badge bg-gray-200 text-dark">até 200 itens</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="ps-4">Paciente</th>
+                                <th>Competência</th>
+                                <th>Documento fiscal</th>
+                                <th>Situação</th>
+                                <th class="text-end pe-4">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for receivable in withdrawn_receivables %}
+                            <tr>
+                                <td class="ps-4">
+                                    <a class="fw-semibold text-dark" href="{% url 'finance:receivable-detail' receivable.id %}">{{ receivable.patient.full_name }}</a>
+                                </td>
+                                <td>{{ receivable.competence_date|date:"d/m/Y" }}</td>
+                                <td>{{ receivable.fiscal_document_number|default:"—" }}</td>
+                                <td>
+                                    {% if receivable.archived_at %}<span class="badge bg-soft-secondary text-secondary">Arquivado</span>{% endif %}
+                                    {% if receivable.doctor_share_paid_at %}<span class="badge bg-soft-success text-success">Repasse realizado: R$ {{ receivable.doctor_share_paid_amount }}</span>{% endif %}
+                                </td>
+                                <td class="text-end pe-4">
+                                    {% if receivable.doctor_share_paid_at %}
+                                    <form method="post" action="{% url 'finance:undo-doctor-share-paid' receivable.id %}" class="d-inline" onsubmit="return confirm('Desfazer este repasse e devolver a cobrança ao financeiro?');">
+                                        {% csrf_token %}
+                                        <button class="btn btn-light btn-sm" type="submit" data-nd-busy>Desfazer repasse</button>
+                                    </form>
+                                    {% else %}—{% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted py-5">Nenhum item foi retirado do financeiro.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Arquivamento reversível</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted fs-12">Retira todas as cobranças dos quadros, exportações e indicadores, mas preserva os dados para restauração.</p>
+                <p class="mb-3"><strong>{{ active_count }}</strong> cobrança(s) não arquivada(s).</p>
+                <form method="post" action="{% url 'finance:archive-history' %}" onsubmit="return confirm('Arquivar todo o histórico financeiro da clínica?');">
+                    {% csrf_token %}
+                    <label class="form-label" for="archive-confirmation">Digite <strong>ARQUIVAR</strong></label>
+                    <input class="form-control{% if archive_error %} is-invalid{% endif %}" id="archive-confirmation" name="confirmation" autocomplete="off">
+                    {% if archive_error %}<div class="invalid-feedback">{{ archive_error }}</div>{% endif %}
+                    <button class="btn btn-warning w-100 mt-3" type="submit" data-nd-busy>Arquivar todo o histórico</button>
+                </form>
+                {% if archived_count %}
+                <hr>
+                <form method="post" action="{% url 'finance:restore-history' %}" onsubmit="return confirm('Restaurar todas as {{ archived_count }} cobranças arquivadas?');">
+                    {% csrf_token %}
+                    <button class="btn btn-light-primary w-100" type="submit" data-nd-busy>Restaurar {{ archived_count }} cobrança(s)</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card border-danger">
+            <div class="card-header">
+                <h5 class="card-title text-danger mb-0">Apagar definitivamente</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted fs-12">Apaga todas as cobranças, pagamentos e ajustes financeiros da clínica. Pacientes, agenda e prontuários são preservados. Esta ação não pode ser desfeita.</p>
+                <form method="post" action="{% url 'finance:delete-history' %}" onsubmit="return confirm('ATENÇÃO: esta exclusão é permanente. Deseja continuar?');">
+                    {% csrf_token %}
+                    <label class="form-label" for="delete-confirmation">Digite <strong>APAGAR</strong></label>
+                    <input class="form-control{% if delete_form.confirmation.errors %} is-invalid{% endif %}" id="delete-confirmation" name="confirmation" autocomplete="off">
+                    {% for error in delete_form.confirmation.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                    <div class="form-check mt-3">
+                        <input class="form-check-input{% if delete_form.understand.errors %} is-invalid{% endif %}" type="checkbox" value="on" id="delete-understand" name="understand">
+                        <label class="form-check-label" for="delete-understand">Entendo que todo o histórico financeiro será excluído permanentemente.</label>
+                        {% for error in delete_form.understand.errors %}<div class="invalid-feedback">{{ error }}</div>{% endfor %}
+                    </div>
+                    <button class="btn btn-danger w-100 mt-3" type="submit" data-nd-busy>Apagar todo o histórico financeiro</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
