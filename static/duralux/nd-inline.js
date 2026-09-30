@@ -53,13 +53,40 @@
     /* `error` não borbulha, então a escuta é na fase de captura. O retrato
      * do paciente some e a inicial aparece no lugar: uma imagem quebrada na
      * ficha parece defeito do sistema, e a inicial parece escolha. */
-    document.addEventListener('error', function (evento) {
-        var img = evento.target;
-        if (!img || !img.hasAttribute || !img.hasAttribute('data-nd-fallback')) return;
+    function trocarPelaInicial(img) {
         var substituto = document.getElementById(img.getAttribute('data-nd-fallback'));
         img.remove();
         if (substituto) substituto.classList.remove('d-none');
+    }
+
+    document.addEventListener('error', function (evento) {
+        var img = evento.target;
+        if (!img || !img.hasAttribute || !img.hasAttribute('data-nd-fallback')) return;
+        trocarPelaInicial(img);
     }, true);
+
+    /* O que o `onerror` no HTML fazia e um ouvinte não faz sozinho: pegar a
+     * falha que já aconteceu. Este arquivo carrega com `defer`, então um
+     * retrato que falhou durante a análise do HTML disparou o evento antes
+     * de haver quem o escutasse — e a ficha ficaria com o ícone de imagem
+     * quebrada, que parece defeito do sistema.
+     *
+     * `complete` com `naturalWidth` zero é o teste que distingue "falhou" de
+     * "ainda carregando": a imagem que ainda vem tem `complete` falso, e a
+     * que carregou tem largura. */
+    function varrerRetratosJaQuebrados() {
+        var imagens = document.querySelectorAll('img[data-nd-fallback]');
+        for (var i = 0; i < imagens.length; i++) {
+            var img = imagens[i];
+            if (img.complete && img.naturalWidth === 0) trocarPelaInicial(img);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', varrerRetratosJaQuebrados);
+    } else {
+        varrerRetratosJaQuebrados();
+    }
 
     /* ------------------------------------------ copiar para a área */
 

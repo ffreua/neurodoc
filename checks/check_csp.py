@@ -211,6 +211,20 @@ conferir('e o script que o faz funcionar esta na pagina',
 conferir('o <noscript> continua oferecendo o botao',
          '<noscript>' in logado.get(reverse('scheduling:week')).content.decode(), True)
 
+# O `onerror` inline pegava a falha que acontecesse a qualquer momento; um
+# ouvinte carregado com `defer` perde a que aconteceu durante a analise do
+# HTML. Sem a varredura inicial, o retrato quebrado do paciente ficaria com
+# o icone de imagem quebrada -- que parece defeito do sistema, enquanto a
+# inicial parece escolha.
+comportamento = (
+    __import__('pathlib').Path(dj_settings.BASE_DIR)
+    / 'static' / 'duralux' / 'nd-inline.js'
+).read_text(encoding='utf-8')
+conferir('o retrato quebrado tem ouvinte de erro',
+         "addEventListener('error'" in comportamento, True)
+conferir('e tambem varredura do que ja falhou antes do script',
+         'naturalWidth === 0' in comportamento, True)
+
 if falhas:
     for item in falhas:
         print('FALHA:', item)
