@@ -1,0 +1,213 @@
+{% load static %}<!doctype html>
+{% comment %}Declaração de comparecimento, para conferir e imprimir.
+
+Página independente do painel, como o resumo do atendimento ao lado: abre
+em janela própria, o estilo é embutido, e o que está na tela é o que sai no
+papel. A barra de cima não imprime.
+
+**O que este documento não diz, e por quê.** Nada de diagnóstico, CID ou
+motivo da consulta. Ele vai para a mão do empregador, e informação de saúde
+é dado pessoal sensível (LGPD art. 5º, II) — uma declaração que dissesse
+"para avaliação de epilepsia" entregaria ao patrão exatamente o que a lei
+protege, com o próprio paciente carregando o papel sem saber. O timbre da
+clínica já diz o que ela é, e isso é inevitável; o resto não é.
+
+**Não é atestado, e o texto não dá margem.** Atestado afirma incapacidade
+para o trabalho e é ato médico. Isto afirma presença e horário, que é fato
+administrativo — por isso a recepção pode emitir, e por isso a assinatura é
+da clínica e não do médico.
+{% endcomment %}
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Declaração de comparecimento — {{ patient.full_name }}</title>
+    <style>
+        :root { color-scheme: light; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #f3f4f6;
+            font: 13px/1.6 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1f2937;
+        }
+        .toolbar {
+            max-width: 210mm;
+            margin: 16px auto 0;
+            padding: 12px 14px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .toolbar label { display: block; font-size: 11px; color: #6b7280; margin-bottom: 3px; }
+        .toolbar input {
+            font: inherit;
+            padding: 6px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+        }
+        .toolbar button {
+            font: inherit;
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #1f2937;
+            cursor: pointer;
+        }
+        .toolbar button.primary { background: #3454d1; border-color: #3454d1; color: #fff; }
+        .toolbar .grow { flex: 1 1 14rem; }
+        .aviso {
+            max-width: 210mm;
+            margin: 10px auto 0;
+            padding: 9px 13px;
+            border-radius: 8px;
+            background: #fffbeb;
+            border: 1px solid #fcd34d;
+            color: #92400e;
+            font-size: 12px;
+        }
+
+        .sheet {
+            max-width: 210mm;
+            margin: 16px auto;
+            padding: 22mm 18mm;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+        }
+        .timbre { text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 12px; }
+        .timbre .nome { font-size: 15px; font-weight: 700; }
+        .timbre .contato { font-size: 11px; color: #6b7280; margin-top: 3px; }
+
+        h1 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            text-align: center;
+            margin: 26px 0 22px;
+        }
+        .corpo { font-size: 14px; line-height: 2; text-align: justify; }
+        .corpo strong { font-weight: 600; }
+        .local { margin-top: 30px; font-size: 13px; }
+        .assinatura {
+            margin-top: 46px;
+            text-align: center;
+        }
+        .assinatura .linha {
+            width: 68%;
+            margin: 0 auto 5px;
+            border-top: 1px solid #1f2937;
+        }
+        .assinatura .quem { font-size: 12px; color: #4b5563; }
+        .rodape {
+            margin-top: 34px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 10px;
+            color: #6b7280;
+            line-height: 1.5;
+        }
+
+        @media print {
+            body { background: #fff; }
+            .toolbar, .aviso { display: none; }
+            .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+        }
+    </style>
+</head>
+<body{% if imprimir %} data-nd-imprimir="1"{% endif %}>
+
+<form class="toolbar" method="post">
+    {% csrf_token %}
+    <div>
+        <label for="entrada">Entrada</label>
+        <input type="time" id="entrada" name="entrada" value="{{ dados.entrada|time:'H:i' }}" required>
+    </div>
+    <div>
+        <label for="saida">Saída</label>
+        <input type="time" id="saida" name="saida" value="{{ dados.saida|time:'H:i' }}" required>
+    </div>
+    {% comment %}O acompanhante existe porque em neurologia ele é a regra, não a
+    exceção: quem falta ao serviço para trazer o paciente é ele, e é ele que
+    precisa do papel. Fica opcional — em branco, a declaração é só do
+    paciente.{% endcomment %}
+    <div class="grow">
+        <label for="acompanhante">Acompanhante (opcional)</label>
+        <input type="text" id="acompanhante" name="acompanhante" class="grow"
+               style="width:100%" maxlength="120" value="{{ acompanhante }}"
+               placeholder="Nome de quem acompanhou">
+    </div>
+    <button type="submit" class="primary">Emitir e imprimir</button>
+</form>
+
+{% if dados.invertido %}
+<div class="aviso">
+    A saída está antes da entrada. Corrija os horários — a declaração não é emitida assim.
+</div>
+{% endif %}
+
+<div class="sheet">
+    <div class="timbre">
+        <div class="nome">{{ tenant.trade_name|default:tenant.legal_name }}</div>
+        <div class="contato">
+            {% if clinica.address_line %}{{ clinica.address_line }}{% if clinica.city %} — {{ clinica.city }}/{{ clinica.state }}{% endif %}<br>{% endif %}
+            {% if clinica.phone %}{{ clinica.phone }}{% endif %}
+            {% if clinica.phone and clinica.email %} · {% endif %}
+            {% if clinica.email %}{{ clinica.email }}{% endif %}
+            {% if tenant.cnpj %}<br>CNPJ {{ tenant.cnpj }}{% endif %}
+        </div>
+    </div>
+
+    <h1>Declaração de comparecimento</h1>
+
+    <div class="corpo">
+        <p>
+            Declaramos, para os devidos fins, que
+            <strong>{{ patient.full_name }}</strong>{% if patient.cpf %}, inscrito(a) no CPF sob o nº
+            <strong>{{ patient.cpf }}</strong>{% endif %}, compareceu a esta unidade
+            no dia <strong>{{ dados.data|date:"d/m/Y" }}</strong>, permanecendo
+            das <strong>{{ dados.entrada|time:"H:i" }}</strong>
+            às <strong>{{ dados.saida|time:"H:i" }}</strong>{% if dados.duracao %}
+            (<strong>{{ dados.duracao }}</strong>){% endif %},
+            para atendimento com
+            <strong>{{ appointment.physician_membership.user.get_full_name }}</strong>{% with crm=appointment.physician_membership.user.physician_profile %}{% if crm and crm.crm_number %},
+            CRM {{ crm.crm_number }}{% if crm.crm_state %}/{{ crm.crm_state }}{% endif %}{% endif %}{% endwith %}.
+        </p>
+        {% if acompanhante %}
+        <p>
+            Acompanhou o(a) paciente, no mesmo período,
+            <strong>{{ acompanhante }}</strong>.
+        </p>
+        {% endif %}
+    </div>
+
+    <div class="local">
+        {% if clinica.city %}{{ clinica.city }}, {% endif %}{{ emitida_em|date:"j \d\e F \d\e Y" }}.
+    </div>
+
+    <div class="assinatura">
+        <div class="linha"></div>
+        <div class="quem">Assinatura e carimbo da clínica</div>
+    </div>
+
+    {% comment %}O rodapé fecha a porta que o texto deixaria entreaberta. Sem
+    ele, um departamento pessoal apressado pode ler a folha como abono de
+    falta — e não é isso que ela diz.{% endcomment %}
+    <div class="rodape">
+        Este documento declara exclusivamente o comparecimento e a permanência
+        acima, para fins de justificativa de ausência. <strong>Não constitui
+        atestado médico</strong> e não atesta incapacidade para o trabalho ou
+        para qualquer outra atividade.
+        Por proteção ao titular, não contém diagnóstico, código de doença nem
+        o motivo do atendimento.
+        <br>Emitido em {{ emitida_em|date:"d/m/Y H:i" }}.
+    </div>
+</div>
+
+<script src="{% static 'scheduling/declaracao.js' %}" defer></script>
+</body>
+</html>

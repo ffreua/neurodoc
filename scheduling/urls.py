@@ -56,6 +56,12 @@ urlpatterns = [
     # Reservas.
     path('<uuid:membership_id>/marcar/', views.QuickBookingView.as_view(), name='quick-book'),
     path('reservar/', views.ReserveAppointmentView.as_view(), name='reserve'),
+    # Declaração de comparecimento: sai do menu do horário, na agenda, e
+    # imprime direto. Não gera arquivo guardado — só o registro do ato.
+    path(
+        '<uuid:appointment_id>/declaracao/',
+        views.AttendanceStatementView.as_view(), name='declaracao',
+    ),
     path('horarios/', views.AvailabilitySlotsView.as_view(), name='availability'),
     path(
         '<uuid:appointment_id>/remarcar/',

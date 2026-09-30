@@ -1080,6 +1080,74 @@ class SecretaryDeskView(TenantScopedView):
         })
 
 
+class AttendanceStatementView(TenantScopedView):
+    """Declaração de comparecimento, emitida no balcão e impressa na hora.
+
+    **A capacidade é a da agenda, e isso não é lapso.** Declaração de
+    comparecimento não é atestado: o atestado afirma incapacidade para o
+    trabalho, que é juízo clínico; a declaração afirma que a pessoa esteve
+    aqui das 14h às 16h30, que é fato administrativo de quem registrou a
+    chegada e a saída. Ver `scheduling/declaracao.py`.
+
+    `GET` mostra a folha com os horários do agendamento, para conferir e
+    corrigir. `POST` é o "emitir": grava o ato na trilha e devolve a mesma
+    folha pedindo impressão. A separação existe para que ajustar o horário
+    três vezes não deixe três emissões registradas, e para que atualizar a
+    página não emita de novo.
+
+    Nada é guardado como arquivo — foi o que se pediu, e é o certo: o papel
+    se imprime e acaba. O que fica é o registro de que saiu, e com quais
+    horários.
+    """
+
+    def get(self, request, appointment_id):
+        return self._folha(request, appointment_id, imprimir=False)
+
+    def post(self, request, appointment_id):
+        return self._folha(request, appointment_id, imprimir=True)
+
+    def _folha(self, request, appointment_id, imprimir):
+        from tenancy.models import ClinicProfile
+
+        from .declaracao import horarios, registrar_emissao
+        from .models import Appointment
+
+        dados_brutos = request.POST if request.method == 'POST' else request.GET
+        appointment = get_object_or_404(
+            scope_to_tenant(Appointment.objects.all(), request.access_context)
+            .select_related('patient', 'physician_membership__user',
+                            'physician_membership__user__physician_profile'),
+            id=appointment_id,
+        )
+        dados = horarios(
+            appointment,
+            dados_brutos.get('entrada', ''), dados_brutos.get('saida', ''),
+        )
+        acompanhante = (dados_brutos.get('acompanhante') or '').strip()[:120]
+
+        # Horário invertido não vira papel: sairia dizendo "das 16h às 14h"
+        # na mão de um departamento pessoal.
+        emitido = imprimir and not dados['invertido']
+        if emitido:
+            registrar_emissao(
+                request.access_context, appointment, dados,
+                _own_membership(request), acompanhante=acompanhante,
+            )
+
+        return render(request, 'scheduling/declaracao.html', {
+            'appointment': appointment,
+            'patient': appointment.patient,
+            'dados': dados,
+            'acompanhante': acompanhante,
+            'clinica': ClinicProfile.objects.filter(
+                tenant_id=request.access_context.tenant_id,
+            ).first(),
+            'tenant': appointment.tenant,
+            'imprimir': emitido,
+            'emitida_em': timezone.localtime(),
+        })
+
+
 class ReturnQueueView(TenantScopedView):
     """A fila de retornos: quem o médico mandou voltar, e quando.
 

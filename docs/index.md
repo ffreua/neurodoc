@@ -151,6 +151,15 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## Declaração de comparecimento
+
+- [Declaração de comparecimento](homologation/declaracao-comparecimento.md) —
+  o papel que o paciente leva ao trabalho, emitido pela recepção e impresso na
+  hora. Por que a secretária pode emitir (declaração afirma presença, que é
+  fato administrativo; atestado afirma incapacidade, que é ato médico), por que
+  o papel não carrega diagnóstico nem CID (ele vai para a mão do empregador), e
+  por que ver não é emitir. O arquivo não fica guardado; o ato fica na trilha.
+
 ## Série temporal
 
 - [A evolução em gráfico](homologation/serie-temporal.md) — sobreposto na

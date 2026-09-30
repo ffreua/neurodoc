@@ -124,6 +124,12 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                                 <a class="btn btn-sm btn-light" href="{% url 'scheduling:reschedule' appointment.id %}">
                                     Remarcar
                                 </a>
+                                {% comment %}O papel que o paciente pede no balcão, no
+                                lugar em que ele o pede. Abre em janela própria e
+                                imprime direto — não fica guardado.{% endcomment %}
+                                <a class="btn btn-sm btn-light" target="_blank" rel="noopener"
+                                   href="{% url 'scheduling:declaracao' appointment.id %}"
+                                   title="Declaração de comparecimento">Declaração</a>
                             </div>
                         </td>
                     </tr>

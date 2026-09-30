@@ -133,6 +133,7 @@
         var checkinForm = document.getElementById('slot-checkin-form');
         var confirmForm = document.getElementById('slot-confirm-form');
         var rescheduleLink = document.getElementById('slot-reschedule');
+        var declaracaoLink = document.getElementById('slot-declaracao');
         var changePanel = document.getElementById('slot-change-panel');
         var cancelPanel = document.getElementById('slot-cancel-panel');
         var changeForm = document.getElementById('slot-change-form');
@@ -172,6 +173,9 @@
             cancelForm.action = '/app/scheduling/' + id + '/cancel/';
             changeForm.action = '/app/scheduling/' + id + '/trocar-paciente/';
             rescheduleLink.href = '/app/scheduling/' + id + '/remarcar/';
+            if (declaracaoLink) {
+                declaracaoLink.href = '/app/scheduling/' + id + '/declaracao/';
+            }
             if (smsForm) smsForm.action = '/app/scheduling/' + id + '/confirmar-por/sms/';
             if (emailForm) emailForm.action = '/app/scheduling/' + id + '/confirmar-por/email/';
             if (contactHint) {

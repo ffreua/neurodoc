@@ -189,6 +189,13 @@ clicado diz qual horário e qual paciente.
                         </button>
                     </form>
                     <a class="btn btn-light btn-sm" id="slot-reschedule">Remarcar</a>
+                    {% comment %}Declaração de comparecimento. Fica aqui, e não nas
+                    telas do prontuário, porque quem a emite é a recepção: ela
+                    afirma um fato administrativo (esta pessoa esteve aqui, destas
+                    horas àquelas), e não juízo clínico. Abre em janela própria e
+                    imprime direto.{% endcomment %}
+                    <a class="btn btn-light btn-sm" id="slot-declaracao" target="_blank"
+                       rel="noopener">Declaração de comparecimento</a>
                 </div>
 
                 {% comment %}Confirmação por SMS e por e-mail.

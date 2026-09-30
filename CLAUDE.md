@@ -102,7 +102,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior, **busca de paciente por CID** (`por_cid.py`) e a **série temporal** em gráfico (`series.py`) |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
-| `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados, **retorno programado** (`returns.py`: a fila da recepção e o aviso diário) |
+| `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados, **retorno programado** (`returns.py`: a fila da recepção e o aviso diário) e a **declaração de comparecimento** (`declaracao.py`, emitida pela recepção e impressa na hora, sem arquivo guardado) |
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
@@ -255,6 +255,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_ia_plano.py` | a IA segue o plano: a capacidade vetada, a autorização do job recusando, o resumo automático que sai por `return` em vez de derrubar o evento, o chat em 404 com o link sumindo junto, e a tela de configuração que explica sem deixar gravar |
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
+| `check_declaracao.py` | declaração de comparecimento: o papel **não** carrega CID nem diagnóstico, nega ser atestado com todas as letras, ver não emite (só o POST registra), horário invertido não vira papel, e a fronteira entre clínicas |
 | `check_evolucao.py` | série temporal: o eixo do tempo proporcional à data real, a escala usando o próprio domínio, a incompleta fora da linha, unidades diferentes como séries diferentes, e a tela que mostra o número sem interpretá-lo |
 | `check_por_cid.py` | busca de paciente por diagnóstico: a fronteira (a secretária e o gestor não abrem a tela), o código por prefixo com o ponto dispensável, o diagnóstico anotado sem código, e o refutado que não volta — vale a última palavra sobre cada código |
 | `check_retorno.py` | retorno programado: meses de calendário sem estourar o fim do mês, um retorno por atendimento, a janela de 20 dias com o dia perdido recuperado, o `notified_at` que barra o segundo e-mail, a recusa do contato respeitada, a redação de cuidado e não de captação, e a fila da secretária |
