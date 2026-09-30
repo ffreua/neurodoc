@@ -85,6 +85,7 @@ sai com código 1 listando as falhas quando não passa.
 | --- | --- |
 | `check_admin` | Convênios, planos e tabela de honorários — quem pode o quê |
 | `check_chave` | Chave-mestra de segredos separada da do PFX, e a rotação |
+| `check_captura_removida` | Captura local ausente do menu, das rotas e da ajuda |
 | `check_agenda` | Tipo de atendimento no modal de marcação |
 | `check_bookerr` | Aviso de erro nomeando o campo que falhou |
 | `check_cf` | Itens trazidos do atendimento anterior |

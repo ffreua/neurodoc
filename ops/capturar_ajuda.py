@@ -70,7 +70,6 @@ TELAS = [
     ('equipe-chat-lista.png', '/app/reporting/', 'abre_chat'),
     ('exportar-tela.png', '/app/reporting/acervo/', None),
     ('exportar-pronta.png', '/app/reporting/acervo/', 'exporta_e_espera'),
-    ('scanner-dispositivos.png', '/app/integrations/capture/devices/', None),
     ('suporte-mensagem.png', '/app/mensagem/support/', None),
 ]
 

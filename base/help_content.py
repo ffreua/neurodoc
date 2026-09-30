@@ -573,29 +573,6 @@ ARTICLES = [
         ],
     },
     {
-        'slug': 'scanner',
-        'title': 'Digitalizar documentos do paciente',
-        'summary': 'Mandar para o prontuário o que chegou em papel.',
-        'audience': 'Secretaria, médico',
-        'steps': [
-            ('**Integrações → Captura** registra os aparelhos que enviam documento '
-             'digitalizado para o sistema. Cada aparelho tem credencial própria: um '
-             'scanner da recepção que some não leva junto o acesso dos outros.',
-             'scanner-dispositivos.png', 'Aparelhos de captura'),
-            ('O documento digitalizado entra como **anexo do paciente**, passa pelo '
-             'antivírus e só fica disponível depois de liberado. Arquivo reprovado não é '
-             'entregue a ninguém.',
-             '', ''),
-            ('O mesmo arquivo enviado duas vezes não cria dois anexos: o sistema '
-             'reconhece pelo conteúdo. Scanner que repete a página por falha de rede é '
-             'caso comum, e o prontuário não pode ficar com a duplicata.',
-             '', ''),
-            ('Sem scanner, o caminho continua sendo **anexar pela ficha do paciente** — a '
-             'captura é conveniência, não requisito.',
-             '', ''),
-        ],
-    },
-    {
         'slug': 'suporte',
         'title': 'Falar com a NeuroDoc',
         'summary': 'Pedir ajuda e sugerir melhorias, de dentro do sistema.',

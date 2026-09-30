@@ -111,7 +111,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
 | `reporting` | indicadores e **exportação do acervo** (cadastro e prontuário em Markdown e JSON); CSV protegido contra injeção de fórmula, tudo expira em 24 h |
-| `integrations` | captura por scanner, antivírus, CEP, TUSS |
+| `integrations` | antivírus, CEP e TUSS; os modelos antigos de captura permanecem apenas como proveniência histórica |
 | `events` | outbox de eventos de domínio com dispatcher idempotente e múltiplos consumidores por tópico |
 | `ops` | deploy, backup/restauração, saúde, console do superadministrador (inclusive **Operação**, as chaves que se viram sem republicar), geração do compose local |
 
@@ -402,9 +402,9 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
   jurídica ficou tratada. **Sem pendências desde 2026-09-21**: o contrato
   de adesão da advogada (§9) é o instrumento do art. 39, e o §6 registra a
   decisão do controlador de que nada ali bloqueia a operação.
-- `docs/decisions.md` — DEC-01..DEC-21 e as pendências P-01..P-10, com dono
-  e condição de liberação (P-02 VPS real, P-05 certificado real, P-08
-  scanner real permanecem abertas; P-06 e P-07 foram resolvidas em
+- `docs/decisions.md` — decisões e pendências com dono e condição de
+  liberação (P-02 VPS real e P-05 certificado real permanecem abertas;
+  P-08 foi encerrada com a retirada da captura local; P-06 e P-07 foram resolvidas em
   2026-09-21 — a primeira pelo contrato de adesão da advogada, a segunda
   por decisão de escopo sobre o SNCR).
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,

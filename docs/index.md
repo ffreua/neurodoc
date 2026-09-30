@@ -196,13 +196,13 @@ PRD; é a referência operacional viva gerada a partir dele.
 - [Retenção, chaves e incidentes](governance/incident-response.md) —
   consolidação final de governança operacional.
 
-## Relatórios e captura local (S13)
+## Relatórios (S13)
 
-- [Homologação de relatórios e captura](homologation/reports-capture.md) —
-  evidências de H-11/H-15/H-16: indicadores conferidos com totais
+- [Homologação original de relatórios](homologation/reports-capture.md) —
+  evidências de H-15/H-16: indicadores conferidos com totais
   sintéticos conhecidos, CSV protegido contra injeção de fórmula,
-  exportação síncrona/assíncrona com expiração de 24h, e pareamento/sessão/
-  recepção de lote do scanner (P-08 em aberto para o hardware real).
+  exportação síncrona/assíncrona com expiração de 24h. A captura local
+  descrita no registro histórico foi retirada do produto em 29/09/2026.
 
 ## Operação e piloto assistencial (S10)
 

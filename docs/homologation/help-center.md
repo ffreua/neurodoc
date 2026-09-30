@@ -56,13 +56,13 @@ quem muda a tela vê o texto no mesmo diff.
 | 19 | Notificações | Todos |
 | 20 | Mensagens internas da equipe | Todos |
 | 21 | Exportar os dados da clínica | Dono |
-| 22 | Digitalizar documentos do paciente | Secretaria, médico |
-| 23 | Falar com a NeuroDoc | Todos |
+| 22 | Falar com a NeuroDoc | Todos |
 
-Os onze últimos entraram em 2026-09-23, quando o manual foi confrontado
+Os artigos administrativos entraram em 2026-09-23, quando o manual foi confrontado
 com o menu: doze artigos cobriam o trabalho assistencial e **nenhum**
 cobria o administrativo. Financeiro, indicadores, mensageria, campanhas,
-exportação e captura estavam no produto e fora do manual.
+exportação e captura estavam no produto e fora do manual. O artigo de captura
+foi retirado junto com a funcionalidade em 29/09/2026 (DEC-53).
 
 Cada artigo tem público declarado, resumo e passos numerados. Nem todo
 passo tem captura: uma imagem por parágrafo transforma o manual numa

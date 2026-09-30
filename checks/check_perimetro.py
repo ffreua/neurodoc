@@ -1,11 +1,9 @@
 """A borda do sistema: o que entra por ela e o que sai por ela.
 
-Tres defeitos deste roteiro vieram de uma auditoria externa em
-20/09/2026, e os tres tinham a mesma forma -- codigo correto para um
-navegador, rodando onde nao ha navegador nenhum:
+Dois defeitos deste roteiro vieram de uma auditoria externa em
+20/09/2026, e os dois tinham a mesma forma -- uma borda de seguranca
+interpretada de modo permissivo demais:
 
-- o agente de digitalizacao e um script, nao uma aba, e o `CsrfViewMiddleware`
-  recusava a chamada dele antes de a view comecar;
 - a desidentificacao trocava **pedacos de palavra** pelo nome do paciente,
   e mandava o texto adulterado ao provedor de IA;
 - os limitadores por IP liam `REMOTE_ADDR`, que atras do Traefik e o IP do
@@ -13,15 +11,11 @@ navegador, rodando onde nao ha navegador nenhum:
 
 Tenta quebrar. As perguntas sao:
 
-- o agente de captura consegue enviar pagina sem cookie e sem token CSRF?
-  e um token de sessao invalido continua sendo recusado?
 - a desidentificacao ainda come "Anamnese" quando a paciente se chama Ana?
   e continua escondendo o nome de quem ela deve esconder?
 - um cliente consegue escrever o proprio IP no cabecalho e escapar do
   limite? e dois visitantes atras do mesmo proxy caem no mesmo balde?
 """
-import uuid
-
 from django.conf import settings as dj_settings
 from django.test import Client, RequestFactory
 
@@ -33,15 +27,9 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 # local, onde `DEBUG=True`, esta linha nao muda nada.
 dj_settings.SECURE_SSL_REDIRECT = False
 
-from accounts.models import User
 from ai.deidentification import deidentify_text
 from base.net import UNKNOWN, client_ip
-from integrations import capture
-from integrations.models import CaptureDevice, CaptureDeviceStatus, CaptureSession
-from patients.models import Patient
-from tenancy.models import Membership
 
-TENANT = 'demo-clinica-a'
 failures = []
 
 
@@ -53,55 +41,7 @@ def confere(condicao, descricao, detalhe=''):
         failures.append(descricao)
 
 
-user = User.objects.get(email='doctor-a@demo.neurodoc.local')
-membership = Membership.objects.get(user=user, tenant__slug=TENANT)
-paciente = Patient.objects.filter(tenant_id=membership.tenant_id).first()
-
-print('=== 1. o agente de digitalizacao consegue falar com o sistema ===')
-# `enforce_csrf_checks=True`: sem isto o cliente de teste desliga o CSRF e
-# o roteiro passaria com o defeito de pe -- que e exatamente por que
-# nenhum dos outros 44 roteiros pegou este.
-agente = Client(enforce_csrf_checks=True)
-
-device, codigo = capture.initiate_pairing(membership.tenant, f'scanner-{uuid.uuid4().hex[:6]}', membership)
-capture.complete_pairing(device, codigo)
-device.refresh_from_db()
-confere(device.status == CaptureDeviceStatus.PAIRED, 'o aparelho pareia', device.status)
-
-sessao, token = capture.open_session(device, paciente, membership)
-
-pdf = b'%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n'
-from django.core.files.uploadedfile import SimpleUploadedFile
-
-resposta = agente.post(
-    f'/capture/upload/{token}/',
-    {'page_number': '1', 'page': SimpleUploadedFile('p1.pdf', pdf, 'application/pdf')},
-)
-confere(resposta.status_code == 200,
-        'pagina enviada sem cookie e sem token CSRF e aceita', f'HTTP {resposta.status_code}')
-if resposta.status_code == 200:
-    confere(resposta.json().get('status') == 'received', 'a resposta confirma o recebimento')
-
-# Duplicata: mesmos bytes na mesma sessao nao viram segunda copia.
-resposta = agente.post(
-    f'/capture/upload/{token}/',
-    {'page_number': '2', 'page': SimpleUploadedFile('p1-de-novo.pdf', pdf, 'application/pdf')},
-)
-confere(resposta.status_code == 409, 'a mesma pagina de novo e recusada', f'HTTP {resposta.status_code}')
-
-# O que autentica e o token, e ele continua valendo: sem CSRF **nao**
-# quer dizer sem autenticacao.
-resposta = agente.post(
-    f'/capture/upload/token-que-nao-existe/',
-    {'page_number': '1', 'page': SimpleUploadedFile('p.pdf', pdf, 'application/pdf')},
-)
-confere(resposta.status_code == 403, 'token de sessao invalido continua recusado',
-        f'HTTP {resposta.status_code}')
-
-sessao.refresh_from_db()
-confere(sessao.page_count == 1, 'a sessao contou uma pagina', str(sessao.page_count))
-
-print('=== 2. a desidentificacao nao come o vocabulario clinico ===')
+print('=== 1. a desidentificacao nao come o vocabulario clinico ===')
 
 
 class _Paciente:
@@ -141,7 +81,7 @@ saida = deidentify_text('Filha de Rita Pereira, sem intercorrencias.', _Paciente
 confere('Rita' not in saida and 'Pereira' not in saida,
         'o nome da mae sai', saida)
 
-print('=== 3. o IP do visitante atravessa o proxy, e so o nosso ===')
+print('=== 2. o IP do visitante atravessa o proxy, e so o nosso ===')
 rf = RequestFactory()
 
 
@@ -177,7 +117,7 @@ segundo = client_ip(pede('10.0.1.5', '198.51.100.2'))
 confere(primeiro != segundo,
         'dois visitantes pelo mesmo proxy sao dois IPs', f'{primeiro} != {segundo}')
 
-print('=== 4. ninguem voltou a ler REMOTE_ADDR por conta propria ===')
+print('=== 3. ninguem voltou a ler REMOTE_ADDR por conta propria ===')
 from pathlib import Path
 
 raiz = Path(dj_settings.BASE_DIR)
@@ -193,7 +133,7 @@ for caminho in raiz.rglob('*.py'):
 confere(not reincidentes,
         'so `base/net.py` toca em REMOTE_ADDR', ', '.join(reincidentes))
 
-print('=== 5. o navegador nao guarda tela de prontuario ===')
+print('=== 4. o navegador nao guarda tela de prontuario ===')
 # Sem `Cache-Control`, o navegador aplica cache heuristico e o botao
 # Voltar reexibe a pagina depois do logout -- num computador de
 # consultorio, a lista de pacientes do medico anterior para quem sentar
@@ -232,32 +172,9 @@ else:
     else:
         print('  (nenhum paciente com foto; a excecao nao foi exercitada)')
 
-print('=== limpeza ===')
-# Ordem obrigatoria: o registro de proveniencia prende a sessao
-# (`CaptureUploadRecord.session` e PROTECT) e prende o anexo, e o anexo
-# tem arquivo no volume de midia. Sem isto, cada rodada deixava a pagina
-# de teste no prontuario do paciente de demonstracao.
-from pathlib import Path
-
-from documents.models import Attachment
-from integrations.models import CaptureUploadRecord
-
-anexos = list(
-    CaptureUploadRecord.objects.filter(session=sessao)
-    .values_list('attachment_id', flat=True)
-)
-CaptureUploadRecord.objects.filter(session=sessao).delete()
-for att in Attachment.objects.filter(id__in=anexos):
-    if att.storage_key:
-        Path(att.storage_key).unlink(missing_ok=True)
-Attachment.objects.filter(id__in=anexos).delete()
-CaptureSession.objects.filter(id=sessao.id).delete()
-CaptureDevice.objects.filter(id=device.id).delete()
-print(f'  removidos: 1 sessao, 1 aparelho, {len(anexos)} pagina(s) digitalizada(s)')
-
 print()
 if failures:
     for line in failures:
         print('FALHA:', line)
     raise SystemExit(1)
-print('OK: o agente entra, o texto sai limpo e o IP do visitante e o dele.')
+print('OK: o texto sai desidentificado, o IP do visitante e o dele e telas clinicas nao ficam no cache.')

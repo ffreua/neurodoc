@@ -28,8 +28,6 @@ urlpatterns = [
     path('app/ai/', include('ai.urls')),
     path('app/codigos/', include('catalogs.urls')),
     path('app/reporting/', include('reporting.urls')),
-    path('app/integrations/', include('integrations.urls')),
-    path('capture/', include('integrations.capture_urls')),
     path('app/notifications/', include('notifications.urls')),
     path('app/mensagens/', include('teamchat.urls')),
     path('app/org/', include('communications.admin_urls')),

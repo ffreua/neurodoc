@@ -17,7 +17,7 @@
 9. [Modelagem de dados](#9-modelagem-de-dados)
 10. [Autenticação, tenancy, auditoria e proteção de dados](#10-autenticação-tenancy-auditoria-e-proteção-de-dados)
 11. [Prontuário e exame neurológico](#11-prontuário-e-exame-neurológico)
-12. [Documentos, assinatura, entrega e scanner](#12-documentos-assinatura-entrega-e-scanner)
+12. [Documentos, assinatura e entrega](#12-documentos-assinatura-e-entrega)
 13. [Agenda, financeiro e indicadores](#13-agenda-financeiro-e-indicadores)
 14. [IA, tools, privacidade e streaming](#14-ia-tools-privacidade-e-streaming)
 15. [Tarefas, eventos e notificações](#15-tarefas-eventos-e-notificações)
@@ -60,9 +60,9 @@ As metas são hipóteses de produto, não resultados medidos. Registrar baseline
 | M1 — consultório funcional | Convites, pacientes, catálogos, agenda, secretaria, prontuário, anexos privados e rascunhos de documentos | Homologação interna; sem prometer emissão digital válida antes da assinatura |
 | M2 — piloto assistencial | Assinatura validada, entrega protegida, lembretes, CRM, financeiro, backup restaurável e controles de acesso homologados | Clínicas convidadas, após critérios da seção 21 |
 | M3 — apoio inteligente | IA com política de dados aprovada, análise por atendimento, resumo longitudinal, chat e streaming | Liberação por funcionalidade e tenant; funcionamento assistencial independente |
-| M4 — gestão e acabamento | Relatórios completos, estatística elegível, integração de captura, UX final e documentação consolidada | Todos os requisitos do escopo rastreados |
+| M4 — gestão e acabamento | Relatórios completos, estatística elegível, UX final e documentação consolidada | Todos os requisitos do escopo rastreados |
 
-Cada marco mantém as dependências do anterior. IA e scanner não podem adiar isolamento de arquivos, integridade clínica ou restauração. O plano free será o único disponível; nenhuma etapa inicial cobrará cartão de crédito.
+Cada marco mantém as dependências do anterior. IA não pode adiar isolamento de arquivos, integridade clínica ou restauração. O plano free será o único disponível; nenhuma etapa inicial cobrará cartão de crédito.
 
 ### 2.2 Exclusões explícitas
 
@@ -89,13 +89,14 @@ Prescrições sujeitas a regras específicas de controle não serão habilitadas
 | DEC-11 / CR-11 | Duas réplicas web, start-first, atualização sequencial, healthchecks e verificação posterior | Meta de continuidade; não é HA contra perda da VPS |
 | DEC-12 / CR-12 | Parser literal de `.env`, env_files por serviço e configuração de stack gerada com valores controlados | Nenhum source/eval; secrets fora de env_file |
 | DEC-13 / CR-13 | Três redes pré-criadas; interna com `docker network create --internal`; stack apenas referencia redes externas | A propriedade efetiva Internal deve ser inspecionada |
-| DEC-14 / CR-14 | Captura com agente local de importação de pasta, pareado à sessão clínica; upload manual disponível desde M1 | Não prometer API universal de scanner no navegador |
+| DEC-14 / CR-14 | **Superada pela DEC-53.** A captura usava agente local pareado à sessão clínica | Registro histórico; não é funcionalidade vigente |
 | DEC-15 | Sessão seleciona tenant em `neurodoc.app.br/app/`; subdomínios opcionais são aliases registrados, sem inferência de permissão | Simplifica início; wildcard TLS permanece |
 | DEC-16 | Um tenant por CNPJ cadastrado; filiais jurídicas distintas podem ter tenants distintos | Política proposta; revisão antes do onboarding se houver unidades com mesmo CNPJ |
 | DEC-17 | SSR com Django Templates, JavaScript pequeno e SSE; ASGI/Uvicorn em produção | Evitar SPA sem necessidade |
 | DEC-18 | Redis: resultados DB 0, cache DB 1, eventos transitórios DB 2; fonte clínica definitiva no PostgreSQL | Separação lógica não é fronteira de segurança |
 | DEC-19 | PostgreSQL 17, roles separadas para migração e execução, nenhum superuser no Django | App recebe credencial de DDL por exigir migrations no entrypoint; risco residual documentado |
 | DEC-20 | Nenhuma suíte de testes automatizados | Decisão confirmada; revisão, verificação sintática e homologação manual continuam obrigatórias |
+| DEC-53 | Captura por scanner e agente local retirados; documentos continuam entrando pelo upload manual do paciente | Reduz complexidade e risco operacional; registros históricos ficam somente leitura para preservar proveniência |
 
 ### 3.1 Pendências que não impedem a especificação
 
@@ -108,7 +109,7 @@ Prescrições sujeitas a regras específicas de controle não serão habilitadas
 | P-05 | Validação da assinatura com certificado A1 real autorizado, cadeia, revogação e modalidade documental | Médico responsável + segurança | Antes de emissão clínica |
 | P-06 | Base legal, contratos de operadores, retenção, transferência internacional, RIPD e política de anonimização | Controlador + assessoria especializada | Antes de dados reais/IA externa |
 | P-07 | Situação atual e acesso técnico ao SNCR/modalidades controladas | Produto + responsável regulatório | Antes da respectiva funcionalidade |
-| P-08 | Windows/software do scanner e diretório de saída de cada consultório | Operação da clínica | S13 |
+| P-08 | Windows/software do scanner e diretório de saída de cada consultório | Operação da clínica | Encerrada por retirada de escopo (DEC-53) |
 | P-09 | Validação de enquadramento regulatório do apoio diagnóstico, inclusive eventual SaMD | Produto + regulatório | Antes de divulgar finalidade clínica da IA |
 | P-10 | Destino externo e titular da chave de recuperação de backup | Operação + controlador | Antes do piloto assistencial |
 
@@ -222,17 +223,15 @@ Salvo rotas públicas expressamente indicadas, cada requisito exige usuário aut
 - [ ] RF-04-A: expirar a sessão impede novas assinaturas e não invalida artificialmente documentos já emitidos.
 - [ ] RF-04-B: secretária/gestor/IA não conseguem assinar; falha do certificado mantém o documento não emitido.
 
-### RF-05 — Anexos e captura
+### RF-05 — Anexos
 
 | ID | Regra implementável | Dados/estado | Aceite |
 | --- | --- | --- | --- |
 | RF-05.01 | Upload de PDF, JPEG, PNG, TIFF e DOCX, até 25 MiB por arquivo e 100 páginas em processamento; formatos adicionais exigem aprovação | quarantined → available/rejected; quotas por tenant | H-10 |
 | RF-05.02 | Validar extensão/MIME/conteúdo, verificar malware e converter preview em isolamento; nenhum original disponível antes da aprovação | Hash, tamanho, tipo real, uploader e patient/encounter | H-10 |
 | RF-05.03 | Download autenticado por objeto; sem rota pública de media; arquivos administrativos e clínicos possuem classes distintas | Auditoria inclusive negação | H-03/H-10 |
-| RF-05.04 | Sessão de captura pareada com agente local; importação automática vinculada ao paciente selecionado; upload manual alternativo | open → receiving → completed/expired/cancelled | H-11 |
 
 - [ ] RF-05-A: URL conhecida de outra clínica não fornece bytes; arquivo em quarentena não pode ser baixado pelo fluxo comum.
-- [ ] RF-05-B: trocar de paciente encerra ou exige novo pareamento da captura; arquivo anterior não migra para paciente novo.
 
 ### RF-06 — Agenda e secretaria
 
@@ -647,7 +646,7 @@ Ao abrir retorno, mostrar banner “Dados trazidos da consulta de DD/MM/AAAA —
 
 Finalizar bloqueia edição do snapshot e registra hash. Adendo inclui motivo, autor, data e conteúdo novo; leitura deve mostrar documento original e adendo em sequência. Alteração cadastral posterior não muda nome/documento que constavam no PDF histórico já assinado.
 
-## 12. Documentos, assinatura, entrega e scanner
+## 12. Documentos, assinatura e entrega
 
 ### 12.1 Documento médico
 
@@ -676,12 +675,6 @@ Mensagem proposta: “Seu documento está disponível no NeuroDoc. Acesse o link
 A consulta de entrega usa POST/JSON em `https://api.smsdev.com.br/v1/dlr`, com `key` e lista de `id` das mensagens; a documentação também menciona consulta por referência. Homologar o schema/códigos de status da conta antes de mapear delivered. O baseline usa polling limitado (1, 5, 15 e 60 minutos; depois revisão administrativa), sem callback público não autenticado. Sem ID após timeout, conciliar pela referência quando suportado ou pelo atendimento do provedor. [Consulta DLR SMSDEV](https://www.smsdev.com.br/en/consulta-situacao-da-mensagem/).
 
 O provedor descreve cobrança por blocos de 160 caracteres na página de envio; a versão inicial limita o template completo, incluindo link, a 160 caracteres e homologa acentos/segmentação na conta. Rate limit contratado e semântica de cada código DLR permanecem P-03; proposta local: até uma requisição de envio por segundo, fila e backoff em 429, sem alegar limite universal do provedor. `refer` tem até 100 caracteres. Manter verificação TLS ativa e chave fora da URL mesmo quando exemplos do fornecedor usam GET. [Envio SMSDEV](https://www.smsdev.com.br/en/envio-sms/).
-
-### 12.4 Captura de scanner
-
-Primeiro fluxo: software do scanner salva PDF/TIFF em pasta local; agente pequeno de captura monitora essa pasta. O agente é pareado por código temporário, usa HTTPS, chave do dispositivo e token de sessão limitado a upload. Ele não busca pacientes por conta própria. Antes de cada lote, a interface confirma paciente e atendimento; após captura, lista páginas/arquivos e resultado de processamento.
-
-Upload atômico com hash, tamanho e sequência; repetição do mesmo hash na mesma sessão gera alerta e evita duplicidade automática. Não consumir um arquivo ainda em gravação: exigir estabilidade de tamanho e renomeação/fechamento quando disponível. Deletar arquivo local após upload é opcional e nunca automático por padrão. Armazenamento e antivírus locais da clínica integram a validação operacional P-08. Durante falha de rede, preservar fila local cifrada e informar que ainda não foi anexado ao prontuário.
 
 ## 13. Agenda, financeiro e indicadores
 
@@ -1724,11 +1717,11 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 - [x] **Saída de S12:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
-### S13 — Relatórios e captura local
+### S13 — Relatórios
 
-**Objetivo/entregável:** M4 funcional: indicadores definidos e captura vinculada ao atendimento.
+**Objetivo/entregável:** M4 funcional: indicadores definidos e exportáveis.
 
-**Dependências:** S09/S12; método analítico, P-08 e política de exportação.
+**Dependências:** S09/S12; método analítico e política de exportação.
 
 - [x] **S13-T01 — Criar seletores dos indicadores de pacientes/seguimento.** Dependências: S05, S09. Componente: `reporting/patients.py`. Requisitos: RF-10.01. **Aceite:** Numeradores e faltantes reproduzem a tabela da seção 13.
 
@@ -1742,15 +1735,7 @@ O caminho crítico é S02 (autorização/tenant) → S04/S05 (agenda e autoria) 
 
 - [x] **S13-T06 — Formalizar primeiro ReportDefinition inferencial elegível.** Dependências: S13-T01, responsável metodológico. Componente: `reporting/models.py, docs/analytics/`. Requisitos: RF-10.04. **Aceite:** Pergunta/unidade/amostra/pressupostos registrados ou relatório fica indisponível.
 
-- [x] **S13-T07 — Criar CaptureDevice/CaptureSession e pareamento.** Dependências: S06, P-08. Componente: `integrations/capture.py`. Requisitos: RF-05.04. **Aceite:** Token só autoriza upload na sessão vinculada.
-
-- [x] **S13-T08 — Implementar receptor de lote com hash/ordem e quarentena.** Dependências: S13-T07, S06-T02. Componente: `integrations/capture_views.py`. Requisitos: RF-05.04. **Aceite:** Repetição e troca de paciente não anexam silenciosamente no lugar errado.
-
-- [x] **S13-T09 — Criar agente local de pasta e transporte HTTPS limitado.** Dependências: S13-T08, P-08. Componente: `capture_agent/`. Requisitos: RF-05.04. **Aceite:** Arquivo ainda sendo gravado não é enviado e fila local é protegida.
-
-- [x] **S13-T10 — Criar confirmação visual de páginas e recuperação de falha.** Dependências: S13-T09. Componente: `templates/integrations/capture/`. Requisitos: RF-05.04. **Aceite:** Usuário vê paciente/lote correto e mantém upload manual disponível.
-
-- [x] **S13-T11 — Homologar indicadores, exportações e scanner real autorizado.** Dependências: S13-T05, S13-T06, S13-T10. Componente: `docs/homologation/reports-capture.md`. Requisitos: RF-05, RF-10. **Aceite:** H-11/H-15/H-16 registrados sem dados clínicos externos indevidos.
+- [x] **S13-T07..T11 — Histórico encerrado.** A captura local chegou a ser modelada, mas foi retirada do produto pela DEC-53. O upload manual de anexos permanece em RF-05.
 
 - [x] **Saída de S13:** entregável demonstrado, evidências manuais registradas, documentação correspondente atualizada e nenhuma falha de isolamento/integridade aberta no escopo entregue.
 
