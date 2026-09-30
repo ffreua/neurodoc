@@ -35,7 +35,7 @@ foi atendido não tem como dizer isso para quem abre a lista amanhã.
             <form method="get" class="d-flex flex-wrap align-items-center gap-2">
                 <label class="fs-11 text-muted mb-0" for="physician-picker">Médico</label>
                 <select class="form-select form-select-sm" id="physician-picker" name="physician"
-                        style="min-width:15rem" onchange="this.form.submit()">
+                        style="min-width:15rem" data-nd-autosubmit>
                     <option value="">Todos</option>
                     {% for option in doctors %}
                     <option value="{{ option.id }}" {% if physician_id == option.id|stringformat:"s" %}selected{% endif %}>

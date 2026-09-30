@@ -121,7 +121,7 @@ Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e v
 {% endblock %}
 {% block scripts %}
 <script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 (function () {
     var form = document.getElementById('portal-form');
     if (!form) { return; }

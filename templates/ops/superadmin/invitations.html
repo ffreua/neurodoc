@@ -22,7 +22,7 @@ revoga-se e emite-se outro — que é mais barato que a alternativa.
         <div class="input-group mb-2">
             <input class="form-control font-monospace" id="nd-token" readonly value="{{ emitido }}">
             <button class="btn btn-primary" type="button"
-                    onclick="navigator.clipboard.writeText(document.getElementById('nd-token').value);this.textContent='Copiado';">
+                    data-nd-copy="nd-token">
                 Copiar
             </button>
         </div>

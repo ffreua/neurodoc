@@ -255,6 +255,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_ia_plano.py` | a IA segue o plano: a capacidade vetada, a autorização do job recusando, o resumo automático que sai por `return` em vez de derrubar o evento, o chat em 404 com o link sumindo junto, e a tela de configuração que explica sem deixar gravar |
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
+| `check_csp.py` | política de conteúdo: `script-src` sem `unsafe-inline`, nonce novo a cada resposta e igual ao do HTML, a varredura dos templates atrás de `onclick` e de `<script>` sem nonce, o modo de relatório como padrão, e o coletor com teto por IP |
 | `check_declaracao.py` | declaração de comparecimento: o papel **não** carrega CID nem diagnóstico, nega ser atestado com todas as letras, ver não emite (só o POST registra), horário invertido não vira papel, e a fronteira entre clínicas |
 | `check_evolucao.py` | série temporal: o eixo do tempo proporcional à data real, a escala usando o próprio domínio, a incompleta fora da linha, unidades diferentes como séries diferentes, e a tela que mostra o número sem interpretá-lo |
 | `check_por_cid.py` | busca de paciente por diagnóstico: a fronteira (a secretária e o gestor não abrem a tela), o código por prefixo com o ponto dispensável, o diagnóstico anotado sem código, e o refutado que não volta — vale a última palavra sobre cada código |
@@ -394,6 +395,19 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 - `SECURE_HSTS_SECONDS` começa em `0` **de propósito** — ligue só depois
   de o HTTPS estar comprovadamente funcionando; o navegador guarda a
   instrução e não há como voltar atrás.
+- **`CSP_ENFORCE` começa em `False`**, pelo mesmo espírito e com uma
+  diferença: a política sai como `Content-Security-Policy-Report-Only`, o
+  navegador obedece normalmente e **avisa** em `/csp-report/` o que teria
+  bloqueado. Leia o log (`csp:`) por algumas semanas de uso real antes de
+  pôr `True`. Ao contrário do HSTS, **este dá para voltar**: `False` e
+  republicar. Ver `base/csp.py` e `docs/homologation/csp.md`.
+
+  A consequência prática para quem escreve tela: **nada de `onclick` nem
+  de `<script>` sem nonce**. Atributo de evento não é coberto por nonce, e
+  mantê-lo exigiria `unsafe-inline`, que desliga a proteção inteira. Os
+  comportamentos vivem em `static/duralux/nd-inline.js` atrás de atributos
+  `data-nd-*`; bloco `<script>` inline leva `nonce="{{ nd_csp_nonce }}"`.
+  `check_csp.py` varre os templates e reprova quem esquecer.
 
 ## 9. Onde procurar o resto
 

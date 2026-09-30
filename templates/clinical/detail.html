@@ -510,7 +510,7 @@ borrada junto com o fundo que deveria cobrir.{% endcomment %}
 <script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
 <script src="{% static 'clinical/exam.js' %}"></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 /* O resumo abre numa janela de tamanho próprio, não numa aba. O `target` do
    link já garante que abre fora; isto só dá à janela a proporção de uma
    folha, que é para o que ela serve. Se o navegador bloquear a abertura por
@@ -531,7 +531,7 @@ borrada junto com o fundo que deveria cobrir.{% endcomment %}
     });
 })();
 </script>
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 /* Um modal só para todos os botões "tudo normal": são dezenas de grupos no
    roteiro e declarar um modal por grupo encheria a página à toa. O botão
    clicado diz qual caminho confirmar. */

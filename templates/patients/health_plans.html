@@ -267,7 +267,7 @@ nada no console do navegador.{% endcomment %}
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 /* Editar reaproveita o modal de cadastro: os campos sao os mesmos, e um
  * segundo modal so para editar seria a mesma tela duplicada — que diverge
  * da primeira na proxima mudanca de campo. */

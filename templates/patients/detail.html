@@ -65,7 +65,7 @@ sem caçar em cartões laterais.{% endcomment %}
             <img class="avatar-xl flex-shrink-0 rounded-circle" style="object-fit: cover;"
                  src="{% url 'patients:photo-file' patient.id %}?v={{ patient.photo_updated_at|date:'U' }}"
                  alt="Fotografia de {{ patient.full_name }}"
-                 onerror="this.remove();document.getElementById('nd-patient-initial').classList.remove('d-none');">
+                 data-nd-fallback="nd-patient-initial">
             <span id="nd-patient-initial"
                   class="avatar-text avatar-xl bg-soft-primary text-primary fw-bold fs-4 flex-shrink-0 d-none">
                 {{ patient.full_name|slice:":1"|upper }}

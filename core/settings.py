@@ -71,7 +71,25 @@ MIDDLEWARE = [
     'tenancy.middleware.TenantMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Por último de propósito: o cabeçalho é posto na resposta já pronta,
+    # e o nonce tem de existir antes da view — que é o que o `__call__`
+    # deste middleware garante, sorteando na entrada e carimbando na saída.
+    'base.csp.ContentSecurityPolicyMiddleware',
 ]
+
+# --------------------------------------------------------------------------
+# Política de conteúdo
+# --------------------------------------------------------------------------
+# **Começa em modo de relatório.** Política aplicada de saída quebra em
+# silêncio e de longe: o navegador não executa, e a tela que falha é a que
+# ninguém abriu na semana da publicação. Em modo de relatório o navegador
+# obedece normalmente e **avisa** o que teria bloqueado — colhe-se o
+# inventário real, com o sistema em uso, e só então se fecha.
+#
+# Ligar é uma variável e um redeploy, e desligar tem o mesmo custo. Ver
+# `base/csp.py` para as diretivas e o porquê de cada uma.
+CSP_ENFORCE = env.bool('CSP_ENFORCE', default=False)
+CSP_REPORT_URI = env('CSP_REPORT_URI', default='/csp-report/')
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
     'DIRS': [BASE_DIR / 'templates'], 'APP_DIRS': True,
@@ -80,6 +98,7 @@ TEMPLATES = [{
         'django.contrib.auth.context_processors.auth',
         'django.contrib.messages.context_processors.messages',
         'base.context_processors.shell',
+        'base.csp.csp_nonce',
     ]},
 }]
 AUTH_PASSWORD_VALIDATORS = [

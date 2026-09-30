@@ -11,7 +11,7 @@ atender. Trocar de médico ou de visão preserva a data, e vice-versa.
             <form method="get" class="d-flex flex-wrap align-items-center gap-2">
                 <label class="fs-11 text-muted mb-0" for="physician-picker">Agenda de</label>
                 <select class="form-select form-select-sm" id="physician-picker" name="physician"
-                        style="min-width:15rem" onchange="this.form.submit()">
+                        style="min-width:15rem" data-nd-autosubmit>
                     {% for option in doctors %}
                     <option value="{{ option.id }}" {% if doctor and option.id == doctor.id %}selected{% endif %}>
                         {{ option.user.get_full_name|default:option.user.email }}

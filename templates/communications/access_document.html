@@ -42,7 +42,7 @@ Emitido em {{ document.issued_at|date:"d/m/Y" }} por
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 /* Imprime o PDF exibido, não a página em volta.
  *
  * `window.print()` na página imprimiria o cartão, os botões e o rodapé —

@@ -168,6 +168,10 @@ resolvido, pela mesma condição do cabeçalho e da barra lateral.{% endcomment 
 {% endif %}
 
 <script src="{% static 'duralux/app.js' %}"></script>
+{% comment %}Os comportamentos que antes eram `onclick` no HTML. Saíram de lá
+porque a política de conteúdo recusa script embutido, e atributo de evento é
+script embutido que nem nonce salva.{% endcomment %}
+<script src="{% static 'duralux/nd-inline.js' %}" defer></script>
 {% if request.access_context %}<script src="{% static 'teamchat/teamchat.js' %}" defer></script>
 <script src="{% static 'patients/busca-global.js' %}" defer></script>{% endif %}
 {% block scripts %}{% endblock %}

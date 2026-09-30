@@ -151,6 +151,17 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## Política de conteúdo (CSP)
+
+- [Política de conteúdo](homologation/csp.md) — a última linha contra script
+  injetado, publicada em **modo de relatório**: o navegador obedece
+  normalmente e avisa o que teria bloqueado, e só depois se fecha com
+  `CSP_ENFORCE=True`. O trabalho de verdade foi o HTML — os 13 atributos
+  `onclick` viraram `data-nd-*`, porque nonce não cobre atributo de evento e
+  mantê-lo exigiria `unsafe-inline`, que desliga a proteção inteira. Inclui a
+  concessão de `style-src`, declarada em vez de escondida, e o coletor de
+  violações em `/csp-report/`.
+
 ## Declaração de comparecimento
 
 - [Declaração de comparecimento](homologation/declaracao-comparecimento.md) —

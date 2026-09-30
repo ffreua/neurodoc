@@ -36,7 +36,7 @@
 </div>
 {% endblock %}
 {% block scripts %}
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 document.getElementById('copy-invitation').addEventListener('click', async function () {
     const input = document.getElementById('invitation-url');
     await navigator.clipboard.writeText(input.value);

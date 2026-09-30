@@ -185,7 +185,7 @@ atendimento tem conteúdo, e nesse caso a recusa volta com a explicação.{% end
 
 {% block scripts %}
 <script src="{% static 'clinical/evolucao.js' %}" defer></script>
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 (function () {
     'use strict';
     var modal = document.getElementById('discard-modal');

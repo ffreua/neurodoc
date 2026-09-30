@@ -197,7 +197,7 @@ nada no console do navegador.{% endcomment %}
 {% endblock %}
 
 {% block scripts %}
-<script>
+<script nonce="{{ nd_csp_nonce }}">
 (function () {
     'use strict';
     var api = window.NeuroDoc || {};

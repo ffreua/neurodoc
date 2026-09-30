@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
+from base.csp_views import CspReportView
 
 from communications.views import UnsubscribeView
 from documents.verification import DocumentVerificationView
@@ -18,6 +19,9 @@ urlpatterns = [
     path('instalacao/', include('ops.superadmin_urls')),
     path('technical-docs/', technical_docs, name='technical-docs-index'),
     path('technical-docs/<path:path>', technical_docs, name='technical-docs'),
+    # Onde o navegador deposita o que a política teria bloqueado. Fora de
+    # `/app/` e sem sessão porque é o navegador que manda, sozinho.
+    path('csp-report/', CspReportView.as_view(), name='csp-report'),
     path('accounts/', include('accounts.urls')),
     path('', include('tenancy.urls')),
     path('app/patients/', include('patients.urls')),

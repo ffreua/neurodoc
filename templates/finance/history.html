@@ -46,7 +46,7 @@
                                 </td>
                                 <td class="text-end pe-4">
                                     {% if receivable.doctor_share_paid_at %}
-                                    <form method="post" action="{% url 'finance:undo-doctor-share-paid' receivable.id %}" class="d-inline" onsubmit="return confirm('Desfazer este repasse e devolver a cobrança ao financeiro?');">
+                                    <form method="post" action="{% url 'finance:undo-doctor-share-paid' receivable.id %}" class="d-inline" data-nd-confirm="Desfazer este repasse e devolver a cobrança ao financeiro?">
                                         {% csrf_token %}
                                         <button class="btn btn-light btn-sm" type="submit" data-nd-busy>Desfazer repasse</button>
                                     </form>
@@ -71,7 +71,7 @@
             <div class="card-body">
                 <p class="text-muted fs-12">Retira todas as cobranças dos quadros, exportações e indicadores, mas preserva os dados para restauração.</p>
                 <p class="mb-3"><strong>{{ active_count }}</strong> cobrança(s) não arquivada(s).</p>
-                <form method="post" action="{% url 'finance:archive-history' %}" onsubmit="return confirm('Arquivar todo o histórico financeiro da clínica?');">
+                <form method="post" action="{% url 'finance:archive-history' %}" data-nd-confirm="Arquivar todo o histórico financeiro da clínica?">
                     {% csrf_token %}
                     <label class="form-label" for="archive-confirmation">Digite <strong>ARQUIVAR</strong></label>
                     <input class="form-control{% if archive_error %} is-invalid{% endif %}" id="archive-confirmation" name="confirmation" autocomplete="off">
@@ -80,7 +80,7 @@
                 </form>
                 {% if archived_count %}
                 <hr>
-                <form method="post" action="{% url 'finance:restore-history' %}" onsubmit="return confirm('Restaurar todas as {{ archived_count }} cobranças arquivadas?');">
+                <form method="post" action="{% url 'finance:restore-history' %}" data-nd-confirm="Restaurar todas as {{ archived_count }} cobranças arquivadas?">
                     {% csrf_token %}
                     <button class="btn btn-light-primary w-100" type="submit" data-nd-busy>Restaurar {{ archived_count }} cobrança(s)</button>
                 </form>
@@ -94,7 +94,7 @@
             </div>
             <div class="card-body">
                 <p class="text-muted fs-12">Apaga todas as cobranças, pagamentos e ajustes financeiros da clínica. Pacientes, agenda e prontuários são preservados. Esta ação não pode ser desfeita.</p>
-                <form method="post" action="{% url 'finance:delete-history' %}" onsubmit="return confirm('ATENÇÃO: esta exclusão é permanente. Deseja continuar?');">
+                <form method="post" action="{% url 'finance:delete-history' %}" data-nd-confirm="ATENÇÃO: esta exclusão é permanente. Deseja continuar?">
                     {% csrf_token %}
                     <label class="form-label" for="delete-confirmation">Digite <strong>APAGAR</strong></label>
                     <input class="form-control{% if delete_form.confirmation.errors %} is-invalid{% endif %}" id="delete-confirmation" name="confirmation" autocomplete="off">

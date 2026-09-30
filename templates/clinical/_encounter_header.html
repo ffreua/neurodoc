@@ -11,7 +11,7 @@
             <img class="avatar-md flex-shrink-0 rounded-circle" style="object-fit: cover;"
                  src="{% url 'patients:photo-file' encounter.patient_id %}?v={{ encounter.patient.photo_updated_at|date:'U' }}"
                  alt="Fotografia de {{ encounter.patient.full_name }}"
-                 onerror="this.remove();document.getElementById('nd-encounter-initial').classList.remove('d-none');">
+                 data-nd-fallback="nd-encounter-initial">
             <span id="nd-encounter-initial"
                   class="avatar-text avatar-md bg-soft-primary text-primary fw-bold flex-shrink-0 d-none">
                 {{ encounter.patient.full_name|slice:":1"|upper }}
