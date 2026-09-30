@@ -4,8 +4,10 @@ Três pedidos, e cada um trouxe uma decisão que vale registrar.
 
 ## 1. Contagem de livres e agendados no mês
 
-Cada dia do calendário passa a mostrar **quantos horários estão livres** e
-**quantos pacientes estão agendados**, e o cabeçalho traz o total do mês.
+Cada dia do calendário mostra **quantos horários estão livres** e **quantos
+pacientes estão agendados**, e o cabeçalho traz o total do mês. A atualização
+de 29/09/2026 acrescentou os horários individuais: vaga livre em verde,
+ocupada em vermelho e clique direto na vaga para abrir a marcação.
 
 Duas escolhas dentro disso:
 
@@ -21,6 +23,10 @@ O custo estava em montar 42 grades para desenhar um mês — seriam mais de cem
 consultas ao banco. `availability.month_summary` carrega regras, bloqueios e
 reservas **uma vez** e monta as grades em memória: medido, **3 consultas
 para 42 dias**.
+
+A semana também escreve o estado e a hora dentro de cada vaga — por exemplo,
+**Livre · 14:00h** — para que a secretária não precise cruzar visualmente o
+quadrado com a régua da esquerda.
 
 ## 2. Remarcar olhando o mês
 
@@ -163,7 +169,8 @@ a reconciliação mais longa do SMS já terminou.
 | --- | --- |
 | Contagem no mês | segunda 15 livres; quinta 9; quarta sem grade; após uma consulta de 80 min, **1 agendado** e 13 livres |
 | Custo da contagem | **3 consultas ao banco para 42 dias** |
-| Tela do mês | mostra livres e agendados por dia, total do mês e a legenda explicando que "agendados" conta pacientes |
+| Tela do mês | mostra livres em verde e ocupados em vermelho por horário, abre a marcação ao clicar numa vaga e mantém totais por dia/mês |
+| Tela da semana | cada vaga livre mostra explicitamente “Livre” e a hora correspondente |
 | Remarcação | abre o calendário; escolher a quinta lista **8 horários** (9 células, 8 comportam 80 min); clicar remarcou para 17/09 10:00 preservando 1:20:00 |
 | Remarcação — recusas | versão desatualizada e horário fora do expediente recusados com a explicação |
 | Cifragem | cifra e decifra; o texto cifrado não contém o segredo; máscara mostra só o fim; segredo sem chave embrulhada levanta erro |

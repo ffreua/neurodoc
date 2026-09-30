@@ -432,5 +432,10 @@ def month_summary(physician_membership_id, days):
             }),
             'total': len(cells),
             'works': bool(cells),
+            # A visão mensal usa a mesma grade já calculada para oferecer
+            # cada vaga diretamente. Guardar as células aqui não acrescenta
+            # consulta: elas acabaram de ser montadas com os três lotes
+            # carregados acima.
+            'cells': cells,
         }
     return summary

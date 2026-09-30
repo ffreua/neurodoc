@@ -97,7 +97,7 @@ views reais. Dados sintéticos apenas; nenhum arquivo clínico real foi usado.
   pré-carregadas na imagem; `update_definitions()` foi executado manualmente
   uma vez para validar o fluxo real. Em produção, a tarefa periódica de 6h
   garante atualização contínua sem intervenção manual; se a rede para
-  `database.clamav.net` cair, o scanner continua operando com a última base
+  `database.clamav.net` cair, o mecanismo antimalware continua operando com a última base
   boa conhecida (falha grácil de `update_definitions`, sem afetar
   `scan_attachment`).
 - `ComplementaryExam.attachment` (adiado de S05) e a integração de anexos com

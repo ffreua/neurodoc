@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd %}
+{% load nd static %}
 {% block title %}Agenda de {{ month_start|date:"F Y" }}{% endblock %}
 {% block page_title %}Agenda{% endblock %}
 {% block breadcrumb %}
@@ -22,9 +22,9 @@
 
 {% include "scheduling/_toolbar.html" %}
 
-{% comment %}O mês responde "onde tem vaga", que é a pergunta de quem está ao
-telefone. Cada dia mostra livres e agendados; a célula leva à semana, onde se
-marca.{% endcomment %}
+{% comment %}O mês responde "onde e a que horas tem vaga". Cada horário livre
+é um botão de marcação; o dia continua levando à semana para quem quiser o
+contexto completo.{% endcomment %}
 <div class="card">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
@@ -55,12 +55,15 @@ marca.{% endcomment %}
                     <tr>
                         {% for day in week %}
                         <td class="p-1 {% if not day.in_month %}bg-gray-100{% endif %}"
-                            style="height:6rem;vertical-align:top">
-                            <a class="d-block text-decoration-none h-100 p-2 rounded-3 text-start {% if day.is_today %}bg-soft-primary{% endif %}"
-                               href="{% url 'scheduling:week' %}?physician={{ doctor.id }}&date={{ day.date|date:'Y-m-d' }}">
+                            style="vertical-align:top">
+                            <div class="nd-month-day p-2 rounded-3 text-start {% if day.is_today %}bg-soft-primary{% endif %}">
+                                <a class="d-inline-block text-decoration-none"
+                                   href="{% url 'scheduling:week' %}?physician={{ doctor.id }}&date={{ day.date|date:'Y-m-d' }}"
+                                   aria-label="Abrir a semana de {{ day.date|date:'d/m/Y' }}">
                                 <span class="d-block fw-bold {% if day.in_month %}text-dark{% else %}text-muted{% endif %} fs-13">
                                     {{ day.date|date:"j" }}
                                 </span>
+                                </a>
                                 {% if not day.works %}
                                 {% comment %}Dia sem grade não recebe crachá nenhum: um "0 livres"
                                 em sábado e domingo enche o calendário de informação que não é
@@ -72,12 +75,31 @@ marca.{% endcomment %}
                                     {% if day.free %}{{ day.free }} livre{{ day.free|pluralize }}{% else %}lotado{% endif %}
                                 </span>
                                 {% if day.booked %}
-                                <span class="d-block fs-10 text-primary">
-                                    {{ day.booked }} agendado{{ day.booked|pluralize }}
-                                </span>
+                                <span class="d-block fs-10 text-danger">{{ day.booked }} ocupado{{ day.booked|pluralize }}</span>
                                 {% endif %}
+                                <div class="nd-month-slots mt-1">
+                                    {% for cell in day.cells %}
+                                    {% if cell.status == 'free' %}
+                                    <button type="button" class="nd-month-slot nd-month-slot-free"
+                                            data-nd-book
+                                            data-nd-start="{{ cell.start|date:'Y-m-d H:i' }}"
+                                            data-nd-iso="{{ cell.start|date:'c' }}"
+                                            data-nd-when="{{ cell.start|date:'d/m/Y' }} às {{ cell.start|date:'H:i' }}"
+                                            aria-label="Marcar {{ cell.start|date:'d/m' }} às {{ cell.start|date:'H:i' }}">
+                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                        <strong>Livre</strong>
+                                    </button>
+                                    {% elif cell.status == 'busy' and cell.is_start %}
+                                    <span class="nd-month-slot nd-month-slot-busy"
+                                          title="Horário ocupado">
+                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                        <strong>Ocupado</strong>
+                                    </span>
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
                                 {% endif %}
-                            </a>
+                            </div>
                         </td>
                         {% endfor %}
                     </tr>
@@ -86,12 +108,20 @@ marca.{% endcomment %}
             </table>
         </div>
         <div class="nd-agenda-legend mt-3">
-            <span><strong class="text-success">N livres</strong> — células ainda disponíveis</span>
-            <span><strong class="text-primary">N agendados</strong> — pacientes marcados (não células)</span>
+            <span><span class="nd-key nd-month-key-free"></span>Verde — livre; clique para marcar</span>
+            <span><span class="nd-key nd-month-key-busy"></span>Vermelho — ocupado</span>
             <span><strong>lotado</strong> — dia de atendimento sem nenhuma vaga</span>
             <span><strong>fechado</strong> — feriado, férias ou bloqueio</span>
         </div>
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block modals %}
+{% if doctor %}{% include "scheduling/_booking_modals.html" %}{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'scheduling/agenda.js' %}"></script>
 {% endblock %}

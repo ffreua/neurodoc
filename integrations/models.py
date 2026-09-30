@@ -1,3 +1,11 @@
+"""Registros históricos da captura local descontinuada.
+
+Não há rotas, serviços nem interface que criem ou usem estes modelos. As
+tabelas permanecem somente para preservar a proveniência de instalações que
+tenham registros antigos; removê-las seria uma migration destrutiva sem
+benefício operacional. Novos anexos entram exclusivamente por upload manual.
+"""
+
 from django.db import models
 
 from base.models import TenantModel
@@ -16,6 +24,7 @@ class CaptureSessionStatus(models.TextChoices):
 
 
 class CaptureDevice(TenantModel):
+    """Dispositivo legado, mantido somente para leitura histórica."""
     name = models.CharField(max_length=255)
     paired_by = models.ForeignKey('tenancy.Membership', on_delete=models.PROTECT, related_name='+')
     pairing_code_hash = models.CharField(max_length=255, blank=True)
@@ -29,6 +38,7 @@ class CaptureDevice(TenantModel):
 
 
 class CaptureSession(TenantModel):
+    """Sessão legada, mantida somente para leitura histórica."""
     device = models.ForeignKey(CaptureDevice, on_delete=models.PROTECT, related_name='sessions')
     patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='capture_sessions')
     encounter = models.ForeignKey(
@@ -50,10 +60,7 @@ class CaptureSession(TenantModel):
 
 
 class CaptureUploadRecord(TenantModel):
-    """Hash/order provenance per page -- exists specifically so a repeated
-    upload (same bytes) or an out-of-order page never attaches silently:
-    the receiver checks this table before ever touching Attachment.
-    """
+    """Proveniência legada de páginas recebidas antes da retirada do recurso."""
     session = models.ForeignKey(CaptureSession, on_delete=models.PROTECT, related_name='upload_records')
     sha256 = models.CharField(max_length=64)
     page_number = models.PositiveIntegerField()

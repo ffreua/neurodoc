@@ -406,7 +406,7 @@ pedir" e "pode baixar" concordem para **todos** os vínculos da clínica.
 | M-03 | `tenancy/admin_views.py:373` | `PhysicianProfile` é global por usuário: o responsável da clínica A editar o CRM reflete na clínica B e zera a verificação lá | confirmado, severidade rebaixada |
 | M-04 | `requirements.txt` | `cryptography 48.0.1` (3 avisos) e `pymdown-extensions 10.21.3` (2 avisos) | ver §13 |
 | M-05 | `finance/views.py`, `reporting/views.py`, +4 | **Data lida em UTC.** O contêiner roda em `Etc/UTC` e o produto em `America/Sao_Paulo`: das 21h à meia-noite `date.today()` já devolve o dia seguinte. O período padrão do financeiro e do painel abria em "amanhã" — e no último dia do mês, já no mês seguinte, com tudo zerado | **corrigido** (`timezone.localdate()` nos 6 pontos) |
-| M-06 | `integrations/capture.py:32` | `complete_pairing` não tem rota: o pareamento do scanner **não pode ser concluído por HTTP**. Só `checks/check_perimetro.py` o chama | confirmado · coerente com a pendência P-08 |
+| M-06 | captura local (código posteriormente removido) | O pareamento nunca teve percurso HTTP completo | **encerrado pela retirada integral da funcionalidade (DEC-53);** rotas e agente não existem mais |
 | M-07 | `scheduling/publishing.py:85` | `appointments_outside_rules` é definido e **nunca chamado**: o aviso de que encurtar a grade deixa consultas órfãs não existe na prática | confirmado |
 
 **Sobre M-03 — o que o código faz certo.** Trocar o CRM **rebaixa a
@@ -754,8 +754,8 @@ auditoria vai encontrá-los de novo:
 ### 25.3 · Pendências externas já conhecidas
 
 P-02 (VPS real), P-03 (SMTP/SMS/IA reais), P-05 (certificado A1 do médico),
-P-08 (scanner real), P-09 (enquadramento da IA), P-10 (destino externo do
-backup). Ver `docs/decisions.md`.
+P-09 (enquadramento da IA), P-10 (destino externo do backup). P-08 foi
+encerrada pela retirada da captura local (DEC-53). Ver `docs/decisions.md`.
 
 ## 26. Riscos residuais
 

@@ -1,9 +1,11 @@
-"""Confere que o modal de marcação sai com o tipo de atendimento preenchido.
+"""Confere o modal e os horários explícitos das agendas semana e mês.
 
-Renderiza a agenda da semana e a do dia como o navegador as receberia e
-conta as <option> do select de tipo. A regressão que isto pega é a tela do
-dia sair com o select vazio.
+Renderiza as agendas como o navegador as receberia. A regressão que isto
+pega é uma tela incluir o modal sem tipos de atendimento, o horário livre
+da semana voltar a ser um quadrado sem hora ou o mês voltar a mostrar apenas
+contadores, sem permitir escolher diretamente uma vaga.
 """
+from datetime import date, timedelta
 import re
 
 from django.conf import settings as dj_settings
@@ -18,7 +20,7 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 dj_settings.SECURE_SSL_REDIRECT = False
 
 from accounts.models import User
-from scheduling.availability import type_durations
+from scheduling.availability import month_summary, type_durations
 from tenancy.models import Membership
 
 user = User.objects.get(email='doctor-a@demo.neurodoc.local')
@@ -57,9 +59,61 @@ for label, url in [
     if len(real) != expected:
         failures.append(f'{label}: esperava {expected} opcoes, veio {len(real)}')
 
+print('=== mes permite marcar diretamente numa vaga ===')
+# Procura um mês futuro que a grade publicada realmente cubra. Assim o
+# roteiro não depende de setembro/2026 nem confunde "sem vaga" com defeito
+# visual.
+month = date.today().replace(day=1)
+for _ in range(12):
+    next_month = (month + timedelta(days=32)).replace(day=1)
+    days = []
+    cursor = month
+    while cursor < next_month:
+        days.append(cursor)
+        cursor += timedelta(days=1)
+    summary = month_summary(membership.id, days)
+    if sum(row['free'] for row in summary.values()):
+        break
+    month = next_month
+else:
+    raise SystemExit('FALHA: a grade demonstrativa não tem vaga nos próximos 12 meses')
+
+free_day = next(day for day, row in summary.items() if row['free'])
+print('=== horarios visiveis na semana ===')
+week_url = f'/app/scheduling/?physician={membership.id}&date={free_day.isoformat()}'
+week_html = client.get(week_url).content.decode()
+free_week = re.findall(r'data-nd-book[\s\S]*?</button>', week_html)
+explicit_week = [slot for slot in free_week if 'Livre' in slot and re.search(r'\d{2}:\d{2}h', slot)]
+print(f'  livres={len(free_week)}  com rotulo e hora={len(explicit_week)}')
+if not free_week:
+    failures.append('a semana com grade não mostrou nenhum horário livre')
+elif len(explicit_week) != len(free_week):
+    failures.append('a semana tem horário livre sem o rótulo Livre e sua hora')
+
+month_url = (
+    f'/app/scheduling/mes/?physician={membership.id}&date={month.isoformat()}'
+)
+month_response = client.get(month_url)
+month_html = month_response.content.decode()
+month_free = re.findall(r'data-nd-book[\s\S]*?</button>', month_html)
+month_busy = re.findall(r'nd-month-slot-busy', month_html)
+has_modal = SELECT_RE.search(month_html) is not None
+print(f'  mes={month:%Y-%m}  HTTP={month_response.status_code}')
+print(f'  vagas clicaveis={len(month_free)}  ocupados vermelhos={len(month_busy)}  modal={has_modal}')
+if month_response.status_code != 200:
+    failures.append(f'mes: HTTP {month_response.status_code}')
+if not month_free:
+    failures.append('o mes nao oferece nenhuma vaga clicavel para marcar')
+if not all('Livre' in slot and re.search(r'\d{2}:\d{2}h', slot) for slot in month_free):
+    failures.append('o mes tem vaga sem o rotulo Livre e sua hora')
+if not has_modal:
+    failures.append('o mes oferece vaga sem o modal de marcacao')
+if sum(row['booked'] for row in summary.values()) and not month_busy:
+    failures.append('o mes tem agendamento mas não o mostra como ocupado em vermelho')
+
 print('---')
 if failures:
     for line in failures:
         print('FALHA:', line)
     raise SystemExit(1)
-print('OK: o select de tipo de atendimento sai preenchido nas duas telas.')
+print('OK: agendas mostram horários e permitem marcar diretamente no mês.')

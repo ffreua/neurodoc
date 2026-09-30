@@ -125,6 +125,7 @@ def discard_summary(encounter):
                              or encounter.personal_history or encounter.family_history
                              or encounter.habits_history),
         'tem_conduta': bool(encounter.plan_text),
+        'tem_exame_texto': bool(encounter.neurological_exam_text),
         'exame': encounter.examination_findings.count(),
         'medicacoes': encounter.medications.count(),
         'exames': encounter.exam_results.count(),
@@ -135,7 +136,7 @@ def discard_summary(encounter):
 def has_content(encounter):
     resumo = discard_summary(encounter)
     return bool(
-        resumo['tem_historia'] or resumo['tem_conduta']
+        resumo['tem_historia'] or resumo['tem_conduta'] or resumo['tem_exame_texto']
         or resumo['exame'] or resumo['medicacoes'] or resumo['exames'] or resumo['hipoteses']
     )
 

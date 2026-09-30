@@ -15,11 +15,15 @@ diferentes, e o sistema precisava dos dois:
 Um SHA não responde a segunda pergunta: `2436d01` não diz a ninguém se
 faltam funcionalidades, e ninguém o repete ao telefone.
 
-**Regra de incremento.** Maior quando a mudança quebra alguma coisa para
-quem já usa — um caminho que some, um dado que muda de forma. Menor
-quando entra funcionalidade sem quebrar nada. Correção sem funcionalidade
-nova não mexe em nenhum dos dois: o `RELEASE_ID` já a identifica, e uma
-terceira casa que muda toda semana deixa de ser lida.
+**Regra de incremento.** A partir da entrega imediatamente posterior à
+1.0, funcionalidade compatível avança a versão menor (1.1, 1.2...). Uma
+mudança relevante e incompatível avança a maior (2.0, 3.0...). Correção sem
+funcionalidade nova não muda `VERSION`: o `RELEASE_ID` já identifica o
+build exato, e uma terceira casa que muda toda semana deixa de ser lida.
+
+Por decisão de produto, a retirada da captura local, o campo narrativo do
+exame e a agenda visual ainda compõem a consolidação da 1.0. A próxima
+atualização funcional começa em 1.1.
 
 Mora em código, como os preços e o contrato, e pelo mesmo motivo: mudá-la
 é um commit com autor e data. Este módulo não importa nada de propósito —

@@ -111,6 +111,7 @@ def _gather_diagnostic_context(authorization, encounter):
         'historia_da_doenca_atual': encounter.hpi,
         'antecedentes_pessoais': encounter.personal_history,
         'antecedentes_familiares': encounter.family_history,
+        'exame_neurologico_texto_livre': encounter.neurological_exam_text,
         'conduta_registrada': encounter.plan_text,
     }
     # Atendimento de texto livre: o corpo da consulta e as impressões são

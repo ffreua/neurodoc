@@ -70,6 +70,12 @@ class Encounter(TenantModel):
         max_length=40, choices=ConsanguinityState.choices, default=ConsanguinityState.NOT_INFORMED,
     )
     consanguinity_details = models.TextField(max_length=2000, blank=True)
+    #: Registro narrativo do exame neurológico no atendimento estruturado.
+    #:
+    #: Complementa — não substitui — os achados do roteiro. Há descrições
+    #: clínicas que perdem sentido quando quebradas em itens, e o médico
+    #: precisa poder conservá-las no mesmo bloco do exame.
+    neurological_exam_text = models.TextField(max_length=20000, blank=True)
     plan_text = models.TextField(max_length=20000, blank=True)
     #: Como este atendimento é escrito. Ver `EncounterKind`.
     kind = models.CharField(
@@ -116,7 +122,7 @@ class Encounter(TenantModel):
         Campo de texto que fique de fora muda sem que a versão do atendimento
         mude — e no texto livre o campo de fora seria o **corpo inteiro da
         consulta**, que é justamente o que o hash existe para cobrir. Por isso
-        `free_text` e `impressions` entram aqui.
+        `free_text`, `impressions` e `neurological_exam_text` entram aqui.
 
         Acrescentar campo muda o hash de atendimentos ainda abertos, e não o
         dos já finalizados: aquele valor está gravado em `content_hash` e nada
@@ -125,7 +131,8 @@ class Encounter(TenantModel):
         payload = '|'.join([
             self.chief_complaint, self.hpi, self.personal_history, self.family_history,
             self.habits_history,
-            self.consanguinity_state, self.consanguinity_details, self.plan_text,
+            self.consanguinity_state, self.consanguinity_details,
+            self.neurological_exam_text, self.plan_text,
             self.free_text, self.impressions,
         ])
         return hashlib.sha256(payload.encode()).hexdigest()

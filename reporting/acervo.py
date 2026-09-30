@@ -158,6 +158,7 @@ SECOES_CLINICAS = [
     ('family_history', 'Antecedentes familiares'),
     ('habits_history', 'Hábitos'),
     ('consanguinity_details', 'Consanguinidade'),
+    ('neurological_exam_text', 'Exame neurológico em texto livre'),
     ('free_text', 'Evolução'),
     ('impressions', 'Impressões'),
     ('plan_text', 'Conduta'),

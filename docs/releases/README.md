@@ -14,3 +14,8 @@ Copiar `TEMPLATE.md`, renomear para o SHA completo de 40 caracteres da
 release, preencher, **commitar** e só então ligar a flag. Preflight recusa
 repositório com mudança rastreada não commitada, então o registro entra na
 mesma árvore que vai ao ar.
+
+A versão de produto segue `docs/operations/versionamento.md`. Esta
+consolidação permanece em 1.0; a próxima atualização funcional começa em
+1.1. O SHA continua mudando em toda publicação, mesmo quando `VERSION` não
+muda.

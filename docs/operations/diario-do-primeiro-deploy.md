@@ -167,3 +167,23 @@ de produção, `/ANS/source` respondeu HTTP 200 em 0,63 s, enquanto
 registrou a mesma falha depois das quatro repetições previstas. Portanto a VPS
 tem DNS e egresso normais; é o endpoint de conceitos da **ANS** que permanece
 indisponível. TUSS é ANS; a Anvisa é a fonte da CMED de medicamentos.
+
+---
+
+## 7. Consolidação da v1.0 — 29/09/2026
+
+A captura local por scanner foi retirada por decisão de produto (DEC-53).
+Saíram agente, serviços, rotas, telas, menu e artigo próprio da ajuda. O
+percurso vigente é simples: a clínica digitaliza no software do equipamento
+ou do sistema operacional e envia o arquivo pronto em **Anexos**. As tabelas
+antigas não foram apagadas: permanecem somente leitura para preservar
+proveniência sem uma migration destrutiva.
+
+A mesma consolidação acrescentou o **exame neurológico em texto livre** ao
+atendimento estruturado e passou a mostrar, na agenda mensal, cada vaga livre
+em verde e cada horário ocupado em vermelho. A semana escreve “Livre” e a
+hora dentro da própria célula.
+
+Por decisão explícita, esta entrega ainda é **v1.0**. O número fica no
+programa (`base/version.py`) e a próxima atualização funcional começa em
+**v1.1**; a política completa está em `docs/operations/versionamento.md`.

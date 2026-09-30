@@ -33,6 +33,10 @@ Evidência via `python manage.py shell` (services/models diretamente) e
 - [x] Autosave com conflito de versão responde 409 (testado via
   `POST /app/clinical/<id>/autosave/` com `row_version` desatualizado);
   primeiro autosave promove `draft` → `in_progress` automaticamente.
+- [x] **Exame neurológico em texto livre** complementa a árvore no
+  atendimento estruturado: grava pelo mesmo autosave parcial, reaparece na
+  tela e no resumo, entra no contexto da IA/exportação e participa do hash
+  de integridade. Evidência: `checks/check_exame_neurologico_texto.py`.
 
 ## H-07 — Finalização e retificação
 

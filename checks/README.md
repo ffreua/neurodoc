@@ -86,7 +86,8 @@ sai com código 1 listando as falhas quando não passa.
 | `check_admin` | Convênios, planos e tabela de honorários — quem pode o quê |
 | `check_chave` | Chave-mestra de segredos separada da do PFX, e a rotação |
 | `check_captura_removida` | Captura local ausente do menu, das rotas e da ajuda |
-| `check_agenda` | Tipo de atendimento no modal de marcação |
+| `check_agenda` | Modal de marcação, hora explícita na semana e vagas livres/ocupadas no mês |
+| `check_exame_neurologico_texto` | Texto narrativo do exame: autosave, releitura, resumo e hash clínico |
 | `check_bookerr` | Aviso de erro nomeando o campo que falhou |
 | `check_cf` | Itens trazidos do atendimento anterior |
 | `check_docform` | Formulário de documento por tipo, e retificação |

@@ -246,6 +246,22 @@ digitado em outra.{% endcomment %}
                 </div>
                 {% endif %}
 
+                <form method="post" action="{% url 'clinical:autosave' encounter.id %}"
+                      class="border rounded-3 p-3 mt-4 bg-gray-100" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    {% include "partials/field.html" with field=form.neurological_exam_text col="col-12" %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm" data-nd-busy
+                                {% if encounter.status == 'finalized' %}disabled{% endif %}>
+                            Salvar texto do exame
+                        </button>
+                        <span class="fs-11 text-muted">
+                            Complementa os itens do roteiro e fica no mesmo registro clínico.
+                        </span>
+                    </div>
+                </form>
+
                 {% if findings_by_domain %}
                 <h6 class="fw-bold text-dark mt-4 mb-3">Achados registrados</h6>
                 {% for group in findings_by_domain %}

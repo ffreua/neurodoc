@@ -16,8 +16,8 @@ class EncounterForm(forms.ModelForm):
         model = Encounter
         fields = [
             'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
-            'consanguinity_state', 'consanguinity_details', 'plan_text', 'finalization_justification',
-            'free_text', 'impressions',
+            'consanguinity_state', 'consanguinity_details', 'neurological_exam_text',
+            'plan_text', 'finalization_justification', 'free_text', 'impressions',
         ]
         labels = {
             'chief_complaint': 'Queixa principal',
@@ -27,6 +27,7 @@ class EncounterForm(forms.ModelForm):
             'habits_history': 'Hábitos e vícios',
             'consanguinity_state': 'Consanguinidade',
             'consanguinity_details': 'Detalhes da consanguinidade',
+            'neurological_exam_text': 'Exame neurológico em texto livre',
             'plan_text': 'Conduta',
             'free_text': 'Texto livre',
             'impressions': 'Impressões',
@@ -52,6 +53,10 @@ class EncounterForm(forms.ModelForm):
                 'placeholder': 'Tabagismo, álcool, outras substâncias, sono, atividade física…',
             }),
             'consanguinity_details': forms.Textarea(attrs={'rows': 2}),
+            'neurological_exam_text': forms.Textarea(attrs={
+                'rows': 7,
+                'placeholder': 'Descreva livremente os achados do exame neurológico.',
+            }),
             'plan_text': forms.Textarea(attrs={'rows': 8}),
             # A caixa de texto livre é o corpo da consulta inteira quando o
             # médico escolhe escrever corrido: nasce alta, e o JavaScript a

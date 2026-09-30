@@ -206,6 +206,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 ## Operação e piloto assistencial (S10)
 
+- [Versionamento do produto](operations/versionamento.md) — versão exibida
+  na interface, diferença para o SHA da release e regra de incremento a
+  partir da próxima atualização funcional (v1.1).
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/
   H-21/H-22 e revisão de H-03) com duas clínicas fictícias; P-02/P-05/P-06/
   P-07/P-10 permanecem pendentes e explicitamente bloqueiam o piloto real.

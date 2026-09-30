@@ -1,7 +1,7 @@
 # Central de ajuda: manual e perguntas de uso
 
-`/ajuda/` — vinte e três processos explicados passo a passo, com 47
-capturas das telas reais, mais dez perguntas de quem já usa. Pública, sem
+`/ajuda/` — vinte e dois processos explicados passo a passo, com capturas
+das telas reais, mais onze perguntas de quem já usa. Pública, sem
 login, e ligada à página inicial.
 
 Evidências: `checks/check_ajuda.py`.
@@ -31,7 +31,7 @@ usuário abrir a página e ver o ícone quebrado.
 versão de quando foi escrito, e o commit que muda a tela não o toca. Aqui,
 quem muda a tela vê o texto no mesmo diff.
 
-## Os vinte e três processos
+## Os vinte e dois processos
 
 | # | Artigo | Público |
 | --- | --- | --- |
@@ -63,6 +63,11 @@ com o menu: doze artigos cobriam o trabalho assistencial e **nenhum**
 cobria o administrativo. Financeiro, indicadores, mensageria, campanhas,
 exportação e captura estavam no produto e fora do manual. O artigo de captura
 foi retirado junto com a funcionalidade em 29/09/2026 (DEC-53).
+
+Na mesma mudança, o artigo de documentos e o FAQ passaram a dizer o percurso
+vigente sem ambiguidade: digitalizar fora do NeuroDoc e enviar o arquivo
+pronto em **Anexos**. O manual não orienta pareamento, descoberta de hardware
+ou instalação de agente local.
 
 Cada artigo tem público declarado, resumo e passos numerados. Nem todo
 passo tem captura: uma imagem por parágrafo transforma o manual numa

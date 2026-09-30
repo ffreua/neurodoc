@@ -87,6 +87,6 @@ nesta auditoria · **nenhuma** = sem cobertura.
 | Concorrência real | Os roteiros são sequenciais; só `check_mensageria` usa threads | 7 achados não verificados (auditoria §25.2) |
 | Transações parciais | Nenhum roteiro derruba a transação no meio | 7 achados não verificados |
 | Frontend em navegador | `check_mobile` e `check_links` olham o HTML, não executam a página | Erro de JS em produção |
-| Scanner (captura) | `complete_pairing` não tem rota HTTP | Recurso inalcançável — coerente com a pendência P-08 |
+| Captura local retirada | `check_captura_removida` verifica menu, rotas pública/interna e ajuda | Tabelas legadas permanecem somente leitura para preservar proveniência |
 | Grade da agenda | `appointments_outside_rules` nunca é chamado | Encurtar a grade não avisa sobre consultas órfãs |
 | Tratamento de erro | Sem `handler404`/`handler500` próprios | 8 achados não verificados |

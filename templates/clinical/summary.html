@@ -223,9 +223,13 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
     mesma folha cheia de ausência que a seção História evita. A condição olha
     também os achados, e não só o tipo: se por algum caminho houver item
     gravado, ele aparece em vez de ficar escondido.{% endcomment %}
-    {% if encounter.kind != 'free_text' or findings_by_domain %}
-    <h2>Exame neurológico <span class="muted" style="text-transform:none">({{ findings_count }} item(ns))</span></h2>
+    {% if encounter.kind != 'free_text' or findings_by_domain or encounter.neurological_exam_text %}
+    <h2>Exame neurológico <span class="muted" style="text-transform:none">({{ findings_count }} item(ns) do roteiro)</span></h2>
     <div class="block">
+        {% if encounter.neurological_exam_text %}
+        <h3>Exame neurológico em texto livre</h3>
+        <p class="prose">{{ encounter.neurological_exam_text }}</p>
+        {% endif %}
         {% if findings_by_domain %}
         {% for group in findings_by_domain %}
         <h3>{{ group.label }}</h3>
@@ -244,7 +248,7 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
             </tbody>
         </table>
         {% endfor %}
-        {% else %}
+        {% elif not encounter.neurological_exam_text %}
         <p class="empty">Nenhum item registrado.</p>
         {% endif %}
     </div>

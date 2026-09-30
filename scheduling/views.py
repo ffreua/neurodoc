@@ -260,7 +260,7 @@ class AgendaDayView(TenantScopedView):
 
 
 class AgendaMonthView(TenantScopedView):
-    """Mês em blocos, para achar a semana — não para marcar."""
+    """Mês em blocos, com vagas visíveis e marcação direta."""
 
     def get(self, request):
         doctors = _doctors(request)
@@ -295,6 +295,7 @@ class AgendaMonthView(TenantScopedView):
                 'booked': counts.get('booked', 0),
                 'blocked': bool(counts.get('blocked')) and not counts.get('free'),
                 'works': counts.get('works', False),
+                'cells': counts.get('cells', []),
             })
             if len(week) == 7:
                 weeks.append(week)
@@ -306,10 +307,12 @@ class AgendaMonthView(TenantScopedView):
             'booked': sum(row.get('booked', 0) for day, row in summary.items()
                           if day.month == month_start.month),
         }
+        booking_context = _booking_context(doctor, month_start) if doctor is not None else {}
         return render(request, 'scheduling/agenda_month.html', {
             'doctors': doctors, 'doctor': doctor, 'view_mode': 'month',
             'month_start': month_start, 'weeks': weeks, 'today': today,
             'totals': totals,
+            **booking_context,
             **_nav_urls(
                 'scheduling:month', doctor, month_start,
                 (month_start - timedelta(days=1)).replace(day=1), next_month,

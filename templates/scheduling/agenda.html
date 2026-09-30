@@ -87,7 +87,10 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
                     data-nd-start="{{ cell.start|date:'Y-m-d H:i' }}"
                     data-nd-iso="{{ cell.start|date:'c' }}"
                     data-nd-when="{{ cell.start|date:'d/m/Y' }} às {{ cell.start|date:'H:i' }}"
-                    aria-label="Marcar {{ cell.start|date:'d/m' }} às {{ cell.start|date:'H:i' }}"></button>
+                    aria-label="Marcar {{ cell.start|date:'d/m' }} às {{ cell.start|date:'H:i' }}">
+                <span class="nd-slot-free-label">Livre</span>
+                <span class="nd-slot-free-time">{{ cell.start|date:'H:i' }}h</span>
+            </button>
             {% elif cell.status == 'busy' %}
             <button type="button" class="nd-slot nd-slot-busy {% if not cell.is_start %}is-continuation{% endif %}"
                     role="gridcell"

@@ -678,13 +678,23 @@ textarea.form-control-sm {
 button.nd-slot-free {
     cursor: pointer;
     border-color: #e5e7eb;
-    color: #94a3b8;
+    color: #15803d;
     transition: background-color .12s ease, border-color .12s ease, color .12s ease;
 }
 
-button.nd-slot-free::before {
-    content: "livre";
+.nd-slot-free-label,
+.nd-slot-free-time {
+    display: block;
+}
+
+.nd-slot-free-label {
+    font-weight: 600;
     font-size: 10px;
+}
+
+.nd-slot-free-time {
+    color: #64748b;
+    font-variant-numeric: tabular-nums;
 }
 
 button.nd-slot-free:hover,
@@ -692,12 +702,6 @@ button.nd-slot-free:focus-visible {
     background: #ebeefa;
     border-color: #3454d1;
     color: #3454d1;
-}
-
-button.nd-slot-free:hover::before,
-button.nd-slot-free:focus-visible::before {
-    content: "+ marcar";
-    font-weight: 600;
 }
 
 .nd-slot-past {
@@ -757,6 +761,63 @@ button.nd-slot-free:focus-visible::before {
     border: 1px solid #e5e7eb;
     vertical-align: -2px;
     margin-right: 4px;
+}
+
+/* Mês: horários compactos, mas ainda botões legíveis e com alvo de toque. */
+.nd-month-day {
+    min-width: 8.5rem;
+    min-height: 9rem;
+}
+
+.nd-month-slots {
+    display: grid;
+    gap: 3px;
+}
+
+.nd-month-slot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px;
+    width: 100%;
+    min-height: 1.65rem;
+    padding: 3px 5px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font: inherit;
+    font-size: 10px;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+}
+
+button.nd-month-slot-free {
+    color: #166534;
+    background: #dcfce7;
+    border-color: #86efac;
+    cursor: pointer;
+}
+
+button.nd-month-slot-free:hover,
+button.nd-month-slot-free:focus-visible {
+    color: #14532d;
+    background: #bbf7d0;
+    border-color: #22c55e;
+}
+
+.nd-month-slot-busy {
+    color: #991b1b;
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.nd-month-key-free {
+    background: #dcfce7;
+    border-color: #86efac !important;
+}
+
+.nd-month-key-busy {
+    background: #fee2e2;
+    border-color: #fca5a5 !important;
 }
 
 @media (max-width: 991px) {

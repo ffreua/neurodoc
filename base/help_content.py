@@ -152,6 +152,10 @@ ARTICLES = [
              'automática e faixa de interpretação. Aplicada, a escala fica na '
              'história do paciente e dá para comparar entre consultas.',
              'exame-escalas.png', 'Escalas funcionais'),
+            ('Abaixo da árvore há **Exame neurológico em texto livre**. Use-o para '
+             'uma descrição narrativa que não caiba bem nos itens; ele complementa '
+             'o roteiro, aparece no resumo e integra o registro finalizado.',
+             '', ''),
         ],
     },
     {
@@ -180,6 +184,11 @@ ARTICLES = [
              'pela Portaria 344/98. O sistema recusa emiti-la se o endereço estiver '
              'incompleto — descobrir isso com o paciente no balcão significa que ele '
              'volta ao consultório.',
+             '', ''),
+            ('A captura direta por **scanner foi retirada do NeuroDoc**. Digitalize '
+             'pelo aplicativo do fabricante ou pelo sistema do computador e envie '
+             'o arquivo pronto em **Anexos**. O sistema não procura, pareia nem '
+             'compartilha equipamentos locais ou da rede.',
              '', ''),
         ],
     },
@@ -664,6 +673,13 @@ FAQ_USO = [
                     'que não está no prontuário, não a aceite — e avise o suporte com a '
                     'pergunta que gerou. Toda sugestão de IA é material para revisão: nada '
                     'entra no prontuário sem você aceitar.',
+    },
+    {
+        'pergunta': 'Como digitalizo um exame pelo scanner?',
+        'resposta': 'A captura direta por scanner foi retirada. Digitalize o documento '
+                    'no aplicativo do fabricante ou no sistema do computador; depois, '
+                    'abra o paciente no NeuroDoc, entre em Anexos e envie o arquivo '
+                    'pronto. Nenhum equipamento local ou da rede é pareado pelo sistema.',
     },
 ]
 

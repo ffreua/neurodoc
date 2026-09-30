@@ -162,7 +162,7 @@ A concessão clínica adicional usa `PatientAccessGrant`, com concedente habilit
 
 Cada tela implementa: vazio útil, carregamento, dados preenchidos, erros por campo, permissão negada, conflito de versão e falha recuperável. Ações em fila mostram texto como “Análise em andamento. Você será avisado quando estiver pronta”, sem bloquear navegação. Falha de autosave deve ser visível; o aplicativo não pode mostrar “Salvo” antes da confirmação do servidor.
 
-Por padrão, formulários clínicos não mantêm dados identificados em localStorage. Recuperação de rascunho usa gravação no servidor e estado em memória da aba; após perda de sessão, autenticar antes de recuperar. Upload e captura devem exibir sempre nome e data de nascimento do paciente selecionado antes da confirmação.
+Por padrão, formulários clínicos não mantêm dados identificados em localStorage. Recuperação de rascunho usa gravação no servidor e estado em memória da aba; após perda de sessão, autenticar antes de recuperar. O upload manual deve exibir sempre nome e data de nascimento do paciente selecionado antes da confirmação. A captura por hardware local foi retirada pela DEC-53.
 
 ## 6. Requisitos funcionais e critérios de aceite
 
@@ -368,7 +368,7 @@ Monólito modular Django, PostgreSQL compartilhado, Celery separado para trabalh
 | `notifications/` | Caixa interna e leitura de notificações | Notification |
 | `audit/` | Auditoria de acesso e mudanças | AuditEvent |
 | `reporting/` | Indicadores, exportações e relatórios elegíveis | ReportJob, ReportDefinition |
-| `integrations/` | CEP e ponte de captura; conectores pequenos compartilhados | CaptureSession, CaptureDevice |
+| `integrations/` | Integrações pequenas compartilhadas; modelos da antiga captura existem apenas como proveniência histórica sem rotas | CaptureSession e CaptureDevice (legados, somente leitura) |
 | `events/` | Outbox e estado de processamento idempotente | OutboxEvent, ProcessedEvent |
 | `templates/`, `static/` | Componentes e assets do design system | Apenas arquivos públicos de interface |
 | `docs/`, `mkdocs.yml` | Documentação publicada com controle de acesso | Markdown e Mermaid |
@@ -520,8 +520,8 @@ Todas as linhas abaixo herdam campos comuns e tenant, salvo GLOBAL. O conteúdo 
 | AuditEvent | actor; tenant nullable; action; object_type/id; purpose; outcome; request_id; origin_ip_protected; integrity_metadata | Append-only; índice por tenant/data/objeto; retenção própria |
 | ReportDefinition | key; version; role_requirements; filters_schema; metric_definition | Fórmulas versionadas; inferência só em definição aprovada |
 | ReportJob | user; report_definition; filters; source_cutoff; status; private_attachment; expires_at | Revalidar permissão no download |
-| CaptureDevice | tenant; display_name; public_key; status; last_seen_at | Credencial limitada à captura, sem consulta ao prontuário |
-| CaptureSession | patient; encounter; device; created_by; token_hash; expires_at; status; next_sequence | Sessão de 15 min renovável por ação; arquivos fora de sessão rejeitados |
+| CaptureDevice | tenant; name; hashes e estado históricos | **Legado da captura retirada (DEC-53);** sem rota, serviço ou criação nova; mantido somente para proveniência |
+| CaptureSession | patient; encounter; device; opened_by; token_hash; status; expires_at | **Legado da captura retirada (DEC-53);** sem receptor ativo; registros antigos não são apagados por migration destrutiva |
 
 ```mermaid
 erDiagram
@@ -822,7 +822,7 @@ A tabela de agendamentos periódicos deve ser registrada em S06/S08/S10: dispatc
 
 Uma instância worker inicial consome as quatro filas, concorrência 2 e prefetch 1. Se IA atrasar mensagens, a primeira expansão será separar workers por fila mantendo as mesmas redes; não aumentar concorrência indiscriminadamente na mesma VPS. Beat é singleton com schedule persistido em volume próprio e atualização stop-first.
 
-Preview DOCX usa extração local de texto com validação do ZIP e XML seguro, sem executar Office/macros/OLE ou resolver links externos. OCR usa Tesseract local e rasterização limitada com Poppler; ClamAV usa base em /data/clamav. S06 deve homologar limites e isolamento do processo de conversão e a atualização de assinaturas por freshclam como UID 10001; falha de scanner, isolamento ou definição antimalware mantém quarentena. Instalar binários no Dockerfile não implementa essa política sozinho.
+Preview DOCX usa extração local de texto com validação do ZIP e XML seguro, sem executar Office/macros/OLE ou resolver links externos. OCR usa Tesseract local e rasterização limitada com Poppler; ClamAV usa base em /data/clamav. S06 deve homologar limites e isolamento do processo de conversão e a atualização de assinaturas por freshclam como UID 10001; falha do mecanismo antimalware, isolamento ou definição inválida mantém quarentena. Instalar binários no Dockerfile não implementa essa política sozinho.
 
 No modo `NEURODOC_RECOVERY_MODE=True`, worker consome somente fila `recovery`, sem jobs de domínio. O ping operacional usa essa fila; agendamentos que o beat publicar não são processados até a conciliação e liberação do modo. A interface de domínio deve ficar restrita aos operadores de recuperação e impedir novas emissões/agendamentos/envios. O command anexo invalida sessões/tokens e marca trabalho restaurado para revisão, atravessando tenants somente por ser operação técnica global identificada e auditada.
 
@@ -1848,11 +1848,14 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 - [x] Download e preview de A falham para B e perfil administrativo sem permissão; path traversal, nome malicioso e parâmetros de preview não expõem volume.
 - [x] Arquivo referenciado é imutável; GC respeita o lock de backup e retenção; OCR mantém proveniência e não envia identificado a serviço externo.
 
-### H-11 — Scanner
+### H-11 — Captura local (retirada)
 
-- [x] Parear dispositivo autorizado, selecionar paciente/atendimento, capturar lote e visualizar vínculo/páginas antes de concluir; navegador não precisa de driver universal.
-- [x] Trocar paciente, repetir hash, receber arquivo ainda em gravação ou expirar sessão não anexa automaticamente no contexto errado.
-- [x] Queda de rede mantém fila local protegida; upload manual continua funcional; arquivo local não é apagado por padrão.
+- [x] H-11 foi encerrado por retirada de escopo (DEC-53). Não há pareamento,
+  descoberta de hardware, agente local nem endpoint de captura no produto.
+- [x] O upload manual de anexos permanece em H-10 e é o único percurso de
+  entrada de arquivos digitalizados.
+- [x] `check_captura_removida` prova a ausência no menu, nas rotas internas e
+  públicas e na ajuda; tabelas históricas permanecem somente leitura.
 
 ### H-12 — Agenda
 
@@ -1937,7 +1940,7 @@ Pré-condição: clínicas fictícias A/B, pacientes e anexos diferentes; usuár
 | M1 | H-01/H-04/H-05/H-06/H-07/H-10/H-12 e geração de rascunhos de H-08 | Perda de autoria, acesso cruzado, agenda inconsistente, upload privado inseguro |
 | M2 | H-08/H-09/H-13/H-14/H-21/H-22 e revisão de H-03 | Assinatura não homologada, backup sem recuperação, contratos/finalidade indefinidos, comunicação insegura |
 | M3 | H-17/H-18 com P-06/P-09 resolvidas para a funcionalidade | Envio identificado indevido, ferramenta fora de escopo, emissão autônoma, probabilidade inventada |
-| M4 | H-11/H-15/H-16/H-19/H-20/H-23 e revisão das superfícies alteradas | Relatório enganoso, exportação indevida, captura incorreta, ausência de evidência visual/operacional |
+| M4 | H-15/H-16/H-19/H-20/H-23, encerramento de H-11 pela DEC-53 e revisão das superfícies alteradas | Relatório enganoso, exportação indevida, reaparecimento da captura retirada, ausência de evidência visual/operacional |
 
 - [ ] Médico/produto, desenvolvimento e operação registraram aceite do marco, com SHA/digest e funcionalidades habilitadas.
 - [ ] Nenhum defeito de acesso cruzado, perda de registro, assinatura indevida, divulgação de mídia ou recuperação desconhecida permanece aberto no escopo liberado.
@@ -1973,10 +1976,10 @@ Os IDs RF-01 a RF-12 são os grupos originais; seus subitens tornam o aceite ras
 | RF-04.03 | 9, 12 | documents, signing | S07-T05, S07-T06, S07-T08 | H-08 |
 | RF-04.04 | 9, 12 | documents, signing | S07-T07, S07-T09 | H-08 |
 | RF-04.05 | 9, 12 | documents, signing | S07-T09, S08-T06 | H-09 |
-| RF-05.01 | 9–10, 12, 15 | documents, integrations/capture | S06-T01, S06-T02, S06-T07 | H-10 |
-| RF-05.02 | 9–10, 12, 15 | documents, integrations/capture | S06-T03, S06-T04, S06-T05, S06-T09 | H-10 |
-| RF-05.03 | 9–10, 12, 15 | documents, integrations/capture | S06-T06 | H-03/H-10 |
-| RF-05.04 | 9–10, 12, 15 | documents, integrations/capture | S13-T07, S13-T08, S13-T09, S13-T10 | H-11 |
+| RF-05.01 | 9–10, 12, 15 | documents | S06-T01, S06-T02, S06-T07 | H-10 |
+| RF-05.02 | 9–10, 12, 15 | documents | S06-T03, S06-T04, S06-T05, S06-T09 | H-10 |
+| RF-05.03 | 9–10, 12, 15 | documents | S06-T06 | H-03/H-10 |
+| RF-05.04 | — | retirado por DEC-53 | S13-T07..T11 encerradas | H-11 encerrado |
 | RF-06.01 | 9, 13, 15 | scheduling | S04-T01, S04-T06 | H-12 |
 | RF-06.02 | 9, 13, 15 | scheduling | S04-T01, S04-T02 | H-12 |
 | RF-06.03 | 9, 13, 15 | scheduling | S04-T03, S04-T04, S04-T05 | H-12 |
@@ -2048,7 +2051,7 @@ Os IDs RF-01 a RF-12 são os grupos originais; seus subitens tornam o aceite ras
 | CR-11 | DEC-11 | Duas réplicas/margem/readiness e limite de VPS única; S10-T03/S10-T04; H-21 |
 | CR-12 | DEC-12 | Parser literal e env_file distinto de interpolação; S01-T05; H-21 |
 | CR-13 | DEC-13 | Redes pré-criadas, internal efetivo inspecionado; S10-T01; H-21 |
-| CR-14 | DEC-14 | Agente de pasta pareado + upload; S13-T07 a S13-T10; H-11 |
+| CR-14 | DEC-14, superada por DEC-53 | Requisito histórico: agente e captura foram retirados; ausência coberta por `check_captura_removida` |
 
 P-01 a P-10 permanecem na seção 3.1 com responsável/prazo de gate. Prescrições reguladas, métodos inferenciais e IA externa podem continuar indisponíveis até a resolução das respectivas pendências; os requisitos são mantidos nas sprints e neste mapa.
 

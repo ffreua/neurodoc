@@ -133,12 +133,15 @@ def build_patient_context(authorization):
             data = (e.get('occurred_at') or '')[:10]
             queixa = (e.get('chief_complaint') or '').strip()
             hpi = (e.get('hpi') or '').strip()
+            exame_livre = (e.get('neurological_exam_text') or '').strip()
             plano = (e.get('plan_text') or '').strip()
             livre = (e.get('free_text') or '').strip()
             impressoes = (e.get('impressions') or '').strip()
             texto = f'{data}: {queixa}' if queixa else data
             if hpi:
                 texto += f' | História: {hpi}'
+            if exame_livre:
+                texto += f' | Exame neurológico: {exame_livre}'
             # No atendimento de texto livre este é o corpo da consulta, e os
             # campos acima vêm vazios: omiti-lo deixava a linha do tempo com
             # a data e mais nada.

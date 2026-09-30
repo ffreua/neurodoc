@@ -13,7 +13,7 @@ CLAMAV_DB_DIR = '/data/clamav'
 
 
 class ScanUnavailable(Exception):
-    """Signature database missing/stale or the scanner itself failed to
+    """Signature database missing/stale or the antimalware engine failed to
     run — the caller must keep the file quarantined with a visible error,
     never treat this as a clean result.
     """
@@ -52,7 +52,7 @@ def scan_file(path):
         line = result.stdout.strip()
         signature = line.rsplit(':', 1)[-1].replace('FOUND', '').strip() if ':' in line else line
         raise ScanInfected(signature or 'unknown signature')
-    # returncode >= 2: scanner error (e.g. missing/stale signature database).
+    # returncode >= 2: antimalware engine error (e.g. stale signature database).
     raise ScanUnavailable((result.stderr or result.stdout or 'clamscan error').strip()[:255])
 
 

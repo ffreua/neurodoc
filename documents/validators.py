@@ -54,7 +54,7 @@ def _validate_docx_structure(content):
 def validate_upload(content, original_name):
     """Validates size, extension, real MIME (sniffed, not trusted from the
     client), and minimal internal structure — before anything touches disk
-    or the malware scanner.
+    or the antimalware engine.
     """
     if len(content) > MAX_ATTACHMENT_BYTES:
         raise UploadRejected(f'File exceeds {MAX_ATTACHMENT_BYTES} bytes')

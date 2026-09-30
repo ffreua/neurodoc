@@ -1,12 +1,15 @@
-# Homologação — Relatórios e captura local (S13)
+# Homologação — Relatórios e registro histórico da captura retirada (S13)
 
-Evidência coletada via scripts de verificação (`python manage.py shell`) com
-totais sintéticos conhecidos, e via `django.test.Client` contra as views
-reais (incluindo o endpoint de upload de captura, autenticado por token, não
-por sessão Django). P-08 (scanner/Windows real e diretório de saída de cada
-consultório) permanece **pendente** — nenhum hardware de scanner foi
-usado; o mecanismo servidor (pareamento, sessão, receptor de lote) foi
-testado de ponta a ponta com uploads HTTP reais.
+> **Documento histórico.** A parte de relatórios continua vigente. A captura
+> local descrita na homologação original foi integralmente retirada em
+> 29/09/2026 pela DEC-53: agente, serviços, rotas, telas e artigo de ajuda não
+> existem mais. Anexos digitalizados entram somente por upload manual. Os
+> modelos antigos permanecem sem uso e somente leitura para preservar a
+> proveniência de instalações que possam ter registros anteriores.
+
+As evidências de relatórios foram coletadas via scripts de verificação
+(`python manage.py shell`) com totais sintéticos conhecidos e via
+`django.test.Client` contra as views reais.
 
 ## H-15 — Relatórios
 
@@ -54,48 +57,23 @@ testado de ponta a ponta com uploads HTTP reais.
   relatório de ser considerado elegível; não existe nenhum botão de
   "calcular significância" genérico em lugar nenhum do produto.
 
-## H-11 — Scanner (captura local)
+## H-11 — Captura local (encerrado)
 
-- [x] **Pareamento**: código de 6 dígitos de uso único; código errado é
-  recusado (`PairingError`) sem consumir a tentativa; código correto
-  gera uma chave de API de longo prazo e **limpa o hash do código de
-  pareamento** do banco (não pode ser reutilizado nem recuperado depois).
-- [x] **Token só autoriza upload na sessão vinculada**: `resolve_session`
-  só reconhece o token exato gerado para aquela sessão; um token
-  inventado nunca resolve para sessão alguma. Abrir uma sessão sempre
-  exige selecionar o paciente explicitamente na tela autenticada da
-  clínica — o dispositivo de captura nunca escolhe o paciente.
-- [x] **Repetição não anexa silenciosamente**: enviar os mesmos bytes
-  duas vezes na mesma sessão é recusado com HTTP 409 na segunda vez
-  (`CaptureUploadRecord` único por `(session, sha256)`) — nenhuma segunda
-  cópia é criada, e o `page_count` da sessão reflete apenas o envio real.
-- [x] **Pipeline de quarentena reaproveitado**: cada página recebida passa
-  pelo mesmo `documents.storage.receive_upload`/`scan_attachment` de S06
-  (validação de extensão/MIME real, quarentena, ClamAV) — testado com um
-  PNG real gerado via Pillow, aceito; a mesma validação já homologada em
-  S06 rejeitaria um arquivo disfarçado aqui também, sem caminho separado.
-- [x] **Revogação de dispositivo**: um dispositivo revogado nunca mais
-  resolve por sua chave de API (bloqueia pareamento de novas sessões);
-  uma sessão já aberta antes da revogação continua resolvendo até ser
-  fechada/expirar por desenho — a revogação age no dispositivo, não
-  interrompe retroativamente um lote em andamento no meio do envio.
-- [x] **Detecção de arquivo ainda sendo gravado** (`capture_agent/agent.py`):
-  testado com um arquivo real crescendo em outra thread durante a
-  checagem — corretamente identificado como "ainda escrevendo" (não
-  enviado); um arquivo com tamanho estável foi identificado como pronto.
+- [x] Agente, serviços, rotas autenticadas/públicas, templates e recurso de
+  ajuda foram removidos.
+- [x] Menu e navegação não oferecem pareamento nem captura.
+- [x] `/capture/...`, `/app/integrations/capture/...` e `/ajuda/scanner/`
+  não são superfícies ativas.
+- [x] O upload manual de anexos continua passando pela quarentena,
+  validação de MIME e verificação antimalware já homologadas em H-10.
+- [x] `checks/check_captura_removida.py` protege esse contrato.
 
 ## Decisões de escopo
 
-- **P-08 permanece pendente.** Nenhum scanner real, software Windows do
-  fabricante ou diretório de saída de consultório real foi usado. O
-  agente local (`capture_agent/agent.py`) implementa a lógica de
-  detecção de estabilidade, fila local e retry de forma genérica (só
-  observa tamanho de arquivo, sem depender de nenhum recurso específico
-  do scanner) — testada diretamente com arquivos comuns no sistema de
-  arquivos, nunca contra hardware real. A tela de confirmação visual
-  (S13-T10, `templates/integrations/capture/`) foi implementada como HTML
-  simples consistente com o resto do produto; um teste de usabilidade
-  real com o dispositivo físico fica para quando P-08 resolver.
+- **P-08 foi encerrada, não adiada.** Hardware e software de digitalização
+  ficam fora do perímetro do produto. A clínica digitaliza externamente e
+  envia o arquivo pronto por Anexos; não existe plano ativo de reativar o
+  agente antigo.
 - `active_patients_count` reflete o status **atual** do paciente
   (`PatientStatus.ACTIVE`), não uma reconstrução histórica exata "na data
   de corte" — o status não é versionado ao longo do tempo neste modelo;
