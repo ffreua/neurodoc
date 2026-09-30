@@ -107,6 +107,57 @@ def _doctor_membership(request):
     ).first()
 
 
+class PatientEvolutionView(TenantScopedView):
+    """A evolução do paciente no tempo, em gráfico.
+
+    Devolve um **fragmento** de HTML, e não uma página: quem o pede é o
+    sobreposto da linha do tempo, e carregar sob demanda é o que permite a
+    tela do prontuário continuar do tamanho que é. Calcular todas as séries
+    a cada abertura da linha do tempo custaria uma varredura de achados e
+    laudos para quem só queria ver a lista de consultas.
+
+    A série escolhida vem por `?serie=`; sem ela, abre a primeira — que é
+    uma escala, quando há alguma, porque é a medida que o médico escolheu
+    aplicar.
+    """
+
+    def get(self, request, patient_id):
+        from exams.models import ExamScale
+
+        from . import series as series_mod
+
+        patient = get_object_or_404(
+            scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id,
+        )
+        disponiveis = series_mod.series_do_paciente(request.access_context, patient)
+        escolhida = None
+        pedida = request.GET.get('serie')
+        for serie in disponiveis:
+            if serie['chave'] == pedida:
+                escolhida = serie
+                break
+        if escolhida is None and disponiveis:
+            escolhida = disponiveis[0]
+
+        desenho = None
+        if escolhida is not None:
+            dominio = None
+            if escolhida['tipo'] == series_mod.ESCALA:
+                cadastro = ExamScale.objects.filter(
+                    tenant_id=request.access_context.tenant_id, code=escolhida['codigo'],
+                ).values_list('min_score', 'max_score').first()
+                if cadastro and cadastro[0] is not None and cadastro[1] is not None:
+                    dominio = cadastro
+            desenho = series_mod.desenhar(escolhida, escala_cadastrada=dominio)
+
+        return render(request, 'clinical/_evolucao.html', {
+            'patient': patient,
+            'series': disponiveis,
+            'serie': escolhida,
+            'desenho': desenho,
+        })
+
+
 class PatientsByDiagnosisView(TenantScopedView):
     """Quem, na carteira desta clínica, tem este diagnóstico.
 

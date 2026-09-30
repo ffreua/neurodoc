@@ -1,0 +1,127 @@
+{% comment %}Fragmento do sobreposto de evolução.
+
+Não estende `base.html`: quem o pede é o `fetch` do sobreposto da linha do
+tempo, e o que volta entra dentro do modal. Página inteira aqui traria
+barra lateral e cabeçalho para dentro de uma janela de 600 pixels.
+
+**O gráfico é SVG escrito à mão, sem biblioteca.** A aritmética mora em
+`clinical/series.py`, onde o roteiro de verificação a confere — inclusive a
+que mais importa, a do eixo do tempo proporcional à data real. Uma
+biblioteca de terceiro resolveria o desenho e tiraria justamente essa parte
+do alcance da verificação, além de pendurar a tela num script externo.
+{% endcomment %}
+{% if not series %}
+<div class="text-center py-5">
+    <p class="fs-13 text-muted mb-1">Ainda não há o que acompanhar no tempo.</p>
+    <p class="fs-12 text-muted mb-0">
+        A evolução aparece quando a mesma escala, o mesmo analito de laboratório ou a
+        mesma medida tiverem <strong>ao menos duas</strong> aferições. Uma medida só é um
+        número — e ele já está no atendimento.
+    </p>
+</div>
+{% else %}
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div class="d-flex align-items-center gap-2">
+        <label class="fs-11 text-muted mb-0" for="nd-serie">Acompanhar</label>
+        <select class="form-select form-select-sm" id="nd-serie" data-nd-serie
+                style="min-width:16rem">
+            {% for opcao in series %}
+            <option value="{{ opcao.chave }}" {% if serie.chave == opcao.chave %}selected{% endif %}>
+                {{ opcao.rotulo }} — {{ opcao.pontos|length }} aferiç{{ opcao.pontos|length|pluralize:"ão,ões" }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="d-flex align-items-center gap-3 fs-12">
+        <span class="text-muted">
+            {{ desenho.primeiro.quando|date:"d/m/Y" }} → {{ desenho.ultimo.quando|date:"d/m/Y" }}
+        </span>
+        {% comment %}A variação é o número cru, sem adjetivo. Subir é melhorar
+        numa Barthel e piorar numa NIHSS; o sistema não sabe qual, e fingir que
+        sabe seria inventar interpretação clínica.{% endcomment %}
+        <span class="badge bg-soft-primary text-primary">
+            {% if desenho.variacao > 0 %}+{% endif %}{{ desenho.variacao }}
+            {% if serie.unidade %}{{ serie.unidade }}{% endif %} no período
+        </span>
+    </div>
+</div>
+
+<div class="border rounded p-2 bg-white">
+    <svg viewBox="0 0 {{ desenho.largura }} {{ desenho.altura }}" class="w-100" style="height:auto"
+         role="img" aria-label="Evolução de {{ serie.rotulo }} ao longo do tempo">
+        {% if desenho.faixa %}
+        {% comment %}A faixa de referência vem do próprio laudo, nunca de tabela
+        interna — ela varia com laboratório, método, idade e sexo.{% endcomment %}
+        <rect x="{{ desenho.eixo_x }}" y="{{ desenho.faixa.y }}"
+              width="{{ desenho.largura_util }}"
+              height="{{ desenho.faixa.altura }}" fill="#e8f5e9"></rect>
+        {% endif %}
+
+        <line x1="{{ desenho.eixo_x }}" y1="{{ desenho.eixo_y }}"
+              x2="{{ desenho.fim_x }}" y2="{{ desenho.eixo_y }}"
+              stroke="#c9ccd4" stroke-width="1"></line>
+        <line x1="{{ desenho.eixo_x }}" y1="16"
+              x2="{{ desenho.eixo_x }}" y2="{{ desenho.eixo_y }}"
+              stroke="#c9ccd4" stroke-width="1"></line>
+
+        <text x="{{ desenho.eixo_x }}" y="12" text-anchor="end" font-size="11" fill="#8a8f9c"
+              dx="-6" dy="4">{{ desenho.maximo }}</text>
+        <text x="{{ desenho.eixo_x }}" y="{{ desenho.y_meio }}" text-anchor="end" font-size="11"
+              fill="#8a8f9c" dx="-6" dy="4">{{ desenho.meio }}</text>
+        <text x="{{ desenho.eixo_x }}" y="{{ desenho.eixo_y }}" text-anchor="end" font-size="11"
+              fill="#8a8f9c" dx="-6" dy="4">{{ desenho.minimo }}</text>
+
+        <polyline points="{{ desenho.linha }}" fill="none" stroke="#3454d1" stroke-width="2"
+                  stroke-linejoin="round" stroke-linecap="round"></polyline>
+
+        {% for ponto in desenho.pontos %}
+        <circle cx="{{ ponto.x }}" cy="{{ ponto.y }}" r="4"
+                fill="{% if ponto.rascunho %}#ffffff{% else %}#3454d1{% endif %}"
+                stroke="#3454d1" stroke-width="2">
+            <title>{{ ponto.quando|date:"d/m/Y" }}: {{ ponto.valor }}{% if ponto.nota %} ({{ ponto.nota }}){% endif %}</title>
+        </circle>
+        {% endfor %}
+
+        <text x="{{ desenho.eixo_x }}" y="{{ desenho.altura }}" font-size="11" fill="#8a8f9c"
+              dy="-8">{{ desenho.primeiro.quando|date:"d/m/y" }}</text>
+        <text x="{{ desenho.fim_x }}" y="{{ desenho.altura }}" font-size="11" fill="#8a8f9c"
+              text-anchor="end" dy="-8">{{ desenho.ultimo.quando|date:"d/m/y" }}</text>
+    </svg>
+</div>
+
+<div class="d-flex flex-wrap align-items-center gap-3 mt-2 fs-11 text-muted">
+    <span>O eixo horizontal é o tempo real: intervalos maiores aparecem maiores.</span>
+    {% if desenho.faixa %}
+    <span>
+        <span class="d-inline-block rounded" style="width:12px;height:12px;background:#e8f5e9;vertical-align:-2px"></span>
+        referência do laudo: {{ desenho.faixa.de }}–{{ desenho.faixa.ate }}
+    </span>
+    {% endif %}
+    <span>Círculo vazado = atendimento ainda em rascunho.</span>
+</div>
+
+<div class="table-responsive mt-3">
+    <table class="table table-sm align-middle mb-0">
+        <thead class="bg-gray-100">
+            <tr class="border-b">
+                <th class="ps-3" scope="col">Data</th>
+                <th scope="col">Valor</th>
+                <th class="pe-3" scope="col">Observação</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ponto in desenho.pontos reversed %}
+            <tr>
+                <td class="ps-3 fs-12">{{ ponto.quando|date:"d/m/Y" }}</td>
+                <td class="fs-12 fw-semibold text-dark">
+                    {{ ponto.valor }} {% if serie.unidade %}<span class="text-muted fw-normal">{{ serie.unidade }}</span>{% endif %}
+                </td>
+                <td class="pe-3 fs-12 text-muted">
+                    {{ ponto.nota }}{% if ponto.rascunho %}{% if ponto.nota %} · {% endif %}rascunho{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}

@@ -10,6 +10,13 @@ urlpatterns = [
     # aí que a exigência de `READ_CLINICAL` vale para a rota inteira.
     path('por-cid/', views.PatientsByDiagnosisView.as_view(), name='por-cid'),
     path('patients/<uuid:patient_id>/timeline/', views.TimelineView.as_view(), name='timeline'),
+    # Fragmento do sobreposto de evolução. Carregado sob demanda para que a
+    # linha do tempo não pague a varredura de achados e laudos de quem só
+    # queria ver a lista de consultas.
+    path(
+        'patients/<uuid:patient_id>/evolucao/',
+        views.PatientEvolutionView.as_view(), name='evolucao',
+    ),
     path('patients/<uuid:patient_id>/new/', views.EncounterCreateView.as_view(), name='new'),
     path('<uuid:encounter_id>/', views.EncounterDetailView.as_view(), name='detail'),
     path('<uuid:encounter_id>/resumo/', views.EncounterSummaryView.as_view(), name='summary'),

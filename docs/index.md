@@ -151,6 +151,16 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## Série temporal
+
+- [A evolução em gráfico](homologation/serie-temporal.md) — sobreposto na
+  linha do tempo do paciente, carregado sob demanda, com SVG escrito à mão e
+  sem biblioteca. As três decisões que separam um gráfico honesto de um
+  bonito: o eixo do tempo proporcional à data real (e não ao número de
+  consultas), a escala pontuada usando o próprio domínio, e a escala
+  incompleta fora da linha. Inclui a asserção contra o que o sistema **não**
+  pode dizer: subir é melhorar numa Barthel e piorar numa NIHSS.
+
 ## Buscar paciente por diagnóstico
 
 - [Buscar paciente por CID](homologation/busca-por-cid.md) — a pergunta de
