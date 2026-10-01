@@ -22,8 +22,13 @@ funcionalidade nova não muda `VERSION`: o `RELEASE_ID` já identifica o
 build exato, e uma terceira casa que muda toda semana deixa de ser lida.
 
 Por decisão de produto, a retirada da captura local, o campo narrativo do
-exame e a agenda visual ainda compõem a consolidação da 1.0. A próxima
-atualização funcional começa em 1.1.
+exame e a agenda visual ainda compõem a consolidação da 1.0.
+
+A **1.1** é a primeira atualização funcional depois da publicação: retorno
+programado, busca de paciente por diagnóstico, a evolução em gráfico, a
+declaração de comparecimento emitida no balcão, e a política de conteúdo
+entrando em modo de relatório. Nenhuma delas muda o que já existia — por
+isso a versão menor, e não a maior.
 
 Mora em código, como os preços e o contrato, e pelo mesmo motivo: mudá-la
 é um commit com autor e data. Este módulo não importa nada de propósito —
@@ -32,12 +37,12 @@ carimbá-la na publicação.
 """
 
 #: A versão do produto. O primeiro deploy é a 1.0.
-VERSION = '1.0'
+VERSION = '1.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'primeiro deploy'
+CODENAME = 'seguimento'
 
 
 def version_display():
