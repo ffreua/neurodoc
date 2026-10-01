@@ -151,6 +151,16 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## A visão de mês e as estatísticas
+
+- [O mês que passou](homologation/mes-e-estatisticas.md) — a visão de mês
+  mentia sobre o passado de duas formas: dizia "lotado" em todo dia vencido,
+  e as consultas que aconteceram **desapareciam** (porque atendimento
+  concluído libera a vaga). Consertar a primeira sem a segunda escreveria
+  "Vago" onde alguém foi atendido. Inclui o status `done`, que não toca na
+  oferta de vaga, o nome do paciente na célula, e as estatísticas do mês
+  abertas aos quatro papéis — contagens, nunca nomes.
+
 ## Migração do cadastro de pacientes
 
 - [Migração do cadastro](homologation/migracao-de-cadastro.md) — o nome do

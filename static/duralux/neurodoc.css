@@ -810,6 +810,43 @@ button.nd-month-slot-free:focus-visible {
     border-color: #fca5a5;
 }
 
+/* O nome do paciente na celula do mes.
+ *
+ * Truncado por CSS, e nao cortado no servidor: o nome inteiro fica no
+ * `title`, e quem passa o mouse le o resto. Cortar na view esconderia o
+ * final de "ADRIANO TRIGO MONTEIRO DE MATOS SOEIRO FILHO" de todo mundo,
+ * inclusive de quem quer conferir.
+ *
+ * `min-width: 0` e o que faz o `text-overflow` funcionar dentro de um
+ * item flex: sem ele o filho se recusa a encolher abaixo do conteudo e a
+ * celula transborda em vez de cortar -- e a celula do mes e estreita por
+ * natureza, sao sete numa linha. */
+.nd-month-slot-nome {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Atendimento que ja aconteceu. Azul, e nao vermelho: vermelho e "esta
+ * ocupado agora, nao ofereca", e o que ja passou nao disputa vaga com
+ * ninguem. */
+.nd-month-slot-done {
+    color: #1e3a8a;
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+}
+
+/* Horario que passou e ninguem usou. Cinza apagado, de proposito: ele
+ * precisa estar visivel -- e a informacao que o mes anterior tem a dar --
+ * sem competir com o que ainda da para marcar. */
+.nd-month-slot-past {
+    color: #6b7280;
+    background: #f9fafb;
+    border-color: #e5e7eb;
+}
+
 .nd-month-key-free {
     background: #dcfce7;
     border-color: #86efac !important;
@@ -818,6 +855,16 @@ button.nd-month-slot-free:focus-visible {
 .nd-month-key-busy {
     background: #fee2e2;
     border-color: #fca5a5 !important;
+}
+
+.nd-month-key-done {
+    background: #e0e7ff;
+    border-color: #a5b4fc !important;
+}
+
+.nd-month-key-past {
+    background: #f9fafb;
+    border-color: #e5e7eb !important;
 }
 
 @media (max-width: 991px) {

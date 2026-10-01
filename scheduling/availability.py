@@ -34,6 +34,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from .models import (
+    AppointmentStatus,
     DEFAULT_TYPE_MINUTES, OCCUPYING_STATUSES, Appointment, AppointmentType,
     AppointmentTypeDuration, AvailabilityRule, ScheduleBlock, ScheduleBlockKind,
 )
@@ -170,7 +171,7 @@ def slot_minutes_for(physician_membership_id, day, rules=None):
 
 
 def day_grid(physician_membership_id, day, appointments=None, include_cancelled=False,
-             rules=None, blocks=None):
+             rules=None, blocks=None, historico=None):
     """A grade do dia, célula por célula, para a tela desenhar.
 
     Cada célula é um dicionário com `start`, `end`, `status` e o que aquele
@@ -181,8 +182,20 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
 
     - `free` — dá para marcar;
     - `busy` — tem reserva ocupando;
-    - `past` — livre, mas já passou: oferecer ao paciente não faz sentido;
+    - `past` — livre, já passou, e **ninguém foi atendido nele**;
+    - `done` — já passou e houve atendimento concluído ou falta;
     - `blocked` — dentro da janela semanal, mas tirado por bloqueio de data.
+
+    **Por que `done` existe, separado de `busy`.** `COMPLETED` e `NO_SHOW`
+    não estão em `OCCUPYING_STATUSES`, de propósito: atendimento encerrado
+    libera a vaga para remarcação. A consequência era que, olhando um mês
+    passado, as consultas que de fato aconteceram **sumiam** da tela — a
+    célula voltava como `past`, indistinguível de um horário que ninguém
+    usou. Quem navegasse setembro veria a agenda vazia de um mês cheio.
+
+    `done` conserta isso sem tocar na disponibilidade: ele nasce de uma
+    célula que já seria `past`, e nenhuma conta de vaga livre olha para
+    `past` nem para `done`.
 
     Célula fora da janela do médico simplesmente não existe na lista — a
     grade da tela desenha o vazio.
@@ -217,6 +230,10 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     blocking = [b for b in blocks if b.kind != ScheduleBlockKind.EXTRA_AVAILABILITY]
     now = timezone.now()
     occupying = [a for a in appointments if a.status in OCCUPYING_STATUSES]
+    # O que **aconteceu** e já não ocupa: concluído e falta. Entra só para
+    # a tela poder mostrar o passado como ele foi, e nunca na conta de
+    # vaga livre.
+    realizados = list(historico or [])
 
     cells = []
     seen = set()
@@ -237,22 +254,33 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
             )
             inside_open = any(start <= cursor and cell_end <= end for start, end in open_windows)
 
+            realizado = next(
+                (a for a in realizados if a.starts_at < cell_end and a.ends_at > cursor), None,
+            )
+
             if appointment is not None:
                 status = 'busy'
             elif block is not None or not inside_open:
                 status = 'blocked'
             elif cell_end <= now:
-                status = 'past'
+                # `done` quando houve atendimento ali; `past` quando a hora
+                # passou e ninguém usou. A distinção é o que permite a tela
+                # dizer "vago" sem mentir sobre o mês que já foi.
+                status = 'done' if realizado is not None else 'past'
             else:
                 status = 'free'
 
+            mostrado = appointment if appointment is not None else realizado
             cells.append({
                 'start': cursor, 'end': cell_end, 'status': status,
                 'appointment': appointment, 'block': block,
+                # A reserva que a célula exibe: a que ocupa, ou a que já
+                # aconteceu. A tela lê daqui para não precisar escolher.
+                'exibida': mostrado,
                 # A reserva começa nesta célula? A tela desenha o nome do
                 # paciente só na primeira, e as seguintes como continuação —
                 # senão uma consulta de 80 minutos apareceria duas vezes.
-                'is_start': appointment is not None and appointment.starts_at >= cursor,
+                'is_start': mostrado is not None and mostrado.starts_at >= cursor,
                 'reason': (block.reason or block.get_kind_display()) if block else '',
             })
             cursor = cell_end
@@ -397,6 +425,17 @@ def month_summary(physician_membership_id, days):
             status__in=list(OCCUPYING_STATUSES),
         ).select_related('patient')
     )
+    # O que já aconteceu e não ocupa mais. Carregado no mesmo lote, e
+    # usado **só para exibição**: sem isto, um mês passado aparecia vazio,
+    # porque atendimento concluído libera a vaga e a célula voltava como
+    # "passou e ninguém usou".
+    all_history = list(
+        Appointment.objects.filter(
+            physician_membership_id=physician_membership_id,
+            starts_at__lt=day_end, ends_at__gt=day_start,
+            status__in=[AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW],
+        ).select_related('patient')
+    )
 
     summary = {}
     for day in days:
@@ -415,23 +454,42 @@ def month_summary(physician_membership_id, days):
             appointment for appointment in all_appointments
             if appointment.starts_at < window_end and appointment.ends_at > window_start
         ]
+        historico = [
+            a for a in all_history
+            if a.starts_at < window_end and a.ends_at > window_start
+        ]
         cells = day_grid(
             physician_membership_id, day, appointments=appointments,
-            rules=rules, blocks=blocks,
+            rules=rules, blocks=blocks, historico=historico,
         )
         # "Ocupados" conta **pacientes**, não células: uma consulta de 80 min
         # ocupa duas células e continua sendo um paciente. Contar células
         # faria a agenda parecer duas vezes mais cheia do que está.
         summary[day] = {
             'free': sum(1 for cell in cells if cell['status'] == 'free'),
+            # `past` agora é só o horário que passou **sem ninguém**: é o
+            # número que a tela mostra como "vago". Antes ele somava os dois
+            # casos, e por isso um mês inteiro passado aparecia como
+            # "lotado" -- zero vaga livre lido como agenda cheia.
             'past': sum(1 for cell in cells if cell['status'] == 'past'),
             'blocked': sum(1 for cell in cells if cell['status'] == 'blocked'),
             'booked': len({
                 cell['appointment'].id for cell in cells
                 if cell['status'] == 'busy' and cell['appointment'] is not None
             }),
+            #: Quantos pacientes foram atendidos (ou faltaram) neste dia.
+            #: Contado por paciente, como `booked`, e não por célula.
+            'realizados': len({
+                cell['exibida'].id for cell in cells
+                if cell['status'] == 'done' and cell['exibida'] is not None
+            }),
             'total': len(cells),
             'works': bool(cells),
+            #: O dia inteiro já passou? A tela usa isto para não dizer
+            #: "lotado" num dia em que simplesmente não cabe mais marcar.
+            'encerrado': bool(cells) and all(
+                cell['status'] in ('past', 'done', 'busy', 'blocked') for cell in cells
+            ) and not any(cell['status'] == 'free' for cell in cells),
             # A visão mensal usa a mesma grade já calculada para oferecer
             # cada vaga diretamente. Guardar as células aqui não acrescenta
             # consulta: elas acabaram de ser montadas com os três lotes

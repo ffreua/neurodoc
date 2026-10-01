@@ -13,6 +13,9 @@ urlpatterns = [
     # A fila de retornos fica ao lado do balcão, e não dentro do prontuário:
     # quem a trabalha é a recepção.
     path('retornos/', views.ReturnQueueView.as_view(), name='returns'),
+    # Estatísticas do mês. Sob a agenda, e com a capacidade dela: são
+    # contagens de operação do consultório, não indicadores de gestão.
+    path('estatisticas/', views.MonthStatisticsView.as_view(), name='estatisticas'),
     path(
         'retornos/<uuid:return_id>/baixa/',
         views.ReturnResolveView.as_view(), name='resolve-return',

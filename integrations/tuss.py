@@ -48,7 +48,15 @@ BASE_URL = 'https://consulta-ocl.apps.sa-1a.mendixcloud.com/rest/oclservice'
 
 #: Generoso: isto roda no worker, numa tarefa periódica, sem ninguém
 #: esperando na tela. O aperto é o da busca, e a busca não passa por aqui.
-REQUEST_TIMEOUT_SECONDS = 30
+#: A ANS leva de 70 a 155 segundos para devolver **uma** página de 25
+#: itens -- medido em outubro de 2026, com o serviço no ar. Trinta
+#: segundos era o valor anterior, e era por isso que toda sincronização
+#: falhava: o diagnóstico dizia "a ANS não respondeu" quando o que havia
+#: acontecido era a nossa paciência ter acabado antes dela.
+#:
+#: Cento e oitenta dá folga sobre o pior caso medido. Isto roda no worker,
+#: numa tarefa periódica, sem ninguém esperando na tela.
+REQUEST_TIMEOUT_SECONDS = 180
 
 #: Teto da sonda de diagnóstico (`_diagnostico`). Curto de propósito: ela
 #: roda **depois** de a sincronização já ter falhado, e quem espera a
@@ -63,6 +71,11 @@ SONDA_TIMEOUT_SECONDS = 10
 #: as 186 paginas ja baixadas foram descartadas. Sem repetir a pagina, uma
 #: tabela desse tamanho tem chance real de **nunca** terminar.
 PAGE_ATTEMPTS = 4
+
+#: Quanto tempo uma rodada da sincronização incremental usa buscando
+#: páginas. Fica abaixo do limite da tarefa (`soft_time_limit` em
+#: `catalogs/tasks.py`) com folga para a gravação e para a página em voo.
+ORCAMENTO_PADRAO_SEGUNDOS = 40 * 60
 
 #: Espera entre as tentativas da mesma pagina, em segundos, crescendo.
 #: Crescente porque a falha costuma ser o servidor sob carga: insistir no
@@ -253,6 +266,110 @@ def fetch_table(table=DEFAULT_TABLE, session=None):
     if not entradas:
         raise TussUnavailable(f'A ANS devolveu a tabela {table} vazia.')
     return entradas
+
+
+def sync_incremental(table=DEFAULT_TABLE, orcamento_segundos=None):
+    """Avança a sincronização o quanto couber no tempo, e retoma na próxima.
+
+    **Por que não baixar tudo de uma vez.** A ANS leva ~80 segundos por
+    página de 25 itens e ignora qualquer pedido de página maior. A `tuss-22`
+    tem 5.964 procedimentos, ou seja ~240 páginas: mais de cinco horas numa
+    única execução. O limite de tarefa do Celery é de minutos, e uma tarefa
+    de cinco horas seria morta no meio — sempre, toda semana, sem nunca
+    completar.
+
+    **O progresso é a própria release em rascunho.** Não há tabela de
+    estado nem contador em cache: o que já foi baixado está gravado como
+    `ProcedureCode` de uma `CatalogRelease` com status `DRAFT`, e a próxima
+    página é deduzida de quantos códigos ela já tem. Estado que vive em
+    dois lugares divergiria; aqui ele vive num.
+
+    E, enquanto está em rascunho, **a busca não a vê**: `active_release`
+    devolve a release ativa, que continua sendo a anterior. Meia tabela de
+    procedimentos é pior que nenhuma — ela parece inteira.
+
+    Devolve `{'completo', 'paginas', 'total', 'versao'}`.
+    """
+    from django.db import transaction
+    from django.utils import timezone
+
+    from catalogs.importers import normalize_for_search
+    from catalogs.models import (
+        CatalogRelease, CatalogReleaseStatus, CatalogSystem, ProcedureCode,
+    )
+
+    orcamento = orcamento_segundos or ORCAMENTO_PADRAO_SEGUNDOS
+    http = requests.Session()
+
+    # A versão não carrega a data de hoje: uma sincronização que atravessa
+    # a meia-noite começaria uma release nova e recomeçaria do zero.
+    versao = f'ANS-{table}'
+    release, _ = CatalogRelease.objects.get_or_create(
+        system=CatalogSystem.TUSS, version=versao,
+        defaults={
+            'status': CatalogReleaseStatus.DRAFT,
+            'license_note': (
+                'Tabela TUSS da ANS, obtida do serviço público de consulta OCL '
+                f'({BASE_URL}). Sincronizada automaticamente, em etapas.'
+            ),
+        },
+    )
+    if release.status == CatalogReleaseStatus.ACTIVE:
+        # Já está completa e publicada. Uma nova rodada recomeça o rascunho
+        # do zero, para que a tabela seja refeita e não remendada: código
+        # que a ANS retirou precisa sair, e remendo não remove.
+        release.status = CatalogReleaseStatus.DRAFT
+        release.save(update_fields=['status', 'updated_at'])
+        ProcedureCode.objects.filter(release=release).delete()
+
+    ja_tem = ProcedureCode.objects.filter(release=release).count()
+    vistos = set(
+        ProcedureCode.objects.filter(release=release).values_list('code', flat=True)
+    )
+    pagina = ja_tem // PAGE_SIZE + 1
+
+    inicio = time.monotonic()
+    paginas_feitas = 0
+    completo = False
+    while pagina <= MAX_PAGES:
+        if time.monotonic() - inicio > orcamento:
+            break
+        lote = _fetch_page(http, table, pagina)
+        paginas_feitas += 1
+        if not lote:
+            completo = True
+            break
+        novos = [e for e in lote if e.code not in vistos]
+        if not novos:
+            # Página que repete a anterior inteira é paginação que não
+            # avança: a tabela acabou.
+            completo = True
+            break
+        ProcedureCode.objects.bulk_create([
+            ProcedureCode(
+                release=release, code=e.code, description=e.description,
+                search_text=normalize_for_search(f'{e.code} {e.description}'),
+                active=e.in_force,
+            )
+            for e in novos
+        ], batch_size=1000)
+        vistos.update(e.code for e in novos)
+        pagina += 1
+        time.sleep(PAGE_PAUSE_SECONDS)
+
+    total = ProcedureCode.objects.filter(release=release).count()
+    if completo and total:
+        with transaction.atomic():
+            CatalogRelease.objects.filter(
+                system=CatalogSystem.TUSS, status=CatalogReleaseStatus.ACTIVE,
+            ).exclude(id=release.id).update(status=CatalogReleaseStatus.SUPERSEDED)
+            release.status = CatalogReleaseStatus.ACTIVE
+            release.imported_at = timezone.now()
+            release.save(update_fields=['status', 'imported_at', 'updated_at'])
+    return {
+        'completo': completo, 'paginas': paginas_feitas,
+        'total': total, 'versao': versao,
+    }
 
 
 def sync(table=DEFAULT_TABLE, actor=None):

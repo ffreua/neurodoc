@@ -71,11 +71,31 @@ contexto completo.{% endcomment %}
                                 {% elif day.blocked %}
                                 <span class="badge bg-gray-200 text-dark fs-10 mt-1">fechado</span>
                                 {% else %}
-                                <span class="d-block fs-10 mt-1 {% if day.free %}text-success fw-semibold{% else %}text-muted{% endif %}">
-                                    {% if day.free %}{{ day.free }} livre{{ day.free|pluralize }}{% else %}lotado{% endif %}
+                                {% comment %}"Lotado" só quando a agenda está cheia de verdade.
+
+                                A versão anterior escrevia "lotado" sempre que não
+                                havia vaga livre — e num dia que já passou nunca há.
+                                Navegando o mês anterior, **todo dia** dizia "lotado",
+                                dando a impressão de uma agenda cheia que não existiu.
+                                Dia encerrado agora diz quantos horários ficaram vagos,
+                                que é o que de fato aconteceu.{% endcomment %}
+                                {% if day.free %}
+                                <span class="d-block fs-10 mt-1 text-success fw-semibold">
+                                    {{ day.free }} livre{{ day.free|pluralize }}
                                 </span>
+                                {% elif day.encerrado %}
+                                <span class="d-block fs-10 mt-1 text-muted">encerrado</span>
+                                {% else %}
+                                <span class="d-block fs-10 mt-1 text-muted">lotado</span>
+                                {% endif %}
                                 {% if day.booked %}
-                                <span class="d-block fs-10 text-danger">{{ day.booked }} ocupado{{ day.booked|pluralize }}</span>
+                                <span class="d-block fs-10 text-danger fw-semibold">{{ day.booked }} ocupado{{ day.booked|pluralize }}</span>
+                                {% endif %}
+                                {% if day.realizados %}
+                                <span class="d-block fs-10 text-primary">{{ day.realizados }} atendido{{ day.realizados|pluralize }}</span>
+                                {% endif %}
+                                {% if day.past %}
+                                <span class="d-block fs-10 text-muted">{{ day.past }} vago{{ day.past|pluralize }}</span>
                                 {% endif %}
                                 <div class="nd-month-slots mt-1">
                                     {% for cell in day.cells %}
@@ -90,10 +110,44 @@ contexto completo.{% endcomment %}
                                         <strong>Livre</strong>
                                     </button>
                                     {% elif cell.status == 'busy' and cell.is_start %}
+                                    {% comment %}O nome do paciente aparece aqui, e isso é
+                                    consistente com a fronteira que a agenda já tem: a grade
+                                    da semana, a do dia e o balcão mostram nome, horário e
+                                    tipo — e nada de prontuário. Quem abre esta tela precisa
+                                    de `SCHEDULE`, a mesma capacidade das outras.
+
+                                    Sem o nome, a secretária que recebe uma ligação ("é a
+                                    consulta da dona Maria?") tinha de abrir o dia para
+                                    descobrir de quem era cada horário.
+
+                                    O nome vai truncado por CSS e inteiro no `title`: numa
+                                    célula de mês não cabe "ADRIANO TRIGO MONTEIRO DE MATOS
+                                    SOEIRO FILHO", e cortar no servidor esconderia o resto
+                                    de quem passa o mouse.{% endcomment %}
                                     <span class="nd-month-slot nd-month-slot-busy"
-                                          title="Horário ocupado">
+                                          title="{{ cell.start|date:'H:i' }} — {{ cell.exibida.patient.full_name }} ({{ cell.exibida.get_type_display }})">
                                         <span>{{ cell.start|date:'H:i' }}h</span>
-                                        <strong>Ocupado</strong>
+                                        <strong class="nd-month-slot-nome">{{ cell.exibida.patient.full_name }}</strong>
+                                    </span>
+                                    {% elif cell.status == 'done' and cell.is_start %}
+                                    {% comment %}Atendimento que já aconteceu. Entrou porque
+                                    `COMPLETED` não ocupa horário — para liberar a vaga — e o
+                                    efeito era que um mês passado aparecia vazio, com as
+                                    consultas reais invisíveis.{% endcomment %}
+                                    <span class="nd-month-slot nd-month-slot-done"
+                                          title="{{ cell.start|date:'H:i' }} — {{ cell.exibida.patient.full_name }} ({{ cell.exibida.get_status_display }})">
+                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                        <strong class="nd-month-slot-nome">{{ cell.exibida.patient.full_name }}</strong>
+                                    </span>
+                                    {% elif cell.status == 'past' %}
+                                    {% comment %}Horário que passou e ninguém usou. Mostrado
+                                    como **vago**, e não escondido: a tela de um mês anterior
+                                    precisa dizer o que houve, e o que houve foi uma vaga que
+                                    não foi preenchida.{% endcomment %}
+                                    <span class="nd-month-slot nd-month-slot-past"
+                                          title="{{ cell.start|date:'H:i' }} — ficou vago">
+                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                        <strong>Vago</strong>
                                     </span>
                                     {% endif %}
                                     {% endfor %}
@@ -109,8 +163,11 @@ contexto completo.{% endcomment %}
         </div>
         <div class="nd-agenda-legend mt-3">
             <span><span class="nd-key nd-month-key-free"></span>Verde — livre; clique para marcar</span>
-            <span><span class="nd-key nd-month-key-busy"></span>Vermelho — ocupado</span>
+            <span><span class="nd-key nd-month-key-busy"></span>Vermelho — ocupado, com o nome do paciente</span>
+            <span><span class="nd-key nd-month-key-done"></span>Azul — já atendido</span>
+            <span><span class="nd-key nd-month-key-past"></span>Cinza — passou e ficou vago</span>
             <span><strong>lotado</strong> — dia de atendimento sem nenhuma vaga</span>
+            <span><strong>encerrado</strong> — o dia já passou</span>
             <span><strong>fechado</strong> — feriado, férias ou bloqueio</span>
         </div>
     </div>

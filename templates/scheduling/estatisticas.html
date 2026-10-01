@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% comment %}Estatísticas do mês.
+
+Aberta aos quatro papéis, e por isso mostra **contagens** e nada mais:
+nenhum nome de paciente, nenhum diagnóstico, nenhum valor. É a operação do
+consultório, e quem a opera é a recepção tanto quanto o médico.
+
+**Atendidos, agendados, faltas e cancelados ficam em colunas separadas.**
+Somar tudo num "total do mês" infla o movimento com gente que não
+apareceu — e um relatório de produtividade que conta quem faltou não serve
+para decidir nada.
+
+Mês a mês, nunca acumulado: a média de doze meses esconde exatamente o mês
+em que as primeiras consultas caíram.
+{% endcomment %}
+{% block title %}Estatísticas de {{ primeiro|date:"F Y" }}{% endblock %}
+{% block page_title %}Estatísticas do mês{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">Estatísticas</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'scheduling:month' %}?physician={{ physician_id }}">Ver a agenda do mês</a>
+{% endblock %}
+{% block content %}
+
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <div class="d-inline-flex align-items-center gap-1">
+                <a class="btn btn-sm btn-light"
+                   href="?ano={{ anterior.ano }}&amp;mes={{ anterior.mes }}&amp;physician={{ physician_id }}">
+                    ← Mês anterior
+                </a>
+                <span class="fw-bold text-dark mx-2 text-capitalize">{{ primeiro|date:"F \d\e Y" }}</span>
+                <a class="btn btn-sm btn-light"
+                   href="?ano={{ proximo.ano }}&amp;mes={{ proximo.mes }}&amp;physician={{ physician_id }}">
+                    Próximo mês →
+                </a>
+            </div>
+            <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+                <input type="hidden" name="ano" value="{{ ano }}">
+                <input type="hidden" name="mes" value="{{ mes }}">
+                <label class="fs-11 text-muted mb-0" for="physician-picker">Médico</label>
+                <select class="form-select form-select-sm" id="physician-picker" name="physician"
+                        style="min-width:14rem" data-nd-autosubmit>
+                    <option value="">Todos</option>
+                    {% for option in doctors %}
+                    <option value="{{ option.id }}" {% if physician_id == option.id|stringformat:"s" %}selected{% endif %}>
+                        {{ option.user.get_full_name|default:option.user.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <noscript><button type="submit" class="btn btn-sm btn-light-primary">Filtrar</button></noscript>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-3">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Atendidos no mês</span>
+                <span class="d-block fs-24 fw-bold text-dark">{{ totais.atendidos }}</span>
+                {% comment %}A comparação com o mês anterior, e só ela: duas
+                comparações numa tela de números viram ruído.{% endcomment %}
+                <span class="d-block fs-11 {% if variacao > 0 %}text-success{% elif variacao < 0 %}text-danger{% else %}text-muted{% endif %}">
+                    {% if variacao > 0 %}+{% endif %}{{ variacao }} em relação ao mês anterior
+                    ({{ totais_anteriores.atendidos }})
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Horários usados</span>
+                <span class="d-block fs-24 fw-bold text-dark">
+                    {{ ocupacao.usados }}<span class="fs-14 text-muted fw-normal"> de {{ ocupacao.total }}</span>
+                </span>
+                <span class="d-block fs-11 text-muted">{{ ocupacao.taxa }}% da grade do mês</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Vagos</span>
+                <span class="d-block fs-24 fw-bold text-dark">{{ ocupacao.vagos }}</span>
+                <span class="d-block fs-11 text-muted">horários que passaram sem ninguém</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Ainda livres</span>
+                <span class="d-block fs-24 fw-bold text-dark">{{ ocupacao.livres }}</span>
+                <span class="d-block fs-11 text-muted">dá para marcar</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">Por tipo de atendimento</h5>
+        <span class="fs-11 text-muted">
+            Falta e cancelamento ficam em coluna própria — somá-los ao movimento
+            contaria quem não apareceu.
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Tipo</th>
+                        <th class="text-end" scope="col">Atendidos</th>
+                        <th class="text-end" scope="col">Agendados</th>
+                        <th class="text-end" scope="col">Faltas</th>
+                        <th class="text-end pe-4" scope="col">Cancelados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linha in linhas %}
+                    <tr>
+                        <td class="ps-4 fw-semibold text-dark fs-13">{{ linha.rotulo }}</td>
+                        <td class="text-end fw-bold text-dark">{{ linha.atendidos }}</td>
+                        <td class="text-end fs-13 text-muted">{{ linha.agendados }}</td>
+                        <td class="text-end fs-13 {% if linha.faltas %}text-danger{% else %}text-muted{% endif %}">{{ linha.faltas }}</td>
+                        <td class="text-end pe-4 fs-13 text-muted">{{ linha.cancelados }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-gray-100">
+                    <tr>
+                        <th class="ps-4" scope="row">Total</th>
+                        <th class="text-end">{{ totais.atendidos }}</th>
+                        <th class="text-end">{{ totais.agendados }}</th>
+                        <th class="text-end">{{ totais.faltas }}</th>
+                        <th class="text-end pe-4">{{ totais.cancelados }}</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">Ocupação da grade</h5>
+        <span class="fs-11 text-muted">
+            Contado pela mesma grade que desenha a agenda.
+        </span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Médico</th>
+                        <th class="text-end" scope="col">Horários</th>
+                        <th class="text-end" scope="col">Ocupados</th>
+                        <th class="text-end" scope="col">Atendidos</th>
+                        <th class="text-end" scope="col">Vagos</th>
+                        <th class="text-end" scope="col">Livres</th>
+                        <th class="text-end pe-4" scope="col">Bloqueados</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linha in por_medico %}
+                    <tr>
+                        <td class="ps-4 fs-13 text-wrap">{{ linha.medico.user.get_full_name|default:linha.medico.user.email }}</td>
+                        <td class="text-end fs-13">{{ linha.total }}</td>
+                        <td class="text-end fs-13 text-danger">{{ linha.ocupados }}</td>
+                        <td class="text-end fs-13 text-primary">{{ linha.atendidos }}</td>
+                        <td class="text-end fs-13 text-muted">{{ linha.vagos }}</td>
+                        <td class="text-end fs-13 text-success">{{ linha.livres }}</td>
+                        <td class="text-end pe-4 fs-13 text-muted">{{ linha.bloqueados }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-center text-muted py-4 fs-13">
+                        Nenhum médico com grade publicada neste período.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <span class="fs-11 text-muted">
+            <strong>Ocupados</strong> — reserva ativa no horário ·
+            <strong>Atendidos</strong> — já concluído ou falta registrada ·
+            <strong>Vagos</strong> — passou e ninguém usou ·
+            <strong>Livres</strong> — ainda dá para marcar ·
+            <strong>Bloqueados</strong> — feriado, férias ou bloqueio.
+        </span>
+    </div>
+</div>
+{% endblock %}

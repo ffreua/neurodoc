@@ -1080,6 +1080,55 @@ class SecretaryDeskView(TenantScopedView):
         })
 
 
+class MonthStatisticsView(TenantScopedView):
+    """Estatísticas do mês, para os quatro papéis.
+
+    `SCHEDULE`, e não capacidade clínica nem gerencial: a tela mostra
+    **contagens** — quantas primeiras consultas, quantos horários sobraram
+    — e nenhum nome de paciente. É informação de operação do consultório, e
+    quem opera o consultório é a recepção tanto quanto o médico.
+
+    Os indicadores de `reporting` continuam exigindo
+    `MANAGERIAL_DASHBOARD`: aqueles cruzam faturamento, e dinheiro é outra
+    conversa.
+    """
+
+    def get(self, request):
+        from .estatisticas import do_mes, limites_do_mes
+
+        doctors = _doctors(request)
+        medico = request.GET.get('physician') or ''
+        if medico not in {str(d.id) for d in doctors}:
+            medico = ''
+
+        hoje = timezone.localdate()
+        try:
+            ano = int(request.GET.get('ano') or hoje.year)
+            mes = int(request.GET.get('mes') or hoje.month)
+            # `date()` recusa mês fora de 1..12; o ano fica numa faixa que
+            # não produz calendário absurdo nem varredura de grade enorme.
+            if not 1 <= mes <= 12 or not 2000 <= ano <= 2100:
+                raise ValueError
+        except (TypeError, ValueError):
+            ano, mes = hoje.year, hoje.month
+
+        dados = do_mes(
+            request.access_context.tenant_id, ano, mes, doctors,
+            physician_membership_id=medico or None,
+        )
+        _, _, (ano_ant, mes_ant) = limites_do_mes(ano, mes)
+        proximo = (ano + 1, 1) if mes == 12 else (ano, mes + 1)
+        return render(request, 'scheduling/estatisticas.html', {
+            **dados,
+            'doctors': doctors,
+            'physician_id': medico,
+            'ano': ano, 'mes': mes,
+            'anterior': {'ano': ano_ant, 'mes': mes_ant},
+            'proximo': {'ano': proximo[0], 'mes': proximo[1]},
+            'hoje': hoje,
+        })
+
+
 class AttendanceStatementView(TenantScopedView):
     """Declaração de comparecimento, emitida no balcão e impressa na hora.
 

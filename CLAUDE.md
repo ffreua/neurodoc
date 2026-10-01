@@ -125,7 +125,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior, **busca de paciente por CID** (`por_cid.py`) e a **série temporal** em gráfico (`series.py`) |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
-| `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados, **retorno programado** (`returns.py`: a fila da recepção e o aviso diário) e a **declaração de comparecimento** (`declaracao.py`, emitida pela recepção e impressa na hora, sem arquivo guardado) |
+| `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados, **retorno programado** (`returns.py`), a **declaração de comparecimento** (`declaracao.py`) e as **estatísticas do mês** (`estatisticas.py`, contagens para os quatro papéis) |
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
@@ -281,6 +281,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_fuso.py` | o dia que o produto enxerga é o da clínica: varre o repositório inteiro proibindo `timezone.now().date()` e `date.today()` (que devolvem o dia em UTC), e confere que a agenda marca como hoje o dia de Brasília |
 | `check_importacao.py` | migração de cadastro: ninguém nasce autorizado a receber mensagem, o responsável homônimo não vira contato extra, a importação pode ser repetida, CPF repetido não derruba nada e ficha daqui não é sobrescrita |
 | `check_nome_caixa_alta.py` | o nome numa forma só: os quatro caminhos de criação, o acento que permanece, a busca que continua achando e o nome do parente que não é reescrito |
+| `check_mes_e_estatisticas.py` | a visão de mês não mente sobre o passado: `done` para quem foi atendido, `past` para o que ficou vago, **sem mexer na oferta de vaga**; e as estatísticas somam pela mesma grade, separando atendido de falta e de cancelado |
 | `check_idioma.py` | **tudo que o usuário lê está em português**: varre `messages.*`, `ValidationError`, `label=`, `help_text=` e as exceções que as views mostram com `str(exc)`; deixa passar log e ferramenta de operação, de propósito |
 | `check_paginacao.py` | paginação: **cria volume antes de olhar** (sem passar de uma página, o bloco nem é renderizado e o roteiro não testa nada), a primeira e a última página abrem, e número de página inválido não vira erro 500 |
 | `check_csp.py` | política de conteúdo: `script-src` sem `unsafe-inline`, nonce novo a cada resposta e igual ao do HTML, a varredura dos templates atrás de `onclick` e de `<script>` sem nonce, o modo de relatório como padrão, e o coletor com teto por IP |
