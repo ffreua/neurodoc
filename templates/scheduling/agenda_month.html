@@ -124,11 +124,40 @@ contexto completo.{% endcomment %}
                                     célula de mês não cabe "ADRIANO TRIGO MONTEIRO DE MATOS
                                     SOEIRO FILHO", e cortar no servidor esconderia o resto
                                     de quem passa o mouse.{% endcomment %}
-                                    <span class="nd-month-slot nd-month-slot-busy"
-                                          title="{{ cell.start|date:'H:i' }} — {{ cell.exibida.patient.full_name }} ({{ cell.exibida.get_type_display }})">
+                                    {% comment %}Clicável, e abrindo **o mesmo modal** da
+                                    semana e do dia.
+
+                                    Era a única das três visões em que um horário marcado
+                                    não dava para mexer: quem via a Karina no mês tinha de
+                                    trocar para a semana só para remarcar.
+
+                                    O conserto é reaproveitamento, não código novo: o
+                                    `agenda.js` já escuta `[data-nd-appointment]` no
+                                    documento inteiro e monta o modal a partir dos atributos.
+                                    Bastava a célula do mês carregá-los — os mesmos nomes, na
+                                    mesma ordem da grade da semana. Escrever um segundo
+                                    caminho daria duas telas que divergem no primeiro botão
+                                    novo.{% endcomment %}
+                                    <button type="button"
+                                            class="nd-month-slot nd-month-slot-busy"
+                                            data-status="{{ cell.appointment.status }}"
+                                            data-overbook="{% if cell.appointment.is_overbook %}1{% else %}0{% endif %}"
+                                            data-nd-appointment="{{ cell.appointment.id }}"
+                                            data-nd-patient="{{ cell.appointment.patient.full_name }}"
+                                            data-nd-patient-id="{{ cell.appointment.patient_id }}"
+                                            data-nd-when="{{ cell.appointment.starts_at|date:'d/m/Y H:i' }}"
+                                            data-nd-until="{{ cell.appointment.ends_at|date:'H:i' }}"
+                                            data-nd-type="{{ cell.appointment.get_type_display }}"
+                                            data-nd-status-label="{{ cell.appointment.get_status_display }}"
+                                            data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
+                                            {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
+                                            data-nd-phone="{{ contato.phone }}" data-nd-email="{{ contato.email }}"
+                                            {% endwith %}
+                                            title="{{ cell.start|date:'H:i' }} — {{ cell.appointment.patient.full_name }} ({{ cell.appointment.get_type_display }}) · clique para abrir"
+                                            aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}; abrir ações">
                                         <span>{{ cell.start|date:'H:i' }}h</span>
-                                        <strong class="nd-month-slot-nome">{{ cell.exibida.patient.full_name }}</strong>
-                                    </span>
+                                        <strong class="nd-month-slot-nome">{{ cell.appointment.patient.full_name }}</strong>
+                                    </button>
                                     {% elif cell.status == 'done' and cell.is_start %}
                                     {% comment %}Atendimento que já aconteceu. Entrou porque
                                     `COMPLETED` não ocupa horário — para liberar a vaga — e o

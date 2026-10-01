@@ -178,11 +178,45 @@ try:
              'ROTEIRO MES OCUPADO' in html, True)
     conferir('"Vago" aparece para o que passou', 'Vago' in html, True)
     conferir('a legenda explica o azul', 'já atendido' in html, True)
+
+    # O horario marcado tem de ser clicavel, e abrir o MESMO modal da
+    # semana e do dia. O mecanismo e o `agenda.js`, que escuta
+    # `[data-nd-appointment]` no documento: se a celula do mes nao carregar
+    # os atributos que ele le, o clique nao faz nada -- e nada e
+    # exatamente o que acontecia.
+    import re as _re2
+
+    bloco = _re2.search(
+        r'<button[^>]*nd-month-slot-busy[^>]*>.{0,400}?</button>', html, _re2.S,
+    )
+    conferir('o horario ocupado e um botao', bloco is not None, True)
+    if bloco:
+        marcacao = bloco.group(0)
+        for atributo in ('data-nd-appointment', 'data-nd-patient', 'data-nd-patient-id',
+                         'data-nd-when', 'data-nd-until', 'data-nd-type',
+                         'data-nd-status-label', 'data-nd-preliminary'):
+            conferir(f'  carrega {atributo}', atributo in marcacao, True)
+        conferir('  e o id do agendamento nao vem vazio',
+                 _re2.search(r'data-nd-appointment="[0-9a-f-]{36}"', marcacao) is not None,
+                 True)
+    # O modal e o script que o movem precisam estar na pagina do mes.
+    conferir('o modal do horario esta na pagina', 'id="slot-modal"' in html, True)
+    conferir('e o script que o abre tambem', 'scheduling/agenda.js' in html, True)
     # O defeito que originou tudo: "lotado" num dia que so passou.
     passado_html = cliente.get(reverse('scheduling:month'), {
         'physician': str(medico.id), 'date': dia.isoformat(),
     }).content.decode()
-    conferir('dia encerrado nao diz "lotado"', 'encerrado' in passado_html, True)
+    # Contado nas CELULAS, e nao na pagina: a legenda da tela explica o que
+    # "lotado" e "encerrado" significam e contem as duas palavras. Procurar
+    # na pagina inteira dava verde com o defeito presente -- foi exatamente
+    # o que aconteceu, e o usuario viu "lotado" numa tela que o roteiro
+    # tinha aprovado.
+    import re as _re
+
+    rotulos = _re.findall(r'class="d-block fs-10 mt-1[^"]*">\s*([^<\s]+)', passado_html)
+    print(f'      rotulos de dia no mes passado: {rotulos}')
+    conferir('nenhum dia vencido diz "lotado"', 'lotado' in rotulos, False)
+    conferir('e ha dia dizendo "encerrado"', 'encerrado' in rotulos, True)
 
     print('\n5. As estatisticas do mes')
     primeiro, ultimo, _ = limites_do_mes(futuro.year, futuro.month)

@@ -810,6 +810,26 @@ button.nd-month-slot-free:focus-visible {
     border-color: #fca5a5;
 }
 
+/* O horario marcado tambem se clica, e abre o mesmo modal da semana e do
+ * dia. Era a unica das tres visoes em que nao dava para mexer num
+ * agendamento -- quem via o paciente no mes tinha de trocar de visao so
+ * para remarcar.
+ *
+ * O realce no foco importa tanto quanto o do mouse: este e um botao que
+ * se alcanca pelo teclado, e sem ele quem navega por Tab nao sabe em qual
+ * horario esta. */
+button.nd-month-slot-busy {
+    cursor: pointer;
+    text-align: left;
+}
+
+button.nd-month-slot-busy:hover,
+button.nd-month-slot-busy:focus-visible {
+    color: #7f1d1d;
+    background: #fecaca;
+    border-color: #ef4444;
+}
+
 /* O nome do paciente na celula do mes.
  *
  * Truncado por CSS, e nao cortado no servidor: o nome inteiro fica no

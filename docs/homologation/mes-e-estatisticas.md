@@ -67,6 +67,30 @@ FILHO" de todo mundo, inclusive de quem passa o mouse para conferir.
 `min-width: 0` é o que faz o `text-overflow` funcionar dentro de um item
 flex — sem ele a célula transborda em vez de cortar.
 
+## 2-B. O horário marcado se clica
+
+Era a única das três visões em que não dava para mexer num agendamento:
+quem via o paciente no mês tinha de trocar para a semana só para remarcar.
+
+**O conserto foi reaproveitamento, não código novo.** O `agenda.js` já
+escuta `[data-nd-appointment]` no documento inteiro e monta o modal a
+partir dos atributos da célula; o modal e o script **já estavam** na página
+do mês. Faltava a célula carregar os mesmos oito atributos que a grade da
+semana usa.
+
+Escrever um segundo caminho daria duas telas que divergem no primeiro
+botão novo — e o modal tem oito ações (chegada, confirmar, SMS, e-mail,
+remarcar, trocar paciente, cancelar, abrir ficha).
+
+**A célula `done` (azul) continua sem clique, de propósito.** O modal
+oferece "registrar chegada", "confirmar" e "cancelar" — transições que o
+sistema recusa num atendimento concluído. Um botão que sempre dá erro é
+pior que botão nenhum.
+
+O realce existe no `:hover` **e** no `:focus-visible`: é um botão que se
+alcança pelo teclado, e sem o segundo quem navega por Tab não sabe em qual
+horário está.
+
 ## 3. Estatísticas do mês
 
 **Aos quatro papéis, com `SCHEDULE`.** A tela mostra **contagens** —

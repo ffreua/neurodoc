@@ -297,6 +297,16 @@ class AgendaMonthView(TenantScopedView):
                 'blocked': bool(counts.get('blocked')) and not counts.get('free'),
                 'works': counts.get('works', False),
                 'cells': counts.get('cells', []),
+                # Estas tres vem de `month_summary` e precisam ser
+                # repassadas **uma a uma**: este dicionario e montado por
+                # chave, nao copiado. Esquecer uma nao quebra nada -- o
+                # template le vazio e some com a informacao, calado. Foi o
+                # que aconteceu com `encerrado`: o dia vencido continuou
+                # dizendo "lotado" porque a chave nunca chegou aqui, e a
+                # correcao parecia feita.
+                'realizados': counts.get('realizados', 0),
+                'past': counts.get('past', 0),
+                'encerrado': counts.get('encerrado', False),
             })
             if len(week) == 7:
                 weeks.append(week)
