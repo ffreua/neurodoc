@@ -110,9 +110,28 @@ usa o valor que **não afirma nada**.
 ### O que o comando nunca faz
 
 Apagar, arquivar quem estava ativo, ou tocar ficha que não veio desta
-importação. **Paciente cadastrado aqui não é sobrescrito nem com o mesmo
-CPF** — a ficha importada entra sem CPF, com o conflito escrito nela, e a
-decisão fica com quem conhece as duas pessoas.
+importação.
+
+**E nunca cria uma segunda ficha para quem já está cadastrado.** Quando o
+CPF do arquivo já pertence a uma ficha da clínica, a ficha de lá é
+**pulada**.
+
+Isto mudou depois do ensaio em produção, que revelou o que o ambiente de
+teste não tinha: **4 CPFs do arquivo já pertenciam a fichas cadastradas à
+mão** — e em três delas nome e data de nascimento eram idênticos, na
+quarta só a grafia do nome diferia. Eram as mesmas pessoas.
+
+A versão anterior criaria uma segunda ficha para cada uma. Dois
+prontuários para a mesma pessoa partem o histórico clínico em dois, e o
+dano aparece no dia em que alguém abre o errado: a consulta de março está
+num, a de setembro no outro, e nenhum dos dois está errado o bastante para
+alguém desconfiar. Numa especialidade de seguimento longo, é o pior
+desfecho possível de uma migração.
+
+`--conflito-cpf anotar` força o comportamento oposto, para quando se sabe
+que são pessoas diferentes com o mesmo CPF digitado. O padrão é pular
+porque **o erro de pular é recuperável** — a ficha continua no arquivo e
+pode ser importada depois — e o de duplicar não é.
 
 ### O defeito que o teste pegou
 

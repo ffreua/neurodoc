@@ -15,7 +15,11 @@ estranha. O que este roteiro cobra e o que so se percebe tarde:
   na segunda execucao, longe da causa;
 - **pode rodar duas vezes.** Migracao falha no meio; sem chave estavel, a
   segunda tentativa duplica o que a primeira gravou;
-- **ficha daqui nao e sobrescrita por ficha de la**, nem com o mesmo CPF;
+- **quem ja esta cadastrado aqui nao ganha uma segunda ficha.** Dois
+  prontuarios para a mesma pessoa partem o historico clinico em dois, e o
+  dano aparece no dia em que alguem abre o errado: a consulta de marco
+  esta num, a de setembro no outro, e nenhum dos dois esta errado o
+  bastante para alguem desconfiar;
 - **CPF repetido nao derruba a importacao** nem some: o primeiro fica com
   ele, os outros entram sem CPF e com o conflito escrito na ficha;
 - **ficha sem nome nao vira paciente**; data impossivel vira ausencia com
@@ -82,11 +86,13 @@ ARQUIVO = '/tmp/roteiro-importacao.xml'
 criados_legacy = []
 
 
-def importar(fichas, gravar=True):
+def importar(fichas, gravar=True, conflito=None):
     with open(ARQUIVO, 'w', encoding='utf-8') as destino:
         destino.write(xml_de(fichas))
     saida = StringIO()
     argumentos = ['--clinica', tenant.slug, '--arquivo', ARQUIVO]
+    if conflito:
+        argumentos += ['--conflito-cpf', conflito]
     if gravar:
         argumentos.append('--gravar')
     call_command('import_pacientes_xml', *argumentos, stdout=saida, stderr=saida)
@@ -228,23 +234,38 @@ try:
     conferir('e o conflito ficou escrito na ficha dele',
              'veio repetido na importação' in b.administrative_notes, True)
 
-    print('\n8. Ficha daqui nao e sobrescrita por ficha de la')
+    print('\n8. Quem ja esta cadastrado aqui nao ganha uma segunda ficha')
+    # Dois prontuarios para a mesma pessoa partem o historico clinico em
+    # dois, e o dano aparece no dia em que alguem abre o errado: a consulta
+    # de marco esta num, a de setembro no outro, e nenhum dos dois esta
+    # errado o bastante para alguem desconfiar.
     daqui = Patient.objects.create(
         tenant=tenant, full_name='Cadastrado Aqui Antes', cpf='15350946056',
         birth_date=date(1970, 5, 5), registration_stage=RegistrationStage.COMPLETE,
     )
-    importar([um(
+    saida8 = importar([um(
         NUM_ICLIN='R-9020', NOME='Homonimo Importado', DT_NASC='06/06/1971',
         CPF='15350946056', CANCELADO='N', ENDERECO='RUA D, 4',
     )])
     daqui.refresh_from_db()
-    importado = ficha_de('R-9020')
+    conferir('por padrao, a ficha de la e PULADA', ficha_de('R-9020'), None)
+    conferir('e o comando diz quantas pulou',
+             'pulada(s) por ja existirem aqui' in saida8, True)
     conferir('a ficha daqui continua com o nome dela',
              daqui.full_name, 'CADASTRADO AQUI ANTES')
     conferir('e continua com o CPF', daqui.cpf, '15350946056')
-    conferir('a ficha importada entrou sem CPF', importado.cpf, None)
-    conferir('com o conflito escrito',
-             'já pertencia a uma ficha' in importado.administrative_notes, True)
+
+    # `--conflito-cpf anotar` existe para quando se sabe que sao pessoas
+    # diferentes com o mesmo CPF digitado.
+    importar([um(
+        NUM_ICLIN='R-9021', NOME='Homonimo Importado', DT_NASC='06/06/1971',
+        CPF='15350946056', CANCELADO='N', ENDERECO='RUA D, 4',
+    )], conflito='anotar')
+    anotado = ficha_de('R-9021')
+    conferir('com --conflito-cpf anotar, a ficha entra', anotado is not None, True)
+    conferir('sem CPF', anotado.cpf, None)
+    conferir('e com o conflito escrito',
+             'pertencia a uma ficha' in anotado.administrative_notes, True)
     daqui.delete()
 
     print('\n9. Sem nome nao vira ficha; cancelado vira arquivado')

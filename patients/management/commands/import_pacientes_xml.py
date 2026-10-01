@@ -15,9 +15,20 @@ duplicá-las, e é isso que permite retomar uma importação que falhou no
 meio.
 
 **O que ele nunca faz:** apagar, arquivar quem estava ativo, ou mexer em
-ficha que não veio desta importação. Paciente cadastrado aqui depois não é
-tocado nem que tenha o mesmo CPF — o conflito é relatado e a decisão fica
-com quem conhece as duas pessoas.
+ficha que não veio desta importação.
+
+**E nunca cria uma segunda ficha para quem já está cadastrado.** Quando o
+CPF do arquivo já pertence a uma ficha desta clínica, a ficha de lá é
+**pulada** — não entra sem CPF ao lado da que existe. Dois prontuários
+para a mesma pessoa partem o histórico clínico em dois, e o dano aparece
+no dia em que alguém abre o errado: a consulta de março está num, a de
+setembro no outro, e nenhum dos dois está errado o bastante para alguém
+desconfiar.
+
+`--conflito-cpf anotar` força o comportamento oposto, para o caso em que
+se sabe que são pessoas diferentes com o mesmo CPF digitado. O padrão é
+pular porque o erro de pular é recuperável (a ficha de lá continua no
+arquivo, e pode ser importada depois) e o de duplicar não é.
 """
 import xml.etree.ElementTree as ET
 from collections import Counter, defaultdict
@@ -49,6 +60,14 @@ class Command(BaseCommand):
             '--gravar', action='store_true',
             help='grava de verdade. Sem isto, o comando apenas ensaia.',
         )
+        parser.add_argument(
+            '--conflito-cpf', choices=['pular', 'anotar'], default='pular',
+            help=(
+                'o que fazer quando o CPF do arquivo ja pertence a uma ficha '
+                'desta clinica. "pular" (padrao) nao cria a ficha de la; '
+                '"anotar" cria sem CPF, com o conflito escrito.'
+            ),
+        )
 
     def handle(self, *args, **opcoes):
         tenant = Tenant.objects.filter(slug=opcoes['clinica']).first()
@@ -74,6 +93,7 @@ class Command(BaseCommand):
                 + ', '.join(sorted(faltando))
             )
 
+        self.conflito = opcoes['conflito_cpf']
         gravar = opcoes['gravar']
         self.stdout.write(
             f'Clínica : {tenant.trade_name or tenant.legal_name} ({tenant.slug})\n'
@@ -103,7 +123,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'\nGravado: {contagem["criados"]} ficha(s) nova(s), '
             f'{contagem["atualizados"]} atualizada(s), '
-            f'{contagem["contatos"]} contato(s).'
+            f'{contagem["contatos"]} contato(s), '
+            f'{contagem["pulados"]} pulada(s) por ja existirem aqui.'
         ))
 
     # ------------------------------------------------------------ análise
@@ -145,6 +166,8 @@ class Command(BaseCommand):
             if ficha['cpf'] and ficha['cpf'] in daqui:
                 ficha['cpf_ja_de_outra_ficha'] = ficha['cpf']
                 ficha['cpf'] = ''
+                if self.conflito == 'pular':
+                    ficha['pular'] = True
 
         existentes = set(
             Patient.objects.filter(tenant=tenant).exclude(legacy_id='')
@@ -166,18 +189,23 @@ class Command(BaseCommand):
             f'  CPF repetido no arquivo : {len(resultado["cpf_repetido"])}'
             f'  (o 1o fica com o CPF; os outros entram sem, com observacao)',
             f'  CPF de ficha ja daqui   : {len(resultado["cpf_de_ficha_daqui"])}'
-            f'  (a ficha daqui nao e tocada)',
+            + ('  (a ficha de la sera PULADA; a daqui nao e tocada)'
+               if self.conflito == 'pular'
+               else '  (a ficha de la entra SEM CPF; a daqui nao e tocada)'),
         ]
         self.stdout.write('\n'.join(linhas))
 
     # ----------------------------------------------------------- gravação
 
     def _gravar(self, tenant, fichas, resultado):
-        criados = atualizados = contatos = 0
+        criados = atualizados = contatos = pulados = 0
         for inicio in range(0, len(fichas), LOTE):
             lote = fichas[inicio:inicio + LOTE]
             with transaction.atomic():
                 for ficha in lote:
+                    if ficha.get('pular'):
+                        pulados += 1
+                        continue
                     novo, qtd = self._gravar_uma(tenant, ficha)
                     criados += int(novo)
                     atualizados += int(not novo)
@@ -191,10 +219,11 @@ class Command(BaseCommand):
             object_type='tenant', object_id=tenant.id, outcome='success',
             integrity_metadata={
                 'criados': criados, 'atualizados': atualizados,
-                'contatos': contatos, 'origem': 'xml',
+                'contatos': contatos, 'pulados': pulados, 'origem': 'xml',
             },
         )
-        return {'criados': criados, 'atualizados': atualizados, 'contatos': contatos}
+        return {'criados': criados, 'atualizados': atualizados,
+                'contatos': contatos, 'pulados': pulados}
 
     def _gravar_uma(self, tenant, ficha):
         anotacoes = list(ficha['anotacoes'])
