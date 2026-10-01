@@ -439,8 +439,15 @@ class PatientForm(forms.ModelForm):
         # ser chamado. Divulgação é outra coisa, exige consentimento
         # específico (LGPD art. 11, I) e não é decidida aqui.
         aceita = bool(self.cleaned_data.get('contact_accepts_messages'))
+        # Pela forma canonica, e nao pelo texto cru de `cleaned_data`: o
+        # `clean()` do modelo normaliza o nome **na instancia**, e o
+        # `cleaned_data` guarda o que foi digitado. Sem isto, a ficha
+        # nasceria "MARIA DA SILVA" e o contato dela "Maria da Silva" --
+        # divergentes desde o primeiro segundo.
+        from .naming import normalizar_nome
+
         return {
-            'name': self.cleaned_data.get('full_name') or '',
+            'name': normalizar_nome(self.cleaned_data.get('full_name')),
             'relationship': SELF_RELATIONSHIP,
             'phone': phone,
             'email': email,

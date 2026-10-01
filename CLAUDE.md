@@ -29,6 +29,12 @@ especificação, ~360 KB) e em `docs/` (homologação por sprint, publicada em
   commit com autor e data — e nunca escritos à mão num template.
 - `None` significa **ilimitado** em todo `tenancy/plans.py`. Nunca use um
   número grande.
+- **O nome de pessoa tem uma forma só.** `patients.naming.normalizar_nome`
+  — caixa alta, sem espaço sobrando — e ela é **gravada**, no `clean()` e
+  no `save()` do `Patient`. Quem criar paciente por caminho novo não
+  precisa lembrar; quem copiar o nome para outro lugar (o contato do
+  próprio paciente, por exemplo) deve copiar **da ficha**, nunca do texto
+  digitado.
 - **Nunca pergunte a data ao relógio do processo.** O contêiner roda em
   `Etc/UTC` e o produto em `America/Sao_Paulo`: entre 21h e meia-noite o
   UTC já está no dia seguinte, e `timezone.now().date()`, `date.today()` e
@@ -106,7 +112,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`) e central de ajuda (`base/help_content.py`) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
 | `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação), `ContractAcceptance`; **planos, limites, a matriz de permissão e o contrato de adesão** (`contract.py`) |
-| `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto |
+| `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto, **forma canônica do nome** (`naming.py`: caixa alta, gravada) e a **migração de cadastro** de outro sistema (`importacao.py` + `import_pacientes_xml`) |
 | `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento, cópia da consulta anterior, **busca de paciente por CID** (`por_cid.py`) e a **série temporal** em gráfico (`series.py`) |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
@@ -264,6 +270,8 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
 | `check_fuso.py` | o dia que o produto enxerga é o da clínica: varre o repositório inteiro proibindo `timezone.now().date()` e `date.today()` (que devolvem o dia em UTC), e confere que a agenda marca como hoje o dia de Brasília |
+| `check_importacao.py` | migração de cadastro: ninguém nasce autorizado a receber mensagem, o responsável homônimo não vira contato extra, a importação pode ser repetida, CPF repetido não derruba nada e ficha daqui não é sobrescrita |
+| `check_nome_caixa_alta.py` | o nome numa forma só: os quatro caminhos de criação, o acento que permanece, a busca que continua achando e o nome do parente que não é reescrito |
 | `check_csp.py` | política de conteúdo: `script-src` sem `unsafe-inline`, nonce novo a cada resposta e igual ao do HTML, a varredura dos templates atrás de `onclick` e de `<script>` sem nonce, o modo de relatório como padrão, e o coletor com teto por IP |
 | `check_declaracao.py` | declaração de comparecimento: o papel **não** carrega CID nem diagnóstico, nega ser atestado com todas as letras, ver não emite (só o POST registra), horário invertido não vira papel, e a fronteira entre clínicas |
 | `check_evolucao.py` | série temporal: o eixo do tempo proporcional à data real, a escala usando o próprio domínio, a incompleta fora da linha, unidades diferentes como séries diferentes, e a tela que mostra o número sem interpretá-lo |

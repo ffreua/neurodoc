@@ -34,6 +34,7 @@ dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 dj_settings.SECURE_SSL_REDIRECT = False
 
 from patients.contacts import SELF_RELATIONSHIP, sync_self_contact_name
+from patients.naming import normalizar_nome
 from patients.models import Patient, PatientContact, RegistrationStage
 from tenancy.models import Membership, MembershipStatus, Tenant
 
@@ -95,7 +96,7 @@ try:
     proprio.refresh_from_db()
     parente.refresh_from_db()
 
-    conferir('o contato do proprio paciente acompanha', proprio.name, 'Fernando Freua')
+    conferir('o contato do proprio paciente acompanha', proprio.name, paciente.full_name)
     conferir('devolve quantas linhas mudaram', mudou, 1)
 
     print('\n3. O contato do parente NAO e tocado')
@@ -156,8 +157,9 @@ try:
     paciente2.refresh_from_db()
     c2.refresh_from_db()
     print(f'  POST na edicao -> HTTP {resposta.status_code}')
-    conferir('a ficha mudou de nome', paciente2.full_name, 'Nome Novo Do Roteiro')
-    conferir('e o contato acompanhou pela view', c2.name, 'Nome Novo Do Roteiro')
+    conferir('a ficha mudou de nome',
+             paciente2.full_name, normalizar_nome('Nome Novo Do Roteiro'))
+    conferir('e o contato acompanhou pela view', c2.name, paciente2.full_name)
 
     print('\n6. O pre-cadastro ja nasce coerente')
     from scheduling.services import quick_register_patient

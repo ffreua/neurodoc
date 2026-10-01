@@ -41,7 +41,7 @@ tenant_a = Tenant.objects.get(slug='demo-clinica-a')
 tenant_b = Tenant.objects.get(slug='demo-clinica-b')
 medico = User.objects.get(email='doctor-a@demo.neurodoc.local')
 vinculo = Membership.objects.get(user=medico, tenant=tenant_a)
-paciente = Patient.objects.get(tenant=tenant_a, full_name='Carlos Adulto da Silva')
+paciente = Patient.objects.get(tenant=tenant_a, full_name__iexact='Carlos Adulto da Silva')
 paciente_b = Patient.objects.filter(tenant=tenant_b).first()
 
 criadas = []

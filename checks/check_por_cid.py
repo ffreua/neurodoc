@@ -136,7 +136,7 @@ try:
     conferir('secretaria recebe recusa', resposta_secretaria.status_code in (403, 404), True)
     corpo_secretaria = resposta_secretaria.content.decode()
     conferir('e a recusa nao vaza nome de paciente',
-             'G35' in corpo_secretaria or 'Esclerose' in corpo_secretaria, False)
+             'G35' in corpo_secretaria or 'sclerose' in corpo_secretaria.lower(), False)
 
     cliente_medico = sessao_de(medico_a, tenant_a)
     conferir('o medico abre', cliente_medico.get(url).status_code, 200)
@@ -246,7 +246,7 @@ try:
     pagina = cliente_medico.get(url, {'q': 'G40'})
     conferir('a busca pela tela responde', pagina.status_code, 200)
     html = pagina.content.decode()
-    conferir('o paciente aparece', 'Roteiro CID Epilepsia' in html, True)
+    conferir('o paciente aparece', epileptico.full_name in html, True)
     conferir('a tela avisa sobre o refutado',
              'hipótese afastada' in html or 'afastada depois' in html, True)
     vazio = cliente_medico.get(url).content.decode()

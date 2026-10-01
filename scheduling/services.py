@@ -242,7 +242,13 @@ def quick_register_patient(context, name, phone, note='', email='', accepts_mess
         # ele que a LGPD (art. 11, I) exige específico e destacado.
         contact = PatientContact(
             tenant_id=context.tenant_id, patient=patient,
-            name=name.strip()[:255], relationship=SELF_RELATIONSHIP,
+            # `patient.full_name`, e nao o `name` digitado: o `save()` do
+            # paciente ja o gravou na forma canonica, e o contato do proprio
+            # paciente guarda uma **copia** desse nome. Copiar o texto cru
+            # faria a ficha e o contato nascerem divergentes -- e e o nome do
+            # contato que aparece no comprovante de entrega de documento,
+            # respondendo "para quem esta receita foi enviada".
+            name=patient.full_name[:255], relationship=SELF_RELATIONSHIP,
             phone=digits[:16], email=endereco[:254],
             sms_enabled=bool(accepts_messages and digits),
             email_enabled=bool(accepts_messages and endereco),

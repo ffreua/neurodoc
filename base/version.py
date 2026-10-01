@@ -30,6 +30,12 @@ declaração de comparecimento emitida no balcão, e a política de conteúdo
 entrando em modo de relatório. Nenhuma delas muda o que já existia — por
 isso a versão menor, e não a maior.
 
+A **1.2** traz o nome do paciente numa forma só (caixa alta, gravada) e a
+migração de cadastro de outro sistema. O nome muda de aparência para quem
+já usa, mas nada deixa de funcionar — busca, documento e mensagem seguem
+achando e imprimindo o mesmo paciente —, então a versão menor avança e a
+maior não.
+
 Mora em código, como os preços e o contrato, e pelo mesmo motivo: mudá-la
 é um commit com autor e data. Este módulo não importa nada de propósito —
 `ops/deploy.py` roda no host, fora do Django, e precisa ler a versão para
@@ -43,12 +49,12 @@ carimbá-la na publicação.
 #: Dizer "1.1" para as duas faria o chamado de suporte não distinguir quem
 #: já tem a correção de quem ainda vê o defeito -- que é exatamente o que a
 #: versão existe para responder.
-VERSION = '1.1.1'
+VERSION = '1.2'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'seguimento'
+CODENAME = 'migração'
 
 
 def version_display():

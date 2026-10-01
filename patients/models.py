@@ -86,6 +86,7 @@ class HealthPlan(TenantModel):
     active = models.BooleanField(default=True)
     administrative_notes = models.TextField(max_length=2000, blank=True)
 
+
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
             models.UniqueConstraint(fields=['tenant', 'insurer', 'name'], name='patients_healthplan_tenant_insurer_name_uniq'),
@@ -176,6 +177,25 @@ class Patient(TenantModel):
     )
     administrative_notes = models.TextField(max_length=2000, blank=True)
 
+    #: Identificador desta ficha no sistema de onde ela foi migrada.
+    #:
+    #: Existe por um motivo prático e um de rastreabilidade.
+    #:
+    #: O prático: **importação precisa poder ser repetida.** Migrar duas
+    #: mil fichas é uma operação que falha no meio — uma linha com dado
+    #: impossível, uma queda de conexão — e sem uma chave estável a
+    #: segunda tentativa duplicaria tudo o que a primeira já gravou.
+    #: Casar por nome não serve (homônimo existe) e por CPF também não
+    #: (37 fichas vieram sem).
+    #:
+    #: O de rastreabilidade: quando a secretária achar um dado estranho na
+    #: ficha de alguém, a pergunta vai ser "veio assim do sistema antigo?",
+    #: e sem este número não há como responder.
+    #:
+    #: Vazio para quem nasceu aqui, que é o caso de quase todo mundo daqui
+    #: para frente.
+    legacy_id = models.CharField(max_length=60, blank=True, db_index=True)
+
     # ------------------------------------------------------- fotografia
     #
     # Uma por paciente, guardada fora do banco (`patients.photo`), com o
@@ -211,12 +231,39 @@ class Patient(TenantModel):
                 name='patients_patient_tenant_record_number_uniq',
                 condition=~models.Q(record_number=''),
             ),
+            # Duas fichas não podem apontar para o mesmo registro do
+            # sistema antigo: é isso que faz a reimportação encontrar a
+            # linha que já existe em vez de criar outra.
+            models.UniqueConstraint(
+                fields=['tenant', 'legacy_id'],
+                name='patients_patient_tenant_legacy_id_uniq',
+                condition=~models.Q(legacy_id=''),
+            ),
         ]
         indexes = [
             models.Index(Lower('full_name'), name='patients_patient_name_idx'),
         ]
 
+    #: Campos de nome de pessoa que seguem a forma canônica do cadastro.
+    #:
+    #: O nome da mãe entra junto porque ela aparece na mesma ficha e no
+    #: mesmo documento impresso que o do paciente — padronizar um e deixar
+    #: o outro como veio deixaria a receita com "MARIA DA SILVA, filha de
+    #: joana silva", que é pior do que não padronizar nada.
+    CAMPOS_DE_NOME = ('full_name', 'mother_name')
+
+    def _normalizar_nomes(self):
+        from .naming import normalizar_nome
+
+        for campo in self.CAMPOS_DE_NOME:
+            setattr(self, campo, normalizar_nome(getattr(self, campo, '')))
+
     def clean(self):
+        # Normaliza antes de validar para que o formulário, ao redesenhar
+        # com erro em outro campo, já mostre o nome como ele vai ficar
+        # gravado — em vez de mostrar o que foi digitado e gravar outra
+        # coisa, que é como se perde a confiança numa tela de cadastro.
+        self._normalizar_nomes()
         if self.cpf and not is_valid_cpf(self.cpf):
             raise ValidationError({'cpf': 'Invalid CPF'})
         if not self.birth_date and not self.birth_date_unknown_reason and not self.estimated_birth_year:
@@ -237,6 +284,12 @@ class Patient(TenantModel):
             self.record_number = next_record_number(self.tenant_id)
             if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
                 kwargs['update_fields'] = list(kwargs['update_fields']) + ['record_number']
+        # Também aqui, e não só no `clean()`: paciente nasce pelo
+        # pré-cadastro da agenda, pela importação e pelo `seed_demo`, e
+        # nenhum desses chama `full_clean()`. Normalizar num lugar só
+        # deixaria metade dos caminhos de fora -- que é exatamente como a
+        # grafia solta entrava antes.
+        self._normalizar_nomes()
         super().save(*args, **kwargs)
 
     @property

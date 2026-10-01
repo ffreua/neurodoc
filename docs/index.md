@@ -151,6 +151,16 @@ PRD; é a referência operacional viva gerada a partir dele.
   que ficou sem a escolha e o `instance.pk` que é verdadeiro antes de gravar
   — e o roteiro alheio que o resíduo do novo derrubou.
 
+## Migração do cadastro de pacientes
+
+- [Migração do cadastro](homologation/migracao-de-cadastro.md) — o nome do
+  paciente passou a ter uma forma só (caixa alta, **gravada**, com a
+  alternativa reversível apresentada e recusada), e as 2.223 fichas do
+  sistema anterior entraram nessa forma. Inclui a regra de tradução ("o que
+  não cabe em campo vira anotação, nunca lixo"), por que ninguém nasce
+  autorizado a receber mensagem, e o defeito dos 85 responsáveis homônimos —
+  que apagava o telefone recém-gravado e só estourava na segunda execução.
+
 ## Política de conteúdo (CSP)
 
 - [Política de conteúdo](homologation/csp.md) — a última linha contra script

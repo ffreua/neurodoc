@@ -36,7 +36,7 @@ from tenancy.models import Membership, Tenant
 failures = []
 tenant_a = Tenant.objects.get(slug='demo-clinica-a')
 tenant_b = Tenant.objects.get(slug='demo-clinica-b')
-pa = Patient.objects.filter(tenant=tenant_a, full_name='Carlos Adulto da Silva').first()
+pa = Patient.objects.filter(tenant=tenant_a, full_name__iexact='Carlos Adulto da Silva').first()
 pb = Patient.objects.filter(tenant=tenant_b).first()
 
 

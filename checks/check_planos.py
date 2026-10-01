@@ -149,7 +149,7 @@ r = secretaria.post('/app/patients/new/', {
     'referral_source': 'not_informed', 'marital_status': 'not_informed',
 })
 corpo = r.content.decode()
-criado = Patient.objects.filter(tenant=tenant_a, full_name='Teste Limite Plano').exists()
+criado = Patient.objects.filter(tenant=tenant_a, full_name__iexact='Teste Limite Plano').exists()
 print(f'  cadastro completo   -> {r.status_code}  paciente criado={criado}')
 print(f'    mensagem nomeia plano e numeros={"Completo" in corpo and str(ativos) in corpo}')
 if r.status_code != 409 or criado:
@@ -253,7 +253,7 @@ r = secretaria.post('/app/patients/new/', {
     'sex_at_registration': 'female', 'country': 'BR', 'payment_category': 'private',
     'referral_source': 'not_informed', 'marital_status': 'not_informed',
 }, follow=True)
-criado = Patient.objects.filter(tenant=tenant_a, full_name='Teste Ilimitado Plano').first()
+criado = Patient.objects.filter(tenant=tenant_a, full_name__iexact='Teste Ilimitado Plano').first()
 print(f'  cadastro em plano ilimitado -> criado={criado is not None}')
 if criado is None:
     failures.append('plano ilimitado recusou um cadastro')
