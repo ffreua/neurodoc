@@ -233,3 +233,73 @@ class ReportTranscriptionArtifact(BaseModel):
     requires_physician_review: Literal[True] = True
     disclaimer: str = MEDICAL_REVIEW_NOTICE
     source_refs: list[SourceReference] = Field(default_factory=list)
+
+
+# --------------------------------------------------------------------------
+# Relatório do paciente (texto que o médico revisa, edita e assina)
+# --------------------------------------------------------------------------
+
+def _reject_deidentification_markers(text):
+    """Recusa o rascunho que trouxe marcador de desidentificação.
+
+    É a guarda do defeito mais embaraçoso que este recurso pode produzir: o
+    contexto vai ao modelo com o nome trocado por `[PACIENTE]`, e um
+    rascunho que repita o marcador viraria, sem mais nenhuma barreira, um
+    relatório entregue na perícia dizendo "[PACIENTE] evoluiu com
+    hemiparesia".
+
+    Ela mora aqui — no esquema, e não na tela — porque aqui é antes de o
+    artefato existir. Um rascunho gravado é um rascunho que alguém pode
+    aprovar sem reparar, e a tela de revisão é exatamente onde a vista
+    cansada passa batido.
+    """
+    from .relatorio import marcadores_residuais
+
+    encontrados = marcadores_residuais(text)
+    if encontrados:
+        raise ValueError(
+            'Saída da IA não pode conter marcador de desidentificação '
+            f'({", ".join(encontrados)}): escreva "o paciente".'
+        )
+    return text
+
+
+class ReportSection(BaseModel):
+    titulo: str = Field(default='', max_length=200)
+    texto: str = Field(default='', max_length=20000)
+
+    @field_validator('titulo', 'texto')
+    @classmethod
+    def no_markers(cls, value):
+        return _reject_deidentification_markers(value)
+
+
+class PatientReportArtifact(BaseModel):
+    """Rascunho de relatório médico, em seções.
+
+    **Não há validador de probabilidade numérica aqui, de propósito** — ao
+    contrário do resumo e do apoio diagnóstico. Naqueles, um percentual
+    saído de um modelo de linguagem se disfarça de medida calibrada. Num
+    relatório, o percentual costuma ser do próprio prontuário e é
+    informação clínica legítima: "redução de 50% na frequência das crises",
+    "fração de ejeção de 55%". Proibi-lo apagaria o dado que o destinatário
+    precisa ler.
+
+    `requires_physician_review` é `Literal[True]` pelo motivo de sempre: o
+    campo não é uma opinião do modelo sobre o próprio trabalho, é uma
+    afirmação do sistema sobre o que este texto é.
+    """
+
+    titulo: str = Field(default='Relatório médico', max_length=200)
+    secoes: list[ReportSection] = Field(default_factory=list, max_length=20)
+    periodo_coberto: str = Field(default='', max_length=200)
+    informacao_faltante: str = Field(default='', max_length=4000)
+    limitations: str = Field(min_length=1, max_length=2000)
+    requires_physician_review: Literal[True] = True
+    disclaimer: str = MEDICAL_REVIEW_NOTICE
+    source_refs: list[SourceReference] = Field(default_factory=list)
+
+    @field_validator('titulo', 'periodo_coberto', 'informacao_faltante')
+    @classmethod
+    def no_markers(cls, value):
+        return _reject_deidentification_markers(value)

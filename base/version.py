@@ -49,12 +49,12 @@ carimbá-la na publicação.
 #: Dizer "1.1" para as duas faria o chamado de suporte não distinguir quem
 #: já tem a correção de quem ainda vê o defeito -- que é exatamente o que a
 #: versão existe para responder.
-VERSION = '1.3.1'
+VERSION = '1.4'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o mês que passou'
+CODENAME = 'quem assina é o autor'
 
 
 def version_display():

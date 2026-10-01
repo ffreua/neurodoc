@@ -14,7 +14,9 @@ from tenancy.context import AccessContext
 from . import deidentification, privacy_policy
 from .context import AIAuthorizationDenied, build_ai_authorization
 from .graphs import PROMPT_VERSION, build_graph, build_prompt
-from .models import DOCUMENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus
+from .models import (
+    DOCUMENT_SOURCED_KINDS, PATIENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus,
+)
 from .providers import ProviderUnavailable, get_chat_model
 from .schemas import SCHEMA_VERSION
 from .tools import clinical as clinical_tools
@@ -25,13 +27,23 @@ DEFAULT_LIMITS = {'timeout_seconds': 30, 'max_output_chars': 20000}
 #: laudo laboratorial pode devolver duzentos analitos.
 DOCUMENT_LIMITS = {'timeout_seconds': 180, 'max_output_chars': 60000}
 
+#: Escrever um relatorio sobre vinte atendimentos e mais lento que resumir
+#: um, e a saida e prosa, nao campo estruturado: o teto do resumo cortaria
+#: o relatorio no meio de uma secao, e um relatorio truncado e pior que
+#: nenhum -- quem revisa nao tem como saber o que faltou.
+REPORT_LIMITS = {'timeout_seconds': 240, 'max_output_chars': 30000}
+
 
 class JobNotRunnable(Exception):
     pass
 
 
 def _limits_for(kind):
-    return dict(DOCUMENT_LIMITS if kind in DOCUMENT_SOURCED_KINDS else DEFAULT_LIMITS)
+    if kind in DOCUMENT_SOURCED_KINDS:
+        return dict(DOCUMENT_LIMITS)
+    if kind == AIJobKind.PATIENT_REPORT:
+        return dict(REPORT_LIMITS)
+    return dict(DEFAULT_LIMITS)
 
 
 @transaction.atomic
@@ -52,6 +64,15 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
     if kind in DOCUMENT_SOURCED_KINDS:
         source_version = 0
         target = ':'.join(f'{key}={value}' for key, value in sorted(target_ref.items()))
+    elif kind in PATIENT_SOURCED_KINDS:
+        # O paciente sozinho nao distingue um relatorio do outro. O que
+        # distingue e a finalidade e o texto que o medico escreveu,
+        # resumidos em `ref` por `relatorio.referencia_do_pedido`. Sem
+        # isso o segundo relatorio do mesmo paciente cairia na chave do
+        # primeiro e nao rodaria: a tela mostraria o relatorio antigo
+        # como se fosse a resposta ao pedido novo.
+        source_version = 0
+        target = f"{authorization.patient_id}:{target_ref.get('ref', '')}"
     else:
         source_version = encounter.row_version if encounter else 0
         target = authorization.encounter_id or authorization.patient_id
@@ -152,6 +173,28 @@ def _gather_diagnostic_context(authorization, encounter):
     return context, source_refs
 
 
+def _gather_patient_report_context(authorization, patient, job):
+    """Prontuario do paciente, a finalidade e o pedido do medico.
+
+    Devolve `(contexto, source_refs, extras, recorte)`. Os `extras` sao
+    o que o prompt do relatorio precisa alem do contexto -- a unica
+    tarefa que precisa de algo assim -- e o `recorte` e o que a tela
+    mostra ao medico antes de ele assinar: quanto do prontuario coube.
+    """
+    from . import relatorio
+
+    alvo = job.target_ref or {}
+    escolhida = relatorio.finalidade(alvo.get('finalidade'))
+    contexto, source_refs, recorte = relatorio.montar_contexto(authorization, patient)
+    extras = {
+        'destinatario': escolhida.destinatario,
+        'orientacao': escolhida.orientacao,
+        'pedido': (alvo.get('pedido') or '').strip() or 'Relatorio clinico geral.',
+        'secoes': '; '.join(escolhida.secoes) or 'defina voce as secoes.',
+    }
+    return contexto, source_refs, extras, recorte
+
+
 def _gather_document_context(job):
     """Texto do laudo apontado pelo job, reautorizado pelo tenant.
 
@@ -243,12 +286,20 @@ def run_job(job_id):
         return _fail(job, AIJobStatus.STALE, 'Source changed since the job was queued', 'ai.job_stale')
 
     patient = Patient.objects.filter(id=job.patient_id).first() if job.patient_id else None
+    prompt_extras, recorte = {}, None
 
     if is_document_job:
         try:
             raw_context, source_refs = _gather_document_context(job)
         except Exception as exc:
             return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_failed')
+    elif job.kind == AIJobKind.PATIENT_REPORT:
+        if patient is None:
+            return _fail(job, AIJobStatus.FAILED, 'Paciente nao encontrado.', 'ai.job_failed')
+        context, source_refs, prompt_extras, recorte = _gather_patient_report_context(
+            authorization, patient, job,
+        )
+        raw_context = json.dumps(context, ensure_ascii=False, indent=1)
     elif job.kind == AIJobKind.DIAGNOSTIC_SUPPORT:
         context, source_refs = _gather_diagnostic_context(authorization, encounter)
         raw_context = json.dumps(context, ensure_ascii=False, indent=1)
@@ -258,7 +309,14 @@ def run_job(job_id):
 
     deidentified_text = deidentification.deidentify_text(raw_context, patient)
 
-    decision = privacy_policy.evaluate_privacy_policy(encounter, deidentified_text)
+    # A confirmacao do medico mora no proprio pedido e so o relatorio a
+    # escreve: `request_patient_report` so a grava depois de a tela ter
+    # mostrado qual marcador foi encontrado. Nenhuma outra tarefa tem
+    # como chegar aqui com ela.
+    decision = privacy_policy.evaluate_privacy_policy(
+        encounter, deidentified_text,
+        risco_confirmado=bool((job.target_ref or {}).get('risco_confirmado')),
+    )
     if not decision.allowed:
         return _fail(job, AIJobStatus.BLOCKED_PRIVACY, decision.reason, 'ai.job_blocked_privacy')
 
@@ -271,7 +329,7 @@ def run_job(job_id):
     except ProviderUnavailable as exc:
         return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_provider_unavailable')
 
-    prompt = build_prompt(job.kind, deidentified_text)
+    prompt = build_prompt(job.kind, deidentified_text, extras=prompt_extras)
     graph = build_graph(chat_model, job.kind, max_output_chars=job.limits.get('max_output_chars', 20000))
     result_state = graph.invoke({
         'prompt': prompt, 'timeout_seconds': job.limits.get('timeout_seconds', 30),
@@ -283,6 +341,11 @@ def run_job(job_id):
 
     artifact_data = dict(result_state['artifact'])
     artifact_data['source_refs'] = source_refs or artifact_data.get('source_refs', [])
+    if recorte is not None:
+        # Quanto do prontuario coube no relatorio fica gravado junto com
+        # ele, e nao so na tela de revisao: daqui a um ano, a pergunta
+        # sobre um relatorio assinado vai ser exatamente esta.
+        artifact_data['recorte_do_prontuario'] = recorte
     # Proveniência é o que foi de fato usado, não o que a instalação tem
     # configurado. Com provedor por clínica, gravar `settings.AI_PROVIDER`
     # registraria o provedor errado em toda clínica que informou o seu — e
@@ -340,4 +403,45 @@ def cancel_job(job, actor_id):
     record_audit_event(
         actor_id, job.tenant_id, 'ai.job_cancelled', object_type='ai_job', object_id=job.id, outcome='success',
     )
+    return job
+
+
+def request_patient_report(access_context, patient, codigo_finalidade, pedido,
+                           risco_confirmado=False):
+    """Pede o rascunho de um relatório sobre o paciente.
+
+    `risco_confirmado` só chega aqui vindo da tela, depois de o médico ter
+    lido qual marcador de privacidade foi encontrado e ter dito que quer
+    prosseguir — e a confirmação entra na trilha de auditoria antes de o
+    job ser enfileirado, não depois. Ver `ai/privacy_policy.py`.
+    """
+    from . import relatorio
+
+    escolhida = relatorio.finalidade(codigo_finalidade)
+    target_ref = {
+        'finalidade': escolhida.codigo,
+        'pedido': (pedido or '').strip()[:4000],
+        'ref': relatorio.referencia_do_pedido(escolhida.codigo, pedido),
+    }
+    if risco_confirmado:
+        target_ref['risco_confirmado'] = True
+        # A chave muda junto: sem isso, confirmar o risco reaproveitaria a
+        # linha do job que acabou de ser bloqueado -- que ja esta em
+        # `blocked_privacy` e nao volta para a fila.
+        target_ref['ref'] = relatorio.referencia_do_pedido(
+            escolhida.codigo, f'{pedido}|confirmado',
+        )
+        record_audit_event(
+            access_context.user_id, access_context.tenant_id, 'ai.privacy_risk_confirmed',
+            object_type='patient', object_id=patient.id, outcome='success',
+            integrity_metadata={'finalidade': escolhida.codigo},
+        )
+    job = create_job(
+        access_context, AIJobKind.PATIENT_REPORT, escolhida.rotulo,
+        patient_id=patient.id, target_ref=target_ref,
+    )
+    if job.status == AIJobStatus.QUEUED:
+        from .tasks import run_ai_job
+
+        transaction.on_commit(lambda: run_ai_job.delay(str(job.id)))
     return job

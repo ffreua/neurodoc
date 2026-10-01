@@ -19,6 +19,16 @@ favor do que se olha de vez em quando.{% endcomment %}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
     Evolução
 </button>
+{% if nd_can.issue_document and nd_can.clinical_ai %}
+{% comment %}O relatorio com IA fica aqui, ao lado da evolucao, e nao na tela
+de documentos: ele nasce do prontuario inteiro, que e o que esta tela mostra.
+Na lista de documentos o paciente ja esta escolhido mas o historico nao esta a
+vista, e a primeira pergunta de quem pede um relatorio e "desde quando".{% endcomment %}
+<a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+    Relatório com IA
+</a>
+{% endif %}
 {% comment %}A escolha do tipo tem de estar em TODA porta que abre
 atendimento, e nao so na ficha do paciente: quem entra pelo prontuario nao
 passa pela ficha, e uma porta sem a escolha nao parece uma porta faltando —

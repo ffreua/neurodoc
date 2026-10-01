@@ -1,5 +1,6 @@
 from clinical.models import (
-    Encounter, EncounterDiagnosis, ExaminationFinding, ExamResult, Medication,
+    DiagnosisCertainty, Encounter, EncounterDiagnosis, ExaminationFinding, ExamResult,
+    Medication,
 )
 
 MAX_ENCOUNTERS = 20
@@ -150,3 +151,103 @@ def get_diagnoses(authorization, encounter_id, limit=MAX_DIAGNOSES):
         {'code': d.code_snapshot, 'description': d.description_snapshot, 'certainty': d.certainty}
         for d in diagnoses
     ]
+
+
+def get_patient_diagnoses(authorization, limit=MAX_DIAGNOSES):
+    """Diagnósticos do paciente inteiro, com a última palavra sobre cada código.
+
+    Duas diferenças em relação a `get_diagnoses`, que lê um atendimento só,
+    e as duas existem por causa do relatório que o paciente leva na mão:
+
+    - **vale a última palavra.** Um código registrado como suspeita em
+      março e refutado em agosto não é diagnóstico do paciente: é hipótese
+      descartada. Listá-lo num relatório afirmaria doença que o próprio
+      médico já excluiu. A regra é a mesma de `clinical/por_cid.py`, e pelo
+      mesmo motivo — lá ela evita que a busca devolva quem não tem a
+      doença, aqui evita que o papel diga que tem.
+    - **a data que importa é a primeira.** "Desde quando" é a pergunta que
+      o relatório precisa responder, e a resposta está no atendimento mais
+      antigo em que o código aparece. A mais recente diz quando se falou
+      dele pela última vez, que é outra coisa.
+
+    O refutado não some: volta em `refutados`, porque o que foi investigado
+    e descartado também é informação clínica — e é o médico, não esta
+    função, quem decide se cabe no relatório.
+    """
+    if authorization.patient_id is None:
+        raise ToolScopeError('Authorization has no patient in scope')
+    limit = min(int(limit), MAX_DIAGNOSES)
+    linhas = (
+        EncounterDiagnosis.objects
+        .filter(tenant_id=authorization.tenant_id, encounter__patient_id=authorization.patient_id)
+        .order_by('encounter__occurred_at')
+        .values('code_snapshot', 'description_snapshot', 'certainty', 'encounter__occurred_at')
+    )
+    por_codigo = {}
+    for linha in linhas:
+        chave = linha['code_snapshot'] or linha['description_snapshot']
+        quando = linha['encounter__occurred_at']
+        registro = por_codigo.get(chave)
+        if registro is None:
+            por_codigo[chave] = {
+                'codigo': linha['code_snapshot'], 'descricao': linha['description_snapshot'],
+                'primeiro_registro': quando, 'ultimo_registro': quando,
+                'certeza': linha['certainty'],
+            }
+            continue
+        # A ordenação é crescente, então o que chega por último é o mais
+        # recente -- e é ele quem define a certeza vigente.
+        registro['ultimo_registro'] = quando
+        registro['certeza'] = linha['certainty']
+        if linha['description_snapshot']:
+            registro['descricao'] = linha['description_snapshot']
+
+    vigentes, refutados = [], []
+    for registro in list(por_codigo.values())[:limit]:
+        saida = {
+            'codigo': registro['codigo'], 'descricao': registro['descricao'],
+            'certeza': dict(DiagnosisCertainty.choices).get(registro['certeza'], registro['certeza']),
+            'registrado_desde': registro['primeiro_registro'].date().isoformat(),
+            'ultima_mencao': registro['ultimo_registro'].date().isoformat(),
+        }
+        if registro['certeza'] == DiagnosisCertainty.REFUTED:
+            refutados.append(saida)
+        else:
+            vigentes.append(saida)
+    return vigentes, refutados
+
+
+def get_patient_medications(authorization, limit=MAX_MEDICATIONS):
+    """Medicações do paciente, a mais recente de cada nome.
+
+    A medicação é registrada por atendimento, então um anticonvulsivante
+    mantido por cinco anos aparece em dez linhas iguais. O relatório
+    precisa de "em uso desde quando, em que dose hoje" -- e isso é a
+    primeira menção com o último registro, não dez repetições.
+    """
+    if authorization.patient_id is None:
+        raise ToolScopeError('Authorization has no patient in scope')
+    limit = min(int(limit), MAX_MEDICATIONS)
+    medications = (
+        Medication.objects
+        .filter(tenant_id=authorization.tenant_id, encounter__patient_id=authorization.patient_id)
+        .select_related('encounter')
+        .order_by('encounter__occurred_at')
+    )
+    por_nome = {}
+    for m in medications:
+        chave = (m.name or '').strip().lower()
+        if not chave:
+            continue
+        anterior = por_nome.get(chave)
+        desde = anterior['desde'] if anterior else (
+            m.started_on.isoformat() if m.started_on
+            else m.encounter.occurred_at.date().isoformat()
+        )
+        por_nome[chave] = {
+            'nome': m.name, 'dose': m.dose, 'via': m.get_route_display(),
+            'frequencia': m.frequency, 'desde': desde,
+            'indicacao': m.indication, 'situacao': m.get_status_display(),
+            'observacao': m.notes,
+        }
+    return list(por_nome.values())[:limit]

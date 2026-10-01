@@ -129,7 +129,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
-| `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores |
+| `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores e o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) |
 | `notifications` | sino do usuário |
 | `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
@@ -287,6 +287,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_csp.py` | política de conteúdo: `script-src` sem `unsafe-inline`, nonce novo a cada resposta e igual ao do HTML, a varredura dos templates atrás de `onclick` e de `<script>` sem nonce, o modo de relatório como padrão, e o coletor com teto por IP |
 | `check_declaracao.py` | declaração de comparecimento: o papel **não** carrega CID nem diagnóstico, nega ser atestado com todas as letras, ver não emite (só o POST registra), horário invertido não vira papel, e a fronteira entre clínicas |
 | `check_evolucao.py` | série temporal: o eixo do tempo proporcional à data real, a escala usando o próprio domínio, a incompleta fora da linha, unidades diferentes como séries diferentes, e a tela que mostra o número sem interpretá-lo |
+| `check_relatorio_ia.py` | relatório escrito pela IA: o marcador de desidentificação que não pode chegar ao papel, a identificação que não entra no contexto, o diagnóstico refutado que não vira doença, o recorte declarado, a ponte que cria **rascunho** e não documento emitido, e o texto editado na tela sendo o que vai assinado |
 | `check_por_cid.py` | busca de paciente por diagnóstico: a fronteira (a secretária e o gestor não abrem a tela), o código por prefixo com o ponto dispensável, o diagnóstico anotado sem código, e o refutado que não volta — vale a última palavra sobre cada código |
 | `check_retorno.py` | retorno programado: meses de calendário sem estourar o fim do mês, um retorno por atendimento, a janela de 20 dias com o dia perdido recuperado, o `notified_at` que barra o segundo e-mail, a recusa do contato respeitada, a redação de cuidado e não de captação, e a fila da secretária |
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |

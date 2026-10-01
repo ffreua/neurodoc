@@ -20,11 +20,30 @@ class PolicyDecision:
     reason: str = ''
 
 
-def evaluate_privacy_policy(encounter, combined_text):
+def evaluate_privacy_policy(encounter, combined_text, risco_confirmado=False):
     """Fail-closed: any recognized residual-risk signal blocks the job
     before any external request is even attempted (status=blocked_privacy),
     never merely "warns and proceeds".
+
+    `risco_confirmado` e a unica porta que atravessa esta trava, e ela so
+    se abre com um medico tendo lido na tela qual marcador foi encontrado
+    e dito que quer prosseguir -- a confirmacao vai para a trilha de
+    auditoria com nome e hora.
+
+    Ela existe por um caso que a versao original nao previa: o **relatorio
+    que o proprio paciente leva na mao**. A trava nasceu para o que sai
+    daqui como analise -- resumo, apoio diagnostico --, onde reidentificar
+    alguem por combinacao de dados raros e risco sem contrapartida. Num
+    relatorio pedido para a propria pericia, recusar significa negar o
+    documento exatamente a quem mais precisa dele: em neurologia, quem vai
+    ao INSS e com frequencia quem tem doenca rara.
+
+    O que **nao** muda: a trava segue fechada por padrao, segue valendo
+    inteira para as demais tarefas, e nenhuma delas tem como passar `True`
+    aqui.
     """
+    if risco_confirmado:
+        return PolicyDecision(True)
     if encounter is not None and encounter.consanguinity_state == ConsanguinityState.CONFIRMED \
             and encounter.consanguinity_details:
         return PolicyDecision(

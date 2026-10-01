@@ -21,7 +21,7 @@ from pydantic import ValidationError
 
 from .schemas import (
     ClinicalSummaryArtifact, DiagnosticSupportArtifact, LabExtractionArtifact,
-    ReportTranscriptionArtifact,
+    PatientReportArtifact, ReportTranscriptionArtifact,
 )
 
 DEFAULT_TIMEOUT_SECONDS = 30
@@ -123,11 +123,37 @@ Texto do documento (já desidentificado):
 {context}
 """
 
+REPORT_PROMPT = """Você redige o RASCUNHO de um relatório médico. O autor é o médico: ele vai ler, corrigir e assinar o que você escrever, e é ele quem responde pelo documento. Seu trabalho é organizar o que está no prontuário abaixo na forma de um relatório.
+
+Destinatário: {destinatario}.
+{orientacao}
+
+Pedido do médico, que manda sobre tudo que vem depois: {pedido}
+
+Seções esperadas (use-as como estrutura; omita a que o prontuário não sustenta, e acrescente outra se o pedido do médico pedir): {secoes}
+
+Regras que não admitem exceção:
+1. Use somente o que está no prontuário. Não complete, não deduza e não acrescente achado, data, exame ou conduta que não esteja lá. O que faltar vai em "informacao_faltante" — nunca no corpo do relatório.
+2. NUNCA escreva [PACIENTE], [NOME_MAE], [CPF], [TELEFONE] ou [EMAIL]. Escreva "o paciente" ou "a paciente". A identificação é impressa pelo sistema no cabeçalho do documento e não é assunto seu — um marcador desses sobrevive até o papel que o paciente entrega na perícia.
+3. Toda data que você citar tem de estar no prontuário. Se o prontuário não diz quando algo começou, diga que o registro mais antigo é de tal data — não estime.
+4. Escreva em português brasileiro, em prosa corrida, no registro de um relatório médico: nem tópicos telegráficos, nem abreviação de prontuário. Quem lê do outro lado pode não ser médico.
+5. Não prescreva, não indique tratamento novo e não afirme prognóstico que o prontuário não sustente.
+6. Não conclua sobre incapacidade, aptidão, direito a benefício, cobertura ou qualquer decisão que caiba ao destinatário. Você descreve o quadro; quem decide é quem recebe.
+7. Diagnóstico refutado está listado à parte no contexto e **não é** diagnóstico do paciente. Só o mencione se for útil dizer o que foi investigado e afastado, e deixando claro que foi afastado.
+
+{json_only} Campos: "titulo" (string), "secoes" (lista de objetos com "titulo" e "texto"), "periodo_coberto" (string dizendo de que data a que data o prontuário lido vai), "informacao_faltante" (string), "limitations" (string), "requires_physician_review" (sempre true), "disclaimer" (string).
+
+Prontuário (já desidentificado):
+{context}
+"""
+
+
 #: kind do AIJob -> (prompt, esquema). É o único lugar que amarra um tipo de
 #: tarefa ao formato que ele pode devolver.
 TASKS = {
     'encounter_summary': (SUMMARY_PROMPT, ClinicalSummaryArtifact),
     'patient_summary': (SUMMARY_PROMPT, ClinicalSummaryArtifact),
+    'patient_report': (REPORT_PROMPT, PatientReportArtifact),
     'diagnostic_support': (DIAGNOSTIC_SUPPORT_PROMPT, DiagnosticSupportArtifact),
     'lab_extraction': (LAB_EXTRACTION_PROMPT, LabExtractionArtifact),
     'report_transcription': (REPORT_TRANSCRIPTION_PROMPT, ReportTranscriptionArtifact),
@@ -192,12 +218,20 @@ def _strip_code_fence(text):
     return stripped.strip()
 
 
-def build_prompt(kind, context_text):
+def build_prompt(kind, context_text, extras=None):
+    """Monta o prompt da tarefa.
+
+    `extras` existe para o relatório, que é a única tarefa cujo prompt
+    depende de algo além do contexto: a finalidade escolhida e o pedido que
+    o médico escreveu. Os demais prompts não têm essas chaves, e `format`
+    ignora o que não aparece no texto — por isso o parâmetro é opcional e
+    não há um segundo caminho para eles.
+    """
     try:
         template, _ = TASKS[kind]
     except KeyError as exc:
         raise UnknownTask(f'Sem prompt para o tipo de tarefa {kind!r}') from exc
-    return template.format(context=context_text, json_only=_JSON_ONLY)
+    return template.format(context=context_text, json_only=_JSON_ONLY, **(extras or {}))
 
 
 def build_summary_prompt(context_text):

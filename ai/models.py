@@ -16,6 +16,18 @@ class AIJobKind(models.TextChoices):
     DIAGNOSTIC_SUPPORT = 'diagnostic_support', 'Apoio ao raciocínio diagnóstico'
     LAB_EXTRACTION = 'lab_extraction', 'Leitura de laudo laboratorial'
     REPORT_TRANSCRIPTION = 'report_transcription', 'Transcrição de laudo'
+    PATIENT_REPORT = 'patient_report', 'Relatório do paciente'
+
+
+#: Tarefas sem atendimento: a fonte é o paciente inteiro.
+#:
+#: A distinção importa na chave de idempotência. Para tarefa de
+#: atendimento, a fonte é a versão daquele atendimento; aqui não há
+#: atendimento, e o paciente sozinho não serve — dois relatórios do mesmo
+#: paciente colidiriam na mesma chave, e o segundo pedido reaproveitaria a
+#: linha do primeiro sem rodar. O que distingue um pedido do outro é a
+#: finalidade e o texto que o médico escreveu, resumidos em `target_ref`.
+PATIENT_SOURCED_KINDS = frozenset({AIJobKind.PATIENT_REPORT})
 
 
 #: Tarefas cuja fonte é um documento anexado, e não o texto do atendimento.

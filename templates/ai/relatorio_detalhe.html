@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% load nd static %}
+{% comment %}Revisão do rascunho de relatório.
+
+A caixa de texto é editável, e esse é o ponto da tela. Um botão "aceitar"
+sobre texto não editável convidaria a aprovar sem ler; uma caixa aberta,
+com o texto dentro, é o que faz o médico passar os olhos por ele — e é ele
+quem assina.
+
+O bloqueio por privacidade aparece aqui com o marcador encontrado, e não
+como uma recusa genérica: sem saber *o que* foi detectado, a confirmação
+não seria uma decisão, seria um clique para fazer a tela andar.
+{% endcomment %}
+{% block title %}Rascunho de relatório — {{ patient.full_name }}{% endblock %}
+{% block page_title %}Rascunho de relatório{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:list' %}">Pacientes</a></li>
+<li class="breadcrumb-item"><a href="{% url 'clinical:timeline' patient.id %}">{{ patient.full_name }}</a></li>
+<li class="breadcrumb-item">Rascunho de relatório</li>
+{% endblock %}
+{% block page_actions %}
+<span class="badge bg-soft-{{ job.status|nd_tone }} text-{{ job.status|nd_tone }} fs-12 px-3 py-2">{{ job.get_status_display }}</span>
+{% endblock %}
+{% block content %}
+{% if job.status == 'queued' or job.status == 'running' %}<span data-nd-ai-job-pending hidden></span>{% endif %}
+
+<div class="card mb-3">
+    <div class="card-body py-3 fs-13">
+        <span class="fw-semibold text-dark">{{ finalidade.rotulo }}</span>
+        <p class="text-muted mb-0 mt-1">{{ pedido }}</p>
+    </div>
+</div>
+
+{% if job.status == 'queued' or job.status == 'running' %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <div class="spinner-border text-primary mb-3" role="status"><span class="visually-hidden">Gerando</span></div>
+        <p class="fs-13 text-muted mb-0">
+            Lendo o prontuário e redigindo o rascunho. Pode levar alguns minutos — esta
+            página se atualiza sozinha.
+        </p>
+    </div>
+</div>
+
+{% elif job.status == 'blocked_privacy' %}
+<div class="card border-warning">
+    <div class="card-body">
+        <h6 class="fw-bold text-dark mb-2">Prosseguir com este relatório?</h6>
+        <p class="fs-13 text-muted">{{ job.status_detail }}</p>
+        <p class="fs-13 text-muted">
+            Esta trava existe para o que sai daqui como análise, onde reidentificar alguém
+            por combinação de dados raros é risco sem contrapartida. Num relatório que o
+            próprio paciente pediu e vai levar na mão, a decisão é sua — e fica registrada
+            com seu nome.
+        </p>
+        <form method="post" action="{% url 'ai:relatorio-novo' patient.id %}" class="d-flex gap-2">
+            {% csrf_token %}
+            <input type="hidden" name="finalidade" value="{{ finalidade.codigo }}">
+            <input type="hidden" name="pedido" value="{{ pedido }}">
+            <input type="hidden" name="risco_confirmado" value="1">
+            <button type="submit" class="btn btn-warning" data-nd-busy>
+                <span>Entendo o risco, gerar assim mesmo</span>
+            </button>
+            <a class="btn btn-light" href="{% url 'clinical:timeline' patient.id %}">Desistir</a>
+        </form>
+    </div>
+</div>
+
+{% elif job.status == 'failed' or job.status == 'disabled' %}
+<div class="alert alert-danger fs-13" role="alert">
+    {{ job.status_detail|default:"Não foi possível gerar o rascunho." }}
+</div>
+<a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}">Tentar de novo</a>
+
+{% elif artifact %}
+<div class="row g-4">
+    <div class="col-12 col-xl-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <h5 class="card-title mb-0">{{ artifact.result.titulo|default:"Relatório médico" }}</h5>
+                <span class="badge bg-soft-{{ artifact.review_state|nd_tone }} text-{{ artifact.review_state|nd_tone }}">{{ artifact.get_review_state_display }}</span>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning fade show fs-12" role="alert">
+                    {{ artifact.result.disclaimer }} Leia e corrija antes de aprovar: o documento
+                    sai com a sua assinatura.
+                </div>
+
+                {% if documento %}
+                <div class="alert alert-success fs-13" role="alert">
+                    Este rascunho já virou o relatório
+                    <a href="{% url 'documents:medical-detail' documento.id %}" class="alert-link">{{ documento.document_number|default:"em rascunho" }}</a>.
+                </div>
+                {% else %}
+                <form method="post" action="{% url 'ai:relatorio-aprovar' artifact.id %}">
+                    {% csrf_token %}
+                    <label class="form-label fw-semibold fs-13" for="texto">Texto do relatório</label>
+                    <textarea class="form-control nd-prose" id="texto" name="texto" rows="24">{{ texto }}</textarea>
+                    <div class="form-text fs-11 mb-3">
+                        Edite à vontade. O que estiver aqui é o que vai para o documento.
+                    </div>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>
+                            <span>Aprovar e criar o relatório</span>
+                        </button>
+                        <a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}">Pedir outro</a>
+                    </div>
+                </form>
+
+                <form method="post" action="{% url 'ai:relatorio-descartar' artifact.id %}" class="mt-2">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light-danger btn-sm" data-nd-busy>
+                        <span>Descartar este rascunho</span>
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+        <div class="card stretch stretch-full">
+            <div class="card-header"><h5 class="card-title mb-0">Confira antes de assinar</h5></div>
+            <div class="card-body fs-13">
+                {% with recorte=artifact.result.recorte_do_prontuario %}
+                {% if recorte %}
+                <div class="border rounded-3 p-3 {% if recorte.completo %}bg-gray-100{% else %}bg-soft-warning{% endif %} mb-3">
+                    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Prontuário lido</span>
+                    <p class="mb-0 fs-12">
+                        {{ recorte.atendimentos_lidos }} de {{ recorte.atendimentos_totais }} atendimentos{% if recorte.desde %}, de {{ recorte.desde }} a {{ recorte.ate }}{% endif %}.
+                        {% if not recorte.completo %}<strong>O que é anterior a isso não entrou.</strong>{% endif %}
+                    </p>
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                {% if artifact.result.periodo_coberto %}
+                <div class="border rounded-3 p-3 bg-gray-100 mb-3">
+                    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Período coberto</span>
+                    <p class="mb-0 fs-12 text-muted">{{ artifact.result.periodo_coberto }}</p>
+                </div>
+                {% endif %}
+
+                {% if artifact.result.informacao_faltante %}
+                <div class="border rounded-3 p-3 bg-gray-100 mb-3">
+                    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">O que não estava no prontuário</span>
+                    <p class="mb-0 fs-12 text-muted">{{ artifact.result.informacao_faltante }}</p>
+                </div>
+                {% endif %}
+
+                <div class="border rounded-3 p-3 bg-gray-100">
+                    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Limitações</span>
+                    <p class="mb-0 fs-12 text-muted">{{ artifact.result.limitations }}</p>
+                </div>
+
+                <p class="fs-11 text-muted mt-3 mb-0">
+                    Redigido por {{ artifact.provider }} · {{ artifact.model }}.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% else %}
+<div class="alert alert-light fs-13" role="alert">Nenhum rascunho ainda.</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'ai/job-status.js' %}" defer></script>
+{% endblock %}

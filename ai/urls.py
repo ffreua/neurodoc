@@ -10,6 +10,20 @@ urlpatterns = [
     path('artifacts/<uuid:artifact_id>/accept/', views.ArtifactAcceptView.as_view(), name='artifact-accept'),
     path('artifacts/<uuid:artifact_id>/reject/', views.ArtifactRejectView.as_view(), name='artifact-reject'),
 
+    path(
+        'pacientes/<uuid:patient_id>/relatorio/',
+        views.RelatorioRequestView.as_view(), name='relatorio-novo',
+    ),
+    path('relatorios/<uuid:job_id>/', views.RelatorioDetailView.as_view(), name='relatorio-detalhe'),
+    path(
+        'relatorios/rascunho/<uuid:artifact_id>/aprovar/',
+        views.RelatorioAprovarView.as_view(), name='relatorio-aprovar',
+    ),
+    path(
+        'relatorios/rascunho/<uuid:artifact_id>/descartar/',
+        views.RelatorioRejeitarView.as_view(), name='relatorio-descartar',
+    ),
+
     path('chat/', chat_views.ChatSessionListView.as_view(), name='chat-list'),
     path('chat/<uuid:session_id>/', chat_views.ChatSessionDetailView.as_view(), name='chat-session-detail'),
     path('chat/<uuid:session_id>/arquivar/', chat_views.ChatSessionArchiveView.as_view(), name='chat-archive'),

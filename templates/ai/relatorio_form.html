@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% comment %}Pedido de relatório com apoio de IA.
+
+Duas coisas nesta tela não são decoração:
+
+O **recorte** é dito antes de gerar, e não depois. Quem assina um relatório
+precisa saber que ele foi construído sobre os vinte atendimentos mais
+recentes de um paciente que tem sessenta — e precisa saber disso enquanto
+ainda dá para decidir fazer diferente.
+
+A **finalidade** não é só um rótulo: ela carrega as seções que aquele
+destinatário espera. O mesmo prontuário responde ao perito, à operadora e
+ao colega em ordens diferentes, e é isso que o seletor escolhe.
+{% endcomment %}
+{% block title %}Relatório com IA — {{ patient.full_name }}{% endblock %}
+{% block page_title %}Relatório com apoio de IA{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:list' %}">Pacientes</a></li>
+<li class="breadcrumb-item"><a href="{% url 'clinical:timeline' patient.id %}">{{ patient.full_name }}</a></li>
+<li class="breadcrumb-item">Relatório com IA</li>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-12 col-xl-8">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">{{ patient.full_name }}</h5>
+            </div>
+            <div class="card-body">
+                {% if erro %}
+                <div class="alert alert-danger fs-13" role="alert">{{ erro }}</div>
+                {% endif %}
+
+                <form method="post" novalidate>
+                    {% csrf_token %}
+
+                    <label class="form-label fw-semibold fs-13">Para quem é o relatório</label>
+                    <div class="mb-4">
+                        {% for f in finalidades %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="finalidade"
+                                   id="finalidade-{{ f.codigo }}" value="{{ f.codigo }}"
+                                   {% if finalidade_escolhida == f.codigo or forloop.first and not finalidade_escolhida %}checked{% endif %}>
+                            <label class="form-check-label fs-13" for="finalidade-{{ f.codigo }}">
+                                <span class="fw-semibold text-dark">{{ f.rotulo }}</span>
+                                {% if f.secoes %}
+                                <span class="d-block fs-11 text-muted">{{ f.secoes|join:" · " }}</span>
+                                {% endif %}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <label class="form-label fw-semibold fs-13" for="pedido">O que o relatório precisa conter</label>
+                    <textarea class="form-control" id="pedido" name="pedido" rows="5" autofocus
+                              placeholder="Ex.: data do diagnóstico, evolução clínica desde o início do acompanhamento e resultado dos exames que sustentam o quadro.">{{ pedido|default:"" }}</textarea>
+                    <div class="form-text fs-11">
+                        Escreva como pediria a um colega. O que você disser aqui manda sobre o modelo
+                        escolhido acima.
+                    </div>
+
+                    <div class="mt-4 d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>
+                            <span>Gerar rascunho</span>
+                        </button>
+                        <a class="btn btn-light" href="{% url 'clinical:timeline' patient.id %}">Cancelar</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">O que a IA vai ler</h5>
+            </div>
+            <div class="card-body fs-13">
+                {% if total_de_atendimentos > teto %}
+                <div class="alert alert-warning fs-12" role="alert">
+                    Este paciente tem <strong>{{ total_de_atendimentos }}</strong> atendimentos, e o
+                    relatório será construído sobre os <strong>{{ teto }}</strong> mais recentes.
+                    O que for anterior a isso não entra — confira antes de assinar.
+                </div>
+                {% else %}
+                <p class="text-muted mb-3">
+                    Os <strong>{{ total_de_atendimentos }}</strong> atendimentos deste paciente,
+                    por inteiro.
+                </p>
+                {% endif %}
+
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item px-0">Atendimentos, com história, exame e conduta</li>
+                    <li class="list-group-item px-0">Diagnósticos vigentes, com a data do registro mais antigo</li>
+                    <li class="list-group-item px-0">Medicações em uso</li>
+                    <li class="list-group-item px-0">Resultados de exame e laudos já transcritos</li>
+                </ul>
+
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3">
+                    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Identificação</span>
+                    <p class="mb-0 fs-12 text-muted">
+                        Nome, CPF e data de nascimento <strong>não</strong> são enviados ao provedor
+                        de IA. Eles são impressos pelo sistema no cabeçalho do documento, a partir
+                        da ficha.
+                    </p>
+                </div>
+
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3">
+                    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Quem assina</span>
+                    <p class="mb-0 fs-12 text-muted">
+                        O que sai daqui é um <strong>rascunho</strong>. Você revisa, corrige e só
+                        então ele vira um relatório para assinar — digitalmente ou no papel.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
