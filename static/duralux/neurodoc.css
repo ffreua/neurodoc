@@ -944,6 +944,30 @@ body.nd-no-shell .nxl-content {
         min-width: 40px;
     }
 
+    /* A paginacao tambem se toca, e ela nao herda a regra do botao: o
+     * `.page-link` do Bootstrap nao e `.btn`, e ficava com 30px de altura
+     * — tres quartos do alvo que o resto da tela respeita.
+     *
+     * Onde isso doi: a lista de pacientes, depois da migracao do cadastro,
+     * tem noventa paginas. "Anterior" e "Proxima" sao o unico jeito de
+     * andar nela pelo celular, e estavam encostados na borda direita, do
+     * tamanho de um numero.
+     *
+     * `flex-wrap` porque com o contador no meio ("45 / 90") os tres itens
+     * nao cabem lado a lado em tela estreita; sem ele, o terceiro
+     * transbordava para fora do cartao. */
+    .pagination {
+        flex-wrap: wrap;
+        gap: .25rem;
+    }
+    .page-link {
+        min-height: 40px;
+        min-width: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
     /* A caixa de selecao tambem se toca. 13px de lado e menor que a
      * pontuacao do texto ao lado dela. */
     .form-check-input {

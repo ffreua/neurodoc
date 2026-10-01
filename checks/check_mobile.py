@@ -72,6 +72,12 @@ esperado = [
     ('16px nos campos', r'\.form-control[\s\S]{0,200}?font-size:\s*1rem'),
     ('40px de alvo de toque', r'\.btn[\s\S]{0,200}?min-height:\s*40px'),
     ('caixa de selecao maior', r'\.form-check-input[\s\S]{0,200}?width:\s*1\.25rem'),
+    # A paginacao nao herda a regra do botao: `.page-link` nao e `.btn`.
+    # Ficava com 30px, tres quartos do alvo que o resto da tela respeita --
+    # e na lista de pacientes, com noventa paginas depois da migracao,
+    # "Anterior" e "Proxima" sao o unico jeito de andar pelo celular.
+    ('40px na paginacao', r'\.page-link[\s\S]{0,200}?min-height:\s*40px'),
+    ('paginacao quebrando linha', r'\.pagination[\s\S]{0,120}?flex-wrap:\s*wrap'),
 ]
 for rotulo, padrao in esperado:
     presente = bool(re.search(padrao, bloco))

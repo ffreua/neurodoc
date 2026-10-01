@@ -104,7 +104,8 @@
             {% if patients.has_previous or patients.has_next %}
             <div class="card-footer">
                 <nav aria-label="Paginação">
-                    <ul class="pagination pagination-common-style mb-0 justify-content-end">
+                    {% comment %}Centrada no celular e a direita no resto: encostada na borda, em tela estreita, "Proxima" fica a um toque do limite da tela e o polegar erra para fora.{% endcomment %}
+                        <ul class="pagination pagination-common-style mb-0 justify-content-center justify-content-sm-end">
                         {% comment %}O número da página só é lido quando ela existe.
 
                         `{{ patients.previous_page_number|default:1 }}` parecia

@@ -34,23 +34,39 @@ def _filtro_de_busca(query):
     ajuste — e a divergência apareceria como "achei pela lista e não achei
     pela busca", que é o tipo de defeito que ninguém reporta e todo mundo
     contorna.
+
+    **Comparação por igualdade só entra quando há o que comparar.** Quem
+    digita um nome não digita dígito nenhum, e `digits` fica vazio — então
+    `Q(cpf=digits)` vira `Q(cpf='')` e `Q(contacts__phone=digits)` vira
+    `Q(contacts__phone='')`, que casam com **todo** paciente sem CPF e com
+    **todo** contato sem telefone.
+
+    O defeito não aparecia com uma dúzia de fichas: nenhuma tinha CPF ou
+    telefone em branco, e o OR não trazia ninguém a mais. Apareceu quando
+    o cadastro foi migrado — buscar "Fernando" devolvia noventa e cinco
+    pessoas, das quais vinte e uma se chamavam Fernando, e a primeira
+    página vinha cheia de nomes começados em A, em ordem alfabética. Quem
+    usa não lê isso como "busca imprecisa": lê como **"a busca não
+    funciona"**, e está certo.
     """
     query = (query or '').strip()
     if not query:
         return Q()
     digits = ''.join(c for c in query if c.isdigit())
-    by_record = Q()
+
+    filtro = Q(full_name__icontains=query)
     if digits:
-        by_record = Q(record_number=digits) | Q(record_number=digits.zfill(6))
-    return (
-        Q(full_name__icontains=query)
-        | Q(cpf=query)
-        | Q(cpf=digits)
-        | Q(contacts__phone=query)
-        | Q(contacts__phone=digits)
-        | Q(contacts__email__iexact=query)
-        | by_record
-    )
+        filtro |= Q(cpf=digits)
+        filtro |= Q(contacts__phone=digits)
+        # `zfill` aceita tanto "123" quanto "000123": quem dita o número
+        # do prontuário raramente dita os zeros.
+        filtro |= Q(record_number=digits) | Q(record_number=digits.zfill(6))
+    # O endereço inteiro, e não um pedaço: `iexact` com "maria" não casaria
+    # com e-mail nenhum, mas a junção com contatos custa, e só vale a pena
+    # quando o que se digitou parece um endereço.
+    if '@' in query:
+        filtro |= Q(contacts__email__iexact=query)
+    return filtro
 
 
 def busca_rapida(context, query, limite=BUSCA_RAPIDA_LIMITE):

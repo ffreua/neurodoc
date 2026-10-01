@@ -102,7 +102,49 @@ try:
     conferir('a ultima pagina da busca abre',
              cliente.get(url, {'q': 'Roteiro Paginacao', 'page': 2}).status_code, 200)
 
-    print('\n5. As demais telas paginadas')
+    print('\n5. A busca devolve quem se procurou, e nao a clinica inteira')
+    # `Q(cpf=digits)` com `digits` vazio vira `Q(cpf="")` e casa com todo
+    # paciente sem CPF; o mesmo com telefone. Com uma duzia de fichas
+    # ninguem percebe -- nenhuma tem o campo em branco. Com duas mil,
+    # buscar "Fernando" devolvia noventa e cinco pessoas, das quais vinte
+    # e uma se chamavam Fernando, e a primeira pagina vinha cheia de nomes
+    # comecados em A. Quem usa le isso como "a busca nao funciona".
+    from patients.selectors import list_patients
+    from tenancy.context import AccessContext
+
+    ctx = AccessContext(
+        user_id=vinculo.user_id, tenant_id=tenant.id, membership_id=vinculo.id,
+        permissions=frozenset(vinculo.roles or []), request_id=None,
+        tenant_status=tenant.status, capabilities=frozenset(),
+    )
+    alvo = Patient.objects.create(
+        tenant=tenant, full_name='Roteiro Busca Alvo Unico',
+        registration_stage=RegistrationStage.COMPLETE,
+        birth_date_unknown_reason='Roteiro.',
+    )
+    criados.append(alvo.id)
+    # O ruido: sem CPF e sem telefone, que era o estado que poluia o OR.
+    ruido = Patient.objects.create(
+        tenant=tenant, full_name='Aaaa Ruido Sem Cpf Nem Fone',
+        registration_stage=RegistrationStage.COMPLETE,
+        birth_date_unknown_reason='Roteiro.',
+    )
+    criados.append(ruido.id)
+
+    achados = list_patients(ctx, query='Roteiro Busca Alvo')
+    nomes = {p.full_name for p in achados.object_list}
+    conferir('a busca por nome acha quem tem o nome',
+             'ROTEIRO BUSCA ALVO UNICO' in nomes, True)
+    conferir('e NAO traz quem so tem o campo em branco',
+             'AAAA RUIDO SEM CPF NEM FONE' in nomes, False)
+    conferir('o total e so o de quem tem o nome', achados.paginator.count, 1)
+
+    # O que a busca por numero tem de continuar achando.
+    com_numero = list_patients(ctx, query=alvo.record_number)
+    conferir('busca pelo numero do prontuario ainda acha',
+             alvo.id in {p.id for p in com_numero.object_list}, True)
+
+    print('\n6. As demais telas paginadas')
     # A busca por CID pagina pela mesma mecanica.
     for nome, endereco, par in [
         ('pacientes por CID', reverse('clinical:por-cid'), {'q': 'G40'}),
