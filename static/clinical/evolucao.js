@@ -31,29 +31,47 @@
     function carregar(serie) {
         esperando();
         var url = serie ? base + '?serie=' + encodeURIComponent(serie) : base;
+        /* Rede de seguranca: se a resposta nao vier, a tela diz isso em vez
+         * de ficar em "Montando o grafico..." indefinidamente. Quem esta com
+         * o paciente na frente precisa saber que pode fechar e seguir. */
+        var desistir = window.setTimeout(function () {
+            if (!carregado) falhou();
+        }, 20000);
         fetch(url, {headers: {'X-Requested-With': 'XMLHttpRequest'}})
             .then(function (resposta) {
                 if (!resposta.ok) throw new Error(resposta.status);
                 return resposta.text();
             })
             .then(function (html) {
+                window.clearTimeout(desistir);
                 corpo.innerHTML = html;
                 carregado = true;
             })
             .catch(function () {
-                // Sem detalhe técnico na tela: quem está com o paciente na
-                // frente precisa saber que não carregou e que pode tentar de
-                // novo, não do código HTTP.
-                corpo.innerHTML =
-                    '<div class="alert alert-warning fs-13 mb-0" role="alert">' +
-                    'Não foi possível montar o gráfico agora. Feche e abra novamente.' +
-                    '</div>';
+                window.clearTimeout(desistir);
+                falhou();
             });
     }
 
-    modal.addEventListener('show.bs.modal', function () {
+    function falhou() {
+        // Sem detalhe técnico na tela: quem está com o paciente na frente
+        // precisa saber que não carregou e que pode tentar de novo, não do
+        // código HTTP.
+        corpo.innerHTML =
+            '<div class="alert alert-warning fs-13 mb-0" role="alert">' +
+            'Não foi possível montar o gráfico agora. Feche e abra novamente.' +
+            '</div>';
+    }
+
+    /* `nd:modal-open` e o evento desta casa; `show.bs.modal` fica junto
+     * para o dia em que o JavaScript do Bootstrap entrar. Escutar so o do
+     * Bootstrap foi o defeito: ele nunca e disparado aqui, e o modal
+     * ficava em "Montando o grafico..." para sempre. */
+    function aoAbrir() {
         if (!carregado) carregar('');
-    });
+    }
+    modal.addEventListener('nd:modal-open', aoAbrir);
+    modal.addEventListener('show.bs.modal', aoAbrir);
 
     // O seletor de série nasce dentro do fragmento, a cada troca. Ouvir no
     // modal em vez de no `<select>` é o que faz o segundo `change` funcionar

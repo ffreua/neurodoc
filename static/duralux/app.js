@@ -373,6 +373,18 @@
         backdrop.addEventListener('click', function () {
             closeModal(modal);
         });
+        /* Avisa que abriu.
+         *
+         * Esta casa nao usa o JavaScript do Bootstrap para modal -- usa
+         * estas funcoes --, e por isso `show.bs.modal` **nunca e
+         * disparado**. Uma tela que carregue conteudo ao abrir e escute o
+         * evento do Bootstrap fica esperando para sempre, sem erro no
+         * console: foi o que aconteceu com o grafico de evolucao, que
+         * mostrava "Montando o grafico..." e nao saia dali.
+         *
+         * O evento proprio existe para que carregar sob demanda seja
+         * possivel sem cada tela inventar o proprio gatilho. */
+        modal.dispatchEvent(new CustomEvent('nd:modal-open', {bubbles: true}));
     }
 
     function closeModal(modal) {
@@ -394,6 +406,7 @@
         }
         var opener = modal.dataset.ndOpener && document.getElementById(modal.dataset.ndOpener);
         if (opener) opener.focus();
+        modal.dispatchEvent(new CustomEvent('nd:modal-close', {bubbles: true}));
     }
 
     function initModals() {

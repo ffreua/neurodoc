@@ -272,6 +272,48 @@ try:
     conferir('com o script que o carrega',
              'clinical/evolucao.js' in linha_do_tempo, True)
 
+    print('\n10. O paciente sem nenhuma serie e avisado, e nao fica pendurado')
+    # O caso mais comum: paciente acompanhado so em texto livre. Era aqui
+    # que a tela ficava presa em "Montando o grafico..." para sempre --
+    # nao porque o fragmento falhasse, mas porque ele **nunca era
+    # buscado**: o `evolucao.js` escutava `show.bs.modal`, e esta casa nao
+    # usa o JavaScript do Bootstrap para modal. O evento nunca era
+    # disparado, e nada no console dizia isso.
+    so_texto = novo_paciente('Roteiro Evolucao So Texto')
+    atendimento(so_texto, 3)          # um atendimento, nenhuma medida
+    vazio_resp = cliente.get(reverse('clinical:evolucao', args=[so_texto.id]))
+    conferir('o fragmento responde mesmo sem serie', vazio_resp.status_code, 200)
+    vazio_html = vazio_resp.content.decode()
+    conferir('e avisa que nao ha o que acompanhar',
+             'Ainda não há o que acompanhar' in vazio_html, True)
+    conferir('dizendo de onde a serie viria',
+             'escalas pontuadas' in vazio_html, True)
+    conferir('e oferecendo fechar', 'data-bs-dismiss="modal"' in vazio_html, True)
+    # `<polyline>` nao serve de prova: o icone do proprio estado vazio e um
+    # polyline. O que so existe quando ha serie e o seletor de serie e o
+    # rotulo do grafico -- e a assercao tem de olhar para o que e exclusivo
+    # do comportamento, nao para o que se parece com ele.
+    conferir('nao ha seletor de serie', 'data-nd-serie' in vazio_html, False)
+    conferir('nem grafico desenhado',
+             'aria-label="Evolução de' in vazio_html, False)
+    conferir('nem tabela de valores', '<tbody>' in vazio_html, False)
+
+    print('\n11. O modal avisa que abriu, e o grafico escuta o aviso')
+    # A assercao estrutural que impede o defeito de voltar. Ela le os dois
+    # arquivos porque o defeito era a **combinacao** deles: cada um estava
+    # correto sozinho.
+    from pathlib import Path as _Path
+
+    base_dir = _Path(dj_settings.BASE_DIR)
+    app_js = (base_dir / 'static' / 'duralux' / 'app.js').read_text(encoding='utf-8')
+    evo_js = (base_dir / 'static' / 'clinical' / 'evolucao.js').read_text(encoding='utf-8')
+    conferir('openModal dispara o evento da casa',
+             "nd:modal-open" in app_js, True)
+    conferir('e o grafico escuta esse evento',
+             "nd:modal-open" in evo_js, True)
+    conferir('com rede de seguranca contra ficar pendurado',
+             'setTimeout' in evo_js and 'falhou' in evo_js, True)
+
     secretaria = Membership.objects.filter(
         tenant=tenant, status=MembershipStatus.ACTIVE, roles__contains=['secretary'],
     ).select_related('user').first()

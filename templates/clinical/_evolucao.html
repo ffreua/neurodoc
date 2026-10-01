@@ -11,13 +11,30 @@ biblioteca de terceiro resolveria o desenho e tiraria justamente essa parte
 do alcance da verificação, além de pendurar a tela num script externo.
 {% endcomment %}
 {% if not series %}
+{% comment %}O caso mais comum de todos, e por isso ele precisa explicar.
+
+Um paciente acompanhado só em texto livre não tem escala pontuada, nem
+analito de laboratório digitado, nem peso — e portanto não tem série
+nenhuma. Abrir o gráfico e encontrar a tela vazia faria parecer defeito;
+pior ainda foi o que acontecia antes, com a tela presa em "Montando o
+gráfico…" para sempre.
+
+A mensagem diz **o que falta** e **onde se registra**, para a visita não
+terminar em dúvida.{% endcomment %}
 <div class="text-center py-5">
-    <p class="fs-13 text-muted mb-1">Ainda não há o que acompanhar no tempo.</p>
-    <p class="fs-12 text-muted mb-0">
-        A evolução aparece quando a mesma escala, o mesmo analito de laboratório ou a
-        mesma medida tiverem <strong>ao menos duas</strong> aferições. Uma medida só é um
-        número — e ele já está no atendimento.
+    <svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted mb-3"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+    <p class="fs-14 fw-semibold text-dark mb-1">Ainda não há o que acompanhar no tempo</p>
+    <p class="fs-12 text-muted mb-3">
+        O gráfico precisa de <strong>ao menos duas aferições</strong> da mesma coisa —
+        uma medida só é um número, e ele já está no atendimento.
     </p>
+    <p class="fs-12 text-muted mb-3">
+        Ele monta a partir de <strong>escalas pontuadas</strong> aplicadas no exame,
+        de <strong>resultados de laboratório</strong> com valor numérico digitado, e de
+        <strong>peso e altura</strong> na ficha do paciente. Atendimento registrado só
+        em texto livre não produz série — o texto não é medida.
+    </p>
+    <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Fechar</button>
 </div>
 {% else %}
 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
