@@ -105,14 +105,33 @@
             <div class="card-footer">
                 <nav aria-label="Paginação">
                     <ul class="pagination pagination-common-style mb-0 justify-content-end">
+                        {% comment %}O número da página só é lido quando ela existe.
+
+                        `{{ patients.previous_page_number|default:1 }}` parecia
+                        resolver, e não resolvia: o filtro `default` trata valor
+                        vazio, não **exceção** — e `previous_page_number` levanta
+                        `EmptyPage` na primeira página. O defeito ficou escondido
+                        enquanto a clínica tinha menos de 26 pacientes, porque com
+                        uma página só o bloco inteiro não era renderizado. Apareceu
+                        na hora em que o cadastro foi migrado e a lista passou a ter
+                        noventa páginas: a tela principal da secretária virou erro
+                        500 de uma vez.{% endcomment %}
                         <li class="page-item {% if not patients.has_previous %}disabled{% endif %}">
-                            <a class="page-link" href="?q={{ query }}&amp;page={{ patients.previous_page_number|default:1 }}">Anterior</a>
+                            {% if patients.has_previous %}
+                            <a class="page-link" href="?q={{ query }}&amp;page={{ patients.previous_page_number }}">Anterior</a>
+                            {% else %}
+                            <span class="page-link">Anterior</span>
+                            {% endif %}
                         </li>
                         <li class="page-item disabled">
                             <span class="page-link">{{ patients.number }} / {{ patients.paginator.num_pages }}</span>
                         </li>
                         <li class="page-item {% if not patients.has_next %}disabled{% endif %}">
-                            <a class="page-link" href="?q={{ query }}&amp;page={{ patients.next_page_number|default:patients.number }}">Próxima</a>
+                            {% if patients.has_next %}
+                            <a class="page-link" href="?q={{ query }}&amp;page={{ patients.next_page_number }}">Próxima</a>
+                            {% else %}
+                            <span class="page-link">Próxima</span>
+                            {% endif %}
                         </li>
                     </ul>
                 </nav>
