@@ -641,7 +641,9 @@ class SigningSessionStartView(SigningView):
                 request.user, request.access_context.tenant_id, 'documents.signingsession_start_failed',
                 object_type='signing_credential', object_id=credential.id, outcome='denied',
             )
-            return HttpResponseForbidden('Invalid PFX password.')
+            return HttpResponseForbidden(
+                'Senha do certificado incorreta. Confira e tente de novo.'
+            )
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.signingsession_started',
             object_type='signing_credential', object_id=credential.id, outcome='success',

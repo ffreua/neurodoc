@@ -33,9 +33,9 @@ def is_valid_cnpj(value):
 
 def validate_cpf(value):
     if not is_valid_cpf(value):
-        raise ValidationError('Invalid CPF', code='invalid_cpf')
+        raise ValidationError('CPF inválido. Confira os onze dígitos.', code='invalid_cpf')
 
 
 def validate_cnpj(value):
     if not is_valid_cnpj(value):
-        raise ValidationError('Invalid CNPJ', code='invalid_cnpj')
+        raise ValidationError('CNPJ inválido. Confira os quatorze dígitos.', code='invalid_cnpj')

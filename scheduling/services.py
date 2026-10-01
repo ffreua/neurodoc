@@ -51,7 +51,7 @@ def reserve_appointment(
     is_overbook=False, override_reason='', override_by=None, buffer_minutes=0,
 ):
     if is_overbook and not override_reason:
-        raise SchedulingError('Overbook requires a justification')
+        raise SchedulingError('Encaixe exige uma justificativa.')
     _lock_days(physician_membership.id, _days_spanned(starts_at, ends_at))
     appointment = Appointment(
         tenant_id=context.tenant_id, patient=patient, physician_membership=physician_membership,
@@ -98,7 +98,9 @@ def transition_appointment(appointment, new_status, actor_id, **extra_fields):
     current = AppointmentStatus(appointment.status)
     allowed = ALLOWED_TRANSITIONS.get(current, set())
     if new_status not in allowed:
-        raise IllegalTransition(f'{current} -> {new_status} is not allowed')
+        raise IllegalTransition(
+            f'Não é possível passar de "{current}" para "{new_status}".'
+        )
     appointment.status = new_status
     appointment.row_version += 1
     for field, value in extra_fields.items():
@@ -137,7 +139,9 @@ def complete_appointment(appointment, actor_id):
 
 def mark_no_show(appointment, actor_id):
     if timezone.now() < appointment.ends_at:
-        raise SchedulingError('Cannot mark no-show before the appointment window ends')
+        raise SchedulingError(
+            'A falta só pode ser registrada depois do horário marcado.'
+        )
     return transition_appointment(appointment, AppointmentStatus.NO_SHOW, actor_id)
 
 

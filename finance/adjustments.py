@@ -15,9 +15,9 @@ def apply_adjustment(receivable, adjustment_type, amount, reason, approved_by, p
     """
     amount = quantize_brl(amount)
     if amount <= 0:
-        raise ValueError('Adjustment amount must be positive')
+        raise ValueError('O valor do ajuste precisa ser maior que zero.')
     if payment is not None and payment.receivable_id != receivable.id:
-        raise ValueError('Payment does not belong to this receivable')
+        raise ValueError('Este pagamento é de outra cobrança.')
 
     adjustment = FinancialAdjustment.objects.create(
         tenant=receivable.tenant, receivable=receivable, payment=payment, type=adjustment_type,

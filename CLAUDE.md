@@ -16,6 +16,15 @@ especificação, ~360 KB) e em `docs/` (homologação por sprint, publicada em
 - **Idioma:** o produto, os comentários novos e as mensagens de commit são
   em **português**. Código mais antigo tem comentários em inglês; não
   traduza em massa.
+
+  **Isso inclui mensagem de erro**, que é justamente a que escapa: ela só
+  aparece no caminho que deu errado, e esse é o caminho que ninguém
+  exercita ao escrever a tela. Dezenove mensagens atravessaram até
+  produção assim — a do bloqueio de login ("Too many attempts") foi
+  encontrada pelo próprio médico. `check_idioma.py` varre `messages.*`,
+  `ValidationError`, `label=`, `help_text=` e as exceções que as views
+  mostram com `str(exc)`. Exceção que só quem opera o servidor lê pode
+  ficar em inglês.
 - **Comentário explica *por quê*, nunca *o quê*.** O estilo da casa é um
   bloco no topo do módulo/atributo dizendo qual erro aquela escolha
   impede, com a alternativa recusada e o motivo. Veja `tenancy/plans.py`,
@@ -272,6 +281,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_fuso.py` | o dia que o produto enxerga é o da clínica: varre o repositório inteiro proibindo `timezone.now().date()` e `date.today()` (que devolvem o dia em UTC), e confere que a agenda marca como hoje o dia de Brasília |
 | `check_importacao.py` | migração de cadastro: ninguém nasce autorizado a receber mensagem, o responsável homônimo não vira contato extra, a importação pode ser repetida, CPF repetido não derruba nada e ficha daqui não é sobrescrita |
 | `check_nome_caixa_alta.py` | o nome numa forma só: os quatro caminhos de criação, o acento que permanece, a busca que continua achando e o nome do parente que não é reescrito |
+| `check_idioma.py` | **tudo que o usuário lê está em português**: varre `messages.*`, `ValidationError`, `label=`, `help_text=` e as exceções que as views mostram com `str(exc)`; deixa passar log e ferramenta de operação, de propósito |
 | `check_paginacao.py` | paginação: **cria volume antes de olhar** (sem passar de uma página, o bloco nem é renderizado e o roteiro não testa nada), a primeira e a última página abrem, e número de página inválido não vira erro 500 |
 | `check_csp.py` | política de conteúdo: `script-src` sem `unsafe-inline`, nonce novo a cada resposta e igual ao do HTML, a varredura dos templates atrás de `onclick` e de `<script>` sem nonce, o modo de relatório como padrão, e o coletor com teto por IP |
 | `check_declaracao.py` | declaração de comparecimento: o papel **não** carrega CID nem diagnóstico, nega ser atestado com todas as letras, ver não emite (só o POST registra), horário invertido não vira papel, e a fronteira entre clínicas |

@@ -21,9 +21,9 @@ def _load_signer(pfx_bytes, password):
             pfx_bytes, other_certs=set(), passphrase=password.encode(),
         )
     except ValueError as exc:
-        raise InvalidPfxPassword('Could not unlock the certificate with the given password') from exc
+        raise InvalidPfxPassword('Não foi possível abrir o certificado com esta senha.') from exc
     if signer is None:
-        raise InvalidPfxPassword('Could not unlock the certificate with the given password')
+        raise InvalidPfxPassword('Não foi possível abrir o certificado com esta senha.')
     return signer
 
 

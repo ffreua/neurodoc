@@ -6,7 +6,7 @@ from .models import HealthPlan, PatientCoverage
 def add_coverage(context, patient, plan_id, member_number='', starts_on=None, ends_on=None):
     plan = HealthPlan.objects.filter(id=plan_id, tenant_id=context.tenant_id).first()
     if plan is None:
-        raise ValidationError('Plan does not belong to this tenant')
+        raise ValidationError('Este plano é de outra clínica.')
     coverage = PatientCoverage(
         tenant_id=context.tenant_id, patient=patient, plan=plan,
         member_number=member_number, starts_on=starts_on, ends_on=ends_on,
@@ -26,7 +26,7 @@ def set_patient_coverage(context, patient, plan_id, member_number='', starts_on=
     """
     plan = HealthPlan.objects.filter(id=plan_id, tenant_id=context.tenant_id).first()
     if plan is None:
-        raise ValidationError('Plan does not belong to this tenant')
+        raise ValidationError('Este plano é de outra clínica.')
     coverage = patient.coverages.filter(plan=plan).order_by('-created_at').first()
     if coverage is None:
         coverage = PatientCoverage(tenant_id=context.tenant_id, patient=patient, plan=plan)

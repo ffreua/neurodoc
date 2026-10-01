@@ -27,7 +27,7 @@ def sanitize_filename(original_name):
     """Strips any directory component; the client never controls a path."""
     name = os.path.basename((original_name or '').strip().replace('\\', '/'))
     if not name or name in ('.', '..') or not _SAFE_NAME_RE.fullmatch(name):
-        raise UploadRejected('Invalid file name')
+        raise UploadRejected('Nome de arquivo inválido.')
     return name
 
 
@@ -37,7 +37,7 @@ def _extension_of(name):
 
 def _validate_pdf_structure(content):
     if not content.startswith(b'%PDF-'):
-        raise UploadRejected('Not a valid PDF (missing header)')
+        raise UploadRejected('Este arquivo não é um PDF válido.')
 
 
 def _validate_docx_structure(content):
@@ -46,9 +46,9 @@ def _validate_docx_structure(content):
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             names = archive.namelist()
             if '[Content_Types].xml' not in names or not any(n.startswith('word/') for n in names):
-                raise UploadRejected('Not a valid DOCX package')
+                raise UploadRejected('Este arquivo não é um documento Word válido.')
     except zipfile.BadZipFile as exc:
-        raise UploadRejected('Not a valid DOCX package') from exc
+        raise UploadRejected('Este arquivo não é um documento Word válido.') from exc
 
 
 def validate_upload(content, original_name):
@@ -57,14 +57,22 @@ def validate_upload(content, original_name):
     or the antimalware engine.
     """
     if len(content) > MAX_ATTACHMENT_BYTES:
-        raise UploadRejected(f'File exceeds {MAX_ATTACHMENT_BYTES} bytes')
+        raise UploadRejected(
+            f'Arquivo grande demais: o limite é '
+            f'{MAX_ATTACHMENT_BYTES // (1024 * 1024)} MB.'
+        )
     name = sanitize_filename(original_name)
     extension = _extension_of(name)
     if extension not in ALLOWED_EXTENSIONS:
-        raise UploadRejected(f'Extension .{extension} is not allowed')
+        raise UploadRejected(
+            f'Arquivos .{extension} não são aceitos aqui.'
+        )
     sniffed_mime = magic.from_buffer(content, mime=True)
     if sniffed_mime not in MIME_BY_EXTENSION.get(extension, set()):
-        raise UploadRejected(f'File content ({sniffed_mime}) does not match extension .{extension}')
+        raise UploadRejected(
+            f'O conteúdo do arquivo não corresponde à extensão .{extension}. '
+            f'Confira se ele não foi renomeado.'
+        )
     if extension == 'pdf':
         _validate_pdf_structure(content)
     elif extension == 'docx':

@@ -112,7 +112,7 @@ class OrganizationSignupForm(forms.Form):
         digits = re.sub(r'\D', '', self.cleaned_data['cnpj'] or '')
         validate_cnpj(digits)
         if Tenant.objects.filter(cnpj=digits).exists():
-            raise forms.ValidationError('CNPJ already registered.')
+            raise forms.ValidationError('Este CNPJ já está cadastrado em outra clínica.')
         return digits
 
 

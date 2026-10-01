@@ -87,13 +87,13 @@ class AvailabilityRule(TenantModel):
 
     def clean(self):
         if not (0 <= self.weekday <= 6):
-            raise ValidationError({'weekday': 'Must be between 0 (Monday) and 6 (Sunday)'})
+            raise ValidationError({'weekday': 'Informe um dia da semana entre 0 (segunda) e 6 (domingo).'})
         if self.local_start >= self.local_end:
-            raise ValidationError({'local_end': 'Must be after local_start'})
+            raise ValidationError({'local_end': 'O horário de término deve ser depois do de início.'})
         if self.slot_minutes <= 0:
-            raise ValidationError({'slot_minutes': 'Must be positive'})
+            raise ValidationError({'slot_minutes': 'Informe um valor maior que zero.'})
         if self.ends_on and self.ends_on < self.starts_on:
-            raise ValidationError({'ends_on': 'Cannot precede starts_on'})
+            raise ValidationError({'ends_on': 'A data de término não pode ser anterior à de início.'})
 
     def __str__(self):
         return f'{self.physician_membership_id} weekday={self.weekday} {self.local_start}-{self.local_end}'
@@ -118,7 +118,7 @@ class ScheduleBlock(TenantModel):
 
     def clean(self):
         if self.start_at >= self.end_at:
-            raise ValidationError({'end_at': 'Must be after start_at'})
+            raise ValidationError({'end_at': 'O fim do bloqueio deve ser depois do início.'})
 
     def __str__(self):
         return f'{self.kind} {self.start_at}—{self.end_at}'
@@ -190,7 +190,7 @@ class Appointment(TenantModel):
 
     def clean(self):
         if self.starts_at >= self.ends_at:
-            raise ValidationError({'ends_at': 'Must be after starts_at'})
+            raise ValidationError({'ends_at': 'O fim do atendimento deve ser depois do início.'})
 
     def __str__(self):
         return f'{self.patient_id} @ {self.starts_at}'

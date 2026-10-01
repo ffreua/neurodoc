@@ -112,11 +112,11 @@ class Tenant(TimestampedModel):
 
     def clean(self):
         if not SLUG_RE.fullmatch(self.slug or ''):
-            raise ValidationError({'slug': 'Invalid slug format'})
+            raise ValidationError({'slug': 'Endereço inválido: use apenas letras minúsculas, números e hífen.'})
         if self.slug in RESERVED_SLUGS:
-            raise ValidationError({'slug': 'Reserved slug'})
+            raise ValidationError({'slug': 'Este endereço é reservado pelo sistema. Escolha outro.'})
         if not is_valid_cnpj(self.cnpj or ''):
-            raise ValidationError({'cnpj': 'Invalid CNPJ'})
+            raise ValidationError({'cnpj': 'CNPJ inválido. Confira os quatorze dígitos.'})
         if self.plan not in PLANS:
             raise ValidationError({'plan': f'Plano desconhecido: {self.plan}'})
 

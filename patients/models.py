@@ -265,9 +265,9 @@ class Patient(TenantModel):
         # coisa, que é como se perde a confiança numa tela de cadastro.
         self._normalizar_nomes()
         if self.cpf and not is_valid_cpf(self.cpf):
-            raise ValidationError({'cpf': 'Invalid CPF'})
+            raise ValidationError({'cpf': 'CPF inválido. Confira os onze dígitos.'})
         if not self.birth_date and not self.birth_date_unknown_reason and not self.estimated_birth_year:
-            raise ValidationError({'birth_date': 'Provide a birth date or a reason it is unknown'})
+            raise ValidationError({'birth_date': 'Informe a data de nascimento ou o motivo de ela não constar.'})
 
     def save(self, *args, **kwargs):
         """Atribui o número do prontuário na primeira gravação.
@@ -404,7 +404,7 @@ class Observation(TenantModel):
 
     def clean(self):
         if self.numeric_value is not None and self.numeric_value <= 0:
-            raise ValidationError({'numeric_value': 'Must be positive'})
+            raise ValidationError({'numeric_value': 'Informe um valor maior que zero.'})
 
     def __str__(self):
         return f'{self.kind}={self.numeric_value}{self.unit}'
@@ -419,7 +419,7 @@ class PatientCoverage(TenantModel):
 
     def clean(self):
         if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
-            raise ValidationError({'ends_on': 'End date cannot precede start date'})
+            raise ValidationError({'ends_on': 'A data de término não pode ser anterior à de início.'})
 
     def __str__(self):
         return f'{self.patient_id} -> {self.plan_id}'

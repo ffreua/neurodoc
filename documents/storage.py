@@ -47,7 +47,10 @@ def check_tenant_quota(tenant, incoming_bytes):
         scan_status=AttachmentScanStatus.REJECTED,
     ).aggregate(total=Sum('bytes'))['total'] or 0
     if used + incoming_bytes > tenant_quota_bytes(tenant):
-        raise QuotaExceeded(f'Tenant quota exceeded ({used + incoming_bytes} > {tenant_quota_bytes(tenant)} bytes)')
+        raise QuotaExceeded(
+            f'Espaço de arquivos esgotado: a clínica já usa '
+            f'{used // (1024 * 1024)} MB de {tenant_quota_bytes(tenant) // (1024 * 1024)} MB.'
+        )
 
 
 @transaction.atomic
@@ -112,7 +115,7 @@ def reject_and_discard(attachment, reason):
 
 def open_for_read(attachment):
     if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
-        raise PermissionError('Attachment is not available')
+        raise PermissionError('Este anexo não está disponível.')
     if is_compressed(attachment):
         return io.BytesIO(read_bytes(attachment))
     return open(attachment.storage_key, 'rb')
@@ -136,7 +139,7 @@ def read_bytes(attachment):
     a assinatura cobre.
     """
     if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
-        raise PermissionError('Attachment is not available')
+        raise PermissionError('Este anexo não está disponível.')
     if not attachment.storage_key:
         raise FileNotFoundError('Attachment has no stored file')
     if is_compressed(attachment):

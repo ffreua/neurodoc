@@ -39,4 +39,6 @@ def all_fields(kind):
 def validate_content(kind, content):
     missing = [f for f in REQUIRED_FIELDS[kind] if not (content.get(f) or '').strip()]
     if missing:
-        raise ValueError(f'Missing required fields for {kind}: {", ".join(missing)}')
+        raise ValueError(
+            f'Faltam campos obrigatórios: {", ".join(missing)}.'
+        )

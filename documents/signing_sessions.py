@@ -48,11 +48,16 @@ def _key_path(ephemeral_key_id):
 @transaction.atomic
 def start_session(request, physician_membership, credential, password, duration_hours):
     if not mfa_verified_recently(request):
-        raise RecentMfaRequired('Recent MFA verification required to enable a signing session')
+        raise RecentMfaRequired(
+            'Confirme o código do seu aplicativo de autenticação para liberar a assinatura.'
+        )
     if duration_hours not in ALLOWED_DURATIONS_HOURS:
-        raise InvalidDuration(f'Duration must be one of {ALLOWED_DURATIONS_HOURS} hours')
+        raise InvalidDuration(
+            f'A sessão de assinatura dura '
+            f'{" ou ".join(str(h) for h in ALLOWED_DURATIONS_HOURS)} horas.'
+        )
     if not credential_is_usable(credential):
-        raise CredentialNotUsable('Credential is revoked, expired, or not yet valid')
+        raise CredentialNotUsable('Este certificado está revogado, vencido ou ainda não vale.')
 
     pfx_bytes = decrypt_pfx_bytes(credential)
     try:
@@ -98,12 +103,15 @@ def revoke_session(session):
 def unlock_password(session):
     key_path = _key_path(session.ephemeral_key_id)
     if not key_path.exists():
-        raise SigningSessionKeyMissing(f'Ephemeral key {session.ephemeral_key_id} is gone (reboot?)')
+        raise SigningSessionKeyMissing(
+            'A sessão de assinatura expirou (o servidor foi reiniciado). '
+            'Informe a senha do certificado novamente.'
+        )
     ephemeral_key = key_path.read_bytes()
     try:
         return Fernet(ephemeral_key).decrypt(session.encrypted_unlock_material.encode()).decode()
     except InvalidToken as exc:
-        raise SigningSessionKeyMissing('Ephemeral key could not decrypt unlock material') from exc
+        raise SigningSessionKeyMissing('A sessão de assinatura não pôde ser aberta. Informe a senha de novo.') from exc
 
 
 def cleanup_orphan_keys():

@@ -38,7 +38,7 @@ def recompute_status(receivable):
 def record_payment(receivable, amount, method, actor_id, paid_at=None, external_reference=''):
     amount = quantize_brl(amount)
     if amount <= 0:
-        raise ValueError('Payment amount must be positive')
+        raise ValueError('O valor do pagamento precisa ser maior que zero.')
     payment = Payment.objects.create(
         tenant=receivable.tenant, receivable=receivable, paid_at=paid_at or timezone.now(),
         amount=amount, method=method, external_reference=external_reference[:100],

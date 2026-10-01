@@ -110,7 +110,7 @@ class Encounter(TenantModel):
 
     def clean(self):
         if self.status == EncounterStatus.FINALIZED and not self.finalized_at:
-            raise ValidationError({'finalized_at': 'Required once finalized'})
+            raise ValidationError({'finalized_at': 'Obrigatório para finalizar o atendimento.'})
 
     def is_editable(self):
         return self.status != EncounterStatus.FINALIZED

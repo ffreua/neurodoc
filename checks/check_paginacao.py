@@ -78,6 +78,14 @@ try:
     conferir('o bloco de paginacao aparece', 'Paginação' in html, True)
     conferir('"Anterior" aparece desabilitado, nao como link quebrado',
              'page-item disabled' in html, True)
+    # `pagination-common-style` forca `width:30px; height:30px;
+    # border-radius:100%` em todo `li a` -- feita para bolinhas numeradas,
+    # nao para rotulos de palavra. Com ela, "Proxima" saia espremida num
+    # circulo de 30px e o texto transbordava por cima da borda.
+    conferir('a paginacao nao usa a classe de bolinha numerada',
+             'pagination-common-style' in html, False)
+    conferir('os rotulos sao palavras, e nao numeros',
+             'Anterior' in html and 'Próxima' in html, True)
 
     print('\n2. A ultima pagina tambem abre')
     total = Patient.objects.filter(

@@ -104,8 +104,19 @@
             {% if patients.has_previous or patients.has_next %}
             <div class="card-footer">
                 <nav aria-label="Paginação">
-                    {% comment %}Centrada no celular e a direita no resto: encostada na borda, em tela estreita, "Proxima" fica a um toque do limite da tela e o polegar erra para fora.{% endcomment %}
-                        <ul class="pagination pagination-common-style mb-0 justify-content-center justify-content-sm-end">
+                    {% comment %}Centrada no celular e à direita no resto: encostada na
+                    borda, em tela estreita, "Próxima" fica a um toque do limite e o
+                    polegar erra para fora.
+
+                    **Sem `pagination-common-style`.** Essa classe do tema força
+                    `width:30px; height:30px; border-radius:100%` em todo `li a` —
+                    ela foi desenhada para bolinhas numeradas (1, 2, 3), e aqui os
+                    rótulos são palavras. "Próxima" saía espremida num círculo de
+                    30px, com o texto transbordando por cima da borda, enquanto
+                    "Anterior" e o contador apareciam certos por serem `span` e
+                    escaparem da regra. A paginação simples do Bootstrap já
+                    dimensiona pelo conteúdo.{% endcomment %}
+                        <ul class="pagination mb-0 justify-content-center justify-content-sm-end">
                         {% comment %}O número da página só é lido quando ela existe.
 
                         `{{ patients.previous_page_number|default:1 }}` parecia
