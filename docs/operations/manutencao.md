@@ -163,14 +163,31 @@ docker swarm leave --force
 
 ## 4. Publicar uma atualização
 
+**Antes, no seu computador**, com a versão fechada e commitada:
+
+```
+git push origin main
+```
+
+**Depois, no servidor:**
+
 ```
 ssh deploy@23.106.44.46
 cd /srv/neurodoc
 git pull
-cp docs/releases/TEMPLATE.md docs/releases/$(git rev-parse HEAD).md
 bash scripts/deploy.sh --check
 bash scripts/deploy.sh
 ```
+
+**O build roda no servidor, não no seu computador.** Não é preciso subir a
+pilha local para publicar — ela serve para rodar os roteiros de
+verificação, e nada mais.
+
+A nota de versão em `docs/releases/` entra junto com o código, **antes** do
+push, e é nomeada pela versão (`1.1-SEGUIMENTO.md`) e não pelo SHA. Nomear
+pelo SHA tem um problema circular: o commit que cria o arquivo muda o SHA
+que o arquivo nomeia. O `deploy.sh` não exige o arquivo — ele é registro,
+não requisito.
 
 O `--check` confere sem publicar nada. **Só rode o de baixo se o de cima
 aprovar.** A publicação leva de 10 a 25 minutos e não derruba o site: as
