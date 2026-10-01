@@ -8,7 +8,7 @@ from .models import Observation, ObservationKind
 def age_at(birth_date, reference_date=None):
     if birth_date is None:
         return None
-    reference_date = reference_date or timezone.now().date()
+    reference_date = reference_date or timezone.localdate()
     years = reference_date.year - birth_date.year
     if (reference_date.month, reference_date.day) < (birth_date.month, birth_date.day):
         years -= 1

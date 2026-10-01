@@ -1,4 +1,5 @@
 """Contato editável e pré-cadastro fora dos indicadores e da cota."""
+from django.utils import timezone
 import datetime
 import uuid
 
@@ -32,7 +33,7 @@ if operator is None:
 
 before_active = active_patients_count(tenant)
 before_usage = patient_usage(tenant)
-before_age = age_distribution(tenant, datetime.date.today())
+before_age = age_distribution(tenant, timezone.localdate())
 
 preliminary = Patient.objects.create(
     tenant=tenant, full_name=f"Pré-cadastro roteiro {uuid.uuid4().hex[:8]}",
@@ -55,7 +56,7 @@ contact = PatientContact.objects.create(
 print("=== 1. pré-cadastro não entra na carteira, idade nem cota ===")
 after_active = active_patients_count(tenant)
 after_usage = patient_usage(tenant)
-after_age = age_distribution(tenant, datetime.date.today())
+after_age = age_distribution(tenant, timezone.localdate())
 print(
     "  carteira", before_active, "->", after_active,
     "cota", before_usage, "->", after_usage,

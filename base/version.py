@@ -37,7 +37,13 @@ carimbá-la na publicação.
 """
 
 #: A versão do produto. O primeiro deploy é a 1.0.
-VERSION = '1.1'
+#:
+#: A terceira casa aparece aqui contra a regra escrita acima, e de
+#: propósito: a 1.1.1 corrige o dia errado na agenda, que a 1.1 publicou.
+#: Dizer "1.1" para as duas faria o chamado de suporte não distinguir quem
+#: já tem a correção de quem ainda vê o defeito -- que é exatamente o que a
+#: versão existe para responder.
+VERSION = '1.1.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

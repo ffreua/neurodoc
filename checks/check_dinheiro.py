@@ -106,34 +106,46 @@ print(f'  coluna    : max_digits={coluna_valor.max_digits} decimal_places={colun
 if (campo.max_digits, campo.decimal_places) != (coluna_valor.max_digits, coluna_valor.decimal_places):
     falhas.append('o formulario e a coluna discordam sobre o tamanho do valor')
 
+
+class _Pedido:
+    """Pedido minimo para exercitar `_parse_period` sem passar pela rede."""
+
+    GET = {}
+
+
+from finance.views import _parse_period
+
 print('=== 6. a data que o produto enxerga e a do fuso da clinica ===')
-# O conteiner roda em Etc/UTC e o produto em America/Sao_Paulo. Das 21h a
-# meia-noite, `datetime.date.today()` ja devolve o dia seguinte -- e o
-# periodo padrao do financeiro e do painel abria em "amanha". No ultimo dia
-# do mes, abria ja no mes que vem, com tudo zerado, e o usuario lia isso
-# como "nao houve movimento".
+# A varredura mora em `check_fuso.py`, e cobre o repositorio inteiro.
 #
-# A asserção e estrutural porque o defeito so aparece em tres horas do dia:
-# um roteiro que comparasse datas passaria nas outras vinte e uma.
-import re
+# Aqui havia uma lista de seis arquivos escrita a mao, e foi por baixo dela
+# que passaram quinze ocorrencias de `timezone.now().date()` -- inclusive as
+# nove da agenda, que e onde o usuario viu o defeito: as 22h do dia 30, a
+# agenda do mes marcava o dia 1 como hoje. Lista escrita a mao nao cobre o
+# arquivo que ninguem lembrou de acrescentar, e esquecer e o caso comum.
+#
+# O que fica aqui e so a conferencia de que as telas do dinheiro usam a
+# funcao certa -- o resto do produto e com o outro roteiro.
+from django.utils import timezone
 
-from django.conf import settings
+hoje = timezone.localdate()
+print(f'  hoje, para a clinica : {hoje}')
+print(f'  hoje, em UTC         : {timezone.now().date()}')
+if hoje != timezone.now().date():
+    print('  (estamos na janela em que os dois discordam -- entre 21h e meia-noite)')
 
-SERVEM_REQUISICAO = [
-    'finance/views.py', 'finance/fee_views.py', 'finance/fee_forms.py',
-    'reporting/views.py', 'scheduling/forms.py', 'catalogs/cmed.py',
-]
-for relativo in SERVEM_REQUISICAO:
-    fonte = (settings.BASE_DIR / relativo).read_text(encoding='utf-8')
-    codigo = re.sub(r'(?m)^\s*#.*$', '', fonte)
-    codigo = re.sub(r'""".*?"""', '', codigo, flags=re.S)
-    usa = re.search(r'date\.today\(\)', codigo)
-    print(f'  {relativo:24} usa date.today(): {bool(usa)}')
-    if usa:
-        falhas.append(
-            f'{relativo} usa date.today(), que devolve a data do processo (UTC) '
-            f'e nao a do fuso da clinica — use timezone.localdate()'
-        )
+inicio_periodo, fim_periodo = _parse_period(_Pedido())
+print(f'  periodo padrao do financeiro: {inicio_periodo} a {fim_periodo}')
+if fim_periodo != hoje:
+    falhas.append(
+        f'o periodo padrao do financeiro fecha em {fim_periodo} e nao em {hoje} '
+        f'-- esta lendo a data do processo (UTC), nao a do fuso da clinica'
+    )
+if inicio_periodo != hoje.replace(day=1):
+    falhas.append(
+        f'o periodo padrao do financeiro abre em {inicio_periodo} e nao no '
+        f'primeiro dia do mes corrente ({hoje.replace(day=1)})'
+    )
 
 print('---')
 if falhas:

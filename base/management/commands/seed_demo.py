@@ -208,7 +208,7 @@ class Command(BaseCommand):
         if not PatientCoverage.objects.filter(tenant=tenant_a, patient=adult).exists():
             PatientCoverage.objects.create(
                 tenant=tenant_a, patient=adult, plan=plan_a,
-                member_number='DEMO-0001', starts_on=date.today() - timedelta(days=200),
+                member_number='DEMO-0001', starts_on=timezone.localdate() - timedelta(days=200),
             )
             counts['coverages'] += 1
 
@@ -279,7 +279,7 @@ class Command(BaseCommand):
             defaults={'local_start': timezone.datetime.min.time().replace(hour=9),
                       'local_end': timezone.datetime.min.time().replace(hour=17),
                       'slot_minutes': 30,
-                      'starts_on': date.today() - timedelta(days=30)},
+                      'starts_on': timezone.localdate() - timedelta(days=30)},
         )
         # O médico não-dono precisa de grade própria, senão a agenda dele abre
         # vazia e não dá para exercitar o que ele vê da agenda de outro. Dias
@@ -295,7 +295,7 @@ class Command(BaseCommand):
                           # Vale desde antes de hoje para a agenda já abrir com
                           # horários; publicada a partir de hoje, a semana
                           # corrente sairia pela metade.
-                          'starts_on': date.today() - timedelta(days=30)},
+                          'starts_on': timezone.localdate() - timedelta(days=30)},
             )
 
         # A Clínica B precisa de grade própria pelo mesmo motivo: trocar de
@@ -307,7 +307,7 @@ class Command(BaseCommand):
                 defaults={'local_start': timezone.datetime.min.time().replace(hour=13),
                           'local_end': timezone.datetime.min.time().replace(hour=19),
                           'slot_minutes': 30,
-                          'starts_on': date.today() - timedelta(days=30)},
+                          'starts_on': timezone.localdate() - timedelta(days=30)},
             )
 
         demo_ctx = AccessContext(
@@ -372,7 +372,7 @@ class Command(BaseCommand):
             ).exists():
                 create_fee_schedule(
                     tenant_a, categoria, bruto, medico,
-                    date.today() - timedelta(days=400),
+                    timezone.localdate() - timedelta(days=400),
                     physician=membership_doctor_a, plan=plano,
                 )
 
@@ -396,7 +396,7 @@ class Command(BaseCommand):
         def reserve_demo_slot(patient, starts_at, minutes, appointment_type):
             """Reserva um horario de demonstracao, e desiste se ele ja estiver ocupado.
 
-            As duas datas abaixo sao moveis: derivam de `date.today()`, entao
+            As duas datas abaixo sao moveis: derivam de `timezone.localdate()`, entao
             uma semente rodada na quarta e outra rodada no sabado miram
             celulas diferentes da agenda. A guarda por `starts_at` exato so
             reconhece o que esta semente criou -- horario ocupado por outra
@@ -427,7 +427,7 @@ class Command(BaseCommand):
                 counts['appointments_skipped'] = counts.get('appointments_skipped', 0) + 1
                 return None
 
-        past_monday = _next_monday(date.today() - timedelta(days=10))
+        past_monday = _next_monday(timezone.localdate() - timedelta(days=10))
         no_show_starts_at = timezone.make_aware(timezone.datetime.combine(past_monday, timezone.datetime.min.time().replace(hour=10)))
         no_show_appt = reserve_demo_slot(minor, no_show_starts_at, 30, AppointmentType.FIRST_VISIT)
         if no_show_appt is not None:
@@ -435,7 +435,7 @@ class Command(BaseCommand):
             no_show_appt.save(update_fields=['status'])
             counts['appointments'] += 1
 
-        future_monday = _next_monday(date.today() + timedelta(days=7))
+        future_monday = _next_monday(timezone.localdate() + timedelta(days=7))
         upcoming_starts_at = timezone.make_aware(timezone.datetime.combine(future_monday, timezone.datetime.min.time().replace(hour=11)))
         if reserve_demo_slot(adult, upcoming_starts_at, 30, AppointmentType.FOLLOW_UP) is not None:
             counts['appointments'] += 1

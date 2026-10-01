@@ -29,6 +29,14 @@ especificação, ~360 KB) e em `docs/` (homologação por sprint, publicada em
   commit com autor e data — e nunca escritos à mão num template.
 - `None` significa **ilimitado** em todo `tenancy/plans.py`. Nunca use um
   número grande.
+- **Nunca pergunte a data ao relógio do processo.** O contêiner roda em
+  `Etc/UTC` e o produto em `America/Sao_Paulo`: entre 21h e meia-noite o
+  UTC já está no dia seguinte, e `timezone.now().date()`, `date.today()` e
+  `datetime.now()` respondem **amanhã** por três horas, toda noite. Use
+  `django.utils.timezone.localdate()` e `localtime()`. `check_fuso.py`
+  varre o repositório e reprova quem esquecer — a verificação é estrutural
+  porque o defeito só aparece em três horas do dia, e um roteiro
+  comparativo passaria nas outras vinte e uma.
 
 ## 2. Topologia
 
@@ -255,6 +263,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_ia_plano.py` | a IA segue o plano: a capacidade vetada, a autorização do job recusando, o resumo automático que sai por `return` em vez de derrubar o evento, o chat em 404 com o link sumindo junto, e a tela de configuração que explica sem deixar gravar |
 | `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
+| `check_fuso.py` | o dia que o produto enxerga é o da clínica: varre o repositório inteiro proibindo `timezone.now().date()` e `date.today()` (que devolvem o dia em UTC), e confere que a agenda marca como hoje o dia de Brasília |
 | `check_csp.py` | política de conteúdo: `script-src` sem `unsafe-inline`, nonce novo a cada resposta e igual ao do HTML, a varredura dos templates atrás de `onclick` e de `<script>` sem nonce, o modo de relatório como padrão, e o coletor com teto por IP |
 | `check_declaracao.py` | declaração de comparecimento: o papel **não** carrega CID nem diagnóstico, nega ser atestado com todas as letras, ver não emite (só o POST registra), horário invertido não vira papel, e a fronteira entre clínicas |
 | `check_evolucao.py` | série temporal: o eixo do tempo proporcional à data real, a escala usando o próprio domínio, a incompleta fora da linha, unidades diferentes como séries diferentes, e a tela que mostra o número sem interpretá-lo |

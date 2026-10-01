@@ -63,7 +63,7 @@ def _parse_date(value, default=None):
     try:
         return datetime.strptime(value, '%Y-%m-%d').date()
     except (TypeError, ValueError):
-        return default or timezone.now().date()
+        return default or timezone.localdate()
 
 
 def _doctors(request):
@@ -201,7 +201,7 @@ class AgendaWeekView(TenantScopedView):
         day = _parse_date(request.GET.get('date'))
         week_start = day - timedelta(days=day.weekday())
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         context = {
             'doctors': doctors, 'doctor': doctor, 'view_mode': 'week',
             'week_start': week_start, 'week_end': week_start + timedelta(days=6),
@@ -237,7 +237,7 @@ class AgendaDayView(TenantScopedView):
         doctors = _doctors(request)
         doctor = _selected_doctor(request, doctors)
         day = _parse_date(request.GET.get('date'))
-        today = timezone.now().date()
+        today = timezone.localdate()
         context = {
             'doctors': doctors, 'doctor': doctor, 'view_mode': 'day', 'day': day,
             'today': today,
@@ -272,7 +272,7 @@ class AgendaMonthView(TenantScopedView):
         grid_start = month_start - timedelta(days=month_start.weekday())
         grid_end = next_month + timedelta(days=(7 - next_month.weekday()) % 7)
 
-        today = timezone.now().date()
+        today = timezone.localdate()
         days = []
         cursor = grid_start
         while cursor < grid_end:
@@ -330,7 +330,7 @@ class ScheduleSettingsView(ScheduleConfigView):
     """Tela em que o médico monta a própria grade e publica por um período."""
 
     def _context(self, request, doctor, **overrides):
-        today = timezone.now().date()
+        today = timezone.localdate()
         rules = publishing.rules_for(doctor)
         durations = type_durations(doctor.id)
         horizon_end = today + timedelta(days=365)
@@ -835,7 +835,7 @@ class RescheduleAppointmentView(TenantScopedView):
 
         doctor_id = appointment.physician_membership_id
         summary = month_summary(doctor_id, days)
-        today = timezone.now().date()
+        today = timezone.localdate()
 
         selected = None
         if request.GET.get('date'):
@@ -1065,7 +1065,7 @@ class SecretaryDeskView(TenantScopedView):
             if appointment.patient.registration_stage == 'preliminary'
         ]
         return render(request, 'scheduling/desk.html', {
-            'appointments': appointments, 'day': day, 'today': timezone.now().date(),
+            'appointments': appointments, 'day': day, 'today': timezone.localdate(),
             'prev_day': day - timedelta(days=1), 'next_day': day + timedelta(days=1),
             'doctors': _doctors(request),
             'pending_registration': pending,
@@ -1183,7 +1183,7 @@ class ReturnQueueView(TenantScopedView):
             physician_membership_id=medico or None,
             incluir_resolvidos=historico,
         ))
-        hoje = timezone.now().date()
+        hoje = timezone.localdate()
         return render(request, 'scheduling/retornos.html', {
             'registros': registros,
             'doctors': doctors,

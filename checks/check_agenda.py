@@ -6,6 +6,7 @@ da semana voltar a ser um quadrado sem hora ou o mês voltar a mostrar apenas
 contadores, sem permitir escolher diretamente uma vaga.
 """
 from datetime import date, timedelta
+from django.utils import timezone
 import re
 
 from django.conf import settings as dj_settings
@@ -63,7 +64,7 @@ print('=== mes permite marcar diretamente numa vaga ===')
 # Procura um mês futuro que a grade publicada realmente cubra. Assim o
 # roteiro não depende de setembro/2026 nem confunde "sem vaga" com defeito
 # visual.
-month = date.today().replace(day=1)
+month = timezone.localdate().replace(day=1)
 for _ in range(12):
     next_month = (month + timedelta(days=32)).replace(day=1)
     days = []

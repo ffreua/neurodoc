@@ -327,7 +327,7 @@ class PatientForm(forms.ModelForm):
     def clean_birth_date(self):
         from django.utils import timezone
         value = self.cleaned_data.get('birth_date')
-        if value and value > timezone.now().date():
+        if value and value > timezone.localdate():
             raise forms.ValidationError('A data de nascimento não pode estar no futuro.')
         return value
 
@@ -608,7 +608,7 @@ class PatientMeasurementForm(forms.Form):
         if observed_on:
             from django.utils import timezone
 
-            if observed_on > timezone.now().date():
+            if observed_on > timezone.localdate():
                 self.add_error('observed_on', 'A medida não pode ser de uma data futura.')
         return cleaned
 

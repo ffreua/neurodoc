@@ -5,6 +5,7 @@ definindo o preco do colega, medico definindo a regra geral da clinica,
 plano de uma clinica aparecendo na outra, e duas regras de preco vigentes
 ao mesmo tempo — que tornariam o preco indeterminado.
 """
+from django.utils import timezone
 from django.conf import settings as dj_settings
 from django.test import Client
 
@@ -142,7 +143,7 @@ for rotulo, c, esperado in [('dono', dono, 200), ('gestor', gestor, 200),
     if r.status_code != esperado:
         falhas.append(f'{rotulo} recebeu {r.status_code} em valores, esperado {esperado}')
 
-hoje = date.today()
+hoje = timezone.localdate()
 base = {
     'payment_category': PaymentCategory.PRIVATE, 'plan': '', 'procedure': '',
     'gross_amount': '400.00', 'doctor_share_amount': '280.00',

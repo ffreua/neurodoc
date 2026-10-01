@@ -67,7 +67,7 @@ def set_type_durations(context, membership, minutes_by_type):
 
 def rules_for(membership, reference_date=None):
     """Regras vigentes (ou futuras) deste médico, para a tela de configuração."""
-    reference_date = reference_date or timezone.now().date()
+    reference_date = reference_date or timezone.localdate()
     return list(
         AvailabilityRule.objects
         .filter(physician_membership=membership)
@@ -345,7 +345,7 @@ def remove_rule(context, membership, rule):
     agenda dos dias já atendidos continua sendo reconstruível como era.
     Regra que ainda não começou sai de vez.
     """
-    today = timezone.now().date()
+    today = timezone.localdate()
     if rule.starts_on > today:
         rule.delete()
         outcome = 'deleted'

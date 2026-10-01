@@ -35,8 +35,8 @@ from finance.pricing import (
 )
 
 falhas = []
-ONTEM = date.today() - timedelta(days=1)
-HOJE = date.today()
+ONTEM = timezone.localdate() - timedelta(days=1)
+HOJE = timezone.localdate()
 
 
 def conferir(rotulo, obtido, esperado):

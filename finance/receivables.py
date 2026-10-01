@@ -37,7 +37,7 @@ def _create_receivable(*, tenant, patient, encounter, appointment, charge_kind,
                        fee_schedule, competence_date, actor_id, audit_object_type,
                        audit_object_id):
     snapshot = snapshot_from_fee_schedule(fee_schedule)
-    today = timezone.now().date()
+    today = timezone.localdate()
     receivable = Receivable.objects.create(
         tenant=tenant, patient=patient, encounter=encounter, appointment=appointment,
         charge_kind=charge_kind, fee_snapshot=snapshot,

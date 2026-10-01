@@ -44,7 +44,7 @@ failures = []
 # `slots[0]` fazia o teste passar ou falhar conforme quanto a agenda de
 # demonstracao ja tivesse enchido — falha de fixture disfarcada de regressao.
 marcado = None
-day = timezone.now().date()
+day = timezone.localdate()
 for offset in range(1, 40):
     probe = day + timezone.timedelta(days=offset)
     for slot, *_ in available_slots(doctor.id, probe):
