@@ -111,7 +111,25 @@ def montar_politica(nonce, report_uri=''):
         "base-uri 'self'",
         "form-action 'self'",
         "frame-ancestors 'none'",
-        "frame-src 'none'",
+        # `frame-src 'self'`, e nao `'none'`.
+        #
+        # A pagina publica do documento (`templates/communications/
+        # access_document.html`) mostra o PDF ao paciente dentro de um
+        # `<iframe>` da propria origem. Com `'none'`, quem recebe o link
+        # abre a pagina e ve uma moldura vazia -- o documento nao aparece,
+        # e nao ha erro na tela que explique.
+        #
+        # Isto foi encontrado no log do modo relatorio, que registrou tres
+        # documentos reais bloqueados antes de o modo de bloqueio ser
+        # ligado. E exatamente para isso que o modo relatorio existe, e e
+        # a razao de ele ter ficado semanas no ar antes.
+        #
+        # `'self'` nao afrouxa o que importa: `frame-ancestors 'none'`
+        # continua impedindo que **outros** embutam nossas paginas, que e
+        # a protecao contra clickjacking. Esta diretiva governa o lado
+        # oposto -- o que nos podemos embutir --, e a resposta e: so o que
+        # servimos.
+        "frame-src 'self'",
         # Sem isto, uma página servida em HTTPS ainda pediria sub-recurso
         # em HTTP e o navegador antigo carregaria.
         'upgrade-insecure-requests',

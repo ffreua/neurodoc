@@ -156,6 +156,22 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'catalogs.tasks.sync_tuss',
         'schedule': crontab(hour=4, minute=0, day_of_week=0),
     },
+    # Retomada do que ficou pela metade: de hora em hora.
+    #
+    # A sincronizacao avanca em rodadas e cada uma agenda a seguinte ao
+    # terminar. Um deploy no meio de uma rodada derruba o worker, a rodada
+    # morre sem agendar nada, e o laco acaba em silencio -- a tabela
+    # simplesmente para de crescer. Aconteceu: parou em 3.200 de ~5.900 e
+    # so voltou com disparo manual, dias depois.
+    #
+    # De hora em hora, e nao de minuto em minuto: a tarefa so faz trabalho
+    # quando ha release em rascunho, e uma tabela que demora mais uma hora
+    # para fechar nao prejudica ninguem -- a busca continua respondendo
+    # pela release anterior enquanto isso.
+    'retomar-tuss-incompleta': {
+        'task': 'catalogs.tasks.retomar_tuss_incompleta',
+        'schedule': crontab(minute=20),
+    },
     # Compactação do arquivo morto: 03h do dia 1 de janeiro, abril, julho e
     # outubro. `crontab` e não intervalo em segundos porque "a cada 90 dias"
     # a partir do último reinício do beat cairia em qualquer hora do dia —
@@ -280,6 +296,17 @@ SECURE_REDIRECT_EXEMPT = [r'^health/$']
 #
 # Valor recomendado depois da validacao: 31536000 (um ano). Sub-dominios
 # so quando todos os aliases tiverem TLS proprio.
+# HSTS: o padrao continua `0`, e isso e decisao, nao esquecimento.
+#
+# O navegador **guarda** a instrucao e nao ha como voltar atras: ligar
+# antes de o HTTPS estar comprovadamente no ar deixa o dominio inacessivel
+# ate o certificado funcionar. Uma instalacao nova, por definicao, ainda
+# nao comprovou nada -- entao o padrao de quem instala hoje tem de ser o
+# seguro, e ligar e um ato explicito de quem ja viu o cadeado funcionando.
+#
+# A instalacao de producao (neurodoc.app.br) ligou em 02/10/2026, com um
+# ano, depois de uma semana de HTTPS estavel: `SECURE_HSTS_SECONDS` no
+# `.env` dela. Ver `docs/operations/manutencao.md`.
 SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=0)
 SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('SECURE_HSTS_INCLUDE_SUBDOMAINS', default=False)
 SECURE_HSTS_PRELOAD = False

@@ -244,6 +244,19 @@ sem caçar em cartões laterais.{% endcomment %}
                     Adicionar contato
                 </button>
             </div>
+            {% if not recebe_documento %}
+            {% comment %}O aviso fica no cartao de Contatos porque e ali que ele
+se resolve. Dito so depois de emitir — que era o que acontecia — ele chega
+com o documento ja assinado e o paciente na frente.
+
+Diz o que falta, e nao so que falta: as duas caixas sao exatamente o que
+separa um contato cadastrado de um contato que recebe.{% endcomment %}
+            <div class="alert alert-warning fs-12 mb-0 rounded-0 border-0" role="alert">
+                <strong>Este paciente não recebe documento por mensagem.</strong>
+                Para que receba, o contato precisa de e-mail ou telefone preenchido e das
+                caixas <em>conferido</em> e <em>Autorizado a receber documentos</em> marcadas.
+            </div>
+            {% endif %}
             <div class="collapse {% if contact_form.errors %}show{% endif %}" id="contact-form">
                 <div class="card-body border-bottom">
                     <form method="post" action="{% url 'patients:add-contact' patient.id %}" novalidate>

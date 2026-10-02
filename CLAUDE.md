@@ -66,13 +66,31 @@ Navegador → Traefik (TLS) → Django ASGI (app) → PostgreSQL
 Sete serviços permanentes: `app`, `celery_worker`, `celery_beat`, `db`,
 `rabbitmq`, `redis`, `traefik` (+ `mailpit` só no ambiente local).
 
-**Regra de rede que explica muito código:** em produção o processo `app`
-**não tem saída para a internet**; quem está na rede de egresso é o
-worker. Por isso e-mail, SMS, IA e o espelho da TUSS saem sempre por
-tarefa Celery — falar com um serviço externo dentro da requisição
-funcionaria em desenvolvimento e travaria no timeout em produção. Ver
-`communications/mail_backend.py` e o comentário de `EMAIL_BACKEND` em
-`core/settings.py`.
+**Regra de rede que explica muito código:** e-mail, SMS, IA e o espelho da
+TUSS saem sempre por **tarefa Celery**, nunca de dentro da requisição. O
+worker está em `neurodoc_v1_egress`, tem a chave de SMTP (só a ele o
+segredo é entregue) e pode tentar de novo quando o provedor falha; uma
+requisição web não pode nada disso — ela espera o timeout com o usuário
+olhando. Ver `communications/mail_backend.py` e o comentário de
+`EMAIL_BACKEND` em `core/settings.py`.
+
+**O que este parágrafo dizia e não era verdade** (corrigido em
+2026-10-02): que o processo `app` *não tem saída para a internet*. Ele
+tem. `neurodoc_v1_internal` é `internal: true`, mas o `app` está também em
+`traefik_public`, que **não** é — e o Traefik precisa de saída para o
+ACME do Let's Encrypt. Basta uma rede sem `internal` para o contêiner
+ganhar rota default, então o isolamento que o desenho pretendia nunca
+existiu.
+
+Isso importa por dois motivos, e o segundo é o que custa caro: perde-se a
+defesa em profundidade (execução arbitrária no `app` conseguiria
+exfiltrar), e **o documento induz a erro de diagnóstico** — nesta sessão,
+um defeito de entrega foi atribuído a "timeout por falta de egresso"
+quando a causa era outra. Fechar o furo é separar o Traefik do `app` em
+duas redes (Traefik ↔ internet para o ACME, Traefik ↔ app interna);
+trabalho aberto, com o risco de mexer na rede de produção. Até lá, o que
+vale é o parágrafo acima: a regra de pôr trabalho externo no worker
+continua certa, pelas razões certas.
 
 ## 3. Multi-inquilino e autorização
 

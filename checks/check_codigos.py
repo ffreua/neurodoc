@@ -153,6 +153,64 @@ if usa_rede:
     falhas.append('a view faz chamada externa: o processo web nao tem egresso em producao')
 
 print('---')
+print('A sincronizacao retoma sozinha depois de um reinicio')
+# A cadeia de `sync_tuss_task` se agenda ao **terminar** cada rodada. Um
+# deploy no meio de uma derruba o worker, a rodada morre sem agendar a
+# proxima, e o laco acaba em silencio -- a tabela para de crescer e
+# ninguem e avisado. Aconteceu em producao: parou em 3.200 de ~5.900
+# procedimentos e so voltou a andar com um disparo manual, dias depois.
+from unittest.mock import patch as _patch
+
+from catalogs.models import CatalogRelease, CatalogReleaseStatus, CatalogSystem
+from catalogs.tasks import retomar_tuss_incompleta
+
+
+def _conferir(rotulo, obtido, esperado):
+    ok = obtido == esperado
+    print(f'  {"ok " if ok else "FALHA"}  {rotulo:58} -> {obtido}')
+    if not ok:
+        falhas.append(f'{rotulo}: esperado {esperado}, obtido {obtido}')
+
+
+_rascunhos = list(
+    CatalogRelease.objects
+    .filter(system=CatalogSystem.TUSS, status=CatalogReleaseStatus.DRAFT)
+    .values_list('id', flat=True)
+)
+CatalogRelease.objects.filter(id__in=_rascunhos).update(
+    status=CatalogReleaseStatus.SUPERSEDED,
+)
+_novo = None
+try:
+    with _patch('catalogs.tasks.sync_tuss_task.delay') as _disparo:
+        _r = retomar_tuss_incompleta()
+    _conferir('sem tabela pela metade, nao dispara nada', _disparo.called, False)
+    _conferir('  e diz que nao retomou', _r['retomada'], False)
+
+    _novo = CatalogRelease.objects.create(
+        system=CatalogSystem.TUSS, version='ROTEIRO-RETOMADA',
+        status=CatalogReleaseStatus.DRAFT,
+    )
+    with _patch('catalogs.tasks.sync_tuss_task.delay') as _disparo:
+        _r = retomar_tuss_incompleta()
+    _conferir('com tabela pela metade, retoma', _disparo.called, True)
+    _conferir('  e nomeia a versao', _r['versao'], 'ROTEIRO-RETOMADA')
+finally:
+    if _novo is not None:
+        CatalogRelease.objects.filter(id=_novo.id).delete()
+    CatalogRelease.objects.filter(id__in=_rascunhos).update(
+        status=CatalogReleaseStatus.DRAFT,
+    )
+
+# E o agendador tem de chamar isso sozinho, com frequencia maior que a
+# semanal -- senao a tabela pela metade esperaria ate domingo.
+from django.conf import settings as _cfg
+
+_conferir('o agendador periodico chama a retomada',
+          any(e['task'] == 'catalogs.tasks.retomar_tuss_incompleta'
+              for e in _cfg.CELERY_BEAT_SCHEDULE.values()), True)
+
+print('---')
 if falhas:
     for line in falhas:
         print('FALHA:', line)

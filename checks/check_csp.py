@@ -24,6 +24,7 @@ O que este roteiro cobra, e onde da errado:
 """
 import json
 import re
+from pathlib import Path
 
 from django.conf import settings as dj_settings
 
@@ -75,6 +76,20 @@ conferir("object-src e 'none'", d.get('object-src'), "'none'")
 conferir("base-uri e 'self'", d.get('base-uri'), "'self'")
 conferir("form-action e 'self'", d.get('form-action'), "'self'")
 conferir("frame-ancestors e 'none'", d.get('frame-ancestors'), "'none'")
+# As duas diretivas de moldura governam lados opostos, e confundi-las custou
+# tres documentos bloqueados no log antes de alguem reparar:
+#
+# - `frame-ancestors` diz quem pode embutir **nossas** paginas -> 'none',
+#   que e a protecao contra clickjacking;
+# - `frame-src` diz o que **nos** podemos embutir -> 'self', porque a
+#   pagina publica do documento mostra o PDF num iframe da propria origem.
+#
+# Com `frame-src 'none'`, o paciente abre o link e ve moldura vazia.
+conferir("frame-src e 'self', para o PDF do paciente abrir",
+         d.get('frame-src'), "'self'")
+_pagina = Path(dj_settings.BASE_DIR, 'templates', 'communications', 'access_document.html')
+conferir('e a pagina do paciente de fato usa iframe',
+         '<iframe' in _pagina.read_text(encoding='utf-8'), True)
 conferir('upgrade-insecure-requests esta presente',
          'upgrade-insecure-requests' in d, True)
 # A concessao consciente, que a documentacao explica. A assercao existe
@@ -108,7 +123,6 @@ print('\n4. Nenhum atributo de evento sobrou no HTML')
 # Varre os templates de verdade, e nao o que foi renderizado: um `onclick`
 # num canto que nenhuma assercao abre continuaria la, e apareceria no dia
 # em que a politica fosse aplicada.
-from pathlib import Path
 
 raiz = Path(dj_settings.BASE_DIR) / 'templates'
 padrao = re.compile(r'\son[a-z]+\s*=\s*"', re.IGNORECASE)
@@ -224,6 +238,40 @@ conferir('o retrato quebrado tem ouvinte de erro',
          "addEventListener('error'" in comportamento, True)
 conferir('e tambem varredura do que ja falhou antes do script',
          'naturalWidth === 0' in comportamento, True)
+
+print('\n10. A chave que liga o bloqueio chega ao conteiner')
+# A documentacao manda ligar `CSP_ENFORCE=True` e republicar. Isso so
+# funciona se a chave atravessar o `.env` -> runtime -> container, e ela
+# **nao atravessava**: `core/settings.py` a lia, o `.env.example` a
+# declarava, e `ops/make_runtime.py` nao a repassava. O valor do `.env`
+# nao fazia efeito nenhum, em silencio.
+#
+# A assercao e generica de proposito: **toda** chave que o settings le do
+# ambiente tem de chegar ao container, ou ter um padrao que torne a leitura
+# inutil. Lista escrita a mao envelhece; esta varre os dois arquivos.
+import re as _re
+
+_settings = Path(dj_settings.BASE_DIR, 'core', 'settings.py').read_text(encoding='utf-8')
+_runtime = Path(dj_settings.BASE_DIR, 'ops', 'make_runtime.py').read_text(encoding='utf-8')
+_stack = Path(dj_settings.BASE_DIR, 'docker-stack.yml').read_text(encoding='utf-8')
+
+_lidas = set(_re.findall(r"env\.\w+\(\s*'([A-Z0-9_]+)'", _settings))
+_lidas |= set(_re.findall(r"env\(\s*'([A-Z0-9_]+)'", _settings))
+_entregues = set(_re.findall(r"'([A-Z0-9_]+)'", _runtime)) | set(_re.findall(r'([A-Z0-9_]+):', _stack))
+
+#: Chaves cujo padrao e o valor correto em producao, e que por isso nao
+#: precisam atravessar. Cada uma com o motivo, para a lista nao virar
+#: gaveta: `DB_HOST` e o nome do servico no Swarm; `SERVER_EMAIL` cai no
+#: remetente padrao.
+_COM_PADRAO_SUFICIENTE = {'DB_HOST', 'SERVER_EMAIL'}
+
+_orfas = sorted(k for k in _lidas if k not in _entregues and k not in _COM_PADRAO_SUFICIENTE)
+for k in _orfas:
+    print(f'      lida pelo settings e nao entregue: {k}')
+conferir('nenhuma chave do settings fica sem chegar ao conteiner', _orfas, [])
+conferir('e CSP_ENFORCE atravessa, especificamente',
+         'CSP_ENFORCE' in _entregues, True)
+
 
 if falhas:
     for item in falhas:

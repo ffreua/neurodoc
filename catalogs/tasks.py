@@ -85,3 +85,38 @@ def sync_tuss_task(table=None):
             'sync_tuss: nenhuma pagina respondeu; nao reagenda (o timer semanal tenta)'
         )
     return {'ok': True, **resultado}
+
+
+@shared_task(name='catalogs.tasks.retomar_tuss_incompleta', expires=1800)
+def retomar_tuss_incompleta():
+    """Retoma uma sincronizacao da TUSS que ficou pela metade.
+
+    **Por que isto precisa existir.** A cadeia de `sync_tuss_task` se
+    agenda a si mesma ao **terminar** cada rodada. Se o worker e derrubado
+    no meio de uma -- e e derrubado a cada deploy --, a rodada morre sem
+    agendar a proxima, e o laco acaba ali, em silencio. Foi o que
+    aconteceu: a tabela parou em 3.200 de ~5.900 procedimentos e so voltou
+    a andar com um disparo manual, dias depois.
+
+    Uma cadeia em que cada elo depende do anterior **terminar** nao
+    sobrevive a reinicio. Esta tarefa fecha isso por outro caminho: em vez
+    de confiar no elo, olha o estado -- se existe release em rascunho, ela
+    esta incompleta por definicao, porque a rodada que a completa e a que
+    a publica. Entao retoma.
+
+    Nao duplica trabalho: `sync_incremental` e retomavel e conta o que ja
+    gravou. Duas tarefas simultaneas se encontrariam na mesma pagina e a
+    segunda nao gravaria nada novo.
+    """
+    from catalogs.models import CatalogRelease, CatalogReleaseStatus, CatalogSystem
+
+    rascunho = (
+        CatalogRelease.objects
+        .filter(system=CatalogSystem.TUSS, status=CatalogReleaseStatus.DRAFT)
+        .order_by('-id').first()
+    )
+    if rascunho is None:
+        return {'retomada': False}
+    logger.info('retomar_tuss: %s em rascunho; retomando', rascunho.version)
+    sync_tuss_task.delay()
+    return {'retomada': True, 'versao': rascunho.version}

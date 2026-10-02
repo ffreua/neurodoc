@@ -260,10 +260,25 @@ def _detail_context(request, patient, **overrides):
         ordenar = clinical_selectors.ORDEM_PADRAO
     decrescente = request.GET.get('desc') == '1'
 
+    # Se este paciente consegue receber documento por mensagem.
+    #
+    # A migracao de cadastro, por decisao de LGPD, nao autoriza ninguem a
+    # receber mensagem: dos 2.229 pacientes trazidos do sistema anterior,
+    # nenhum nasceu apto. A consequencia so aparecia **depois** de emitir
+    # -- o medico assinava o documento e a tela respondia "nenhum contato
+    # autorizado", quando ja nao havia o que fazer com o paciente na
+    # frente.
+    #
+    # Dito aqui, na ficha, a falta aparece no momento em que ela se
+    # resolve: a secretaria abre o cadastro durante o atendimento, marca
+    # as duas caixas do contato e pronto.
+    from communications.services import _eligible_document_contacts
+
     context = {
         'patient': patient,
         'bmi': compute_bmi(patient),
         'age': age_at(patient.birth_date),
+        'recebe_documento': bool(_eligible_document_contacts(patient)),
         'contact_form': PatientContactForm(),
         'measurement_form': PatientMeasurementForm(),
         'measurement_hint': missing_measurement_hint(patient),

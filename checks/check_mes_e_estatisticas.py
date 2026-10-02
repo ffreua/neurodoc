@@ -100,9 +100,37 @@ def celula_em(dia, instante):
 
 try:
     print('\n1. Um dia que passou: quem foi atendido e o que ficou vago')
-    # Um dia da semana passada em que o medico atende, para cair na grade.
+    # Um dia **que ja passou e em que o medico atende**, procurado e nao
+    # assumido.
+    #
+    # Era `hoje - 7 dias`, que preserva o dia da semana -- e o medico da
+    # base de demonstracao atende so terca e quinta. O roteiro passava em
+    # dois dias da semana e reprovava nos outros cinco, sem defeito nenhum
+    # no produto. Rodado numa quinta, parecia saudavel; na sexta seguinte,
+    # a bateria inteira ficava vermelha.
+    #
+    # Verificacao que depende do dia em que e executada nao verifica: ela
+    # ensina quem a le a ignorar o vermelho.
+    #
+    # E no **mes anterior**, nao em qualquer dia passado: a secao 5 compara
+    # as estatisticas do mes do atendimento concluido com as do mes do
+    # agendamento futuro, e as duas tem de ser meses diferentes. Procurar
+    # so "um dia passado com grade" fazia os dois cairem em outubro no
+    # inicio do mes, e a contagem de atendidos vazava de um para o outro.
     hoje = timezone.localdate()
-    dia = hoje - timedelta(days=7)
+    ultimo_do_mes_anterior = hoje.replace(day=1) - timedelta(days=1)
+    dia = None
+    for recuo in range(0, 31):
+        candidato = ultimo_do_mes_anterior - timedelta(days=recuo)
+        if month_summary(medico.id, [candidato])[candidato]['cells']:
+            dia = candidato
+            break
+    conferir('ha um dia do mes anterior com grade publicada',
+             dia is not None, True)
+    if dia is None:
+        raise SystemExit(1)
+    print(f'     (dia escolhido: {dia}, {["seg","ter","qua","qui","sex","sab","dom"][dia.weekday()]})')
+    conferir('e ele e de um mes diferente do de hoje', dia.month != hoje.month, True)
     resumo_antes = month_summary(medico.id, [dia])
     celulas_antes = resumo_antes[dia]['cells']
     conferir('o dia tem grade publicada', len(celulas_antes) > 0, True)

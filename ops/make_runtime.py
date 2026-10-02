@@ -42,7 +42,16 @@ COMMON_KEYS = [
 #: atualizacao, por uma configuracao que tem padrao e que quase ninguem
 #: precisa mudar. Estas entram so quando existem.
 OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
-                 'DOCUMENTS_GC_DRY_RUN']
+                 'DOCUMENTS_GC_DRY_RUN',
+                 # As duas da politica de conteudo. Faltavam, e a falta era
+                 # silenciosa do pior jeito: `core/settings.py` le as duas,
+                 # o `.env.example` as declara e a documentacao manda ligar
+                 # `CSP_ENFORCE=True` e republicar -- mas a chave nunca
+                 # chegava ao container, entao o valor do `.env` nao fazia
+                 # efeito nenhum. Quem tentasse ligar o bloqueio veria a
+                 # politica continuar em modo relatorio e iria procurar o
+                 # defeito no lugar errado.
+                 'CSP_ENFORCE', 'CSP_REPORT_URI']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 
