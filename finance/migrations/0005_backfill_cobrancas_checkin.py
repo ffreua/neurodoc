@@ -18,6 +18,27 @@ def backfill_checkins(apps, schema_editor):
     appointment_ids = AppointmentState.objects.using(alias).filter(
         status__in=['checked_in', 'in_progress', 'completed'],
     ).values_list('id', flat=True)
+
+    # Instalacao nova nao tem check-in para preencher -- e precisa sair aqui,
+    # ANTES do bloco final, que usa os modelos da aplicacao.
+    #
+    # Por que isto existe. Aquele bloco faz `select_related('patient')` com o
+    # `Patient` de HOJE, entao o SELECT pede todas as colunas atuais --
+    # inclusive `legacy_id`, que so e criada por uma migration de `patients`
+    # posterior a esta. Num banco que foi crescendo migration a migration a
+    # coluna ja esta la e nada acontece; num banco **do zero** a cadeia para
+    # aqui com `column patients_patient.legacy_id does not exist`, e a
+    # instalacao limpa fica impossivel.
+    #
+    # Ninguem viu porque producao e os ambientes de desenvolvimento nasceram
+    # antes desta migration e foram migrando aos poucos. So aparece em quem
+    # instala agora -- e descobre no primeiro comando.
+    #
+    # A guarda e por dado, e nao por versao: se nao ha agendamento nenhum,
+    # nao ha o que preencher, e pular e o resultado certo de qualquer forma.
+    if not appointment_ids.exists():
+        return
+
     for appointment_id in appointment_ids.iterator():
         appointment = AppointmentState.objects.using(alias).get(id=appointment_id)
         candidates = EncounterState.objects.using(alias).filter(

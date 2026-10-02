@@ -221,10 +221,22 @@ existe (os Anexos I a V), está em `docs/governance/lgpd.md` §9.
 
 ```bash
 python -m ops.local_compose     # gera compose.yml e os env_files a partir do .env
-docker compose up -d --build
-docker compose exec app python manage.py migrate
+docker compose up -d --build    # o proprio `app` migra na subida
 docker compose exec app python manage.py seed_demo
+docker compose exec celery_worker python manage.py import_cmed
 ```
+
+**Não rode `manage.py migrate` à mão.** A conexão padrão é o usuário
+`neurodoc_app`, que não tem DDL — num banco vazio isso para em
+`permission denied for schema public`. Quem migra é o próprio `app` ao
+subir (`bootstrap_release` → `ops/runtime.py::prepare_release`), pela
+conexão `migrations`, que usa `neurodoc_owner` e segura uma trava. O
+`setup_deploy.sh` diz o mesmo em letras garrafais; este arquivo mandava o
+contrário, e só não doía porque num banco já migrado o comando é um
+no-op.
+
+O `import_cmed` fecha a lista: ele **não** vem da semeadura, e sem ele
+`check_receitas` reprova numa instalação nova. Baixa ~12 MB da Anvisa.
 
 - App em `http://localhost:8000`, via Traefik em `:8080`, caixa de e-mail
   do Mailpit em `http://localhost:8025`.
