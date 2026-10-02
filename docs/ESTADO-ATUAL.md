@@ -49,8 +49,21 @@ contêiner.
 
 Os nove backups moram em `/srv/neurodoc-backups/`, na própria VPS. Disco
 que falha, ou VPS comprometida, leva os backups junto. **É a pendência
-mais cara que resta.** Falta escolher o destino externo (outro provedor,
-storage) e automatizar a cópia.
+mais cara que resta.**
+
+**O caminho está escrito e falta executar** (2026-10-02):
+[`operations/copia-externa.md`](operations/copia-externa.md) e
+`scripts/puxar_backups.ps1` — o PC **puxa** do servidor para um SSD
+externo e confere o SHA-256 de cada arquivo contra o `manifest.json`.
+
+Puxar, e não empurrar, é a decisão que importa: se a VPS empurrasse, ela
+guardaria a credencial do destino, e quem a invadisse apagaria também a
+cópia de fora. Puxando, a VPS não sabe que o disco existe.
+
+Antes da primeira execução faltam dois passos **na VPS**, descritos lá:
+dar leitura do grupo a `/srv/neurodoc-backups` (hoje `0700` de
+`neurodocops`, e o SSH entra como `deploy`) e trocar o `UMask` da unidade
+de backup para que os conjuntos futuros nasçam legíveis.
 
 ### A chave privada do backup está num lugar só
 
@@ -59,6 +72,10 @@ do controlador. Sem ela, os backups são lixo cifrado. **Já se perdeu uma
 vez neste projeto** (ver `docs/operations/diario-do-primeiro-deploy.md`
 §3). Precisa de segunda cópia: gerenciador de senhas e/ou papel em lugar
 físico seguro.
+
+Note que a cópia no SSD **não** resolve isto: o disco, o PC e a chave
+ficam na mesma sala. São dois problemas distintos, e o da chave só se
+resolve fora desta máquina.
 
 ### Os pacientes migrados não recebem documento
 

@@ -286,7 +286,8 @@ PRD; é a referência operacional viva gerada a partir dele.
   H-21/H-22 e revisão de H-03) com duas clínicas fictícias; P-02/P-05/P-06/
   P-07/P-10 permanecem pendentes e explicitamente bloqueiam o piloto real.
 - [Deploy](operations/deploy.md), [rollback](operations/rollback.md),
-  [backup e restauração](operations/restore.md) e
+  [backup e restauração](operations/restore.md),
+  [cópia externa do backup](operations/copia-externa.md) e
   [monitoramento](operations/monitoring.md) — mecanismos verificados sem VPS
   real (P-02), incluindo o roundtrip criptográfico do `age` e a correção de
   três bugs reais no comando `prepare_recovery`.

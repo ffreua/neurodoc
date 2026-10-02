@@ -14,6 +14,11 @@ ou apagado durante a cópia —, gera `pg_dump --format=custom` do banco e um
 `COMPLETE`, fecha o conjunto; a retenção mínima é de 7 dias e só remove
 pastas com `COMPLETE` presente.
 
+**Levar a cópia para fora da VPS** é
+[`copia-externa.md`](copia-externa.md): o backup acima mora na mesma máquina
+que ele protege, e `ops/backup.py` termina dizendo isso (`copy off-host and
+verify restore`).
+
 ## Restauração (`ops/restore.py`)
 
 `--prepare-data` recusa rodar se o host já tiver qualquer serviço/volume
@@ -62,7 +67,8 @@ docker swarm init
 docker node update --label-add neurodoc_data=true $(docker node ls -q)
 docker network create --driver overlay --internal neurodoc_v1_internal
 for s in NEURODOC_DB_ADMIN_PASSWORD NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD; do
-  openssl rand -base64 48 | tr -d '
+  openssl rand -base64 48 | tr -d '
+
 ' | docker secret create "$s" -
 done
 ```
