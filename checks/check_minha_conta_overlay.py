@@ -25,9 +25,21 @@ def conferir(rotulo, condicao):
         falhas.append(rotulo)
 
 
-vinculo = Membership.objects.filter(
-    status=MembershipStatus.ACTIVE,
-).select_related('user', 'tenant').first()
+#: Pagina que hospeda o teste do shell. **Precisa abrir para todo papel** --
+#: "minha conta" e de todo mundo. Era `/app/reporting/`, que a secretaria nao
+#: abre: o roteiro pegava `Membership...first()` sem dizer qual, e dependia
+#: da ordem em que os vinculos sairam do banco. Num banco antigo calhava de
+#: vir um dono e passava; na primeira instalacao limpa veio a secretaria, o
+#: painel respondeu 302 e as quatro asercoes da secao 1 reprovaram juntas --
+#: parecendo defeito do overlay, que estava intacto.
+PAGINA_DO_SHELL = '/app/scheduling/'
+
+ATIVOS = list(
+    Membership.objects.filter(status=MembershipStatus.ACTIVE)
+    .select_related('user', 'tenant')
+    .order_by('user__email', 'tenant__slug')
+)
+vinculo = ATIVOS[0]
 usuario = vinculo.user
 antes = (usuario.first_name, usuario.last_name)
 
@@ -39,12 +51,26 @@ sessao.save()
 
 try:
     print('\n1. O menu abre um modal, mas conserva o link como fallback')
-    resposta = cliente.get('/app/reporting/')
-    corpo = resposta.content.decode('utf-8', 'replace')
-    conferir('painel abriu', resposta.status_code == 200)
-    conferir('gatilho assinalado para o overlay', 'data-nd-account-open' in corpo)
-    conferir('href continua apontando para o fallback', f'href="{URL}"' in corpo)
-    conferir('modal global existe fora da pagina de conta', 'id="nd-account-modal"' in corpo)
+    # Em **todos** os papeis, e nao num so: o overlay fica no shell, que e o
+    # mesmo para quem entra. Varrer os quatro papeis custa quatro requisicoes
+    # e tira do roteiro a dependencia de qual vinculo o banco devolve
+    # primeiro -- que foi exatamente o que o derrubou.
+    for _v in ATIVOS:
+        _c = Client()
+        _c.force_login(_v.user)
+        _s = _c.session
+        _s['tenant_id'] = str(_v.tenant_id)
+        _s.save()
+        _r = _c.get(PAGINA_DO_SHELL)
+        _corpo = _r.content.decode('utf-8', 'replace')
+        _quem = '/'.join(_v.roles)
+        conferir(f'[{_quem}] pagina do shell abriu', _r.status_code == 200)
+        conferir(f'[{_quem}] gatilho assinalado para o overlay',
+                 'data-nd-account-open' in _corpo)
+        conferir(f'[{_quem}] href continua apontando para o fallback',
+                 f'href="{URL}"' in _corpo)
+        conferir(f'[{_quem}] modal global existe fora da pagina de conta',
+                 'id="nd-account-modal"' in _corpo)
 
     print('\n2. A mesma rota entrega apenas o painel ao JavaScript')
     resposta = cliente.get(URL, **AJAX)

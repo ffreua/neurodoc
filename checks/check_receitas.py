@@ -44,6 +44,18 @@ medico = User.objects.get(email='doctor-a@demo.neurodoc.local')
 secretaria = User.objects.get(email='secretary-a@demo.neurodoc.local')
 vinculo_medico = Membership.objects.get(tenant=tenant_a, user=medico)
 paciente = Patient.objects.filter(tenant=tenant_a).first()
+# A secao 10b emite receita de **controle especial**, e ela exige endereco
+# completo. Garantir aqui, em vez de torcer para o primeiro paciente da
+# semeadura ter um: dos cinco pacientes de `seed_demo`, so um tem, e nao e
+# o que `.first()` devolve. Num banco que foi crescendo sessao apos sessao
+# sobrava algum paciente com endereco e o roteiro passava; na primeira
+# instalacao limpa ele estourou com `ValueError` em vez de reprovar com
+# mensagem -- pior ainda, porque parecia defeito do produto.
+if not (paciente.street and paciente.city and paciente.state):
+    paciente.street = 'Rua das Acácias, 100'
+    paciente.city = 'São Paulo'
+    paciente.state = 'SP'
+    paciente.save(update_fields=['street', 'city', 'state'])
 criados = []
 
 
@@ -262,8 +274,12 @@ perfil.patient_portal_enabled = portal_antes
 perfil.save(update_fields=['patient_portal_enabled'])
 
 print('=== 10. controle especial continua exigindo endereco ===')
-sem_endereco = Patient.objects.filter(tenant=tenant_a).exclude(street='').exclude(city='').first()
-alvo = sem_endereco or paciente
+# Opera no **proprio** `paciente`, e nao em "algum paciente com endereco":
+# a 10b emite para ele logo abaixo, e as duas secoes precisam falar do mesmo
+# registro. Procurar outro acoplava o roteiro ao que havia no banco -- o
+# nome da variavel aqui era `sem_endereco` e a consulta buscava quem **tem**
+# endereco, que e o tipo de confusao que esse acoplamento produz.
+alvo = paciente
 rua, cidade, uf = alvo.street, alvo.city, alvo.state
 alvo.street, alvo.city, alvo.state = '', '', ''
 alvo.save(update_fields=['street', 'city', 'state'])

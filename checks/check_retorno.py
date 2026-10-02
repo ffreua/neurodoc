@@ -313,13 +313,22 @@ finally:
         PatientContact.objects.filter(id=cid).update(
             email=email, email_enabled=enabled, marketing_opt_out_at=opt_out,
         )
-    if contato_criado:
-        PatientContact.objects.filter(id=contato_criado).delete()
     # As tentativas seguram a entrega por `PROTECT`, e a entrega segura o
-    # retorno pelo mesmo motivo. A limpeza desce na ordem inversa.
+    # contato e o retorno pelo mesmo motivo. A limpeza desce na ordem
+    # inversa -- e o **contato criado** so pode sair depois das entregas,
+    # que era o que faltava: ele era apagado primeiro, logo acima deste
+    # comentario que descreve a ordem certa.
+    #
+    # Num banco antigo nao doia, porque o aviso ja tinha sido enviado em
+    # sessao anterior e nenhuma entrega nova apontava para o contato novo.
+    # Na primeira instalacao limpa nasceu uma, e a limpeza estourou com
+    # `ProtectedError` -- derrubando o roteiro inteiro no `finally`, onde
+    # o erro nao diz nada sobre o que estava sendo verificado.
     entregas_do_roteiro = Delivery.objects.filter(idempotency_key__startswith='return:')
     DeliveryAttempt.objects.filter(delivery__in=entregas_do_roteiro).delete()
     entregas_do_roteiro.delete()
+    if contato_criado:
+        PatientContact.objects.filter(id=contato_criado).delete()
     n = ScheduledReturn.objects.filter(id__in=criados).delete()[0]
     if atendimentos_criados:
         from clinical.models import Encounter as _Limpeza
