@@ -68,18 +68,20 @@ seguinte. O script passou a tentar três vezes — vermelho semanal por
 soluço de rede é vermelho que ninguém olha, e é assim que uma falha de
 verdade passa despercebida.
 
-### A chave privada do backup está num lugar só
+### ~~A chave privada do backup está num lugar só~~ — resolvida em 2026-10-02
 
-`C:\Users\ferna\Documents\CHAVE-BACKUP.key`, em texto claro, na máquina
-do controlador. Sem ela, os backups são lixo cifrado. **Já se perdeu uma
+A chave foi guardada em **gerenciador de senhas** pelo controlador, fora
+desta máquina. Deixa de ser ponto único de falha: antes,
+`C:\Users\ferna\Documents\CHAVE-BACKUP.key` era a única cópia, em texto
+claro, e sem ela todo backup é lixo cifrado — coisa que **já se perdeu uma
 vez neste projeto** (ver `docs/operations/diario-do-primeiro-deploy.md`
-§3). Precisa de segunda cópia: gerenciador de senhas e/ou papel em lugar
-físico seguro.
+§3).
 
-Note que a cópia no SSD **não** resolve isto — e agora que ela existe, esta
-é a pendência mais cara que resta. O disco, o PC e a chave ficam na mesma
-sala: incêndio, roubo ou enchente levam os três, e sem a chave os 11
-conjuntos no SSD são lixo cifrado. Só se resolve **fora desta máquina**.
+O arquivo na máquina continua sendo o que o dia a dia usa; o que mudou é
+que ele não é mais o único lugar onde a chave existe.
+
+**Nunca entra em limpeza de disco**, e a prova de restauração tem de ser
+refeita a cada mudança de `BACKUP_AGE_RECIPIENT`.
 
 ### Os pacientes migrados não recebem documento
 
