@@ -95,6 +95,24 @@ que liga, em vez de pular o dia.
 Às 09:00 porque o backup da VPS é às 03:00 (hora de Brasília): quando a
 tarefa roda, o do dia já existe.
 
+## Executado em 2026-10-02
+
+Não é mais um plano. Os **11 conjuntos** da VPS estão em
+`D:
+eurodoc-backups` (SSD `SSD_Freua`, 57,8 MB), de 26/09 a 02/10, todos
+com `VERIFICADO`. A tarefa diária está registrada e **foi disparada à mão
+para confirmar que roda sob o agendador** — resultado 0. Esse teste
+importa mais que o manual: é no contexto do agendador que uma chave SSH
+com passphrase, ou um caminho relativo, falharia calado.
+
+**O que a primeira execução ensinou.** Duas das onze pastas falharam com
+`scp: Connection closed` (código 255), sem padrão, e vieram inteiras na
+execução seguinte — cada pasta é uma conexão SSH nova, e onze em três
+minutos às vezes esbarram em limite do servidor. O script passou a tentar
+**três vezes** com espera crescente. Vermelho semanal por soluço de rede é
+vermelho que ninguém olha, e é assim que uma falha de verdade passa
+despercebida.
+
 ## Conferir que está funcionando
 
 Um backup que ninguém olha não é backup. Uma vez por mês:

@@ -82,11 +82,26 @@ foreach ($pasta in $remotas) {
     # ocupa o nome definitivo, e a proxima execucao nao a confunde com
     # backup bom.
     $parcial = "$local.parcial"
-    if (Test-Path $parcial) { Remove-Item $parcial -Recurse -Force }
     Registrar "copiando $pasta ..."
-    & scp -q -o BatchMode=yes -o ConnectTimeout=20 -r "${Servidor}:${Origem}/${pasta}" $parcial
-    if ($LASTEXITCODE -ne 0) {
-        Registrar "  FALHOU na copia (scp saiu com $LASTEXITCODE)"
+
+    # TENTA DE NOVO. Na primeira execucao real (02/10/2026), 2 das 11 pastas
+    # falharam com `scp: Connection closed` (codigo 255) -- sem padrao, e as
+    # duas vieram inteiras na execucao seguinte. Cada pasta e uma conexao SSH
+    # nova, e onze em tres minutos as vezes esbarram em limite do servidor.
+    #
+    # Sem isto a tarefa agendada ficaria vermelha por soluco de rede, e
+    # vermelho que aparece toda semana por nada e vermelho que ninguem olha
+    # -- que e como uma falha de verdade passa despercebida.
+    $copiou = $false
+    for ($tentativa = 1; $tentativa -le 3 -and -not $copiou; $tentativa++) {
+        if (Test-Path $parcial) { Remove-Item $parcial -Recurse -Force }
+        & scp -q -o BatchMode=yes -o ConnectTimeout=20 -r "${Servidor}:${Origem}/${pasta}" $parcial
+        if ($LASTEXITCODE -eq 0) { $copiou = $true; break }
+        Registrar "  tentativa $tentativa falhou (scp saiu com $LASTEXITCODE)"
+        if ($tentativa -lt 3) { Start-Sleep -Seconds (5 * $tentativa) }
+    }
+    if (-not $copiou) {
+        Registrar "  FALHOU na copia apos 3 tentativas"
         if (Test-Path $parcial) { Remove-Item $parcial -Recurse -Force }
         $falhos++; continue
     }

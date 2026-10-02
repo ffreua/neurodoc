@@ -45,24 +45,28 @@ contêiner.
 
 ## 3. O que está aberto, e o que custa
 
-### P-10 — Backup só existe na máquina que ele protege
+### ~~P-10 — Backup só existe na máquina que ele protege~~ — resolvida em 2026-10-02
 
-Os nove backups moram em `/srv/neurodoc-backups/`, na própria VPS. Disco
-que falha, ou VPS comprometida, leva os backups junto. **É a pendência
-mais cara que resta.**
-
-**O caminho está escrito e falta executar** (2026-10-02):
-[`operations/copia-externa.md`](operations/copia-externa.md) e
-`scripts/puxar_backups.ps1` — o PC **puxa** do servidor para um SSD
-externo e confere o SHA-256 de cada arquivo contra o `manifest.json`.
+O backup deixou de existir só na máquina que ele protege. Os **11
+conjuntos** estão em `D:
+eurodoc-backups` (SSD externo, 57,8 MB), cada
+arquivo conferido por **SHA-256 contra o `manifest.json`**, e a tarefa
+diária das 09:00 está registrada no Windows e **já executou com sucesso**
+(resultado 0) — a execução sob o agendador foi testada, e não só a
+manual, porque é lá que a chave SSH poderia não funcionar.
 
 Puxar, e não empurrar, é a decisão que importa: se a VPS empurrasse, ela
 guardaria a credencial do destino, e quem a invadisse apagaria também a
 cópia de fora. Puxando, a VPS não sabe que o disco existe.
 
-Não falta nada na VPS: o diretório já é `0700` do próprio `deploy`, que é
-quem roda o backup e quem entra por SSH. Falta plugar o disco e agendar a
-tarefa no PC.
+Ver [`operations/copia-externa.md`](operations/copia-externa.md) e
+`scripts/puxar_backups.ps1`.
+
+**O que a primeira execução real ensinou:** 2 das 11 pastas falharam com
+`scp: Connection closed`, sem padrão, e vieram inteiras na tentativa
+seguinte. O script passou a tentar três vezes — vermelho semanal por
+soluço de rede é vermelho que ninguém olha, e é assim que uma falha de
+verdade passa despercebida.
 
 ### A chave privada do backup está num lugar só
 
@@ -72,9 +76,10 @@ vez neste projeto** (ver `docs/operations/diario-do-primeiro-deploy.md`
 §3). Precisa de segunda cópia: gerenciador de senhas e/ou papel em lugar
 físico seguro.
 
-Note que a cópia no SSD **não** resolve isto: o disco, o PC e a chave
-ficam na mesma sala. São dois problemas distintos, e o da chave só se
-resolve fora desta máquina.
+Note que a cópia no SSD **não** resolve isto — e agora que ela existe, esta
+é a pendência mais cara que resta. O disco, o PC e a chave ficam na mesma
+sala: incêndio, roubo ou enchente levam os três, e sem a chave os 11
+conjuntos no SSD são lixo cifrado. Só se resolve **fora desta máquina**.
 
 ### Os pacientes migrados não recebem documento
 
