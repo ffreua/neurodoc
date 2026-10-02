@@ -462,6 +462,10 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 
 ## 9. Onde procurar o resto
 
+- **`docs/ESTADO-ATUAL.md` — leia primeiro.** O retrato do sistema no dia
+  em que entrou em uso real: o que está provado, o que está aberto, e as
+  lições que custaram caro. É o arquivo que responde "onde estamos" a
+  quem (ou ao que) chega agora.
 - `PRD.md` — a especificação completa (matriz de permissão §4, roteiro de
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
