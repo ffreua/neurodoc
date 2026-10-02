@@ -102,8 +102,23 @@ class RelatorioView(TenantScopedView):
         return super().dispatch(request, *args, **kwargs)
 
     def _paciente(self, request, patient_id):
+        """O paciente, reautorizado pelo inquilino.
+
+        O `patient_id` nem sempre vem da URL -- o descarte o recebe do
+        formulario, porque precisa saber para onde voltar depois de o
+        artefato deixar de existir. Valor ausente ou mal formado e 404 e
+        nao 500: `get_object_or_404` com um id que nao e UUID levanta
+        `ValidationError`, que o Django nao transforma em pagina de erro
+        tratada.
+        """
+        import uuid as _uuid
+
         from patients.models import Patient
 
+        try:
+            _uuid.UUID(str(patient_id))
+        except (ValueError, TypeError, AttributeError):
+            raise Http404
         return get_object_or_404(
             scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id,
         )
@@ -233,7 +248,20 @@ class RelatorioAprovarView(RelatorioView):
                 documento = relatorio.criar_rascunho_de_documento(
                     artifact, reviewer, request.access_context.user_id,
                 )
-        except (ArtifactStale, AlreadyReviewed, relatorio.RelatorioNaoAprovado) as exc:
+        except AlreadyReviewed as exc:
+            # Duplo clique, ou o botao de voltar: o documento ja existe, e
+            # mostra-lo e a resposta util. Repetir "ja foi revisado" numa
+            # pagina em branco deixa o medico sem saber se deu certo.
+            from documents.models import MedicalDocument
+
+            pronto = MedicalDocument.objects.filter(
+                tenant_id=artifact.tenant_id,
+                content_snapshot__ai_artifact_id=str(artifact.id),
+            ).first()
+            if pronto is not None:
+                return redirect('documents:medical-detail', document_id=pronto.id)
+            return HttpResponseForbidden(str(exc))
+        except (ArtifactStale, relatorio.RelatorioNaoAprovado) as exc:
             return HttpResponseForbidden(str(exc))
         except MissingPhysicianProfile:
             return HttpResponseForbidden(
@@ -243,12 +271,43 @@ class RelatorioAprovarView(RelatorioView):
 
 
 class RelatorioRejeitarView(RelatorioView):
+    """Descarta o rascunho e volta ao prontuário.
+
+    Três coisas que a primeira versão errava, e as três apareceram no
+    primeiro uso real:
+
+    - ela marcava o artefato como rejeitado e **redirecionava de volta
+      para a mesma tela**, que continuava mostrando o rascunho inteiro sob
+      um crachá vermelho. Descartar algo e continuar olhando para ele não
+      é descartar;
+    - o segundo clique levantava `AlreadyReviewed` e devolvia a mensagem
+      crua numa página em branco — e, naquela altura, em inglês;
+    - nada era apagado. "Rejeitado" é um estado, e o que se quer é que o
+      texto suma.
+
+    O `patient_id` vem do formulário, e não do artefato, justamente porque
+    o artefato deixa de existir: sem ele, o segundo clique não teria para
+    onde voltar. Vindo do POST, ele é reautorizado pelo inquilino como
+    qualquer outro — a view não confia no campo, confere.
+    """
+
     def post(self, request, artifact_id):
-        artifact = get_object_or_404(
-            scope_to_tenant(AIArtifact.objects.all(), request.access_context), id=artifact_id,
-        )
+        from . import relatorio
+
+        patient = self._paciente(request, request.POST.get('patient_id'))
+        artifact = AIArtifact.objects.filter(
+            tenant_id=request.access_context.tenant_id, id=artifact_id,
+        ).select_related('job').first()
+        if artifact is None:
+            # Já foi apagado: o segundo clique, ou o botão de voltar do
+            # navegador. O resultado pedido já aconteceu, e dizer "não
+            # encontrado" seria relatar como erro um pedido atendido.
+            return redirect('clinical:timeline', patient_id=patient.id)
         try:
-            reject_artifact(artifact, self._membership(request), request.POST.get('reason', ''))
-        except (ArtifactStale, AlreadyReviewed) as exc:
+            relatorio.descartar_rascunho(
+                artifact.job, request.access_context.user_id,
+                motivo=request.POST.get('reason', ''),
+            )
+        except relatorio.RascunhoJaVirouDocumento as exc:
             return HttpResponseForbidden(str(exc))
-        return redirect('ai:relatorio-detalhe', job_id=artifact.job_id)
+        return redirect('clinical:timeline', patient_id=patient.id)

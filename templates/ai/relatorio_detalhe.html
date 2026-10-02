@@ -108,10 +108,15 @@ não seria uma decisão, seria um clique para fazer a tela andar.
                     </div>
                 </form>
 
-                <form method="post" action="{% url 'ai:relatorio-descartar' artifact.id %}" class="mt-2">
+                {% comment %}O descarte apaga de verdade, e por isso pergunta antes.
+O texto da pergunta diz o que sobra — a trilha — para a confirmação ser uma
+decisão e não um susto.{% endcomment %}
+                <form method="post" action="{% url 'ai:relatorio-descartar' artifact.id %}" class="mt-2"
+                      data-nd-confirm="Descartar este rascunho? O texto é apagado e não há como recuperá-lo. O registro de que ele existiu permanece na trilha de auditoria.">
                     {% csrf_token %}
+                    <input type="hidden" name="patient_id" value="{{ patient.id }}">
                     <button type="submit" class="btn btn-light-danger btn-sm" data-nd-busy>
-                        <span>Descartar este rascunho</span>
+                        <span>Descartar e voltar ao prontuário</span>
                     </button>
                 </form>
                 {% endif %}

@@ -31,7 +31,13 @@ O que o roteiro cobra, e o defeito que cada assercao impede:
 - **o texto editado na tela e o que vai para o documento.** Gravar o
   original e descartar a edicao do medico seria a pior falha possivel,
   porque e silenciosa;
-- **a fronteira**: quem nao emite documento nao gera relatorio.
+- **a fronteira**: quem nao emite documento nao gera relatorio;
+- **descartar apaga de verdade.** A primeira versao marcava o artefato
+  como rejeitado e redirecionava de volta para a mesma tela, que seguia
+  mostrando o rascunho inteiro; o segundo clique devolvia "Artifact
+  already rejected" numa pagina em branco, em ingles. Agora o texto e o
+  pedido somem, a trilha fica, e a tela volta ao prontuario -- inclusive
+  no segundo clique, quando ja nao ha o que apagar.
 """
 from datetime import timedelta
 
@@ -374,6 +380,79 @@ try:
              relatorio.finalidade('nao-existe').codigo, 'livre')
     conferir('e o prompt do relatorio proibe o marcador',
              '[PACIENTE]' in __import__('ai.graphs', fromlist=['x']).REPORT_PROMPT, True)
+
+    print(CHR + '13. Descartar apaga de verdade, e volta ao prontuario')
+    # O defeito que o medico encontrou no primeiro uso: rejeitar marcava o
+    # artefato e **redirecionava de volta para a mesma tela**, que
+    # continuava mostrando o rascunho inteiro. O segundo clique devolvia
+    # "Artifact already rejected" numa pagina em branco.
+    job_d = services.create_job(
+        ctx, AIJobKind.PATIENT_REPORT, 'INSS', patient_id=paciente.id,
+        target_ref={'finalidade': 'inss', 'pedido': 'para descartar',
+                    'ref': relatorio.referencia_do_pedido('inss', 'para descartar')},
+    )
+    artefato_d = AIArtifact.objects.create(
+        tenant=tenant, job=job_d, schema_version='v1', provider='roteiro', model='roteiro',
+        prompt_version='v3',
+        result={'titulo': 'Relatorio', 'secoes': [{'titulo': '', 'texto': 'Para descartar.'}],
+                'limitations': 'x'},
+    )
+    url_descartar = reverse('ai:relatorio-descartar', args=[artefato_d.id])
+    resposta = cliente.post(url_descartar, {'patient_id': str(paciente.id)})
+    conferir('o descarte redireciona', resposta.status_code, 302)
+    conferir('e volta ao prontuario do paciente',
+             reverse('clinical:timeline', args=[paciente.id]) in resposta['Location'], True)
+    conferir('o rascunho foi apagado',
+             AIArtifact.objects.filter(id=artefato_d.id).exists(), False)
+    conferir('e o pedido que o originou tambem',
+             AIJob.objects.filter(id=job_d.id).exists(), False)
+
+    # A trilha fica. O fato permanece; o texto clinico, nao.
+    from audit.models import AuditEvent
+
+    conferir('mas a trilha registra quem descartou',
+             AuditEvent.objects.filter(
+                 tenant_id=tenant.id, action='ai.artifact_discarded',
+                 object_id=job_d.id,
+             ).exists(), True)
+
+    print(CHR + '14. O segundo clique nao da tela branca')
+    repetido = cliente.post(url_descartar, {'patient_id': str(paciente.id)})
+    conferir('clicar de novo redireciona, nao erra', repetido.status_code, 302)
+    conferir('e vai para o mesmo lugar',
+             reverse('clinical:timeline', args=[paciente.id]) in repetido['Location'], True)
+    conferir('paciente ausente no formulario da 404, nao 500',
+             cliente.post(url_descartar, {}).status_code, 404)
+    conferir('e paciente mal formado tambem',
+             cliente.post(url_descartar, {'patient_id': 'nao-e-uuid'}).status_code, 404)
+
+    print(CHR + '15. O que ja virou documento nao se apaga')
+    # Ali o `ai_artifact_id` e a trilha que liga o relatorio assinado ao
+    # rascunho que o originou; apagar a outra ponta a romperia.
+    recusou = False
+    try:
+        relatorio.descartar_rascunho(job_a, vinculo.user_id)
+    except relatorio.RascunhoJaVirouDocumento:
+        recusou = True
+    conferir('o rascunho que virou relatorio e preservado', recusou, True)
+    conferir('  e continua existindo', AIJob.objects.filter(id=job_a.id).exists(), True)
+
+    print(CHR + '16. As mensagens de recusa falam portugues')
+    from ai.review import AlreadyReviewed, _guard
+
+    artefato_r = AIArtifact.objects.create(
+        tenant=tenant, job=job_b, schema_version='v1', provider='roteiro', model='roteiro',
+        prompt_version='v3', review_state=AIReviewState.REJECTED,
+        result={'titulo': 'x', 'secoes': [], 'limitations': 'x'},
+    )
+    mensagem = ''
+    try:
+        _guard(artefato_r)
+    except AlreadyReviewed as exc:
+        mensagem = str(exc)
+    conferir('a recusa do ja revisado esta em portugues',
+             'já foi revisado' in mensagem, True)
+    conferir('e nao em ingles', 'Artifact already' in mensagem, False)
 
 finally:
     MedicalDocument.objects.filter(id__in=criados['documentos']).update(

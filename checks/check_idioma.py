@@ -66,6 +66,13 @@ EXCECOES_NA_TELA = {
     'InvalidPfxPassword', 'CredentialNotUsable', 'InvalidDuration',
     'SigningSessionKeyMissing', 'RecentMfaRequired', 'NoUsableContact',
     'PlanLimitReached', 'ChatError', 'SmsChannelDisabled',
+    # Acrescentadas pela secao 5, que as encontrou sozinha. Tres delas
+    # estavam em ingles e chegavam a tela: a recusa do rascunho ja
+    # revisado, a autorizacao da IA e o limite de respostas do chat.
+    'AlreadyReviewed', 'ArtifactStale', 'RelatorioNaoAprovado',
+    'RascunhoJaVirouDocumento', 'MissingPhysicianProfile',
+    'AIAuthorizationDenied', 'ConcurrencyLimitExceeded',
+    'ProviderProbeFailed', 'CampaignBlocked',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o
@@ -81,7 +88,12 @@ INGLES = re.compile(
     r'please|try|again|later|too|many|invalid|required|missing|'
     r'already|exists|does|failed|unknown|expired|disabled|enabled|'
     r'allowed|denied|provide|enter|select|choose|upload|'
-    r'with|without|from|into|only|another|belong|precede|positive)\b',
+    r'with|without|from|into|only|another|belong|precede|positive|'
+    # Acrescentadas depois de "Artifact already rejected" chegar a
+    # producao: a frase tinha uma unica palavra da lista, e o detector
+    # exige duas. Palavra sem homonimo no portugues tecnico, so.
+    r'rejected|accepted|changed|since|before|regenerate|reviewing|'
+    r'draft|review|source|generation)\b',
     re.IGNORECASE,
 )
 ACENTO = re.compile(r'[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]')
@@ -168,6 +180,79 @@ origem = Path(dj_settings.BASE_DIR, 'accounts', 'forms.py').read_text(encoding='
 conferir('o bloqueio por tentativas fala portugues',
          'Muitas tentativas' in origem, True)
 conferir('e nao fala ingles', 'Too many attempts' in origem, False)
+
+print('\n5. Nenhuma excecao nova escapa da lista')
+# A lista `EXCECOES_NA_TELA` e escrita a mao, e foi por isso que
+# "Artifact already rejected" chegou ao medico: a excecao que a produzia
+# nao estava nela, entao o roteiro nunca olhou para o texto dela.
+#
+# Esta secao inverte o onus. Em vez de confiar que alguem lembrou de
+# acrescentar o nome, ela **procura** no codigo quem mostra `str(exc)` ao
+# usuario e cobra que esses nomes estejam na lista. Lista desatualizada
+# passa a ser falha de roteiro, e nao um silencio.
+
+
+def _mostra_excecao(handler):
+    """O corpo deste `except` devolve `str(exc)` ao usuario?"""
+    if not handler.name:
+        return False
+    for no in ast.walk(handler):
+        if not isinstance(no, ast.Call):
+            continue
+        nome = (no.func.attr if isinstance(no.func, ast.Attribute)
+                else getattr(no.func, 'id', ''))
+        # `str(exc)` dentro de uma resposta, de um `messages.*` ou de um
+        # `render`: o que chega a tela de um jeito ou de outro.
+        if nome == 'str' and len(no.args) == 1 \
+                and isinstance(no.args[0], ast.Name) and no.args[0].id == handler.name:
+            return True
+    return False
+
+
+def _nomes_do_handler(handler):
+    alvo = handler.type
+    if isinstance(alvo, ast.Name):
+        return [alvo.id]
+    if isinstance(alvo, ast.Tuple):
+        return [e.id for e in alvo.elts if isinstance(e, ast.Name)]
+    return []
+
+
+#: Excecoes de biblioteca, cujo texto nao escrevemos. Ficam de fora porque
+#: exigir portugues delas seria exigir que o Django mudasse de idioma.
+DE_BIBLIOTECA = {'Exception', 'ValueError', 'TypeError', 'KeyError', 'OSError',
+                 'ValidationError', 'PermissionDenied', 'SuspiciousOperation',
+                 'IntegrityError', 'Http404'}
+
+fora_da_lista = []
+for arquivo in sorted(raiz.rglob('*views*.py')):
+    if any(parte in FORA for parte in arquivo.parts):
+        continue
+    try:
+        arvore = ast.parse(arquivo.read_text(encoding='utf-8'))
+    except SyntaxError:
+        continue
+    for no in ast.walk(arvore):
+        if not isinstance(no, ast.ExceptHandler) or not _mostra_excecao(no):
+            continue
+        for nome in _nomes_do_handler(no):
+            if nome in EXCECOES_NA_TELA or nome in DE_BIBLIOTECA:
+                continue
+            fora_da_lista.append(
+                f'{arquivo.relative_to(raiz)}:{no.lineno}  {nome}'
+            )
+
+for item in sorted(set(fora_da_lista)):
+    print(f'      {item}')
+conferir('excecoes mostradas ao usuario e nao conferidas',
+         len(set(fora_da_lista)), 0)
+
+# E a que originou esta secao, nomeada: se alguem reescrever a revisao de
+# rascunho, a assercao continua cobrando o idioma.
+revisao = Path(dj_settings.BASE_DIR, 'ai', 'review.py').read_text(encoding='utf-8')
+conferir('a recusa do rascunho ja revisado fala portugues',
+         'já foi revisado' in revisao, True)
+conferir('e nao fala ingles', 'Artifact already' in revisao, False)
 
 if falhas:
     for item in falhas:

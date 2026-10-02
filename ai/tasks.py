@@ -254,7 +254,7 @@ def _membership_id_of(session):
         .first()
     )
     if vinculo is None:
-        raise AIAuthorizationDenied('Vinculo inativo nesta organizacao')
+        raise AIAuthorizationDenied('Vínculo inativo nesta organização.')
     capacidades = capabilities_for(
         vinculo.roles, clinically_enabled=vinculo.can_practice_clinically(),
         ai_contracted=has_clinical_ai(vinculo.tenant.plan),

@@ -36,7 +36,7 @@ def build_ai_authorization(access_context, patient_id=None, encounter_id=None):
         .first()
     )
     if membership is None:
-        raise AIAuthorizationDenied('Membership is not active in this tenant')
+        raise AIAuthorizationDenied('Seu vínculo com esta clínica não está ativo.')
     # O plano da clinica, conferido aqui e nao so na tela.
     #
     # Esta funcao e o ponto por onde passa **todo** trabalho de IA: a
@@ -59,15 +59,15 @@ def build_ai_authorization(access_context, patient_id=None, encounter_id=None):
     if patient_id:
         patient = Patient.objects.filter(tenant_id=access_context.tenant_id, id=patient_id).first()
         if patient is None:
-            raise AIAuthorizationDenied('Patient does not belong to this tenant')
+            raise AIAuthorizationDenied('Este paciente não é desta clínica.')
 
     encounter = None
     if encounter_id:
         encounter = Encounter.objects.filter(tenant_id=access_context.tenant_id, id=encounter_id).first()
         if encounter is None:
-            raise AIAuthorizationDenied('Encounter does not belong to this tenant')
+            raise AIAuthorizationDenied('Este atendimento não é desta clínica.')
         if patient is not None and encounter.patient_id != patient.id:
-            raise AIAuthorizationDenied('Encounter does not belong to the given patient')
+            raise AIAuthorizationDenied('Este atendimento não é deste paciente.')
 
     return AIAuthorization(
         tenant_id=access_context.tenant_id, user_id=access_context.user_id, membership_id=membership.id,

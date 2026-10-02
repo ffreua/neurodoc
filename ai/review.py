@@ -29,12 +29,17 @@ def is_stale(artifact):
 
 def _guard(artifact):
     if artifact.review_state != AIReviewState.PENDING:
-        raise AlreadyReviewed(f'Artifact already {artifact.review_state}')
+        raise AlreadyReviewed(
+            f'Este rascunho já foi revisado ({artifact.get_review_state_display().lower()}).'
+        )
     if is_stale(artifact):
         if not artifact.stale:
             artifact.stale = True
             artifact.save(update_fields=['stale'])
-        raise ArtifactStale('Source changed since generation; regenerate before reviewing')
+        raise ArtifactStale(
+            'O prontuário mudou depois que este rascunho foi gerado. '
+            'Gere outro antes de aprovar.'
+        )
 
 
 @transaction.atomic

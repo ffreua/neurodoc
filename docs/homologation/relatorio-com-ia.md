@@ -34,7 +34,7 @@ que já existia. Não é capricho: está escrito em `ai/review.py` desde antes
 desta funcionalidade, e é o que mantém o médico como *autor* do documento
 e não como revisor de um documento que a IA emitiu.
 
-## 3. As cinco decisões
+## 3. As seis decisões
 
 ### 3-A. A identificação nunca chega ao modelo
 
@@ -126,6 +126,33 @@ O documento nasce **sem atendimento** (`encounter=None`, que
 `MedicalDocument` já admitia): o relatório é sobre o histórico, não sobre
 uma consulta. Amarrá-lo à última consulta diria no papel que saiu dali.
 
+### 3-F. Descartar apaga, e volta ao prontuário
+
+Encontrado no primeiro uso real. "Rejeitar" marcava o artefato e
+**redirecionava de volta para a mesma tela**, que continuava mostrando o
+rascunho inteiro sob um crachá vermelho — descartar algo e continuar
+olhando para ele não é descartar. O segundo clique devolvia *"Artifact
+already rejected"* numa página em branco, e em inglês.
+
+Agora o descarte **apaga**: o texto do rascunho e o pedido que o originou.
+Rascunho descartado é papel rasgado, e não deve continuar na mesa — é
+também o que a minimização da LGPD pede.
+
+O que fica é a trilha: `ai.artifact_discarded`, com quem descartou, quando
+e de que paciente era. O fato permanece; o texto clínico que não serve
+mais, não.
+
+**O job vai junto, e isso resolve um segundo problema.** A chave de
+idempotência amarra o pedido à finalidade e ao texto; com o job concluído
+no lugar, pedir exatamente o mesmo relatório de novo reaproveitaria a linha
+antiga e não rodaria nada — e pedir de novo é precisamente o que se quer
+fazer depois de descartar.
+
+Três recusas deliberadas: o que **já virou documento** não se apaga (ali o
+`ai_artifact_id` é a trilha que liga o relatório assinado ao rascunho); o
+segundo clique **redireciona em vez de errar**, porque o resultado pedido já
+aconteceu; e a tela pergunta antes, dizendo o que sobra.
+
 ## 4. As finalidades
 
 Não são rótulo: cada uma carrega as seções que aquele destinatário espera.
@@ -179,6 +206,10 @@ Vale também o plano: a IA clínica é do Completo e do Personalizado.
 | 10 | a secretária não abre; paciente de outra clínica dá 404 |
 | 11 | pedido vazio não vira job |
 | 12 | as finalidades estão completas; código desconhecido cai na livre |
+| 13 | descartar apaga o rascunho **e** o pedido, e a trilha registra quem descartou |
+| 14 | o segundo clique redireciona em vez de dar tela branca; paciente ausente ou mal formado é 404, não 500 |
+| 15 | o que já virou documento não se apaga |
+| 16 | a recusa do já revisado fala português |
 
 Além disso, a verificação da verificação: cada guarda foi removida em
 memória para confirmar que, sem ela, o defeito passaria. Um teste que não

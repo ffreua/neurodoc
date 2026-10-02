@@ -332,3 +332,61 @@ def criar_rascunho_de_documento(artifact, physician_membership, actor_id):
             'ai_finalidade': (job.target_ref or {}).get('finalidade', ''),
         },
     )
+
+
+class RascunhoJaVirouDocumento(Exception):
+    pass
+
+
+def descartar_rascunho(job, actor_id, motivo=''):
+    """Apaga o rascunho rejeitado — o texto e o pedido que o originou.
+
+    **Por que apagar, e não só marcar como rejeitado.** Um rascunho
+    marcado continuava aparecendo na tela, com todas as suas seções, sob
+    um crachá vermelho; e o médico que clicava de novo recebia "este
+    rascunho já foi revisado" sem ter conseguido se livrar dele. Rascunho
+    descartado é papel rasgado: ele não deve continuar na mesa.
+
+    O que **não** é apagado é a trilha: `ai.artifact_discarded` fica
+    registrado com quem descartou, quando e de que paciente era. O fato
+    permanece; o texto clínico que não serve mais, não — que é também o
+    que a minimização da LGPD pede.
+
+    **O job vai junto, e isso resolve um segundo problema.** A chave de
+    idempotência amarra o pedido à finalidade e ao texto; com o job
+    rejeitado no lugar, pedir exatamente o mesmo relatório de novo
+    reaproveitaria a linha concluída e não rodaria nada — e pedir de novo
+    é precisamente o que se quer fazer depois de descartar.
+
+    Recusa-se a apagar o que já virou documento: ali o `ai_artifact_id`
+    gravado no documento é a trilha que liga o relatório assinado ao
+    rascunho que o originou, e apagar a outra ponta a romperia.
+    """
+    from documents.models import MedicalDocument
+
+    from audit.services import record_audit_event
+
+    from .models import AIArtifact
+
+    artefatos = list(AIArtifact.objects.filter(tenant_id=job.tenant_id, job=job))
+    ids = [str(a.id) for a in artefatos]
+    if ids and MedicalDocument.objects.filter(
+        tenant_id=job.tenant_id, content_snapshot__ai_artifact_id__in=ids,
+    ).exists():
+        raise RascunhoJaVirouDocumento(
+            'Este rascunho já virou um relatório e não pode ser apagado.'
+        )
+
+    record_audit_event(
+        actor_id, job.tenant_id, 'ai.artifact_discarded',
+        object_type='ai_job', object_id=job.id, outcome='success',
+        integrity_metadata={
+            'patient_id': str(job.patient_id), 'artifacts': ids,
+            'finalidade': (job.target_ref or {}).get('finalidade', ''),
+            'motivo': (motivo or '')[:255],
+        },
+    )
+    # Os artefatos primeiro: `AIArtifact.job` é PROTECT, e apagar o job
+    # com eles presentes levantaria erro de integridade.
+    AIArtifact.objects.filter(tenant_id=job.tenant_id, job=job).delete()
+    job.delete()

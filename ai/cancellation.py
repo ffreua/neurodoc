@@ -20,7 +20,9 @@ def check_concurrency_limit(tenant_id, user_id):
         session__tenant_id=tenant_id, session__owner_user_id=user_id, state=ChatMessageState.STREAMING,
     ).count()
     if active >= MAX_CONCURRENT_STREAMS_PER_USER:
-        raise ConcurrencyLimitExceeded(f'Already streaming {active} response(s); wait or cancel one first')
+        raise ConcurrencyLimitExceeded(
+            f'Já há {active} resposta(s) em andamento. Espere terminar ou cancele uma.'
+        )
 
 
 @transaction.atomic
