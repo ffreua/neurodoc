@@ -129,13 +129,33 @@ def _avisos_de_seguranca():
             'grave': False,
         })
     elif https and settings.SECURE_HSTS_SECONDS and not settings.SECURE_HSTS_INCLUDE_SUBDOMAINS:
+        # O texto dizia "a instalacao usa subdominio por clinica como alias".
+        # Nao usa: a clinica vem de `request.session['tenant_id']`, e nenhuma
+        # linha le o hostname. A infraestrutura foi preparada para isso -- DNS
+        # curinga, certificado curinga, `ALLOWED_HOSTS` com `.dominio` --, mas
+        # e plano, nao realidade.
+        #
+        # Corrigido em 2026-10-02 porque a conclusao estava certa pelo motivo
+        # errado, e motivo errado em painel de operacao custa caro: nesta mesma
+        # sessao uma afirmacao falsa sobre a rede, no `CLAUDE.md`, levou a um
+        # diagnostico errado. O risco real e outro, e e maior: com DNS curinga
+        # **todo** subdominio possivel ja responde, entao
+        # `http://qualquer-coisa.dominio` e um alvo de downgrade hoje.
         avisos.append({
             'titulo': 'HSTS não cobre os subdomínios',
             'texto': (
-                'O domínio principal exige HTTPS; um subdomínio, não. A instalação usa '
-                'subdomínio por clínica como alias.'
+                'O domínio principal exige HTTPS; um subdomínio, não. Se o DNS tiver '
+                'curinga, qualquer nome inventado responde — e a primeira visita a '
+                '"http://algo.seu-dominio" vai em texto claro, onde dá para engolir o '
+                'redirecionamento e servir uma cópia.'
             ),
-            'acao': 'SECURE_HSTS_INCLUDE_SUBDOMAINS=True, depois de conferir que todos servem HTTPS.',
+            'acao': (
+                'Confira que o certificado cobre os subdomínios (um curinga "*.dominio" '
+                'cobre UM nível, não dois) e que nenhum serviço em subdomínio depende de '
+                'HTTP. Então SECURE_HSTS_INCLUDE_SUBDOMAINS=True e publique. '
+                'Vale a mesma regra do HSTS: o navegador guarda, e voltar atrás não '
+                'depende de nós.'
+            ),
             'grave': False,
         })
 

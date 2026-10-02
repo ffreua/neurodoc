@@ -146,6 +146,39 @@ for descricao, titulos, espera_aviso in casos:
     if not ok:
         falhas.append(descricao)
 
+# O segundo degrau do HSTS: ligado no dominio, mas sem cobrir subdominio.
+#
+# Este ramo nao tinha assercao nenhuma -- todos os casos acima passam
+# `INCLUDE_SUBDOMAINS=True` e nunca entram nele. Ficou meses sem cobertura, e
+# foi ali que sobreviveu um texto que afirmava algo falso sobre a instalacao
+# ("usa subdominio por clinica como alias"; a clinica vem da sessao).
+#
+# Alem de aparecer na hora certa, o aviso nao pode voltar a afirmar isso: a
+# ultima assercao cobra o texto, porque o defeito que ele teve nao era de
+# existir, era de mentir.
+titulos_sem_sub = _com_config(
+    PUBLIC_BASE_URL='https://neurodoc.app.br', DEBUG=False, SECRETS_MASTER_KEY='x',
+    SECURE_HSTS_SECONDS=31536000, SECURE_HSTS_INCLUDE_SUBDOMAINS=False,
+)
+tem_sub = any('subdomínios' in t for t in titulos_sem_sub)
+print(f'  {"ok  " if tem_sub else "FALHA"} HSTS sem subdominio avisa -> {titulos_sem_sub or "nenhum"}')
+if not tem_sub:
+    falhas.append('o console nao avisou que o HSTS nao cobre os subdominios')
+
+titulos_com_sub = _com_config(**producao, SECURE_HSTS_SECONDS=31536000)
+nao_tem_sub = not any('subdomínios' in t for t in titulos_com_sub)
+print(f'  {"ok  " if nao_tem_sub else "FALHA"} com subdominio coberto, o aviso some -> {titulos_com_sub or "nenhum"}')
+if not nao_tem_sub:
+    falhas.append('o aviso de subdominio continuou aparecendo com a cobertura ligada')
+
+import inspect as _inspect_aviso
+
+_fonte_aviso = _inspect_aviso.getsource(_avisos_de_seguranca)
+sem_mentira = 'subdomínio por clínica como alias' not in _fonte_aviso
+print(f'  {"ok  " if sem_mentira else "FALHA"} o aviso nao afirma que a clinica vem do subdominio')
+if not sem_mentira:
+    falhas.append('o aviso voltou a afirmar que a instalacao usa subdominio por clinica')
+
 # DEBUG e chave-mestra ausente entram pela mesma porta.
 titulos = _com_config(PUBLIC_BASE_URL='https://neurodoc.app.br', DEBUG=True,
                       SECRETS_MASTER_KEY='', SECURE_HSTS_SECONDS=31536000,
