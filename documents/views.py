@@ -407,22 +407,36 @@ def _delivery_context(document):
 
 
 class MedicalDocumentSendView(ClinicalDocumentView):
-    """Envia (ou reenvia) o documento ao paciente.
+    """Reenvia o documento ao paciente.
 
-    Reenvio é permitido e não é exceção: mensagem não chega, o paciente
-    troca de telefone, o link expira. Cada envio gera um link novo — o
-    anterior deixa de valer, o que também é a saída quando alguém suspeita
-    que o link foi parar em mãos erradas.
+    **O primeiro envio não passa por aqui.** Ele é automático: assinar
+    emite `documents.document_issued`, e `communications.handlers` entrega
+    sozinho, no worker. Este botão é o reenvio — mensagem que não chegou,
+    paciente que trocou de telefone, link que expirou. Cada reenvio gera um
+    link novo e revoga o anterior, o que também é a saída quando se
+    suspeita que o link foi parar em mãos erradas.
+
+    **A entrega sai pelo worker, e não aqui.** Chamava `deliver_document`
+    dentro da requisição, e `app` não tem saída para a internet: o e-mail
+    escapava porque o backend dele enfileira sozinho, mas o SMS fazia a
+    requisição na hora e só podia terminar em timeout. Em desenvolvimento
+    funcionava — ali tudo alcança tudo.
+
+    A consequência para a tela é que o resultado não existe no instante da
+    resposta. Em troca, a tela deixa de poder quebrar por causa de uma
+    entrega: foi exatamente assim que um SMS longo demais virou
+    `Server Error (500)` com o documento já assinado.
 
     Só documento emitido: um rascunho enviado ao paciente é um documento
     sem validade circulando com a cara de válido.
     """
 
     def post(self, request, document_id):
-        from communications.services import deliver_document
+        from communications.services import _eligible_document_contacts
+        from communications.tasks import deliver_document_task
 
         document = _medical_document_or_404(request, document_id)
-        if document.status != 'issued':
+        if document.status not in ('issued', 'issued_on_paper'):
             messages.error(
                 request,
                 'Só documento emitido pode ser enviado ao paciente. '
@@ -430,8 +444,11 @@ class MedicalDocumentSendView(ClinicalDocumentView):
             )
             return redirect('documents:medical-detail', document_id=document.id)
 
-        deliveries = deliver_document(document, force_new_link=True)
-        if not deliveries:
+        # A falta de contato é conferida aqui, e não só no worker: é o
+        # único desfecho que a pessoa na tela pode resolver agora, e
+        # descobri-lo por uma linha numa lista de entregas minutos depois
+        # é descobrir tarde.
+        if not _eligible_document_contacts(document.patient):
             messages.warning(
                 request,
                 'Nenhum contato do paciente está autorizado e verificado para receber '
@@ -439,29 +456,16 @@ class MedicalDocumentSendView(ClinicalDocumentView):
             )
             return redirect('documents:medical-detail', document_id=document.id)
 
-        enviados = [d for d in deliveries if d.status in ('accepted', 'delivered')]
-        falharam = [d for d in deliveries if d.status == 'failed']
-        if enviados and not falharam:
-            messages.success(
-                request, f'Documento enviado em {len(enviados)} canal(is). '
-                'O paciente vai precisar dos 4 últimos dígitos do CPF para abrir.',
-            )
-        elif enviados:
-            messages.warning(
-                request,
-                f'{len(enviados)} envio(s) aceito(s) e {len(falharam)} com falha. '
-                'Confira a lista de entregas abaixo.',
-            )
-        else:
-            messages.error(
-                request,
-                'Nenhum envio foi aceito. Confira as configurações de mensageria '
-                'e a lista de entregas abaixo.',
-            )
+        deliver_document_task.delay(str(document.id), force_new_link=True)
+        messages.success(
+            request,
+            'Reenvio em andamento. O link anterior deixou de valer; o novo chega em '
+            'instantes e pede os 4 últimos dígitos do CPF do paciente. '
+            'O resultado aparece na lista de entregas abaixo.',
+        )
         record_audit_event(
             request.user, document.tenant_id, 'documents.medicaldocument_sent',
             object_type='medical_document', object_id=document.id, outcome='success',
-            integrity_metadata={'channels': len(deliveries)},
         )
         return redirect('documents:medical-detail', document_id=document.id)
 

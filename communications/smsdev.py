@@ -81,10 +81,23 @@ def send_sms(number, message, refer, tenant_id=None):
     """
     if not settings.SMS_ENABLED:
         raise SmsChannelDisabled('SMS channel is disabled (SMS_ENABLED=False)')
+    # `SmsSendFailed`, e nao `ValueError`.
+    #
+    # As duas condicoes abaixo sao defeito nosso, nao falha do provedor --
+    # mas o chamador e o mesmo nos dois casos, e so `SmsSendFailed` ele
+    # sabe tratar. Com `ValueError`, a mensagem de documento que passou de
+    # 160 caracteres subiu por `_send`, por `deliver_document` e pela view
+    # ate virar `Server Error (500)` na cara do medico, com o documento ja
+    # assinado. Quem impede o defeito de chegar aqui e
+    # `services._sms_document_message` e o roteiro que mede a mensagem com
+    # o link real; esta linha so garante que, se chegar, vire uma entrega
+    # marcada como falha em vez de uma tela de erro.
     if len(refer) > 100:
-        raise ValueError('refer must be at most 100 characters')
+        raise SmsSendFailed('refer must be at most 100 characters')
     if len(message) > 160:
-        raise ValueError('message must fit a single 160-character segment for this baseline')
+        raise SmsSendFailed(
+            f'message of {len(message)} chars exceeds the 160-character segment'
+        )
     api_key = resolve_api_key(tenant_id)
     try:
         response = requests.post(

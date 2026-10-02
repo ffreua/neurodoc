@@ -78,3 +78,34 @@ def deliver_installation_email(dados):
     conexao = get_connection(backend='django.core.mail.backends.smtp.EmailBackend')
     enviadas = conexao.send_messages([mensagem])
     return {'enviadas': enviadas}
+
+
+@shared_task(
+    name='communications.tasks.deliver_document',
+    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 3},
+    expires=600,
+)
+def deliver_document_task(document_id, force_new_link=False):
+    """Entrega (ou reentrega) um documento, **no worker**.
+
+    O envio automático já nascia aqui: ele vem do evento
+    `documents.document_issued`, despachado por `events.tasks.dispatch_outbox`,
+    que roda no worker. O **reenvio pela tela** é que não: ele chamava
+    `deliver_document` dentro da requisição, no processo `app` — e `app`
+    não tem saída para a internet (ver `communications/mail_backend.py` e
+    o comentário de `EMAIL_BACKEND` em `core/settings.py`).
+
+    O e-mail escapava porque o backend dele já enfileira sozinho. O SMS
+    não: `smsdev.send_sms` faz a requisição na hora, e na rede do `app`
+    ela só pode terminar em timeout. Em desenvolvimento funciona, porque
+    ali tudo alcança tudo — que é o formato clássico do defeito que só
+    aparece em produção.
+    """
+    from documents.models import MedicalDocument
+
+    from .services import deliver_document
+
+    document = MedicalDocument.objects.filter(id=document_id).first()
+    if document is None:
+        return 0
+    return len(deliver_document(document, force_new_link=force_new_link))

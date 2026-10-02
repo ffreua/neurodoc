@@ -267,6 +267,8 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_prontuario.py`, `check_roteiro.py` | prontuário e roteiro de exame |
 | `check_texto_livre.py` | os dois tipos de atendimento, a cópia entre eles e a grade por abertura/fechamento |
 | `check_mensageria.py`, `check_email.py` | outbox, entrega, reconciliação |
+| `check_entrega_documento.py` | a entrega que não pode derrubar a tela: a mensagem de SMS cabe num segmento **com o link real**, a de e-mail continua completa, **o e-mail sai mesmo com o SMS quebrado**, falha inesperada vira entrega marcada e não exceção, a entrega sai pelo worker e o primeiro envio é automático por evento |
+| `check_links_de_mensagem.py` | **todo link que sai numa mensagem abre**: nenhum e-mail é enfileirado antes do commit (transação desfeita não manda nada), o link do documento é aberto de verdade, o reenvio troca o link e revoga o anterior, e a verificação de e-mail, o convite e o descadastro respondem |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
 | `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
 | `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |

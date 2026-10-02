@@ -72,6 +72,32 @@ class WorkerEmailBackend(BaseEmailBackend):
     """
 
     def send_messages(self, email_messages):
+        """Enfileira cada mensagem **depois do commit**.
+
+        Era `.delay()` direto, e isso produziu o defeito mais traiçoeiro
+        desta área: o e-mail chegava e o link dentro dele não valia.
+
+        O caminho era este. A entrega de documento roda numa transação que
+        **cria o token** e manda o e-mail; `.delay()` dentro dela põe a
+        tarefa na fila na hora, e o worker é mais rápido que o resto da
+        requisição. Dois desfechos, os dois ruins: ou o worker manda o
+        e-mail antes de o token estar visível para outra conexão, ou a
+        transação falha depois do envio e o token **deixa de existir** —
+        que foi o que aconteceu quando o SMS estourou. O paciente recebia
+        um link para uma linha que nunca foi gravada, e a tela dizia
+        "inválido ou expirado".
+
+        `on_commit` amarra o envio ao sucesso da transação. Fora de
+        transação ele executa na hora, então os pontos que já enviavam sem
+        transação nenhuma não mudam de comportamento.
+
+        Vale para **todo** e-mail do produto, e é por isso que a correção
+        mora aqui e não em cada chamador: verificação de endereço, convite,
+        recuperação de senha e descadastro criam um token do mesmo jeito, e
+        cada um teria de lembrar sozinho.
+        """
+        from django.db import transaction
+
         from .tasks import deliver_installation_email
 
         aceitas = 0
@@ -84,6 +110,8 @@ class WorkerEmailBackend(BaseEmailBackend):
                 if self.fail_silently:
                     continue
                 raise
-            deliver_installation_email.delay(dados)
+            transaction.on_commit(
+                lambda payload=dados: deliver_installation_email.delay(payload)
+            )
             aceitas += 1
         return aceitas

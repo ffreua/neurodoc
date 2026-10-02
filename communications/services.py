@@ -1,3 +1,4 @@
+import logging
 import secrets
 from urllib.parse import quote_plus
 
@@ -14,7 +15,36 @@ from .models import Delivery, DeliveryAttempt, DeliveryAttemptOutcome, DeliveryC
 from .reconciliation import POLL_OFFSETS_MINUTES
 from .smsdev import SmsChannelDisabled, SmsSendFailed, send_sms
 
+logger = logging.getLogger(__name__)
+
 DOCUMENT_MESSAGE = 'Seu documento está disponível no NeuroDoc. Acesse o link para visualizá-lo com segurança.'
+
+#: O SMS tem outro texto, e **sem acento**. Não é desleixo: é o que faz a
+#: mensagem existir.
+#:
+#: Um SMS só cabe em 160 caracteres enquanto estiver em GSM-7. Basta um
+#: acento para a operadora passar a mensagem inteira para UCS-2, e aí o
+#: segmento cai para **70**. Com um link de 70 caracteres no corpo, a
+#: versão acentuada não cabe em segmento nenhum — e cada segmento extra é
+#: uma mensagem a mais cobrada da clínica.
+#:
+#: O texto de e-mail continua acentuado e completo: lá não há limite, e
+#: ler "voce recebera" num e-mail é o desleixo que o SMS não pode evitar.
+SMS_DOCUMENT_TEMPLATE = (
+    'Seu documento do NeuroDoc: {link} '
+    'Informe os 4 ultimos digitos do CPF do paciente para abrir.'
+)
+
+#: A versão mínima, para quando a instalação tem um domínio longo.
+#: Perder a explicação do CPF é ruim; mandar duas mensagens cobradas, ou
+#: não mandar nenhuma, é pior.
+SMS_DOCUMENT_TEMPLATE_CURTO = 'Documento NeuroDoc: {link} Use os 4 ultimos digitos do CPF.'
+
+#: O teto de um segmento. Mora aqui, e não só em `smsdev`, porque é aqui
+#: que a mensagem é montada — e foi a montagem que estourou: a mensagem de
+#: documento tinha **221 caracteres**, 61 acima do limite, e derrubava a
+#: entrega inteira com um `ValueError` que ninguém tratava.
+SMS_SEGMENTO = 160
 #: O lembrete se apresenta pela **clinica**, e nao pelo NeuroDoc.
 #:
 #: O paciente nao sabe o que e NeuroDoc -- ele conhece o consultorio onde
@@ -140,6 +170,28 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
     except (EmailSendFailed, SmsSendFailed) as exc:
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error=exc.__class__.__name__)
         return
+    except Exception as exc:
+        # Rede final, e ela existe por um caso concreto: a mensagem de
+        # documento passou de 160 caracteres, `send_sms` levantou
+        # `ValueError`, ninguem tratou, e o medico viu `Server Error (500)`
+        # com o documento ja assinado -- perdendo junto o e-mail, que a
+        # transacao comum desfez.
+        #
+        # Entrega e **efeito colateral** do que o sistema faz, nunca a
+        # coisa em si. Uma falha aqui tem de virar linha vermelha na lista
+        # de entregas, para alguem reenviar; nunca uma tela de erro sobre
+        # uma operacao que ja deu certo.
+        delivery.status = DeliveryStatus.FAILED
+        delivery.save(update_fields=['status'])
+        _record_attempt(
+            delivery, DeliveryAttemptOutcome.FAILED,
+            sanitized_error=exc.__class__.__name__,
+        )
+        logger.exception(
+            'communications: falha inesperada ao entregar %s por %s',
+            delivery.id, delivery.channel,
+        )
+        return
     delivery.status = DeliveryStatus.ACCEPTED
     if delivery.channel == DeliveryChannel.SMS:
         # Email has no DLR-equivalent in this baseline, so ACCEPTED is its
@@ -149,9 +201,15 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
     _record_attempt(delivery, DeliveryAttemptOutcome.ACCEPTED)
 
 
-@transaction.atomic
 def deliver_document(document, force_new_link=False):
     """Manda o documento aos contatos autorizados do paciente.
+
+    **A transação é por entrega, e não em volta de todas.** Era em volta
+    de todas, e isso transformava uma falha de um canal no desaparecimento
+    dos outros: quando o SMS estourou por exceder o segmento, o `rollback`
+    levou junto a linha do e-mail que já tinha sido aceito — o paciente
+    não recebia nada, e a lista de entregas não mostrava sequer a
+    tentativa. Um canal que falha tem de aparecer falhando, sozinho.
 
     `force_new_link=False` é a entrega automática da emissão, e é
     idempotente: o evento da fila pode chegar duas vezes, e a segunda não
@@ -187,25 +245,39 @@ def deliver_document(document, force_new_link=False):
                 # mesma chave: o segundo não enviava nada, não trocava o
                 # link, e a tela ainda dizia que tinha enviado.
                 idem_key = f'{idem_key}:{secrets.token_hex(4)}'
-            delivery, created = Delivery.objects.get_or_create(
-                tenant=document.tenant, idempotency_key=idem_key,
-                defaults={
-                    'document': document, 'contact': contact, 'channel': channel,
-                    'event_version': document.version,
-                },
-            )
-            if created or delivery.status == DeliveryStatus.PENDING:
-                if force_new_link:
-                    access.revoke_previous_tokens(document)
-                token, raw_token = access.create_access_token(document, contact)
+            # O token e gravado numa transacao curta, e a mensagem so sai
+            # **depois** que ela fecha.
+            #
+            # Enviar dentro da transacao foi o que produziu o link que nao
+            # valia: o e-mail saia com um token que ainda nao estava
+            # visivel para outra conexao e que, se a transacao falhasse
+            # adiante, nunca chegava a existir. O paciente recebia a
+            # mensagem e a tela dizia "invalido ou expirado".
+            #
+            # O e-mail tambem e protegido por `on_commit` no backend; o SMS
+            # nao passa por backend nenhum, e so esta ordem o cobre.
+            raw_token = None
+            with transaction.atomic():
+                delivery, created = Delivery.objects.get_or_create(
+                    tenant=document.tenant, idempotency_key=idem_key,
+                    defaults={
+                        'document': document, 'contact': contact, 'channel': channel,
+                        'event_version': document.version,
+                    },
+                )
+                if created or delivery.status == DeliveryStatus.PENDING:
+                    if force_new_link:
+                        access.revoke_previous_tokens(document)
+                    token, raw_token = access.create_access_token(document, contact)
+            if raw_token is not None:
                 link = f'{settings.PUBLIC_BASE_URL}/d/{raw_token}/'
-                _send(delivery, _document_message(document, link))
+                _send(delivery, _document_message(document, link, delivery.channel))
             deliveries.append(delivery)
     return deliveries
 
 
-def _document_message(document, link):
-    """O texto que o paciente recebe.
+def _document_message(document, link, channel=None):
+    """O texto que o paciente recebe, no formato do canal.
 
     Sem diagnóstico, sem medicação, sem o tipo do documento: a mensagem
     aparece na tela bloqueada do celular e é lida por quem estiver por
@@ -213,11 +285,38 @@ def _document_message(document, link):
 
     Dizer de antemão o que será pedido evita a ligação para a recepção —
     quem chega ao link já sabe que precisa do CPF em mãos.
+
+    **Um texto por canal, e foi a falta disso que quebrou a entrega.** A
+    mesma frase servia aos dois: no e-mail ficava bem, e no SMS dava 221
+    caracteres contra um limite de 160. O `ValueError` que isso levantava
+    não era tratado em lugar nenhum e subia até a view — o médico via
+    `Server Error (500)` com o documento já assinado, e nem o e-mail saía,
+    porque a transação que envolvia os dois canais era desfeita junto.
     """
-    return (
-        f'{DOCUMENT_MESSAGE} {link} '
-        'Para abrir, informe os 4 últimos dígitos do CPF do paciente.'
-    )
+    if channel != DeliveryChannel.SMS:
+        return (
+            f'{DOCUMENT_MESSAGE} {link} '
+            'Para abrir, informe os 4 últimos dígitos do CPF do paciente.'
+        )
+    return _sms_document_message(link)
+
+
+def _sms_document_message(link):
+    """A mensagem de SMS que cabe num segmento.
+
+    Escolhe entre a completa e a mínima conferindo o tamanho **com o link
+    real**, e não por contagem feita a mão: o link depende de
+    `PUBLIC_BASE_URL`, que muda por instalação, e uma contagem fixa
+    quebraria na primeira que tivesse um domínio mais longo.
+
+    Se nem a mínima couber, devolve a mínima mesmo assim: quem recusa é
+    `smsdev.send_sms`, com `SmsSendFailed` — uma falha registrada na
+    entrega, que a tela mostra, e não uma exceção solta.
+    """
+    completa = SMS_DOCUMENT_TEMPLATE.format(link=link)
+    if len(completa) <= SMS_SEGMENTO:
+        return completa
+    return SMS_DOCUMENT_TEMPLATE_CURTO.format(link=link)
 
 
 @transaction.atomic
