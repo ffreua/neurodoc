@@ -16,6 +16,8 @@ Tenta quebrar. As perguntas sao:
 - as unidades do systemd apontam para caminho e usuario coerentes, e
   conseguem executar um script versionado em modo 644?
 - os scripts do timer usam o Python que tem as dependencias?
+- o backup **espera** a trava do deploy em vez de desistir do dia -- e
+  diz por que, quando a espera estoura?
 """
 import importlib
 import inspect
@@ -152,6 +154,31 @@ for script in ['backup.sh', 'cleanup_signing_keys.sh', 'deploy.sh']:
     # chamar `python3` direto quebra com ModuleNotFoundError na primeira
     # execucao do timer, de madrugada, sem ninguem olhando.
     confere('.venv-ops/bin/python' in texto, f'{script}: prefere o .venv-ops quando ele existe')
+
+print('=== 6-A. o backup ESPERA a trava do deploy, e nao desiste do dia ===')
+# Em 2026-10-02 o timer disparou as 03:10:29, no meio de um deploy que
+# correu das 03:01 as 03:12. A linha era `flock -n`, e `-n` quer dizer "se
+# estiver ocupado, saia": o dia ficou sem backup, com `status=1/FAILURE` no
+# journal e **nenhuma linha dizendo por que**.
+#
+# Tres asercoes, e a terceira importa tanto quanto as outras: esperar, e
+# falar quando a espera estourar. Backup que falha calado so se descobre na
+# noite de restaurar.
+#
+# **So as linhas de codigo.** Os comentarios do proprio `backup.sh` citam
+# `flock -n` para explicar o defeito que o derrubou; varrer o arquivo
+# inteiro reprovaria a explicacao junto com o erro, e o jeito de passar
+# seria apagar a explicacao -- exatamente o contrario do que se quer.
+backup_sh = (ROOT / 'scripts' / 'backup.sh').read_text(encoding='utf-8')
+linhas_sh = [
+    linha for linha in backup_sh.splitlines() if not linha.lstrip().startswith('#')
+]
+confere(not any(re.search(r'flock\s+-n(?![a-zA-Z])', linha) for linha in linhas_sh),
+        'backup.sh nao usa `flock -n` (desistir do dia por causa de um deploy)')
+confere(any(re.search(r'flock\s+-w\s', linha) for linha in linhas_sh),
+        'backup.sh espera pela trava com `flock -w`')
+confere('NAO HOUVE BACKUP' in backup_sh,
+        'backup.sh diz no journal quando a espera estoura, em vez de sair mudo')
 
 print('=== 7. o que a primeira restauracao de verdade ensinou ===')
 #
