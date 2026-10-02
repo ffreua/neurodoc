@@ -139,16 +139,26 @@ class LandingView(View):
     """
 
     def _context(self, **overrides):
-        from tenancy.plans import DESCONTO_PROMOCIONAL, public_plans
+        from tenancy.plans import public_plans
 
+        planos = public_plans()
         context = {
             'form': InvitationCodeForm(),
             'lead_form': LeadForm(),
-            'plans': public_plans(),
-            # O percentual da promocao vai separado dos cartoes porque a
-            # pagina o anuncia uma vez, em prosa, acima deles. Zero
-            # apaga a frase e os valores riscados de uma vez so.
-            'desconto_promocional': DESCONTO_PROMOCIONAL,
+            'plans': planos,
+            # Só se **há** promoção, e não de quanto ela é.
+            #
+            # Era `desconto_promocional`, um percentual único que a prosa
+            # acima dos cartões anunciava. Desde 2026-10-02 cada plano tem o
+            # seu acréscimo de tabela (Básico 30%, Completo 40%, descontos
+            # reais de 23% e 28%), e um número só ali passaria a discordar
+            # dos cartões logo abaixo dele — que é exatamente o defeito que
+            # ter o percentual na view, e não escrito no template, evitava.
+            #
+            # O número de cada plano continua vindo de `pricing()`, no selo
+            # do próprio cartão, onde o leitor o vê ao lado dos dois preços
+            # a que ele se refere.
+            'ha_promocao': any(p['price'].get('promo') for p in planos),
             'autor': AUTOR,
             'recursos': RECURSOS,
             'faq': FAQ,

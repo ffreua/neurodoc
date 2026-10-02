@@ -154,14 +154,17 @@ só não precisa estar na página, onde lia como defesa.{% endcomment %}
             incide, e essa é a primeira pergunta de quem vai pagar um ano
             adiantado.
 
-            O percentual vem da view. Escrito aqui, ele continuaria dizendo
-            "20%" no dia em que o desconto mudasse — e seria a única frase da
-            página a discordar dos preços logo abaixo dela.{% endcomment %}
-            {% if desconto_promocional %}
+            **Sem percentual nesta frase.** Ela dizia "já estão com 20% de
+            desconto", de um número único da view. Desde 2026-10-02 cada plano
+            tem o seu — 23% no Básico, 28% no Completo —, e um número só aqui
+            seria a única frase da página a discordar dos cartões logo abaixo.
+            Quem precisa do percentual o encontra no selo de cada cartão, ao
+            lado dos dois preços a que ele se refere.{% endcomment %}
+            {% if ha_promocao %}
             <p class="fs-13 text-muted mt-2 mb-0">
                 Os valores abaixo são de <strong>lançamento</strong>: já estão com
-                <strong>{{ desconto_promocional }}% de desconto</strong> sobre o preço
-                de tabela, que é o valor riscado em cada cartão.
+                desconto sobre o preço de tabela, que é o valor riscado em cada
+                cartão. O percentual de cada plano está no cartão dele.
             </p>
             {% endif %}
         </div>

@@ -26,40 +26,61 @@ from django.db import models
 #: conta que nao fecha.
 MESES_NO_ANO = 12
 
-#: Desconto de lancamento, em pontos percentuais.
+#: Quanto o preco de tabela e MAIOR que o cobrado, em pontos percentuais,
+#: por plano (`acrescimo_tabela` no dicionario de cada um). Ausente ou zero
+#: desliga a promocao daquele plano: some o riscado e some o selo.
 #:
 #: O que esta escrito em `price_monthly` e o que a clinica **paga**. O
-#: preco de tabela -- o valor riscado -- e derivado daqui, e nao um
-#: segundo numero guardado a mao.
+#: preco de tabela -- o valor riscado -- e derivado daqui, e nao um segundo
+#: numero guardado a mao.
 #:
 #: A direcao importa e foi escolhida: deriva-se o **caro a partir do
 #: barato**, porque o barato e o que sera cobrado de fato e o unico que
-#: aparece na fatura. O contrario (guardar a tabela e calcular o cobrado)
-#: faria o valor da fatura depender de arredondamento.
+#: aparece na fatura. O contrario faria o valor da fatura depender de
+#: arredondamento.
 #:
-#: E o percentual e a fonte, e nao consequencia: a pagina **anuncia** "20%
-#: de desconto", entao esse numero precisa fechar com a subtracao que o
-#: leitor pode fazer na tela. Guardar o preco de tabela e chamar a
-#: diferenca de 20% seria a forma de anunciar um desconto que nao existe --
-#: um preco de tabela 20% mais caro que o cobrado e, visto do outro lado,
-#: 16,7% de desconto, e nao 20%.
+#: **Por plano, e nao um numero so** (2026-10-02). Era uma constante global
+#: `DESCONTO_PROMOCIONAL = 20`, e o Basico e o Completo passaram a ter
+#: margens diferentes. Um unico percentual forcaria inventar um preco de
+#: tabela para um dos dois.
 #:
-#: Zero desliga a promocao em todo lugar: some o valor riscado, some o
-#: selo, e o preco passa a ser so o preco.
-DESCONTO_PROMOCIONAL = 20
+#: ## Acrescimo nao e desconto, e a tela nao pode confundir os dois
+#:
+#: "A tabela era 30% mais cara" e "30% de desconto" sao contas diferentes:
+#: R$ 87,00 + 30% da R$ 113,10, e sobre R$ 113,10 o desconto e de 23,08% --
+#: nao de 30%. Anunciar "30% de desconto" ao lado desses dois numeros seria
+#: propaganda enganosa aritmetica, conferivel por quem le com o celular na
+#: mao.
+#:
+#: Por isso `pricing()` devolve em `discount` o desconto **de verdade**,
+#: calculado dos dois precos e **arredondado para baixo**: anunciado 23%,
+#: entregue 23,08%. O cliente nunca recebe menos do que a pagina prometeu.
+#: Arredondar para o mais proximo daria 29% para o Completo quando o real e
+#: 28,57% -- meio ponto a favor da casa, que e exatamente o que nao se faz
+#: num numero que o leitor consegue conferir.
 
 
-def sem_desconto(centavos):
-    """O preco de tabela do qual `centavos` e o valor ja com desconto.
+def preco_de_tabela(centavos, acrescimo):
+    """O preco "de", a partir do "por" e do acrescimo em pontos percentuais.
 
     Em centavos e com arredondamento explicito (meio para cima), porque o
     resultado vai impresso numa pagina publica: `float` aqui produziria
     `R$ 197,49999...` num dia qualquer, dependendo do preco.
     """
-    if not centavos or not DESCONTO_PROMOCIONAL:
+    if not centavos or not acrescimo:
         return centavos
-    restante = 100 - DESCONTO_PROMOCIONAL
-    return (int(centavos) * 100 + restante // 2) // restante
+    return (int(centavos) * (100 + int(acrescimo)) + 50) // 100
+
+
+def desconto_real(centavos, tabela):
+    """O desconto que os dois precos de fato representam, para baixo.
+
+    Para baixo de proposito: ver o bloco acima. O numero anunciado nunca
+    pode ser maior que o entregue.
+    """
+    if not tabela or tabela <= centavos:
+        return 0
+    return int((tabela - centavos) * 100 // tabela)
 
 
 def brl(centavos):
@@ -123,7 +144,10 @@ PLANS = {
         'max_doctors': 2,
         'clinical_ai': False,
         'sms': True,
-        'price_monthly': 15800,
+        'price_monthly': 8700,
+        # A tabela era 30% mais cara: R$ 113,10. O desconto que isso
+        # representa -- 23% -- e calculado, nunca escrito aqui.
+        'acrescimo_tabela': 30,
         'summary': 'Para o consultório que cresceu: dois médicos, convênios e '
                    'dinheiro entrando por mais de uma porta.',
         'features': [
@@ -142,7 +166,9 @@ PLANS = {
         'max_doctors': 5,
         'clinical_ai': True,
         'sms': True,
-        'price_monthly': 26200,
+        'price_monthly': 14700,
+        # Tabela 40% mais cara: R$ 205,80, que representa 28% de desconto.
+        'acrescimo_tabela': 40,
         'summary': 'Para a clínica consolidada, com equipe multiprofissional e '
                    'agenda cheia nos cinco dias.',
         'features': [
@@ -272,7 +298,7 @@ def pricing(code):
     - com preço de tabela: mensal, anual e a equivalência;
     - sem preço de tabela (`None`): o Personalizado, combinado caso a caso.
 
-    Quando há promoção (`DESCONTO_PROMOCIONAL`), o mesmo dicionário traz o
+    Quando há promoção (`acrescimo_tabela` do plano), o mesmo dicionário traz o
     preço **de tabela** — `list_monthly`, `list_annual` — e a economia no
     ano. Todos derivados do que se cobra, e não guardados ao lado dele:
     dois preços escritos à mão divergem na primeira mudança, e o valor
@@ -292,7 +318,7 @@ def pricing(code):
                     'antes de contratar.',
         }
     anual = centavos * MESES_NO_ANO
-    tabela_mensal = sem_desconto(centavos)
+    tabela_mensal = preco_de_tabela(centavos, plan_config(code).get('acrescimo_tabela'))
     # O anual de tabela sai do mensal de tabela pelo mesmo caminho que o
     # anual cobrado sai do mensal cobrado. Dividir o anual cobrado
     # diretamente daria o mesmo numero quase sempre e um centavo de
@@ -301,10 +327,13 @@ def pricing(code):
     tabela_anual = tabela_mensal * MESES_NO_ANO
     return {
         'free': False, 'quoted': True,
-        'promo': bool(DESCONTO_PROMOCIONAL),
+        'promo': tabela_mensal > centavos,
         'monthly': brl(centavos),
         'annual': brl(anual),
-        'discount': DESCONTO_PROMOCIONAL,
+        # O desconto de VERDADE, dos dois precos, para baixo -- e nao o
+        # acrescimo. Ver o bloco no topo do modulo: os dois numeros sao
+        # diferentes, e e este que o leitor consegue conferir na tela.
+        'discount': desconto_real(centavos, tabela_mensal),
         'list_monthly': brl(tabela_mensal),
         'list_annual': brl(tabela_anual),
         'saving_annual': brl(tabela_anual - anual),

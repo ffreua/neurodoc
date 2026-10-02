@@ -229,8 +229,8 @@ print('=== 9b. o preco da pagina fecha com a conta ===')
 # numeros que precisam concordar -- e a forma de eles divergirem e alguem
 # escrever o anual a mao depois de mudar o mensal.
 from tenancy.plans import (
-    DESCONTO_PROMOCIONAL, MESES_NO_ANO, PLANS, PUBLIC_ORDER, brl, pricing,
-    plan_choices, sem_desconto,
+    MESES_NO_ANO, PLANS, PUBLIC_ORDER, brl, desconto_real, pricing,
+    plan_choices, preco_de_tabela,
 )
 
 corpo_landing = Client().get('/').content.decode()
@@ -250,47 +250,69 @@ for code in PUBLIC_ORDER:
         falhas.append(f'{code}: o preco nao aparece na pagina de vendas')
 
 print('=== 9b-bis. o desconto anunciado e o desconto de verdade ===')
-# Anunciar "20% de desconto" com um preco de tabela que da outra conta e
+# Anunciar um percentual que nao fecha com os dois precos ao lado dele e
 # propaganda enganosa, nao erro de arredondamento: quem le tem os dois
-# numeros na tela e consegue fazer a subtracao. Este bloco faz a mesma
-# subtracao antes do cliente.
-print(f'  desconto declarado no catalogo: {DESCONTO_PROMOCIONAL}%')
-if DESCONTO_PROMOCIONAL:
-    if f'{DESCONTO_PROMOCIONAL}% de desconto' not in corpo_landing:
-        falhas.append('a pagina nao diz de quanto e o desconto')
-    for code in PUBLIC_ORDER:
+# numeros na tela e consegue fazer a conta. Este bloco faz a conta antes
+# do cliente.
+#
+# **O catalogo guarda acrescimo, e a tela anuncia desconto**, que sao
+# numeros diferentes: +30% sobre R$ 87,00 da R$ 113,10, e sobre R$ 113,10
+# o desconto e 23,08%, nao 30%. A assercao central e a ultima daqui: o
+# percentual anunciado nunca pode ser MAIOR que o entregue.
+promovidos = [c for c in PUBLIC_ORDER if pricing(c).get('promo')]
+print(f'  planos em promocao: {[str(c) for c in promovidos] or "nenhum"}')
+if promovidos:
+    for code in promovidos:
         preco = pricing(code)
-        centavos = PLANS[code].get('price_monthly')
-        if not preco.get('promo'):
-            continue
-        tabela_mensal = sem_desconto(centavos)
-        # A conta pela qual o leitor julga o anuncio: tirar o percentual do
-        # preco de tabela tem de devolver exatamente o que se cobra.
-        cobrado_esperado = round(tabela_mensal * (100 - DESCONTO_PROMOCIONAL) / 100)
-        fecha = cobrado_esperado == centavos
+        centavos = PLANS[code]['price_monthly']
+        acrescimo = PLANS[code].get('acrescimo_tabela')
+        tabela_mensal = preco_de_tabela(centavos, acrescimo)
+        anunciado = preco['discount']
+        # A conta pela qual o leitor julga o anuncio: tirar o percentual
+        # anunciado do preco de tabela nao pode dar MENOS do que se cobra,
+        # senao a pagina prometeu um desconto que nao entrega.
+        pelo_anunciado = tabela_mensal * (100 - anunciado) / 100
+        honesto = centavos <= pelo_anunciado
+        # E nao pode ser folgado a ponto de virar outro numero: o anunciado
+        # e o real truncado, entao a distancia e sempre menor que 1 ponto.
+        justo = anunciado == desconto_real(centavos, tabela_mensal)
         anual_coerente = preco['list_annual'] == brl(tabela_mensal * MESES_NO_ANO)
         economia_certa = preco['saving_annual'] == brl(
             tabela_mensal * MESES_NO_ANO - centavos * MESES_NO_ANO)
         riscado_na_pagina = (preco['list_annual'] in corpo_landing
                              and preco['list_monthly'] in corpo_landing)
+        # O percentual precisa estar NA PAGINA, e no cartao do plano: a
+        # frase acima dos cartoes nao cita mais um numero so, justamente
+        # porque os planos divergem.
+        pct_na_pagina = f'{anunciado}% de desconto' in corpo_landing
         print(f'  {str(code):10} de {preco["list_monthly"]}/mes por {preco["monthly"]}/mes  '
-              f'-{DESCONTO_PROMOCIONAL}% fecha={fecha}  anual_coerente={anual_coerente}  '
-              f'economia={preco["saving_annual"]} ok={economia_certa}  '
-              f'riscado_na_pagina={riscado_na_pagina}')
-        if not fecha:
+              f'(+{acrescimo}% de tabela) anuncia -{anunciado}%  honesto={honesto} '
+              f'justo={justo} anual={anual_coerente} economia={economia_certa} '
+              f'riscado={riscado_na_pagina} pct_na_pagina={pct_na_pagina}')
+        if not honesto:
             falhas.append(
-                f'{code}: {DESCONTO_PROMOCIONAL}% sobre o preco de tabela dao '
-                f'{brl(cobrado_esperado)}, e a pagina cobra {preco["monthly"]}')
+                f'{code}: anuncia {anunciado}% sobre {brl(tabela_mensal)}, que daria '
+                f'{brl(round(pelo_anunciado))}, e a pagina cobra {preco["monthly"]}')
+        if not justo:
+            falhas.append(
+                f'{code}: anuncia {anunciado}% quando o desconto real truncado e '
+                f'{desconto_real(centavos, tabela_mensal)}%')
         if not anual_coerente:
             falhas.append(f'{code}: o anual riscado nao e o mensal riscado vezes {MESES_NO_ANO}')
         if not economia_certa:
             falhas.append(f'{code}: a economia anunciada nao e a diferenca dos dois anuais')
         if not riscado_na_pagina:
             falhas.append(f'{code}: o preco de tabela nao aparece na pagina')
-        # O riscado precisa ser MAIOR que o cobrado. Um desconto negativo
+        if not pct_na_pagina:
+            falhas.append(f'{code}: a pagina nao diz de quanto e o desconto deste plano')
+        # O riscado precisa ser MAIOR que o cobrado. Um acrescimo negativo
         # passaria em toda a aritmetica acima e anunciaria um aumento.
         if tabela_mensal <= centavos:
             falhas.append(f'{code}: o preco "de" nao e maior que o "por"')
+    # A frase acima dos cartoes nao pode voltar a cravar um percentual
+    # unico: com planos divergentes, ela discordaria dos cartoes.
+    if 'de desconto</strong> sobre o preço' in corpo_landing:
+        falhas.append('a frase acima dos cartoes voltou a anunciar um percentual unico')
 else:
     print('  promocao desligada -- a pagina nao deve mostrar valor riscado')
     if '<s>' in corpo_landing:
