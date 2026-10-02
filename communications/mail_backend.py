@@ -1,16 +1,20 @@
 """O e-mail da instalação sai pelo worker, não pelo processo web.
 
-**Por que isto existe.** No Swarm o serviço `app` está em
-`traefik_public` + `neurodoc_v1_internal`; quem tem saída para a internet
-é o `celery_worker`, em `neurodoc_v1_egress` (`docker-stack.yml`). O
-desenho sempre soube disso — o segredo `NEURODOC_SMTP_PASSWORD` só é
-entregue ao worker, e `core/settings.py` só o exige quando
-`SERVICE_ROLE == 'worker'` —, mas a verificação de e-mail e a recuperação
-de senha chamavam `send_mail` **dentro da requisição**, no processo web.
+**Por que isto existe.** Quem entrega é o `celery_worker`, e não o
+processo web, por três razões: **só a ele o segredo é entregue**
+(`NEURODOC_SMTP_PASSWORD`, que `core/settings.py` só exige quando
+`SERVICE_ROLE == 'worker'`), só ele pode tentar de novo quando o provedor
+falha, e ninguém fica esperando a resposta. Mesmo assim, a verificação de
+e-mail e a recuperação de senha chamavam `send_mail` **dentro da
+requisição**, no processo web.
 
-Em desenvolvimento isso funciona, porque ali tudo alcança tudo. Em
-produção, cada cadastro e cada "esqueci minha senha" travaria dez segundos
-no `EMAIL_TIMEOUT` e falharia — no primeiro dia, para todo mundo.
+Em desenvolvimento isso funciona, porque ali o `.env` põe a credencial em
+todo processo. Em produção o processo web não a tem: cada cadastro e cada
+"esqueci minha senha" travaria dez segundos no `EMAIL_TIMEOUT` e falharia
+— no primeiro dia, para todo mundo.
+
+Não é isolamento de rede que separa os dois: o `app` **também** alcança a
+internet, pela `traefik_public` (ver `CLAUDE.md` §2). É o segredo.
 
 A correção poderia ter sido uma tarefa em cada ponto de envio. Um backend
 resolve os pontos que ainda não existem também: `PasswordResetForm` do

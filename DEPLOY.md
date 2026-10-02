@@ -142,8 +142,8 @@ Os três processos sobem pelo stack. O `celery_beat` carrega seis tarefas:
 docker exec -it <container-worker> python manage.py testar_email seu@email.com
 ```
 
-O envio sai **sempre pelo worker**: em produção o processo `app` não tem saída
-para a internet.
+O envio sai **sempre pelo worker**: só a ele o segredo de SMTP é entregue, e
+só ele pode tentar de novo quando o provedor falha.
 
 ## HTTPS
 

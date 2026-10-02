@@ -9,10 +9,10 @@ CID-10 é uma carga versionada da OMS; a TUSS é espelhada da ANS pelo
 worker, semanalmente (`catalogs.tasks.sync_tuss`).
 
 A alternativa — consultar a ANS a cada busca — foi tentada e descartada:
-em produção o processo web não tem saída para a internet (o `app` está em
-`traefik_public` e `neurodoc_v1_internal`; quem tem egresso é o worker).
-Uma chamada síncrona a partir daqui não falharia em desenvolvimento;
-falharia no primeiro dia de produção, por timeout, com o médico esperando.
+a ANS leva ~80 segundos por página de 25 itens. Uma chamada síncrona a
+partir daqui não falharia em desenvolvimento, onde a busca é uma só;
+prenderia a tela no tempo da ANS em produção, com o médico esperando.
+Quem fala com serviço externo é o worker, que pode tentar de novo.
 
 O espelho ainda resolve a desatualização melhor do que a consulta ao vivo:
 a data da última sincronização fica visível na tela, e a busca continua
@@ -32,10 +32,26 @@ from . import selectors
 from .models import CatalogSystem
 
 
-class CodeSearchView(CapabilityRequiredView):
-    """A tela. A busca em si acontece nos dois endpoints abaixo."""
+class CatalogView(CapabilityRequiredView):
+    """Base das views de catálogo.
+
+    `required_capability = None` é decisão, e não esquecimento: CID-10, TUSS
+    e CMED são **catálogos públicos**, iguais para toda clínica, sem nenhum
+    dado de paciente. Exigir capacidade clínica aqui tiraria da secretária a
+    conferência de apresentação que ela faz com a farmácia ao telefone, e do
+    gestor a consulta de código para faturamento — sem proteger nada, porque
+    não há o que proteger nestas tabelas.
+
+    A porta que ainda vale é a do `TenantMiddleware`: `/app/` devolve 404 a
+    quem não tem vínculo ativo. Quem **prescreve** com o código continua
+    sendo quem tem capacidade clínica; isto aqui só procura texto.
+    """
 
     required_capability = None
+
+
+class CodeSearchView(CatalogView):
+    """A tela. A busca em si acontece nos dois endpoints abaixo."""
 
     def get(self, request):
         cid = selectors.active_release(CatalogSystem.CID10)
@@ -54,24 +70,20 @@ class CodeSearchView(CapabilityRequiredView):
         })
 
 
-class DiagnosisSearchAPI(CapabilityRequiredView):
+class DiagnosisSearchAPI(CatalogView):
     """CID-10, da carga local. Responde em milissegundos e sem rede."""
-
-    required_capability = None
 
     def get(self, request):
         resultados = selectors.search_diagnosis_codes(request.GET.get('q', ''))
         return JsonResponse({'ok': True, 'results': resultados})
 
 
-class ProcedureSearchAPI(CapabilityRequiredView):
+class ProcedureSearchAPI(CatalogView):
     """TUSS, do espelho local sincronizado da ANS.
 
     Sem release sincronizada, responde `ok: false` com a instrução — e não
     uma lista vazia, que se leria como "esse código não existe".
     """
-
-    required_capability = None
 
     def get(self, request):
         if selectors.active_release(CatalogSystem.TUSS) is None:
@@ -85,16 +97,12 @@ class ProcedureSearchAPI(CapabilityRequiredView):
         })
 
 
-class MedicationSearchAPI(CapabilityRequiredView):
+class MedicationSearchAPI(CatalogView):
     """Autocomplete de medicamento, da lista da CMED/Anvisa.
 
-    Qualquer vínculo ativo: é catálogo público, sem dado de paciente, e a
-    secretária confere apresentação ao atender o telefone da farmácia.
-    Quem prescreve continua sendo quem tem capacidade clínica — isto aqui
-    só procura texto.
+    A secretária confere apresentação ao atender o telefone da farmácia; o
+    motivo de não exigir capacidade está em `CatalogView`.
     """
-
-    required_capability = None
 
     def get(self, request):
         return JsonResponse({'results': selectors.search_medications(request.GET.get('q', ''))})

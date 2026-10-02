@@ -1,9 +1,9 @@
 """Tarefas do catalogo. Rodam no worker, que e quem tem egresso.
 
-O processo web esta em `traefik_public` e `neurodoc_v1_internal`; quem
-alcanca a internet e o `celery_worker`, em `neurodoc_v1_egress`. Nao e
-acidente de configuracao: e o desenho. Por isso a sincronizacao da TUSS
-vive aqui e nao numa view.
+Trabalho que fala com servico externo e do `celery_worker`: ele pode
+tentar de novo quando o outro lado falha, e nao ha ninguem esperando a
+resposta. A ANS leva ~80 segundos por pagina; numa view isso seria o
+medico olhando a tela. Por isso a sincronizacao da TUSS vive aqui.
 """
 
 import logging

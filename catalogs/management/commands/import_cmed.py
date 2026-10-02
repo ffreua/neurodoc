@@ -1,6 +1,6 @@
 """Importa a lista de medicamentos da CMED/Anvisa.
 
-Rode no **worker**, que é quem alcança a internet nesta topologia:
+Rode no **worker**, que é quem faz trabalho externo (ver `CLAUDE.md` §2):
 
     docker exec $(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) \
       python manage.py import_cmed
@@ -49,7 +49,7 @@ class Command(BaseCommand):
                 except OSError as erro:
                     raise CommandError(
                         f'Não consegui baixar {opcoes["url"]}: {erro}. '
-                        'Este comando roda no worker — o processo web não tem saída para a internet.'
+                        'Este comando roda no worker, que é quem baixa arquivo externo.'
                     )
                 caminho = temporario.name
             tamanho = Path(caminho).stat().st_size

@@ -474,8 +474,8 @@ class OperationsView(SuperAdminView):
     Duas moram aqui, e as duas vieram das decisoes da auditoria pre-deploy:
 
     - **enderecos de API liberados** para provedor de IA proprio. O processo
-      `app` nao alcanca a internet; o que ele alcanca e a rede interna. A
-      lista diz o que, alem do catalogo, ele pode procurar;
+      `app` alcanca a rede interna e tambem a internet. A lista diz o que,
+      alem do catalogo, ele pode procurar;
     - **o ensaio da coleta de lixo** do disco. Ligado, a passagem semanal
       conta e registra sem apagar.
 

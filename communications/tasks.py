@@ -91,15 +91,15 @@ def deliver_document_task(document_id, force_new_link=False):
     O envio automático já nascia aqui: ele vem do evento
     `documents.document_issued`, despachado por `events.tasks.dispatch_outbox`,
     que roda no worker. O **reenvio pela tela** é que não: ele chamava
-    `deliver_document` dentro da requisição, no processo `app` — e `app`
-    não tem saída para a internet (ver `communications/mail_backend.py` e
-    o comentário de `EMAIL_BACKEND` em `core/settings.py`).
+    `deliver_document` dentro da requisição, no processo `app` (ver
+    `communications/mail_backend.py` e o comentário de `EMAIL_BACKEND` em
+    `core/settings.py`).
 
     O e-mail escapava porque o backend dele já enfileira sozinho. O SMS
-    não: `smsdev.send_sms` faz a requisição na hora, e na rede do `app`
-    ela só pode terminar em timeout. Em desenvolvimento funciona, porque
-    ali tudo alcança tudo — que é o formato clássico do defeito que só
-    aparece em produção.
+    não: `smsdev.send_sms` fazia a requisição na hora, dentro da
+    requisição do navegador — sem retentativa, e com a tela presa ao
+    tempo do provedor. Uma falha ali derrubava a resposta com o documento
+    já assinado, que foi exatamente o que aconteceu.
     """
     from documents.models import MedicalDocument
 

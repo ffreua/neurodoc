@@ -249,8 +249,8 @@ Comandos úteis: `seed_demo`, `issue_platform_invitation`,
 `verify_physician`.
 
 `import_cmed` traz a lista de medicamentos da Anvisa (XLSX, ~12 MB) e roda
-**no worker** — só ele alcança a internet. `--dry-run` lê e conta sem
-gravar, que é o que se roda quando a CMED publica um arquivo novo.
+**no worker**, que é de quem é o trabalho externo (§2). `--dry-run` lê e
+conta sem gravar, que é o que se roda quando a CMED publica um arquivo novo.
 
 ## 7. Verificação (o que substitui os testes)
 

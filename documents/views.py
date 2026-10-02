@@ -417,10 +417,9 @@ class MedicalDocumentSendView(ClinicalDocumentView):
     suspeita que o link foi parar em mãos erradas.
 
     **A entrega sai pelo worker, e não aqui.** Chamava `deliver_document`
-    dentro da requisição, e `app` não tem saída para a internet: o e-mail
-    escapava porque o backend dele enfileira sozinho, mas o SMS fazia a
-    requisição na hora e só podia terminar em timeout. Em desenvolvimento
-    funcionava — ali tudo alcança tudo.
+    dentro da requisição: o e-mail escapava porque o backend dele enfileira
+    sozinho, mas o SMS ia na hora, sem retentativa e com a tela presa ao
+    tempo do provedor.
 
     A consequência para a tela é que o resultado não existe no instante da
     resposta. Em troca, a tela deixa de poder quebrar por causa de uma

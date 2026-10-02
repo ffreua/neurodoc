@@ -329,11 +329,11 @@ X_FRAME_OPTIONS = 'DENY'
 EMAIL_ENABLED = env.bool('EMAIL_ENABLED', default=False)
 # Ligado, o e-mail sai pela fila -- nunca pelo SMTP daqui.
 #
-# Em producao o processo `app` nao tem saida para a internet: quem esta em
-# `neurodoc_v1_egress` e o worker (`docker-stack.yml`). Falar com o SMTP
-# dentro da requisicao funcionava em desenvolvimento e travaria dez
-# segundos no `EMAIL_TIMEOUT` em producao, em todo cadastro e em toda
-# recuperacao de senha. Veja `communications/mail_backend.py`.
+# Quem entrega e o worker, por tres razoes: so a ele o segredo de SMTP e
+# entregue, ele pode tentar de novo quando o provedor falha, e ninguem
+# fica esperando. Falar com o SMTP dentro da requisicao travaria dez
+# segundos no `EMAIL_TIMEOUT` em todo cadastro e em toda recuperacao de
+# senha. Veja `communications/mail_backend.py`.
 #
 # Quem entrega e `communications.tasks.deliver_installation_email`, que
 # pede o backend SMTP **explicitamente** -- ler esta variavel la faria a
@@ -422,9 +422,10 @@ AI_API_KEY = secret(f'{AI_PROVIDER.upper()}_API_KEY', required=False)
 # resposta certa para quem usa provedor publico.
 #
 # Existe porque o campo "endereco da API" da tela da clinica aceita servidor
-# proprio (Ollama, vLLM), e o processo `app` nao alcanca a internet: o que
-# ele alcanca e a rede interna. Sem lista, um gestor de clinica apontava o
-# campo para `http://169.254.169.254/` e o servidor ia la por ele.
+# proprio (Ollama, vLLM), e o processo `app` alcanca a rede interna -- e
+# tambem a internet, pela `traefik_public`. Sem lista, um gestor de clinica
+# apontava o campo para `http://169.254.169.254/` e o servidor ia la por
+# ele, com rota de saida para mandar o resultado adiante.
 #
 # Quem libera e quem opera o servidor, e nao o cliente -- e a rede dele que
 # sera alcancada. Um host por entrada: `AI_BASE_URL_ALLOWLIST=ollama.interno,10.0.0.7:11434`

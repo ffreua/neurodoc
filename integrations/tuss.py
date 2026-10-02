@@ -7,13 +7,16 @@ era bom — a TUSS muda por resolução normativa, e uma cópia local vira
 desatualizada sem avisar, com a glosa aparecendo na fatura — e mesmo assim
 estava errado, por uma razão que só apareceu ao rodar:
 
-**o processo web não tem saída para a internet.** Em produção o serviço
-`app` está em `traefik_public` e `neurodoc_v1_internal`; quem está em
-`neurodoc_v1_egress` é o `celery_worker`. Não é acidente de configuração,
-é o desenho: o processo que atende requisição de navegador não conversa
-com a internet. Uma chamada síncrona a partir de uma view não falharia em
-desenvolvimento — falharia no primeiro dia de produção, por *timeout*, com
-o médico esperando.
+**a ANS é lenta demais para caber numa requisição.** Leva ~80 segundos
+por página de 25 itens e ignora pedido de página maior. Uma chamada
+síncrona a partir de uma view não falharia em desenvolvimento, onde a
+busca é uma só — prenderia a tela no tempo da ANS em produção, com o
+médico esperando.
+
+Trabalho que fala com serviço externo é do `celery_worker`, que está em
+`neurodoc_v1_egress` e pode tentar de novo. O `app` **também** alcança a
+internet, pela `traefik_public` — ver `CLAUDE.md` §2; o motivo de não
+chamar daqui é o tempo e a retentativa, não a rede.
 
 O espelho resolve os dois lados. A sincronização roda no **worker**, que
 tem egresso; a busca lê o banco, responde em milissegundos e funciona com

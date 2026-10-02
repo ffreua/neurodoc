@@ -177,11 +177,12 @@ def assert_endereco_permitido(endpoint):
     O campo "endereco da API" existe para servidor proprio (Ollama, vLLM), e
     isso e um caso de uso real do produto. Mas ele chegava do POST sem
     validacao nenhuma e era entregue ao `httpx` de dentro do processo `app`
-    -- que em producao **nao alcanca a internet**. O que ele alcanca e a rede
-    interna: `db`, `rabbitmq`, `redis`, `traefik` e o endereco de metadados
-    do provedor de nuvem. Um gestor de clinica (cliente, nao operador)
-    apontava o campo para `http://169.254.169.254/` ou `http://db:5432` e o
-    servidor ia la por ele.
+    -- que alcanca a rede interna (`db`, `rabbitmq`, `redis`, `traefik` e o
+    endereco de metadados do provedor de nuvem) **e tambem a internet**,
+    pela `traefik_public` (ver `CLAUDE.md`, secao 2). Um gestor de clinica
+    (cliente, nao operador) apontava o campo para `http://169.254.169.254/`
+    ou `http://db:5432` e o servidor ia la por ele -- e, alcancando tambem
+    a internet, podia mandar para fora o que lesse la dentro.
 
     A escolha aqui e **lista de permissao**, e nao "bloquear faixa privada".
     Bloquear faixa privada quebraria o Ollama, que e justamente um endereco

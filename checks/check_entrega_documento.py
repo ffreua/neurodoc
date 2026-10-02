@@ -24,8 +24,8 @@ O que este roteiro cobra:
 - **o e-mail sai mesmo com o SMS quebrado**, que e a assercao que teria
   evitado o estrago;
 - falha inesperada vira entrega marcada como falha, nunca excecao solta;
-- a entrega sai pelo **worker**: `app` nao tem saida para a internet, e o
-  SMS feito dentro da requisicao so pode terminar em timeout;
+- a entrega sai pelo **worker**: o SMS feito dentro da requisicao vai sem
+  retentativa e prende a tela no tempo do provedor;
 - o envio e **automatico** na emissao, por evento -- o botao da tela e
   reenvio, nao o primeiro envio;
 - o SMS segue o plano, e o e-mail vale para todos.
@@ -199,7 +199,7 @@ try:
     conferir('  e nao ValueError, que ninguem trata', tipo == 'ValueError', False)
 
     print(CHR + '7. A entrega sai pelo worker, nao dentro da requisicao')
-    # `app` nao tem saida para a internet (ver `communications/mail_backend.py`).
+    # Trabalho externo e do worker (ver `communications/mail_backend.py`).
     # O e-mail escapava porque o backend dele enfileira sozinho; o SMS nao.
     views = Path(dj_settings.BASE_DIR, 'documents', 'views.py').read_text(encoding='utf-8')
     inicio = views.index('class MedicalDocumentSendView')

@@ -5,8 +5,8 @@ from celery import shared_task
 def avisar_retornos_task():
     """Avisa, uma vez por dia, quem tem retorno previsto se aproximando.
 
-    Roda no worker porque quem fala com o SMTP é ele -- o processo `app`
-    não tem saída para a internet nesta topologia.
+    Roda no worker porque quem fala com o SMTP é ele: só a ele o segredo é
+    entregue, e só ele pode tentar de novo quando o provedor falha.
 
     **Falha de um paciente não derruba a rodada.** Um contato com endereço
     inválido, ou um SMTP que recusa uma mensagem específica, não pode

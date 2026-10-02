@@ -19,9 +19,9 @@ de CID-10? Se não, importa. Na próxima subida tenta de novo.
 
 ## TUSS não entra aqui
 
-A TUSS vem de uma API externa (`integrations/tuss.py`), e o processo web
-não tem saída para a internet em produção — quem tem é o worker. Ela é
-sincronizada por `catalogs.tasks.sync_tuss`, semanalmente, e o primeiro
+A TUSS vem de uma API externa (`integrations/tuss.py`), e trabalho que
+fala com a internet é do worker — ele tenta de novo e não prende a subida.
+Ela é sincronizada por `catalogs.tasks.sync_tuss`, semanalmente, e o primeiro
 enchimento acontece na primeira execução. Ver `catalogs/tasks.py`.
 """
 import logging

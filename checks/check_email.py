@@ -3,9 +3,9 @@
 O defeito que originou este roteiro nao era "o e-mail esta desligado".
 Era que **o e-mail de conta nunca funcionaria em producao**, ligado ou
 nao: `send_email_verification` falava com o SMTP dentro da requisicao, no
-processo `app`, e no Swarm o `app` esta em `traefik_public` +
-`neurodoc_v1_internal` -- sem saida para a internet. Quem alcanca a
-internet e o worker, em `neurodoc_v1_egress`.
+processo `app` -- que nao recebe o segredo de SMTP. Quem entrega e o
+worker, em `neurodoc_v1_egress`, que tem a credencial e pode tentar de
+novo.
 
 O desenho ja sabia disso: `NEURODOC_SMTP_PASSWORD` so e entregue ao
 worker, e `core/settings.py` so a exige quando `SERVICE_ROLE == 'worker'`.

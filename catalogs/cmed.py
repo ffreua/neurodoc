@@ -16,10 +16,10 @@ explicativo da Secretaria Executiva, e a linha de cabeçalho é encontrada
 por ser a primeira com mais de vinte células preenchidas — de novo, porque
 o número de linhas de aviso muda entre publicações.
 
-Quem baixa o arquivo é o **worker**: nesta topologia só ele alcança a
-internet. Rodar o download dentro da requisição funcionaria no ambiente
-local e travaria no timeout em produção, como todo o resto que fala com
-serviço externo (ver `communications/mail_backend.py`).
+Quem baixa o arquivo é o **worker**: é dele todo trabalho que fala com a
+internet, porque ele pode tentar de novo e não tem ninguém esperando.
+Baixar 12 MB dentro da requisição prenderia a conexão do navegador pelo
+tempo do download (ver `communications/mail_backend.py`).
 """
 
 import hashlib

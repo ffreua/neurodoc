@@ -79,9 +79,15 @@ isolamento é reforçado por chave estrangeira composta `(tenant_id, id)` — ma
 **só em `clinical` e `teamchat`**; nos demais apps o que separa é o filtro por
 inquilino em cada consulta.
 
-**Regra de rede que explica muito código:** em produção o processo `app` não
-tem saída para a internet; quem alcança é o worker. Por isso e-mail, SMS, IA e
-TUSS saem sempre por tarefa Celery.
+**Regra de rede que explica muito código:** e-mail, SMS, IA e TUSS saem
+sempre por tarefa Celery — só o worker recebe o segredo de SMTP, só ele pode
+tentar de novo, e nenhuma requisição fica esperando o provedor.
+
+> **Correção de 2026-10-02.** Este parágrafo dizia que o processo `app` *não
+> tem saída para a internet*. Ele tem: está em `traefik_public`, que não é
+> `internal`. O isolamento que o desenho pretendia nunca existiu, e a
+> afirmação chegou a induzir um diagnóstico errado. A regra de pôr trabalho
+> externo no worker continua certa, pelas razões acima. Ver `CLAUDE.md` §2.
 
 ## 3. Tecnologias e versões
 
