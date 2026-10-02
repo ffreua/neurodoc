@@ -5,6 +5,8 @@ from django_otp import login as django_otp_login
 from django.contrib.auth.views import LoginView
 from django.http import HttpResponseForbidden, HttpResponseRedirect
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views import View
 from django.views.generic import FormView
 
@@ -107,7 +109,7 @@ class SwitchTenantView(LoginRequiredMixin, View):
         tenant_id = request.POST.get('tenant_id')
         if services.switch_tenant(request, tenant_id):
             return redirect(_safe_next(request) or 'reporting:dashboard')
-        return HttpResponseForbidden('No active membership for that organization.')
+        return HttpResponseForbidden('Você não tem vínculo ativo com essa organização.')
 
 
 class TenantPickerView(LoginRequiredMixin, View):
@@ -134,6 +136,72 @@ class TenantPickerView(LoginRequiredMixin, View):
         if not memberships:
             return render(request, 'accounts/no_organizations.html')
         return render(request, 'accounts/tenant_picker.html', {'memberships': memberships, 'next': next_url})
+
+
+
+class MFAConfirmView(LoginRequiredMixin, FormView):
+    """Reconfirmar o segundo fator sem sair da sessão.
+
+    Faltava, e a falta aparecia como página em branco. Operações
+    privilegiadas — abrir sessão de assinatura, enviar certificado, o
+    console de instalação — exigem MFA **recente** (trinta minutos); a
+    verificação do login envelhece, e quando envelhecia não havia para
+    onde mandar o médico. O que havia eram duas saídas ruins:
+    `HttpResponseForbidden` com o texto cru numa tela branca, e uma
+    mensagem pedindo para **sair e entrar de novo** — derrubar a sessão
+    inteira para reconfirmar um código de seis dígitos.
+
+    Não se confunde com `MFAChallengeView`, e as duas não dão para unir:
+    aquela atende quem **ainda não entrou** (há um usuário pendente na
+    sessão, e o sucesso faz o login); esta atende quem já está dentro, e o
+    sucesso só carimba a hora. Unir as duas significaria uma view onde o
+    estado de autenticação do visitante é condicional — exatamente o lugar
+    onde um erro vira falha de autenticação.
+
+    O `next` é validado contra o próprio host: um destino solto aqui
+    transformaria a confirmação de MFA em trampolim para fora do domínio,
+    que é o formato clássico do phishing de redirecionamento.
+    """
+
+    form_class = MFAChallengeForm
+    template_name = 'accounts/mfa_confirm.html'
+
+    def _destino(self):
+        candidato = self.request.POST.get('next') or self.request.GET.get('next')
+        if candidato and url_has_allowed_host_and_scheme(
+            candidato, allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return candidato
+        return reverse('reporting:dashboard')
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and not mfa.user_has_confirmed_totp(request.user):
+            # Sem segundo fator configurado nao ha o que reconfirmar; o
+            # caminho util e o de configurar, levando o destino junto.
+            messages.warning(
+                request, 'Configure a verificação em duas etapas para continuar.',
+            )
+            setup = reverse('accounts:mfa-setup')
+            return redirect(f'{setup}?{urlencode({"next": self._destino()})}')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        dados = super().get_context_data(**kwargs)
+        dados['next'] = self._destino()
+        dados['minutos'] = mfa.RECENT_MFA_MAX_AGE_SECONDS // 60
+        return dados
+
+    def form_valid(self, form):
+        user = self.request.user
+        code = form.cleaned_data['code'].strip()
+        if not (mfa.verify_totp_token(user, code) or mfa.consume_recovery_code(user, code)):
+            record_audit_event(user, None, 'auth.mfa_reconfirm_failed', outcome='denied')
+            form.add_error('code', 'Código inválido. Confira no aplicativo e tente de novo.')
+            return self.form_invalid(form)
+        mfa.mark_recent_mfa(self.request)
+        record_audit_event(user, None, 'auth.mfa_reconfirmed', outcome='success')
+        return redirect(self._destino())
 
 
 class MinhaContaView(LoginRequiredMixin, View):

@@ -619,6 +619,19 @@
                  *
                  * O valor é copiado para um campo oculto antes de o botão ser
                  * desabilitado, então o envio continua dizendo o que dizia. */
+                /* Envio cancelado nao trava botao.
+                 *
+                 * O `data-nd-confirm` de `nd-inline.js` escuta em captura no
+                 * documento e chama `preventDefault()` quando a pessoa
+                 * responde "cancelar". Isso cancela o envio, mas **nao**
+                 * impede que este listener rode: o botao ganhava o spinner e
+                 * ficava desabilitado para sempre, numa tela que nao ia a
+                 * lugar nenhum. A unica saida era recarregar a pagina.
+                 *
+                 * `defaultPrevented` cobre qualquer cancelamento, e nao so o
+                 * da confirmacao -- que e o ponto: o proximo motivo para
+                 * cancelar um envio nao precisa lembrar deste arquivo. */
+                if (event.defaultPrevented) return;
                 var submitter = event.submitter;
                 if (submitter && submitter.name && !submitter.disabled) {
                     var carrier = document.createElement('input');

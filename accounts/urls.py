@@ -11,6 +11,7 @@ urlpatterns = [
     path('mfa/challenge/', views.MFAChallengeView.as_view(), name='mfa-challenge'),
     path('minha-conta/', views.MinhaContaView.as_view(), name='minha-conta'),
     path('mfa/setup/', views.MFASetupView.as_view(), name='mfa-setup'),
+    path('mfa/confirmar/', views.MFAConfirmView.as_view(), name='mfa-confirm'),
     path('switch-tenant/', views.SwitchTenantView.as_view(), name='switch-tenant'),
     path('select-organization/', views.TenantPickerView.as_view(), name='tenant-picker'),
     path('verify-email/resend/', views.ResendVerificationEmailView.as_view(), name='verify-email-resend'),

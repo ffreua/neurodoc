@@ -53,6 +53,14 @@ print('\n2. Nenhuma mensagem de interface em ingles')
 ALVOS_CHAMADA = {
     'error', 'success', 'warning', 'info', 'add_message',
     'ValidationError', 'PermissionDenied', 'SuspiciousOperation',
+    # A resposta de recusa **e** uma tela: o corpo dela e o que a pessoa
+    # le, sozinho, em fundo branco. Ficavam de fora, e por isso dezenas de
+    # frases em ingles sobreviveram em `documents/views.py` -- inclusive a
+    # que o medico encontrou ao tentar assinar. `HttpResponse` generico
+    # nao entra: o primeiro argumento dele costuma ser conteudo binario,
+    # nao mensagem.
+    'HttpResponseForbidden', 'HttpResponseBadRequest', 'HttpResponseGone',
+    'HttpResponseNotAllowed',
 }
 #: Argumentos nomeados que viram rotulo de campo.
 ALVOS_KWARG = {'label', 'help_text', 'verbose_name', 'placeholder', 'empty_label'}
@@ -93,7 +101,11 @@ INGLES = re.compile(
     # producao: a frase tinha uma unica palavra da lista, e o detector
     # exige duas. Palavra sem homonimo no portugues tecnico, so.
     r'rejected|accepted|changed|since|before|regenerate|reviewing|'
-    r'draft|review|source|generation)\b',
+    # Vocabulario das telas de documento e assinatura, onde a varredura
+    # so passou a olhar depois que `HttpResponseForbidden` entrou nos
+    # alvos. Nenhuma delas e palavra do portugues tecnico.
+    r'may|authoring|physician|medical|membership|signing|credential|'
+    r'session|found|draft|review|source|generation)\b',
     re.IGNORECASE,
 )
 ACENTO = re.compile(r'[áàâãéêíóôõúüçÁÀÂÃÉÊÍÓÔÕÚÜÇ]')

@@ -154,7 +154,8 @@ def create_draft(tenant, patient, encounter, physician_membership, actor_id, kin
     from accounts.models import PhysicianProfile
 
     if not PhysicianProfile.objects.filter(user_id=physician_membership.user_id).exists():
-        raise MissingPhysicianProfile('Physician membership has no PhysicianProfile (CRM/RQE) on file')
+        raise MissingPhysicianProfile('Este médico ainda não tem CRM registrado no perfil. '
+            'Preencha em Minha conta antes de emitir documento.')
     document_kinds.validate_content(kind, content_fields)
     _validate_special_control(kind, content_fields, patient)
     document = MedicalDocument.objects.create(

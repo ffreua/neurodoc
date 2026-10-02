@@ -1,0 +1,25 @@
+{% extends "base_auth.html" %}
+{% comment %}Reconfirmação do segundo fator, com a sessão já aberta.
+
+Diferente de `mfa_challenge.html`, que atende quem ainda não entrou. Aqui
+a pessoa está dentro e continua dentro: o que se confirma é que quem está
+no teclado agora é a mesma pessoa que entrou — antes de assinar um
+documento com o certificado dela.
+
+O subtítulo diz por que está sendo pedido. Um pedido de código sem motivo,
+no meio de outra tarefa, parece defeito; dito assim, parece o que é.
+{% endcomment %}
+{% block title %}Confirme o código — NeuroDoc{% endblock %}
+{% block heading %}Confirme o código{% endblock %}
+{% block subheading %}Antes de liberar a assinatura, confirme o código do seu aplicativo autenticador. Vale pelos próximos {{ minutos }} minutos.{% endblock %}
+{% block content %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% include "partials/form_fields.html" %}
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Confirmar</button>
+</form>
+<p class="fs-12 text-muted text-center mt-3 mb-0">
+    Sem o aplicativo à mão? Um código de recuperação também serve.
+</p>
+{% endblock %}

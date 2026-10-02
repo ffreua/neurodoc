@@ -4,7 +4,6 @@ from functools import wraps
 
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
-from django.http import HttpResponseForbidden
 from django.utils import timezone
 from django_otp.plugins.otp_totp.models import TOTPDevice
 
@@ -130,12 +129,35 @@ def mfa_verified_recently(request, max_age_seconds=RECENT_MFA_MAX_AGE_SECONDS):
 
 
 def require_recent_mfa(view_func):
-    """View decorator for privileged operations: require a fresh MFA check."""
+    """Operação privilegiada: exige confirmação recente do segundo fator.
+
+    Devolvia `403` com o texto cru numa tela branca, e em inglês. Quem
+    esbarrava nele não tinha o que fazer: a mensagem não dizia para onde
+    ir, e não havia para onde — a tela de reconfirmação não existia.
+
+    Agora leva à reconfirmação e volta. O destino vai em `next` e é
+    reconferido lá contra o próprio host.
+    """
 
     @wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if not mfa_verified_recently(request):
-            return HttpResponseForbidden('Recent MFA verification required.')
+            return redirect_to_mfa_confirm(request)
         return view_func(request, *args, **kwargs)
 
     return wrapper
+
+
+def redirect_to_mfa_confirm(request, destino=None):
+    """Manda reconfirmar o segundo fator e voltar para onde estava.
+
+    `destino` existe para quem chega por POST: o caminho da requisição é a
+    rota que recebe o formulário, e devolver a pessoa a ela por GET daria
+    405. Nesses casos quem chama diz para que tela voltar.
+    """
+    from django.shortcuts import redirect
+    from django.urls import reverse
+    from django.utils.http import urlencode
+
+    alvo = destino or request.get_full_path()
+    return redirect(f'{reverse("accounts:mfa-confirm")}?{urlencode({"next": alvo})}')

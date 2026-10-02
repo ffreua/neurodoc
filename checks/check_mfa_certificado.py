@@ -155,12 +155,18 @@ try:
         corpo = resposta.content.decode('utf-8', 'replace')
         conferir('se a verificacao expira o formulario volta a ficar oculto',
                  'action="/app/documents/signing/credentials/upload/"' in corpo, False)
-        conferir('a tela pede nova entrada quando a verificacao expirou',
-                 'entre novamente' in corpo, True)
+        # Antes a tela mandava **sair e entrar de novo** -- derrubar a sessao
+        # para reconfirmar seis digitos --, porque a tela de reconfirmacao
+        # nao existia. Agora existe, e o destino volta para ca.
+        conferir('a tela oferece reconfirmar o codigo, e nao sair',
+                 '/accounts/mfa/confirmar/' in corpo, True)
+        conferir('e nao manda mais sair', 'entre novamente' in corpo, False)
         resposta = cliente.post('/app/documents/signing/credentials/upload/', {})
         conferir('o POST expirado volta para a pagina com explicacao', resposta.status_code, 302)
         conferir('nao cai em pagina 403 quando a verificacao expirou',
-                 resposta.headers.get('Location', ''), '/app/documents/signing/credentials/')
+                 '403' in resposta.headers.get('Location', ''), False)
+        conferir('e leva a reconfirmacao, com o destino de volta',
+                 '/accounts/mfa/confirmar/' in resposta.headers.get('Location', ''), True)
         sessao = cliente.session
         sessao[mfa.RECENT_MFA_SESSION_KEY] = marca_recente
         sessao.save()

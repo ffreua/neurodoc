@@ -269,7 +269,7 @@ class MedicalDocumentCreateView(ClinicalDocumentView):
         encounter = _encounter_or_404(request, encounter_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
-            return HttpResponseForbidden('Only a doctor membership may author a medical document.')
+            return HttpResponseForbidden('Só um vínculo de médico pode emitir documento médico.')
         form = MedicalDocumentForm(request.POST)
         if not form.is_valid():
             return render(request, 'documents/medical_form.html',
@@ -320,7 +320,7 @@ class PatientDocumentCreateView(ClinicalDocumentView):
         paciente = self._patient_or_404(request, patient_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
-            return HttpResponseForbidden('Only a doctor membership may author a medical document.')
+            return HttpResponseForbidden('Só um vínculo de médico pode emitir documento médico.')
         form = MedicalDocumentForm(request.POST)
         contexto = {'patient': paciente, 'sem_atendimento': True}
         if not form.is_valid():
@@ -471,7 +471,7 @@ class MedicalDocumentReviewView(ClinicalDocumentView):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None or physician_membership.id != document.physician_id:
-            return HttpResponseForbidden('Only the authoring physician may review this document.')
+            return HttpResponseForbidden('Só o médico que escreveu o documento pode revisá-lo.')
         try:
             issuance.mark_reviewed(document, request.user.id)
         except issuance.NotReadyToSign as exc:
@@ -484,7 +484,7 @@ class MedicalDocumentDiscardView(ClinicalDocumentView):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None or physician_membership.id != document.physician_id:
-            return HttpResponseForbidden('Only the authoring physician may discard this document.')
+            return HttpResponseForbidden('Só o médico que escreveu o documento pode descartá-lo.')
         encounter_id = document.encounter_id
         try:
             issuance.discard_document(document, request.user.id)
@@ -498,7 +498,7 @@ class MedicalDocumentSignView(SigningView):
         document = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
-            return HttpResponseForbidden('Only a doctor membership may sign.')
+            return HttpResponseForbidden('Só um vínculo de médico pode assinar.')
         try:
             issuance.sign_and_issue(document, request, physician_membership)
         except (issuance.NotReadyToSign, issuance.SigningNotAuthorized) as exc:
@@ -516,7 +516,7 @@ class MedicalDocumentCorrectionView(ClinicalDocumentView):
         original = _medical_document_or_404(request, document_id)
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None or physician_membership.id != original.physician_id:
-            return HttpResponseForbidden('Only the authoring physician may correct this document.')
+            return HttpResponseForbidden('Só o médico que escreveu o documento pode retificá-lo.')
         # O tipo é o do documento original e não é escolhido de novo:
         # retificar é corrigir o conteúdo, não trocar uma receita por um
         # laudo. O formulário abre travado nesse tipo.
@@ -548,7 +548,7 @@ class SigningCredentialUploadView(SigningView):
 
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
-            return HttpResponseForbidden('Only a doctor membership may upload a signing credential.')
+            return HttpResponseForbidden('Só um vínculo de médico pode enviar certificado de assinatura.')
         from accounts import mfa
 
         if not mfa.user_has_confirmed_totp(request.user):
@@ -559,14 +559,17 @@ class SigningCredentialUploadView(SigningView):
             setup_url = reverse('accounts:mfa-setup')
             return redirect(f'{setup_url}?{urlencode({"next": reverse("documents:credential-list")})}')
         if not mfa.mfa_verified_recently(request):
-            messages.warning(
+            # Antes isto pedia para **sair e entrar de novo**: derrubar a
+            # sessao inteira para reconfirmar seis digitos, porque a tela
+            # de reconfirmacao nao existia.
+            messages.info(
                 request,
-                'A verificação recente da MFA expirou. Saia e entre novamente antes de enviar o certificado.',
+                'Confirme o código do aplicativo autenticador para enviar o certificado.',
             )
-            return redirect('documents:credential-list')
+            return mfa.redirect_to_mfa_confirm(request, reverse('documents:credential-list'))
         form = CredentialUploadForm(request.POST, request.FILES)
         if not form.is_valid():
-            return HttpResponseForbidden('Invalid form.')
+            return HttpResponseForbidden('Formulário inválido.')
         tenant = Tenant.objects.get(id=request.access_context.tenant_id)
         try:
             credentials_services.upload_credential(
@@ -587,7 +590,7 @@ class SigningCredentialListView(SigningView):
 
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
-            return HttpResponseForbidden('Only a doctor membership has signing credentials.')
+            return HttpResponseForbidden('Só um vínculo de médico tem certificado de assinatura.')
         creds = SigningCredential.objects.filter(physician=physician_membership).order_by('-created_at')
         active_session = signing_sessions.get_active_session(request, physician_membership)
         return render(request, 'documents/credentials.html', {
@@ -604,7 +607,7 @@ class SigningCredentialRevokeView(SigningView):
         credential = SigningCredential.objects.filter(id=credential_id, physician=physician_membership).first() \
             if physician_membership else None
         if credential is None:
-            return HttpResponseForbidden('Credential not found for this physician.')
+            return HttpResponseForbidden('Certificado não encontrado para este médico.')
         credentials_services.revoke_credential(credential)
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.signingcredential_revoked',
@@ -614,27 +617,61 @@ class SigningCredentialRevokeView(SigningView):
 
 
 class SigningSessionStartView(SigningView):
+    @staticmethod
+    def _pedir_codigo(request):
+        """Manda reconfirmar o segundo fator e voltar aos certificados.
+
+        Devolvia `403` com a frase solta em fundo branco: dizia o que
+        fazer e nao oferecia onde -- a tela de reconfirmacao nao existia.
+
+        A senha do certificado **nao** e guardada para ser reenviada
+        depois do codigo: ela abre a chave privada, e nada que a guarde
+        (sessao, cache, campo oculto) vale a comodidade de nao redigita-la.
+        O aviso diz isso, para a redigitacao nao parecer defeito.
+        """
+        from accounts.mfa import redirect_to_mfa_confirm
+
+        messages.info(
+            request,
+            'Confirme o código do aplicativo autenticador para liberar a assinatura. '
+            'Depois disso você digita a senha do certificado de novo.',
+        )
+        return redirect_to_mfa_confirm(request, reverse('documents:credential-list'))
+
     def post(self, request):
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
-            return HttpResponseForbidden('Only a doctor membership may start a signing session.')
+            return HttpResponseForbidden('Só um vínculo de médico pode abrir sessão de assinatura.')
+        # A MFA e conferida **antes** do formulario e do certificado, e nao
+        # dentro de `start_session`. Conferida depois, o medico que
+        # esbarrasse na MFA vencida recebia primeiro uma recusa sobre o
+        # certificado -- e, mesmo acertando tudo, so descobria no fim que
+        # faltava o codigo, com a senha ja digitada e perdida. O codigo e
+        # pre-condicao da operacao, nao da credencial.
+        #
+        # `start_session` continua conferindo por conta propria: esta e a
+        # ordem da tela, nao a trava.
+        from accounts.mfa import mfa_verified_recently
+
+        if not mfa_verified_recently(request):
+            return self._pedir_codigo(request)
         form = SigningSessionStartForm(request.POST)
         if not form.is_valid():
-            return HttpResponseForbidden('Invalid form.')
+            return HttpResponseForbidden('Formulário inválido.')
         credential = SigningCredential.objects.filter(
             id=form.cleaned_data['credential_id'], physician=physician_membership,
         ).first()
         if credential is None:
-            return HttpResponseForbidden('Credential not found for this physician.')
+            return HttpResponseForbidden('Certificado não encontrado para este médico.')
         try:
             signing_sessions.start_session(
                 request, physician_membership, credential,
                 form.cleaned_data['password'], int(form.cleaned_data['duration_hours']),
             )
-        except (
-            signing_sessions.RecentMfaRequired, signing_sessions.InvalidDuration,
-            signing_sessions.CredentialNotUsable,
-        ) as exc:
+        except signing_sessions.RecentMfaRequired:
+            # Corrida: a MFA venceu entre a conferencia acima e esta linha.
+            return self._pedir_codigo(request)
+        except (signing_sessions.InvalidDuration, signing_sessions.CredentialNotUsable) as exc:
             return HttpResponseForbidden(str(exc))
         except InvalidPfxPassword:
             record_audit_event(
@@ -659,7 +696,7 @@ class SigningSessionRevokeView(SigningView):
         session = SigningSession.objects.filter(id=session_id, physician=physician_membership).first() \
             if physician_membership else None
         if session is None:
-            return HttpResponseForbidden('Session not found for this physician.')
+            return HttpResponseForbidden('Sessão de assinatura não encontrada para este médico.')
         signing_sessions.revoke_session(session)
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.signingsession_revoked',
