@@ -60,10 +60,9 @@ Puxar, e não empurrar, é a decisão que importa: se a VPS empurrasse, ela
 guardaria a credencial do destino, e quem a invadisse apagaria também a
 cópia de fora. Puxando, a VPS não sabe que o disco existe.
 
-Antes da primeira execução faltam dois passos **na VPS**, descritos lá:
-dar leitura do grupo a `/srv/neurodoc-backups` (hoje `0700` de
-`neurodocops`, e o SSH entra como `deploy`) e trocar o `UMask` da unidade
-de backup para que os conjuntos futuros nasçam legíveis.
+Não falta nada na VPS: o diretório já é `0700` do próprio `deploy`, que é
+quem roda o backup e quem entra por SSH. Falta plugar o disco e agendar a
+tarefa no PC.
 
 ### A chave privada do backup está num lugar só
 

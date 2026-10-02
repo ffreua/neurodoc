@@ -30,35 +30,19 @@ cópia cifrada, e só. Decifrar é `docs/operations/restore.md`.
 
 ## Antes da primeira execução
 
-### 1. Dar leitura ao usuário que faz SSH
+### 1. Permissão: nada a fazer
 
-`/srv/neurodoc-backups` é `0700` do usuário `neurodocops`, e o SSH entra
-como `deploy`. Sem isto o `scp` devolve "Permission denied" e nada mais.
+Conferido na VPS em 2026-10-02: `/srv/neurodoc-backups` é `0700` **do
+próprio `deploy`**, que é quem roda a unidade de backup e quem entra por
+SSH. O acesso de leitura já existe.
 
-Na VPS, uma vez:
+Vale registrar porque a versão anterior desta página mandava rodar
+`usermod -aG neurodocops deploy` e afrouxar o diretório para `0750` — lido
+do molde `ops/neurodoc-backup.service` (que diz `User=neurodocops`) em vez
+do servidor real, onde `setup_deploy.sh` substituiu o usuário por
+`deploy`. Seria afrouxar permissão à toa.
 
-```bash
-sudo usermod -aG neurodocops deploy
-sudo chmod 0750 /srv/neurodoc-backups
-sudo find /srv/neurodoc-backups -mindepth 1 -maxdepth 1 -type d -exec chmod 0750 {} +
-sudo find /srv/neurodoc-backups -type f -exec chmod 0640 {} +
-```
-
-E para que os backups **futuros** nasçam legíveis pelo grupo, o
-`UMask=0077` de `ops/neurodoc-backup.service` precisa virar `0027`:
-
-```bash
-sudo sed -i 's/^UMask=0077$/UMask=0027/' /etc/systemd/system/neurodoc-backup.service
-sudo systemctl daemon-reload
-```
-
-**O que isto afrouxa, e o que não.** Passa de "só `neurodocops` lê" para
-"`neurodocops` e o grupo leem". Continua fechado para qualquer outro
-usuário, e o conteúdo segue cifrado com `age` — quem lê o arquivo sem a
-chave privada lê ruído. A alternativa, entrar como `neurodocops` por SSH,
-daria ao PC um acesso mais poderoso que o necessário.
-
-Conferir que funcionou, do PC:
+Conferir, do PC:
 
 ```powershell
 ssh deploy@23.106.44.46 "ls /srv/neurodoc-backups | head"
