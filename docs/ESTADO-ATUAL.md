@@ -23,7 +23,7 @@ demonstração em produção.
 | --- | --- |
 | `DEBUG` | `False` |
 | HTTPS forçado, cookies `secure` | sim |
-| **HSTS** | **ligado em 02/10/2026** — 1 ano, sem subdomínios. Não há volta |
+| **HSTS** | **ligado em 02/10/2026** — 1 ano, **com** subdomínios. Não há volta |
 | **CSP** | **em modo bloqueio desde 02/10/2026**. Dá para voltar: `CSP_ENFORCE=False` e republicar |
 | MFA | obrigatória para certificado e console de instalação |
 
@@ -142,9 +142,13 @@ não cobriam o arquivo que ninguém lembrou de acrescentar. As três viraram
 varreduras do repositório.
 
 **Documento que afirma o que o servidor não faz custa mais que documento
-que não diz nada.** Aconteceu duas vezes: a chave estrangeira composta
-"em toda parte" que estava em dois apps, e o isolamento de rede que nunca
-existiu.
+que não diz nada.** Aconteceu três vezes: a chave estrangeira composta
+"em toda parte" que estava em dois apps, o isolamento de rede que nunca
+existiu, e esta tabela dizendo que o HSTS estava **sem** subdomínios
+quando `SECURE_HSTS_INCLUDE_SUBDOMAINS=True` no `.env` da VPS e o
+cabeçalho em produção traz `includeSubDomains`. A terceira é a mais
+perigosa das três: HSTS não tem volta, e um dia alguém publicaria algo em
+`sub.neurodoc.app.br` sem HTTPS confiando nesta linha.
 
 **Efeito colateral não pode derrubar o ato.** Uma entrega que falha tem
 de virar linha vermelha numa lista, nunca uma tela de erro sobre um
