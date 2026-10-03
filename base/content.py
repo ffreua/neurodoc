@@ -150,9 +150,12 @@ RECURSOS = [
 #: assinatura, portal e financeiro não sabem o que é um reflexo.
 #:
 #: **Sem prometer o que não existe**, que é a regra do topo deste módulo.
-#: Não há roteiro de exame de outra especialidade, e a ressalva diz isso
-#: com todas as letras — em vez de deixar o ortopedista descobrir depois
-#: de migrar o cadastro.
+#: Não há roteiro de exame de outra especialidade, e nada aqui sugere que
+#: haja: a coluna da direita diz que o roteiro é da neurologia, e o
+#: `fecho` diz por onde o médico de outra especialidade entra — texto
+#: livre, que é como quase todo prontuário do mercado registra. A
+#: diferença entre dizer isso e omitir é o ortopedista descobrir agora,
+#: ou depois de migrar o cadastro.
 ESPECIALIDADES = {
     'titulo': 'Nasceu na neurologia. Funciona em qualquer consultório.',
     'texto': 'A neurologia é a especialidade mais exigente em registro de exame '
@@ -201,17 +204,46 @@ ESPECIALIDADES = {
          'NIHSS, Rankin, Hoehn e Yahr, MEEM e outras dez, com escore e faixa de '
          'interpretação calculados dentro do atendimento.'),
     ],
-    'ressalva': 'Não existe roteiro de exame de outra especialidade, e não vamos '
-                'dizer que existe. Quem atende fora da neurologia usa o '
-                'atendimento em texto livre — que é como quase todo prontuário do '
-                'mercado funciona. O roteiro é o que há a mais aqui, não uma '
-                'condição para usar o resto.',
+    # A linha de fecho da seção: diz, em uma frase, por onde o médico de
+    # outra especialidade entra. Ela existe porque as duas colunas acima
+    # descrevem o produto e não respondem "e eu, como uso isto?" — e essa
+    # é a pergunta de quem acabou de ler que o roteiro de exame é de
+    # neurologia.
+    'fecho': 'Quem atende fora da neurologia evolui em texto livre — a folha em '
+             'branco com a consulta anterior ao lado, que é como quase todo '
+             'prontuário do mercado registra — e usa o resto inteiro: agenda, '
+             'receita com a lista da Anvisa, documento assinado, portal do '
+             'paciente, convênios e financeiro. O roteiro de exame é o que há a '
+             'mais para a neurologia; todo o resto foi feito para consultório '
+             'médico, qualquer que seja a especialidade.',
 }
 
 #: Perguntas que um médico faz antes de confiar o prontuário a alguém. As
 #: respostas dizem o que o sistema faz — inclusive quando a resposta é
 #: desconfortável, como a do item sobre o que ainda não existe.
 FAQ = [
+    # Esta vem primeiro porque é a pergunta que decide se as outras
+    # importam. Quem não é neurologista chega ao FAQ depois de ler uma
+    # página inteira sobre exame neurológico, e enquanto não souber se o
+    # sistema serve ao consultório dele, nenhuma resposta sobre sigilo ou
+    # assinatura muda coisa alguma.
+    {
+        'pergunta': 'Como o NeuroDoc serve para outras especialidades?',
+        'resposta': 'O atendimento tem dois tipos, e o de texto livre não é de '
+                    'especialidade nenhuma: é a folha em branco com a consulta '
+                    'anterior ao lado para revisar, que é como quase todo '
+                    'prontuário do mercado registra. Quem atende fora da '
+                    'neurologia evolui por ali. E todo o resto é de consultório '
+                    'médico, não de neurologia: agenda por profissional, receita '
+                    'com as vinte e seis mil apresentações da Anvisa, laudo e '
+                    'atestado assinados digitalmente com verificação por QR, '
+                    'CID-10 e TUSS completos, convênios, honorários e '
+                    'recebíveis, portal para o paciente pedir receita, '
+                    'exportação do acervo e o apoio de inteligência artificial. '
+                    'O roteiro de exame com trezentos e oitenta e sete itens e '
+                    'as catorze escalas pontuadas são o que há a mais para a '
+                    'neurologia — não uma condição para usar o resto.',
+    },
     {
         'pergunta': 'Quem consegue ler o prontuário dos meus pacientes?',
         'resposta': 'Apenas quem tem vínculo clínico na sua clínica. Quem opera o '

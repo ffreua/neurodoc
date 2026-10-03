@@ -36,10 +36,12 @@ O que este roteiro cobra, e onde da errado:
 - **os icones respondem na raiz**, com os bytes certos: o `.ico` e um ICO
   de verdade e o cartao do Open Graph mede 1200x630 -- o tamanho que o
   WhatsApp e o LinkedIn esperam;
-- **a pagina diz que serve a outras especialidades**, com a ressalva de
-  que nao ha roteiro de exame fora da neurologia. E a secao que impede um
-  ortopedista de ir embora na primeira tela -- e a ressalva e o que a
-  torna verdadeira.
+- **a pagina diz que serve a outras especialidades, e diz por onde.** E a
+  secao que impede um ortopedista de ir embora na primeira tela; a linha
+  de fecho e a que responde "e eu, como uso isto?" -- texto livre. A
+  mesma resposta tem de estar no FAQ e no JSON-LD da raiz, que e o que o
+  Google mostra a quem procura "prontuario eletronico" sem dizer
+  especialidade nenhuma.
 """
 import json
 import re
@@ -322,8 +324,18 @@ conferir('o H1 diz "prontuario eletronico" por extenso',
 faltando = [t for t, _ in ESPECIALIDADES['comum'] if t not in html]
 conferir('todo item do catalogo que serve a qualquer especialidade esta na pagina',
          faltando, [])
-conferir('a ressalva tambem -- e ela e o que torna o resto crivel',
-         ESPECIALIDADES['ressalva'][:60] in html, True)
+conferir('a linha de fecho tambem -- e ela que diz por onde o outro medico entra',
+         ESPECIALIDADES['fecho'][:60] in html, True)
+# A pergunta de encaixe tem de estar no FAQ **e** nos dados estruturados:
+# e ela que o Google mostra a quem procura "prontuario eletronico" sem
+# dizer especialidade nenhuma.
+encaixe = [f for f in FAQ if 'outras especialidades' in f['pergunta']]
+conferir('o FAQ responde como o sistema serve a outra especialidade',
+         len(encaixe), 1)
+conferir('e a resposta diz que se evolui em texto livre',
+         'texto livre' in encaixe[0]['resposta'], True)
+conferir('e esta tambem no JSON-LD da raiz',
+         encaixe[0]['pergunta'] in [q['name'] for q in perguntas['mainEntity']], True)
 conferir('a descricao do catalogo diz o mesmo',
          'qualquer especialidade' in seo.RESUMO, True)
 

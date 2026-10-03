@@ -173,9 +173,18 @@ documento assinado, CID-10 e TUSS completos, convênio e honorário,
 portal, IA) do que é de neurologia (o roteiro de 387 itens e as catorze
 escalas).
 
-**A ressalva é o que torna o resto crível:** a seção diz, com todas as
-letras, que não existe roteiro de exame de outra especialidade. Sem ela,
-o ortopedista descobriria isso depois de migrar o cadastro.
+**A linha de fecho responde "e eu, como uso isto?"** — a pergunta que as
+duas colunas deixam em pé. Quem atende fora da neurologia evolui em
+texto livre, a folha em branco com a consulta anterior ao lado, e usa o
+resto inteiro. Sem essa frase, quem lê que o roteiro de exame é de
+neurologia fica sem saber por onde entra.
+
+A mesma resposta entrou no FAQ da página — "Como o NeuroDoc serve para
+outras especialidades?", a **primeira** pergunta, porque enquanto ela não
+é respondida nenhuma resposta sobre sigilo ou assinatura muda coisa
+alguma para quem não é neurologista. Estando no FAQ, ela entra também no
+`FAQPage` do JSON-LD, que é o que o Google pode mostrar a quem procura
+"prontuário eletrônico" sem dizer especialidade nenhuma.
 
 Também mudaram:
 
@@ -220,7 +229,8 @@ tempos e tira a propriedade de quem removeu a tag.
    FAQ do mesmo tamanho do da página, e `</script>` escapado;
 8. os ícones respondem na raiz com os bytes certos — o `.ico` é um ICO
    com três tamanhos dentro, o cartão mede 1200×630;
-9. a seção de especialidades está na página, com a ressalva;
+9. a seção de especialidades está na página, com a linha de fecho, e a
+   pergunta de encaixe está no FAQ e no JSON-LD;
 10. sem token configurado, nenhuma tag de verificação vazia é emitida.
 
 Bateria completa: **89 roteiros**, nenhuma falha.
