@@ -11,7 +11,7 @@ from tenancy.invitations import peek_invitation
 from tenancy.models import InvitationPurpose
 from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
 
-from .content import AUTOR, FAQ, RECURSOS
+from .content import AUTOR, ESPECIALIDADES, FAQ, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
@@ -161,6 +161,11 @@ class LandingView(View):
             'ha_promocao': any(p['price'].get('promo') for p in planos),
             'autor': AUTOR,
             'recursos': RECURSOS,
+            # O que, neste sistema, nao e de neurologia. Vem do catalogo
+            # como o resto do texto desta pagina: a lista precisa ser
+            # conferivel contra o que o produto faz, e dentro do HTML a
+            # conferencia viraria uma busca por substring no markup.
+            'especialidades': ESPECIALIDADES,
             'faq': FAQ,
             # Quatro artigos do manual, para a pagina mostrar que ele existe
             # sem virar um indice dentro da pagina de vendas.

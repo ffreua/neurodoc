@@ -32,6 +32,15 @@ TRUSTED_PROXIES = env.list('TRUSTED_PROXIES', default=[
     '10.0.0.0/8', '172.16.0.0/12', '192.168.0.0/16', '127.0.0.0/8', '::1/128',
 ])
 PUBLIC_BASE_URL = env('PUBLIC_BASE_URL', default='http://localhost:8000')
+#: O token que o Google Search Console pede para provar que o domínio é
+#: nosso. Vazio -- o padrão -- simplesmente não emite a meta tag.
+#:
+#: Em variável de ambiente, e não no template, porque é por instalação:
+#: quem subir o NeuroDoc no próprio domínio tem outro token, e deixá-lo
+#: no HTML versionado faria toda instalação declarar a propriedade da
+#: nossa. Depois de verificado, o token pode ficar: o Google revalida de
+#: tempos em tempos e a propriedade cai se a tag sumir.
+GOOGLE_SITE_VERIFICATION = env('GOOGLE_SITE_VERIFICATION', default='')
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = env('TIME_ZONE', default='America/Sao_Paulo')
 USE_I18N = True
@@ -99,6 +108,12 @@ TEMPLATES = [{
         'django.contrib.messages.context_processors.messages',
         'base.context_processors.shell',
         'base.csp.csp_nonce',
+        # Título, descrição, canônica, Open Graph e dados estruturados.
+        # Em processador de contexto, e não em cada view, porque o que
+        # ele tem de garantir é o **negativo**: toda página que não está
+        # no catálogo de `base/seo.py` sai com `noindex`. Posto view a
+        # view, a tela esquecida seria a indexada.
+        'base.seo.contexto',
     ]},
 }]
 AUTH_PASSWORD_VALIDATORS = [

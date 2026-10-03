@@ -1,5 +1,10 @@
 .git
 .venv
+# Um ambiente virtual de Linux sobrou nesta pasta e o `lib64` dele e um
+# link simbolico quebrado no Windows: o `docker build` para ali, ao montar
+# o contexto, com um erro que nao diz que o problema e um diretorio que a
+# imagem nunca usaria. Ignorado pelo mesmo motivo que `.venv`.
+venv
 .env
 .env.*
 .secrets

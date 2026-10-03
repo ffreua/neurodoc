@@ -36,6 +36,17 @@ já usa, mas nada deixa de funcionar — busca, documento e mensagem seguem
 achando e imprimindo o mesmo paciente —, então a versão menor avança e a
 maior não.
 
+A **1.5** é a primeira entrega que muda o que o produto mostra a quem
+ainda não é cliente: título, descrição, canônica e dados estruturados em
+toda página, `robots.txt` e `sitemap.xml` na raiz, a família de ícones da
+marca, o cartão de compartilhamento, e a seção que diz que o sistema
+serve a qualquer especialidade. Nada do que já existia muda de
+comportamento — por isso a menor.
+
+Ela carrega também a correção de um defeito antigo que nenhuma versão
+tinha: o `<title>` nunca chegava à página, porque o bloco que o definia
+morava dentro de um `{% include %}`. Fosse só isso, não mudaria a versão.
+
 Mora em código, como os preços e o contrato, e pelo mesmo motivo: mudá-la
 é um commit com autor e data. Este módulo não importa nada de propósito —
 `ops/deploy.py` roda no host, fora do Django, e precisa ler a versão para
@@ -49,12 +60,12 @@ carimbá-la na publicação.
 #: Dizer "1.1" para as duas faria o chamado de suporte não distinguir quem
 #: já tem a correção de quem ainda vê o defeito -- que é exatamente o que a
 #: versão existe para responder.
-VERSION = '1.4'
+VERSION = '1.5'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'quem assina é o autor'
+CODENAME = 'encontrável'
 
 
 def version_display():

@@ -1,5 +1,11 @@
 {% extends "base_auth.html" %}
-{% block title %}Verificação de documento médico{% endblock %}
+{% comment %}Duas paginas no mesmo template. Sem token e o formulario em
+branco, que a farmacia abre para digitar o codigo -- publica, listada no
+sitemap, e o titulo dela sai do catalogo de `base/seo.py`. Com token, a
+pagina mostra tipo de documento, medico e data: fora do catalogo, `noindex`,
+e o titulo precisa ser escrito aqui porque nao ha catalogo para
+consultar.{% endcomment %}
+{% block title %}{% if nd_seo.canonica %}{{ nd_seo.titulo }}{% else %}Verificação de documento médico — NeuroDoc{% endif %}{% endblock %}
 {% block card_width %}wd-700{% endblock %}
 {% block heading %}Verificação de documento{% endblock %}
 {% block subheading %}

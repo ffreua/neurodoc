@@ -80,6 +80,17 @@
     background: var(--bs-primary, #3454d1);
 }
 
+/* A marca deixou de ser uma letra em CSS e passou a ser
+ * `static/brand/neurodoc-mark.svg`, o mesmo desenho do favicon. O SVG ja
+ * traz o quadrado arredondado e o degrade; sem zerar o fundo e o raio
+ * herdados das regras acima, o azul chapado do CSS aparece nos quatro
+ * cantos do desenho, meio tom diferente do degrade que ele mesmo tem. */
+img.brand-mark {
+    background: none;
+    border-radius: 0;
+    object-fit: contain;
+}
+
 .nd-auth-brand .brand-name {
     color: #283c50;
     font-size: 20px;

@@ -39,7 +39,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**88 roteiros de verificação, nenhuma falha.** São o que substitui a
+**89 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 
@@ -112,13 +112,23 @@ risco de mexer na rede de produção.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
   deploy.
-- O `CLAUDE.md` lista 42 dos 88 roteiros ("os mais relevantes") e 4 views
+- O `CLAUDE.md` lista 43 dos 89 roteiros ("os mais relevantes") e 4 views
   de catálogo têm `required_capability = None` sem o comentário que a
   convenção exige.
 
 ## 4. As lições que custaram caro nesta sessão
 
 Estão aqui porque cada uma voltou disfarçada de outra coisa.
+
+**Há defeito que não quebra nada e por isso ninguém encontra.** O
+`<title>` da página inteira do produto era a palavra "NeuroDoc" desde
+sempre: `partials/head.html` entra por `{% include %}` e o bloco morava
+lá dentro — bloco não atravessa include, e os noventa e nove
+`{% block title %}` dos templates eram letra morta. Nada quebra, nada vai
+para o log, e o sintoma só existe na aba do navegador e na primeira linha
+do resultado de busca, que são os dois lugares onde ninguém olha ao
+conferir uma tela. Encontrado em 2026-10-03, ao montar o SEO; o roteiro
+que o teria pego é `check_seo.py` (ver `docs/homologation/seo.md`).
 
 **Um teste que não falha com o defeito presente não é teste.** Quatro
 ocorrências: roteiro lendo a própria legenda; roteiro de paginação sem

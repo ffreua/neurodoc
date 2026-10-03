@@ -140,6 +140,74 @@ RECURSOS = [
     },
 ]
 
+#: O que, neste sistema, não é de neurologia.
+#:
+#: Existe por uma razão medida em visitante perdido: a página inteira fala
+#: de neurologia, e um clínico, um ortopedista ou um psiquiatra que chegue
+#: aqui por busca conclui em dez segundos que o produto não é para ele — e
+#: vai embora sem procurar a resposta. A resposta é sim, e é conferível:
+#: atendimento em texto livre, agenda, receita com a lista da Anvisa,
+#: assinatura, portal e financeiro não sabem o que é um reflexo.
+#:
+#: **Sem prometer o que não existe**, que é a regra do topo deste módulo.
+#: Não há roteiro de exame de outra especialidade, e a ressalva diz isso
+#: com todas as letras — em vez de deixar o ortopedista descobrir depois
+#: de migrar o cadastro.
+ESPECIALIDADES = {
+    'titulo': 'Nasceu na neurologia. Funciona em qualquer consultório.',
+    'texto': 'A neurologia é a especialidade mais exigente em registro de exame '
+             'físico — são trezentos e oitenta e sete verificações, catorze '
+             'escalas e um seguimento que dura anos. Um prontuário que dá conta '
+             'disso dá conta do resto com folga. Tudo que não é o roteiro '
+             'neurológico serve a qualquer especialidade, sem configuração e sem '
+             'versão diferente do produto.',
+    'comum': [
+        ('Atendimento em texto livre',
+         'O prontuário tem dois tipos, e o segundo é uma folha em branco com a '
+         'consulta anterior ao lado. É como a maior parte das especialidades '
+         'registra, e é o padrão de quem não usa o roteiro.'),
+        ('Agenda por profissional',
+         'Grade própria por médico, duração por tipo de atendimento, bloqueio de '
+         'horário sobreposto, feriado, retorno programado e confirmação por '
+         'e-mail ou SMS.'),
+        ('Receita com a lista inteira da Anvisa',
+         'Vinte e seis mil apresentações da CMED, com a tarja de cada uma. '
+         'Receita simples e de controle especial, esta em duas vias e com o '
+         'quadro da Portaria 344/98.'),
+        ('Documento assinado digitalmente',
+         'Laudo, atestado, declaração de comparecimento, pedido de exame e '
+         'encaminhamento, assinados em PAdES com o certificado do próprio '
+         'médico e verificáveis por QR.'),
+        ('CID-10 e TUSS completos',
+         'O catálogo inteiro, não um recorte de neurologia: diagnóstico, '
+         'procedimento e o espelho da TUSS atualizado toda semana.'),
+        ('Convênio, honorário e recebível',
+         'Tabela de honorários com vigência, convênios por paciente, '
+         'recebíveis, pagamentos e ajustes — tudo em centavos, sem ponto '
+         'flutuante.'),
+        ('Portal do paciente e entrega por link',
+         'O paciente pede receita, relatório ou exame sem criar conta, e recebe '
+         'o documento por link com código de acesso.'),
+        ('IA que redige, médico que assina',
+         'Resumo do atendimento, leitura de laudo e relatório para o paciente. '
+         'O texto sai desidentificado e nada entra no prontuário sem o médico '
+         'aceitar — o que vale para qualquer especialidade.'),
+    ],
+    'neuro': [
+        ('Roteiro de exame neurológico em árvore',
+         'Trezentos e oitenta e sete itens por eixo, com "tudo normal" por grupo '
+         'e o achado anormal destacado.'),
+        ('Catorze escalas com pontuação automática',
+         'NIHSS, Rankin, Hoehn e Yahr, MEEM e outras dez, com escore e faixa de '
+         'interpretação calculados dentro do atendimento.'),
+    ],
+    'ressalva': 'Não existe roteiro de exame de outra especialidade, e não vamos '
+                'dizer que existe. Quem atende fora da neurologia usa o '
+                'atendimento em texto livre — que é como quase todo prontuário do '
+                'mercado funciona. O roteiro é o que há a mais aqui, não uma '
+                'condição para usar o resto.',
+}
+
 #: Perguntas que um médico faz antes de confiar o prontuário a alguém. As
 #: respostas dizem o que o sistema faz — inclusive quando a resposta é
 #: desconfortável, como a do item sobre o que ainda não existe.

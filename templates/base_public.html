@@ -13,6 +13,10 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
 <html lang="pt-br">
 <head>
     {% include "partials/head.html" %}
+    {% comment %}Aqui, e nao em `partials/head.html`: bloco nao atravessa
+    `{% include %}`, e enquanto o titulo morou la nenhuma pagina conseguiu
+    declarar o proprio. O padrao vem do catalogo de `base/seo.py`.{% endcomment %}
+    <title>{% block title %}{{ nd_seo.titulo }}{% endblock %}</title>
     <link rel="stylesheet" href="{% static 'onboarding/landing.css' %}">
 </head>
 <body class="nd-public">
@@ -20,7 +24,8 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
 <nav class="nd-public-nav">
     <div class="container d-flex align-items-center justify-content-between">
         <a class="nd-auth-brand mb-0" href="{% url 'onboarding:landing' %}">
-            <span class="brand-mark" aria-hidden="true">N</span>
+            <img class="brand-mark" src="/neurodoc-mark.svg" width="38" height="38"
+                 alt="" aria-hidden="true">
             <span class="brand-name">NeuroDoc</span>
         </a>
         <div class="d-flex align-items-center gap-3">
@@ -50,13 +55,17 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
         <div class="row g-4 align-items-start">
             <div class="col-md-6">
                 <a class="nd-auth-brand mb-2" href="{% url 'onboarding:landing' %}">
-                    <span class="brand-mark" aria-hidden="true">N</span>
+                    <img class="brand-mark" src="/neurodoc-mark.svg" width="38" height="38"
+                 alt="" aria-hidden="true">
                     <span class="brand-name">NeuroDoc</span>
                 </a>
                 <p class="fs-12 text-muted mb-0" style="max-width: 32rem;">
-                    Sistema de prontuário e gestão para consultórios de neurologia e
-                    neurocirurgia. Os dados clínicos ficam sob sigilo médico: quem
-                    hospeda o sistema não lê prontuário de ninguém.
+                    Prontuário eletrônico e gestão de consultório, com o exame
+                    neurológico estruturado que a neurologia e a neurocirurgia exigem
+                    — e com agenda, receita, documento assinado e financeiro que
+                    servem a qualquer especialidade. Os dados clínicos ficam sob
+                    sigilo médico: quem hospeda o sistema não lê prontuário de
+                    ninguém.
                 </p>
             </div>
             <div class="col-md-3">

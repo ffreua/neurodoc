@@ -7,6 +7,13 @@ from documents.verification import DocumentVerificationView
 from ops.docs import technical_docs
 
 urlpatterns = [
+    # Os nomes fixos que o navegador e o rastreador pedem sem ler o HTML:
+    # `/robots.txt`, `/sitemap.xml`, `/favicon.ico`, os ícones do
+    # aplicativo instalável e o cartão de compartilhamento. Primeiro na
+    # lista porque são literais, não casam com mais nada, e porque
+    # `/static/<sha>/` — onde mora o resto — muda de endereço a cada
+    # publicação, que é justamente o que não serve a eles.
+    path('', include('base.public_urls')),
     path('admin/dj-control-room-base/', include('dj_control_room_base.urls')),
     path('admin/dj-celery-panel/', include('dj_celery_panel.urls')),
     path('admin/dj-control-room/', include('dj_control_room.urls')),

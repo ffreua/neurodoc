@@ -136,7 +136,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | App | O que guarda / faz |
 | --- | --- |
 | `core` | settings, urls, asgi, celery |
-| `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`) e central de ajuda (`base/help_content.py`) |
+| `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`), central de ajuda (`base/help_content.py`) e **como o produto aparece na busca** (`base/seo.py`, `base/seo_views.py` — ver §7-E) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
 | `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação), `ContractAcceptance`; **planos, limites, a matriz de permissão e o contrato de adesão** (`contract.py`) |
 | `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto, **forma canônica do nome** (`naming.py`: caixa alta, gravada) e a **migração de cadastro** de outro sistema (`importacao.py` + `import_pacientes_xml`) |
@@ -324,6 +324,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_por_cid.py` | busca de paciente por diagnóstico: a fronteira (a secretária e o gestor não abrem a tela), o código por prefixo com o ponto dispensável, o diagnóstico anotado sem código, e o refutado que não volta — vale a última palavra sobre cada código |
 | `check_retorno.py` | retorno programado: meses de calendário sem estourar o fim do mês, um retorno por atendimento, a janela de 20 dias com o dia perdido recuperado, o `notified_at` que barra o segundo e-mail, a recusa do contato respeitada, a redação de cuidado e não de captação, e a fila da secretária |
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
+| `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
@@ -442,6 +443,59 @@ parar de apagar é a direção segura, e uma pergunta a mais ali custaria o
 tempo que importa. Autorizar o apagamento exige digitar `APAGAR` e escrever
 o motivo, que vai para a trilha — do outro lado há arquivo clínico que não
 volta. `check_decisoes.py` cobra as duas direções.
+
+## 7-E. Como o produto aparece na busca
+
+**`base/seo.py` é o catálogo, e dele saem quatro coisas ao mesmo tempo:**
+o `<title>` padrão e a `description` de cada página, o
+`<meta name="robots">` de **todas** elas, as linhas do `sitemap.xml` e o
+grafo JSON-LD. Fonte única pela mesma razão dos preços — e por uma a
+mais: um sitemap que anuncia página marcada `noindex` é o erro clássico
+do gênero, e com as duas coisas lendo a mesma lista ele não tem onde
+nascer.
+
+**A lista é de permissão.** `PAGINAS` enumera o que pode ser indexado —
+a raiz, a ajuda, os 21 artigos do manual, as perguntas, o contrato e o
+formulário de verificação em branco. **Tudo que não está lá sai
+`noindex, nofollow`**, inclusive `/verificar/<token>/`, que mostra tipo
+de documento, médico e data. Rota nova nasce privada; escrita ao
+contrário, a primeira a vazar seria a que ninguém lembrou de listar.
+
+**O `<title>` não mora em `partials/head.html`.** Morava, e não
+funcionava: aquele arquivo entra por `{% include %}`, e **bloco não
+atravessa include** — toda página do produto serviu
+`<title>NeuroDoc</title>` a vida inteira, inclusive a de vendas, que
+declara o próprio título três linhas acima. Agora o `<title>` está no
+`<head>` de cada shell (`base.html`, `base_auth.html`,
+`base_public.html`), onde o `{% block title %}` do filho chega, com o
+catálogo de padrão.
+
+**Endereço absoluto vem sempre de `PUBLIC_BASE_URL`**
+(`seo.absoluta`), nunca do `Host:` da requisição — que é um cabeçalho do
+cliente, e com ele um pedido forjado faria a página declarar que o
+original está em outro domínio.
+
+**O JSON-LD precisa do nonce.** `script-src` não tem `unsafe-inline`, e
+a política aplicada não distingue um bloco de JSON de um bloco de código:
+sem `nonce="{{ nd_csp_nonce }}"` o navegador descarta o grafo inteiro em
+silêncio.
+
+**`robots.txt`, `sitemap.xml`, `favicon.ico`, os ícones do aplicativo
+instalável, `site.webmanifest` e o cartão do Open Graph são servidos na
+raiz** por `base/seo_views.py`, e não por `{% static %}`: o estático vai
+para `/static/<sha>/`, e esses endereços não podem mudar a cada
+publicação — o navegador pede `/favicon.ico` sem ler o HTML, e o WhatsApp
+guarda a imagem do cartão pela URL.
+
+**Os ícones são gerados, não desenhados à mão.**
+`python scripts/gerar_icones.py` escreve `static/brand/` inteiro de uma
+geometria só; o resultado vai versionado. Duas variantes da mesma marca,
+e a razão é tamanho: em 16 px o traçado de pulso some no antialiasing, e
+por isso o `.ico` e o SVG da aba levam só o monograma.
+
+`GOOGLE_SITE_VERIFICATION` no `.env` emite a meta tag do Search Console.
+Vazio não emite nada. Detalhe e homologação em
+`docs/homologation/seo.md`; o roteiro é `check_seo.py`.
 
 ## 8. Deploy
 

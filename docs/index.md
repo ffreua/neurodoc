@@ -43,6 +43,12 @@ PRD; é a referência operacional viva gerada a partir dele.
   doze processos com 25 capturas das telas reais, público e ligado à página
   inicial; o roteiro impede que o manual aponte para imagem que não existe.
 
+- [SEO, ícones e indexação](homologation/seo.md) — o catálogo único de que
+  saem título, descrição, `robots`, sitemap e dados estruturados; o
+  `{% block title %}` que nunca chegou à página porque bloco não atravessa
+  include; a família de ícones gerada de uma geometria só; e a seção que
+  responde ao médico de outra especialidade antes de ele ir embora.
+
 ## Planos e oferta comercial
 
 - [Especificação: planos, limites, convites e página de vendas](specs/2026-09-12-planos-e-limites.md) —

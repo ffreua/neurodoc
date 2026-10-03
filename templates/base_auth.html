@@ -5,11 +5,15 @@ no header — the Duralux auth card layout instead.{% endcomment %}
 <html lang="pt-br">
 <head>
     {% include "partials/head.html" %}
+    {% comment %}Aqui, e nao em `partials/head.html`: bloco nao atravessa
+    `{% include %}`, e enquanto o titulo morou la nenhuma pagina conseguiu
+    declarar o proprio. O padrao vem do catalogo de `base/seo.py`.{% endcomment %}
+    <title>{% block title %}{{ nd_seo.titulo }}{% endblock %}</title>
 </head>
 <body class="auth-container">
 <div class="nd-auth-shell">
     <a class="nd-auth-brand" href="{% url 'onboarding:landing' %}">
-        <span class="brand-mark" aria-hidden="true">N</span>
+        <img class="brand-mark" src="/neurodoc-mark.svg" width="38" height="38" alt="" aria-hidden="true">
         <span class="brand-name">NeuroDoc</span>
     </a>
     <p class="fs-12 text-muted mb-3">{% block tagline %}Prontuário e gestão da clínica neurológica{% endblock %}</p>

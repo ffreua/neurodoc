@@ -1,9 +1,76 @@
 {% load static %}
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}NeuroDoc{% endblock %}</title>
-{# Inline SVG mark: keeps the favicon request off the network entirely. #}
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233454d1'/%3E%3Ctext x='16' y='23' font-family='system-ui,sans-serif' font-size='19' font-weight='700' fill='%23fff' text-anchor='middle'%3EN%3C/text%3E%3C/svg%3E">
+{% comment %}O `<title>` **não** fica aqui, e isso não é descuido.
+
+Ficava, dentro de um `{% block title %}` — e o bloco nunca foi
+preenchido: este arquivo entra por `{% include %}`, e bloco não atravessa
+include. O resultado ficou no ar por toda a vida do produto: cada página
+servia `<title>NeuroDoc</title>`, inclusive a de vendas, que declara o
+próprio título na terceira linha e era ignorada em silêncio. O título é a
+primeira linha de um resultado de busca e o texto da aba.
+
+Agora cada shell (`base.html`, `base_public.html`, `base_auth.html`) tem o
+`<title>` no próprio `<head>`, onde o bloco do filho de fato chega, com
+`{{ nd_seo.titulo }}` de padrão para quem não declara nenhum.
+{% endcomment %}
+{% comment %}Descrição, canônica e `robots` vêm de `base/seo.py`, pela
+mesma razão: catálogo único. Tudo que não está naquele catálogo sai
+`noindex, nofollow` — e é por isso que este bloco é incondicional, sem
+`{% if %}` nenhum. Uma tela de prontuário que esquecesse de se declarar
+privada seria a que apareceria na busca.{% endcomment %}
+<meta name="robots" content="{{ nd_seo.robots }}">
+{% if nd_seo.descricao %}<meta name="description" content="{{ nd_seo.descricao }}">{% endif %}
+{% if nd_seo.canonica %}<link rel="canonical" href="{{ nd_seo.canonica }}">{% endif %}
+{% if nd_seo.verificacao %}<meta name="google-site-verification" content="{{ nd_seo.verificacao }}">{% endif %}
+
+{% comment %}Open Graph: o cartão que aparece quando o endereço é colado
+no WhatsApp, e é assim que um médico manda o sistema para o sócio. Sem
+isto, o que aparece é o domínio em cinza. Só nas páginas públicas — o
+cartão de uma tela de prontuário não deveria existir.{% endcomment %}
+{% if nd_seo.canonica %}
+<meta property="og:type" content="{{ nd_seo.tipo }}">
+<meta property="og:site_name" content="NeuroDoc">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:title" content="{{ nd_seo.titulo }}">
+<meta property="og:description" content="{{ nd_seo.descricao }}">
+<meta property="og:url" content="{{ nd_seo.canonica }}">
+<meta property="og:image" content="{{ nd_seo.imagem }}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="NeuroDoc — prontuário eletrônico inteligente">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ nd_seo.titulo }}">
+<meta name="twitter:description" content="{{ nd_seo.descricao }}">
+<meta name="twitter:image" content="{{ nd_seo.imagem }}">
+{% endif %}
+
+{% comment %}Ícones por caminho fixo da raiz, servidos por
+`base/seo_views.py`. Não por `{% static %}`: aquele caminho leva o SHA do
+commit e o hash do arquivo, e muda a cada publicação — o navegador pede
+`/favicon.ico` sem ler o HTML, e o WhatsApp guarda a imagem do cartão pela
+URL.
+
+O SVG primeiro: quem o entende prefere o vetor, e quem não entende ignora
+a linha e cai no `.ico`, que traz 16, 32 e 48 px dentro.{% endcomment %}
+<link rel="icon" href="/neurodoc-mark.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="theme-color" content="#3454d1">
+
+{% comment %}Dados estruturados (schema.org), montados em `base/seo.py` a
+partir de `base/content.py` e `tenancy/plans.py` — nunca escritos à mão
+aqui, para não existir um segundo preço nem uma segunda lista de
+recursos.
+
+O `nonce` é obrigatório: `script-src` não tem `unsafe-inline`, e a
+política aplicada não distingue um bloco de JSON de um bloco de código —
+sem ele, o navegador descarta o JSON-LD inteiro em silêncio e só o
+relatório de CSP contaria. O `|safe` é seguro porque `_para_script`
+escapa `<`, `>` e `&` antes de o texto chegar aqui.{% endcomment %}
+{% if nd_seo.jsonld %}<script type="application/ld+json" nonce="{{ nd_csp_nonce }}">{{ nd_seo.jsonld|safe }}</script>{% endif %}
+
 {# Duralux (Bootstrap 5.3 + Duralux tokens), self-hosted: no external request. #}
 <link rel="stylesheet" href="{% static 'duralux/duralux.css' %}">
 <link rel="stylesheet" href="{% static 'duralux/neurodoc.css' %}">

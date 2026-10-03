@@ -1,6 +1,7 @@
 {% extends "base_public.html" %}
 {% load static %}
-{% block title %}NeuroDoc — prontuário para neurologia e neurocirurgia{% endblock %}
+{% comment %}O titulo sai de `base/seo.py`, com a descricao e a canonica da
+mesma pagina. Dois lugares para o mesmo texto e um deles envelhecendo.{% endcomment %}
 {% block content %}
 
 {% comment %}
@@ -29,8 +30,13 @@ batesse o limite.
         calha horizontal ali nao separa nada.{% endcomment %}
         <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
-                <span class="badge bg-soft-primary text-primary mb-3">Neurologia e neurocirurgia</span>
-                <h1 class="nd-hero-title">O prontuário que entende o exame neurológico.</h1>
+                <span class="badge bg-soft-primary text-primary mb-3">Neurologia, neurocirurgia — e qualquer especialidade</span>
+                {% comment %}O H1 diz "prontuario eletronico" por extenso de proposito: e o
+                termo pelo qual se procura este produto, e era a unica palavra que
+                faltava numa frase que ja estava certa. Um H1 que nao contem o nome
+                da coisa obriga o buscador a adivinhar do resto da pagina.
+                {% endcomment %}
+                <h1 class="nd-hero-title">O prontuário eletrônico que entende o exame neurológico.</h1>
                 <p class="nd-hero-lead">
                     Agenda, prontuário estruturado, roteiro de exame em árvore, escalas
                     funcionais, documentos assinados digitalmente e entrega ao paciente.
@@ -126,6 +132,75 @@ só não precisa estar na página, onde lia como defesa.{% endcomment %}
                 </div>
             </div>
             {% endfor %}
+        </div>
+    </div>
+</section>
+
+<!-- ------------------------------------------------ outras especialidades -->
+{% comment %}Esta seção entra **depois** da lista de recursos e **antes** dos
+planos, e a posição é a decisão.
+
+A lista acima fala de pares cranianos, NIHSS e Hoehn e Yahr. Um clínico, um
+ortopedista ou um psiquiatra que chegou aqui por busca lê aquilo e conclui,
+em dez segundos, que o produto não é para ele — e vai embora antes de ver o
+preço. A resposta tem de vir no lugar exato em que a objeção nasce.
+
+Depois dos planos seria tarde; antes da lista seria responder antes da
+pergunta, e soaria como quem se desculpa pela própria especialidade.
+
+A ressalva no fim não é modéstia: dizer que não existe roteiro de exame de
+outra especialidade é o que torna o resto da seção crível, e é o que impede
+o ortopedista de descobrir isso depois de migrar o cadastro.{% endcomment %}
+<section class="nd-section" id="especialidades">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 text-center mb-5">
+                <h2 class="fw-bold text-dark">{{ especialidades.titulo }}</h2>
+                <p class="text-muted fs-14 mb-0 mx-auto" style="max-width: 46rem;">
+                    {{ especialidades.texto }}
+                </p>
+            </div>
+        </div>
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <div class="card h-100 border-0 bg-white">
+                    <div class="card-body">
+                        <h5 class="fw-bold text-dark mb-1">Serve a qualquer especialidade</h5>
+                        <p class="fs-12 text-muted mb-4">
+                            Sem configuração, sem módulo à parte e sem outra versão do produto.
+                        </p>
+                        <div class="row g-3">
+                            {% for titulo, texto in especialidades.comum %}
+                            <div class="col-md-6">
+                                <h6 class="fw-bold text-dark fs-13 mb-1">{{ titulo }}</h6>
+                                <p class="fs-12 text-muted mb-0">{{ texto }}</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card h-100 border-0" style="background: var(--bs-primary-bg-subtle, #eef2ff);">
+                    <div class="card-body">
+                        <h5 class="fw-bold text-dark mb-1">O que é de neurologia</h5>
+                        <p class="fs-12 text-muted mb-4">
+                            O que existe aqui e não existe num prontuário genérico.
+                        </p>
+                        {% for titulo, texto in especialidades.neuro %}
+                        <h6 class="fw-bold text-dark fs-13 mb-1">{{ titulo }}</h6>
+                        <p class="fs-12 text-muted mb-3">{{ texto }}</p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row justify-content-center mt-4">
+            <div class="col-lg-9">
+                <p class="fs-12 text-muted mb-0 border-start border-3 ps-3">
+                    {{ especialidades.ressalva }}
+                </p>
+            </div>
         </div>
     </div>
 </section>

@@ -51,7 +51,12 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  # efeito nenhum. Quem tentasse ligar o bloqueio veria a
                  # politica continuar em modo relatorio e iria procurar o
                  # defeito no lugar errado.
-                 'CSP_ENFORCE', 'CSP_REPORT_URI']
+                 'CSP_ENFORCE', 'CSP_REPORT_URI',
+                 # O token do Google Search Console. Opcional pelo motivo
+                 # desta lista e por mais um: e **por instalacao**. Quem
+                 # subir o NeuroDoc no proprio dominio tem outro token, e
+                 # a maioria nao tem nenhum.
+                 'GOOGLE_SITE_VERIFICATION']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 
