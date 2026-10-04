@@ -295,7 +295,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_isolation.py` | vazamento entre inquilinos |
 | `check_roles.py`, `check_matrix.py` | matriz de permissão |
 | `check_prontuario.py`, `check_roteiro.py` | prontuário e roteiro de exame |
-| `check_texto_livre.py` | os dois tipos de atendimento, a cópia entre eles e a grade por abertura/fechamento |
+| `check_texto_livre.py` | os dois tipos de atendimento, a cópia entre eles, a grade por abertura/fechamento e o **adendo depois do fechamento** no texto livre — o bloco ausente em rascunho e presente no finalizado, a âncora própria, e o corpo e o `content_hash` intactos depois de gravado |
 | `check_mensageria.py`, `check_email.py` | outbox, entrega, reconciliação |
 | `check_entrega_documento.py` | a entrega que não pode derrubar a tela: a mensagem de SMS cabe num segmento **com o link real**, a de e-mail continua completa, **o e-mail sai mesmo com o SMS quebrado**, falha inesperada vira entrega marcada e não exceção, a entrega sai pelo worker e o primeiro envio é automático por evento |
 | `check_links_de_mensagem.py` | **todo link que sai numa mensagem abre**: nenhum e-mail é enfileirado antes do commit (transação desfeita não manda nada), o link do documento é aberto de verdade, o reenvio troca o link e revoga o anterior, e a verificação de e-mail, o convite e o descadastro respondem |

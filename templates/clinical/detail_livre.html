@@ -224,6 +224,80 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
             </div>
         </div>
 
+        {% comment %}5. Adendos, e só depois de finalizado.
+
+        Esta tela não tinha o bloco. O atendimento em texto livre
+        finalizado era um beco: nem dava para escrever um adendo nem para
+        **ler** os que existissem — e o cabeçalho logo acima dizia, em
+        verde, "imutável. Correções entram como adendo", mandando o médico
+        fazer uma coisa que a página não oferecia.
+
+        O servidor sempre aceitou: `finalization.add_amendment` olha o
+        `status`, nunca o `kind`. Era defeito só de tela, que é o tipo que
+        sobrevive mais tempo — nada falha, nada vai para o log, e quem
+        precisa corrigir uma consulta de texto livre simplesmente não
+        encontra como.
+
+        No fim da página, e não no topo, porque o adendo é posterior por
+        definição: o atendimento se lê na ordem em que foi escrito, e o
+        adendo é o que veio depois. É também a diferença para a tela
+        estruturada, onde ele é uma aba — ali há seis abas e a ordem de
+        leitura é escolhida pelo clique; aqui há uma coluna, e a ordem é a
+        da rolagem.
+
+        A âncora é `#adendos`, e `_ancora_de_adendos` em `clinical/views.py`
+        é quem sabe disso. Com a âncora do estruturado (`#tab-adendos`),
+        registrar um adendo aqui devolveria a página no topo, com o texto
+        recém-escrito quatro telas abaixo — parecendo que não gravou.
+        {% endcomment %}
+        {% if encounter.status == 'finalized' %}
+        <div class="card mb-4" id="adendos">
+            <div class="card-header">
+                {% comment %}`text-nowrap` porque este é o único título de
+                cartão com dois selos. O `card-header` é flex e espreme o
+                `h5` contra o subtítulo à direita: sem ele, o contador
+                descia uma linha e ficava embaixo do número do cartão,
+                parecendo um segundo número.{% endcomment %}
+                <h5 class="card-title mb-0 text-nowrap">
+                    <span class="badge bg-soft-primary text-primary me-2">5</span>Adendos
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ amendments|length }}</span>
+                </h5>
+                <span class="fs-11 text-muted">
+                    O atendimento está finalizado e não se reescreve. Correção, resultado
+                    que chegou depois e complemento entram aqui, com o seu nome e a data.
+                </span>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'clinical:add-amendment' encounter.id %}" novalidate
+                      class="border rounded-3 p-3 bg-gray-100 mb-4">
+                    {% csrf_token %}
+                    <h6 class="fw-bold text-dark mb-3">Adicionar adendo</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=amendment_form.reason col="col-lg-4" %}
+                        {% include "partials/field.html" with field=amendment_form.text col="col-lg-8" %}
+                    </div>
+                    <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Adicionar adendo</button>
+                </form>
+
+                <ul class="list-group list-group-flush">
+                    {% for amendment in amendments %}
+                    <li class="list-group-item px-0">
+                        <div class="d-flex align-items-center justify-content-between gap-2">
+                            <span class="fw-semibold text-dark fs-13">{{ amendment.reason }}</span>
+                            <span class="fs-11 text-muted flex-shrink-0">
+                                {{ amendment.authored_at|date:"d/m/Y H:i" }} — {{ amendment.author.user.get_full_name }}
+                            </span>
+                        </div>
+                        <span class="d-block fs-13 text-muted nd-prose mt-1">{{ amendment.text }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item px-0 text-muted fs-13">Nenhum adendo.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
         {% comment %}A barra de ações fecha a página, e não cada bloco: o
         botão pertence ao atendimento inteiro, que é o que `form=` permite
         dizer mesmo estando fora do `<form>`.{% endcomment %}
@@ -236,8 +310,17 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                 <span>Emitir documento</span>
             </a>
             {% endif %}
+            {% comment %}A frase era incondicional, e no finalizado dizia
+            "pode salvar agora e finalizar depois" ao lado de um botão
+            desabilitado e logo abaixo do cartão de adendos. Convidava para
+            o caminho que acabara de ser fechado.{% endcomment %}
             <span class="fs-11 text-muted">
+                {% if encounter.status == 'finalized' %}
+                Atendimento finalizado: o corpo não se reescreve. O que vier depois
+                entra como adendo, logo acima.
+                {% else %}
                 Pode salvar agora e finalizar depois — inclusive em outro dia.
+                {% endif %}
             </span>
         </div>
     </div>

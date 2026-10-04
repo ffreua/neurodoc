@@ -87,6 +87,61 @@ Agora o requisito é o mesmo — "há registro do que houve?" —, lido no campo
 certo de cada tipo. As âncoras da mensagem também: mandar alguém para "a
 aba História" numa tela sem abas é mandá-lo procurar o que não existe.
 
+## Depois de finalizado: o adendo
+
+Finalizar fechava o atendimento de texto livre num **beco**. A tela não
+tinha bloco de adendos — nem para escrever, nem para **ler** os que
+porventura existissem — e o cabeçalho logo acima dizia, em verde,
+"imutável. Correções entram como adendo", mandando o médico fazer uma
+coisa que a página não oferecia.
+
+O servidor sempre aceitou: `finalization.add_amendment` olha o `status`,
+nunca o `kind`. Era defeito só de tela, que é o tipo que sobrevive mais
+tempo — nada falha, nada vai para o log, e quem precisa corrigir uma
+consulta de texto livre simplesmente não acha como. O caminho que sobra é
+o pior possível: abrir um atendimento novo para dizer uma frase que
+pertence ao anterior.
+
+Agora o bloco existe, **no fim da página e só depois do fechamento**.
+
+- **No fim**, e não no topo, porque o adendo é posterior por definição: o
+  atendimento se lê na ordem em que foi escrito, e o adendo é o que veio
+  depois. É também a diferença para a tela estruturada, onde ele é uma
+  aba — ali há seis abas e a ordem de leitura é escolhida pelo clique;
+  aqui há uma coluna, e a ordem é a da rolagem.
+- **Só depois do fechamento**, como no estruturado: adendo em rascunho
+  não é adendo, é edição — e editar o rascunho é o que o rascunho já faz.
+
+A âncora difere nas duas telas: `#tab-adendos` no estruturado (é o painel
+da aba) e `#adendos` no texto livre (é o cartão). Quem sabe disso é
+`clinical/views.py::_ancora_de_adendos`, em um lugar só porque são três
+usos — as duas recusas e o sucesso —, e um deles ficaria para trás na
+próxima vez. Com a âncora errada, registrar um adendo no texto livre
+devolveria a página no topo, com o texto recém-escrito quatro telas
+abaixo, parecendo que não gravou.
+
+Duas coisas que o adendo **não** faz, e o roteiro cobra as duas: não toca
+no corpo do atendimento e não recalcula `content_hash`. Se mexesse em
+qualquer um dos dois, o registro finalizado teria sido alterado por uma
+porta lateral — que é exatamente o que o adendo existe para evitar.
+
+O resumo imprimível já trazia adendos nos dois tipos desde sempre. O que
+faltava era haver adendo no texto livre para ele imprimir.
+
+**Havia um caminho que já escrevia adendo aqui, e escrevia no escuro.**
+`ai/extraction.py::accept_draft_as_amendment` incorpora, como adendo, a
+leitura de laudo por IA que terminou depois do fechamento — e ela também
+olha o `status`, não o `kind`. Num atendimento de texto livre finalizado,
+esse adendo era gravado, entrava na trilha de auditoria e saía no resumo
+impresso, mas **não aparecia em lugar nenhum da tela do atendimento**. O
+bloco conserta isso de graça: o que aquele caminho escreve passa a ser
+lido onde se lê o atendimento.
+
+Na mesma passagem caiu uma frase que o fechamento tornava falsa: a barra
+de ações dizia "pode salvar agora e finalizar depois" também no
+finalizado, ao lado de um botão desabilitado e logo abaixo do cartão de
+adendos — convidando para o caminho que acabara de ser fechado.
+
 ## Uma coluna, na ordem da consulta
 
 A primeira versão punha texto e conduta à esquerda e medicação e CID numa
@@ -197,7 +252,7 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
 
 ## O que o roteiro conferiu
 
-`checks/check_texto_livre.py`, 13 seções, `EXIT=0`:
+`checks/check_texto_livre.py`, 14 seções, `EXIT=0`:
 
 - [x] os dois tipos abrem, e cada um na **sua** tela (o estruturado sem
       `id_free_text`, o livre sem `tab-exame`)
@@ -211,6 +266,11 @@ e o resto (medicação, hipóteses, conduta, adendos) é o mesmo nos dois.
 - [x] a finalização do texto livre não pede queixa nem história; vazio, ela
       pede o texto do atendimento e a conduta
 - [x] abrir e finalizar depois: `finalized_at` gravado, registro imutável
+- [x] **o adendo depois do fechamento**: o bloco não aparece em rascunho e
+      aparece no finalizado, o POST volta para `#adendos` (e não para a
+      âncora do estruturado), o adendo é gravado com autor e data, o corpo
+      e o `content_hash` do atendimento ficam intactos, o texto aparece na
+      própria tela e sai no resumo imprimível
 - [x] conduta e impressões viajam do texto livre para o estruturado **e**
       do estruturado para o texto livre
 - [x] aceitar um item copiado grava mesmo o valor

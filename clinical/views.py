@@ -63,6 +63,21 @@ def _texto_do_erro(exc):
     return str(exc)
 
 
+def _ancora_de_adendos(encounter):
+    """Onde o bloco de adendos mora, em cada uma das duas telas.
+
+    O estruturado tem abas e o bloco e o painel `#tab-adendos`; o texto
+    livre e uma coluna unica e o bloco e o cartao `#adendos`. Mandar os
+    dois para a mesma ancora deixaria um dos dois abrindo no topo da
+    pagina depois de registrar o adendo -- e, no texto livre, com o
+    adendo recem-escrito quatro telas abaixo, parecendo que nao gravou.
+
+    Aqui, e nao escrito nas views, porque sao tres usos: as duas recusas e
+    o sucesso. Um deles ficaria para tras na proxima vez.
+    """
+    return 'tab-adendos' if encounter.kind == EncounterKind.STRUCTURED else 'adendos'
+
+
 def _blocked(request, encounter, message, anchor=''):
     """Recusa uma ação sem tirar quem usa o sistema de dentro dele.
 
@@ -764,18 +779,19 @@ class AmendmentCreateView(TenantScopedView):
         membership = _doctor_membership(request)
         if membership is None:
             raise Http404
+        ancora = _ancora_de_adendos(encounter)
         form = AmendmentForm(request.POST)
         if not form.is_valid():
-            return _blocked(request, encounter, _first_error(form), anchor='tab-adendos')
+            return _blocked(request, encounter, _first_error(form), anchor=ancora)
         try:
             finalization.add_amendment(
                 request.access_context, encounter, membership,
                 form.cleaned_data['reason'], form.cleaned_data['text'],
             )
         except finalization.FinalizationError as exc:
-            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-adendos')
+            return _blocked(request, encounter, _texto_do_erro(exc), anchor=ancora)
         messages.success(request, 'Adendo registrado.')
-        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-adendos')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#{ancora}')
 
 
 class EncounterSummaryView(TenantScopedView):

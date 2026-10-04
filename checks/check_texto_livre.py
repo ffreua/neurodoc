@@ -38,7 +38,8 @@ from clinical import finalization
 from clinical import selectors
 from clinical.carry_forward import carry_forward, describe_item, review_carry_forward_item
 from clinical.models import (
-    CarryForwardItem, Encounter, EncounterKind, EncounterStatus, ReviewAction,
+    CarryForwardItem, ClinicalAmendment, Encounter, EncounterKind,
+    EncounterStatus, ReviewAction,
 )
 from patients.models import Patient
 from tenancy.models import Membership, Tenant
@@ -353,6 +354,10 @@ if any('queixa principal' in f for f in faltas):
 print('=== 6. abrir hoje e finalizar depois ===')
 livre.refresh_from_db()
 antes = livre.finalized_at
+# A tela ANTES de finalizar, guardada aqui porque daqui a tres linhas o
+# atendimento fecha e nao ha como voltar: o bloco de adendos so pode
+# existir depois do fechamento, e provar isso exige os dois lados.
+tela_antes_de_fechar = cliente.get(f'/app/clinical/{livre.id}/').content.decode()
 finalization.finalize_encounter(contexto, livre, vinculo)
 livre.refresh_from_db()
 print(f'  abertura   {livre.occurred_at:%d/%m/%Y %H:%M}')
@@ -362,6 +367,83 @@ if livre.status != EncounterStatus.FINALIZED or livre.finalized_at is None:
     failures.append('finalizar o texto livre nao fechou o atendimento')
 if livre.is_editable():
     failures.append('atendimento finalizado continuou editavel')
+
+print('=== 6b. finalizado, o texto livre aceita adendo -- e deixa ler ===')
+# O servidor sempre aceitou: `add_amendment` olha o `status`, nunca o
+# `kind`. A tela de texto livre e que nao tinha o bloco -- nem para
+# escrever nem para LER --, entao o atendimento finalizado era um beco,
+# com o cabecalho logo acima mandando corrigir por adendo. Defeito so de
+# tela: nada falha, nada vai para o log, e quem precisa corrigir uma
+# consulta de texto livre simplesmente nao acha como.
+acao = f'/app/clinical/{livre.id}/amendments/'
+print(f'  antes de fechar, a tela oferece adendo? {acao in tela_antes_de_fechar} (False esperado)')
+if acao in tela_antes_de_fechar:
+    failures.append('o texto livre em rascunho ja oferece adendo, que so vale no finalizado')
+
+tela = cliente.get(f'/app/clinical/{livre.id}/').content.decode()
+for marca, porque in ((acao, 'o formulario de adendo'),
+                      ('id="adendos"', 'a ancora do bloco'),
+                      ('name="reason"', 'o motivo'),
+                      ('name="text"', 'o texto')):
+    presente = marca in tela
+    print(f'  {porque:<26} {presente}')
+    if not presente:
+        failures.append(f'a tela de texto livre finalizada nao traz {porque}')
+
+# A ancora e diferente nas duas telas, e tem de ser: no estruturado o
+# bloco e uma aba (`#tab-adendos`), aqui e um cartao no fim da coluna
+# (`#adendos`). Com a ancora do estruturado, registrar um adendo aqui
+# devolveria a pagina no topo, com o texto recem-escrito quatro telas
+# abaixo -- parecendo que nao gravou.
+from clinical.views import _ancora_de_adendos
+
+# Nao gravado: a funcao so le `kind`, e criar linha no banco para
+# perguntar uma ancora deixaria lixo para a limpeza do fim.
+ancoras = (_ancora_de_adendos(livre),
+           _ancora_de_adendos(Encounter(kind=EncounterKind.STRUCTURED)))
+print(f'  ancora (texto livre, estruturado): {ancoras}')
+if ancoras != ('adendos', 'tab-adendos'):
+    failures.append(f'as duas telas apontam para a ancora errada: {ancoras}')
+
+hash_antes = livre.content_hash
+corpo_antes = livre.free_text
+r = cliente.post(acao, {
+    'reason': 'Resultado de exame chegou depois',
+    'text': 'Ressonancia de cranio sem alteracoes; mantida a conduta.',
+})
+print(f'  POST do adendo -> HTTP {r.status_code} | destino {r.headers.get("Location", "")[-24:]!r}')
+if r.status_code != 302 or not r.headers.get('Location', '').endswith('#adendos'):
+    failures.append(f'o adendo do texto livre nao voltou para #adendos ({r.status_code})')
+
+adendos = list(ClinicalAmendment.objects.filter(encounter=livre).order_by('authored_at'))
+print(f'  adendos gravados: {len(adendos)} | autor={adendos[-1].author_id == vinculo.id if adendos else None}')
+if len(adendos) != 1:
+    failures.append(f'o adendo do texto livre nao foi gravado ({len(adendos)})')
+elif adendos[0].author_id != vinculo.id or adendos[0].authored_at is None:
+    failures.append('o adendo foi gravado sem autor ou sem data')
+
+# O adendo acrescenta; nao reescreve. Se o corpo ou o hash mudassem, o
+# registro finalizado teria sido alterado por uma porta lateral -- que e
+# exatamente o que o adendo existe para evitar.
+livre.refresh_from_db()
+print(f'  corpo intacto={livre.free_text == corpo_antes} | hash intacto={livre.content_hash == hash_antes}')
+if livre.free_text != corpo_antes or livre.content_hash != hash_antes:
+    failures.append('registrar adendo alterou o atendimento finalizado')
+
+# Escrever sem poder ler seria meio conserto: o beco continuaria, so que
+# com o adendo invisivel dentro dele.
+tela = cliente.get(f'/app/clinical/{livre.id}/').content.decode()
+lido = 'Resultado de exame chegou depois' in tela and 'sem alteracoes' in tela
+print(f'  o adendo aparece na propria tela: {lido}')
+if not lido:
+    failures.append('o adendo foi gravado mas a tela de texto livre nao o mostra')
+
+# E no papel. O resumo imprimivel ja trazia adendos para os dois tipos --
+# o que faltava era haver adendo no texto livre para ele imprimir.
+impresso = cliente.get(f'/app/clinical/{livre.id}/resumo/').content.decode()
+print(f'  e no resumo imprimivel: {"Resultado de exame chegou depois" in impresso}')
+if 'Resultado de exame chegou depois' not in impresso:
+    failures.append('o adendo do texto livre nao sai no resumo imprimivel')
 
 print('=== 7. conduta, impressoes e CID viajam entre os dois tipos ===')
 estruturado = abrir(EncounterKind.STRUCTURED)
@@ -641,6 +723,13 @@ CarryForwardItem.objects.filter(target_encounter_id__in=ids).delete()
 CarryForwardItem.objects.filter(source_encounter_id__in=ids).delete()
 ExaminationFinding.objects.filter(encounter_id__in=ids).delete()
 Medication.objects.filter(encounter_id__in=ids).delete()
+# O adendo da secao 6b, pela mesma razao do recebivel logo abaixo:
+# `ClinicalAmendment.encounter` e `PROTECT` -- e tem de ser, porque adendo
+# e correcao de registro clinico e apagar o atendimento por baixo dele
+# apagaria a correcao junto. A limpeza do roteiro e que precisa saber
+# disso, e so descobriu na bateria inteira: rodando a secao sozinha o
+# `ProtectedError` nao chega a acontecer.
+ClinicalAmendment.objects.filter(encounter_id__in=ids).delete()
 
 # O recebivel tambem, e a ordem e a das chaves protegidas.
 #
@@ -669,5 +758,5 @@ if failures:
     for line in failures:
         print('FALHA:', line)
     raise SystemExit(1)
-print('OK: os dois tipos de atendimento convivem, o texto livre grava e finaliza,')
+print('OK: os dois tipos de atendimento convivem, o texto livre grava, finaliza e aceita adendo,')
 print('    conduta/impressoes/CID viajam entre eles, e a grade mostra e ordena as duas datas.')
