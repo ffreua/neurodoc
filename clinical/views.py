@@ -1,3 +1,4 @@
+import re
 from datetime import timedelta
 
 from django.contrib import messages
@@ -32,7 +33,7 @@ from .forms import (
 from .models import (
     EncounterKind,
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
-    ExamResult, ExtractionStatus, LabValue, Medication,
+    ExamResult, ExtractionStatus, LabValue, Medication, ReviewAction,
 )
 
 
@@ -61,6 +62,44 @@ def _texto_do_erro(exc):
     if mensagens:
         return ' '.join(str(m) for m in mensagens)
     return str(exc)
+
+
+#: Um identificador de painel desta tela, e nada mais. Serve para validar
+#: a **forma** do que chega no POST, em vez de guardar a lista das sete
+#: abas aqui -- uma lista que envelheceria na primeira aba nova, e que ja
+#: existe no template, onde ela pertence.
+_ABA = re.compile(r'tab-[a-z-]{3,24}')
+
+
+def _aba_pedida(request):
+    """De que aba o envio partiu, para a tela voltar para ela.
+
+    A tela estruturada tem sete abas e um formulario em varias delas. O
+    servidor redireciona para a mesma pagina depois de gravar, e
+    `static/duralux/app.js::tabFromHash` reabre a aba cujo id esta no
+    endereco -- mas o redirecionamento de "Salvar historia", "Salvar
+    conduta" e "Adicionar hipotese" saia **sem** ancora. Quem acabava de
+    salvar era devolvido para a primeira aba, com o formulario que
+    enviara fora da tela. Em quatro das sete, o trabalho aparecia salvo;
+    nas outras, parecia ter sumido.
+
+    O valor vem de um campo oculto no proprio formulario, e nao de um mapa
+    de campo-para-aba escrito aqui: quem sabe em que aba um formulario
+    esta e o template que o desenha, e um mapa aqui seria a segunda lista
+    a envelhecer.
+
+    **Conferida pela forma, nao pela lista.** O valor vai para o fragmento
+    de uma URL de redirecionamento; qualquer coisa que nao seja um
+    identificador de painel e descartada em silencio, e a pessoa cai no
+    topo da pagina -- que e o comportamento de antes, nao um erro novo.
+    """
+    pedida = (request.POST.get('aba') or '').strip()
+    return pedida if _ABA.fullmatch(pedida) else ''
+
+
+def _detalhe(encounter, ancora=''):
+    url = reverse('clinical:detail', args=[encounter.id])
+    return f'{url}#{ancora}' if ancora else url
 
 
 def _ancora_de_adendos(encounter):
@@ -455,7 +494,7 @@ class EncounterAutosaveView(TenantScopedView):
         if self._wants_json(request):
             return JsonResponse({'ok': False, 'error': message}, status=status)
         messages.error(request, message)
-        return redirect('clinical:detail', encounter_id=encounter.id)
+        return redirect(_detalhe(encounter, _aba_pedida(request)))
 
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
@@ -525,7 +564,7 @@ class EncounterAutosaveView(TenantScopedView):
         if self._wants_json(request):
             return JsonResponse({'ok': True, 'row_version': updated.row_version})
         messages.success(request, 'Prontuário salvo.')
-        return redirect('clinical:detail', encounter_id=updated.id)
+        return redirect(_detalhe(updated, _aba_pedida(request)))
 
 
 class FindingUpsertView(TenantScopedView):
@@ -686,7 +725,13 @@ class DiagnosisCreateView(TenantScopedView):
             certainty=form.cleaned_data['certainty'], rank=form.cleaned_data['rank'],
             physician_note=form.cleaned_data['physician_note'],
         )
-        return redirect('clinical:detail', encounter_id=encounter.id)
+        # A recusa ja voltava para a aba de hipoteses; o sucesso, nao --
+        # acrescentar uma hipotese devolvia a pessoa para a primeira aba,
+        # e a lista que ela acabara de alimentar ficava fora da tela. Na
+        # tela de texto livre a mesma view atende e nao ha aba nenhuma: a
+        # ancora nao casa com nada e a pagina fica no topo, que e onde o
+        # bloco de hipoteses dela esta.
+        return redirect(_detalhe(encounter, 'tab-hipoteses'))
 
 
 class CarryForwardReviewView(TenantScopedView):
@@ -715,7 +760,77 @@ class CarryForwardReviewView(TenantScopedView):
             cf.review_carry_forward_item(item, action, membership.id if membership else None)
         except cf.CarryForwardBlocked as exc:
             return _blocked(request, encounter, str(exc), anchor='carry-forward')
-        return redirect('clinical:detail', encounter_id=encounter.id)
+        return redirect(_detalhe(encounter, 'carry-forward'))
+
+
+class CarryForwardAcceptAllView(TenantScopedView):
+    """Traz de uma vez tudo o que a consulta anterior ofereceu.
+
+    O retorno de um paciente em uso de seis medicamentos chega com dez
+    itens para revisar, e revisar quase sempre quer dizer aceitar: a
+    conduta, as impressoes, as hipoteses e a lista de medicacao sao o
+    ponto de partida da consulta de hoje. Dez cliques, dez recarregamentos
+    de pagina e dez voltas para a primeira aba -- e o que esse atrito
+    produz nao e cuidado, e um medico que para de usar o recurso.
+
+    **Nao e um caminho novo.** Cada item passa por
+    `review_carry_forward_item`, o mesmo do botao individual, com as
+    mesmas recusas: atendimento finalizado continua barrado la dentro, e
+    nao so aqui. Isto e o botao individual clicado em todos, nada mais.
+
+    **Tudo ou nada.** A transacao envolve o laco inteiro porque um "trazer
+    tudo" que traz metade e pior do que um que falha: ninguem conta o que
+    veio, e a diferenca so aparece na consulta seguinte, quando faltar a
+    medicacao que ninguem percebeu que nao tinha entrado.
+
+    Nao ha confirmacao antes. Aceitar e exatamente o que o botao diz, cada
+    item ja esta escrito na tela acima do botao, e o que ele grava
+    continua editavel ate a finalizacao -- pedir confirmacao aqui seria
+    cobrar um clique a mais justamente de quem veio economizar nove.
+    """
+
+    def post(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(
+                request, encounter,
+                'Atendimento finalizado: o registro não pode mais ser alterado. '
+                'Use um adendo.', anchor='carry-forward',
+            )
+        membership = _doctor_membership(request)
+        pendentes = list(
+            encounter.carry_forward_items.filter(review_action=ReviewAction.PENDING)
+        )
+        if not pendentes:
+            # Sem erro: quem clicou duas vezes, ou clicou na aba velha
+            # depois de ja ter revisado, nao fez nada de errado.
+            messages.info(request, 'Não havia nada aguardando revisão.')
+            return redirect(_detalhe(encounter))
+        try:
+            with transaction.atomic():
+                for item in pendentes:
+                    cf.review_carry_forward_item(
+                        item, ReviewAction.ACCEPTED,
+                        membership.id if membership else None,
+                    )
+        except cf.CarryForwardBlocked as exc:
+            return _blocked(request, encounter, str(exc), anchor='carry-forward')
+        record_audit_event(
+            request.user, request.access_context.tenant_id,
+            'clinical.carry_forward_accepted_all',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'itens': len(pendentes)},
+        )
+        quantos = len(pendentes)
+        rotulo = 'itens trazidos' if quantos > 1 else 'item trazido'
+        messages.success(
+            request, f'{quantos} {rotulo} da consulta anterior para esta consulta.',
+        )
+        # Sem ancora: o cartao da consulta anterior desaparece agora que
+        # nada esta pendente, e mandar para um id que nao existe mais
+        # deixaria a pagina num lugar arbitrario. O topo e onde a pessoa
+        # estava.
+        return redirect(_detalhe(encounter))
 
 
 class FinalizeEncounterView(TenantScopedView):

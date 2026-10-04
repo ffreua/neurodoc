@@ -4,7 +4,12 @@
 Mostra o nome do campo no prontuário e o texto que será copiado — não o
 caminho interno nem o dicionário de armazenamento. Quem decide se aceita
 precisa ler o conteúdo, não o formato.{% endcomment %}
-<div class="card mb-4">
+{% comment %}`id` no cartão, e não só por capricho: três recusas em
+`clinical/views.py` já mandavam a pessoa de volta para `#carry-forward`
+depois de um erro — e a âncora não existia em lugar nenhum, então o
+navegador deixava a página onde estava. A mensagem aparecia no topo
+falando de um cartão que podia estar quatro telas abaixo.{% endcomment %}
+<div class="card mb-4" id="carry-forward">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div>
             <h5 class="card-title mb-0">Trazido da consulta anterior</h5>
@@ -13,9 +18,36 @@ precisa ler o conteúdo, não o formato.{% endcomment %}
                 nada é copiado sem sua decisão
             </span>
         </div>
-        <span class="badge bg-soft-warning text-warning">
-            {{ pending_carry_forward|length }} aguardando revisão
-        </span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-soft-warning text-warning">
+                {{ pending_carry_forward|length }} aguardando revisão
+            </span>
+            {% comment %}Trazer tudo de uma vez.
+
+            O retorno de um paciente em uso de seis medicamentos chega com
+            dez itens, e revisar quase sempre quer dizer aceitar: conduta,
+            impressões, hipóteses e medicação são o ponto de partida da
+            consulta de hoje. Dez cliques, dez recarregamentos e dez voltas
+            para a primeira aba não produzem cuidado — produzem um médico
+            que para de usar o recurso.
+
+            Não é caminho novo: cada item passa pela mesma revisão do botão
+            individual, com as mesmas recusas. É o botão individual clicado
+            em todos.
+
+            Botão de verdade, e não link: isto grava. E fica **ao lado do
+            contador**, onde quem acabou de ler "10 aguardando revisão" está
+            olhando.{% endcomment %}
+            {% if encounter.status != 'finalized' %}
+            <form method="post"
+                  action="{% url 'clinical:accept-all-carry-forward' encounter.id %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success" data-nd-busy>
+                    Trazer tudo
+                </button>
+            </form>
+            {% endif %}
+        </div>
     </div>
     <div class="card-body">
         <ul class="list-group list-group-flush">

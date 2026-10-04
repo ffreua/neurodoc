@@ -123,6 +123,16 @@ digitado em outra.{% endcomment %}
                 <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    {% comment %}O campo oculto `aba` e o que faz a tela voltar para
+                    cá depois de gravar. O autosave redirecionava sem ancora, e
+                    `app.js::tabFromHash` nao tinha o que reabrir: quem salvava
+                    era devolvido para a primeira aba, com o formulario que
+                    acabara de enviar fora da tela.
+
+                    No formulario, e nao num mapa de campo-para-aba no servidor:
+                    quem sabe em que aba este formulario esta e este
+                    template.{% endcomment %}
+                    <input type="hidden" name="aba" value="tab-historia">
                     {% comment %}A queixa principal é uma frase; a história da
                     doença atual é o texto longo da consulta. A área de digitação
                     segue essa proporção — um terço contra dois terços — em vez de
@@ -250,6 +260,7 @@ digitado em outra.{% endcomment %}
                       class="border rounded-3 p-3 mt-4 bg-gray-100" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    <input type="hidden" name="aba" value="tab-exame">
                     {% include "partials/field.html" with field=form.neurological_exam_text col="col-12" %}
                     <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
                         <button type="submit" class="btn btn-primary btn-sm" data-nd-busy
@@ -418,6 +429,57 @@ digitado em outra.{% endcomment %}
                         </tbody>
                     </table>
                 </div>
+
+                {% comment %}As impressões, logo abaixo das hipóteses.
+
+                O campo existe no modelo e sempre existiu no `EncounterForm`
+                — mas **não era desenhado em lugar nenhum desta tela**. Duas
+                consequências, e a segunda é a cara:
+
+                1. o estruturado não tinha onde registrar a leitura do caso,
+                   que é coisa diferente da hipótese codificada e da conduta;
+                2. a conduta e as impressões de uma consulta de texto livre
+                   são oferecidas na consulta seguinte, e aceitar "Impressões
+                   da consulta anterior" num atendimento estruturado **gravava
+                   o texto num campo que a tela não mostrava**. O médico
+                   clicava em "Trazer para esta consulta", o item saía da
+                   lista de pendências, e o texto não aparecia em canto
+                   nenhum. Só reaparecia no resumo impresso, que já imprimia
+                   as impressões do estruturado logo depois das hipóteses — o
+                   papel estava certo e a tela é que não existia.
+
+                Aqui, e não numa aba própria, porque é a mesma leitura: a
+                hipótese é a conclusão codificada e a impressão é o que não
+                cabe num código. Separá-las em duas abas faria escrever uma
+                sem ver a outra. A ordem é a do resumo impresso — hipóteses,
+                depois impressões —, e isso não é coincidência: as duas telas
+                mostram o mesmo raciocínio.{% endcomment %}
+                <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate
+                      class="border rounded-3 p-3 mt-4 bg-gray-100">
+                    {% csrf_token %}
+                    <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    <input type="hidden" name="aba" value="tab-hipoteses">
+                    {% comment %}Sem título próprio: o rótulo do campo já diz
+                    "Impressões", e repeti-lo logo acima dele é o mesmo texto
+                    duas vezes na mesma caixa. O arranjo é o do formulário do
+                    texto do exame, três abas atrás — campo, botão, e a frase
+                    que explica para onde aquilo vai.{% endcomment %}
+                    {% include "partials/field.html" with field=form.impressions col="col-12" %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary btn-sm" data-nd-busy
+                                {% if encounter.status == 'finalized' %}disabled{% endif %}>
+                            Salvar impressões
+                        </button>
+                        {% comment %}Sem repetir "a sua leitura do caso": o
+                        texto de apoio dentro do campo já diz isso. O que falta
+                        ali, e é o que vai aqui, é para onde o texto vai
+                        depois.{% endcomment %}
+                        <span class="fs-11 text-muted">
+                            Vai para a próxima consulta deste paciente junto com a conduta
+                            e as hipóteses, para você aceitar ou recusar.
+                        </span>
+                    </div>
+                </form>
             </div>
         </div>
 
@@ -427,6 +489,7 @@ digitado em outra.{% endcomment %}
                 <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
+                    <input type="hidden" name="aba" value="tab-conduta">
                     {% comment %}Sem cópias ocultas da outra aba: o autosave grava
                     apenas os campos que chegam no envio, então salvar a conduta não
                     toca na história e vice-versa.{% endcomment %}

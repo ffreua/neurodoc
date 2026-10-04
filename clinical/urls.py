@@ -73,6 +73,13 @@ urlpatterns = [
         '<uuid:encounter_id>/hipoteses/da-ia/',
         views.DiagnosisFromSupportView.as_view(), name='add-diagnosis-from-ai',
     ),
+    # Antes da rota com `<uuid:item_id>` nao por ambiguidade -- `aceitar-tudo`
+    # nao e UUID e nunca casaria com ela --, mas porque e assim que a lista
+    # se le: a acao que vale para todos vem antes da que vale para um.
+    path(
+        '<uuid:encounter_id>/carry-forward/aceitar-tudo/',
+        views.CarryForwardAcceptAllView.as_view(), name='accept-all-carry-forward',
+    ),
     path(
         '<uuid:encounter_id>/carry-forward/<uuid:item_id>/review/',
         views.CarryForwardReviewView.as_view(), name='review-carry-forward',
