@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.4 "quem assina é o autor" · **Produção:**
+**Versão:** 1.6 "o que a tela não mostrava" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -39,7 +39,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**89 roteiros de verificação, nenhuma falha.** São o que substitui a
+**90 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 
@@ -106,13 +106,25 @@ risco de mexer na rede de produção.
 
 ### Outras
 
+- **A `LICENSE` diz MIT e o contrato diz o contrário.** A cláusula 16 do
+  contrato de adesão afirma que o código-fonte pertence ao contratado e que
+  o contrato "não transfere sua propriedade intelectual"; um arquivo MIT na
+  árvore concede a qualquer um o direito de copiar, modificar, distribuir e
+  sublicenciar. Com o repositório privado, nada foi concedido a ninguém — a
+  contradição vira real no dia em que o código for para um terceiro.
+  Trocar por nota proprietária é decisão do titular.
+- **Registro de release ausente para 1.2 a 1.5.** A seção 18.6 do PRD pede
+  um arquivo em `docs/releases/` por release publicada, **antes** de ligar
+  `NEURODOC_RELEASE_APPROVED`. Existem 1.0, 1.1 e 1.6. O
+  `scripts/setup_deploy.sh` cria um `<sha>.md` do molde na VPS e ninguém o
+  commitou.
 - **P-02** (VPS real) e **P-05** (certificado real) seguem como estão em
   `docs/decisions.md`.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
   deploy.
-- O `CLAUDE.md` lista 43 dos 89 roteiros ("os mais relevantes") e 4 views
+- O `CLAUDE.md` lista 44 dos 90 roteiros ("os mais relevantes") e 4 views
   de catálogo têm `required_capability = None` sem o comentário que a
   convenção exige.
 
@@ -179,6 +191,16 @@ ssh deploy@23.106.44.46 "cd /srv/neurodoc && git pull --ff-only \
   schema.
 - O worker reinicia a cada deploy. Tarefa longa interrompida precisa
   retomar sozinha pelo estado, não pelo elo anterior.
+- **Bateria morta no meio deixa resíduo, e o resíduo reprova outro
+  roteiro.** Cada roteiro limpa o que criou no fim; morto antes do fim, o
+  que ficou no banco é paciente, atendimento e documento que o roteiro
+  seguinte não consegue apagar (`ProtectedError`) ou que o faz contar
+  errado. O sintoma é inconfundível: **falhas diferentes a cada rodada**.
+  Aconteceu em 04/10/2026, quando o Docker Desktop caiu por falta de
+  memória no meio da bateria — duas rodadas seguintes reprovaram
+  `check_admin`+`check_g6` e depois `check_mes_e_estatisticas`, e os três
+  passavam sozinhos. A cura é `docker compose down -v`, `seed_demo` e
+  `import_cmed`; e é também a única bateria em que se pode acreditar.
 
 ## 6. Onde está o resto
 

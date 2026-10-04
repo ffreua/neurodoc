@@ -47,6 +47,14 @@ Ela carrega também a correção de um defeito antigo que nenhuma versão
 tinha: o `<title>` nunca chegava à página, porque o bloco que o definia
 morava dentro de um `{% include %}`. Fosse só isso, não mudaria a versão.
 
+A **1.6** fecha duas entregas que tinham a mesma causa: o servidor fazia a
+coisa certa e a tela não mostrava. O atendimento de texto livre aceitava
+adendo desde sempre e a tela não oferecia o bloco; o campo de impressões
+existia no modelo e nenhuma aba do estruturado o desenhava — a ponto de o
+que vinha da consulta anterior ser gravado invisível. Entra também o
+"trazer tudo" da consulta anterior, que é função nova de verdade, e é ele
+que faz a versão menor avançar: as outras duas, sozinhas, seriam correção.
+
 Mora em código, como os preços e o contrato, e pelo mesmo motivo: mudá-la
 é um commit com autor e data. Este módulo não importa nada de propósito —
 `ops/deploy.py` roda no host, fora do Django, e precisa ler a versão para
@@ -60,12 +68,12 @@ carimbá-la na publicação.
 #: Dizer "1.1" para as duas faria o chamado de suporte não distinguir quem
 #: já tem a correção de quem ainda vê o defeito -- que é exatamente o que a
 #: versão existe para responder.
-VERSION = '1.5'
+VERSION = '1.6'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'encontrável'
+CODENAME = 'o que a tela não mostrava'
 
 
 def version_display():

@@ -529,6 +529,11 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
 
 ## 9. Onde procurar o resto
 
+- **`README.md`** — a porta do repositório: o que é o produto, o histórico
+  de versões com o que entrou em cada uma, arquitetura, ambiente local,
+  verificação, deploy e o índice da documentação. É o que um desenvolvedor
+  novo (ou um auditor) abre primeiro; este arquivo aqui é o que ele abre
+  depois, para mexer no código.
 - **`docs/ESTADO-ATUAL.md` — leia primeiro.** O retrato do sistema no dia
   em que entrou em uso real: o que está provado, o que está aberto, e as
   lições que custaram caro. É o arquivo que responde "onde estamos" a
