@@ -162,7 +162,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
-| `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores e o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) |
+| `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores, o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) e a **leitura de laudo anexado** (`graphs.py` + `schemas.py`: forma normalizada, conteúdo sob guarda — ver §7-F) |
 | `notifications` | sino do usuário |
 | `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
@@ -341,6 +341,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
 | `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
+| `check_leitura_laudo.py` | a leitura de laudo pela IA: a **forma** que o modelo devolve é normalizada (lista vazia, `null` e número em campo de texto) e o **conteúdo** continua sob as mesmas guardas (faixa do laudo, probabilidade numérica, marcador de desidentificação); a varredura que impede esquema novo de nascer fora de `ArtifactModel` e prompt novo de nascer sem tipo; o recuo quando o provedor recusa `response_format`, sem confundir isso com falha de rede; e o diagnóstico da recusa gravado **sem nenhum valor do laudo** |
 | `check_logotipo.py` | o logotipo é o da organização **aberta**: o cache do navegador revalidado em vez de guardado por cinco minutos, o validador que carrega o inquilino, a revalidação com o `ETag` da clínica anterior que não pode dar 304, a varredura atrás de `max-age` novo em URL que não distingue o que serve, e nenhum template remendando o cache por conta própria |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
@@ -513,6 +514,42 @@ por isso o `.ico` e o SVG da aba levam só o monograma.
 `GOOGLE_SITE_VERIFICATION` no `.env` emite a meta tag do Search Console.
 Vazio não emite nada. Detalhe e homologação em
 `docs/homologation/seo.md`; o roteiro é `check_seo.py`.
+
+## 7-F. O que a IA devolve: forma e conteúdo
+
+**`ai/schemas.py` é o contrato de saída, e ele distingue duas coisas que
+pareciam uma.** **Forma** é como o modelo serializou — lista no lugar de
+texto, `null` no lugar de `""`, número sem aspas. **Conteúdo** é o que o
+prontuário não pode deixar de cumprir: faixa de referência vinda do
+laudo, nada de probabilidade numérica, nenhum marcador de
+desidentificação no papel.
+
+`ArtifactModel`, base de todo esquema, normaliza a **forma** antes da
+validação; os `field_validator` rodam em modo `after` e guardam o
+**conteúdo** exatamente como antes. Misturar as duas custou caro nos dois
+sentidos possíveis: em 2026-10-05 uma leitura de laudo inteira — trinta e
+um analitos corretos — foi descartada porque `unreadable_sections`, o
+campo que diz o que **não** foi lido, voltou `[]` em vez de `""`.
+
+Três regras saem daí, e todas as três têm varredura em
+`check_leitura_laudo.py`:
+
+- **esquema novo herda de `ArtifactModel`**, inclusive o aninhado — o
+  campo fora de forma costuma estar dentro da lista, não ao lado dela;
+- **prompt novo declara o tipo de cada campo.** Dos seis prompts, os dois
+  únicos que não declaravam eram os dois de leitura de documento, e eram
+  os dois que nunca tinham tido um sucesso;
+- **`response_format: json_schema`** vai junto do pedido nas tarefas de
+  `STRUCTURED_OUTPUT_TASKS`, com recuo se o provedor recusar o parâmetro:
+  "suporta `json_schema`" é propriedade do modelo, não do provedor.
+
+**Recusa é explicada em dois lugares, e os dois são necessários.** O
+médico lê a mensagem em português na linha do exame; `failure_diagnostics`
+no `AIJob` guarda qual campo, que tipo veio e que tipo se esperava. Ele
+**não** guarda a resposta crua, de propósito: o que falta ao diagnóstico
+é a forma, não o conteúdo, e guardar conteúdo clínico criaria um depósito
+novo com retenção e acesso próprios para pensar. Detalhe em
+`docs/homologation/leitura-de-laudo-por-ia.md`.
 
 ## 8. Deploy
 

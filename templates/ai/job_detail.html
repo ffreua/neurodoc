@@ -13,7 +13,57 @@
 {% block content %}
 {% if job.status == 'queued' or job.status == 'running' %}<span data-nd-ai-job-pending hidden></span>{% endif %}
 {% if job.status_detail %}
-<div class="alert alert-primary fade show fs-12" role="alert">{{ job.status_detail }}</div>
+<div class="alert alert-{% if job.status == 'failed' %}danger{% else %}primary{% endif %} fade show fs-12" role="alert">
+    {{ job.status_detail }}
+</div>
+{% endif %}
+
+{% if job.failure_diagnostics %}
+{% comment %}O detalhe técnico da recusa, fechado por padrão.
+
+Pode aparecer na tela porque não carrega valor nenhum do laudo — só nome
+de campo, tipo recebido e tipo esperado (ver `AIJob.failure_diagnostics`).
+É o bloco que se copia num pedido de suporte: sem ele, a mensagem que
+chegava era o texto cru de um erro de validação, em inglês, e nem quem
+escreveu o sistema conseguia dizer o que o modelo tinha devolvido.
+{% endcomment %}
+<details class="border rounded-3 bg-gray-100 p-3 mb-4">
+    <summary class="fs-12 fw-semibold text-dark">Detalhe técnico da recusa</summary>
+    <p class="fs-11 text-muted mt-2 mb-2">
+        Descreve o <strong>formato</strong> da resposta, não o conteúdo do laudo.
+        Pode ser copiado num pedido de suporte.
+    </p>
+    {% if job.failure_diagnostics.erros %}
+    <div class="table-responsive">
+        <table class="table table-sm mb-2">
+            <thead class="bg-gray-200">
+                <tr><th class="fs-11" scope="col">Campo</th><th class="fs-11" scope="col">O que o esquema diz</th></tr>
+            </thead>
+            <tbody>
+                {% for erro in job.failure_diagnostics.erros %}
+                <tr>
+                    <td class="fs-11"><code>{{ erro.campo }}</code></td>
+                    <td class="fs-11 text-muted">{{ erro.mensagem }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    {% if job.failure_diagnostics.forma_recebida %}
+    <span class="d-block fs-11 fw-bold text-uppercase text-muted mb-1">Forma recebida</span>
+    <ul class="list-unstyled mb-0">
+        {% for campo, tipo in job.failure_diagnostics.forma_recebida.items %}
+        <li class="fs-11"><code>{{ campo }}</code> <span class="text-muted">→ {{ tipo }}</span></li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% if job.failure_diagnostics.caracteres_recebidos %}
+    <span class="d-block fs-11 text-muted">
+        Resposta com {{ job.failure_diagnostics.caracteres_recebidos }} caracteres, fora de JSON.
+    </span>
+    {% endif %}
+</details>
 {% endif %}
 
 <div class="row g-4">

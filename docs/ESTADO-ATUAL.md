@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.6.1 "o que a tela não mostrava" · **Produção:**
+**Versão:** 1.6.2 "o que a tela não mostrava" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -49,7 +49,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**91 roteiros de verificação, nenhuma falha.** São o que substitui a
+**92 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 
@@ -171,6 +171,17 @@ ocorrências: roteiro lendo a própria legenda; roteiro de paginação sem
 volume; asserção casando com ícone decorativo; e um roteiro que passava
 em dois dias da semana e reprovava nos outros cinco. O último é o pior:
 ensina quem lê a ignorar o vermelho.
+
+**Validação rígida demais descarta o trabalho certo.** Em 2026-10-05 uma
+leitura de laudo pela IA foi recusada inteira — trinta e um analitos
+transcritos corretamente — porque `unreadable_sections`, o campo onde o
+modelo diz o que **não** conseguiu ler, voltou `[]` em vez de `""`. Um
+erro de validação, num campo vazio, anulando o artefato todo. A lição
+não é "valide menos": é que **forma** (como o modelo serializou) e
+**conteúdo** (o que o prontuário exige) são coisas diferentes e estavam
+sob a mesma régua. A forma passou a ser normalizada; as guardas clínicas
+seguem intactas e agora têm roteiro provando que seguem. Ver
+`docs/homologation/leitura-de-laudo-por-ia.md` e o §7-F do `CLAUDE.md`.
 
 **Lista escrita à mão envelhece.** A guarda de fuso, a de idioma e a de
 chaves do runtime nasceram como listas e falharam pelo mesmo motivo —

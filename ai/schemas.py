@@ -23,7 +23,7 @@ import re
 from enum import StrEnum
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 SCHEMA_VERSION = 'v1'
 
@@ -48,7 +48,89 @@ def _reject_numeric_probability(text):
     return text
 
 
-class SourceReference(BaseModel):
+def _como_texto(valor):
+    """Converte para texto o que o modelo mandou noutra forma, ou devolve igual.
+
+    Três conversões, e nenhuma delas inventa conteúdo:
+
+    - **lista de escalares vira texto** juntado por `; `. É a que motivou
+      isto: em 05/10/2026 uma leitura de laudo inteira foi descartada
+      porque `unreadable_sections` — o campo onde o modelo diz o que **não**
+      conseguiu ler — voltou como `[]` em vez de `""`. O nome é plural, o
+      prompt não declarava o tipo, e o modelo respondeu "nada ficou
+      ilegível" em forma de lista. Trinta e um analitos lidos corretamente
+      foram para o lixo por causa disso.
+    - **`None` vira texto vazio.** `null` e `""` dizem a mesma coisa num
+      campo de texto livre, e só um deles passava.
+    - **número vira texto** em campo declarado como texto: `collected_on`
+      com a data escrita sem aspas é a ocorrência provável.
+
+    Lista com objeto dentro **não** é convertida: `str(dict)` produziria
+    um `repr` de Python dentro do prontuário, e aí a diferença entre o que
+    o laudo diz e o que o sistema mostra deixaria de ser cosmética. Isso
+    segue reprovando, que é o certo.
+    """
+    if valor is None:
+        return ''
+    if isinstance(valor, bool):
+        return valor
+    if isinstance(valor, (int, float)):
+        return str(valor)
+    if isinstance(valor, (list, tuple)):
+        if not all(isinstance(item, (str, int, float)) and not isinstance(item, bool)
+                   for item in valor):
+            return valor
+        partes = [str(item).strip() for item in valor]
+        return '; '.join(parte for parte in partes if parte)
+    return valor
+
+
+class ArtifactModel(BaseModel):
+    """Base de todo esquema de saída: aceita a forma, continua exigindo o conteúdo.
+
+    A distinção é a razão de este `model_validator` existir e de ele parar
+    onde para. **Forma** é se o campo veio como lista, número ou nulo —
+    decisão de serialização do modelo, sobre a qual não temos contrato
+    executável (não usamos saída estruturada em toda tarefa, e mesmo com
+    ela o provedor pode ignorar). **Conteúdo** é o que o prontuário não
+    pode deixar de cumprir: faixa de referência vinda do laudo,
+    probabilidade numérica recusada, marcador de desidentificação que não
+    pode chegar ao papel.
+
+    Normalizar a forma e manter o conteúdo sob a mesma guarda de antes é o
+    único arranjo que não troca um defeito por outro: descartar a extração
+    inteira por causa de um `[]` custa o trabalho todo, e relaxar o
+    conteúdo custaria o motivo de os esquemas existirem. Os
+    `field_validator` rodam em modo `after`, isto é, **depois** desta
+    conversão — nenhum deles deixou de valer.
+
+    Vale para os esquemas aninhados também (`ExtractedAnalyte`,
+    `ReportSection`): o campo fora de forma costuma estar dentro da lista,
+    não ao lado dela.
+    """
+
+    @model_validator(mode='before')
+    @classmethod
+    def _normalizar_campos_de_texto(cls, data):
+        if not isinstance(data, dict):
+            return data
+        ajustado = None
+        for nome, campo in cls.model_fields.items():
+            # Só o campo declarado exatamente como `str`. `Optional[float]`,
+            # `Literal[True]` e as listas de objetos ficam de fora: ali uma
+            # conversão silenciosa esconderia divergência real.
+            if campo.annotation is not str or nome not in data:
+                continue
+            convertido = _como_texto(data[nome])
+            if convertido is data[nome]:
+                continue
+            if ajustado is None:
+                ajustado = dict(data)
+            ajustado[nome] = convertido
+        return data if ajustado is None else ajustado
+
+
+class SourceReference(ArtifactModel):
     type: str
     id: str
     version_or_hash: str
@@ -58,7 +140,7 @@ class SourceReference(BaseModel):
 # Resumo clínico (RF-11.05)
 # --------------------------------------------------------------------------
 
-class ClinicalSummaryArtifact(BaseModel):
+class ClinicalSummaryArtifact(ArtifactModel):
     """Resumo de apoio à revisão médica; hipóteses aqui são texto qualitativo."""
 
     summary: str = Field(min_length=1, max_length=8000)
@@ -123,7 +205,7 @@ STEP_CATEGORY_LABELS = {
 }
 
 
-class DiagnosticHypothesis(BaseModel):
+class DiagnosticHypothesis(ArtifactModel):
     label: str = Field(min_length=1, max_length=300)
     priority: HypothesisPriority
     supporting_evidence: list[str] = Field(default_factory=list, max_length=12)
@@ -141,7 +223,7 @@ class DiagnosticHypothesis(BaseModel):
         return PRIORITY_LABELS[self.priority]
 
 
-class SuggestedNextStep(BaseModel):
+class SuggestedNextStep(ArtifactModel):
     """Exame ou avaliação sugerida, com a razão de ser dela.
 
     `rationale` não é enfeite: o prompt pede exame que **muda a conduta**, e é
@@ -155,7 +237,7 @@ class SuggestedNextStep(BaseModel):
     addresses_hypotheses: list[str] = Field(default_factory=list, max_length=8)
 
 
-class DiagnosticSupportArtifact(BaseModel):
+class DiagnosticSupportArtifact(ArtifactModel):
     """Hipóteses por prioridade qualitativa + exames sugeridos (PRD 14.4).
 
     `requires_physician_review` é fixo em `True` e não é negociável pelo
@@ -177,7 +259,7 @@ class DiagnosticSupportArtifact(BaseModel):
 # Leitura de laudo laboratorial
 # --------------------------------------------------------------------------
 
-class ExtractedAnalyte(BaseModel):
+class ExtractedAnalyte(ArtifactModel):
     """Um analito lido do laudo, com a referência do próprio laudo.
 
     `reference_low`/`reference_high` ficam `None` quando o documento não
@@ -195,7 +277,7 @@ class ExtractedAnalyte(BaseModel):
     reference_text: str = Field(default='', max_length=120)
 
 
-class LabExtractionArtifact(BaseModel):
+class LabExtractionArtifact(ArtifactModel):
     exam_name: str = Field(default='', max_length=255)
     collected_on: str = Field(default='', max_length=30)
     service_name: str = Field(default='', max_length=255)
@@ -211,7 +293,7 @@ class LabExtractionArtifact(BaseModel):
 # Transcrição de laudo de imagem / EEG / ENMG
 # --------------------------------------------------------------------------
 
-class ReportTranscriptionArtifact(BaseModel):
+class ReportTranscriptionArtifact(ArtifactModel):
     """Laudo transcrito, não interpretado.
 
     `report_text` e `conclusion` devem reproduzir o que está no documento.
@@ -264,7 +346,7 @@ def _reject_deidentification_markers(text):
     return text
 
 
-class ReportSection(BaseModel):
+class ReportSection(ArtifactModel):
     titulo: str = Field(default='', max_length=200)
     texto: str = Field(default='', max_length=20000)
 
@@ -274,7 +356,7 @@ class ReportSection(BaseModel):
         return _reject_deidentification_markers(value)
 
 
-class PatientReportArtifact(BaseModel):
+class PatientReportArtifact(ArtifactModel):
     """Rascunho de relatório médico, em seções.
 
     **Não há validador de probabilidade numérica aqui, de propósito** — ao

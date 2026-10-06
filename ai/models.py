@@ -79,6 +79,21 @@ class AIJob(TenantModel):
     policy_version = models.CharField(max_length=20, default='v1')
     status = models.CharField(max_length=20, choices=AIJobStatus.choices, default=AIJobStatus.QUEUED)
     status_detail = models.CharField(max_length=255, blank=True)
+    #: Por que a saída foi recusada, em termos de **forma** — qual campo,
+    #: que tipo veio, que tipo se esperava. Nunca o valor.
+    #:
+    #: A alternativa era guardar a resposta crua do modelo, e ela foi
+    #: recusada: resolveria o diagnóstico criando um depósito novo de
+    #: conteúdo clínico, com retenção, acesso e exportação próprios para
+    #: pensar. O que falta quando uma extração é recusada não é o
+    #: conteúdo — é a forma, e ela não identifica ninguém. Por isso este
+    #: campo pode aparecer na tela e ir num pedido de suporte, enquanto a
+    #: resposta crua não poderia.
+    #:
+    #: Vazio no sucesso e em toda falha que acontece antes do modelo
+    #: responder (autorização, privacidade, prazo): ali o `status_detail`
+    #: já diz tudo que há para dizer.
+    failure_diagnostics = models.JSONField(default=dict, blank=True)
     limits = models.JSONField(default=dict, blank=True)
     task_id = models.CharField(max_length=100, blank=True)
     cancel_requested_at = models.DateTimeField(null=True, blank=True)

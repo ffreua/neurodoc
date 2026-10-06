@@ -121,6 +121,13 @@ PRD; é a referência operacional viva gerada a partir dele.
   não três; NVIDIA NIM com Nemotron como padrão desta instalação, sem
   atropelar a clínica que configurou a sua.
 
+- [Leitura de laudo pela IA: forma e conteúdo](homologation/leitura-de-laudo-por-ia.md) —
+  o defeito de 2026-10-05: um laudo lido corretamente foi descartado
+  inteiro porque o campo "o que não consegui ler" voltou como lista
+  vazia. A fronteira entre normalizar a forma que o modelo devolve e
+  relaxar o conteúdo que o prontuário exige, o esquema indo junto do
+  pedido, e o diagnóstico da recusa gravado sem nenhum valor do laudo.
+
 - [Chat de apoio — prompt, prontuário e layout](homologation/chatbot.md) —
   o chat passa a mandar instrução de sistema, prontuário do paciente da sessão
   e histórico, desidentificados, num layout de duas colunas. Quatro lacunas

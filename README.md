@@ -13,7 +13,7 @@ instalação, várias clínicas.
 | --- | --- |
 | **Versão do produto** | 1.6 "o que a tela não mostrava" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
-| **Verificação** | 91 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 92 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
 | **Repositório** | privado |
 
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.6.2** | 2026-10-05 | o que a tela não mostrava | A leitura de laudo pela IA era descartada inteira quando um campo de texto voltava como lista vazia — trinta e um analitos corretos no lixo por causa do campo que diz "não ficou nada ilegível". A **forma** que o modelo devolve passa a ser normalizada; o **conteúdo** segue sob as mesmas guardas. O esquema vai junto do pedido, e a recusa passa a ser explicada em português, com o detalhe técnico gravado sem nenhum valor do laudo. |
 | **1.6.1** | 2026-10-05 | o que a tela não mostrava | Quem atende em **duas clínicas** trocava de organização e seguia vendo o logotipo da anterior. Não era vazamento entre inquilinos — o servidor sempre mandou a imagem certa; era o cache do navegador, que guardava a mesma URL por cinco minutos porque a resposta pedia. Agora a resposta é revalidada, com validador que carrega o inquilino. |
 | **1.6** | 2026-10-04 | o que a tela não mostrava | Adendo no atendimento de **texto livre** finalizado (o servidor sempre aceitou; a tela não oferecia). Campo **Impressões** no estruturado, na aba de hipóteses — existia no modelo e nenhuma aba o desenhava, a ponto de o que vinha da consulta anterior ser gravado invisível. Botão **Trazer tudo** da consulta anterior, numa transação só. Cada envio volta para a **aba de onde saiu**. |
 | **1.5** | 2026-10-03 | encontrável | SEO completo a partir de um catálogo único (`base/seo.py`): título, descrição, canônica, `robots`, `sitemap.xml` e dados estruturados. Família de ícones da marca gerada de uma geometria só. Cartão de compartilhamento. Seção que responde ao médico de outra especialidade. Corrige o `<title>` que nunca chegava à página porque bloco não atravessa `{% include %}`. |
@@ -60,7 +61,7 @@ Cada release publicada deve ter um registro em
 responsável — é a seção 18.6 do PRD, e a ordem importa: o registro entra
 **antes** de `NEURODOC_RELEASE_APPROVED=True`.
 
-> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6 e 1.6.1; as versões 1.2 a 1.5
+> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6, 1.6.1 e 1.6.2; as versões 1.2 a 1.5
 > foram publicadas sem o arquivo correspondente. `scripts/setup_deploy.sh`
 > cria um `docs/releases/<sha>.md` a partir do molde **na VPS**, e ninguém
 > o commitou. Preencher é ato do responsável técnico, não da máquina — por

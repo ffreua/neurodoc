@@ -249,10 +249,20 @@ def _previous_artifact(job):
     return qs.exclude(job_id=job.id).order_by('-created_at').first()
 
 
-def _fail(job, status, detail, action):
+def _fail(job, status, detail, action, diagnostics=None):
+    """Encerra o job em falha, com o motivo legível e a forma recusada.
+
+    `detail` é o que o médico lê na linha do exame; `diagnostics` é o que
+    quem conserta precisa, e não contém valor do laudo (ver
+    `AIJob.failure_diagnostics`). Os dois juntos porque separados não
+    serviram: por três semanas a tela mostrou ao médico o texto cru de um
+    `ValidationError` do Pydantic, em inglês, e nem assim deu para saber o
+    que o modelo tinha devolvido.
+    """
     job.status = status
     job.status_detail = detail[:255]
-    job.save(update_fields=['status', 'status_detail'])
+    job.failure_diagnostics = diagnostics or {}
+    job.save(update_fields=['status', 'status_detail', 'failure_diagnostics'])
     record_audit_event(job.user_id, job.tenant_id, action, object_type='ai_job', object_id=job.id, outcome='denied')
     return None
 
@@ -333,11 +343,14 @@ def run_job(job_id):
     graph = build_graph(chat_model, job.kind, max_output_chars=job.limits.get('max_output_chars', 20000))
     result_state = graph.invoke({
         'prompt': prompt, 'timeout_seconds': job.limits.get('timeout_seconds', 30),
-        'raw_response': None, 'artifact': None, 'error': None,
+        'raw_response': None, 'artifact': None, 'error': None, 'diagnostics': None,
     })
 
     if result_state.get('error'):
-        return _fail(job, AIJobStatus.FAILED, result_state['error'], 'ai.job_failed')
+        return _fail(
+            job, AIJobStatus.FAILED, result_state['error'], 'ai.job_failed',
+            diagnostics=result_state.get('diagnostics'),
+        )
 
     artifact_data = dict(result_state['artifact'])
     artifact_data['source_refs'] = source_refs or artifact_data.get('source_refs', [])
