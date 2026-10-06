@@ -23,8 +23,14 @@
                     {% if profile.has_logo %}
                     {% comment %}A imagem vem de rota própria: `/data/media` não é
                     servido pelo servidor web, e o arquivo é o da organização da
-                    sessão — a URL não carrega id de clínica nenhum.{% endcomment %}
-                    <img src="{% url 'tenancy:clinic-logo-file' %}?v={{ profile.logo_updated_at|date:'U' }}"
+                    sessão — a URL não carrega id de clínica nenhum.
+
+                    Sem `?v=` com a data do envio, que esteve aqui: a troca do
+                    logotipo aparece na hora porque a resposta é revalidada a
+                    cada uso (ver `ClinicLogoFileView`), e um bustador só nesta
+                    tela escondia o defeito de cache onde ele doía — no menu de
+                    quem atende em duas clínicas.{% endcomment %}
+                    <img src="{% url 'tenancy:clinic-logo-file' %}"
                          alt="Logotipo de {{ tenant.trade_name|default:tenant.legal_name }}"
                          style="max-height:7rem;max-width:100%">
                     {% else %}

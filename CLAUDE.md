@@ -124,6 +124,21 @@ e a chave que ele habilita, em lugar nenhum. Estender a `patients`,
 até lá, o que separa as clínicas nesses apps é o filtro por inquilino em
 cada consulta, sem a rede embaixo.
 
+**O isolamento vale também para o cache do navegador.** Um endereço de
+`/app/` que serve conteúdo do inquilino **da sessão** não pode responder
+com `Cache-Control: max-age` fixo: o cache indexa por URL e por `Vary`, e
+trocar de organização não troca nem a URL nem o cookie — `switch_tenant`
+escreve `tenant_id` na mesma sessão. Em 2026-10-05 isso apareceu em uso
+real: a secretária que atende em duas clínicas trocava de organização e
+seguia vendo o logotipo da anterior por cinco minutos. O servidor sempre
+mandou a imagem certa; o navegador é que não perguntava. A regra, em uma
+frase: **prazo fixo só quando a própria URL diz o que ela devolve** —
+a foto do paciente pode, porque carrega o id na rota; o logotipo não
+podia, e hoje responde `private, no-cache` com `ETag` que carrega o
+inquilino (`tenancy/branding.py::logo_etag`). `check_logotipo.py` varre o
+código atrás de `max-age` novo e cobra a justificativa; o caso está em
+`docs/homologation/logotipo-por-organizacao.md`.
+
 **Rotas fora de `/app/` são públicas ou de instalação, de propósito:**
 `/` (vendas), `/accounts/`, `/verificar/` (QR do documento, aberto na
 farmácia), `/solicitacoes/` (portal do paciente, sem conta), `/d/`
@@ -326,6 +341,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
 | `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
+| `check_logotipo.py` | o logotipo é o da organização **aberta**: o cache do navegador revalidado em vez de guardado por cinco minutos, o validador que carrega o inquilino, a revalidação com o `ETag` da clínica anterior que não pode dar 304, a varredura atrás de `max-age` novo em URL que não distingue o que serve, e nenhum template remendando o cache por conta própria |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são

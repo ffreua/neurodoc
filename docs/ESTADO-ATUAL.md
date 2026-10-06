@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.6 "o que a tela não mostrava" · **Produção:**
+**Versão:** 1.6.1 "o que a tela não mostrava" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -14,10 +14,20 @@ está aberto e o que já quebrou antes.
 Sete serviços em Docker Swarm, todos saudáveis: `app` (2 réplicas),
 `celery_worker`, `celery_beat`, `db`, `rabbitmq`, `redis`, `traefik`.
 
-Uma clínica real — **Consultório Dr. Fernando Freua**, plano Personalizado
-— com **2.229 pacientes** migrados do sistema anterior, 2 vínculos ativos,
-1 certificado de assinatura e 1 médico com CRM. Nenhum dado de
-demonstração em produção.
+**Duas** clínicas reais, conferidas em 05/10/2026 — e a segunda é o que
+tirou o multi-inquilino do papel:
+
+| Clínica | Plano | Pacientes | Vínculos ativos |
+| --- | --- | --- | --- |
+| Freua Serviços Médicos (Consultório Dr. Fernando Freua) | Personalizado | 2.231 | 3 |
+| CALDAS, REGO E URBANO SERVICOS MEDICOS LTDA | Completo | 62 | 2 |
+
+Dois médicos com CRM verificado. Nenhum dado de demonstração em
+produção. **Há uma pessoa com vínculo nas duas** — a secretária — e foi
+ela quem encontrou o primeiro defeito de isolamento que o sistema teve
+em uso real (§4, o logotipo no cache do navegador). Vale como aviso de
+onde procurar o próximo: a jornada que só existe quando alguém pertence
+a mais de uma clínica não é exercitada por quem pertence a uma.
 
 | Trava de segurança | Estado |
 | --- | --- |
@@ -39,7 +49,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**90 roteiros de verificação, nenhuma falha.** São o que substitui a
+**91 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 
@@ -141,6 +151,20 @@ para o log, e o sintoma só existe na aba do navegador e na primeira linha
 do resultado de busca, que são os dois lugares onde ninguém olha ao
 conferir uma tela. Encontrado em 2026-10-03, ao montar o SEO; o roteiro
 que o teria pego é `check_seo.py` (ver `docs/homologation/seo.md`).
+
+**Isolamento entre inquilinos não termina no servidor.** Em 2026-10-05,
+em uso real, uma secretária com vínculo em duas clínicas trocou de
+organização e continuou vendo o logotipo da anterior. O banco estava
+certo, o disco estava certo e o servidor respondeu com a imagem certa nas
+duas: o que mostrou a clínica errada foi o cache do **navegador** —
+mesma URL (`/app/org/clinica/logotipo.img`, que não aceita id de
+organização, de propósito), mesmo cookie (trocar de organização escreve
+na mesma sessão), e um `max-age=300` prometendo o que o servidor não
+podia cumprir. A revisão de isolamento tinha examinado o cache do Django
+e concluído, corretamente, que nada vazava por ali; o cache que falhou
+não é nosso e não aparece numa busca por `cache.set`. A regra que ficou:
+**prazo fixo de cache só quando a própria URL diz o que ela devolve.**
+Ver `docs/homologation/logotipo-por-organizacao.md` e `check_logotipo.py`.
 
 **Um teste que não falha com o defeito presente não é teste.** Quatro
 ocorrências: roteiro lendo a própria legenda; roteiro de paginação sem

@@ -277,6 +277,12 @@ PRD; é a referência operacional viva gerada a partir dele.
   local disponível; RNF-01.01 na escala-alvo permanece pendente.
 - [Revisão de isolamento](homologation/isolation.md) — admin, exportações,
   chat, tasks, download e cache revisados novamente.
+- [O logotipo é o da organização aberta](homologation/logotipo-por-organizacao.md) —
+  o defeito de 2026-10-05: a secretária com vínculo em duas clínicas
+  trocava de organização e via o logotipo da anterior. Não era vazamento
+  entre inquilinos — era o cache do navegador, que a revisão de
+  isolamento não tinha olhado. Traz a regra geral de prazo de cache e o
+  roteiro que a cobra.
 - [Retenção, chaves e incidentes](governance/incident-response.md) —
   consolidação final de governança operacional.
 

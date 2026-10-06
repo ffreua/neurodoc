@@ -20,6 +20,7 @@ from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.cache import get_conditional_response
 from django.views import View
 
 from accounts import mfa
@@ -698,6 +699,29 @@ class ClinicLogoFileView(CapabilityRequiredView):
 
     Qualquer vínculo ativo pode ver: o logotipo aparece no cabeçalho das
     telas e nos documentos que a própria recepção imprime.
+
+    **O cache é revalidado sempre, e isso é a decisão.** Um endereço só
+    pode ficar guardado por tempo fixo no navegador quando a URL diz o que
+    ele devolve; esta não diz — o que ela devolve depende do `tenant_id`
+    da sessão, que o cache não enxerga. Com `max-age=300`, que foi o que
+    esteve no ar, quem atende em duas clínicas trocava de organização e
+    via o logotipo da anterior: o nome da clínica no menu mudava (vem do
+    HTML, que não é cacheado) e a imagem não (vinha do cache do
+    navegador, pela mesma URL e pelo mesmo cookie). Parecia vazamento
+    entre inquilinos e não era — o servidor sempre mandou a imagem certa,
+    o navegador é que não perguntava.
+
+    `no-cache` não é `no-store`: a imagem continua guardada, só que o
+    navegador pergunta antes de usar. Quando nada mudou, a resposta é um
+    304 de algumas dezenas de bytes — contra 680 KB de um logotipo real,
+    é o mesmo ganho de antes, sem a janela de cinco minutos mostrando a
+    clínica errada.
+
+    A alternativa recusada foi pôr um `?v=` com o inquilino na URL do
+    menu, que é o que a tela de identidade já fazia com a data do envio.
+    Resolve, e foi exatamente o que falhou: a correção mora no template,
+    e quem desenhar a próxima tela com o logotipo não tem como saber que
+    precisa lembrar dela. Aqui não há o que lembrar.
     """
 
     required_capability = None
@@ -706,11 +730,17 @@ class ClinicLogoFileView(CapabilityRequiredView):
         profile = ClinicProfile.objects.filter(
             tenant_id=request.access_context.tenant_id,
         ).first()
-        content = branding.read_logo(profile)
-        if content is None:
+        etag = branding.logo_etag(profile)
+        if etag is None:
             raise Http404
-        response = HttpResponse(content, content_type=profile.logo_mime)
-        response['Cache-Control'] = 'private, max-age=300'
+        response = get_conditional_response(request, etag=etag)
+        if response is None:
+            content = branding.read_logo(profile)
+            if content is None:
+                raise Http404
+            response = HttpResponse(content, content_type=profile.logo_mime)
+        response['ETag'] = etag
+        response['Cache-Control'] = 'private, no-cache'
         response['X-Content-Type-Options'] = 'nosniff'
         # Impede que a imagem seja interpretada como página caso alguém a
         # abra direto: conteúdo enviado por usuário servido do mesmo domínio.

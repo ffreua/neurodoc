@@ -13,6 +13,8 @@ tipo é conferido pelos bytes (`magic`), não pela extensão nem pelo que o
 navegador declarou.
 """
 
+import hashlib
+import hmac
 import os
 from pathlib import Path
 
@@ -121,3 +123,45 @@ def read_logo(profile):
     if not path.is_file():
         return None
     return path.read_bytes()
+
+
+def logo_etag(profile):
+    """Validador de cache do logotipo, ou None quando não há imagem.
+
+    Existe porque o endereço que serve o logotipo é o mesmo para todas as
+    clínicas — `/app/org/clinica/logotipo.img`, sem id de organização, de
+    propósito (ver `ClinicLogoFileView`). O que muda entre uma clínica e
+    outra está **dentro da sessão**, e o cache do navegador não enxerga
+    sessão: ele guarda por URL e por `Vary`, e o `Vary: Cookie` que a
+    sessão acrescenta não ajuda porque trocar de organização **não troca o
+    cookie** — a troca escreve `tenant_id` na mesma sessão.
+
+    O resultado, com o `max-age` que havia aqui, era a secretária que
+    atende em duas clínicas trocar de organização e continuar vendo o
+    logotipo da anterior por cinco minutos: o servidor mandava a imagem
+    certa, o navegador nem perguntava. Foi assim que o defeito foi
+    encontrado em produção.
+
+    Daí o validador: a resposta passa a ser revalidada a cada uso, e a
+    identidade do que está em cache carrega o inquilino. É HMAC e não o
+    `tenant_id` cru porque um validador é um cabeçalho que o cliente
+    guarda e devolve — não precisa dizer qual é a organização para fazer
+    o seu trabalho.
+
+    `is_file()` antes de assinar: sem isso, um arquivo perdido numa
+    restauração parcial responderia 304 e o navegador seguiria exibindo
+    uma imagem que o servidor não tem mais.
+    """
+    if not profile or not profile.logo_path:
+        return None
+    if not Path(profile.logo_path).is_file():
+        return None
+    semente = '|'.join((
+        str(profile.tenant_id),
+        profile.logo_updated_at.isoformat() if profile.logo_updated_at else '',
+        str(profile.logo_bytes),
+    ))
+    assinatura = hmac.new(
+        settings.SECRET_KEY.encode('utf-8'), semente.encode('utf-8'), hashlib.sha256,
+    ).hexdigest()[:32]
+    return f'"{assinatura}"'

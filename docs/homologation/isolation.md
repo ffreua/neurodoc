@@ -65,6 +65,18 @@ verificação própria.
   Nenhum dado clínico ou administrativo de tenant passa pelo cache
   compartilhado; não há risco de um valor cacheado vazar entre tenants
   porque nenhuma chave sensível ao tenant é cacheada.
+- [ ] **O cache do navegador não foi examinado aqui, e tinha um furo.**
+  Acrescentado em 2026-10-05, depois de o defeito aparecer em uso real:
+  esta seção procurou `cache.set`/`cache_page` no código-fonte e concluiu
+  corretamente sobre o cache do Django. O cache que mostrou a organização
+  errada não é nosso e não aparece nessa busca — é o do navegador, que
+  guardava `/app/org/clinica/logotipo.img` por cinco minutos porque a
+  resposta pedia, e servia a imagem da clínica anterior depois da troca
+  de organização (a URL não muda, e o cookie também não: `switch_tenant`
+  escreve na mesma sessão). Corrigido em
+  `docs/homologation/logotipo-por-organizacao.md`, com a regra geral e o
+  roteiro `check_logotipo.py`, que varre o código atrás de `max-age` em
+  endereço que não distingue o que serve.
 
 ## Achado real desta sprint (fora do escopo original de H-03, mas relacionado)
 
