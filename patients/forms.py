@@ -101,7 +101,7 @@ class PatientForm(forms.ModelForm):
                   'de municípios.',
         widget=forms.TextInput(attrs={
             'placeholder': 'Ex.: São Paulo', 'autocomplete': 'off',
-            'list': 'nd-municipios', 'data-nd-municipio': 'true',
+            'data-nd-municipio': 'true',
             # `reverse_lazy`, e nao a rota escrita a mao: o nome resolve
             # na renderizacao, e mudar a rota deixa de significar
             # procurar a string em dois lugares.
@@ -110,7 +110,13 @@ class PatientForm(forms.ModelForm):
     )
     birth_state = forms.ChoiceField(
         label='UF de nascimento', choices=UF_CHOICES, required=False,
-        help_text='Só para quem nasceu no Brasil.',
+        help_text='Escolha antes da cidade: a lista de municípios passa a '
+                  'mostrar só os desta UF.',
+        # O gancho que o autocomplete lê para filtrar a busca. Fica no
+        # campo declarado, e nao no `widgets` do `Meta`: campo declarado
+        # a mao substitui o do modelo, e o widget de la seria ignorado em
+        # silencio -- foi assim que o filtro por UF nasceu sem efeito.
+        widget=forms.Select(attrs={'data-nd-municipio-uf': 'true'}),
     )
 
     coverage_plan = forms.ModelChoiceField(

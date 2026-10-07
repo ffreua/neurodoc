@@ -61,7 +61,62 @@ dia = timezone.localdate() + timedelta(days=7)
 while dia.weekday() != 0:
     dia += timedelta(days=1)
 
+# ------------------------------------------------------------------
+# A grade deste medico e **fixture de outros roteiros**.
+#
+# Este roteiro apaga regras para montar os cenarios, e a primeira versao
+# nao as devolvia: `check_mes_e_estatisticas`, que roda depois na ordem
+# alfabetica, passou a reprovar com "ha um dia do mes anterior com grade
+# publicada -> False". O roteiro nao estava errado sobre o que mede --
+# estava errado sobre o que deixa para tras.
+#
+# Guardar os campos e nao os objetos: `delete()` zera o `pk` da
+# instancia, e recriar a partir dela gravaria uma linha com id novo e
+# `created_at` de hoje.
+# ------------------------------------------------------------------
+DIAS_QUE_O_ROTEIRO_MEXE = (0, 1, 3)
+_grade_original = [
+    {
+        'weekday': r.weekday, 'local_start': r.local_start, 'local_end': r.local_end,
+        'starts_on': r.starts_on, 'ends_on': r.ends_on, 'slot_minutes': r.slot_minutes,
+        'buffer_minutes': r.buffer_minutes, 'appointment_type': r.appointment_type,
+    }
+    for r in AvailabilityRule.objects.filter(
+        physician_membership=medico, weekday__in=DIAS_QUE_O_ROTEIRO_MEXE,
+    )
+]
+_pausas_originais = [
+    {
+        'weekday': p_.weekday, 'local_start': p_.local_start, 'local_end': p_.local_end,
+        'starts_on': p_.starts_on, 'ends_on': p_.ends_on, 'reason': p_.reason,
+    }
+    for p_ in RecurringBreak.objects.filter(
+        physician_membership=medico, weekday__in=DIAS_QUE_O_ROTEIRO_MEXE,
+    )
+]
+
+
+def devolver_a_grade():
+    """Recoloca a grade como estava antes deste roteiro."""
+    AvailabilityRule.objects.filter(
+        physician_membership=medico, weekday__in=DIAS_QUE_O_ROTEIRO_MEXE,
+    ).delete()
+    RecurringBreak.objects.filter(
+        physician_membership=medico, weekday__in=DIAS_QUE_O_ROTEIRO_MEXE,
+    ).delete()
+    for campos in _grade_original:
+        AvailabilityRule.objects.create(
+            tenant_id=medico.tenant_id, physician_membership=medico, **campos,
+        )
+    for campos in _pausas_originais:
+        RecurringBreak.objects.create(
+            tenant_id=medico.tenant_id, physician_membership=medico, **campos,
+        )
+
+
 print('=== 1. a pausa recorta a janela do dia ===')
+print(f'  grade guardada para devolver: {len(_grade_original)} regra(s), '
+      f'{len(_pausas_originais)} pausa(s)')
 AvailabilityRule.objects.filter(physician_membership=medico, weekday=0).delete()
 RecurringBreak.objects.filter(physician_membership=medico, weekday=0).delete()
 regra = AvailabilityRule(
@@ -131,6 +186,94 @@ try:
 
     cabe, motivo = fits(medico.id, inicio, inicio + timedelta(minutes=20))
     confere(cabe, 'mas a de 20 min, que termina as 11:40, cabe', motivo)
+
+    print('=== 2b. a tarde RECOMECA quando a pausa acaba ===')
+    # O defeito do primeiro teste real, em 07/10/2026. A cadencia corria
+    # a partir do inicio da janela e a pausa apenas fechava a celula que
+    # a tocasse: janela 08h40-18h40, celula de 40 min, almoco das 12h40
+    # as 13h davam
+    #
+    #     ... 12h00, [12h40 fechada], 13h20, 14h00 ...
+    #
+    # -- a celula inteira das 12h40 perdida, E a tarde voltando vinte
+    # minutos depois do fim do almoco. O esperado e a tarde recomecar
+    # quando a pausa acaba.
+    #
+    # Montado com os numeros exatos do caso relatado, e nao com numeros
+    # redondos: 08h40 e 12h40 so caem na cadencia porque a janela comeca
+    # em 08h40, e e justamente esse encaixe que o defeito escondia.
+    AvailabilityRule.objects.filter(physician_membership=medico, weekday=0).delete()
+    RecurringBreak.objects.filter(physician_membership=medico, weekday=0).delete()
+    regra_real = AvailabilityRule(
+        tenant_id=medico.tenant_id, physician_membership=medico, weekday=0,
+        local_start=time(8, 40), local_end=time(18, 40),
+        starts_on=dia - timedelta(days=30), slot_minutes=40, buffer_minutes=0,
+    )
+    regra_real.full_clean()
+    regra_real.save()
+    pausa_real = RecurringBreak(
+        tenant_id=medico.tenant_id, physician_membership=medico, weekday=0,
+        local_start=time(12, 40), local_end=time(13, 0),
+        starts_on=dia - timedelta(days=30), reason='Almoço',
+    )
+    pausa_real.full_clean()
+    pausa_real.save()
+
+    celulas = day_grid(medico.id, dia)
+    livres_reais = [
+        timezone.localtime(c['start']).strftime('%H:%M')
+        for c in celulas if c['status'] in ('free', 'past', 'done')
+    ]
+    print('  manha :', livres_reais[:7])
+    print('  tarde :', livres_reais[7:])
+    esperado = [
+        '08:40', '09:20', '10:00', '10:40', '11:20', '12:00',
+        '13:00', '13:40', '14:20', '15:00', '15:40', '16:20', '17:00', '17:40',
+    ]
+    confere(livres_reais == esperado,
+            'a manha vai ate 12h00 e a tarde recomeca as 13h00',
+            f'veio {livres_reais}')
+    confere('12:40' not in livres_reais,
+            'as 12h40 nao sao oferecidas -- e quando a pausa comeca')
+    confere('13:20' not in livres_reais,
+            'e 13h20 tampouco: a tarde nao fica deslocada em 20 minutos')
+
+    # A pausa aparece, com o horario real dela e com o motivo.
+    da_pausa = [
+        c for c in celulas
+        if timezone.localtime(c['start']).strftime('%H:%M') == '12:40'
+    ]
+    confere(len(da_pausa) == 1, 'ha uma celula para a pausa', str(len(da_pausa)))
+    if da_pausa:
+        c = da_pausa[0]
+        fim = timezone.localtime(c['end']).strftime('%H:%M')
+        confere(c['status'] == 'blocked' and fim == '13:00',
+                'fechada, das 12h40 as 13h00 -- o horario real, nao o da celula',
+                f"{c['status']} ate {fim}")
+        confere(c['reason'] == 'Almoço', 'com o motivo escrito', str(c['reason']))
+
+    # E as celulas estao em ordem: a pausa foi acrescentada depois da
+    # grade, e sem ordenar aparecia no rodape do dia.
+    inicios = [c['start'] for c in celulas]
+    confere(inicios == sorted(inicios), 'as celulas saem em ordem de horario')
+
+    # O mesmo tem de valer para quem pergunta onde cabe uma consulta.
+    livres_oferecidos = [
+        timezone.localtime(i).strftime('%H:%M')
+        for i, _f in available_slots(medico.id, dia, 40)
+    ]
+    confere('13:00' in livres_oferecidos and '13:20' not in livres_oferecidos,
+            'a lista de horarios livres oferece 13h00, e nao 13h20',
+            str(livres_oferecidos))
+
+    AvailabilityRule.objects.filter(physician_membership=medico, weekday=0).delete()
+    RecurringBreak.objects.filter(physician_membership=medico, weekday=0).delete()
+    regra.pk = None
+    regra.id = None
+    regra.save()
+    pausa.pk = None
+    pausa.id = None
+    pausa.save()
 
     print('=== 3. a pausa so vale no dia da semana e na vigencia dela ===')
     terca = dia + timedelta(days=1)
@@ -225,8 +368,76 @@ try:
     confere(vigentes == 1,
             'publicar de novo substitui em vez de empilhar', str(vigentes))
 finally:
-    RecurringBreak.objects.filter(physician_membership=medico).delete()
-    AvailabilityRule.objects.filter(physician_membership=medico, weekday__in=[0, 1]).delete()
+    devolver_a_grade()
+
+print('=== 5b. remover a grade publicada hoje nao derruba a tela ===')
+# O 500 do primeiro teste real, em 07/10/2026: `remove_rule` mandava a
+# regra terminar ONTEM, e uma regra que comeca HOJE nao pode terminar
+# ontem -- `full_clean` recusava e a tela devolvia 500. Pegava
+# exatamente quem acabou de publicar e viu que errou, que e quem mais
+# refaz.
+from scheduling.publishing import remove_rule
+from tenancy.context import AccessContext as _Ctx
+import uuid as _uuid2
+
+hoje = timezone.localdate()
+ctx2 = _Ctx(
+    user_id=medico.user_id, tenant_id=medico.tenant_id, membership_id=medico.id,
+    permissions=frozenset(), request_id=_uuid2.uuid4(),
+)
+
+try:
+    AvailabilityRule.objects.filter(physician_membership=medico, weekday=3).delete()
+    RecurringBreak.objects.filter(physician_membership=medico, weekday=3).delete()
+
+    nova = AvailabilityRule(
+        tenant_id=medico.tenant_id, physician_membership=medico, weekday=3,
+        local_start=time(8, 40), local_end=time(18, 40),
+        starts_on=hoje, slot_minutes=40,
+    )
+    nova.full_clean()
+    nova.save()
+    pausa_nova = RecurringBreak(
+        tenant_id=medico.tenant_id, physician_membership=medico, weekday=3,
+        local_start=time(12, 40), local_end=time(13, 0), starts_on=hoje, reason='Almoço',
+    )
+    pausa_nova.full_clean()
+    pausa_nova.save()
+
+    try:
+        desfecho = remove_rule(ctx2, medico, nova)
+        confere(True, 'remover a grade publicada hoje nao levanta excecao')
+        confere(desfecho == 'deleted', 'sem agendamento hoje, ela e apagada', str(desfecho))
+    except Exception as exc:
+        desfecho = None
+        confere(False, 'remover a grade publicada hoje nao levanta excecao',
+                f'{type(exc).__name__}: {exc}')
+
+    confere(not AvailabilityRule.objects.filter(pk=nova.pk).exists(),
+            'e a regra sai de fato')
+    # A pausa acompanha: intervalo orfao voltaria a recortar a agenda no
+    # dia em que alguem republicasse aquele dia sem substituir.
+    confere(not RecurringBreak.objects.filter(pk=pausa_nova.pk).exists(),
+            'a pausa daquele dia sai junto')
+
+    # Regra antiga continua sendo ENCERRADA, e nao apagada: a agenda ja
+    # atendida tem de continuar reconstruivel.
+    antiga = AvailabilityRule(
+        tenant_id=medico.tenant_id, physician_membership=medico, weekday=3,
+        local_start=time(8, 0), local_end=time(12, 0),
+        starts_on=hoje - timedelta(days=60), slot_minutes=40,
+    )
+    antiga.full_clean()
+    antiga.save()
+    desfecho = remove_rule(ctx2, medico, antiga)
+    antiga.refresh_from_db()
+    confere(desfecho == 'closed', 'regra que ja vigorou e encerrada', str(desfecho))
+    confere(antiga.ends_on == hoje - timedelta(days=1),
+            'com fim ontem -- o passado fica como foi', str(antiga.ends_on))
+finally:
+    # Sempre, inclusive se uma assercao acima estourar: a grade deste
+    # medico e fixture de `check_mes_e_estatisticas`, que roda depois.
+    devolver_a_grade()
 
 print('=== 6. naturalidade ===')
 from patients.models import Patient
@@ -261,8 +472,34 @@ for nome in ('birth_country', 'birth_city', 'birth_state'):
     confere(nome in campos, f'{nome} esta no cadastro')
     confere(not campos[nome].required, f'{nome} nao e obrigatorio')
 html = str(PatientForm()['birth_city'])
-confere('nd-municipios' in html, 'a cidade esta ligada ao datalist do autocomplete')
+confere('data-nd-municipio' in html, 'a cidade carrega o gancho do autocomplete')
 confere('municipios/buscar' in html, 'e a URL da busca vai no proprio campo')
+# `<datalist>` nativo nao abre em boa parte dos navegadores de celular --
+# foi o que o primeiro teste em telefone mostrou. A lista e desenhada
+# pelo proprio JavaScript.
+confere('nd-municipios' not in html,
+        'e nao depende mais do <datalist> nativo, que nao abre no celular')
+html_uf = str(PatientForm()['birth_state'])
+confere('data-nd-municipio-uf' in html_uf,
+        'a UF carrega o gancho do filtro -- sem ele "Sao Jose" devolve dezenove',
+        html_uf[:120])
+
+# A ordem na tela: no celular os tres campos empilham, e a ordem vira a
+# sequencia em que se preenche. Com a cidade antes da UF, a sugestao nao
+# tem como filtrar.
+tela_cadastro = Path(raiz, 'templates', 'patients', 'form.html').read_text(encoding='utf-8')
+posicoes = {
+    nome: tela_cadastro.find(f'field=form.{nome}')
+    for nome in ('birth_country', 'birth_state', 'birth_city')
+}
+confere(posicoes['birth_country'] < posicoes['birth_state'] < posicoes['birth_city'],
+        'a ordem na tela e pais, UF, cidade', str(posicoes))
+
+js_nat = Path(raiz, 'static', 'patients', 'naturalidade.js').read_text(encoding='utf-8')
+confere('nd-natur-lista' in js_nat, 'o JS desenha a propria lista')
+confere('touchstart' in js_nat,
+        'e fecha ao tocar fora -- `blur` dispara antes do clique e fecharia '
+        'a lista sem deixar escolher')
 
 print('=== 7. o autocomplete nao impede quem nao esta no catalogo ===')
 from catalogs.selectors import search_municipalities

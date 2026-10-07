@@ -253,10 +253,35 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     open_windows = open_intervals(
         physician_membership_id, day, rules=rules, blocks=blocks, breaks=breaks,
     )
-    # Janela declarada **antes** dos bloqueios: é a diferença entre as duas
-    # que produz a célula "blocked", que a tela mostra com o motivo em vez de
-    # deixar um buraco inexplicado.
-    declared = [(_combine(day, rule.local_start), _combine(day, rule.local_end)) for rule in rules]
+    # Janela declarada **antes** dos bloqueios de data: é a diferença entre
+    # as duas que produz a célula "blocked", que a tela mostra com o motivo
+    # em vez de deixar um buraco inexplicado.
+    janelas_da_regra = [
+        (_combine(day, rule.local_start), _combine(day, rule.local_end)) for rule in rules
+    ]
+    declared = list(janelas_da_regra)
+
+    # **A pausa semanal parte a janela; o bloqueio de data não.** São duas
+    # coisas diferentes e a diferença é esta, que custou um defeito:
+    #
+    # - o bloqueio de data (férias, feriado) é uma exceção posta **por
+    #   cima** de um dia de trabalho que continua tendo a forma de sempre.
+    #   A célula existe, e aparece fechada com o motivo;
+    #
+    # - a pausa semanal **é a forma do dia**. O almoço não fecha uma célula:
+    #   ele termina a manhã e começa a tarde.
+    #
+    # Sem partir aqui, a cadência seguia correndo a partir do início da
+    # janela e a pausa apenas fechava a célula que a tocasse. Com janela
+    # 08h40–18h40, célula de 40 min e almoço das 12h40 às 13h, o dia saía
+    # ... 12h00, [12h40 fechada], 13h20 ... — perdia a célula inteira das
+    # 12h40 **e** voltava 20 minutos depois do fim do almoço. O esperado é
+    # ... 12h00, [almoço], 13h00, 13h40 ...: a tarde recomeça quando a
+    # pausa acaba.
+    for pausa in breaks:
+        declared = _subtract(
+            declared, _combine(day, pausa.local_start), _combine(day, pausa.local_end),
+        )
     for block in extra:
         declared.append((block.start_at, block.end_at))
 
@@ -284,11 +309,6 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
             )
             block = next(
                 (b for b in blocking if b.start_at < cell_end and b.end_at > cursor), None,
-            )
-            pausa = next(
-                (p for p in breaks
-                 if _combine(day, p.local_start) < cell_end
-                 and _combine(day, p.local_end) > cursor), None,
             )
             inside_open = any(start <= cursor and cell_end <= end for start, end in open_windows)
 
@@ -323,13 +343,37 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
                 # fechada: bloqueio de data primeiro, depois a pausa
                 # semanal. Célula "blocked" sem motivo faz a secretária
                 # ligar para o médico perguntando se dá para encaixar.
-                'reason': (
-                    (block.reason or block.get_kind_display()) if block
-                    else (pausa.reason or 'Intervalo') if pausa
-                    else ''
-                ),
+                'reason': (block.reason or block.get_kind_display()) if block else '',
             })
             cursor = cell_end
+
+    # A pausa entra como **uma** célula, com o horário real dela — e não
+    # como a célula da grade que ela tocaria.
+    #
+    # Ela não participa da cadência (a grade já foi partida acima), mas
+    # precisa aparecer: um buraco de vinte minutos sem explicação entre
+    # 12h40 e 13h faz a secretária ligar para o médico perguntando se dá
+    # para encaixar. Com a célula, a agenda diz "Almoço" e a pergunta não
+    # nasce.
+    #
+    # Só quando cai dentro de uma janela que a regra declarou: pausa
+    # configurada para um horário em que o médico não atende não tem o que
+    # recortar, e desenhá-la inventaria uma linha na agenda.
+    for pausa in breaks:
+        inicio = _combine(day, pausa.local_start)
+        fim = _combine(day, pausa.local_end)
+        if not any(w_start < fim and inicio < w_end for w_start, w_end in janelas_da_regra):
+            continue
+        cells.append({
+            'start': inicio, 'end': fim, 'status': 'blocked',
+            'appointment': None, 'block': None, 'exibida': None, 'is_start': False,
+            'reason': pausa.reason or 'Intervalo',
+        })
+
+    # Ordenar no fim: a pausa foi acrescentada depois, e a tela desenha na
+    # ordem em que a lista vem. Sem isto o almoço aparecia no rodapé do
+    # dia.
+    cells.sort(key=lambda c: c['start'])
     return cells
 
 

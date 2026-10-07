@@ -79,13 +79,19 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
                 por isso — e porque em neurologia a procedência muda a lista de
                 hipóteses (Chagas, neurocisticercose, endemias regionais).
 
-                A cidade é texto livre com sugestão: o `<datalist>` abaixo é
-                preenchido pelo catálogo do IBGE conforme se digita, e quem
-                nasceu fora do Brasil escreve o nome da cidade dele.{% endcomment %}
+                País, UF e cidade **nesta ordem**, e ela importa: no celular os
+                três empilham, e a ordem vira a sequência em que se preenche.
+                Com a cidade antes da UF, a sugestão não tem como filtrar e
+                "São José" devolve dezenove municípios; com a UF antes, devolve
+                três. Escolher a cidade preenche a UF que estiver em branco.
+
+                A cidade é texto livre com sugestão: a lista vem do catálogo do
+                IBGE conforme se digita, desenhada pelo próprio JavaScript. Era
+                um `<datalist>` nativo, e no primeiro teste em celular ele
+                simplesmente não abriu.{% endcomment %}
                 {% include "partials/field.html" with field=form.birth_country col="col-lg-3 col-md-6" %}
-{% include "partials/field.html" with field=form.birth_city col="col-lg-3 col-md-6" %}
                 {% include "partials/field.html" with field=form.birth_state col="col-lg-2 col-md-4" %}
-                <datalist id="nd-municipios"></datalist>
+                {% include "partials/field.html" with field=form.birth_city col="col-lg-4 col-md-6" %}
                 {% comment %}Peso e altura são medidas com data, não campos do
                 paciente: viram `Observation` e alimentam o IMC da ficha. Ficam
                 aqui porque é onde se pergunta, na primeira conversa.{% endcomment %}

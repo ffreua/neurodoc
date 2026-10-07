@@ -377,19 +377,77 @@ def remove_rule(context, membership, rule):
     Regra que já vigorou é encerrada (`ends_on` = ontem), não apagada: a
     agenda dos dias já atendidos continua sendo reconstruível como era.
     Regra que ainda não começou sai de vez.
+
+    **A regra que começa hoje é o terceiro caso, e ele faltava.** Ela
+    caía no `else` e recebia `ends_on` = ontem, que é anterior ao
+    `starts_on` — `full_clean` recusava e a tela devolvia 500. Quem
+    publicou a grade hoje e quis desfazer batia nisso, que é exatamente
+    quem mais erra: o primeiro ajuste é o que se refaz.
+
+    O desfecho certo para ela depende de haver agenda marcada hoje:
+
+    - **sem agendamento hoje**, nada aconteceu ainda, e apagar é o que a
+      pessoa pediu. É o caso de quem acabou de publicar e viu que errou;
+    - **com agendamento hoje**, encerrar **hoje** (`ends_on` = hoje) em
+      vez de apagar. Apagando, as células de hoje deixariam de existir e
+      o paciente já marcado sumiria do calendário — a reserva continuaria
+      no banco, invisível na tela em que se trabalha.
+
+    As pausas semanais daquele dia saem junto, mas só quando **nenhuma
+    outra regra** sobra naquele dia da semana: com manhã e tarde
+    declaradas em envios separados, remover a manhã não pode levar o
+    almoço que a tarde ainda usa.
     """
     today = timezone.localdate()
+
     if rule.starts_on > today:
-        rule.delete()
         outcome = 'deleted'
+    elif rule.starts_on == today:
+        tem_agenda_hoje = Appointment.objects.filter(
+            physician_membership=membership,
+            starts_at__gte=_aware(today, time.min),
+            starts_at__lt=_aware(today + timedelta(days=1), time.min),
+            status__in=list(OCCUPYING_STATUSES),
+        ).exists()
+        outcome = 'closed_today' if tem_agenda_hoje else 'deleted'
     else:
-        rule.ends_on = today - timedelta(days=1)
+        outcome = 'closed'
+
+    weekday = rule.weekday
+    if outcome == 'deleted':
+        rule.delete()
+    else:
+        rule.ends_on = today if outcome == 'closed_today' else today - timedelta(days=1)
         rule.full_clean()
         rule.save(update_fields=['ends_on'])
-        outcome = 'closed'
+
+    # As pausas acompanham a regra: intervalo que sobra sozinho volta a
+    # recortar a agenda no dia em que alguém republicar aquele dia sem
+    # substituir — um almoço de uma grade que não existe mais.
+    pausas_removidas = 0
+    ainda_atende = AvailabilityRule.objects.filter(
+        physician_membership=membership, weekday=weekday,
+    ).filter(models_ends_on_ok(today)).exists()
+    if not ainda_atende:
+        for pausa in RecurringBreak.objects.filter(
+            physician_membership=membership, weekday=weekday,
+        ).filter(models_ends_on_ok(today)):
+            if pausa.starts_on >= today and outcome == 'deleted':
+                pausa.delete()
+            else:
+                pausa.ends_on = today if outcome == 'closed_today' else today - timedelta(days=1)
+                if pausa.ends_on < pausa.starts_on:
+                    pausa.delete()
+                else:
+                    pausa.full_clean()
+                    pausa.save(update_fields=['ends_on'])
+            pausas_removidas += 1
+
     record_audit_event(
         context.user_id, context.tenant_id, 'scheduling.rule_removed',
         object_type='membership', object_id=membership.id, outcome='success',
-        integrity_metadata={'weekday': rule.weekday, 'result': outcome},
+        integrity_metadata={
+            'weekday': weekday, 'result': outcome, 'pausas': pausas_removidas,
+        },
     )
     return outcome

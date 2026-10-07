@@ -86,3 +86,8 @@ o texto no topo de toda página do produto. Foi o que aconteceu aqui.{% endcomme
 de dentro de `/app/`, porque o portal público do paciente também o usa — e
 o portal não carrega o tema do aplicativo.{% endcomment %}
 <link rel="stylesheet" href="{% static 'catalogs/medicamentos.css' %}">
+{% comment %}Folha própria para a lista da naturalidade, e não as classes do
+medicamento: são dois componentes com vidas diferentes — aquele mostra tarja e
+laboratório, este mostra um nome de cidade — e compartilhar a folha faria mexer
+num deles mudar o outro sem aviso.{% endcomment %}
+<link rel="stylesheet" href="{% static 'patients/naturalidade.css' %}">

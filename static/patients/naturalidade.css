@@ -1,0 +1,62 @@
+/* Lista do autocomplete de naturalidade.
+ *
+ * Folha própria, e não as classes do medicamento: são dois componentes
+ * com vidas diferentes — aquele mostra tarja e laboratório, este mostra
+ * um nome de cidade — e compartilhar a folha faria mexer num deles
+ * mudar o outro sem aviso.
+ *
+ * A altura mínima dos botões é 44px de propósito: é o alvo de toque que
+ * `check_mobile` cobra, e esta lista nasceu justamente porque o
+ * `<datalist>` nativo não abria no celular.
+ */
+
+.nd-natur-ancora {
+    position: relative;
+}
+
+.nd-natur-lista {
+    position: absolute;
+    z-index: 1050;
+    left: 0;
+    right: 0;
+    top: 100%;
+    max-height: 17rem;
+    overflow-y: auto;
+    margin-top: 2px;
+    padding: 4px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 28px rgba(40, 60, 80, .16);
+    scrollbar-width: thin;
+}
+
+.nd-natur-lista[hidden] {
+    display: none;
+}
+
+.nd-natur-opcao {
+    display: block;
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 10px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    text-align: left;
+    font-size: 13px;
+    color: #283c50;
+    cursor: pointer;
+}
+
+.nd-natur-opcao:hover,
+.nd-natur-opcao:focus-visible {
+    background: #eef1fb;
+}
+
+.nd-natur-vazio {
+    margin: 0;
+    padding: 10px;
+    font-size: 11.5px;
+    color: #64748b;
+}

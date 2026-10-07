@@ -235,6 +235,89 @@ colateral desta entrega.
 
 ---
 
+## O primeiro teste real, e os três defeitos que ele achou
+
+Publicada a 1.8, o primeiro uso de verdade achou três coisas em quinze
+minutos. Vale registrar as três, porque cada uma é de um tipo diferente.
+
+### 1. Remover a grade publicada hoje devolvia 500
+
+**Defeito pré-existente**, não da 1.8 — só ficou alcançável porque
+alguém publicou e desfez no mesmo dia pela primeira vez.
+
+`remove_rule` tinha dois caminhos: regra futura é apagada, regra passada
+é encerrada ontem. A regra que **começa hoje** caía no segundo, recebia
+`ends_on` = ontem, e `full_clean` recusava — `ends_on` anterior a
+`starts_on`. Pegava exatamente quem acabou de publicar e viu que errou,
+que é quem mais refaz.
+
+Agora são três caminhos, e o novo depende de haver agenda marcada hoje:
+sem agendamento, apaga (nada aconteceu ainda); com agendamento, encerra
+**hoje** — apagando, as células de hoje deixariam de existir e o
+paciente já marcado sumiria do calendário.
+
+E as pausas daquele dia saem junto, mas só quando nenhuma outra regra
+sobra naquele dia da semana: com manhã e tarde declaradas em envios
+separados, remover a manhã não pode levar o almoço que a tarde usa.
+
+### 2. A pausa fechava uma célula em vez de partir o dia
+
+Este é da 1.8, e é um erro de desenho meu. Janela 08h40–18h40, célula de
+40 min, almoço das 12h40 às 13h davam:
+
+```
+... 12h00, [12h40 fechada], 13h20, 14h00 ...
+```
+
+A cadência corria a partir do início da janela e a pausa apenas fechava
+a célula que a tocasse: perdia-se a célula inteira das 12h40 **e** a
+tarde voltava vinte minutos depois do fim do almoço.
+
+A distinção que faltava, e que agora está escrita no código:
+
+| | O que é | Como entra na grade |
+| --- | --- | --- |
+| Bloqueio de data (férias, feriado) | exceção **por cima** de um dia que continua com a forma de sempre | a célula existe, e aparece fechada com o motivo |
+| Pausa semanal (almoço) | **é a forma do dia** | termina a manhã e começa a tarde |
+
+A pausa passou a recortar a janela declarada, e a cadência recomeça
+depois dela:
+
+```
+08:40 09:20 10:00 10:40 11:20 12:00 [Almoço 12:40–13:00] 13:00 13:40 14:20 ...
+```
+
+A pausa continua aparecendo, agora como **uma** célula com o horário
+real dela (12h40–13h00, e não a célula de 40 minutos que ela tocaria) —
+um buraco sem explicação faz a secretária ligar para perguntar se dá
+para encaixar.
+
+### 3. A naturalidade no celular: ordem errada e sem autocomplete
+
+A ordem era país, cidade, UF. No celular os três empilham, e a ordem
+vira a sequência em que se preenche — com a cidade antes da UF, a
+sugestão não tem como filtrar e "São José" devolve dezenove municípios.
+Passou a ser **país, UF, cidade**, e escolher a cidade preenche a UF que
+estiver em branco.
+
+E o autocomplete não abria. A causa não era o servidor — o endpoint
+responde, a política de conteúdo libera `connect-src 'self'`, o script
+carrega. Era o **`<datalist>` nativo**, que é suportado no Android no
+papel e na prática não abre em boa parte dos navegadores móveis. Foi
+trocado pela lista desenhada em JavaScript, a mesma do autocomplete de
+medicamento, com alvo de toque de 44px — e `blur` não fecha a lista,
+porque ele dispara antes do clique na opção e fecharia sem deixar
+escolher.
+
+### E um quarto, que a bateria achou sozinha
+
+O roteiro novo apagava regras da grade do médico de demonstração para
+montar os cenários e **não as devolvia**. `check_mes_e_estatisticas`,
+que roda depois na ordem alfabética, passou a reprovar com "há um dia do
+mês anterior com grade publicada → False". O roteiro não estava errado
+sobre o que mede; estava errado sobre o que deixa para trás. Agora ele
+guarda a grade no início e a devolve num `finally`.
+
 ## Verificação
 
 Três roteiros novos:

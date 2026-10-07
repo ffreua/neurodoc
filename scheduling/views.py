@@ -455,11 +455,17 @@ class RuleDeleteView(ScheduleConfigView):
             tenant_id=request.access_context.tenant_id,
         )
         outcome = publishing.remove_rule(request.access_context, doctor, rule)
-        messages.success(
-            request,
-            'Horário removido da grade.' if outcome == 'deleted'
-            else 'Horário encerrado a partir de hoje; a agenda passada continua como era.',
-        )
+        messages.success(request, {
+            'deleted': 'Horário removido da grade.',
+            'closed': 'Horário encerrado a partir de hoje; a agenda passada '
+                      'continua como era.',
+            # O caso de quem publicou hoje e já tem paciente marcado: a
+            # grade de hoje fica, porque apagá-la tiraria do calendário um
+            # horário que alguém já reservou.
+            'closed_today': 'Horário encerrado a partir de amanhã. Hoje ele '
+                            'continua na grade porque já há agendamento — '
+                            'cancele ou remarque antes, se quiser o dia livre.',
+        }[outcome])
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 
 
