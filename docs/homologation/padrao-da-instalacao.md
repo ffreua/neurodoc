@@ -170,6 +170,56 @@ Reclassificar em bloco inventaria uma certeza que não existe.
 
 ---
 
+## 3. E o que a homologação contra conta viva revelou (P-03)
+
+Ao **provar** que o SMS funciona — em vez de concluir que funciona —
+apareceram mais dois defeitos, ambos na mesma família: código escrito
+contra um esquema **suposto**, porque não havia conta real para conferir.
+Era literalmente o que a pendência P-03 esperava, e o docstring do
+parser dizia isso com todas as letras.
+
+### O DLR nunca foi lido
+
+Dezessete SMS estavam em "sem confirmação" desde sempre. Nenhum tinha
+falhado: a primeira tentativa de todos é `accepted`, com `provider_id`
+real. O que não funcionava era a leitura da confirmação.
+
+Perguntando ao provedor pelo id de uma mensagem de 02/10:
+
+```json
+[{"situacao":"OK","codigo":"1","id":"3180491336",
+  "data_envio":"02/10/2026 12:00:50","operadora":"VIVO-PORTABILIDADE",
+  "qtd_credito":"1","descricao":"RECEBIDA"}]
+```
+
+**A mensagem chegou ao celular.** E o parser não via, por duas
+suposições erradas de uma vez:
+
+| Supunha | O provedor manda |
+| --- | --- |
+| um objeto com a chave `items` | uma **lista** no topo |
+| a entrega em `situacao` | `situacao` é o estado da **consulta** (`OK`); a entrega está em `descricao` (`RECEBIDA`) |
+
+O desconhecido continua `unknown`, e nunca `failed`: dizer que falhou
+uma mensagem que pode ter chegado faz a recepção ligar para o paciente
+avisando de um horário que ele já sabe.
+
+### O botão "testar a chave" reprovava chave boa
+
+`check_balance` fazia `POST /v1/send` com `action=saldo`. O SMSDEV lia
+aquilo como um envio sem texto e devolvia, com HTTP 200:
+
+```json
+{"situacao":"ERRO","codigo":"400","descricao":"MENSAGEM NAO DEFINIDA."}
+```
+
+O endereço certo é `GET /v1/balance`, que responde
+`{"situacao":"OK","saldo_sms":"282","descricao":"SALDO ATUAL"}`. O botão
+existe para **absolver** a chave, e vinha acusando-a.
+
+Erro do provedor agora vira exceção em vez de dicionário devolvido: um
+`{'situacao': 'ERRO'}` repassado à tela aparece como se fosse saldo.
+
 ## O que estes dois defeitos têm em comum
 
 **O padrão da instalação é um caminho de código sem dono.** Ele só é
@@ -183,7 +233,7 @@ nunca exercita.**
 
 ## Verificação
 
-`checks/check_provedor_e_sms.py`, nove seções:
+`checks/check_provedor_e_sms.py`, onze seções:
 
 1. o que o console gravou vence o `.env`, e campo vazio cai no `.env`;
 2. a verificação acusa modelo fora da lista — com o estado exato da
@@ -199,5 +249,9 @@ nunca exercita.**
    dentro da requisição;
 7. a varredura das views, mais a confirmação enfileirada;
 8. `CHANNEL_UNAVAILABLE` nos dois gatilhos, com o tom vermelho;
-9. o `app` continua **sem** secret de egresso — para a correção do SMS
-   não ter sido "dar a chave ao processo web".
+9. o DLR lido com a **resposta real** do provedor, incluindo as formas
+   inesperadas que precisam virar `unknown` e nunca `failed`;
+10. a consulta de saldo no endereço de saldo, por `GET`, com erro do
+    provedor virando exceção;
+11. o `app` continua **sem** secret de egresso — para a correção do SMS
+    não ter sido "dar a chave ao processo web".

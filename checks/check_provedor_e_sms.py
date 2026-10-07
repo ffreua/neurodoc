@@ -253,7 +253,65 @@ confere(nd_tone('channel_unavailable') == 'danger',
 confere(nd_tone('no_contact') == 'warning',
         'enquanto sem contato continua amarelo: esse a clinica resolve')
 
-print('=== 9. a chave de egresso continua fora do processo web ===')
+print('=== 9. a confirmacao de entrega do SMS e lida como o provedor manda ===')
+# Conferido contra a conta real em 06/10/2026, que e o que P-03 esperava:
+# o SMSDEV responde uma LISTA no topo, e a entrega esta em `descricao`
+# (`RECEBIDA`), nao em `situacao` -- que vale `OK` quando a CONSULTA deu
+# certo. O parser antigo procurava `result["items"]` e lia `situacao`,
+# entao nunca casava com nada: dezessete mensagens ficaram "sem
+# confirmacao" para sempre, inclusive uma que a VIVO entregou em 02/10.
+from communications.reconciliation import _extract_situacao
+
+RESPOSTA_REAL = [{
+    'situacao': 'OK', 'codigo': '1', 'id': '3180491336',
+    'data_envio': '02/10/2026 12:00:50', 'operadora': 'VIVO-PORTABILIDADE',
+    'qtd_credito': '1', 'descricao': 'RECEBIDA',
+}]
+confere(_extract_situacao(RESPOSTA_REAL, '3180491336') == 'delivered',
+        'a resposta real do provedor e lida como entregue',
+        _extract_situacao(RESPOSTA_REAL, '3180491336'))
+
+# O mesmo id consultado sozinho volta como objeto, sem lista.
+confere(_extract_situacao(RESPOSTA_REAL[0], '3180491336') == 'delivered',
+        'e tambem quando vem como objeto solto')
+
+# `situacao: OK` sozinho nao e entrega: e a consulta que deu certo.
+confere(_extract_situacao([{'situacao': 'OK', 'id': '1', 'descricao': 'ENVIADA'}], '1') == 'unknown',
+        'enviada-mas-nao-entregue continua sem confirmacao')
+
+confere(_extract_situacao(
+    [{'situacao': 'OK', 'id': '1', 'descricao': 'NAO RECEBIDA'}], '1') == 'failed',
+    'nao recebida e lida como falha')
+
+# Id de outra mensagem nao pode contaminar esta.
+confere(_extract_situacao(RESPOSTA_REAL, '999') == 'unknown',
+        'resposta sobre outra mensagem nao e aproveitada')
+
+# E o desconhecido continua desconhecido -- nunca `failed`. Dizer que
+# falhou o que pode ter chegado faz a recepcao ligar para o paciente
+# avisando de um horario que ele ja sabe.
+for forma in (None, {}, [], 'texto solto', {'erro': 'x'}):
+    confere(_extract_situacao(forma, '1') == 'unknown',
+            f'forma inesperada ({type(forma).__name__}) vira unknown, nunca falha')
+
+print('=== 10. o teste da chave do SMS usa o endereco de saldo ===')
+# Era `POST /v1/send` com `action=saldo`, e o provedor lia como envio sem
+# texto: devolvia `MENSAGEM NAO DEFINIDA` com HTTP 200. O botao "testar"
+# acusava de ruim uma chave perfeita -- que e exatamente o que ele existe
+# para absolver.
+from communications import smsdev
+
+confere(smsdev.BALANCE_URL.endswith('/v1/balance'),
+        'ha um endereco proprio de saldo', smsdev.BALANCE_URL)
+fonte_sms = Path(raiz, 'communications', 'smsdev.py').read_text(encoding='utf-8')
+bloco = fonte_sms.split('def check_balance(')[1].split('\ndef ')[0]
+confere('BALANCE_URL' in bloco and 'SEND_URL' not in bloco,
+        'a consulta de saldo nao passa mais pelo endereco de envio')
+confere('requests.get(' in bloco, 'e e GET, como o provedor espera')
+confere("== 'ERRO'" in bloco,
+        'erro do provedor vira excecao, e nao um dicionario que a tela mostra como saldo')
+
+print('=== 11. a chave de egresso continua fora do processo web ===')
 # A correcao nao pode ter sido "dar a chave ao `app`": o desenho do §2
 # depende de o processo que atende o navegador nao ter credencial de
 # saida. Se um dia isso mudar, que mude de propriedade e com justificativa

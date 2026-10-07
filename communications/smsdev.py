@@ -3,6 +3,11 @@ from django.conf import settings
 
 SEND_URL = 'https://api.smsdev.com.br/v1/send'
 DLR_URL = 'https://api.smsdev.com.br/v1/dlr'
+#: Endereco proprio, e nao `SEND_URL` com `action=saldo`: era assim, e o
+#: provedor lia o pedido como um envio sem texto -- devolvia
+#: `MENSAGEM NAO DEFINIDA` e o botao "testar a chave" acusava chave boa de
+#: ruim. Conferido contra a conta real em 2026-10-06.
+BALANCE_URL = 'https://api.smsdev.com.br/v1/balance'
 REQUEST_TIMEOUT_SECONDS = 10
 
 
@@ -118,17 +123,32 @@ def check_balance(tenant_id=None):
     Serve ao botão "testar" da tela de configuração: confirma que a chave é
     aceita pelo provedor sem gastar crédito nem mandar mensagem para o
     telefone de ninguém.
+
+    **`GET` em `/v1/balance`, e não `POST` em `/v1/send`.** Era o segundo,
+    com `action=saldo`, e o provedor lia aquilo como um envio sem texto:
+    respondia `{"situacao":"ERRO","descricao":"MENSAGEM NAO DEFINIDA"}`
+    com HTTP 200. O botão de testar acusava de ruim uma chave que estava
+    perfeita — e a chave é justamente o que ele existe para absolver.
+
+    O erro do provedor vira exceção aqui, e não dicionário devolvido: um
+    `{'situacao': 'ERRO'}` repassado à tela aparece como se fosse saldo.
     """
     api_key = resolve_api_key(tenant_id)
     try:
-        response = requests.post(
-            SEND_URL, json={'key': api_key, 'action': 'saldo'}, timeout=REQUEST_TIMEOUT_SECONDS,
+        response = requests.get(
+            BALANCE_URL, params={'key': api_key, 'action': 'saldo'},
+            timeout=REQUEST_TIMEOUT_SECONDS,
         )
     except requests.RequestException as exc:
         raise SmsSendFailed(f'SMSDEV request failed: {exc.__class__.__name__}') from exc
     if response.status_code != 200:
         raise SmsSendFailed(f'SMSDEV returned HTTP {response.status_code}')
-    return response.json()
+    payload = response.json()
+    if isinstance(payload, dict) and str(payload.get('situacao', '')).upper() == 'ERRO':
+        raise SmsSendFailed(
+            f'O SMSDEV recusou a consulta de saldo: {payload.get("descricao", "sem detalhe")}.'
+        )
+    return payload
 
 
 def check_delivery(message_ids, tenant_id=None):

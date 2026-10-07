@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.7.1** | 2026-10-07 | o padrão da instalação | Dois defeitos achados ao **provar** que o SMS funciona, em vez de concluir: a confirmação de entrega nunca era lida — 17 mensagens ficaram "sem confirmação" para sempre, inclusive uma que a operadora entregou — e o botão de testar a chave do SMSDEV reprovava chave boa, por consultar saldo no endereço de envio. Os dois eram código escrito contra esquema suposto; agora conferidos contra conta viva, o que encerra a pendência **P-03**. |
 | **1.7** | 2026-10-06 | o padrão da instalação | O **provedor de IA padrão** passa a ser trocado no console do superadministrador, com verificação que pergunta ao provedor se o modelo ainda existe — ele estava apontando, desde 26/08, para um modelo aposentado que respondia `410 Gone`, e trocá-lo exigia republicar. A **confirmação de horário** passa a sair pelo worker: saía da requisição, onde o secret do SMS não existe, e por isso nunca chegou para a clínica sem chave própria. Recusa do provedor deixa de virar "tente novamente" quando repetir não resolve, e canal indisponível deixa de ser registrado como "sem contato cadastrado". |
 | **1.6.2** | 2026-10-05 | o que a tela não mostrava | A leitura de laudo pela IA era descartada inteira quando um campo de texto voltava como lista vazia — trinta e um analitos corretos no lixo por causa do campo que diz "não ficou nada ilegível". A **forma** que o modelo devolve passa a ser normalizada; o **conteúdo** segue sob as mesmas guardas. O esquema vai junto do pedido, e a recusa passa a ser explicada em português, com o detalhe técnico gravado sem nenhum valor do laudo. |
 | **1.6.1** | 2026-10-05 | o que a tela não mostrava | Quem atende em **duas clínicas** trocava de organização e seguia vendo o logotipo da anterior. Não era vazamento entre inquilinos — o servidor sempre mandou a imagem certa; era o cache do navegador, que guardava a mesma URL por cinco minutos porque a resposta pedia. Agora a resposta é revalidada, com validador que carrega o inquilino. |
@@ -62,7 +63,7 @@ Cada release publicada deve ter um registro em
 responsável — é a seção 18.6 do PRD, e a ordem importa: o registro entra
 **antes** de `NEURODOC_RELEASE_APPROVED=True`.
 
-> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6, 1.6.1, 1.6.2 e 1.7; as versões 1.2 a 1.5
+> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6, 1.6.1, 1.6.2, 1.7 e 1.7.1; as versões 1.2 a 1.5
 > foram publicadas sem o arquivo correspondente. `scripts/setup_deploy.sh`
 > cria um `docs/releases/<sha>.md` a partir do molde **na VPS**, e ninguém
 > o commitou. Preencher é ato do responsável técnico, não da máquina — por

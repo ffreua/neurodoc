@@ -29,19 +29,57 @@ def _schedule_next_or_give_up(delivery, poll_count):
     delivery.save(update_fields=['status', 'next_attempt_at'])
 
 
+#: O que o `descricao` do DLR do SMSDEV diz, e o que isso significa para
+#: nos. Conferido contra a conta real em 2026-10-06 -- ate entao este
+#: modulo so conhecia formas "documentadas publicamente", e nenhuma delas
+#: era a que o provedor manda.
+_DLR_ENTREGUE = {'RECEBIDA', 'ENTREGUE', 'DELIVERED'}
+_DLR_FALHOU = {'NAO RECEBIDA', 'NÃO RECEBIDA', 'ERRO', 'REJEITADO', 'FAILED',
+               'NUMERO INVALIDO', 'NÚMERO INVÁLIDO', 'EXPIRADA'}
+
+
 def _extract_situacao(result, provider_id):
-    """Best-effort parse of the SMSDEV DLR response. The exact response
-    schema could not be homologated against a live account (P-03), so this
-    only recognizes the shapes documented publicly; anything else is
-    treated as still-unknown rather than guessed.
+    """O que o SMSDEV respondeu sobre **esta** mensagem.
+
+    Reescrito em 2026-10-06 contra a conta real. O que havia aqui nunca
+    casou com nada, e a razao estava escrita no proprio docstring: o
+    esquema "nao pode ser homologado contra uma conta viva (P-03)", entao
+    reconhecia formas supostas. Duas suposicoes, as duas erradas:
+
+    - esperava um **dicionario** com a chave `items`; o SMSDEV responde
+      uma **lista** no topo (`[{...}]`) quando se pergunta por varios
+      ids, e um objeto solto quando se pergunta por um;
+    - lia a entrega em `situacao`, que vale `OK` quando a **consulta**
+      deu certo -- nao quando a mensagem chegou. A entrega esta em
+      `descricao` (`RECEBIDA`) e em `codigo`.
+
+    O efeito: dezessete mensagens ficaram em "sem confirmacao" para
+    sempre, inclusive uma que o provedor dizia `RECEBIDA` pela VIVO desde
+    02/10. A clinica nunca soube que o SMS chegou.
+
+    O desconhecido continua sendo `unknown`, e nao `failed`: dizer que
+    falhou uma mensagem que pode ter chegado faz a recepcao ligar para o
+    paciente avisando de um horario que ele ja sabe.
     """
-    for item in result.get('items', []) if isinstance(result, dict) else []:
-        if str(item.get('id')) == str(provider_id):
-            status = str(item.get('situacao', '')).upper()
-            if status in ('DELIVERED', 'ENTREGUE'):
-                return 'delivered'
-            if status in ('FAILED', 'REJEITADO', 'ERRO'):
-                return 'failed'
+    if isinstance(result, dict):
+        itens = result.get('items') if isinstance(result.get('items'), list) else [result]
+    elif isinstance(result, list):
+        itens = result
+    else:
+        return 'unknown'
+
+    for item in itens:
+        if not isinstance(item, dict):
+            continue
+        # Sem `id` no retorno, a consulta foi por um id so e a resposta e
+        # sobre ele: casar por igualdade descartaria a resposta certa.
+        if item.get('id') is not None and str(item.get('id')) != str(provider_id):
+            continue
+        descricao = str(item.get('descricao', '')).strip().upper()
+        if descricao in _DLR_ENTREGUE:
+            return 'delivered'
+        if descricao in _DLR_FALHOU:
+            return 'failed'
     return 'unknown'
 
 

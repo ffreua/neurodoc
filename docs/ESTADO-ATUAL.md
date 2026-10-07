@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.7 "o padrão da instalação" · **Produção:**
+**Versão:** 1.7.1 "o padrão da instalação" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -188,6 +188,19 @@ ocorrências: roteiro lendo a própria legenda; roteiro de paginação sem
 volume; asserção casando com ícone decorativo; e um roteiro que passava
 em dois dias da semana e reprovava nos outros cinco. O último é o pior:
 ensina quem lê a ignorar o vermelho.
+
+**Provar não é concluir, e a diferença custou dezessete mensagens.** Em
+2026-10-07, ao *provar* que o SMS funcionava — perguntando ao provedor
+em vez de ler o nosso próprio registro —, apareceram dois defeitos que
+nenhuma leitura de código teria achado: a confirmação de entrega era
+lida com a forma errada (o provedor manda uma lista; esperávamos um
+objeto com `items`), e o botão de testar a chave consultava saldo no
+endereço de envio. Os dois eram código escrito contra esquema
+**suposto**, e os dois docstrings diziam isso — a pendência P-03 existia
+exatamente por não haver conta viva para conferir. Hoje há, e está
+conferido. Lição: enquanto houver "não deu para homologar contra conta
+real" escrito num docstring, aquele código é suposição com cara de
+implementação.
 
 **O padrão da instalação é um caminho sem dono, e foi onde doeu três
 vezes.** Em 2026-10-05 e 06 apareceram três defeitos com a mesma

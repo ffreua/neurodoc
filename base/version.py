@@ -79,7 +79,7 @@ carimbá-la na publicação.
 #: existe para responder. Nos três casos o defeito foi relatado por quem
 #: usa, que é a condição: correção que ninguém notou não precisa de casa
 #: nova.
-VERSION = '1.7'
+VERSION = '1.7.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
