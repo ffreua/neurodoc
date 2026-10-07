@@ -716,15 +716,32 @@ class AppointmentActionView(TenantScopedView):
 
 
 class SendConfirmationView(TenantScopedView):
-    """Envia a confirmação do horário por SMS ou e-mail.
+    """Enfileira a confirmação do horário por SMS ou e-mail.
 
     Reenvio é permitido: mensagem não chega, e a secretária precisa poder
     mandar de novo. Cada envio fica registrado como uma entrega própria.
+
+    **Quem envia é o worker, e não esta view.** Ela chamava
+    `send_appointment_confirmation` dentro da requisição, e isso
+    funcionava na clínica que informou a própria chave do SMSDEV — essa
+    fica cifrada no banco, e o processo `app` sabe decifrá-la. Na clínica
+    que depende da chave **da instalação** não funcionava, porque o `app`
+    não recebe esse secret: ele é do worker, por desenho (§2). O SMS era
+    recusado com `SmsChannelDisabled` e nada saía.
+
+    Com uma clínica só, e ela com chave própria, o defeito não tinha como
+    aparecer. Apareceu no dia em que a segunda clínica — plano Completo,
+    sem chave própria — tentou enviar.
+
+    É o mesmo par de causa e sintoma que `deliver_document_task` já havia
+    corrigido na entrega de documento; a confirmação da agenda era a
+    última entrega que ainda saía de dentro da requisição.
     """
 
     def post(self, request, appointment_id, channel):
         from communications.models import DeliveryChannel
-        from communications.services import NoUsableContact, send_appointment_confirmation
+        from communications.services import confirmation_contacts
+        from communications.tasks import send_confirmation_task
 
         from .models import Appointment
 
@@ -735,36 +752,33 @@ class SendConfirmationView(TenantScopedView):
         )
         day = timezone.localtime(appointment.starts_at).date()
         doctor = appointment.physician_membership
-        try:
-            delivery = send_appointment_confirmation(
-                request.access_context, appointment, channel, request.user.id,
-            )
-        except NoUsableContact as exc:
-            messages.error(request, str(exc))
-            return _agenda_redirect(request, doctor, day)
-
         label = 'SMS' if channel == DeliveryChannel.SMS else 'E-mail'
-        destino = (
-            delivery.contact.phone if channel == DeliveryChannel.SMS else delivery.contact.email
-        )
-        if delivery.status == 'accepted':
-            messages.success(
-                request, f'{label} de confirmação enviado para {destino}.',
-            )
-        elif delivery.status == 'no_contact':
-            messages.warning(
-                request,
-                f'O canal de {label} está desligado nesta instalação ou nas configurações '
-                'da clínica. Nada foi enviado.',
-            )
-        else:
-            erro = delivery.attempts.order_by('-attempt_number').first()
-            detalhe = f' ({erro.sanitized_error})' if erro and erro.sanitized_error else ''
+
+        # A falta de contato é conferida aqui, e não só no worker, pelo
+        # mesmo motivo do reenvio de documento: é o único desfecho que a
+        # pessoa na tela pode resolver agora, e descobri-lo por uma linha
+        # numa lista minutos depois é descobrir tarde.
+        contatos = [c for c in confirmation_contacts(appointment, channel) if c is not None]
+        if not contatos:
+            campo = 'e-mail' if channel == DeliveryChannel.EMAIL else 'telefone'
             messages.error(
                 request,
-                f'Não foi possível enviar o {label} para {destino}{detalhe}. '
-                'Confira as configurações de mensageria.',
+                f'Nenhum contato deste paciente tem {campo} cadastrado. '
+                'Inclua o contato na ficha do paciente.',
             )
+            return _agenda_redirect(request, doctor, day)
+
+        destino = (
+            contatos[0].phone if channel == DeliveryChannel.SMS else contatos[0].email
+        )
+        send_confirmation_task.delay(
+            str(appointment.id), channel, request.user.id, str(contatos[0].id),
+        )
+        messages.success(
+            request,
+            f'{label} de confirmação a caminho de {destino}. O envio sai pelo worker; '
+            'o resultado aparece na lista de entregas do agendamento em instantes.',
+        )
         return _agenda_redirect(request, doctor, day)
 
 

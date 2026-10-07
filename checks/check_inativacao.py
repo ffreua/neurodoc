@@ -156,7 +156,11 @@ else:
     )
     _send(entrega, 'mensagem que nao deve sair')
     entrega.refresh_from_db()
-    barrou = entrega.status == DeliveryStatus.NO_CONTACT
+    # `CHANNEL_UNAVAILABLE` desde 06/10/2026: era `NO_CONTACT`, que
+    # dizia "sem contato cadastrado" sobre um paciente cujo contato
+    # estava certo. O que se confere aqui e o mesmo de sempre -- a
+    # mensagem nao saiu, e o motivo ficou registrado.
+    barrou = entrega.status == DeliveryStatus.CHANNEL_UNAVAILABLE
     tentativa = entrega.attempts.order_by('-created_at').first()
     motivo = getattr(tentativa, 'sanitized_error', '')
     print(f'  envio barrado={barrou}  motivo registrado={motivo!r}')

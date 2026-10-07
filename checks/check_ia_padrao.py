@@ -6,24 +6,56 @@ e funcionasse quando uma clinica a escolhia pela tela. O padrao da
 instalacao usava um mapa de tres provedores; o caminho por clinica usava o
 catalogo de dez.
 
+**Desde 06/10/2026 o padrao vem do console, nao do `.env`** -- ver
+`base.models.InstallationSettings` e `check_provedor_e_sms.py`. Este
+roteiro passou a montar o cenario por ali, que e de onde o servidor le de
+verdade: continuar usando `override_settings(AI_PROVIDER=...)` daria um
+roteiro verde medindo um caminho que o produto nao percorre mais.
+
 Nada aqui chama provedor de verdade. O que se verifica e a montagem do
 cliente: provedor, modelo, endereco e chave.
 """
-from django.conf import settings
+import contextlib
+from unittest.mock import patch
+
 from django.test import override_settings
 
+from ai import providers as ai_providers
 from ai.providers import (
     ProviderUnavailable, active_provider_label, get_chat_model, installation_secret_name,
 )
 from ai.providers.catalog import ANTHROPIC_NATIVE, PROVIDERS, provider_kind
+from base.models import InstallationSettings
 
 failures = []
+
+_config = InstallationSettings.carregar()
+_original = (_config.ai_provider, _config.ai_model, _config.ai_base_url)
+
+
+@contextlib.contextmanager
+def padrao_da_instalacao(provider, model='modelo-de-teste', base_url='', chave='chave-de-teste'):
+    """Poe o console neste estado, e devolve o que estava.
+
+    A chave e trocada por um dublê porque ela mora em secret e **o
+    processo que roda este roteiro nao a tem** -- e nem deve ter. O que
+    se verifica aqui e a montagem do cliente, nao a credencial.
+    """
+    config = InstallationSettings.carregar()
+    anterior = (config.ai_provider, config.ai_model, config.ai_base_url)
+    config.ai_provider, config.ai_model, config.ai_base_url = provider, model, base_url
+    config.save(update_fields=['ai_provider', 'ai_model', 'ai_base_url', 'updated_at'])
+    try:
+        with patch.object(ai_providers, 'installation_api_key', return_value=chave):
+            yield config
+    finally:
+        config.ai_provider, config.ai_model, config.ai_base_url = anterior
+        config.save(update_fields=['ai_provider', 'ai_model', 'ai_base_url', 'updated_at'])
 
 print('=== 1. todo provedor do catalogo serve de padrao da instalacao ===')
 for nome in sorted(PROVIDERS):
     esperado_url = PROVIDERS[nome].get('base_url', '')
-    with override_settings(AI_ENABLED=True, AI_PROVIDER=nome,
-                           AI_MODEL='modelo-de-teste', AI_API_KEY='chave-de-teste'):
+    with override_settings(AI_ENABLED=True), padrao_da_instalacao(nome):
         try:
             modelo = get_chat_model()
         except ProviderUnavailable as exc:
@@ -39,14 +71,21 @@ for nome in sorted(PROVIDERS):
         if not ok_url:
             failures.append(f'{nome}: base_url {url!r}, esperado {esperado_url!r}')
 
-print('=== 2. a NVIDIA e o padrao desta instalacao ===')
-print(f'  AI_PROVIDER={settings.AI_PROVIDER}  AI_MODEL={settings.AI_MODEL}')
+print('=== 2. o padrao em vigor e o do console ===')
+# Era `settings.AI_PROVIDER`, e a pergunta mudou junto com a resposta: o
+# que importa nao e mais o que o `.env` diz, e sim o que o servidor usa.
+# Foi por nao haver quem fizesse esta pergunta que a instalacao passou
+# quarenta dias apontando para um modelo aposentado.
+_provedor, _modelo, _url = InstallationSettings.carregar().ia_da_instalacao()
+print(f'  em vigor: {_provedor} / {_modelo} {_url or "(endereco do catalogo)"}')
 print(f'  rotulo na tela: {active_provider_label()}')
-if settings.AI_PROVIDER != 'nvidia':
-    failures.append(f'AI_PROVIDER={settings.AI_PROVIDER}, esperado nvidia')
+if _provedor not in PROVIDERS:
+    failures.append(f'o padrao em vigor ({_provedor}) nao esta no catalogo')
+if not _modelo:
+    failures.append('a instalacao esta sem modelo escolhido')
 
 print('=== 3. o erro diz qual secret falta ===')
-with override_settings(AI_ENABLED=True, AI_PROVIDER='nvidia', AI_API_KEY=''):
+with override_settings(AI_ENABLED=True), padrao_da_instalacao('nvidia', chave=''):
     try:
         get_chat_model()
         failures.append('sem chave, get_chat_model devolveu um cliente')
@@ -59,7 +98,7 @@ with override_settings(AI_ENABLED=True, AI_PROVIDER='nvidia', AI_API_KEY=''):
 print(f'  installation_secret_name("groq") = {installation_secret_name("groq")}')
 
 print('=== 4. provedor fora do catalogo e recusado, e a lista aparece ===')
-with override_settings(AI_ENABLED=True, AI_PROVIDER='inexistente', AI_API_KEY='x'):
+with override_settings(AI_ENABLED=True), padrao_da_instalacao('inexistente', chave='x'):
     try:
         get_chat_model()
         failures.append('provedor inexistente montou um cliente')
@@ -70,7 +109,7 @@ with override_settings(AI_ENABLED=True, AI_PROVIDER='inexistente', AI_API_KEY='x
             failures.append('a recusa de provedor desconhecido nao lista os conhecidos')
 
 print('=== 5. AI_ENABLED=False desliga, mesmo com chave ===')
-with override_settings(AI_ENABLED=False, AI_PROVIDER='nvidia', AI_API_KEY='chave'):
+with override_settings(AI_ENABLED=False), padrao_da_instalacao('nvidia', chave='chave'):
     try:
         get_chat_model()
         failures.append('AI_ENABLED=False nao impediu a montagem do cliente')
@@ -95,8 +134,8 @@ row.enabled = True
 row.api_key_ciphertext, row.api_key_metadata = encrypt_secret('chave-da-clinica')
 row.save()
 
-with override_settings(AI_ENABLED=True, AI_PROVIDER='nvidia',
-                       AI_MODEL='modelo-da-instalacao', AI_API_KEY='chave-da-instalacao'):
+with override_settings(AI_ENABLED=True), padrao_da_instalacao(
+        'nvidia', model='modelo-da-instalacao', chave='chave-da-instalacao'):
     modelo = get_chat_model(tenant_id=tenant_b.id)
     usado = str(getattr(modelo, 'model_name', '') or getattr(modelo, 'model', ''))
     url = str(getattr(modelo, 'openai_api_base', '') or '')
@@ -108,6 +147,23 @@ with override_settings(AI_ENABLED=True, AI_PROVIDER='nvidia',
         failures.append(f'a clinica caiu no endereco da instalacao ({url})')
 
 AIProviderSettings.objects.filter(tenant_id=tenant_b.id).delete()
+
+print('=== 7. sem escolha no console, o .env ainda responde ===')
+# A instalacao que subiu antes desta coluna existir nao pode ficar sem
+# provedor nenhum. `ia_da_instalacao()` cai no `.env` com o campo vazio,
+# e e isso que faz a migration dispensar retroescrita.
+from django.conf import settings as _settings
+
+_c = InstallationSettings.carregar()
+_antes = (_c.ai_provider, _c.ai_model)
+_c.ai_provider, _c.ai_model = '', ''
+_c.save(update_fields=['ai_provider', 'ai_model', 'updated_at'])
+_p, _m, _ = InstallationSettings.carregar().ia_da_instalacao()
+print(f'  campos vazios -> {_p} / {_m}  (do .env)')
+if (_p, _m) != (_settings.AI_PROVIDER, _settings.AI_MODEL):
+    failures.append('campo vazio nao caiu no .env')
+_c.ai_provider, _c.ai_model = _antes
+_c.save(update_fields=['ai_provider', 'ai_model', 'updated_at'])
 
 print('---')
 if failures:

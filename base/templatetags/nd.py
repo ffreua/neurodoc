@@ -127,6 +127,10 @@ _BADGE_TONES = {
     'delivered': 'success',
     'unknown': 'dark',
     'no_contact': 'warning',
+    # Canal indisponivel e `danger` e nao `warning`: diferente de
+    # paciente sem telefone, aqui nao ha nada que a clinica possa
+    # cadastrar -- o envio esta quebrado ate alguem configurar.
+    'channel_unavailable': 'danger',
     'needs_reconciliation': 'warning',
 }
 

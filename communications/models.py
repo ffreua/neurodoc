@@ -16,6 +16,16 @@ class DeliveryStatus(models.TextChoices):
     UNKNOWN = 'unknown', 'Sem confirmação'
     FAILED = 'failed', 'Falhou'
     NO_CONTACT = 'no_contact', 'Sem contato cadastrado'
+    #: O canal nao pode enviar: sem credencial, desligado nas
+    #: configuracoes da clinica, ou organizacao inativa.
+    #:
+    #: Existe porque os tres casos acima vinham sendo gravados como
+    #: `no_contact`, e "Sem contato cadastrado" **manda procurar no lugar
+    #: errado**: quem le vai conferir o telefone do paciente, que esta
+    #: certo. Foi o que aconteceu em 06/10/2026 -- um SMS recusado por
+    #: falta de credencial no processo web apareceu na lista como
+    #: paciente sem telefone.
+    CHANNEL_UNAVAILABLE = 'channel_unavailable', 'Canal indisponível'
     NEEDS_RECONCILIATION = 'needs_reconciliation', 'Aguardando reconciliação'
 
 

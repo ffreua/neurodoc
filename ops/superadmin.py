@@ -512,15 +512,126 @@ class OperationsView(SuperAdminView):
     """
 
     def get(self, request):
+        from ai.providers.catalog import PROVIDER_CHOICES
         from base.models import InstallationSettings
 
         config = InstallationSettings.carregar()
+        provedor, modelo, base_url = config.ia_da_instalacao()
         return render(request, 'ops/superadmin/operations.html', {
             'nav_active': 'operations',
             'config': config,
             'hosts': sorted(config.hosts_de_ia()),
             'confirmacao': CONFIRMACAO_APAGAR,
+            'ia_provedores': PROVIDER_CHOICES,
+            'ia_provedor': provedor,
+            'ia_modelo': modelo,
+            'ia_base_url': base_url,
+            'ia_modelos': config.ai_available_models or [],
+            'ia_fora_da_lista': config.ia_modelo_fora_da_lista,
         })
+
+
+class InstallationAIView(SuperAdminView):
+    """Troca o provedor e o modelo de IA **padrao** da instalacao.
+
+    O padrao vale para toda clinica que nao configurou o seu -- que e
+    toda clinica recem-criada, e era a segunda clinica real desta
+    instalacao. Morava so no `.env`, e por isso trocar o modelo era
+    editar arquivo, regerar runtime e republicar.
+
+    Isso ja tinha custado caro quando esta tela foi escrita: a NVIDIA
+    aposentou `nvidia/llama-3.3-nemotron-super-49b-v1.5` em 2026-08-26,
+    passou a responder `410 Gone`, e **quarenta dias** se passaram com a
+    IA morta para quem dependia do padrao -- sem alarme, porque a unica
+    forma de notar era alguem pedir um resumo e ler "a tarefa nao foi
+    concluida".
+
+    A **chave** nao se edita aqui, de proposito: ela e credencial, mora
+    em secret, e o processo `app` -- que serve este console -- nao recebe
+    nenhuma (§2). Quem pode trocar o modelo nao precisa poder ler a
+    chave. Por isso tambem o botao de verificar **enfileira** uma tarefa
+    em vez de perguntar ao provedor na hora: daqui nao da para perguntar.
+    """
+
+    def post(self, request):
+        from ai.providers.catalog import PROVIDERS
+        from audit.services import record_audit_event
+        from base.models import InstallationSettings
+
+        config = InstallationSettings.carregar()
+
+        if request.POST.get('acao') == 'verificar':
+            from ai.tasks import verificar_provedor_da_instalacao
+
+            verificar_provedor_da_instalacao.delay()
+            messages.success(
+                request,
+                'Verificação enfileirada. Ela roda no worker, que é quem tem a chave '
+                'e a saída para a internet; recarregue esta página em alguns segundos '
+                'para ver o resultado.',
+            )
+            return redirect('superadmin:operations')
+
+        provedor = (request.POST.get('provedor') or '').strip()
+        modelo = (request.POST.get('modelo') or '').strip()
+        base_url = (request.POST.get('base_url') or '').strip()
+
+        if provedor not in PROVIDERS:
+            messages.error(request, 'Escolha um provedor do catálogo. Nada foi alterado.')
+            return redirect('superadmin:operations')
+        if not modelo:
+            messages.error(
+                request,
+                'Escolha ou informe o modelo. Provedor sem modelo não atende ninguém.',
+            )
+            return redirect('superadmin:operations')
+        if provedor == 'custom' and not base_url:
+            messages.error(
+                request,
+                'Provedor próprio exige o endereço da API. Nada foi alterado.',
+            )
+            return redirect('superadmin:operations')
+
+        antes = config.ia_da_instalacao()
+        config.ai_provider = provedor
+        config.ai_model = modelo
+        config.ai_base_url = base_url
+        # A verificacao anterior era sobre a escolha anterior: manter o
+        # "respondeu, esta ativo" ao lado de um modelo novo seria dizer
+        # que se conferiu o que nao se conferiu.
+        config.ai_checked_at = None
+        config.ai_check_ok = None
+        config.ai_check_detail = ''
+        if provedor != antes[0]:
+            config.ai_available_models = []
+        config.updated_by = request.user
+        config.full_clean()
+        config.save(update_fields=[
+            'ai_provider', 'ai_model', 'ai_base_url', 'ai_available_models',
+            'ai_checked_at', 'ai_check_ok', 'ai_check_detail', 'updated_by', 'updated_at',
+        ])
+        record_audit_event(
+            request.user, None, 'ops.installation_ai_changed',
+            object_type='installation', object_id=config.id, outcome='success',
+            # Provedor e modelo nao sao segredo nem dado pessoal, e sao
+            # exatamente o que se quer poder auditar depois: "desde
+            # quando a instalacao fala com este provedor?".
+            integrity_metadata={
+                'from': {'provider': antes[0], 'model': antes[1], 'base_url': antes[2]},
+                'to': {'provider': provedor, 'model': modelo, 'base_url': base_url},
+            },
+        )
+
+        from ai.tasks import verificar_provedor_da_instalacao
+
+        verificar_provedor_da_instalacao.delay()
+        messages.success(
+            request,
+            f'Padrão da instalação agora é {provedor} / {modelo}. Vale para toda clínica '
+            'que não configurou a sua. A verificação foi enfileirada — recarregue em '
+            'alguns segundos para ver se o provedor aceita o modelo.',
+        )
+        return redirect('superadmin:operations')
 
 
 class AIAllowlistView(SuperAdminView):

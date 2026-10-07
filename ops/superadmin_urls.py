@@ -42,6 +42,10 @@ urlpatterns = [
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
     path('operacao/', superadmin.OperationsView.as_view(), name='operations'),
     path(
+        'operacao/provedor-de-ia/',
+        superadmin.InstallationAIView.as_view(), name='operations-installation-ai',
+    ),
+    path(
         'operacao/ia/',
         superadmin.AIAllowlistView.as_view(), name='operations-ai-allowlist',
     ),

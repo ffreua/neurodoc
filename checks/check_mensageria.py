@@ -196,7 +196,10 @@ else:
         entrega.refresh_from_db()
         tentativa = entrega.attempts.order_by('-created_at').first()
         motivo = getattr(tentativa, 'sanitized_error', '')
-        barrou = entrega.status == DeliveryStatus.NO_CONTACT and motivo == 'tenant_inactive'
+        # `CHANNEL_UNAVAILABLE` e nao `NO_CONTACT`: quem nao pode
+        # enviar e o sistema, nao o paciente que nao tem telefone.
+        barrou = (entrega.status == DeliveryStatus.CHANNEL_UNAVAILABLE
+                  and motivo == 'tenant_inactive')
         print(f'  canal {canal:6} suspensa -> barrado={barrou} motivo={motivo!r}')
         if not barrou:
             falhas.append(f'clinica suspensa continuou enviando por {canal}')

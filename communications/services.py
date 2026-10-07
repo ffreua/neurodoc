@@ -145,7 +145,7 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
         id=delivery.tenant_id, status=TenantStatus.ACTIVE,
     ).exists()
     if not ativa:
-        delivery.status = DeliveryStatus.NO_CONTACT
+        delivery.status = DeliveryStatus.CHANNEL_UNAVAILABLE
         delivery.save(update_fields=['status'])
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error='tenant_inactive')
         return
@@ -163,7 +163,11 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
             )
             delivery.provider_id = str(result.get('id', ''))[:100]
     except SmsChannelDisabled:
-        delivery.status = DeliveryStatus.NO_CONTACT
+        # `CHANNEL_UNAVAILABLE`, e nao `NO_CONTACT`: o paciente tem
+        # telefone, quem nao pode enviar e o sistema. Gravado como "sem
+        # contato", isto mandava a clinica conferir a ficha do paciente
+        # -- que estava certa -- enquanto a causa era credencial.
+        delivery.status = DeliveryStatus.CHANNEL_UNAVAILABLE
         delivery.save(update_fields=['status'])
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error='channel_disabled')
         return

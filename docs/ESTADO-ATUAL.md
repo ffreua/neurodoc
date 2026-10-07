@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.6.2 "o que a tela não mostrava" · **Produção:**
+**Versão:** 1.7 "o padrão da instalação" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -49,7 +49,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**92 roteiros de verificação, nenhuma falha.** São o que substitui a
+**93 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 
@@ -171,6 +171,17 @@ ocorrências: roteiro lendo a própria legenda; roteiro de paginação sem
 volume; asserção casando com ícone decorativo; e um roteiro que passava
 em dois dias da semana e reprovava nos outros cinco. O último é o pior:
 ensina quem lê a ignorar o vermelho.
+
+**O padrão da instalação é um caminho sem dono, e foi onde doeu três
+vezes.** Em 2026-10-05 e 06 apareceram três defeitos com a mesma
+assinatura: só são exercitados por quem **não** configurou o seu próprio
+— o logotipo que vinha do cache da clínica anterior, a IA apontando para
+um modelo que o fornecedor aposentou em 26/08 (quarenta dias de `410
+Gone`, sem alarme), e a confirmação de horário por SMS saindo de dentro
+da requisição, onde o secret do SMSDEV não existe. Nos três, a primeira
+clínica nunca viu nada: ela tem logotipo, chave de IA e chave de SMS
+próprias. A lição é onde procurar o próximo: **o que a primeira clínica
+nunca exercita.** Ver `docs/homologation/padrao-da-instalacao.md`.
 
 **Validação rígida demais descarta o trabalho certo.** Em 2026-10-05 uma
 leitura de laudo pela IA foi recusada inteira — trinta e um analitos

@@ -91,26 +91,70 @@ def installation_secret_name(provider):
     return f'NEURODOC_{provider.upper()}_API_KEY'
 
 
-def _installation_model():
-    """O padrão da instalação: provedor, modelo e chave do `.env`/secrets.
+def installation_api_key(provider):
+    """A chave da instalação para **este** provedor, lida na hora.
 
-    Vale para toda clínica que não configurou a sua. A mensagem de erro
-    nomeia o secret que falta, porque "chave não configurada" sozinho manda
-    quem opera o servidor procurar em três lugares.
+    Não vem de `settings.AI_API_KEY`, que é resolvida uma vez na carga do
+    processo a partir de `AI_PROVIDER`: com o provedor escolhido no
+    console, trocar de provedor passaria a ler a chave do provedor antigo
+    até alguém republicar — que é exatamente o ciclo de deploy que o
+    console existe para dispensar.
+
+    Vazio em vez de exceção quando o secret não está montado: quem decide
+    o que fazer com a falta é quem chama, e o processo `app` **não tem
+    nenhuma dessas chaves**, de propósito (§2). Lá a resposta certa é
+    "não sei", não "não existe".
     """
-    provider = settings.AI_PROVIDER
+    from ops.env import secret
+
+    try:
+        return secret(f'{provider.upper()}_API_KEY', required=False)
+    except ValueError:
+        # `secret()` recusa configuração ambígua (variável e arquivo ao
+        # mesmo tempo). Isso é erro de implantação, não de IA: tratá-lo
+        # como chave ausente dá a mensagem certa a quem opera o servidor.
+        return ''
+
+
+def _installation_model():
+    """O padrão da instalação: provedor, modelo e chave.
+
+    Vale para toda clínica que não configurou a sua. **Provedor e modelo
+    vêm do console** (`base.models.InstallationSettings`), não mais do
+    `.env` — ver o comentário lá, que conta por que: o modelo do `.env`
+    foi aposentado pelo provedor em 2026-08-26, passou a responder `410
+    Gone`, e trocá-lo exigia um ciclo de deploy.
+
+    A **chave** continua vindo de secret, e não do console, de propósito:
+    ela é credencial, o console roda no processo `app`, e o `app` não
+    recebe nenhuma chave de provedor. Quem pode trocar o modelo não
+    precisa poder ler a chave.
+
+    A mensagem de erro nomeia o secret que falta, porque "chave não
+    configurada" sozinho manda quem opera o servidor procurar em três
+    lugares.
+    """
+    from base.models import InstallationSettings
+
+    provider, model, base_url = InstallationSettings.carregar().ia_da_instalacao()
     if provider not in PROVIDERS:
         conhecidos = ', '.join(sorted(PROVIDERS))
         raise ProviderUnavailable(
-            f'AI_PROVIDER={provider!r} não está no catálogo. Conhecidos: {conhecidos}.'
+            f'O provedor de IA da instalação ({provider!r}) não está no catálogo. '
+            f'Conhecidos: {conhecidos}. Escolha outro em /instalacao/operacao/.'
         )
-    api_key = settings.AI_API_KEY
+    api_key = installation_api_key(provider)
     if not api_key:
         raise ProviderUnavailable(
             f'Nenhuma chave de IA configurada para o provedor da instalação '
             f'({provider}). Grave o secret {installation_secret_name(provider)}.'
         )
-    return _build(provider, settings.AI_MODEL, api_key)
+    if not model:
+        raise ProviderUnavailable(
+            f'Nenhum modelo de IA escolhido para o provedor da instalação '
+            f'({provider}). Escolha um em /instalacao/operacao/.'
+        )
+    return _build(provider, model, api_key, base_url)
 
 
 def get_chat_model(provider=None, tenant_id=None):

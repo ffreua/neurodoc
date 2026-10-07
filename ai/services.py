@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import uuid
 
 from django.conf import settings
@@ -32,6 +33,9 @@ DOCUMENT_LIMITS = {'timeout_seconds': 180, 'max_output_chars': 60000}
 #: o relatorio no meio de uma secao, e um relatorio truncado e pior que
 #: nenhum -- quem revisa nao tem como saber o que faltou.
 REPORT_LIMITS = {'timeout_seconds': 240, 'max_output_chars': 30000}
+
+
+logger = logging.getLogger(__name__)
 
 
 class JobNotRunnable(Exception):
@@ -237,7 +241,71 @@ def _provenance_of(chat_model, tenant_id):
     row = AIProviderSettings.objects.filter(tenant_id=tenant_id).first()
     if row is not None and row.is_usable:
         return row.provider, str(model_name or row.model)
-    return settings.AI_PROVIDER, str(model_name or settings.AI_MODEL)
+    # O padrão da instalação vem do console, não do `.env` — e registrar
+    # `settings.AI_MODEL` aqui gravaria no artefato um modelo que pode não
+    # ser o que respondeu, que é o oposto do que proveniência serve.
+    from base.models import InstallationSettings
+
+    provider, model, _ = InstallationSettings.carregar().ia_da_instalacao()
+    return provider, str(model_name or model)
+
+
+#: Acima disto o provedor esta instavel; daqui para baixo, mal
+#: configurado. 408 e 429 sao a excecao dentro do 4xx: prazo e limite de
+#: taxa passam sozinhos, e repetir e de fato o que se deve fazer.
+_ESTADOS_QUE_PASSAM = {408, 429}
+
+
+def _falha_do_provedor(exc, job):
+    """Traduz a recusa do provedor numa frase útil e num diagnóstico.
+
+    Útil quer dizer: que diga a quem lê se vale tentar de novo. "A tarefa
+    não foi concluída. Tente novamente." dito sobre um modelo que o
+    provedor aposentou é pior do que não dizer nada — manda a secretária
+    repetir indefinidamente uma operação que não pode dar certo, e
+    esconde de quem opera o servidor a única coisa que resolveria.
+
+    O diagnóstico não carrega a chave: `status_code` e o nome do modelo
+    são o que o provedor devolve de útil, e nenhum dos dois é segredo.
+    """
+    status = getattr(getattr(exc, 'response', None), 'status_code', None)
+    if status is None:
+        status = getattr(exc, 'status_code', None)
+    configuracao = isinstance(status, int) and 400 <= status < 500 and status not in _ESTADOS_QUE_PASSAM
+
+    try:
+        from base.models import InstallationSettings
+
+        provedor, modelo, _ = InstallationSettings.carregar().ia_da_instalacao()
+    except Exception:  # pragma: no cover - diagnóstico nunca derruba o job
+        provedor, modelo = '', ''
+
+    diagnostico = {
+        'etapa': 'chamada_ao_provedor',
+        'status_http': status,
+        'excecao': type(exc).__name__,
+        'provedor_da_instalacao': provedor,
+        'modelo_da_instalacao': modelo,
+        'configuracao': configuracao,
+    }
+    if configuracao:
+        detalhe = (
+            'O provedor de IA recusou a chamada por configuração '
+            f'(HTTP {status}). Repetir não resolve: quem administra a instalação '
+            'precisa conferir o provedor e o modelo em Operação.'
+        )
+    else:
+        detalhe = (
+            'O provedor de IA não respondeu'
+            + (f' (HTTP {status})' if status else '')
+            + '. Tente novamente em alguns minutos.'
+        )
+    logger.warning(
+        'Falha do provedor de IA', extra={
+            'job_id': str(job.id), 'status': status, 'provider': provedor, 'model': modelo,
+        },
+    )
+    return detalhe, diagnostico
 
 
 def _previous_artifact(job):
@@ -341,10 +409,28 @@ def run_job(job_id):
 
     prompt = build_prompt(job.kind, deidentified_text, extras=prompt_extras)
     graph = build_graph(chat_model, job.kind, max_output_chars=job.limits.get('max_output_chars', 20000))
-    result_state = graph.invoke({
-        'prompt': prompt, 'timeout_seconds': job.limits.get('timeout_seconds', 30),
-        'raw_response': None, 'artifact': None, 'error': None, 'diagnostics': None,
-    })
+    # O provedor pode recusar a chamada inteira, e isso **não** é "tente
+    # novamente". Em 2026-08-26 a NVIDIA aposentou o modelo que era o
+    # padrão da instalação e passou a responder `410 Gone`; a exceção
+    # subia até o `except Exception` de `run_ai_job`, que gravava "A
+    # tarefa não foi concluída. Tente novamente." -- conselho que nunca
+    # ia funcionar, sobre uma causa que ninguém na clínica podia
+    # resolver. Quarenta dias assim, numa clínica que depende do padrão
+    # da instalação por não ter chave própria.
+    #
+    # O código de estado é o que separa os dois mundos: 4xx é
+    # configuração (modelo aposentado, chave recusada, crédito acabado) e
+    # pedir para repetir é errado; o resto é instabilidade, e aí repetir
+    # é o conselho certo.
+    try:
+        result_state = graph.invoke({
+            'prompt': prompt, 'timeout_seconds': job.limits.get('timeout_seconds', 30),
+            'raw_response': None, 'artifact': None, 'error': None, 'diagnostics': None,
+        })
+    except Exception as exc:
+        detalhe, diagnostico = _falha_do_provedor(exc, job)
+        return _fail(job, AIJobStatus.FAILED, detalhe, 'ai.job_provider_error',
+                     diagnostics=diagnostico)
 
     if result_state.get('error'):
         return _fail(

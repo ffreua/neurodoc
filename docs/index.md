@@ -121,6 +121,13 @@ PRD; é a referência operacional viva gerada a partir dele.
   não três; NVIDIA NIM com Nemotron como padrão desta instalação, sem
   atropelar a clínica que configurou a sua.
 
+- [O padrão da instalação: IA morta por 40 dias, SMS que nunca saiu](homologation/padrao-da-instalacao.md) —
+  dois defeitos de 2026-10-06 com a mesma assinatura: só quem **não**
+  configurou provedor próprio os encontra. O modelo de IA aposentado pelo
+  fornecedor e preso num `.env`; a confirmação de horário saindo da
+  requisição, onde o secret do SMS não existe. O provedor padrão passa ao
+  console, com verificação no worker.
+
 - [Leitura de laudo pela IA: forma e conteúdo](homologation/leitura-de-laudo-por-ia.md) —
   o defeito de 2026-10-05: um laudo lido corretamente foi descartado
   inteiro porque o campo "o que não consegui ler" voltou como lista

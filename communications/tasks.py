@@ -109,3 +109,61 @@ def deliver_document_task(document_id, force_new_link=False):
     if document is None:
         return 0
     return len(deliver_document(document, force_new_link=force_new_link))
+
+
+@shared_task(
+    name='communications.tasks.send_confirmation',
+    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 3},
+    expires=600,
+)
+def send_confirmation_task(appointment_id, channel, actor_id, contact_id=None):
+    """Envia a confirmação do horário **no worker**.
+
+    Era a última entrega que saía de dentro da requisição, e isso tinha
+    uma consequência que só aparece em instalação com mais de uma
+    clínica: **o processo `app` não recebe o secret do SMSDEV** (§2 — a
+    chave de egresso é do worker). A clínica que informou a própria
+    chave funcionava, porque essa fica cifrada no banco e o `app` sabe
+    decifrá-la; a clínica que depende da chave da instalação recebia
+    `SmsChannelDisabled` e nada saía.
+
+    Foi exatamente o que aconteceu em 06/10/2026: a primeira clínica
+    tinha chave própria e nunca viu o defeito; a segunda, no plano
+    Completo e sem chave, não recebeu um SMS sequer — e a entrega ficou
+    registrada como "sem contato cadastrado".
+
+    O e-mail escapava, de novo, porque o backend dele já enfileira
+    sozinho. É o mesmo par de causa e sintoma de `deliver_document_task`,
+    na entrega de documento — ali foi corrigido antes, aqui ficou.
+    """
+    from scheduling.models import Appointment
+
+    from .services import NoUsableContact, send_appointment_confirmation
+
+    appointment = Appointment.objects.filter(id=appointment_id).select_related('tenant').first()
+    if appointment is None:
+        return {'status': 'skipped'}
+
+    contato = None
+    if contact_id:
+        from patients.models import PatientContact
+
+        contato = PatientContact.objects.filter(
+            tenant_id=appointment.tenant_id, id=contact_id,
+        ).first()
+
+    # `context=None`: quem autoriza é a view, antes de enfileirar — a
+    # capacidade de mexer na agenda é de quem clicou, e reconstruí-la
+    # aqui daria a impressão de que a fila reautoriza, que ela não faz.
+    # `send_appointment_confirmation` não lê o parâmetro; o `actor_id`,
+    # que é o que vai para a trilha, continua sendo o de quem clicou.
+    try:
+        entrega = send_appointment_confirmation(
+            None, appointment, channel, actor_id, contact=contato,
+        )
+    except NoUsableContact:
+        # A view já confere isto antes de enfileirar; chegar aqui
+        # significa que o contato sumiu no meio do caminho. Não é motivo
+        # para repetir a tarefa três vezes.
+        return {'status': 'no_contact'}
+    return {'status': entrega.status, 'delivery_id': str(entrega.id)}

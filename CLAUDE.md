@@ -74,6 +74,19 @@ requisição web não pode nada disso — ela espera o timeout com o usuário
 olhando. Ver `communications/mail_backend.py` e o comentário de
 `EMAIL_BACKEND` em `core/settings.py`.
 
+**E a regra tem um segundo dente, que é o que de fato a faz valer: o
+`app` não recebe os secrets de egresso.** Não há `SMSDEV_API_KEY` nem
+chave de provedor de IA no processo que atende o navegador. Então uma
+entrega escrita dentro da requisição não fica lenta — ela **não
+funciona**, e só para quem depende da chave da instalação. Foi assim em
+2026-10-06: a confirmação de horário saía da requisição, a clínica com
+chave própria funcionava (a dela fica cifrada no banco) e a clínica sem
+chave não recebeu um SMS sequer, registrado como "sem contato
+cadastrado". `check_provedor_e_sms.py` varre os `views.py` proibindo
+`send_sms`, `send_appointment_confirmation` e `deliver_document` — lista
+escrita à mão envelhece, e foi por ela envelhecer que a confirmação
+ficou para trás quando a entrega de documento foi corrigida.
+
 **O que este parágrafo dizia e não era verdade** (corrigido em
 2026-10-02): que o processo `app` *não tem saída para a internet*. Ele
 tem. `neurodoc_v1_internal` é `internal: true`, mas o `app` está também em
@@ -342,6 +355,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
 | `check_leitura_laudo.py` | a leitura de laudo pela IA: a **forma** que o modelo devolve é normalizada (lista vazia, `null` e número em campo de texto) e o **conteúdo** continua sob as mesmas guardas (faixa do laudo, probabilidade numérica, marcador de desidentificação); a varredura que impede esquema novo de nascer fora de `ArtifactModel` e prompt novo de nascer sem tipo; o recuo quando o provedor recusa `response_format`, sem confundir isso com falha de rede; e o diagnóstico da recusa gravado **sem nenhum valor do laudo** |
+| `check_provedor_e_sms.py` | o **padrão da instalação**, que só quem não configurou o seu exercita: o provedor de IA vindo do console e não do `.env`, a verificação que acusa modelo aposentado, a chave lida pelo provedor em vigor, 410 virando "repetir não resolve" e 503 virando "tente de novo", a varredura que impede qualquer view de enviar mensagem de dentro da requisição, o canal indisponível que não se disfarça de paciente sem telefone, e o processo `app` continuando **sem** secret de egresso |
 | `check_logotipo.py` | o logotipo é o da organização **aberta**: o cache do navegador revalidado em vez de guardado por cinco minutos, o validador que carrega o inquilino, a revalidação com o `ETag` da clínica anterior que não pode dar 304, a varredura atrás de `max-age` novo em URL que não distingue o que serve, e nenhum template remendando o cache por conta própria |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
@@ -442,8 +456,26 @@ exceção inventada "emergência comunicada ao CRM", que o art. 37 não tem.
 
 | Chave | O que faz |
 | --- | --- |
+| `ai_provider`, `ai_model`, `ai_base_url` | O provedor de IA **padrão**, de toda clínica que não configurou o seu. Com a verificação que pergunta ao provedor se o modelo ainda existe |
 | `ai_base_url_allowlist` | Endereços de API que a instalação libera **além** do catálogo, para provedor de IA próprio (Ollama, vLLM). Vazio = só o catálogo |
 | `documents_gc_dry_run` | Ensaio da coleta semanal de arquivos apagados. `True` conta e registra sem apagar |
+
+**Por que o provedor de IA entrou aqui, e é o caso mais caro dos três.**
+Ele morava no `.env`, e em 2026-08-26 a NVIDIA aposentou o modelo
+apontado lá: `410 Gone` em toda chamada. Ficou **quarenta dias** assim,
+porque não havia tela mostrando o padrão, nem verificação conferindo-o
+contra o catálogo do provedor, e trocá-lo exigia republicar. Quem pagou
+foi a segunda clínica — a única que depende do padrão, por não ter chave
+própria. `ai/providers/catalog.py` já avisava, por escrito, que digitar
+identificador de modelo é a forma mais comum de a IA falhar em produção;
+a tela **da clínica** foi construída para evitar isso, e o padrão da
+instalação ficou de fora.
+
+**A chave não se edita no console, e isso é desenho e não esquecimento.**
+Ela é credencial, mora em secret, e o processo `app` não recebe nenhuma
+(§2). Quem pode trocar o modelo não precisa poder ler a chave — e é por
+isso também que a verificação é **tarefa do worker**: a tela não tem como
+perguntar ao provedor. Ver `docs/homologation/padrao-da-instalacao.md`.
 
 **O `.env` semeia, o banco decide.** `AI_BASE_URL_ALLOWLIST` e
 `DOCUMENTS_GC_DRY_RUN` valem para criar a linha na primeira vez; depois

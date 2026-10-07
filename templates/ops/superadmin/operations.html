@@ -12,11 +12,119 @@ arquivo, regerando o runtime e republicando não serve de freio de
 emergência — e as duas são exatamente isso.{% endcomment %}
 <p class="fs-12 text-muted border-start border-3 ps-2 mb-4">
     O que está nesta tela vale <strong>agora</strong>, sem republicar o sistema.
-    As variáveis <code>AI_BASE_URL_ALLOWLIST</code> e
-    <code>DOCUMENTS_GC_DRY_RUN</code> do <code>.env</code> só valeram para criar
-    esta configuração na primeira vez — depois disso, quem manda é esta tela.
+    As variáveis <code>AI_BASE_URL_ALLOWLIST</code>, <code>DOCUMENTS_GC_DRY_RUN</code>,
+    <code>AI_PROVIDER</code> e <code>AI_MODEL</code> do <code>.env</code> só valeram para
+    criar esta configuração na primeira vez — depois disso, quem manda é esta tela.
     Mexer no <code>.env</code> agora não muda nada aqui.
 </p>
+
+{% comment %}O provedor de IA padrão da instalação.
+
+Esta seção nasceu de um defeito de quarenta dias: o modelo padrão era
+digitado à mão no `.env`, a NVIDIA o aposentou em 26/08/2026, e a única
+clínica que dependia do padrão ficou sem IA sem que ninguém tivesse como
+saber — não havia tela mostrando o padrão, nem verificação conferindo-o
+contra o catálogo do provedor.
+
+A chave **não** se edita aqui: ela é credencial, mora em secret, e o
+processo `app` não recebe nenhuma (§2 do CLAUDE.md). É também por isso
+que o botão enfileira uma verificação em vez de perguntar na hora.
+{% endcomment %}
+<div class="card stretch stretch-full mb-4">
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="card-title mb-0">Provedor de IA padrão da instalação</h5>
+        {% if config.ai_check_ok %}
+        <span class="badge bg-soft-success text-success">Verificado e ativo</span>
+        {% elif config.ai_checked_at %}
+        <span class="badge bg-soft-danger text-danger">Verificação falhou</span>
+        {% else %}
+        <span class="badge bg-soft-warning text-warning">Nunca verificado</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <p class="fs-13">
+            Vale para <strong>toda clínica que não configurou a sua</strong> — isto é,
+            para toda clínica recém-criada. A clínica que informou provedor, chave e
+            modelo próprios continua falando com o contrato dela, e nada aqui a alcança.
+        </p>
+
+        {% if ia_fora_da_lista %}
+        <div class="alert alert-danger fade show fs-13" role="alert">
+            <strong>O modelo escolhido não está na lista do provedor.</strong>
+            <span class="d-block fs-12 mt-1">
+                É assim que um modelo aposentado se parece. Enquanto estiver assim,
+                toda tarefa de IA de quem usa o padrão da instalação vai falhar —
+                e a mensagem que o médico lê não diz o porquê. Escolha outro abaixo.
+            </span>
+        </div>
+        {% endif %}
+
+        {% if config.ai_checked_at %}
+        <p class="fs-12 {% if config.ai_check_ok %}text-muted{% else %}text-danger{% endif %} mb-3">
+            Última verificação em {{ config.ai_checked_at|date:"d/m/Y H:i" }}:
+            {{ config.ai_check_detail }}
+        </p>
+        {% else %}
+        <p class="fs-12 text-muted mb-3">
+            Ainda não verificado. A verificação pergunta ao provedor quais modelos ele
+            oferece e faz uma chamada mínima ao escolhido — são as duas falhas
+            diferentes: identificador aposentado e chave recusada.
+        </p>
+        {% endif %}
+
+        <form method="post" action="{% url 'superadmin:operations-installation-ai' %}"
+              class="row g-3">
+            {% csrf_token %}
+            <div class="col-md-4">
+                <label class="form-label fs-12" for="id_provedor">Provedor</label>
+                <select class="form-select" id="id_provedor" name="provedor">
+                    {% for valor, rotulo in ia_provedores %}
+                    <option value="{{ valor }}" {% if valor == ia_provedor %}selected{% endif %}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label fs-12" for="id_modelo">Modelo</label>
+                {% if ia_modelos %}
+                {% comment %}Lista vinda do provedor, com campo livre ao lado:
+                digitar identificador é a forma mais comum de a IA falhar em
+                produção, mas a lista é do provedor **atual** — trocar de
+                provedor antes de verificar deixaria a pessoa sem como
+                escrever o primeiro modelo do provedor novo.{% endcomment %}
+                <input class="form-control" id="id_modelo" name="modelo" list="ia-modelos"
+                       value="{{ ia_modelo }}" autocomplete="off"
+                       placeholder="escolha na lista ou digite">
+                <datalist id="ia-modelos">
+                    {% for m in ia_modelos %}<option value="{{ m }}"></option>{% endfor %}
+                </datalist>
+                <span class="fs-11 text-muted">{{ ia_modelos|length }} modelo(s) oferecido(s) na última verificação.</span>
+                {% else %}
+                <input class="form-control" id="id_modelo" name="modelo"
+                       value="{{ ia_modelo }}" autocomplete="off"
+                       placeholder="ex.: nvidia/llama-3.1-nemotron-70b-instruct">
+                <span class="fs-11 text-muted">Verifique para ver a lista que o provedor oferece.</span>
+                {% endif %}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fs-12" for="id_base_url">Endereço da API</label>
+                <input class="form-control" id="id_base_url" name="base_url"
+                       value="{{ ia_base_url }}" placeholder="só para provedor próprio">
+                <span class="fs-11 text-muted">Vazio = o endereço do catálogo.</span>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-2">
+                <button class="btn btn-primary" type="submit">Gravar padrão da instalação</button>
+                <button class="btn btn-light-primary" type="submit" name="acao" value="verificar"
+                        formnovalidate>Verificar agora, sem gravar</button>
+            </div>
+        </form>
+
+        <p class="fs-11 text-muted mt-3 mb-0">
+            A <strong>chave</strong> de cada provedor não se edita aqui — ela é secret
+            do servidor, e só o worker a recebe. Trocar para um provedor sem chave
+            gravada faz a verificação dizer qual secret falta.
+        </p>
+    </div>
+</div>
 
 <div class="row g-4">
 

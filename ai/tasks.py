@@ -368,3 +368,88 @@ def run_chat_turn(message_id, user_message_id):
         context=contexto,
     )
     return {'status': 'complete', 'message_id': str(message.id)}
+
+
+@shared_task(name='ai.tasks.verificar_provedor_da_instalacao', expires=600)
+def verificar_provedor_da_instalacao():
+    """Pergunta ao provedor da instalação o que ele oferece, e guarda.
+
+    **Roda no worker porque é lá que a chave existe** (§2): o processo
+    `app`, que serve o console, não recebe nenhuma chave de provedor. A
+    tela não pode perguntar; ela lê o que esta tarefa gravou.
+
+    Existe por um defeito de quarenta dias. O modelo padrão da instalação
+    era digitado à mão no `.env`, o provedor o aposentou em 2026-08-26 e
+    passou a responder `410 Gone`, e **ninguém tinha como saber**: não
+    havia tela que mostrasse o padrão da instalação, nem verificação que
+    o conferisse contra o catálogo do provedor. O erro só aparecia como
+    "a tarefa não foi concluída" para o médico, no meio do atendimento.
+
+    Duas perguntas, porque são duas falhas diferentes e quem resolve cada
+    uma é uma pessoa diferente (é o mesmo par que a tela da clínica já
+    usava, e que faltava aqui):
+
+    - `list_models` diz **o que existe** — é o que acusa modelo
+      aposentado, e o que alimenta a lista escolhível da tela;
+    - `probe_model` manda uma pergunta mínima ao modelo escolhido — é o
+      que prova a **chave** e o acesso àquele modelo em particular.
+
+    Nunca levanta: o resultado da verificação é o próprio registro.
+    Estourar aqui transformaria "o provedor está fora" num alarme de
+    worker, que é o lugar onde ninguém procura por isso.
+    """
+    from django.utils import timezone
+
+    from base.models import InstallationSettings
+    from .providers import installation_api_key
+    from .providers.catalog import PROVIDERS, ProviderProbeFailed, list_models, probe_model
+
+    config = InstallationSettings.carregar()
+    provedor, modelo, base_url = config.ia_da_instalacao()
+
+    def gravar(ok, detalhe, modelos=None):
+        config.ai_checked_at = timezone.now()
+        config.ai_check_ok = ok
+        config.ai_check_detail = detalhe[:300]
+        campos = ['ai_checked_at', 'ai_check_ok', 'ai_check_detail', 'updated_at']
+        if modelos is not None:
+            config.ai_available_models = modelos
+            campos.append('ai_available_models')
+        config.save(update_fields=campos)
+        return {'ok': ok, 'detalhe': detalhe[:300]}
+
+    if provedor not in PROVIDERS:
+        return gravar(False, f'O provedor {provedor!r} não está no catálogo.')
+
+    chave = installation_api_key(provedor)
+    if not chave:
+        from .providers import installation_secret_name
+
+        return gravar(False, (
+            f'Nenhuma chave da instalação para {provedor}. Grave o secret '
+            f'{installation_secret_name(provedor)} e republique.'
+        ))
+
+    try:
+        modelos = sorted(list_models(provedor, chave, base_url))
+    except ProviderProbeFailed as exc:
+        return gravar(False, f'Não foi possível listar os modelos: {exc}')
+    except Exception as exc:  # pragma: no cover - rede
+        return gravar(False, f'Falha ao falar com o provedor: {type(exc).__name__}.')
+
+    if not modelo:
+        return gravar(False, 'Nenhum modelo escolhido para a instalação.', modelos)
+    if modelo not in modelos:
+        return gravar(False, (
+            f'O modelo {modelo} não está entre os {len(modelos)} que {provedor} oferece. '
+            'Escolha outro na lista — provedor aposenta modelo sem avisar.'
+        ), modelos)
+
+    try:
+        probe_model(provedor, chave, modelo, base_url)
+    except ProviderProbeFailed as exc:
+        return gravar(False, f'O modelo está na lista, mas a chamada falhou: {exc}', modelos)
+    except Exception as exc:  # pragma: no cover - rede
+        return gravar(False, f'Falha ao testar o modelo: {type(exc).__name__}.', modelos)
+
+    return gravar(True, f'{provedor} respondeu, e {modelo} está ativo.', modelos)
