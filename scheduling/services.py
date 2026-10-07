@@ -3,7 +3,10 @@ from django.utils import timezone
 
 from audit.services import record_audit_event
 
-from .events import emit_appointment_reserved, invalidate_stale_reminders, schedule_reminders
+from .events import (
+    emit_appointment_cancelled, emit_appointment_rescheduled, emit_appointment_reserved,
+    invalidate_stale_reminders, schedule_reminders,
+)
 from .models import ALLOWED_TRANSITIONS, Appointment, AppointmentStatus
 
 
@@ -90,6 +93,10 @@ def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, act
         },
     )
     schedule_reminders(appointment)
+    # O paciente precisa saber que o horário dele mudou, e precisa saber
+    # **hoje** -- o lembrete de 24h chegaria tarde demais para quem foi
+    # remarcado para a semana que vem.
+    emit_appointment_rescheduled(appointment, old_starts_at)
     return appointment
 
 
@@ -117,6 +124,11 @@ def transition_appointment(appointment, new_status, actor_id, **extra_fields):
 def cancel_appointment(appointment, actor_id, reason=''):
     result = transition_appointment(appointment, AppointmentStatus.CANCELLED, actor_id, cancellation_reason=reason)
     invalidate_stale_reminders(result)
+    # Cancelar derrubava os lembretes e **não avisava ninguém**: o
+    # paciente só descobria ao chegar na clínica, ou ao não receber o
+    # lembrete que esperava. As duas chamadas juntas são a ordem certa --
+    # primeiro cancela o que iria sair, depois manda o que tem de sair.
+    emit_appointment_cancelled(result)
     return result
 
 

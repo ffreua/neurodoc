@@ -167,11 +167,11 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `base` | primitivas compartilhadas (`TenantModel`, cripto, logging com redação, widgets), **página de vendas** (`base/views.py::LandingView`), textos de venda (`base/content.py`), central de ajuda (`base/help_content.py`) e **como o produto aparece na busca** (`base/seo.py`, `base/seo_views.py` — ver §7-E) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, `PhysicianProfile` (CRM) |
 | `tenancy` | `Tenant`, `Membership`, `ClinicProfile`, `Invitation`, `Lead`, `ClinicMessage` (a clínica falando com quem mantém a instalação), `ContractAcceptance`; **planos, limites, a matriz de permissão e o contrato de adesão** (`contract.py`) |
-| `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto, **forma canônica do nome** (`naming.py`: caixa alta, gravada) e a **migração de cadastro** de outro sistema (`importacao.py` + `import_pacientes_xml`) |
-| `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja) e CEP dos Correios |
+| `patients` | `Patient`, contatos, convênio/`PatientCoverage`, numeração por clínica, foto, **naturalidade** (`naturalidade.py` + catálogo de municípios do IBGE), **forma canônica do nome** (`naming.py`: caixa alta, gravada) e a **migração de cadastro** de outro sistema (`importacao.py` + `import_pacientes_xml`) |
+| `catalogs` | CID-10, espelho da TUSS (sincronizado semanalmente pelo worker), **medicamentos da CMED/Anvisa** (26 mil apresentações, com a tarja), **municípios do IBGE** (5.571, para a naturalidade) e CEP dos Correios |
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento (nos **dois** tipos), cópia da consulta anterior (item a item ou **tudo de uma vez**), **busca de paciente por CID** (`por_cid.py`) e a **série temporal** em gráfico (`series.py`) |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
-| `scheduling` | agenda por médico, regras de disponibilidade, bloqueios, feriados, **retorno programado** (`returns.py`), a **declaração de comparecimento** (`declaracao.py`) e as **estatísticas do mês** (`estatisticas.py`, contagens para os quatro papéis) |
+| `scheduling` | agenda por médico, regras de disponibilidade, **intervalos pontuais** (`RecurringBreak`: o almoço, que não é `buffer_minutes` nem bloqueio de data), bloqueios, feriados, **retorno programado** (`returns.py`), a **declaração de comparecimento** (`declaracao.py`) e as **estatísticas do mês** (`estatisticas.py`, contagens para os quatro papéis) |
 | `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
@@ -283,7 +283,7 @@ O `import_cmed` fecha a lista: ele **não** vem da semeadura, e sem ele
 - Segredos ficam em `.secrets/<NOME>` (um arquivo por segredo, lidos por
   `ops/env.py::secret`). `.env` não versionado; `.env.example` é o molde.
 
-Comandos úteis: `seed_demo`, `issue_platform_invitation`,
+Comandos úteis: `seed_demo`, `issue_platform_invitation`, `import_municipios`,
 `create_superadmin`, `install_exam_template`, `import_catalog`,
 `sync_tuss`, `import_cmed`, `testar_email`, `prepare_recovery`,
 `verify_physician`.
@@ -355,6 +355,9 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
 | `check_leitura_laudo.py` | a leitura de laudo pela IA: a **forma** que o modelo devolve é normalizada (lista vazia, `null` e número em campo de texto) e o **conteúdo** continua sob as mesmas guardas (faixa do laudo, probabilidade numérica, marcador de desidentificação); a varredura que impede esquema novo de nascer fora de `ArtifactModel` e prompt novo de nascer sem tipo; o recuo quando o provedor recusa `response_format`, sem confundir isso com falha de rede; e o diagnóstico da recusa gravado **sem nenhum valor do laudo** |
+| `check_intervalos_e_ficha.py` | o **intervalo pontual** da agenda (o almoço, que não é o `buffer_minutes` nem um `ScheduleBlock`) recortando os **três** caminhos — a grade, a lista de horários livres e a validação da reserva —, as quatro recusas do formulário, a vigência que encerra em vez de apagar; a **naturalidade** nos três estados com catálogo do IBGE sugerindo e texto livre aceitando; e a **gaveta da ficha** no atendimento, sem formulário dentro |
+| `check_aviso_de_horario.py` | o paciente avisado ao **marcar, remarcar e cancelar**: o `Local` sendo o endereço e não o nome da clínica, o telefone, a falta de endereço declarada em vez de escondida, os três eventos emitidos e consumidos, a idempotência (com volume criado antes, senão passa sobre lista vazia) e o aviso saindo pelo worker |
+| `check_servicos_do_inquilino.py` | **IA, SMS e e-mail: a clínica usa o seu, e desligando volta ao padrão** — nos dois sentidos e nos três serviços, com as duas assimetrias deliberadas (desligar SMS com chave gravada é recusa, não retorno; configuração de IA pela metade cai no padrão em vez de quebrar), o corte por plano vindo antes da chave da clínica, e o **nome fantasia** editável sem que razão social e CNPJ saiam do lugar |
 | `check_provedor_e_sms.py` | o **padrão da instalação**, que só quem não configurou o seu exercita: o provedor de IA vindo do console e não do `.env`, a verificação que acusa modelo aposentado, a chave lida pelo provedor em vigor, 410 virando "repetir não resolve" e 503 virando "tente de novo", a varredura que impede qualquer view de enviar mensagem de dentro da requisição, o canal indisponível que não se disfarça de paciente sem telefone, e o processo `app` continuando **sem** secret de egresso |
 | `check_logotipo.py` | o logotipo é o da organização **aberta**: o cache do navegador revalidado em vez de guardado por cinco minutos, o validador que carrega o inquilino, a revalidação com o `ETag` da clínica anterior que não pode dar 304, a varredura atrás de `max-age` novo em URL que não distingue o que serve, e nenhum template remendando o cache por conta própria |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
@@ -582,6 +585,41 @@ no `AIJob` guarda qual campo, que tipo veio e que tipo se esperava. Ele
 é a forma, não o conteúdo, e guardar conteúdo clínico criaria um depósito
 novo com retenção e acesso próprios para pensar. Detalhe em
 `docs/homologation/leitura-de-laudo-por-ia.md`.
+
+## 7-G. O que é do inquilino, e o que é da instalação
+
+Três serviços externos seguem a **mesma cadeia**, e vale conhecê-la antes
+de mexer em qualquer um: **médico → clínica → instalação** para o e-mail
+(`communications/email.py::resolve_sender`), e **clínica → instalação**
+para SMS (`smsdev.resolve_api_key`) e IA (`ai/providers/get_chat_model`).
+
+A regra em uma frase: **a clínica que configurou o seu fala com o
+contrato dela; a que desligou volta ao padrão, e não fica sem o
+serviço.** Desligar é dizer "usem o de vocês", não "não usem nenhum".
+
+Duas assimetrias, e as duas são decisão:
+
+- **desligar o canal de SMS com chave gravada é recusa**, não retorno ao
+  padrão: a clínica que desliga o SMS está dizendo "não mande SMS". Sem
+  chave gravada, volta ao padrão — que é o caso de quem nunca configurou;
+- **configuração de IA pela metade cai no padrão** em vez de quebrar
+  (`AIProviderSettings.is_usable` exige ligada, com chave e com modelo):
+  faltando qualquer uma, o pedido falharia no provedor, e a falha lá
+  chega ao médico como erro genérico no meio do atendimento.
+
+**O corte por plano vem antes de tudo isso.** `has_sms` e
+`has_clinical_ai` são conferidos antes mesmo de ler a chave da clínica —
+o Gratuito não manda SMS nem com chave própria. **E-mail não é recurso de
+plano**, de propósito: gateá-lo tiraria do Gratuito a verificação de
+conta, a recuperação de senha e a entrega de documento.
+
+E o que é do inquilino também na identidade: o **nome fantasia**
+(`Tenant.trade_name`) é editado em Identidade da clínica, enquanto razão
+social e CNPJ continuam vindo do convite — editá-los faria o contrato de
+adesão apontar para um nome que ninguém assinou.
+
+`check_servicos_do_inquilino.py` cobre a tabela inteira; o caso que deu
+origem a ela está em `docs/homologation/padrao-da-instalacao.md`.
 
 ## 8. Deploy
 

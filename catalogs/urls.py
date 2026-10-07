@@ -16,4 +16,5 @@ urlpatterns = [
     path('cid/buscar/', views.DiagnosisSearchAPI.as_view(), name='cid-search'),
     path('tuss/buscar/', views.ProcedureSearchAPI.as_view(), name='tuss-search'),
     path('medicamentos/buscar/', views.MedicationSearchAPI.as_view(), name='medicamento-search'),
+    path('municipios/buscar/', views.MunicipalitySearchAPI.as_view(), name='municipio-search'),
 ]

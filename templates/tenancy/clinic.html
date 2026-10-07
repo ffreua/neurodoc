@@ -80,9 +80,17 @@
                     <span class="fw-semibold d-block">
                         {{ tenant.trade_name|default:tenant.legal_name }}
                     </span>
+                    <span class="d-block">{{ tenant.legal_name }}</span>
                     <span class="d-block">CNPJ {{ tenant.cnpj }}</span>
                     <span class="fs-11 text-muted">
-                        Razão social e CNPJ vêm do cadastro da organização e não se editam aqui.
+                        {% comment %}A distinção que a tela precisa fazer: razão social e
+                        CNPJ são o que a clínica é perante a Receita e chegam pelo convite;
+                        o nome fantasia é como ela se apresenta ao paciente, e é dela.
+                        Antes esta linha dizia "não se editam aqui" sobre os três.
+                        {% endcomment %}
+                        Razão social e CNPJ vêm do cadastro da organização e não se editam
+                        aqui. O <strong>nome fantasia</strong>, logo abaixo, é seu — é ele
+                        que o paciente lê.
                     </span>
                 </div>
                 <form method="post" novalidate>

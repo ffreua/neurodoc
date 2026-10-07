@@ -93,6 +93,43 @@
                         {% include "partials/field.html" with field=schedule_form.ends_on col="col-lg-4 col-md-6" %}
                         {% include "partials/field.html" with field=schedule_form.replace_existing col="col-12" %}
                     </div>
+
+                    {% comment %}Intervalos pontuais — o almoço, o café.
+
+                    Coisa diferente do "Intervalo entre atendimentos" lá em cima,
+                    e a tela precisa dizer isso: aquele reserva minutos **depois
+                    de cada** consulta, para a que estourou não empurrar a
+                    seguinte; este é a pausa de relógio, que cai num horário fixo
+                    e em horário diferente a cada dia da semana.
+
+                    Fechado por padrão: a maioria publica a agenda sem pausa
+                    declarada, e três pares de campos abertos sugeririam que
+                    faltava preencher.{% endcomment %}
+                    <button class="btn btn-light-primary btn-sm mt-3 collapsed" type="button"
+                            data-bs-toggle="collapse" data-bs-target="#nd-intervalos"
+                            aria-expanded="false" aria-controls="nd-intervalos">
+                        Intervalos dentro do atendimento (almoço, café)
+                    </button>
+                    <div class="collapse {% if schedule_form.pausa_1_inicio.value or schedule_form.pausa_2_inicio.value or schedule_form.pausa_3_inicio.value %}show{% endif %}"
+                         id="nd-intervalos">
+                        <div class="alert alert-light fade show fs-12 mt-3" role="alert">
+                            Vale para os dias marcados acima. Para um horário de pausa
+                            <strong>diferente em cada dia</strong> — 11h40 na segunda,
+                            12h20 na terça — publique um dia de cada vez, como já se faz
+                            com janelas de horário diferentes.
+                        </div>
+                        <div class="row g-3 mt-0">
+                            {% include "partials/field.html" with field=schedule_form.pausa_1_inicio col="col-lg-3 col-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_1_fim col="col-lg-3 col-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_1_motivo col="col-lg-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_2_inicio col="col-lg-3 col-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_2_fim col="col-lg-3 col-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_2_motivo col="col-lg-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_3_inicio col="col-lg-3 col-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_3_fim col="col-lg-3 col-6" %}
+                            {% include "partials/field.html" with field=schedule_form.pausa_3_motivo col="col-lg-6" %}
+                        </div>
+                    </div>
                     <div class="alert alert-primary fade show fs-12 mt-3 d-flex align-items-start gap-2" role="alert">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         <span>
@@ -107,6 +144,51 @@
                 </form>
             </div>
         </div>
+
+        {% comment %}----------------------------------------- intervalos em vigor
+
+        Intervalo gravado e invisível é indistinguível de intervalo que não foi
+        gravado — e o segundo é o que a pessoa supõe quando o horário some da
+        grade sem explicação.{% endcomment %}
+        {% if pausas %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Intervalos dentro do atendimento</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="ps-3 fs-11" scope="col">Dia</th>
+                                <th class="fs-11" scope="col">Intervalo</th>
+                                <th class="fs-11" scope="col">Motivo</th>
+                                <th class="pe-3 fs-11" scope="col">Vigência</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pausa in pausas %}
+                            <tr>
+                                <td class="ps-3 fs-12">{{ weekday_labels|nd_get:pausa.weekday }}</td>
+                                <td class="fs-12">{{ pausa.local_start|time:"H:i" }}–{{ pausa.local_end|time:"H:i" }}</td>
+                                <td class="fs-12 text-muted">{{ pausa.reason|default:"—" }}</td>
+                                <td class="pe-3 fs-11 text-muted">
+                                    desde {{ pausa.starts_on|date:"d/m/Y" }}{% if pausa.ends_on %} até {{ pausa.ends_on|date:"d/m/Y" }}{% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <p class="fs-11 text-muted p-3 mb-0">
+                    Para mudar, publique a grade daqueles dias de novo com
+                    <strong>Substituir o que já existe</strong> marcado — os intervalos
+                    antigos são encerrados junto com a regra, e a agenda já atendida
+                    continua como foi.
+                </p>
+            </div>
+        </div>
+        {% endif %}
 
         {% comment %}--------------------------------------- grade já publicada{% endcomment %}
         <div class="card mb-4">

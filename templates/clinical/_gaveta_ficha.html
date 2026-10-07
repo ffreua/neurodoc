@@ -1,0 +1,134 @@
+{% comment %}Os dados de cadastro do paciente, numa gaveta, sem sair do
+atendimento.
+
+O que resolve: no meio da evolução aparece a pergunta que não é clínica —
+qual o endereço, qual o convênio, de onde ele é, qual o telefone do filho.
+O caminho até lá era abrir a ficha noutra aba ou, pior, sair do
+atendimento **não salvo**. Foi pedido exatamente assim: "um botãozinho
+que me dê acesso rápido, sem interferir na evolução".
+
+**É leitura, e nada aqui escreve no atendimento.** Nem no cadastro: o
+link do rodapé abre a ficha em janela própria, e editar continua sendo
+ato de quem administra o cadastro, numa tela que pergunta duas vezes.
+
+Mesma mecânica da gaveta da consulta anterior (`_gaveta_anterior.html`):
+vem renderizada com a página e escondida por CSS, em vez de buscada por
+JavaScript ao abrir. São campos que já estão no banco e quem abre está no
+meio de uma frase — esperar uma requisição aqui é perder a frase.
+{% endcomment %}
+
+<aside class="nd-gaveta" id="nd-gaveta-ficha" aria-hidden="true"
+       aria-labelledby="nd-gaveta-ficha-titulo" role="dialog">
+    <div class="nd-gaveta-cabecalho">
+        <div>
+            <h2 class="fs-14 fw-bold text-dark mb-0" id="nd-gaveta-ficha-titulo">
+                Dados do paciente
+            </h2>
+            <span class="fs-11 text-muted">
+                Prontuário {{ encounter.patient.record_number|default:"—" }}
+                · cadastro, não prontuário
+            </span>
+        </div>
+        <button type="button" class="btn btn-sm btn-light" data-nd-gaveta-fechar
+                aria-label="Fechar dados do paciente">Esc</button>
+    </div>
+
+    <div class="nd-gaveta-corpo">
+        {% with p=encounter.patient %}
+        <h3 class="fs-12 fw-bold text-dark mb-2">Identificação</h3>
+        {% comment %}`.table-responsive` não é decoração: a gaveta é estreita
+        por natureza, e no celular ela ocupa a tela inteira. Sem a calha, um
+        nome de mãe longo empurra a tabela e leva o corpo da página junto —
+        `check_mobile` reprova exatamente isso.{% endcomment %}
+        <div class="table-responsive mb-4">
+        <table class="table table-sm mb-0">
+            <tbody>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Nome</th>
+                    <td class="fs-12 text-wrap">{{ p.full_name }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Nascimento</th>
+                    <td class="fs-12">
+                        {% if p.birth_date %}{{ p.birth_date|date:"d/m/Y" }}
+                        {% elif p.estimated_birth_year %}~{{ p.estimated_birth_year }} (estimado)
+                        {% else %}não informado{% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    {% comment %}A naturalidade entrou no cadastro junto com esta
+                    gaveta, e aparece aqui pelo mesmo motivo que motivou o pedido:
+                    em neurologia a procedência muda a lista de hipóteses, e
+                    perguntá-la de novo ao paciente no meio da consulta é o que se
+                    queria evitar.{% endcomment %}
+                    <th class="fs-11 text-muted fw-normal" scope="row">Naturalidade</th>
+                    <td class="fs-12 text-wrap">{{ p.naturalidade|default:"não informada" }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">CPF</th>
+                    <td class="fs-12">{{ p.cpf|default:"não informado" }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Identidade</th>
+                    <td class="fs-12">{{ p.identity_number|default:"não informado" }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Nome da mãe</th>
+                    <td class="fs-12 text-wrap">{{ p.mother_name|default:"não informado" }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Ocupação</th>
+                    <td class="fs-12 text-wrap">{{ p.occupation|default:"não informada" }}</td>
+                </tr>
+            </tbody>
+        </table>
+        </div>
+
+        <h3 class="fs-12 fw-bold text-dark mb-2">Endereço</h3>
+        {% if p.street or p.city %}
+        <p class="fs-12 text-wrap mb-4">
+            {{ p.street }}{% if p.number %}, {{ p.number }}{% endif %}{% if p.complement %} — {{ p.complement }}{% endif %}
+            {% if p.district %}<br>{{ p.district }}{% endif %}
+            {% if p.city %}<br>{{ p.city }}{% if p.state %}/{{ p.state }}{% endif %}{% endif %}
+            {% if p.postal_code %}<br>CEP {{ p.postal_code }}{% endif %}
+        </p>
+        {% else %}
+        <p class="fs-12 text-muted mb-4">Endereço não cadastrado.</p>
+        {% endif %}
+
+        <h3 class="fs-12 fw-bold text-dark mb-2">Contatos</h3>
+        {% for contato in p.contacts.all %}
+        <div class="border rounded-3 p-2 mb-2">
+            <span class="d-block fs-12 fw-semibold text-dark">
+                {{ contato.name }}{% if contato.relationship %}
+                <span class="fs-11 text-muted fw-normal">· {{ contato.relationship }}</span>{% endif %}
+            </span>
+            {% if contato.phone %}<span class="d-block fs-12">{{ contato.phone }}</span>{% endif %}
+            {% if contato.email %}<span class="d-block fs-12 text-wrap">{{ contato.email }}</span>{% endif %}
+        </div>
+        {% empty %}
+        <p class="fs-12 text-muted mb-2">Nenhum contato cadastrado.</p>
+        {% endfor %}
+
+        <h3 class="fs-12 fw-bold text-dark mb-2 mt-4">Pagamento</h3>
+        <p class="fs-12 mb-4">
+            {{ p.get_payment_category_display }}
+            {% if p.active_coverage %}
+            <span class="d-block text-muted">
+                {{ p.active_coverage.plan.insurer.name }} —
+                {{ p.active_coverage.plan.name }}
+                {% if p.active_coverage.member_number %}<br>Carteirinha {{ p.active_coverage.member_number }}{% endif %}
+            </span>
+            {% endif %}
+        </p>
+
+        {% comment %}Janela própria, e não navegação: sair daqui com a
+        evolução aberta é exatamente o que a gaveta existe para evitar.
+        {% endcomment %}
+        <a class="btn btn-light-primary btn-sm w-100"
+           href="{% url 'patients:detail' p.id %}" target="_blank" rel="noopener">
+            Abrir a ficha completa em outra aba
+        </a>
+        {% endwith %}
+    </div>
+</aside>

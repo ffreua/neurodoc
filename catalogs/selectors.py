@@ -276,3 +276,44 @@ def search_medications(term, limit=MAX_MEDICAMENTOS):
         if len(resultados) >= limit:
             break
     return resultados
+
+
+#: A lista de municipios que cabe num autocomplete. Vinte: o suficiente
+#: para "sao jose" mostrar os principais sem virar rolagem.
+MAX_MUNICIPIOS = 20
+
+
+def search_municipalities(term, uf='', limit=MAX_MUNICIPIOS):
+    """Municipios do IBGE que casam com o que foi digitado.
+
+    Devolve `[]` com menos de dois caracteres, como as outras buscas
+    deste modulo: uma letra traz mil linhas e nenhuma informacao.
+
+    Devolve `[]` tambem quando o catalogo esta vazio -- e isso e o que
+    faz o campo continuar utilizavel numa instalacao que ainda nao rodou
+    `import_municipios`: a tela simplesmente nao sugere nada, e a pessoa
+    digita. Nunca levanta.
+    """
+    from .importers import normalize_for_search
+    from .models import Municipality
+
+    termo = (term or '').strip()
+    if len(termo) < 2:
+        return []
+    # A **mesma** normalizacao da importacao, e nao uma parecida: e o que
+    # garante que "sao paulo" ache "São Paulo". Duas normalizacoes que
+    # divergem fazem a busca mentir em silencio -- esta e a nota que o
+    # proprio `normalize_for_search` carrega.
+    ascii_termo = normalize_for_search(termo)
+    qs = Municipality.objects.all()
+    if uf:
+        qs = qs.filter(uf=uf.upper()[:2])
+    candidatos = list(qs.filter(name_ascii__contains=ascii_termo)[:limit * 3])
+    # Quem comeca com o termo vem antes: digitar "sao" tem de trazer
+    # "São Paulo" na frente de "Bragança Paulista".
+    comecam = [m for m in candidatos if m.name_ascii.startswith(ascii_termo)]
+    resto = [m for m in candidatos if not m.name_ascii.startswith(ascii_termo)]
+    return [
+        {'nome': m.name, 'uf': m.uf, 'label': m.label, 'ibge': m.ibge_code}
+        for m in (comecam + resto)[:limit]
+    ]

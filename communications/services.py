@@ -500,23 +500,57 @@ CONFIRMATION_EMAIL_SUBJECT = 'Confirmação de consulta'
 #: que o telefone e o unico caminho. A ausencia de informacao clinica
 #: continua dita: e-mail nao e canal seguro, e quem recebe precisa saber
 #: que nao ha diagnostico ali antes de encaminhar a mensagem para alguem.
+#: O corpo do e-mail de horário — marcado, remarcado ou cancelado.
+#:
+#: **`Local` é o endereço, e não o nome da clínica.** Era o nome, e o
+#: paciente recebia "Local: Clínica Tal" — que ele já sabia, e que não o
+#: leva a lugar nenhum. O nome continua na primeira linha porque é o que
+#: está escrito na porta; o endereço vem embaixo, e é ele que responde à
+#: pergunta que a pessoa tem na mão.
+#:
+#: As quatro informações que a mensagem precisa carregar, e que estão
+#: aqui de propósito: **quando**, **com quem**, **onde** e **como falar
+#: com a clínica**. As três primeiras o sistema sabe; a quarta depende de
+#: a clínica ter preenchido a identidade, e quando não tem, o texto diz
+#: isso em vez de calar.
 CONFIRMATION_EMAIL_TEMPLATE = """Olá, {patient}.
 
-Sua consulta está marcada:
+{abertura}
 
   Data e hora .... {when}
   Profissional ... {doctor}
-  Local .......... {clinic}
-{address_block}
+  Local .......... {clinic}{address_block}{phone_block}
 
-Para confirmar, remarcar ou cancelar, ligue para a clínica{contato}.
+{instrucao}
 
 Esta mensagem é automática e esta caixa não recebe respostas — se você
 responder a este e-mail, ninguém vai ler.
 
-É apenas uma confirmação de horário: não contém informação clínica, nem
+É apenas um aviso sobre o seu horário: não contém informação clínica, nem
 diagnóstico, nem resultado de exame.
 """
+
+#: O que muda entre marcar, remarcar e cancelar: a abertura e a
+#: instrução. O resto do corpo é o mesmo, e tem de ser — um cancelamento
+#: que não repita data, profissional e local deixa o paciente sem saber
+#: **qual** consulta foi desmarcada, e quem tem duas marcadas fica pior
+#: do que sem aviso nenhum.
+ASSUNTOS = {
+    'booked': 'Consulta marcada',
+    'rescheduled': 'Consulta remarcada',
+    'cancelled': 'Consulta cancelada',
+}
+ABERTURAS = {
+    'booked': 'Sua consulta está marcada:',
+    'rescheduled': 'Sua consulta foi remarcada. O novo horário é:',
+    'cancelled': 'Sua consulta foi CANCELADA. Era esta:',
+}
+INSTRUCOES = {
+    'booked': 'Para confirmar, remarcar ou cancelar, ligue para a clínica{contato}.',
+    'rescheduled': 'Se o novo horário não servir, ligue para a clínica{contato}.',
+    'cancelled': 'Nenhum horário foi reservado no lugar. Para remarcar, ligue para a '
+                 'clínica{contato}.',
+}
 
 
 class NoUsableContact(Exception):
@@ -611,7 +645,14 @@ def _encurtar_para_sms(modelo, clinic, doctor, when, contato):
     return montar(clinic[:14], doctor.split()[0] if doctor else '', '')[:SMS_MAX_CHARS].rsplit(' ', 1)[0]
 
 
-def _confirmation_message(appointment, channel):
+def _confirmation_message(appointment, channel, motivo='booked'):
+    """O texto que o paciente recebe sobre o horário dele.
+
+    `motivo` escolhe a abertura e a instrução — marcado, remarcado ou
+    cancelado. O miolo (quando, com quem, onde) é o mesmo nos três de
+    propósito: um cancelamento sem esses dados não diz **qual** consulta
+    caiu, e quem tem duas marcadas fica pior do que sem aviso.
+    """
     tenant = appointment.tenant
     clinic = (tenant.trade_name or tenant.legal_name or 'Clinica')[:40]
     doctor = (
@@ -621,14 +662,27 @@ def _confirmation_message(appointment, channel):
     telefone, endereco, mapa = _contato_e_endereco_da_clinica(tenant)
     when = timezone.localtime(appointment.starts_at).strftime('%d/%m/%Y às %H:%M')
     if channel == DeliveryChannel.EMAIL:
-        address_block = ''
         if endereco:
-            address_block = f'  Endereço ....... {endereco}\n  Google Maps .... {mapa}'
+            address_block = (
+                f'\n                   {endereco}'
+                f'\n  Como chegar .... {mapa}'
+            )
+        else:
+            # Sem endereço cadastrado, dizer isso é melhor do que deixar
+            # o paciente supor que o nome da clínica basta para chegar.
+            address_block = (
+                '\n                   (endereço não cadastrado — confirme por telefone)'
+            )
+        phone_block = f'\n  Telefone ....... {telefone}' if telefone else ''
         return CONFIRMATION_EMAIL_TEMPLATE.format(
             patient=appointment.patient.full_name.split()[0],
             when=when, doctor=doctor, clinic=clinic,
-            contato=f': {telefone}' if telefone else '',
+            abertura=ABERTURAS[motivo],
+            instrucao=INSTRUCOES[motivo].format(
+                contato=f': {telefone}' if telefone else '',
+            ),
             address_block=address_block,
+            phone_block=phone_block,
         )
     # SMS: a data perde o ano, que a pessoa já sabe, e o resto cede na
     # ordem de `_encurtar_para_sms`.
@@ -637,6 +691,50 @@ def _confirmation_message(appointment, channel):
         CONFIRMATION_SMS_TEMPLATE, clinic, doctor, short_when,
         f': {telefone}' if telefone else '',
     )
+
+
+def deliver_appointment_notice(appointment, motivo, event_version):
+    """Avisa o paciente, por e-mail, que o horário dele mudou de estado.
+
+    Nasce de evento e roda **no worker** — marcar e cancelar são atos de
+    tela, e a entrega não pode prender a tela nem falhar junto com ela.
+
+    **Só e-mail, de propósito.** SMS custa crédito, é recurso de plano, e
+    o aviso automático dispararia em todo agendamento de toda clínica; o
+    canal continua disponível pela confirmação que a secretária manda à
+    mão, que é quando alguém decidiu gastar. E-mail não tem esse custo.
+
+    Os contatos são os de `confirmation_contacts`, que não exigem opt-in:
+    é mensagem transacional sobre um horário que a própria pessoa marcou,
+    no endereço que ela deu — inclusive o do pré-cadastro por telefone,
+    que é justamente quem mais precisa do aviso. Contato com validade
+    vencida continua fora, e a mensagem não leva conteúdo clínico.
+
+    Idempotente pela chave da entrega: o dispatcher pode reentregar o
+    evento, e o paciente não recebe dois e-mails do mesmo cancelamento.
+    """
+    contacts = confirmation_contacts(appointment, DeliveryChannel.EMAIL)
+    if not contacts:
+        return []
+    message = _confirmation_message(appointment, DeliveryChannel.EMAIL, motivo=motivo)
+    assunto = ASSUNTOS[motivo]
+    deliveries = []
+    for contact in contacts:
+        idem_key = f'notice:{motivo}:{appointment.id}:{event_version}:{contact.id}'
+        delivery, created = Delivery.objects.get_or_create(
+            tenant=appointment.tenant, idempotency_key=idem_key,
+            defaults={
+                'appointment': appointment, 'contact': contact,
+                'channel': DeliveryChannel.EMAIL, 'event_version': event_version,
+            },
+        )
+        if created or delivery.status == DeliveryStatus.PENDING:
+            _send(
+                delivery, message, subject=assunto,
+                physician_membership=appointment.physician_membership,
+            )
+        deliveries.append(delivery)
+    return deliveries
 
 
 @transaction.atomic

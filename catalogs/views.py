@@ -106,3 +106,21 @@ class MedicationSearchAPI(CatalogView):
 
     def get(self, request):
         return JsonResponse({'results': selectors.search_medications(request.GET.get('q', ''))})
+
+
+class MunicipalitySearchAPI(CatalogView):
+    """Autocomplete de município, do catálogo do IBGE.
+
+    Serve à naturalidade do paciente, que a secretária preenche no
+    cadastro — daí não exigir capacidade clínica, pelo mesmo motivo de
+    `CatalogView`.
+
+    Devolve lista vazia quando o catálogo não foi importado, e a tela
+    continua aceitando texto digitado: o autocomplete é conveniência, e
+    paciente nascido fora do Brasil não cabe em lista nenhuma.
+    """
+
+    def get(self, request):
+        return JsonResponse({'results': selectors.search_municipalities(
+            request.GET.get('q', ''), uf=request.GET.get('uf', ''),
+        )})

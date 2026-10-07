@@ -570,7 +570,7 @@ class ClinicProfileView(OrgAdminView):
         context = {
             'tenant': self.membership.tenant,
             'profile': profile,
-            'form': ClinicProfileForm(instance=profile),
+            'form': ClinicProfileForm(instance=profile, tenant=self.membership.tenant),
             'portal_form': ClinicPortalForm(instance=profile),
             'portal_url': request.build_absolute_uri(
                 reverse('portal:identify', args=[self.membership.tenant.slug])
@@ -588,7 +588,8 @@ class ClinicProfileView(OrgAdminView):
 
     def post(self, request):
         profile = clinic_profile_for(self.tenant_id)
-        form = ClinicProfileForm(request.POST, instance=profile)
+        tenant = self.membership.tenant
+        form = ClinicProfileForm(request.POST, instance=profile, tenant=tenant)
         if not form.is_valid():
             return render(request, 'tenancy/clinic.html', self._context(request, form=form))
         saved = form.save(commit=False)
@@ -596,11 +597,37 @@ class ClinicProfileView(OrgAdminView):
         saved.updated_by = self.membership
         saved.full_clean()
         saved.save()
+
+        # O nome fantasia mora no `Tenant`, e não no perfil: ele é o nome
+        # da organização, não um campo do cabeçalho do documento. Gravado
+        # aqui porque é aqui que ele é editado, e com evento próprio na
+        # trilha — trocar o nome que o paciente lê na receita é ato que
+        # alguém vai querer datar depois.
+        antes = tenant.trade_name
+        depois = form.cleaned_data.get('trade_name', '')
+        if depois != antes:
+            tenant.trade_name = depois
+            tenant.full_clean()
+            tenant.save(update_fields=['trade_name', 'updated_at'])
+            record_audit_event(
+                request.user, tenant, 'tenancy.trade_name_changed',
+                object_type='tenant', object_id=self.tenant_id, outcome='success',
+                integrity_metadata={'from': antes, 'to': depois},
+            )
+
         record_audit_event(
-            request.user, self.membership.tenant, 'tenancy.clinic_profile_updated',
+            request.user, tenant, 'tenancy.clinic_profile_updated',
             object_type='tenant', object_id=self.tenant_id, outcome='success',
         )
-        messages.success(request, 'Identidade da clínica salva.')
+        if depois != antes:
+            messages.success(
+                request,
+                f'Identidade salva. A clínica passa a aparecer como '
+                f'"{depois or tenant.legal_name}" nos documentos, no menu e nas '
+                'mensagens ao paciente.',
+            )
+        else:
+            messages.success(request, 'Identidade da clínica salva.')
         return redirect('tenancy:clinic')
 
 

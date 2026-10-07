@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.7.1 "o padrão da instalação" · **Produção:**
+**Versão:** 1.8 "o que faltava para vender" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -49,7 +49,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**93 roteiros de verificação, nenhuma falha.** São o que substitui a
+**96 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 

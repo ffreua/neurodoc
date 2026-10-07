@@ -39,6 +39,14 @@ evita abrir outra aba no meio de uma frase.{% endcomment %}
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
     <span>Consulta anterior <span class="fs-11 text-muted">Alt+P</span></span>
 </button>
+{% comment %}Os dados de cadastro sem sair do atendimento — endereço,
+convênio, naturalidade, telefone do acompanhante. É leitura: nada daqui
+entra na evolução.{% endcomment %}
+<button type="button" class="btn btn-light" data-nd-gaveta-abrir="nd-gaveta-ficha"
+        aria-controls="nd-gaveta-ficha" aria-haspopup="dialog">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    <span>Dados do paciente <span class="fs-11 text-muted">Alt+D</span></span>
+</button>
 <a class="btn btn-light" href="{% url 'documents:list' encounter.patient.id %}">Anexos</a>
 <a class="btn btn-light" href="{% url 'documents:medical-list' encounter.id %}">Documentos</a>
 {% if encounter.status != 'finalized' %}
@@ -332,6 +340,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
 {% block modals %}
 {% include "clinical/_encounter_modals.html" %}
 {% include "clinical/_gaveta_anterior.html" %}
+{% include "clinical/_gaveta_ficha.html" %}
 {% endblock %}
 
 {% block scripts %}

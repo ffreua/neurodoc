@@ -99,6 +99,81 @@ class AvailabilityRule(TenantModel):
         return f'{self.physician_membership_id} weekday={self.weekday} {self.local_start}-{self.local_end}'
 
 
+class RecurringBreak(TenantModel):
+    """Pausa que se repete toda semana, dentro da janela de atendimento.
+
+    O intervalo que já existia — `AvailabilityRule.buffer_minutes` — é de
+    outra natureza: ele reserva alguns minutos **depois de cada**
+    atendimento, e serve para a consulta que estourou o horário não
+    empurrar a seguinte. Não serve para o almoço.
+
+    Isto aqui é a pausa de relógio: "segunda das 11h40 às 12h", "terça
+    das 12h20 às 13h". O médico atende três pacientes seguidos e para
+    vinte minutos — e esse intervalo cai em horário diferente a cada dia
+    da semana, porque a grade de cada dia é diferente.
+
+    **Modelo próprio, e não um campo na regra.** Três razões, e a
+    terceira é a que decide:
+
+    1. pode haver mais de uma pausa no mesmo dia (café e almoço), e campo
+       não se repete;
+    2. a pausa não tem célula nem tipo de atendimento — metade de
+       `AvailabilityRule` não se aplicaria a ela;
+    3. uma pausa pode atravessar duas regras do mesmo dia (manhã e
+       tarde declaradas separadamente), e pendurada numa delas valeria
+       só para metade da grade.
+
+    **Não é `ScheduleBlock`**, que é bloqueio de **data** — férias, um
+    congresso, um feriado. Aquele tem `start_at`/`end_at` com data; este
+    tem dia da semana e vigência, como a regra que ele recorta. Misturar
+    os dois obrigaria a criar 52 bloqueios por ano para um almoço.
+
+    A vigência (`starts_on`/`ends_on`) acompanha a da regra pelo mesmo
+    motivo dela: encurtar em vez de apagar preserva a agenda passada, e a
+    grade de um dia já atendido continua sendo reconstruível como era.
+    """
+
+    physician_membership = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, related_name='recurring_breaks',
+    )
+    weekday = models.PositiveSmallIntegerField()  # 0=segunda .. 6=domingo
+    local_start = models.TimeField()
+    local_end = models.TimeField()
+    starts_on = models.DateField()
+    ends_on = models.DateField(null=True, blank=True)
+    #: "Almoço", "Café", "Reunião de equipe". Aparece na célula bloqueada
+    #: da grade: buraco sem motivo na agenda faz a secretária ligar para
+    #: perguntar se pode encaixar.
+    reason = models.CharField(max_length=80, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints
+        indexes = [
+            models.Index(
+                fields=['physician_membership', 'weekday'],
+                name='sched_pausa_medico_dia_idx',
+            ),
+        ]
+        ordering = ['weekday', 'local_start']
+
+    def clean(self):
+        if not (0 <= self.weekday <= 6):
+            raise ValidationError({'weekday': 'Informe um dia da semana entre 0 (segunda) e 6 (domingo).'})
+        if self.local_start >= self.local_end:
+            raise ValidationError({'local_end': 'O fim do intervalo deve ser depois do início.'})
+        if self.ends_on and self.ends_on < self.starts_on:
+            raise ValidationError({'ends_on': 'A data de término não pode ser anterior à de início.'})
+
+    @property
+    def label(self):
+        inicio = self.local_start.strftime('%H:%M')
+        fim = self.local_end.strftime('%H:%M')
+        return f'{inicio}–{fim}' + (f' ({self.reason})' if self.reason else '')
+
+    def __str__(self):
+        return f'pausa {self.weekday} {self.label}'
+
+
 class ScheduleBlockKind(models.TextChoices):
     BLOCK = 'block', 'Bloqueio'
     VACATION = 'vacation', 'Férias'

@@ -64,6 +64,12 @@ carimbá-la na publicação.
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
 #: A terceira casa aparece aqui contra a regra escrita acima, e de
+#: A **1.8** é a entrega de véspera de venda: intervalo pontual na agenda,
+#: naturalidade do paciente, os dados de cadastro numa gaveta durante o
+#: atendimento, aviso automático de horário marcado e cancelado, e o nome
+#: fantasia nas mãos do inquilino. Funcionalidade compatível — nada do
+#: que existia mudou de comportamento —, por isso a casa menor.
+#:
 #: A **1.7** troca o provedor de IA padrão da instalação pelo console, com
 #: verificação contra o catálogo do provedor: é funcionalidade nova para
 #: quem administra a instalação, e por isso a casa menor avança. Vem de
@@ -79,12 +85,12 @@ carimbá-la na publicação.
 #: existe para responder. Nos três casos o defeito foi relatado por quem
 #: usa, que é a condição: correção que ninguém notou não precisa de casa
 #: nova.
-VERSION = '1.7.1'
+VERSION = '1.8'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o padrão da instalação'
+CODENAME = 'o que faltava para vender'
 
 
 def version_display():

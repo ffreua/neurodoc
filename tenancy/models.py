@@ -312,7 +312,14 @@ class ClinicProfile(TenantModel):
         place = self.city
         if self.city and self.state:
             place = f'{self.city}/{self.state}'
-        return ' — '.join(p for p in [street, place, self.postal_code] if p)
+        # O CEP e guardado so com digitos e impresso com a mascara: o
+        # paciente le `04013-000` em todo lugar, e `04013000` num
+        # endereco parece numero de protocolo.
+        cep = (self.postal_code or '').strip()
+        digitos = ''.join(c for c in cep if c.isdigit())
+        if len(digitos) == 8:
+            cep = f'{digitos[:5]}-{digitos[5:]}'
+        return ' — '.join(p for p in [street, place, cep] if p)
 
     def __str__(self):
         return f'Identidade de {self.tenant_id}'

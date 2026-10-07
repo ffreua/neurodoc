@@ -151,6 +151,26 @@ class Patient(TenantModel):
     cpf = models.CharField(max_length=11, null=True, blank=True)
     identity_number = models.CharField(max_length=30, blank=True)
     mother_name = models.CharField(max_length=255, blank=True)
+
+    # ----------------------------------------------------- naturalidade
+    #
+    # Onde a pessoa nasceu, que é coisa diferente de onde ela mora. Entra
+    # no cadastro porque é dado de identificação em relatório e perícia —
+    # e porque em neurologia a procedência importa clinicamente: doença
+    # de Chagas, neurocisticercose e endemias regionais mudam a lista de
+    # hipóteses conforme o lugar de origem.
+    #
+    # **Texto livre, com catálogo sugerindo.** `birth_city` é `CharField`
+    # e não chave estrangeira para `catalogs.Municipality`, de propósito:
+    # paciente nascido fora do Brasil não está em lista nenhuma de
+    # município brasileiro, e município que muda de nome (e muda)
+    # reescreveria a ficha antiga. O catálogo serve ao autocomplete; o
+    # que fica gravado é o que a pessoa declarou.
+    birth_country = models.CharField(max_length=2, default='BR', blank=True)
+    birth_city = models.CharField(max_length=120, blank=True)
+    #: Só faz sentido com `birth_country='BR'`. Vazio para quem nasceu
+    #: fora — e é por isso que não é uma UF obrigatória.
+    birth_state = models.CharField(max_length=2, blank=True)
     postal_code = models.CharField(max_length=8, blank=True)
     street = models.CharField(max_length=255, blank=True)
     number = models.CharField(max_length=30, blank=True)
@@ -291,6 +311,23 @@ class Patient(TenantModel):
         # grafia solta entrava antes.
         self._normalizar_nomes()
         super().save(*args, **kwargs)
+
+    @property
+    def naturalidade(self):
+        """Naturalidade em uma linha, ou vazio.
+
+        Vazio, e não "Não informado": quem monta a tela decide como
+        mostrar a ausência, e uma string de aviso vinda do modelo acaba
+        impressa dentro de um relatório.
+        """
+        from .naturalidade import rotulo_do_pais
+
+        if self.birth_country and self.birth_country != 'BR':
+            pais = rotulo_do_pais(self.birth_country)
+            return f'{self.birth_city}, {pais}' if self.birth_city else pais
+        if self.birth_city and self.birth_state:
+            return f'{self.birth_city}/{self.birth_state}'
+        return self.birth_city or ''
 
     @property
     def has_photo(self):

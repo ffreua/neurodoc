@@ -263,3 +263,46 @@ class MedicationProduct(TimestampedModel):
 
     def __str__(self):
         return f'{self.product} ({self.substance[:40]})'
+
+
+class Municipality(TimestampedModel):
+    """Municipios brasileiros do IBGE, para a naturalidade do paciente.
+
+    Referencia global, como CID-10 e TUSS: nao pertence a inquilino
+    nenhum. Carregada por `import_municipios`, que roda **no worker** --
+    sao 5.571 linhas vindas da API do IBGE, e trabalho externo e do
+    worker (§2).
+
+    Existe por um motivo pratico: a naturalidade digitada a mao vira
+    "Sao Paulo", "SAO PAULO", "S. Paulo" e "São Paulo" na mesma clinica,
+    e nenhuma busca por local de nascimento funciona depois. O catalogo
+    da uma lista para escolher.
+
+    **O campo do paciente continua aceitando texto livre**, e isso e
+    decisao e nao esquecimento: paciente nascido fora do Brasil, ou em
+    municipio que mudou de nome, tem de caber. O catalogo sugere; nao
+    impede.
+
+    `name_ascii` existe pela mesma razao que em `PostalCodeRange`: quem
+    digita "sao paulo" sem acento tem de achar "São Paulo", e comparar
+    sem acento no banco exigiria `unaccent` instalado.
+    """
+
+    ibge_code = models.CharField(max_length=7, unique=True)
+    name = models.CharField(max_length=120)
+    name_ascii = models.CharField(max_length=120)
+    uf = models.CharField(max_length=2)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['name_ascii'], name='catalogs_municipio_nome_idx'),
+            models.Index(fields=['uf'], name='catalogs_municipio_uf_idx'),
+        ]
+        ordering = ['name', 'uf']
+
+    def __str__(self):
+        return f'{self.name}/{self.uf}'
+
+    @property
+    def label(self):
+        return f'{self.name}/{self.uf}'

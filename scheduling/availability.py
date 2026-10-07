@@ -36,7 +36,8 @@ from django.utils import timezone
 from .models import (
     AppointmentStatus,
     DEFAULT_TYPE_MINUTES, OCCUPYING_STATUSES, Appointment, AppointmentType,
-    AppointmentTypeDuration, AvailabilityRule, ScheduleBlock, ScheduleBlockKind,
+    AppointmentTypeDuration, AvailabilityRule, RecurringBreak, ScheduleBlock,
+    ScheduleBlockKind,
 )
 
 #: Célula usada quando o médico ainda não declarou nenhuma regra. Não é
@@ -135,18 +136,47 @@ def _subtract(intervals, block_start, block_end):
     return result
 
 
-def open_intervals(physician_membership_id, day, rules=None, blocks=None):
+def breaks_on(physician_membership_id, day):
+    """As pausas semanais que valem neste dia."""
+    return list(
+        RecurringBreak.objects.filter(
+            physician_membership_id=physician_membership_id,
+            weekday=day.weekday(), starts_on__lte=day,
+        ).filter(_ends_on_ok(day)),
+    )
+
+
+def open_intervals(physician_membership_id, day, rules=None, blocks=None, breaks=None):
     """Janelas em que o médico atende neste dia, já descontados os bloqueios.
 
     Não desconta reserva: a reserva **marca** a célula, e a grade precisa
     mostrar a célula ocupada, não escondê-la. Esconder o horário reservado
     faria a secretária achar que o médico não atende naquela hora.
+
+    **Desconta a pausa semanal** (`RecurringBreak`), e este é o único
+    lugar onde isso precisa acontecer: `day_grid`, `available_slots` e a
+    validação da reserva passam todos por aqui. Pôr a subtração em cada
+    um deles seria três chances de esquecer uma — e a esquecida seria a
+    que deixa marcar paciente no horário do almoço.
+
+    A pausa entra **depois** do atendimento extra, de propósito: o extra
+    é uma janela aberta à mão para um dia específico, e abrir das 11h às
+    13h num dia em que se almoça das 12h às 13h quer dizer "hoje eu
+    atendo até as 13h". A ordem aqui faz a pausa recortar também o
+    extra, o que é o contrário disso — e é por isso que o extra é
+    acrescentado **depois** de a pausa ter recortado a janela semanal.
     """
     rules = rules if rules is not None else rules_on(physician_membership_id, day)
     blocks = blocks if blocks is not None else blocks_on(physician_membership_id, day)
+    breaks = breaks if breaks is not None else breaks_on(physician_membership_id, day)
     day_start, day_end = day_bounds(day)
 
     intervals = [(_combine(day, rule.local_start), _combine(day, rule.local_end)) for rule in rules]
+    # A pausa recorta a janela **semanal**, e só ela.
+    for pausa in breaks:
+        intervals = _subtract(
+            intervals, _combine(day, pausa.local_start), _combine(day, pausa.local_end),
+        )
     for block in blocks:
         if block.kind == ScheduleBlockKind.EXTRA_AVAILABILITY:
             intervals.append((max(block.start_at, day_start), min(block.end_at, day_end)))
@@ -171,7 +201,7 @@ def slot_minutes_for(physician_membership_id, day, rules=None):
 
 
 def day_grid(physician_membership_id, day, appointments=None, include_cancelled=False,
-             rules=None, blocks=None, historico=None):
+             rules=None, blocks=None, historico=None, breaks=None):
     """A grade do dia, célula por célula, para a tela desenhar.
 
     Cada célula é um dicionário com `start`, `end`, `status` e o que aquele
@@ -205,6 +235,7 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     # desenhar um calendário.
     rules = rules if rules is not None else rules_on(physician_membership_id, day)
     blocks = blocks if blocks is not None else blocks_on(physician_membership_id, day)
+    breaks = breaks if breaks is not None else breaks_on(physician_membership_id, day)
     step = slot_minutes_for(physician_membership_id, day, rules=rules)
     extra = [b for b in blocks if b.kind == ScheduleBlockKind.EXTRA_AVAILABILITY]
     if step is None:
@@ -219,7 +250,9 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     if appointments is None:
         appointments = appointments_on(physician_membership_id, day, include_all=include_cancelled)
 
-    open_windows = open_intervals(physician_membership_id, day, rules=rules, blocks=blocks)
+    open_windows = open_intervals(
+        physician_membership_id, day, rules=rules, blocks=blocks, breaks=breaks,
+    )
     # Janela declarada **antes** dos bloqueios: é a diferença entre as duas
     # que produz a célula "blocked", que a tela mostra com o motivo em vez de
     # deixar um buraco inexplicado.
@@ -252,6 +285,11 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
             block = next(
                 (b for b in blocking if b.start_at < cell_end and b.end_at > cursor), None,
             )
+            pausa = next(
+                (p for p in breaks
+                 if _combine(day, p.local_start) < cell_end
+                 and _combine(day, p.local_end) > cursor), None,
+            )
             inside_open = any(start <= cursor and cell_end <= end for start, end in open_windows)
 
             realizado = next(
@@ -281,7 +319,15 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
                 # paciente só na primeira, e as seguintes como continuação —
                 # senão uma consulta de 80 minutos apareceria duas vezes.
                 'is_start': mostrado is not None and mostrado.starts_at >= cursor,
-                'reason': (block.reason or block.get_kind_display()) if block else '',
+                # O motivo da célula fechada, na ordem em que ela foi
+                # fechada: bloqueio de data primeiro, depois a pausa
+                # semanal. Célula "blocked" sem motivo faz a secretária
+                # ligar para o médico perguntando se dá para encaixar.
+                'reason': (
+                    (block.reason or block.get_kind_display()) if block
+                    else (pausa.reason or 'Intervalo') if pausa
+                    else ''
+                ),
             })
             cursor = cell_end
     return cells
@@ -436,6 +482,14 @@ def month_summary(physician_membership_id, days):
             status__in=[AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW],
         ).select_related('patient')
     )
+    # As pausas do período inteiro, num lote só — pelo mesmo motivo das
+    # regras: a visão de mês monta 42 grades, e uma consulta por grade
+    # seriam 42 idas ao banco para desenhar um calendário.
+    all_breaks = list(
+        RecurringBreak.objects.filter(
+            physician_membership_id=physician_membership_id,
+        ).filter(Q(ends_on__isnull=True) | Q(ends_on__gte=days[0]))
+    )
 
     summary = {}
     for day in days:
@@ -458,9 +512,14 @@ def month_summary(physician_membership_id, days):
             a for a in all_history
             if a.starts_at < window_end and a.ends_at > window_start
         ]
+        breaks = [
+            pausa for pausa in all_breaks
+            if pausa.weekday == day.weekday() and pausa.starts_on <= day
+            and (pausa.ends_on is None or pausa.ends_on >= day)
+        ]
         cells = day_grid(
             physician_membership_id, day, appointments=appointments,
-            rules=rules, blocks=blocks, historico=historico,
+            rules=rules, blocks=blocks, historico=historico, breaks=breaks,
         )
         # "Ocupados" conta **pacientes**, não células: uma consulta de 80 min
         # ocupa duas células e continua sendo um paciente. Contar células

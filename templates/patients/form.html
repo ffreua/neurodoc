@@ -74,6 +74,18 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
                 {% include "partials/field.html" with field=form.identity_number col="col-lg-3 col-md-6" %}
                 {% include "partials/field.html" with field=form.occupation col="col-lg-3 col-md-6" %}
                 {% include "partials/field.html" with field=form.mother_name col="col-lg-6" %}
+                {% comment %}Naturalidade: onde a pessoa nasceu, que não é onde
+                ela mora. Entra na identificação e não no endereço justamente
+                por isso — e porque em neurologia a procedência muda a lista de
+                hipóteses (Chagas, neurocisticercose, endemias regionais).
+
+                A cidade é texto livre com sugestão: o `<datalist>` abaixo é
+                preenchido pelo catálogo do IBGE conforme se digita, e quem
+                nasceu fora do Brasil escreve o nome da cidade dele.{% endcomment %}
+                {% include "partials/field.html" with field=form.birth_country col="col-lg-3 col-md-6" %}
+{% include "partials/field.html" with field=form.birth_city col="col-lg-3 col-md-6" %}
+                {% include "partials/field.html" with field=form.birth_state col="col-lg-2 col-md-4" %}
+                <datalist id="nd-municipios"></datalist>
                 {% comment %}Peso e altura são medidas com data, não campos do
                 paciente: viram `Observation` e alimentam o IMC da ficha. Ficam
                 aqui porque é onde se pergunta, na primeira conversa.{% endcomment %}
@@ -250,4 +262,5 @@ seria gravado sem o retrato sem que nada na tela dissesse isso.{% endcomment %}
 {% block scripts %}
 <script src="{% static 'patients/patient_form.js' %}"></script>
 <script src="{% static 'patients/photo.js' %}"></script>
+<script src="{% static 'patients/naturalidade.js' %}" defer></script>
 {% endblock %}

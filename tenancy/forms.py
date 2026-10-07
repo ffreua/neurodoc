@@ -113,7 +113,46 @@ class PhysicianProfileForm(forms.ModelForm):
 
 
 class ClinicProfileForm(forms.ModelForm):
-    """Identidade da clínica — o que sai no cabeçalho do documento."""
+    """Identidade da clínica — o que sai no cabeçalho do documento.
+
+    **`trade_name` mora no `Tenant` e é editado aqui**, fora do `Meta`
+    deste `ModelForm`. A separação é real e vale explicar: a razão social
+    e o CNPJ são o que a clínica é perante a Receita, chegam pelo convite
+    e não se editam; o nome fantasia é como ela se apresenta ao paciente
+    — na receita, no cabeçalho do documento, no menu do sistema — e muda
+    quando a clínica decide mudar.
+
+    Estavam juntos no cadastro da organização, e o efeito era que a tela
+    dizia "não se editam aqui" sobre os três. Quem quisesse corrigir o
+    nome que o paciente lê precisava pedir a quem administra a
+    instalação.
+    """
+
+    trade_name = forms.CharField(
+        label='Nome fantasia', max_length=255, required=False,
+        help_text='Como a clínica se apresenta ao paciente: é este nome que sai na '
+                  'receita, no cabeçalho do documento, no menu do sistema e nas '
+                  'mensagens. Vazio usa a razão social.',
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: Consultório Dr. Fulano'}),
+    )
+
+    #: A ordem em que os campos aparecem. `trade_name` nasce fora do
+    #: `Meta.fields`, e sem isto cairia no fim do formulário -- depois do
+    #: encarregado de dados, longe do bloco que fala de identidade.
+    field_order = [
+        'trade_name', 'address_line', 'address_district', 'city', 'state',
+        'postal_code', 'phone', 'email', 'website',
+        'dpo_name', 'dpo_email', 'dpo_phone',
+    ]
+
+    def __init__(self, *args, tenant=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant = tenant
+        if tenant is not None and not self.is_bound:
+            self.fields['trade_name'].initial = tenant.trade_name
+
+    def clean_trade_name(self):
+        return (self.cleaned_data.get('trade_name') or '').strip()
 
     class Meta:
         model = ClinicProfile

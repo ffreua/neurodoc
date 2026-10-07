@@ -27,7 +27,7 @@ from audit.services import record_audit_event
 from .holidays import holidays_in_range, national_holidays
 from .models import (
     AppointmentType, AppointmentTypeDuration, AvailabilityRule, Holiday, HolidayScope,
-    OCCUPYING_STATUSES, Appointment, ScheduleBlock, ScheduleBlockKind,
+    OCCUPYING_STATUSES, Appointment, RecurringBreak, ScheduleBlock, ScheduleBlockKind,
 )
 
 WEEKDAY_LABELS = (
@@ -310,7 +310,24 @@ def publish_weekly_schedule(context, membership, data):
                 rule.save(update_fields=['ends_on'])
             replaced += 1
 
+    # As pausas dos mesmos dias seguem a regra: substituir encerra as
+    # que valiam, em vez de apaga-las. A agenda de ontem continua
+    # reconstruivel como era -- inclusive o almoco de ontem.
+    pausas_encerradas = 0
+    if data.get('replace_existing'):
+        for pausa in RecurringBreak.objects.filter(
+            physician_membership=membership, weekday__in=weekdays,
+        ).filter(models_ends_on_ok(starts_on)):
+            if pausa.starts_on >= starts_on:
+                pausa.delete()
+            else:
+                pausa.ends_on = starts_on - timedelta(days=1)
+                pausa.full_clean()
+                pausa.save(update_fields=['ends_on'])
+            pausas_encerradas += 1
+
     created = []
+    pausas_criadas = []
     for weekday in weekdays:
         rule = AvailabilityRule(
             tenant_id=context.tenant_id, physician_membership=membership, weekday=weekday,
@@ -324,6 +341,16 @@ def publish_weekly_schedule(context, membership, data):
         rule.save()
         created.append(rule)
 
+        for pausa in data.get('pausas') or []:
+            linha = RecurringBreak(
+                tenant_id=context.tenant_id, physician_membership=membership,
+                weekday=weekday, local_start=pausa['inicio'], local_end=pausa['fim'],
+                starts_on=starts_on, ends_on=ends_on, reason=pausa.get('motivo', ''),
+            )
+            linha.full_clean()
+            linha.save()
+            pausas_criadas.append(linha)
+
     record_audit_event(
         context.user_id, context.tenant_id, 'scheduling.schedule_published',
         object_type='membership', object_id=membership.id, outcome='success',
@@ -332,9 +359,15 @@ def publish_weekly_schedule(context, membership, data):
             'until': ends_on.isoformat() if ends_on else None,
             'window': f"{data['local_start']}–{data['local_end']}",
             'slot_minutes': data['slot_minutes'], 'replaced': replaced,
+            'pausas': [
+                f"{p['inicio']}-{p['fim']}" for p in (data.get('pausas') or [])
+            ],
         },
     )
-    return {'created': created, 'replaced': replaced}
+    return {
+        'created': created, 'replaced': replaced,
+        'pausas': pausas_criadas, 'pausas_encerradas': pausas_encerradas,
+    }
 
 
 @transaction.atomic

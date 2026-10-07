@@ -6,12 +6,15 @@ from django import forms
 from base.fields import BrazilianDecimalField
 from base.widgets import HTML5DateInput
 
+from django.urls import reverse_lazy
+
 from base.validators import is_valid_cpf
 
 from .models import (
     HealthPlan, MaritalStatus, Patient, PatientContact, PaymentCategory, ReferralSource,
     SexAtRegistration,
 )
+from .naturalidade import PAIS_CHOICES
 
 UF_CHOICES = [
     ('', 'UF'),
@@ -77,6 +80,38 @@ class PatientForm(forms.ModelForm):
         ),
     )
     state = forms.ChoiceField(label='UF', choices=UF_CHOICES, required=False)
+
+    # ----------------------------------------------------- naturalidade
+    #
+    # Declarados aqui, e nao derivados do modelo, por duas razoes
+    # distintas: o pais precisa da lista de `patients.naturalidade`
+    # (que e codigo, nao tabela), e a cidade precisa do `list=` que a
+    # liga ao `<datalist>` do autocomplete.
+    #
+    # A cidade continua **texto livre**: o catalogo do IBGE sugere, e
+    # quem nasceu fora do Brasil digita. Transformar em `ChoiceField`
+    # recusaria "Buenos Aires" e "Tokyo".
+    birth_country = forms.ChoiceField(
+        label='País de nascimento', choices=PAIS_CHOICES, required=False, initial='BR',
+    )
+    birth_city = forms.CharField(
+        label='Naturalidade (cidade)', max_length=120, required=False,
+        help_text='Onde a pessoa nasceu — não é onde ela mora. Escolha na lista '
+                  'ou digite: quem nasceu fora do Brasil não está no catálogo '
+                  'de municípios.',
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ex.: São Paulo', 'autocomplete': 'off',
+            'list': 'nd-municipios', 'data-nd-municipio': 'true',
+            # `reverse_lazy`, e nao a rota escrita a mao: o nome resolve
+            # na renderizacao, e mudar a rota deixa de significar
+            # procurar a string em dois lugares.
+            'data-nd-municipio-url': reverse_lazy('catalogs:municipio-search'),
+        }),
+    )
+    birth_state = forms.ChoiceField(
+        label='UF de nascimento', choices=UF_CHOICES, required=False,
+        help_text='Só para quem nasceu no Brasil.',
+    )
 
     coverage_plan = forms.ModelChoiceField(
         label='Plano de saúde', queryset=HealthPlan.objects.none(), required=False,
@@ -148,6 +183,7 @@ class PatientForm(forms.ModelForm):
         fields = [
             'full_name', 'birth_date', 'birth_date_unknown_reason', 'estimated_birth_year',
             'sex_at_registration', 'cpf', 'identity_number', 'mother_name',
+            'birth_country', 'birth_city', 'birth_state',
             'postal_code', 'street', 'number', 'complement', 'district', 'city', 'state', 'country',
             'referral_source', 'referral_details', 'marital_status', 'occupation',
             'payment_category', 'responsible_membership', 'administrative_notes',
@@ -161,6 +197,9 @@ class PatientForm(forms.ModelForm):
             'cpf': 'CPF',
             'identity_number': 'Documento de identidade (RG)',
             'mother_name': 'Nome da mãe',
+            'birth_country': 'País de nascimento',
+            'birth_city': 'Naturalidade (cidade)',
+            'birth_state': 'UF de nascimento',
             'postal_code': 'CEP',
             'street': 'Logradouro',
             'number': 'Número',

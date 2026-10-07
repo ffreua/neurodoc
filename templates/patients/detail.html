@@ -383,6 +383,10 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
                                 <td class="pe-4 fs-13 text-wrap">{{ patient.mother_name|default:"não informado" }}</td>
                             </tr>
                             <tr>
+                                <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Naturalidade</th>
+                                <td class="pe-4 fs-13 text-wrap">{{ patient.naturalidade|default:"não informada" }}</td>
+                            </tr>
+                            <tr>
                                 <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Endereço</th>
                                 <td class="pe-4 fs-13 text-wrap">
                                     {% if patient.street %}

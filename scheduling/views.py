@@ -25,8 +25,8 @@ from .forms import (
     WeeklyScheduleForm,
 )
 from .models import (
-    AppointmentStatus, AppointmentType, AvailabilityRule, Holiday, ScheduleBlock,
-    ScheduleBlockKind,
+    AppointmentStatus, AppointmentType, AvailabilityRule, Holiday, RecurringBreak,
+    ScheduleBlock, ScheduleBlockKind,
 )
 
 
@@ -361,6 +361,12 @@ class ScheduleSettingsView(ScheduleConfigView):
             'blocks': ScheduleBlock.objects.filter(
                 physician_membership=doctor, end_at__gte=timezone.now(),
             ).order_by('start_at')[:20],
+            # As pausas que ainda valem, para a tela poder mostrá-las ao
+            # lado da grade: intervalo configurado e invisível é
+            # indistinguível de intervalo que não foi gravado.
+            'pausas': RecurringBreak.objects.filter(
+                physician_membership=doctor,
+            ).filter(publishing.models_ends_on_ok(today)).order_by('weekday', 'local_start'),
             'holidays': holiday_rows,
             'unblocked_holidays': sum(1 for row in holiday_rows if not row['blocked']),
             'holiday_range': {'start': today, 'end': horizon_end},
@@ -409,13 +415,16 @@ class ScheduleSettingsSaveView(ScheduleConfigView):
                 request, 'scheduling/settings.html',
                 ScheduleSettingsView()._context(request, doctor, schedule_form=form),
             )
-        result = publishing.publish_weekly_schedule(request.access_context, doctor, form.cleaned_data)
+        dados = dict(form.cleaned_data, pausas=form.pausas_declaradas())
+        result = publishing.publish_weekly_schedule(request.access_context, doctor, dados)
         ends_on = form.cleaned_data.get('ends_on')
         until = f'até {ends_on.strftime("%d/%m/%Y")}' if ends_on else 'sem prazo'
+        quantas_pausas = len(dados['pausas'])
         messages.success(
             request,
             f'Agenda publicada: {len(result["created"])} dia(s) da semana, {until}.'
-            + (f' {result["replaced"]} regra(s) anterior(es) encerrada(s).' if result['replaced'] else ''),
+            + (f' {result["replaced"]} regra(s) anterior(es) encerrada(s).' if result['replaced'] else '')
+            + (f' {quantas_pausas} intervalo(s) por dia.' if quantas_pausas else ''),
         )
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
 

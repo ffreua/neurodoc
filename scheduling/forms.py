@@ -136,6 +136,59 @@ class WeeklyScheduleForm(forms.Form):
                   '(por exemplo, manhã e tarde com durações diferentes).',
     )
 
+    # ------------------------------------------------ intervalos pontuais
+    #
+    # Coisa diferente de `buffer_minutes`, e vale dizer por quê: aquele
+    # reserva minutos **depois de cada** atendimento, para a consulta que
+    # estourou não empurrar a seguinte. Isto é a pausa de relógio — o
+    # almoço, o café —, que cai num horário fixo e em horário diferente a
+    # cada dia da semana.
+    #
+    # Três pares, e não uma lista que cresce: duas pausas num dia (café e
+    # almoço) cobrem o consultório; a terceira é folga. Uma lista
+    # dinâmica pediria JavaScript para acrescentar linha, e o ganho não
+    # paga — quem precisar de uma quarta manda num segundo envio, com os
+    # mesmos dias e sem substituir.
+    pausa_1_inicio = forms.TimeField(label='Intervalo 1 — início', required=False, widget=HTML5TimeInput())
+    pausa_1_fim = forms.TimeField(label='Intervalo 1 — fim', required=False, widget=HTML5TimeInput())
+    pausa_1_motivo = forms.CharField(
+        label='Intervalo 1 — motivo', required=False, max_length=80,
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: Almoço'}),
+    )
+    pausa_2_inicio = forms.TimeField(label='Intervalo 2 — início', required=False, widget=HTML5TimeInput())
+    pausa_2_fim = forms.TimeField(label='Intervalo 2 — fim', required=False, widget=HTML5TimeInput())
+    pausa_2_motivo = forms.CharField(
+        label='Intervalo 2 — motivo', required=False, max_length=80,
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: Café'}),
+    )
+    pausa_3_inicio = forms.TimeField(label='Intervalo 3 — início', required=False, widget=HTML5TimeInput())
+    pausa_3_fim = forms.TimeField(label='Intervalo 3 — fim', required=False, widget=HTML5TimeInput())
+    pausa_3_motivo = forms.CharField(
+        label='Intervalo 3 — motivo', required=False, max_length=80,
+        widget=forms.TextInput(attrs={'placeholder': 'Ex.: Reunião'}),
+    )
+
+    #: Quantos pares de intervalo a tela desenha. Lido pelo template e
+    #: pelo `clean`, para acrescentar o quarto ser mudar um número só.
+    PAUSAS = (1, 2, 3)
+
+    def pausas_declaradas(self):
+        """Os intervalos preenchidos, já validados, em ordem de início.
+
+        Devolve `[]` quando nenhum foi informado — que é o caso comum, e
+        é por isso que os campos não são obrigatórios.
+        """
+        encontrados = []
+        for indice in self.PAUSAS:
+            inicio = self.cleaned_data.get(f'pausa_{indice}_inicio')
+            fim = self.cleaned_data.get(f'pausa_{indice}_fim')
+            if inicio and fim:
+                encontrados.append({
+                    'inicio': inicio, 'fim': fim,
+                    'motivo': (self.cleaned_data.get(f'pausa_{indice}_motivo') or '').strip(),
+                })
+        return sorted(encontrados, key=lambda p: p['inicio'])
+
     def clean(self):
         cleaned = super().clean()
         start = cleaned.get('local_start')
@@ -166,6 +219,49 @@ class WeeklyScheduleForm(forms.Form):
                     'slot_minutes',
                     f'A célula ({slot} min) não cabe na janela de atendimento ({window} min).',
                 )
+
+        # ------------------------------------------- intervalos pontuais
+        #
+        # Três erros possíveis, e cada um tem mensagem própria porque cada
+        # um se corrige de um jeito diferente. Um "intervalo inválido"
+        # genérico manda a pessoa adivinhar qual dos três é.
+        informados = []
+        for indice in self.PAUSAS:
+            inicio = cleaned.get(f'pausa_{indice}_inicio')
+            fim = cleaned.get(f'pausa_{indice}_fim')
+            if not inicio and not fim:
+                continue
+            if not inicio or not fim:
+                faltando = f'pausa_{indice}_inicio' if not inicio else f'pausa_{indice}_fim'
+                self.add_error(faltando, 'Informe o início e o fim do intervalo.')
+                continue
+            if inicio >= fim:
+                self.add_error(f'pausa_{indice}_fim', 'O fim do intervalo tem de ser depois do início.')
+                continue
+            # Fora da janela de atendimento o intervalo não recorta nada,
+            # e ficaria gravado sem efeito nenhum — pior que recusar,
+            # porque a pessoa sai achando que configurou.
+            if start and end and not (start <= inicio and fim <= end):
+                self.add_error(
+                    f'pausa_{indice}_inicio',
+                    f'O intervalo tem de ficar dentro do atendimento '
+                    f'({start.strftime("%H:%M")}–{end.strftime("%H:%M")}).',
+                )
+                continue
+            informados.append((indice, inicio, fim))
+
+        # Dois intervalos que se sobrepõem são quase sempre engano de
+        # digitação, e gravá-los daria o mesmo resultado de um só — com a
+        # tela mostrando dois.
+        for i in range(len(informados)):
+            for j in range(i + 1, len(informados)):
+                _, inicio_a, fim_a = informados[i]
+                indice_b, inicio_b, fim_b = informados[j]
+                if inicio_a < fim_b and inicio_b < fim_a:
+                    self.add_error(
+                        f'pausa_{indice_b}_inicio',
+                        'Este intervalo se sobrepõe a outro informado acima.',
+                    )
         return cleaned
 
 

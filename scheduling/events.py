@@ -69,3 +69,51 @@ def schedule_reminders(appointment):
 def _now():
     from django.utils import timezone
     return timezone.now()
+
+
+#: O horário mudou de estado de um jeito que o **paciente** precisa saber.
+#:
+#: `appointment_reserved` já existia e é consumido pelo CRM; o aviso ao
+#: paciente entra como um segundo consumidor dele, porque "reservado" e
+#: "marcado" são o mesmo fato e dois eventos para o mesmo fato divergem.
+#: Cancelar e remarcar não tinham evento nenhum -- e por isso o paciente
+#: não era avisado de nada.
+CANCELLED_TOPIC = 'scheduling.appointment_cancelled'
+RESCHEDULED_TOPIC = 'scheduling.appointment_rescheduled'
+
+
+def _emit(topic, appointment, extra=None):
+    """Põe o fato na outbox, uma vez por versão do agendamento.
+
+    `event_version=row_version` é o que torna isto idempotente sem
+    inventar chave: o dispatcher pode reentregar o evento, e
+    `get_or_create` devolve o mesmo. Cada transição incrementa
+    `row_version`, então cancelar depois de remarcar são dois eventos
+    distintos -- que é o certo, porque são dois avisos distintos.
+    """
+    payload = {
+        'appointment_id': str(appointment.id),
+        'patient_id': str(appointment.patient_id),
+    }
+    payload.update(extra or {})
+    OutboxEvent.objects.get_or_create(
+        tenant_id=appointment.tenant_id, topic=topic, aggregate_type='appointment',
+        aggregate_id=appointment.id, event_version=appointment.row_version,
+        defaults={
+            'payload_minimal': payload,
+            'available_at': _now(),
+            'status': OutboxEventStatus.PENDING,
+        },
+    )
+
+
+@transaction.atomic
+def emit_appointment_cancelled(appointment):
+    _emit(CANCELLED_TOPIC, appointment)
+
+
+@transaction.atomic
+def emit_appointment_rescheduled(appointment, old_starts_at=None):
+    _emit(RESCHEDULED_TOPIC, appointment, {
+        'old_starts_at': old_starts_at.isoformat() if old_starts_at else '',
+    })

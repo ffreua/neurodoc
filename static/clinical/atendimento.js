@@ -301,24 +301,44 @@
 
     /* -------------------------------------------------------- gaveta */
 
+    /* Duas gavetas: a consulta anterior e os dados de cadastro. Eram uma
+     * só, endereçada por id fixo, e acrescentar a segunda do mesmo jeito
+     * significaria duplicar abrir/fechar/foco/Esc -- e a segunda cópia
+     * seria a que esqueceria de devolver o foco.
+     *
+     * O botão diz qual abrir em `data-nd-gaveta-abrir`; sem valor, abre a
+     * da consulta anterior, que é como o botão existente já estava
+     * escrito. O fundo escuro é um só, compartilhado: duas gavetas nunca
+     * ficam abertas ao mesmo tempo. */
     var gaveta = document.getElementById('nd-gaveta');
     var fundo = document.getElementById('nd-gaveta-fundo');
     var focoAntesDaGaveta = null;
+    var gavetaAberta = null;
 
-    function abrirGaveta() {
-        if (!gaveta || gaveta.classList.contains('is-aberta')) { return; }
-        focoAntesDaGaveta = document.activeElement;
-        gaveta.classList.add('is-aberta');
-        gaveta.setAttribute('aria-hidden', 'false');
+    function abrirGaveta(alvo) {
+        var elemento = alvo || gaveta;
+        if (!elemento || elemento.classList.contains('is-aberta')) { return; }
+        /* Abrir uma fecha a outra, sem devolver o foco no meio do
+         * caminho: quem clicou quer a segunda, não voltar ao botão. */
+        if (gavetaAberta && gavetaAberta !== elemento) {
+            gavetaAberta.classList.remove('is-aberta');
+            gavetaAberta.setAttribute('aria-hidden', 'true');
+        } else {
+            focoAntesDaGaveta = document.activeElement;
+        }
+        elemento.classList.add('is-aberta');
+        elemento.setAttribute('aria-hidden', 'false');
+        gavetaAberta = elemento;
         if (fundo) { fundo.hidden = false; }
-        var fechar = document.getElementById('nd-gaveta-fechar');
+        var fechar = elemento.querySelector('[data-nd-gaveta-fechar], #nd-gaveta-fechar');
         if (fechar) { fechar.focus(); }
     }
 
     function fecharGaveta() {
-        if (!gaveta || !gaveta.classList.contains('is-aberta')) { return; }
-        gaveta.classList.remove('is-aberta');
-        gaveta.setAttribute('aria-hidden', 'true');
+        if (!gavetaAberta) { return; }
+        gavetaAberta.classList.remove('is-aberta');
+        gavetaAberta.setAttribute('aria-hidden', 'true');
+        gavetaAberta = null;
         if (fundo) { fundo.hidden = true; }
         if (focoAntesDaGaveta && document.contains(focoAntesDaGaveta)) {
             focoAntesDaGaveta.focus();
@@ -326,13 +346,23 @@
         focoAntesDaGaveta = null;
     }
 
+    function alternarGaveta(alvo) {
+        var elemento = alvo || gaveta;
+        if (!elemento) { return; }
+        if (elemento.classList.contains('is-aberta')) { fecharGaveta(); }
+        else { abrirGaveta(elemento); }
+    }
+
     document.addEventListener('click', function (event) {
-        if (event.target.closest('[data-nd-gaveta-abrir]')) {
+        var botao = event.target.closest('[data-nd-gaveta-abrir]');
+        if (botao) {
             event.preventDefault();
-            abrirGaveta();
+            var id = botao.getAttribute('data-nd-gaveta-abrir');
+            alternarGaveta(id ? document.getElementById(id) : gaveta);
             return;
         }
-        if (event.target.closest('#nd-gaveta-fechar') || event.target === fundo) {
+        if (event.target.closest('[data-nd-gaveta-fechar], #nd-gaveta-fechar')
+            || event.target === fundo) {
             fecharGaveta();
         }
     });
@@ -352,7 +382,7 @@
             return;
         }
 
-        if (event.key === 'Escape' && gaveta && gaveta.classList.contains('is-aberta')) {
+        if (event.key === 'Escape' && gavetaAberta) {
             event.preventDefault();
             fecharGaveta();
             return;
@@ -362,9 +392,16 @@
 
         if (tecla === 'p') {
             event.preventDefault();
-            if (gaveta) {
-                if (gaveta.classList.contains('is-aberta')) { fecharGaveta(); } else { abrirGaveta(); }
-            }
+            alternarGaveta(gaveta);
+            return;
+        }
+
+        /* Alt+D: dados de cadastro. A letra é a inicial, como o P da
+         * consulta anterior -- e o atalho está escrito no botão, porque
+         * atalho que ninguém descobre não existe. */
+        if (tecla === 'd') {
+            event.preventDefault();
+            alternarGaveta(document.getElementById('nd-gaveta-ficha'));
             return;
         }
 

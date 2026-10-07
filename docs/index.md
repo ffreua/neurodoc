@@ -121,6 +121,15 @@ PRD; é a referência operacional viva gerada a partir dele.
   não três; NVIDIA NIM com Nemotron como padrão desta instalação, sem
   atropelar a clínica que configurou a sua.
 
+- [Intervalos, naturalidade, a ficha na gaveta e o aviso de horário](homologation/agenda-cadastro-e-avisos.md) —
+  sete melhorias pedidas depois de usar o sistema com duas clínicas: a
+  pausa de almoço na grade (que não é o intervalo entre atendimentos nem
+  um bloqueio de data), a naturalidade com catálogo do IBGE, os dados de
+  cadastro numa gaveta durante o atendimento, o aviso automático de
+  horário marcado e cancelado com o endereço no lugar do nome, o nome
+  fantasia nas mãos do inquilino, e a cadeia clínica → instalação dos
+  três serviços externos, provada nos dois sentidos.
+
 - [O padrão da instalação: IA morta por 40 dias, SMS que nunca saiu](homologation/padrao-da-instalacao.md) —
   dois defeitos de 2026-10-06 com a mesma assinatura: só quem **não**
   configurou provedor próprio os encontra. O modelo de IA aposentado pelo
