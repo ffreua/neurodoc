@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.8.3** | 2026-10-07 | o que faltava para vender | **Aviso de horário não nasce de evento velho.** Ao entrar no ar, o consumidor novo encontrou 48 eventos de agendamento que estavam pendentes desde sempre — porque ninguém consumia aquele tópico — e avisou sobre todos: dez e-mails de madrugada sobre consultas já realizadas ou canceladas, quatro deles a pacientes reais. Agora o aviso ignora evento com mais de 6 h, consulta que já aconteceu, e fato que o estado atual contradiz. |
 | **1.8.2** | 2026-10-07 | o que faltava para vender | O dia da agenda com **intervalo de almoço** passava a dizer "fechado" assim que a última vaga era preenchida — e os pacientes já marcados sumiam da visão de mês. O rótulo saía de "há célula bloqueada e nenhuma livre", o que valia quando só feriado bloqueava célula; o almoço bloqueia uma. Agora "fechado" é o dia **inteiro** bloqueado, e nada menos. |
 | **1.8.1** | 2026-10-07 | o que faltava para vender | Os três defeitos do primeiro teste real da 1.8: remover uma grade **publicada no mesmo dia** devolvia erro 500; a pausa de almoço fechava a célula que tocava em vez de **partir o dia**, e a tarde voltava 20 min depois do fim do intervalo; e a naturalidade, no celular, vinha na ordem errada e sem autocomplete — o `<datalist>` nativo não abre em boa parte dos navegadores móveis. |
 | **1.8** | 2026-10-07 | o que faltava para vender | **Intervalo pontual** na agenda (o almoço, em horário diferente a cada dia) recortando a grade, os horários livres e a validação da reserva. **Naturalidade** do paciente, com os 5.571 municípios do IBGE no autocomplete e texto livre para quem nasceu fora. Os **dados de cadastro numa gaveta** durante o atendimento, sem sair da evolução (Alt+D). **Aviso automático** ao marcar, remarcar e cancelar, com o endereço e o telefone no lugar do nome da clínica. **Nome fantasia** editável pelo próprio inquilino. |
@@ -66,7 +67,7 @@ Cada release publicada deve ter um registro em
 responsável — é a seção 18.6 do PRD, e a ordem importa: o registro entra
 **antes** de `NEURODOC_RELEASE_APPROVED=True`.
 
-> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6, 1.6.1, 1.6.2, 1.7, 1.7.1, 1.8, 1.8.1 e 1.8.2; as versões 1.2 a 1.5
+> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6, 1.6.1, 1.6.2, 1.7, 1.7.1, 1.8, 1.8.1, 1.8.2 e 1.8.3; as versões 1.2 a 1.5
 > foram publicadas sem o arquivo correspondente. `scripts/setup_deploy.sh`
 > cria um `docs/releases/<sha>.md` a partir do molde **na VPS**, e ninguém
 > o commitou. Preencher é ato do responsável técnico, não da máquina — por

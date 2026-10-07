@@ -713,6 +713,31 @@ def deliver_appointment_notice(appointment, motivo, event_version):
     Idempotente pela chave da entrega: o dispatcher pode reentregar o
     evento, e o paciente não recebe dois e-mails do mesmo cancelamento.
     """
+    # ------------------------------------------- duas guardas de coerência
+    #
+    # Nenhuma delas substitui `JANELA_DO_AVISO` em `handlers.py`, que é a
+    # que pega o replay; estas pegam o resto, e cada uma por conta
+    # própria.
+    #
+    # **Consulta que já aconteceu não vira aviso.** "Sua consulta está
+    # marcada" sobre a semana passada não é mensagem — é confusão. Em
+    # 2026-10-07, quatro pacientes receberam exatamente isso.
+    if appointment.starts_at < timezone.now():
+        return []
+
+    # **O estado de agora manda sobre o fato de então.** Entre o evento e
+    # a entrega cabe uma transição: marcar e cancelar em seguida emite os
+    # dois eventos, e se o do "marcada" for processado depois o paciente
+    # recebe a confirmação de um horário que já caiu. Duas pessoas
+    # receberam "sua consulta está marcada" para consulta cancelada.
+    from scheduling.models import AppointmentStatus
+
+    cancelada = appointment.status == AppointmentStatus.CANCELLED
+    if motivo == 'cancelled' and not cancelada:
+        return []
+    if motivo in ('booked', 'rescheduled') and cancelada:
+        return []
+
     contacts = confirmation_contacts(appointment, DeliveryChannel.EMAIL)
     if not contacts:
         return []

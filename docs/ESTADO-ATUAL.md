@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.8.2 "o que faltava para vender" · **Produção:**
+**Versão:** 1.8.3 "o que faltava para vender" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -188,6 +188,20 @@ ocorrências: roteiro lendo a própria legenda; roteiro de paginação sem
 volume; asserção casando com ícone decorativo; e um roteiro que passava
 em dois dias da semana e reprovava nos outros cinco. O último é o pior:
 ensina quem lê a ignorar o vermelho.
+
+**Consumidor novo herda a história inteira do tópico, e mensagem a
+pessoa não pode herdar nada.** Em 2026-10-07, o consumidor do aviso de
+horário entrou no ar e encontrou 48 eventos `appointment_reserved`
+pendentes **desde sempre** — o dispatcher deixa evento sem consumidor
+pendente de propósito, para que "um deploy futuro possa registrar", e
+isso está certo para integração de dados: um CRM que chega depois quer o
+histórico. Está errado para e-mail: dez mensagens saíram à 01h15
+dizendo "sua consulta está marcada", sobre consultas já realizadas e
+canceladas. Quatro foram para pacientes reais.
+
+A lição, que vale para todo consumidor novo que escreva para gente:
+**perguntar a idade do evento antes de agir**. Ver `JANELA_DO_AVISO` em
+`communications/handlers.py`.
 
 **Provar não é concluir, e a diferença custou dezessete mensagens.** Em
 2026-10-07, ao *provar* que o SMS funcionava — perguntando ao provedor

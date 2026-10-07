@@ -206,8 +206,12 @@ def _limpar_avisos():
 
 _limpar_avisos()
 antes = Delivery.objects.filter(appointment=consulta).count()
-primeira = deliver_appointment_notice(consulta, 'cancelled', consulta.row_version)
-segunda = deliver_appointment_notice(consulta, 'cancelled', consulta.row_version)
+# `booked`, e nao `cancelled`: o agendamento usado aqui esta de pe, e
+# a guarda de coerencia (ver `deliver_appointment_notice`) recusa
+# avisar cancelamento de quem nao foi cancelado. Medir idempotencia
+# com um motivo que o produto recusa mede o nada.
+primeira = deliver_appointment_notice(consulta, 'booked', consulta.row_version)
+segunda = deliver_appointment_notice(consulta, 'booked', consulta.row_version)
 criadas = Delivery.objects.filter(appointment=consulta).count() - antes
 print(f'  entregas criadas: {criadas} (duas chamadas do mesmo evento)')
 confere(len(primeira) >= 1,
@@ -217,20 +221,119 @@ confere(len(primeira) == len(segunda),
         'a reentrega do evento devolve as mesmas entregas')
 confere(criadas == len(primeira),
         'e nao cria entrega nova -- o paciente nao recebe dois e-mails do '
-        'mesmo cancelamento', f'{criadas} criadas para {len(primeira)} contatos')
+        'mesmo aviso', f'{criadas} criadas para {len(primeira)} contatos')
 confere(all(d.channel == DeliveryChannel.EMAIL for d in primeira),
         'o aviso automatico e so por e-mail -- SMS custa credito e segue '
         'sendo ato de quem atende')
 
 # Versao diferente do agendamento e aviso diferente: cancelar depois de
 # remarcar sao dois fatos, e o paciente precisa dos dois.
-terceira = deliver_appointment_notice(consulta, 'cancelled', consulta.row_version + 1)
+terceira = deliver_appointment_notice(consulta, 'booked', consulta.row_version + 1)
 confere(all(d.id not in {x.id for x in primeira} for d in terceira),
         'versao nova do agendamento gera aviso novo')
 _limpar_avisos()
-PatientContact.objects.filter(
-    patient=consulta.patient, email='aviso-de-horario@roteiro.local',
-).delete()
+# O contato continua vivo ate o fim do roteiro: as secoes seguintes
+# tambem precisam de alguem para quem escrever, e apaga-lo aqui as fazia
+# medir lista vazia.
+
+print('=== 6b. evento velho NAO vira aviso ===')
+# O acidente de 07/10/2026, e o mais caro desta serie.
+#
+# `appointment_reserved` era emitido desde sempre e **ninguem o
+# consumia** -- e o dispatcher deixa evento sem consumidor PENDENTE de
+# proposito, para que "um deploy futuro possa registrar". Isso esta
+# certo para integracao de dados: um CRM que chega depois quer o
+# historico.
+#
+# Esta errado para mensagem a uma pessoa. Quando o consumidor do aviso
+# entrou no ar as 01h12, encontrou 48 eventos pendentes e processou
+# todos: dez e-mails sairam as 01h15 dizendo "sua consulta esta
+# marcada". Quatro foram para pacientes de verdade -- dois sobre
+# consultas que ja tinham acontecido, dois sobre consultas canceladas.
+from communications.handlers import JANELA_DO_AVISO, _aviso
+from datetime import timedelta as _td
+
+
+class _EventoFalso:
+    topic = 'scheduling.appointment_reserved'
+    event_version = 1
+
+    def __init__(self, idade, appointment_id):
+        self.available_at = timezone.now() - idade
+        self.created_at = self.available_at
+        self.payload_minimal = {'appointment_id': str(appointment_id)}
+
+
+confere(JANELA_DO_AVISO <= _td(hours=12),
+        'a janela do aviso e curta o bastante para barrar replay',
+        str(JANELA_DO_AVISO))
+confere(JANELA_DO_AVISO >= _td(hours=1),
+        'e generosa o bastante para o worker poder ficar fora do ar',
+        str(JANELA_DO_AVISO))
+
+# Um agendamento futuro e valido, para o teste medir a janela e nao
+# outra guarda.
+from scheduling.models import Appointment as _Ap, AppointmentStatus as _St
+
+futuro = _Ap.objects.create(
+    tenant=consulta.tenant, patient=consulta.patient,
+    physician_membership=consulta.physician_membership,
+    starts_at=timezone.now() + _td(days=3),
+    ends_at=timezone.now() + _td(days=3, minutes=40),
+    occupied_range=(timezone.now() + _td(days=3), timezone.now() + _td(days=3, minutes=40)),
+    status=_St.SCHEDULED, type=consulta.type,
+)
+try:
+    antes = Delivery.objects.filter(appointment=futuro).count()
+    _aviso(_EventoFalso(_td(days=4), futuro.id), 'booked')
+    confere(Delivery.objects.filter(appointment=futuro).count() == antes,
+            'evento de quatro dias atras nao gera aviso nenhum')
+
+    _aviso(_EventoFalso(_td(minutes=2), futuro.id), 'booked')
+    confere(Delivery.objects.filter(appointment=futuro).count() > antes,
+            'e o evento recente gera -- senao esta secao estaria medindo o nada')
+
+    print('=== 6c. o estado de agora manda sobre o fato de entao ===')
+    from communications.services import deliver_appointment_notice as _entregar
+
+    # Consulta que ja aconteceu nunca vira "sua consulta esta marcada".
+    passada = _Ap.objects.create(
+        tenant=consulta.tenant, patient=consulta.patient,
+        physician_membership=consulta.physician_membership,
+        starts_at=timezone.now() - _td(days=2),
+        ends_at=timezone.now() - _td(days=2) + _td(minutes=40),
+        occupied_range=(timezone.now() - _td(days=2),
+                        timezone.now() - _td(days=2) + _td(minutes=40)),
+        status=_St.SCHEDULED, type=consulta.type,
+    )
+    try:
+        confere(_entregar(passada, 'booked', 1) == [],
+                'consulta que ja aconteceu nao vira aviso de marcacao')
+    finally:
+        passada.delete()
+
+    # Cancelada entre o evento e a entrega: o "marcada" nao sai.
+    futuro.status = _St.CANCELLED
+    futuro.save(update_fields=['status'])
+    depois = Delivery.objects.filter(appointment=futuro).count()
+    confere(_entregar(futuro, 'booked', 99) == [],
+            'agendamento ja cancelado nao recebe aviso de "marcada"')
+    confere(_entregar(futuro, 'rescheduled', 98) == [],
+            'nem de "remarcada"')
+    # E o contrario: "cancelada" so sai se estiver cancelada mesmo.
+    confere(_entregar(futuro, 'cancelled', 97) != [],
+            'mas o aviso de cancelamento sai, porque ela esta cancelada')
+    futuro.status = _St.SCHEDULED
+    futuro.save(update_fields=['status'])
+    confere(_entregar(futuro, 'cancelled', 96) == [],
+            'e nao sai para agendamento que esta de pe')
+finally:
+    from communications.models import DeliveryAttempt as _Da
+
+    _entregas = Delivery.objects.filter(appointment=futuro)
+    _Da.objects.filter(delivery__in=_entregas).delete()
+    _entregas.delete()
+    futuro.delete()
 
 print('=== 7. o aviso nao sai de dentro da requisicao ===')
 # Mesma regra do §2 que a confirmacao de horario quebrou em 06/10: quem
@@ -241,6 +344,10 @@ confere('deliver_appointment_notice' not in vista,
 handlers = Path(raiz, 'communications', 'handlers.py').read_text(encoding='utf-8')
 confere('deliver_appointment_notice' in handlers,
         'quem chama e o consumidor do evento, que roda no worker')
+
+PatientContact.objects.filter(
+    patient=consulta.patient, email='aviso-de-horario@roteiro.local',
+).delete()
 
 print()
 if failures:

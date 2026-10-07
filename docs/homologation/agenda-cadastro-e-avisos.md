@@ -347,7 +347,46 @@ Ele reproduz o defeito num dia **vencido** com intervalo — ali `free` é
 sempre zero, que é metade da condição antiga —, sem precisar lotar uma
 agenda.
 
-### E um quinto, que a bateria achou sozinha
+### 5. Dez e-mails de madrugada sobre consultas que já tinham passado
+
+O mais caro da série, e o único que alcançou pacientes.
+
+`scheduling.appointment_reserved` era emitido desde sempre e **ninguém o
+consumia**. O dispatcher deixa evento sem consumidor **pendente**, de
+propósito — o comentário dele diz: "um deploy futuro pode registrar".
+Isso está certo para integração de **dados**: um CRM que chega depois
+quer o histórico.
+
+Está errado para **mensagem a uma pessoa**. Quando o consumidor do aviso
+entrou no ar, à 01h12, encontrou **48 eventos pendentes** e processou
+todos. À 01h15 saíram dez e-mails dizendo "Sua consulta está marcada":
+
+| Destinatário | A consulta | Estado |
+| --- | --- | --- |
+| paciente real | 05/10 17:00 | **já tinha acontecido** |
+| paciente real | 01/10 15:00 | já tinha acontecido, e **cancelada** |
+| paciente real | 05/10 18:20 | **já tinha acontecido** |
+| paciente real | 08/10 18:20 | futura, mas **cancelada** |
+| paciente real | 08/10 13:00 | futura e válida — só redundante, à 1h da manhã |
+| 5 × o próprio responsável | 28–29/09 | pacientes de teste |
+
+Três guardas entraram, e cada uma pega um caso diferente:
+
+1. **`JANELA_DO_AVISO` = 6 h** (`communications/handlers.py`). É a que
+   pega o replay. Generosa de propósito: cobre o worker fora do ar uma
+   tarde inteira, e ainda assim nenhum evento de dias atrás passa;
+2. **consulta que já aconteceu não vira aviso.** "Sua consulta está
+   marcada" sobre a semana passada não é mensagem, é confusão;
+3. **o estado de agora manda sobre o fato de então.** Entre o evento e a
+   entrega cabe uma transição: marcar e cancelar em seguida emite os
+   dois eventos, e se o do "marcada" for processado depois o paciente
+   recebe a confirmação de um horário que já caiu.
+
+A terceira vale nos dois sentidos, e o roteiro cobra os dois: o aviso de
+cancelamento **sai** para quem está cancelado, e **não sai** para quem
+está de pé.
+
+### E um sexto, que a bateria achou sozinha
 
 O roteiro novo apagava regras da grade do médico de demonstração para
 montar os cenários e **não as devolvia**. `check_mes_e_estatisticas`,
