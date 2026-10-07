@@ -306,6 +306,109 @@ try:
     conferir('medico inexistente nao derruba',
              outro.get(url, {'physician': 'nao-e-uuid'}).status_code, 200)
 
+    print('\n6. "Fechado" e o dia inteiro bloqueado, e nada menos')
+    # O defeito de 13/10/2026, relatado por quem usa: a secretaria
+    # terminou de preencher as vagas da terca e o dia virou **"fechado"**
+    # no calendario -- com os oito agendamentos invisiveis, porque o ramo
+    # que os lista nem era alcancado.
+    #
+    # A causa: o rotulo saia de "ha celula bloqueada e nenhuma livre".
+    # Isso valia enquanto a unica coisa que bloqueava celula era excecao
+    # de **data** -- feriado e ferias tomam o dia todo, entao as duas
+    # frases eram a mesma. O intervalo semanal (o almoco) quebrou a
+    # equivalencia: ele bloqueia **uma** celula.
+    from scheduling.models import AvailabilityRule, RecurringBreak, ScheduleBlock, ScheduleBlockKind
+
+    def rotulos_do_mes(quando):
+        """Os rotulos de dia na pagina do mes, por dia do mes."""
+        import re as _re3
+
+        pagina = cliente.get(reverse('scheduling:month'), {
+            'physician': str(medico.id), 'date': quando.isoformat(),
+        }).content.decode()
+        # Cada celula de dia comeca com o numero e traz o rotulo adiante.
+        achados = {}
+        for bloco_dia in _re3.findall(
+            r'<div class="nd-month-day.*?</div>\s*</td>', pagina, _re3.S,
+        ):
+            numero = _re3.search(r'fs-13">\s*(\d+)\s*<', bloco_dia)
+            if not numero:
+                continue
+            rotulo = ''
+            if 'fechado' in bloco_dia:
+                rotulo = 'fechado'
+            elif 'encerrado' in bloco_dia:
+                rotulo = 'encerrado'
+            elif 'lotado' in bloco_dia:
+                rotulo = 'lotado'
+            elif 'livre' in bloco_dia:
+                rotulo = 'livres'
+            achados[int(numero.group(1))] = rotulo
+        return achados
+
+    # Um dia **que ja passou** e em que o medico atende: ali `free` e
+    # sempre zero (a hora passou), que e a metade da condicao antiga. Com
+    # um intervalo no dia, a outra metade tambem fica verdadeira -- e o
+    # dia dizia "fechado" sem haver feriado nenhum. Reproduz o defeito
+    # sem precisar lotar a agenda.
+    regra_do_dia = AvailabilityRule.objects.filter(
+        physician_membership=medico, weekday=dia.weekday(),
+    ).first()
+    pausa_teste = None
+    bloqueio_teste = None
+    try:
+        if regra_do_dia is None:
+            conferir('ha regra no dia vencido para exercitar o rotulo', False, True)
+        else:
+            pausa_teste = RecurringBreak.objects.create(
+                tenant=tenant, physician_membership=medico, weekday=dia.weekday(),
+                local_start=regra_do_dia.local_start,
+                local_end=(
+                    timezone.datetime.combine(dia, regra_do_dia.local_start)
+                    + timedelta(minutes=20)
+                ).time(),
+                starts_on=dia - timedelta(days=1), reason='Cafe do roteiro',
+            )
+            rotulos = rotulos_do_mes(dia)
+            print(f'      dia {dia.day} (vencido, com intervalo): {rotulos.get(dia.day)!r}')
+            conferir('dia vencido com intervalo NAO diz "fechado"',
+                     rotulos.get(dia.day) == 'fechado', False)
+            conferir('  e diz "encerrado", que e o que de fato houve',
+                     rotulos.get(dia.day), 'encerrado')
+
+            # E o contrario tem de continuar valendo: dia inteiro tomado
+            # por excecao de data **e** fechado, e a palavra tem de sair.
+            #
+            # Uma semana depois de `futuro`, e nao `futuro`: aquele ja
+            # tem consultas marcadas por este roteiro, e dia com paciente
+            # nao e fechado -- a celula ocupada vence o bloqueio. Com ele,
+            # a assercao reprovaria por culpa do cenario, nao do produto.
+            # Mesmo dia da semana para a regra continuar valendo.
+            alvo_bloqueio = futuro + timedelta(days=7)
+            antes = rotulos_do_mes(alvo_bloqueio).get(alvo_bloqueio.day)
+            print(f'      dia {alvo_bloqueio.day} antes do bloqueio: {antes!r}')
+            conferir('  o dia escolhido nao estava fechado antes',
+                     antes == 'fechado', False)
+
+            inicio_dia = timezone.make_aware(
+                timezone.datetime.combine(alvo_bloqueio, timezone.datetime.min.time()),
+            )
+            bloqueio_teste = ScheduleBlock.objects.create(
+                tenant=tenant, physician_membership=medico,
+                start_at=inicio_dia, end_at=inicio_dia + timedelta(days=1),
+                kind=ScheduleBlockKind.HOLIDAY, reason='Feriado do roteiro',
+            )
+            rotulos = rotulos_do_mes(alvo_bloqueio)
+            print(f'      dia {alvo_bloqueio.day} (bloqueado o dia todo): '
+                  f'{rotulos.get(alvo_bloqueio.day)!r}')
+            conferir('dia inteiro bloqueado continua dizendo "fechado"',
+                     rotulos.get(alvo_bloqueio.day), 'fechado')
+    finally:
+        if pausa_teste is not None:
+            pausa_teste.delete()
+        if bloqueio_teste is not None:
+            bloqueio_teste.delete()
+
 finally:
     Appointment.objects.filter(id__in=criados['agendamentos']).delete()
     n = Patient.objects.filter(id__in=criados['pacientes']).delete()[0]

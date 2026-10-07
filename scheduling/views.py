@@ -294,7 +294,29 @@ class AgendaMonthView(TenantScopedView):
                 'is_past': day < today,
                 'free': counts.get('free', 0),
                 'booked': counts.get('booked', 0),
-                'blocked': bool(counts.get('blocked')) and not counts.get('free'),
+                # **"Fechado" é o dia inteiro bloqueado, e nada menos.**
+                #
+                # Era `há célula bloqueada e nenhuma livre`, e isso valia
+                # enquanto a única coisa que bloqueava célula era exceção
+                # de **data** — feriado e férias tomam o dia todo, então
+                # "tem bloqueio e não sobrou vaga" e "o dia está fechado"
+                # eram a mesma frase.
+                #
+                # O intervalo semanal (o almoço) quebrou a equivalência:
+                # ele bloqueia **uma** célula. Qualquer dia com almoço que
+                # ficasse cheio passava a aparecer como fechado — e o
+                # ramo que lista os pacientes nem era alcançado, então a
+                # agenda do dia sumia da tela. Foi o que aconteceu em
+                # 13/10/2026: a secretária terminou de preencher as vagas
+                # e o dia virou "fechado", com os oito agendamentos
+                # invisíveis.
+                #
+                # `total > 0` junto porque dia sem grade tem 0 == 0, e
+                # sábado não é feriado.
+                'blocked': (
+                    counts.get('total', 0) > 0
+                    and counts.get('blocked', 0) == counts.get('total', 0)
+                ),
                 'works': counts.get('works', False),
                 'cells': counts.get('cells', []),
                 # Estas tres vem de `month_summary` e precisam ser

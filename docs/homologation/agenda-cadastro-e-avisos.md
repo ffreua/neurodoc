@@ -309,7 +309,45 @@ medicamento, com alvo de toque de 44px — e `blur` não fecha a lista,
 porque ele dispara antes do clique na opção e fecharia sem deixar
 escolher.
 
-### E um quarto, que a bateria achou sozinha
+### 4. O dia lotado com almoço dizia "fechado", e escondia os pacientes
+
+Relatado no dia seguinte: a secretária terminou de preencher as vagas de
+13/10 e o dia virou **"fechado"** no calendário — com os oito
+agendamentos invisíveis.
+
+Os dados estavam certos o tempo todo: 15 células, 8 agendamentos,
+nenhum bloqueio de data tocando o dia. Quem mentia era o rótulo. Em
+`scheduling/views.py`:
+
+```python
+'blocked': bool(counts.get('blocked')) and not counts.get('free'),
+```
+
+Isso valia **enquanto a única coisa que bloqueava célula era exceção de
+data**: feriado e férias tomam o dia inteiro, então "tem bloqueio e não
+sobrou vaga" e "o dia está fechado" eram a mesma frase. O intervalo
+semanal quebrou a equivalência — ele bloqueia **uma** célula.
+
+| Dia | blocked | free | rótulo antigo |
+| --- | --- | --- | --- |
+| terça com almoço, vazia | 1 | 14 | "14 livres" ✓ |
+| terça com almoço, **lotada** | 1 | 0 | **"fechado"** ✗ |
+
+E o pior não era o rótulo: o ramo `{% elif day.blocked %}` do template
+**não alcança** a parte que lista os pacientes. O dia cheio aparecia
+vazio.
+
+Agora "fechado" é `blocked == total` — o dia inteiro bloqueado, e nada
+menos. Um dia parcialmente bloqueado e cheio diz "encerrado" e mostra
+quem está marcado.
+
+O roteiro cobra os **dois** sentidos, e o segundo importa tanto quanto:
+um dia inteiro tomado por bloqueio de data continua dizendo "fechado".
+Ele reproduz o defeito num dia **vencido** com intervalo — ali `free` é
+sempre zero, que é metade da condição antiga —, sem precisar lotar uma
+agenda.
+
+### E um quinto, que a bateria achou sozinha
 
 O roteiro novo apagava regras da grade do médico de demonstração para
 montar os cenários e **não as devolvia**. `check_mes_e_estatisticas`,
