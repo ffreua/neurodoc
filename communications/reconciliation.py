@@ -33,7 +33,10 @@ def _schedule_next_or_give_up(delivery, poll_count):
 #: nos. Conferido contra a conta real em 2026-10-06 -- ate entao este
 #: modulo so conhecia formas "documentadas publicamente", e nenhuma delas
 #: era a que o provedor manda.
-_DLR_ENTREGUE = {'RECEBIDA', 'ENTREGUE', 'DELIVERED'}
+#: `CLICADA` e prova mais forte que `RECEBIDA`: o destinatario abriu o
+#: link que ia na mensagem. `ENVIADA` nao entra -- e saiu daqui e
+#: ainda nao se sabe se chegou, que e o que `unknown` quer dizer.
+_DLR_ENTREGUE = {'RECEBIDA', 'ENTREGUE', 'DELIVERED', 'CLICADA'}
 _DLR_FALHOU = {'NAO RECEBIDA', 'NÃO RECEBIDA', 'ERRO', 'REJEITADO', 'FAILED',
                'NUMERO INVALIDO', 'NÚMERO INVÁLIDO', 'EXPIRADA'}
 

@@ -283,6 +283,13 @@ confere(_extract_situacao(
     [{'situacao': 'OK', 'id': '1', 'descricao': 'NAO RECEBIDA'}], '1') == 'failed',
     'nao recebida e lida como falha')
 
+# `CLICADA` e prova mais forte que `RECEBIDA`: o destinatario abriu o
+# link. Apareceu em 5 das 17 mensagens antigas, e sem isto elas ficariam
+# "sem confirmacao" tendo sido lidas.
+confere(_extract_situacao(
+    [{'situacao': 'OK', 'id': '1', 'descricao': 'CLICADA'}], '1') == 'delivered',
+    'clicada e entrega confirmada')
+
 # Id de outra mensagem nao pode contaminar esta.
 confere(_extract_situacao(RESPOSTA_REAL, '999') == 'unknown',
         'resposta sobre outra mensagem nao e aproveitada')
