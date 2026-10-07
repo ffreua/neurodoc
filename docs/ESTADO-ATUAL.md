@@ -114,6 +114,23 @@ sessão.
 Fechar é separar Traefik e `app` em duas redes. Trabalho aberto, com
 risco de mexer na rede de produção.
 
+### O Postgres tem um patch pendente, e a tag é um alvo móvel
+
+Descoberto em 06/10/2026, ao publicar a 1.7: `postgres:17.11-bookworm` é
+tag **mutável**, e o Docker Hub a republicou — o digest que roda
+(`639ab7ce…`) não é mais o que a tag resolve (`3645570c…`). O deploy
+recusou-se a seguir, com `Infrastructure image changed`, que é o
+comportamento certo: trocar a imagem do banco não é efeito colateral de
+publicar aplicação.
+
+Para publicar, o `.env` da VPS passou a fixar o Postgres pelo digest que
+**já está rodando**. Nada mudou no banco.
+
+**Aberto:** aplicar o rebuild de patch do Postgres numa janela própria,
+com backup conferido antes. E decidir se as outras três imagens de
+infraestrutura passam a ser fixadas por digest no `.env.example` — hoje
+são tags, e tag é alvo móvel.
+
 ### Outras
 
 - **A `LICENSE` diz MIT e o contrato diz o contrário.** A cláusula 16 do
