@@ -141,3 +141,21 @@ def mark_all_read(tenant_id, user):
     return Notification.objects.filter(
         tenant_id=tenant_id, user=user, read_at__isnull=True,
     ).update(read_at=timezone.now())
+
+
+def clear_all(tenant_id, user):
+    """Apaga a caixa desta pessoa nesta clínica. Devolve quantas saíram.
+
+    Apagar, e não esconder com uma coluna nova: aviso é sinal transitório
+    (`retention.py`), e a retenção já apaga a lida em 7 dias e a não lida
+    em 15. "Limpar" é só não esperar o prazo. O fato que originou cada
+    aviso — o pedido do portal, o resultado da IA, a exportação —
+    continua onde está, com a própria fila e o próprio registro; o que
+    sai é o ponteiro.
+
+    Escopo por inquilino e por pessoa, como `mark_all_read`, e pelo mesmo
+    motivo: quem atende em duas clínicas tem duas caixas, e limpar a desta
+    não pode apagar o aviso pendente da outra.
+    """
+    apagadas, _ = Notification.objects.filter(tenant_id=tenant_id, user=user).delete()
+    return apagadas

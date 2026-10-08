@@ -6,7 +6,7 @@ from tenancy.permissions import CapabilityRequiredView
 
 from . import targets
 from .models import Notification
-from .services import mark_all_read, mark_read
+from .services import clear_all, mark_all_read, mark_read
 
 
 class TenantScopedView(CapabilityRequiredView):
@@ -84,6 +84,22 @@ class NotificationMarkAllReadView(TenantScopedView):
             )
         else:
             messages.info(request, 'Não havia notificação não lida.')
+        return redirect('notifications:list')
+
+
+class NotificationClearAllView(TenantScopedView):
+    """Limpa a caixa inteira, lidas e não lidas.
+
+    Só `POST`, e com confirmação na tela (`data-nd-confirm`): é a única
+    ação desta caixa que não se desfaz.
+    """
+
+    def post(self, request):
+        quantas = clear_all(request.access_context.tenant_id, request.user)
+        if quantas:
+            messages.success(request, f'{quantas} notificação(ões) removida(s) da caixa.')
+        else:
+            messages.info(request, 'A caixa já estava vazia.')
         return redirect('notifications:list')
 
 

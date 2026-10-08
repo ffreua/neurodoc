@@ -258,6 +258,68 @@ if alvo_alheio is not None:
     if r.status_code != 404:
         falhas.append(f'um usuario marcou a notificacao de outro (HTTP {r.status_code})')
 
+print()
+print('=' * 66)
+print('8. LIMPAR TODAS')
+print('=' * 66)
+# Apaga lidas e nao lidas desta pessoa nesta clinica -- e nada alem disso.
+# As alheias da secao 6 voltam a ser criadas aqui, porque `marcar todas`
+# ja as conferiu como lidas/nao lidas e o que interessa agora e se
+# continuam EXISTINDO.
+Notification.objects.create(tenant=tenant, user=u_dono, kind='teste',
+                            sanitized_title='Lida, para limpar', read_at=timezone.now())
+Notification.objects.create(tenant=tenant, user=u_dono, kind='teste',
+                            sanitized_title='Nao lida, para limpar')
+pedido_antes = DocumentRequest.objects.filter(id__in=criados['pedidos']).count()
+minhas = Notification.objects.filter(tenant=tenant, user=u_dono).count()
+
+r = dono.get('/app/notifications/limpar/')
+print('  GET em limpar ->', r.status_code)
+if r.status_code != 405:
+    falhas.append(f'limpar aceitou GET (HTTP {r.status_code}) -- pre-carga apagaria a caixa')
+if Notification.objects.filter(tenant=tenant, user=u_dono).count() != minhas:
+    falhas.append('um GET apagou notificacoes')
+
+r = dono.post('/app/notifications/limpar/', follow=True)
+print(f'  {minhas} na caixa ->', note(r))
+sobrou = Notification.objects.filter(tenant=tenant, user=u_dono).count()
+print('  sobrou na caixa do medico na clinica A ->', sobrou)
+if sobrou:
+    falhas.append(f'{sobrou} notificacao(oes) ficaram depois de limpar')
+if str(minhas) not in note(r):
+    falhas.append('a confirmacao nao diz quantas sairam')
+print('  a da clinica B continua existindo ->',
+      Notification.objects.filter(id=alheia_clinica.id).exists())
+print('  a da secretaria continua existindo ->',
+      Notification.objects.filter(id=alheia_pessoa.id).exists())
+if not Notification.objects.filter(id=alheia_clinica.id).exists():
+    falhas.append('"limpar" apagou a caixa da outra clinica')
+if not Notification.objects.filter(id=alheia_pessoa.id).exists():
+    falhas.append('"limpar" apagou a caixa de outra pessoa')
+if DocumentRequest.objects.filter(id__in=criados['pedidos']).count() != pedido_antes:
+    falhas.append('limpar a caixa apagou o pedido do portal que o aviso apontava')
+print('  o pedido do portal continua na fila ->',
+      DocumentRequest.objects.filter(id__in=criados['pedidos']).count() == pedido_antes)
+
+r = dono.post('/app/notifications/limpar/', follow=True)
+print('  com a caixa vazia ->', note(r))
+if 'vazia' not in note(r):
+    falhas.append('limpar a caixa vazia nao diz que ja estava vazia')
+
+# Os dois botoes pedem confirmacao, e pelo atributo -- `onclick` seria
+# barrado pela politica de conteudo.
+Notification.objects.create(tenant=tenant, user=u_dono, kind='teste',
+                            sanitized_title='Para o botao aparecer')
+pagina = dono.get('/app/notifications/').content.decode()
+botoes = pagina.count('action="/app/notifications/limpar/"')
+confirmados = pagina.count('data-nd-confirm="Limpar todas as notificações')
+print(f'  botoes de limpar na pagina (central + sino) -> {botoes}, com confirmacao -> {confirmados}')
+if botoes != 2:
+    falhas.append(f'esperava o botao na central e no sino, achei {botoes}')
+if confirmados != botoes:
+    falhas.append('botao de limpar sem confirmacao')
+Notification.objects.filter(tenant=tenant, user=u_dono, kind='teste').delete()
+
 # ---------------------------------------------------------------- limpeza
 Notification.objects.filter(id__in=criados['avisos']).delete()
 Notification.objects.filter(target_id__in=criados['pedidos']).delete()

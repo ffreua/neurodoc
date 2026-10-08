@@ -63,6 +63,9 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
+#: A **1.11** acrescenta "limpar todas" à caixa de notificações, no sino e
+#: na central. Funcionalidade compatível, casa menor.
+#:
 #: A **1.10** é da recepção: o tipo de um horário marcado passa a se
 #: trocar no próprio modal da agenda, antes da chegada e sem mexer no
 #: horário. Entra junto a recusa de CRM já registrado em outra conta, que
@@ -101,12 +104,12 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.10'
+VERSION = '1.11'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a recepção'
+CODENAME = 'a caixa limpa'
 
 
 def version_display():

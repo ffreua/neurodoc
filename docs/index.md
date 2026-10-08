@@ -334,9 +334,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 - [Versionamento do produto](operations/versionamento.md) — versão exibida
   na interface, diferença para o SHA da release e regra de incremento
-  (versão atual: 1.10).
+  (versão atual: 1.11).
 - [Registro de releases](releases/README.md) — um arquivo por versão
-  publicada (PRD §18.6), da 1.0 à 1.10, com SHA, gates de homologação,
+  publicada (PRD §18.6), da 1.0 à 1.11, com SHA, gates de homologação,
   mudança de schema e rollback.
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/
   H-21/H-22 e revisão de H-03) com duas clínicas fictícias; P-02/P-05/P-06/

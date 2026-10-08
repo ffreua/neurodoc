@@ -92,7 +92,18 @@
                                 <button type="submit" class="btn btn-link p-0 fs-11 text-muted">Marcar todas</button>
                             </form>
                             {% endif %}
-                            <a class="fs-11 text-success text-end {% if not nd_unread_notifications %}ms-auto{% endif %}" href="{% url 'notifications:list' %}">
+                            {% comment %}"Limpar" ao lado, pelo mesmo motivo — e com
+                            confirmação, porque é a única ação do sino que não
+                            se desfaz.{% endcomment %}
+                            {% if nd_recent_notifications %}
+                            <form method="post" action="{% url 'notifications:clear-all' %}"
+                                  class="{% if not nd_unread_notifications %}ms-auto {% endif %}me-2"
+                                  data-nd-confirm="Limpar todas as notificações desta clínica? Elas saem da caixa e não voltam. O que elas apontavam — pedidos do portal, resultados, exportações — continua onde está.">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-link p-0 fs-11 text-danger">Limpar</button>
+                            </form>
+                            {% endif %}
+                            <a class="fs-11 text-success text-end {% if not nd_unread_notifications and not nd_recent_notifications %}ms-auto{% endif %}" href="{% url 'notifications:list' %}">
                                 <span>Ver todas</span>
                             </a>
                         </div>

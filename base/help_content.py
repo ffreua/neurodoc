@@ -530,10 +530,16 @@ ARTICLES = [
              'faria cinco avisos de hoje esconderem o pendente de ontem — que é '
              'justamente o que ainda precisa de alguém.',
              'notificacoes-lista.png', 'Central de notificações'),
-            ('Notificação **não carrega conteúdo clínico**: ela diz que algo aconteceu e '
-             'leva até lá. O título não traz nome de paciente nem trecho de prontuário, '
-             'porque ele aparece numa tela que outra pessoa pode estar vendo por cima do '
-             'seu ombro.',
+            ('Notificação **não carrega conteúdo clínico**: ela diz que algo aconteceu, '
+             'de quem se trata — nome e número do prontuário — e leva até lá. Trecho de '
+             'prontuário nunca entra, porque o sino aparece numa tela que outra pessoa '
+             'pode estar vendo por cima do seu ombro.',
+             '', ''),
+            ('**Limpar** (no sino) e **Limpar todas** (na central) tiram todos os avisos '
+             'da sua caixa nesta clínica, lidos e não lidos, depois de uma confirmação. '
+             'Não volta — mas o que eles apontavam continua onde está: o pedido do '
+             'portal segue na fila, o resultado da IA e a exportação seguem abertos. '
+             'Sem limpar, os lidos saem sozinhos em 7 dias e os não lidos em 15.',
              '', ''),
         ],
     },
