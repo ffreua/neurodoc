@@ -323,39 +323,26 @@ está em `docs/operations/` e em `checks/`.
 
 ## O que está aberto
 
-Lista completa e com dono em [`docs/decisions.md`](docs/decisions.md) e
-[`docs/ESTADO-ATUAL.md`](docs/ESTADO-ATUAL.md) §3. Os que mudam decisão de
-quem for mexer no código:
-
-- **O processo `app` tem saída para a internet.** `neurodoc_v1_internal` é
-  `internal: true`, mas o `app` está também em `traefik_public`, que não é.
-  O isolamento que o desenho pretendia nunca existiu. Fechar é separar
-  Traefik e `app` em duas redes.
-- **A chave estrangeira composta está em dois apps**, `clinical` e
-  `teamchat` — não em todos. Nos demais, o que separa as clínicas é o
-  filtro por inquilino em cada consulta, sem a rede embaixo.
-- **O Postgres tem um patch pendente.** A tag `postgres:17.11-bookworm`
-  foi republicada no Docker Hub; a VPS fixa o banco pelo digest que já
-  roda, e o rebuild de patch fica para janela própria, com backup
-  conferido antes (ver `docs/ESTADO-ATUAL.md` §3).
-- **A `LICENSE` diz MIT e o contrato diz o contrário.** A cláusula 16 do
-  contrato de adesão — redigida por advogada — afirma que o código-fonte
-  pertence ao contratado e que o contrato "não transfere sua propriedade
-  intelectual". Um arquivo MIT na árvore concede a qualquer um o direito de
-  copiar, modificar, distribuir e sublicenciar. Enquanto o repositório é
-  privado nada foi concedido a ninguém, mas a contradição vira real no dia
-  em que o código for compartilhado com um terceiro. Trocar por uma nota
-  proprietária é decisão do titular, não da máquina — por isso está aqui e
-  não foi feito.
-- **P-02** (VPS real) e **P-05** (certificado ICP-Brasil real) seguem em
-  `docs/decisions.md`; **P-09** (enquadramento regulatório do apoio
-  diagnóstico) bloqueia M3.
+Não se repete aqui, de propósito: lista copiada envelhece e passa a
+discordar do original. O retrato está em
+[`docs/ESTADO-ATUAL.md`](docs/ESTADO-ATUAL.md) §3, e as pendências com dono
+e condição de liberação em [`docs/decisions.md`](docs/decisions.md). Antes
+de mexer em rede, em isolamento entre clínicas ou na imagem do banco, leia
+os dois.
 
 ---
 
 ## Licença e titularidade
 
-`LICENSE` (MIT) · © 2026 Fernando Freua — ver a ressalva acima.
+`LICENSE` (MIT) · © 2026 Fernando Freua.
+
+**A `LICENSE` contradiz o contrato.** A cláusula 16 do contrato de adesão
+afirma que o código-fonte pertence ao contratado e que o contrato "não
+transfere sua propriedade intelectual"; um arquivo MIT concede a qualquer
+um o direito de copiar, modificar, distribuir e sublicenciar. Com o
+repositório privado nada foi concedido a ninguém, mas a contradição vira
+real no dia em que o código for compartilhado com um terceiro. Trocar por
+uma nota proprietária é decisão do titular.
 
 O contrato de adesão que vale para quem usa o produto está em
 [`tenancy/contract.py`](tenancy/contract.py), redigido pela **Dra. Karina

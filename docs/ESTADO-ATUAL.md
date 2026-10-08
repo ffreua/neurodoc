@@ -139,8 +139,6 @@ são tags, e tag é alvo móvel.
   sublicenciar. Com o repositório privado, nada foi concedido a ninguém — a
   contradição vira real no dia em que o código for para um terceiro.
   Trocar por nota proprietária é decisão do titular.
-- **P-02** (VPS real) e **P-05** (certificado real) seguem como estão em
-  `docs/decisions.md`.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada

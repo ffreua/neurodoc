@@ -671,8 +671,9 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
   de adesão da advogada (§9) é o instrumento do art. 39, e o §6 registra a
   decisão do controlador de que nada ali bloqueia a operação.
 - `docs/decisions.md` — decisões e pendências com dono e condição de
-  liberação (P-02 VPS real e P-05 certificado real permanecem abertas;
-  P-08 foi encerrada com a retirada da captura local; P-06 e P-07 foram resolvidas em
+  liberação (P-02 VPS real e P-05 certificado real foram encerradas —
+  a produção está no ar e o certificado A1 real assina; P-09 e P-11
+  seguem abertas; P-08 foi encerrada com a retirada da captura local; P-06 e P-07 foram resolvidas em
   2026-09-21 — a primeira pelo contrato de adesão da advogada, a segunda
   por decisão de escopo sobre o SNCR).
 - `docs/specs/2026-09-12-planos-e-limites.md` — as dez decisões de plano,
