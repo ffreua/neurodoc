@@ -15,7 +15,26 @@ release, preencher, **commitar** e só então ligar a flag. Preflight recusa
 repositório com mudança rastreada não commitada, então o registro entra na
 mesma árvore que vai ao ar.
 
-A versão de produto segue `docs/operations/versionamento.md`. Esta
-consolidação permanece em 1.0; a próxima atualização funcional começa em
-1.1. O SHA continua mudando em toda publicação, mesmo quando `VERSION` não
-muda.
+A versão de produto segue `docs/operations/versionamento.md`. A versão
+atual é a **1.8.3**. O SHA continua mudando em toda publicação, mesmo
+quando `VERSION` não muda.
+
+## O que há aqui
+
+Os registros levam o nome da versão (`1.8-…md`). Os quatro arquivos
+nomeados por SHA são builds da **1.0**, de 25 a 28/09/2026, assinados na
+VPS a partir do molde por `scripts/setup_deploy.sh` e trazidos para o
+repositório depois. As correções de
+terceira casa ficam no arquivo da versão menor a que pertencem — a 1.7.1
+dentro da 1.7, as 1.8.1 a 1.8.3 dentro da 1.8 — e ganham arquivo próprio
+quando pedem homologação própria, como a 1.6.1 e a 1.6.2.
+
+| Versão | Registro |
+| --- | --- |
+| 1.0 | [`1.0-PRIMEIRO-DEPLOY.md`](1.0-PRIMEIRO-DEPLOY.md), e os builds [`a9172d3`](a9172d3e91d3f5dc11d4aa4ca914861b9c2807e6.md), [`015521f`](015521f54ab35dee1082dcec3e06c55d1b78ff74.md), [`83ff236`](83ff236514bd1f950164a156f850681488d9583f.md) e [`cb78c29`](cb78c299097336e2ea4ea01ca67fc2e4854d12ef.md) |
+| 1.1 | [`1.1-SEGUIMENTO.md`](1.1-SEGUIMENTO.md) |
+| 1.6 | [`1.6-o-que-a-tela-nao-mostrava.md`](1.6-o-que-a-tela-nao-mostrava.md) |
+| 1.6.1 | [`1.6.1-logotipo-por-organizacao.md`](1.6.1-logotipo-por-organizacao.md) |
+| 1.6.2 | [`1.6.2-leitura-de-laudo.md`](1.6.2-leitura-de-laudo.md) |
+| 1.7 e 1.7.1 | [`1.7-padrao-da-instalacao.md`](1.7-padrao-da-instalacao.md) |
+| 1.8 a 1.8.3 | [`1.8-o-que-faltava-para-vender.md`](1.8-o-que-faltava-para-vender.md) |

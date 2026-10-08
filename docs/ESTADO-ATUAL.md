@@ -140,18 +140,13 @@ são tags, e tag é alvo móvel.
   sublicenciar. Com o repositório privado, nada foi concedido a ninguém — a
   contradição vira real no dia em que o código for para um terceiro.
   Trocar por nota proprietária é decisão do titular.
-- **Registro de release ausente para 1.2 a 1.5.** A seção 18.6 do PRD pede
-  um arquivo em `docs/releases/` por release publicada, **antes** de ligar
-  `NEURODOC_RELEASE_APPROVED`. Existem 1.0, 1.1 e 1.6. O
-  `scripts/setup_deploy.sh` cria um `<sha>.md` do molde na VPS e ninguém o
-  commitou.
 - **P-02** (VPS real) e **P-05** (certificado real) seguem como estão em
   `docs/decisions.md`.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
   deploy.
-- O `CLAUDE.md` lista 44 dos 90 roteiros ("os mais relevantes") e 4 views
+- O `CLAUDE.md` lista parte dos 96 roteiros ("os mais relevantes") e 4 views
   de catálogo têm `required_capability = None` sem o comentário que a
   convenção exige.
 

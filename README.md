@@ -11,7 +11,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.6 "o que a tela não mostrava" (`base/version.py`) |
+| **Versão do produto** | 1.8.3 "o que faltava para vender" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Verificação** | 96 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
@@ -65,13 +65,10 @@ o defeito.
 Cada release publicada deve ter um registro em
 [`docs/releases/`](docs/releases/) com SHA, evidência de homologação e
 responsável — é a seção 18.6 do PRD, e a ordem importa: o registro entra
-**antes** de `NEURODOC_RELEASE_APPROVED=True`.
-
-> **Lacuna conhecida:** há registro de 1.0, 1.1, 1.6, 1.6.1, 1.6.2, 1.7, 1.7.1, 1.8, 1.8.1, 1.8.2 e 1.8.3; as versões 1.2 a 1.5
-> foram publicadas sem o arquivo correspondente. `scripts/setup_deploy.sh`
-> cria um `docs/releases/<sha>.md` a partir do molde **na VPS**, e ninguém
-> o commitou. Preencher é ato do responsável técnico, não da máquina — por
-> isso está anotado aqui em vez de inventado.
+**antes** de `NEURODOC_RELEASE_APPROVED=True`. As correções de terceira
+casa (1.6.1, 1.7.1, 1.8.1…) são registradas no arquivo da versão menor a
+que pertencem, ou em arquivo próprio quando a correção pede a sua própria
+homologação.
 
 ---
 
@@ -81,8 +78,10 @@ responsável — é a seção 18.6 do PRD, e a ordem importa: o registro entra
 livre —, roteiro de exame neurológico em árvore (387 nós, YAML), 14 escalas
 pontuadas, medicações, hipóteses em CID-10, resultados de exame com valores
 laboratoriais, cópia revisada da consulta anterior, série temporal em
-gráfico, busca de paciente por diagnóstico. Prontuário finalizado é
-imutável: correção é **adendo**, com autor e data, nos dois tipos.
+gráfico, busca de paciente por diagnóstico. Durante o atendimento, os
+dados de cadastro ficam numa **gaveta** (`Alt+D`), sem sair da evolução.
+Prontuário finalizado é imutável: correção é **adendo**, com autor e data,
+nos dois tipos.
 
 **Documentos.** Receita simples e de controle especial (duas vias, quadro
 da Portaria 344/98), laudo, atestado, declaração de comparecimento, pedido
@@ -91,16 +90,29 @@ próprio médico e verificáveis publicamente por QR, sem conta. Catálogo
 CMED/Anvisa com 26 mil apresentações no autocomplete.
 
 **Operação do consultório.** Agenda por médico com regras de
-disponibilidade, bloqueios, feriados e retorno programado; portal público
-onde o paciente pede receita sem criar conta; outbox de entrega por e-mail
-e SMS com links opacos e OTP; convênios, honorários com vigência,
+disponibilidade, **intervalos pontuais** (o almoço), bloqueios, feriados e
+retorno programado; **aviso automático** ao paciente ao marcar, remarcar e
+cancelar, com o endereço e o telefone da clínica; cadastro com
+**naturalidade** (5.571 municípios do IBGE no autocomplete); portal
+público onde o paciente pede receita sem criar conta; outbox de entrega
+por e-mail e SMS com links opacos, OTP e confirmação de entrega lida do
+provedor; convênios, honorários com vigência,
 recebíveis e pagamentos (tudo em `Decimal`); exportação do acervo em
 Markdown e JSON.
 
 **IA.** Jobs com revisão médica obrigatória, desidentificação local antes
 de sair, chat persistente com streaming (Redis Streams + SSE), catálogo de
-dez provedores e a possibilidade de a clínica apontar o próprio contrato. O
-apoio clínico é recurso de plano, vetado em duas camadas independentes.
+dez provedores e a possibilidade de a clínica apontar o próprio contrato.
+O **provedor padrão** da instalação é trocado no console, com verificação
+de que o modelo ainda existe. Relatório do paciente redigido pela IA e
+assinado pelo médico; leitura de laudo anexado com a forma normalizada e
+o conteúdo sob guarda. O apoio clínico é recurso de plano, vetado em duas
+camadas independentes.
+
+**O que é da clínica.** E-mail, SMS e IA seguem a mesma cadeia — a clínica
+que configurou o seu usa o seu; a que desligou volta ao padrão da
+instalação. O nome fantasia é editado pela própria clínica; razão social e
+CNPJ continuam vindo do convite.
 
 **Plataforma.** Multi-inquilino com três camadas de autorização, trilha de
 auditoria imutável, backup cifrado com `age` e cópia externa, console de
@@ -150,18 +162,18 @@ No banco, o isolamento é reforçado por chave estrangeira composta
 | `base` | primitivas (`TenantModel`, cripto, logging com redação), página de vendas, central de ajuda e **SEO** (`seo.py`) |
 | `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, CRM do médico |
 | `tenancy` | `Tenant`, `Membership`, convites, leads, **planos, limites, matriz de permissão e contrato de adesão** |
-| `patients` | ficha, contatos, convênio, numeração por clínica, forma canônica do nome, migração de cadastro |
-| `catalogs` | CID-10, TUSS, CMED/Anvisa, CEP |
+| `patients` | ficha, contatos, convênio, numeração por clínica, naturalidade, forma canônica do nome, migração de cadastro |
+| `catalogs` | CID-10, TUSS, CMED/Anvisa, municípios do IBGE, CEP |
 | `clinical` | atendimento nos dois tipos, exame, diagnósticos, medicações, adendo, cópia da consulta anterior, série temporal |
 | `exams` | motor do roteiro em árvore e as 14 escalas |
-| `scheduling` | agenda, disponibilidade, bloqueios, retorno programado, declaração, estatísticas |
+| `scheduling` | agenda, disponibilidade, intervalos pontuais, bloqueios, retorno programado, declaração, estatísticas |
 | `documents` | anexos com antivírus, documentos médicos, assinatura PAdES, QR público, portal de solicitações, OCR |
-| `communications` | outbox, links opacos com OTP, campanhas com consentimento, credenciais da clínica |
+| `communications` | outbox, links opacos com OTP, aviso de horário, campanhas com consentimento, credenciais da clínica |
 | `finance` | honorários com vigência, recebíveis, pagamentos, ajustes |
-| `ai` | jobs com revisão médica, desidentificação, chat com streaming, relatório do paciente |
+| `ai` | jobs com revisão médica, desidentificação, chat com streaming, relatório do paciente, leitura de laudo |
 | `notifications` · `teamchat` | sino do usuário · mensagens internas da equipe |
 | `audit` · `events` | trilha imutável · outbox de eventos com dispatcher idempotente |
-| `reporting` · `integrations` · `ops` | indicadores e exportação · antivírus/CEP/TUSS · deploy, backup, saúde, console |
+| `reporting` · `integrations` · `ops` | indicadores e exportação · antivírus/CEP/TUSS · deploy, backup, saúde, console (com as chaves de **Operação**) |
 
 O detalhe de cada decisão está em [`CLAUDE.md`](CLAUDE.md) §4 e no
 [`PRD.md`](PRD.md).
@@ -175,6 +187,7 @@ python -m ops.local_compose     # gera compose.yml e os env_files a partir do .e
 docker compose up -d --build    # o próprio `app` migra na subida
 docker compose exec app python manage.py seed_demo
 docker compose exec celery_worker python manage.py import_cmed
+docker compose exec celery_worker python manage.py import_municipios
 ```
 
 - App em `http://localhost:8000`, via Traefik em `:8080`, caixa de e-mail do
@@ -188,11 +201,14 @@ docker compose exec celery_worker python manage.py import_cmed
 - Segredos ficam em `.secrets/<NOME>`, um arquivo por segredo. `.env` não é
   versionado; `.env.example` é o molde.
 - `import_cmed` não vem da semeadura e baixa ~12 MB da Anvisa. Sem ele,
-  `check_receitas` reprova numa instalação nova.
+  `check_receitas` reprova numa instalação nova. `import_municipios` traz
+  os municípios do IBGE para a naturalidade; sem ele o autocomplete fica
+  mudo e o campo continua aceitando texto livre.
 
 Comandos úteis: `seed_demo`, `issue_platform_invitation`,
-`create_superadmin`, `install_exam_template`, `import_catalog`, `sync_tuss`,
-`import_cmed`, `testar_email`, `prepare_recovery`, `verify_physician`.
+`import_municipios`, `create_superadmin`, `install_exam_template`,
+`import_catalog`, `sync_tuss`, `import_cmed`, `testar_email`,
+`prepare_recovery`, `verify_physician`.
 
 ---
 
@@ -318,7 +334,10 @@ quem for mexer no código:
 - **A chave estrangeira composta está em dois apps**, `clinical` e
   `teamchat` — não em todos. Nos demais, o que separa as clínicas é o
   filtro por inquilino em cada consulta, sem a rede embaixo.
-- **Registro de release ausente para 1.2 a 1.5** (ver acima).
+- **O Postgres tem um patch pendente.** A tag `postgres:17.11-bookworm`
+  foi republicada no Docker Hub; a VPS fixa o banco pelo digest que já
+  roda, e o rebuild de patch fica para janela própria, com backup
+  conferido antes (ver `docs/ESTADO-ATUAL.md` §3).
 - **A `LICENSE` diz MIT e o contrato diz o contrário.** A cláusula 16 do
   contrato de adesão — redigida por advogada — afirma que o código-fonte
   pertence ao contratado e que o contrato "não transfere sua propriedade
