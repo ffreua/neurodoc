@@ -158,6 +158,11 @@ def _booking_context(doctor, day):
         'slot_minutes': step,
         'booking_form': QuickBookingForm(),
         'change_form': ChangePatientForm(),
+        # Para trocar o tipo de um horário já marcado. Sem minutos, de
+        # propósito: trocar o tipo não muda a duração (ver
+        # `services.change_appointment_type`), e mostrar "80 min" ao lado
+        # faria supor que muda.
+        'type_choices': AppointmentType.choices,
     }
 
 
@@ -847,6 +852,32 @@ class ChangePatientView(TenantScopedView):
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
         messages.success(request, f'Horário agora é de {patient.full_name}.')
+        return _agenda_redirect(request, doctor, day)
+
+
+class ChangeAppointmentTypeView(TenantScopedView):
+    """Trocar o tipo do horário marcado, a partir do modal da agenda."""
+
+    def post(self, request, appointment_id):
+        from .models import Appointment
+
+        appointment = get_object_or_404(
+            scope_to_tenant(Appointment.objects.all(), request.access_context), id=appointment_id,
+        )
+        day = timezone.localtime(appointment.starts_at).date()
+        doctor = appointment.physician_membership
+        try:
+            services.change_appointment_type(
+                request.access_context, appointment,
+                request.POST.get('appointment_type', ''), request.user.id,
+            )
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        messages.success(
+            request,
+            f'Tipo alterado para {appointment.get_type_display()}. O horário continua o mesmo.',
+        )
         return _agenda_redirect(request, doctor, day)
 
 

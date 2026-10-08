@@ -74,6 +74,12 @@ urlpatterns = [
         '<uuid:appointment_id>/trocar-paciente/',
         views.ChangePatientView.as_view(), name='change-patient',
     ),
+    # Antes da rota genérica `<action>` logo abaixo: depois dela, "tipo"
+    # seria lido como uma ação desconhecida e daria 404.
+    path(
+        '<uuid:appointment_id>/tipo/',
+        views.ChangeAppointmentTypeView.as_view(), name='change-type',
+    ),
     path(
         '<uuid:appointment_id>/confirmar-por/<str:channel>/',
         views.SendConfirmationView.as_view(), name='send-confirmation',

@@ -11,9 +11,9 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.9 "o e-mail da clínica" (`base/version.py`) |
+| **Versão do produto** | 1.10 "a recepção" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
-| **Verificação** | 97 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 99 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
 | **Repositório** | privado |
 
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.10** | 2026-10-08 | a recepção | O **tipo de consulta** de um horário marcado passa a ser trocado no próprio modal da agenda (clicando no rótulo ou em "Alterar o tipo de consulta"), só antes da chegada, porque no check-in o tipo define o preço da cobrança, e sem mexer no horário. O **CRM já registrado em outra conta** deixa de ser recusado em inglês ("Physician profile com este Crm number...") e passa a dizer o caminho: convidar a conta onde o registro está. A unicidade do CRM continua, e é ela que impede alguém de assinar no nome de outro médico. |
 | **1.9** | 2026-10-08 | o e-mail da clínica | **Comunicação em massa em todos os planos**, saindo só pelo servidor SMTP da própria clínica. Antes bastava o remetente ativo, e remetente sem servidor saía pelo SMTP da instalação, que entrega a confirmação de conta de todas as clínicas. Sem servidor próprio, a área explica o que falta e não envia, e o envio que perde o servidor no meio pausa. A página de vendas passa a dizer que o Gratuito se comunica por e-mail, pelo NeuroDoc ou pelo servidor da clínica. |
 | **1.8.3** | 2026-10-07 | o que faltava para vender | **Aviso de horário não nasce de evento velho.** Ao entrar no ar, o consumidor novo encontrou 48 eventos de agendamento que estavam pendentes desde sempre — porque ninguém consumia aquele tópico — e avisou sobre todos: dez e-mails de madrugada sobre consultas já realizadas ou canceladas, quatro deles a pacientes reais. Agora o aviso ignora evento com mais de 6 h, consulta que já aconteceu, e fato que o estado atual contradiz. |
 | **1.8.2** | 2026-10-07 | o que faltava para vender | O dia da agenda com **intervalo de almoço** passava a dizer "fechado" assim que a última vaga era preenchida — e os pacientes já marcados sumiam da visão de mês. O rótulo saía de "há célula bloqueada e nenhuma livre", o que valia quando só feriado bloqueava célula; o almoço bloqueia uma. Agora "fechado" é o dia **inteiro** bloqueado, e nada menos. |

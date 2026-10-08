@@ -144,6 +144,10 @@
         var smsForm = document.getElementById('slot-sms-form');
         var emailForm = document.getElementById('slot-email-form');
         var contactHint = document.getElementById('slot-contact-hint');
+        var typePanel = document.getElementById('slot-type-panel');
+        var typeForm = document.getElementById('slot-type-form');
+        var typeSelect = document.getElementById('slot-type-select');
+        var typeOpen = document.getElementById('slot-type-open');
 
         var STATUS_TONE = {
             scheduled: 'bg-soft-primary text-primary',
@@ -172,6 +176,8 @@
             confirmForm.action = '/app/scheduling/' + id + '/confirm/';
             cancelForm.action = '/app/scheduling/' + id + '/cancel/';
             changeForm.action = '/app/scheduling/' + id + '/trocar-paciente/';
+            if (typeForm) typeForm.action = '/app/scheduling/' + id + '/tipo/';
+            if (typeSelect) typeSelect.value = cell.getAttribute('data-nd-type-code') || '';
             rescheduleLink.href = '/app/scheduling/' + id + '/remarcar/';
             if (declaracaoLink) {
                 declaracaoLink.href = '/app/scheduling/' + id + '/declaracao/';
@@ -201,20 +207,40 @@
             if (smsForm) smsForm.hidden = !cell.getAttribute('data-nd-phone');
             if (emailForm) emailForm.hidden = !cell.getAttribute('data-nd-email');
 
+            /* Trocar o tipo só antes da chegada: no check-in o tipo define
+             * o preço da cobrança, e o servidor recusa depois disso. */
+            var tipoEditavel = status === 'scheduled' || status === 'confirmed';
+            if (typeOpen) typeOpen.hidden = !tipoEditavel;
+            slotType.disabled = !tipoEditavel;
+            slotType.style.cursor = tipoEditavel ? 'pointer' : 'default';
+
             changePanel.hidden = true;
             cancelPanel.hidden = true;
+            if (typePanel) typePanel.hidden = true;
             changeChosen.textContent = '';
             changePatientId.value = '';
             changeSearch.value = '';
             window.NeuroDoc.openModal(slotModal);
         });
 
+        function toggleTypePanel() {
+            if (!typePanel || slotType.disabled) return;
+            changePanel.hidden = true;
+            cancelPanel.hidden = true;
+            typePanel.hidden = !typePanel.hidden;
+            if (!typePanel.hidden) typeSelect.focus();
+        }
+        slotType.addEventListener('click', toggleTypePanel);
+        if (typeOpen) typeOpen.addEventListener('click', toggleTypePanel);
+
         document.getElementById('slot-change-open').addEventListener('click', function () {
+            if (typePanel) typePanel.hidden = true;
             cancelPanel.hidden = true;
             changePanel.hidden = !changePanel.hidden;
             if (!changePanel.hidden) changeSearch.focus();
         });
         document.getElementById('slot-cancel-open').addEventListener('click', function () {
+            if (typePanel) typePanel.hidden = true;
             changePanel.hidden = true;
             cancelPanel.hidden = !cancelPanel.hidden;
             if (!cancelPanel.hidden) document.getElementById('cancel-reason').focus();

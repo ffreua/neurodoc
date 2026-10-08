@@ -63,6 +63,13 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
+#: A **1.10** é da recepção: o tipo de um horário marcado passa a se
+#: trocar no próprio modal da agenda, antes da chegada e sem mexer no
+#: horário. Entra junto a recusa de CRM já registrado em outra conta, que
+#: saía em inglês e sem dizer o caminho. Funcionalidade compatível, casa
+#: menor. Depois da 1.9 vem a 1.10, e não a 2.0: a casa maior é para o que
+#: quebra, e nada quebrou.
+#:
 #: A **1.9** abre a comunicação em massa a **todos os planos**, com uma
 #: condição que vale para todos: o servidor SMTP da própria clínica.
 #: Funcionalidade nova para o Gratuito e o Básico, e por isso a casa menor.
@@ -94,12 +101,12 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.9'
+VERSION = '1.10'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o e-mail da clínica'
+CODENAME = 'a recepção'
 
 
 def version_display():

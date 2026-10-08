@@ -165,7 +165,12 @@ clicado diz qual horário e qual paciente.
             </div>
             <div class="modal-body">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
-                    <span class="badge bg-gray-200 text-dark" id="slot-type"></span>
+                    {% comment %}O tipo é um botão, e não só um rótulo: é onde a
+                    secretária procura quando ele está errado. Fora de
+                    agendado/confirmado o JS o desliga — depois da chegada o
+                    tipo já definiu a cobrança.{% endcomment %}
+                    <button type="button" class="badge bg-gray-200 text-dark border-0" id="slot-type"
+                            title="Alterar o tipo de consulta"></button>
                     <span class="badge" id="slot-status"></span>
                     <span class="badge bg-soft-warning text-warning" id="slot-preliminary" hidden>
                         Pré-cadastro — completar no check-in
@@ -231,6 +236,9 @@ clicado diz qual horário e qual paciente.
                 </div>
 
                 <div class="d-grid gap-2 mt-3">
+                    <button type="button" class="btn btn-light btn-sm" id="slot-type-open">
+                        Alterar o tipo de consulta
+                    </button>
                     <button type="button" class="btn btn-light btn-sm" id="slot-change-open">
                         Trocar o paciente deste horário
                     </button>
@@ -242,6 +250,24 @@ clicado diz qual horário e qual paciente.
                 {% comment %}Trocar paciente e cancelar abrem aqui mesmo em vez
                 de num terceiro modal: modal sobre modal perde o foco e o Esc
                 fecha o errado.{% endcomment %}
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3" id="slot-type-panel" hidden>
+                    <form method="post" id="slot-type-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <label class="form-label fw-semibold" for="slot-type-select">Tipo de consulta</label>
+                        <select class="form-select form-select-sm" name="appointment_type" id="slot-type-select">
+                            {% for value, label in type_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text fs-11">
+                            O horário continua o mesmo. Se a consulta precisar de mais
+                            tempo, use Remarcar.
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm mt-2" data-nd-busy>Salvar tipo</button>
+                    </form>
+                </div>
+
                 <div class="border rounded-3 p-3 bg-gray-100 mt-3" id="slot-change-panel" hidden>
                     <form method="post" id="slot-change-form" novalidate>
                         {% csrf_token %}

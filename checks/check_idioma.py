@@ -266,6 +266,57 @@ conferir('a recusa do rascunho ja revisado fala portugues',
          'já foi revisado' in revisao, True)
 conferir('e nao fala ingles', 'Artifact already' in revisao, False)
 
+print('\n6. A recusa de duplicidade que o Django monta sozinho')
+# Nenhuma das varreduras acima a via: a frase nao esta escrita em lugar
+# nenhum. O Django a monta na hora, com os nomes do MODELO e dos CAMPOS --
+# e, onde eles nao tem `verbose_name`, os nomes sao os do codigo, em
+# ingles. Foi assim que "Physician profile com este Crm number e Crm state
+# ja existe." chegou a tela da equipe em 2026-10-08.
+#
+# A regra: todo ModelForm que expoe TODOS os campos de uma restricao de
+# unicidade (o unico caso em que o Django a confere no formulario), num
+# modelo sem nome em portugues, sobrescreve `validate_unique` e diz a
+# recusa com as proprias palavras.
+import importlib
+import inspect
+
+from django import forms as dj_forms
+from django.apps import apps
+from django.db import models as dj_models
+from django.utils.text import camel_case_to_spaces
+
+sem_traducao = []
+for cfg in apps.get_app_configs():
+    if not cfg.path.startswith(str(dj_settings.BASE_DIR)) or '.venv' in cfg.path:
+        continue
+    try:
+        modulo = importlib.import_module(f'{cfg.name}.forms')
+    except ModuleNotFoundError:
+        continue
+    for nome, cls in inspect.getmembers(modulo, inspect.isclass):
+        if not issubclass(cls, dj_forms.ModelForm) or cls.__module__ != modulo.__name__:
+            continue
+        model = getattr(getattr(cls, 'Meta', None), 'model', None)
+        if model is None or 'validate_unique' in cls.__dict__:
+            continue
+        if model._meta.verbose_name != camel_case_to_spaces(model.__name__):
+            continue
+        grupos = [tuple(c.fields) for c in model._meta.constraints
+                  if isinstance(c, dj_models.UniqueConstraint) and c.fields]
+        grupos += [tuple(u) for u in model._meta.unique_together]
+        grupos += [(f.name,) for f in model._meta.fields if f.unique and not f.primary_key]
+        for grupo in grupos:
+            if all(campo in cls.base_fields for campo in grupo):
+                sem_traducao.append(f'{cfg.name}.forms.{nome}: {model.__name__} {grupo}')
+for item in sem_traducao:
+    print(f'      {item}')
+conferir('formularios cuja recusa de duplicidade sairia em ingles', len(sem_traducao), 0)
+
+from tenancy.forms import PhysicianProfileForm
+
+conferir('o registro profissional diz a recusa com as proprias palavras',
+         'validate_unique' in PhysicianProfileForm.__dict__, True)
+
 if falhas:
     for item in falhas:
         print('FALHA:', item)

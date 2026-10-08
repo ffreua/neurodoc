@@ -105,11 +105,70 @@ class PhysicianProfileForm(forms.ModelForm):
     def clean_crm_state(self):
         return (self.cleaned_data.get('crm_state') or '').upper()
 
+    def __init__(self, *args, tenant_id=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.tenant_id = tenant_id
+
     def clean_crm_number(self):
         number = (self.cleaned_data.get('crm_number') or '').strip()
         if not number.isdigit():
             raise forms.ValidationError('O CRM é só o número, sem UF nem pontuação.')
         return number
+
+    def validate_unique(self):
+        """CRM já registrado em outra conta: dizer o que fazer, em português.
+
+        O registro profissional é da **pessoa**, e não da clínica: mora na
+        conta (`User`), e uma conta atende em quantas clínicas tiver
+        vínculo. O CRM é único no sistema inteiro, e essa unicidade fica —
+        é ela que impede alguém de abrir uma clínica gratuita, cadastrar o
+        CRM de outro médico, validar a si mesmo (o responsável valida) e
+        assinar documento no nome dele.
+
+        O que estava errado era a recusa. Vinha da restrição do modelo,
+        com os nomes dos campos em inglês ("Physician profile com este Crm
+        number..."), e não dizia o caminho certo, que existe: convidar a
+        conta onde o registro já está. Foi assim que apareceu, em
+        2026-10-08 — o médico abriu uma segunda clínica com outro e-mail e
+        não conseguiu ser médico nela.
+
+        A mensagem **não** diz de quem é a outra conta. CRM é público;
+        o e-mail de quem o tem não é, e a tela seria uma consulta "CRM →
+        e-mail" aberta a qualquer responsável de clínica.
+        """
+        from accounts.models import PhysicianProfile
+
+        number = self.cleaned_data.get('crm_number')
+        state = self.cleaned_data.get('crm_state')
+        if not number or not state:
+            return super().validate_unique()
+        outro = (
+            PhysicianProfile.objects.filter(crm_number=number, crm_state=state)
+            .exclude(pk=self.instance.pk).select_related('user').first()
+        )
+        if outro is None:
+            return super().validate_unique()
+
+        from tenancy.models import Membership, MembershipStatus
+
+        na_equipe = self.tenant_id is not None and Membership.objects.filter(
+            tenant_id=self.tenant_id, user_id=outro.user_id, status=MembershipStatus.ACTIVE,
+        ).exists()
+        if na_equipe:
+            mensagem = (
+                f'O CRM {number}/{state} já está no registro de outra pessoa desta '
+                'equipe. Se é a mesma pessoa, dê o papel de médico ao vínculo dela, '
+                'em "Acesso", em vez de cadastrar o registro de novo.'
+            )
+        else:
+            mensagem = (
+                f'O CRM {number}/{state} já está registrado em outra conta do NeuroDoc. '
+                'Cada médico tem uma conta só, e ela pode atender em várias clínicas: '
+                'se o registro é seu, convide para esta clínica o e-mail da conta onde '
+                'ele está, com o papel de médico, e aceite o convite entrando com '
+                'aquela conta. Se você não reconhece a outra conta, fale com o suporte.'
+            )
+        self.add_error('crm_number', mensagem)
 
 
 class ClinicProfileForm(forms.ModelForm):

@@ -456,7 +456,7 @@ class PhysicianProfileView(OrgAdminView):
         previous_identity = (
             (profile.crm_number, profile.crm_state) if profile is not None else None
         )
-        form = PhysicianProfileForm(request.POST, instance=profile)
+        form = PhysicianProfileForm(request.POST, instance=profile, tenant_id=self.tenant_id)
         if not form.is_valid():
             messages.error(request, next(iter(form.errors.values()))[0])
             return redirect('tenancy:team')

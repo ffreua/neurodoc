@@ -311,6 +311,50 @@ def change_appointment_patient(context, appointment, new_patient, reason, actor_
 
 
 @transaction.atomic
+def change_appointment_type(context, appointment, new_type, actor_id):
+    """Troca o tipo de um horário marcado — primeira consulta, retorno...
+
+    Pedido da recepção: a secretária marca "primeira consulta", o paciente
+    liga dizendo que já veio antes, e o único caminho era cancelar e marcar
+    de novo, perdendo o horário para quem estivesse olhando a agenda.
+
+    **Só antes do check-in.** O tipo decide o preço: é com ele que
+    `finance.receivables` escolhe a linha da tabela de honorários, e a
+    cobrança nasce no check-in. Trocar depois deixaria a cobrança com o
+    preço de um tipo e o agendamento dizendo outro. Depois do check-in, o
+    lugar de corrigir é o financeiro, com ajuste e motivo.
+
+    **O horário não muda.** A duração vem do tipo na hora de marcar, mas
+    trocar o tipo não estica nem encolhe a consulta: esticar podia invadir
+    o horário seguinte, já ocupado, e encolher liberaria uma sobra que
+    ninguém pediu. Quem precisa de mais tempo remarca — remarcar é mudar o
+    quando; isto é mudar o quê.
+    """
+    from .models import AppointmentType
+
+    if appointment.status not in (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED):
+        raise SchedulingError(
+            'Só é possível trocar o tipo de um horário agendado ou confirmado. '
+            'Depois da chegada, o tipo já definiu a cobrança.'
+        )
+    if new_type not in AppointmentType.values:
+        raise SchedulingError('Tipo de atendimento inválido.')
+    previous = appointment.type
+    if previous == new_type:
+        return appointment
+    appointment.type = new_type
+    appointment.row_version += 1
+    appointment.full_clean()
+    appointment.save()
+    record_audit_event(
+        actor_id, context.tenant_id, 'scheduling.appointment_type_changed',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={'previous_type': previous, 'new_type': new_type},
+    )
+    return appointment
+
+
+@transaction.atomic
 def create_block(context, physician_membership, kind, start_at, end_at, reason=''):
     from .models import ScheduleBlock
 

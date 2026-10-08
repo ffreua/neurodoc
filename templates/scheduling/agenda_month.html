@@ -148,6 +148,7 @@ contexto completo.{% endcomment %}
                                             data-nd-when="{{ cell.appointment.starts_at|date:'d/m/Y H:i' }}"
                                             data-nd-until="{{ cell.appointment.ends_at|date:'H:i' }}"
                                             data-nd-type="{{ cell.appointment.get_type_display }}"
+                                            data-nd-type-code="{{ cell.appointment.type }}"
                                             data-nd-status-label="{{ cell.appointment.get_status_display }}"
                                             data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                                             {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
