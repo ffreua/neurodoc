@@ -57,14 +57,27 @@ def client_for(email, t=tenant):
 owner = client_for('doctor-a@demo.neurodoc.local')
 secretary = client_for('secretary-a@demo.neurodoc.local')
 
-# O servidor de e-mail da clinica precisa estar ativo; sem host proprio o
-# envio sai pelo backend em memoria da instalacao.
+# Comunicacao em massa exige o servidor SMTP DA CLINICA (ver
+# `email.clinic_own_server`): remetente ativo sem host sairia pelo servidor
+# da instalacao, e e isso que a regra recusa. O host e ficticio; a conexao
+# que ele abriria e trocada pela caixa em memoria, que e onde este roteiro
+# confere o que saiu.
+from django.core.mail import get_connection
+
+from communications import email as email_mod
+
+_conexao_original = email_mod._connection_for
+email_mod._connection_for = lambda sender: (
+    get_connection('django.core.mail.backends.locmem.EmailBackend')
+    if sender is not None and sender.uses_own_server else None
+)
+
 ms = MessagingSettings.objects.get(tenant=tenant)
-estado_ms = (ms.email_enabled, ms.email_from_name, ms.email_from_address)
+estado_ms = (ms.email_enabled, ms.email_from_name, ms.email_from_address, ms.smtp_host)
 ms.email_enabled = True
 ms.email_from_name = 'Clinica Demo A'
 ms.email_from_address = 'contato@clinica-demo.example.com'
-ms.smtp_host = ''
+ms.smtp_host = 'smtp.clinica-demo.example.com'
 ms.save()
 
 pacientes = list(Patient.objects.filter(tenant=tenant)[:3])
@@ -213,6 +226,20 @@ except marketing.CampaignBlocked as exc:
 ms.email_enabled = True
 ms.save()
 
+print('=== 12b. remetente ativo SEM servidor proprio tambem e recusado ===')
+# O caso que a regra existe para fechar: so o endereco preenchido faz a
+# mensagem sair pelo SMTP da instalacao.
+ms.smtp_host = ''
+ms.save()
+try:
+    marketing.guard(nova)
+    failures.append('aceitou disparar com remetente ativo e sem servidor proprio')
+    print('  ACEITOU (nao deveria)')
+except marketing.CampaignBlocked as exc:
+    print('  ->', str(exc)[:80])
+ms.smtp_host = 'smtp.clinica-demo.example.com'
+ms.save()
+
 print('=== 13. isolamento: a clinica B nao ve a campanha da A ===')
 owner_b = client_for('doctor-a@demo.neurodoc.local', tenant_b)
 body = owner_b.get('/app/org/campanhas/').content.decode()
@@ -240,8 +267,9 @@ for obj in criados:
         MarketingCampaign.objects.filter(id=obj.id).delete()
 MarketingRecipient.objects.filter(contact__in=contatos).delete()
 PatientContact.objects.filter(id__in=[c.id for c in contatos]).delete()
-ms.email_enabled, ms.email_from_name, ms.email_from_address = estado_ms
+ms.email_enabled, ms.email_from_name, ms.email_from_address, ms.smtp_host = estado_ms
 ms.save()
+email_mod._connection_for = _conexao_original
 
 print('---')
 if failures:

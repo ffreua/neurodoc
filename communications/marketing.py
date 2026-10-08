@@ -15,6 +15,15 @@ receber e-mail não é fácil.
 **Ritmo.** Servidor de e-mail derruba conexão e provedor marca domínio como
 spam quando mil mensagens saem de uma vez de um remetente novo. O envio é
 fatiado por minuto, e a campanha volta para a fila até acabar.
+
+**Servidor próprio.** A comunicação em massa só sai pelo servidor SMTP da
+própria clínica, em qualquer plano — nunca pelo da instalação. Não é corte
+comercial: é que a reputação do servidor da instalação é dividida por todas
+as clínicas, e uma campanha que caia em filtro de spam levaria junto a
+confirmação de conta e a recuperação de senha de quem não tem nada com ela.
+Remetente da clínica **sem** servidor não basta, porque sai pelo da
+instalação (ver `email.clinic_own_server`). A exigência é conferida em
+quatro portas: a tela, a guarda do disparo, cada fatia e o próprio envio.
 """
 
 from contextlib import contextmanager
@@ -26,7 +35,7 @@ from django.utils import timezone
 
 from audit.services import record_audit_event
 
-from .email import EmailSendFailed, send_email
+from .email import EmailSendFailed, OwnServerRequired, clinic_own_server, send_email
 from .models import CampaignStatus, MarketingCampaign, MarketingRecipient, RecipientStatus
 
 #: Teto por minuto que a tela aceita. Não é limite técnico do SMTP — é o
@@ -37,6 +46,20 @@ MAX_PER_MINUTE = 120
 
 class CampaignBlocked(Exception):
     """A campanha não pode sair. A mensagem diz o que falta."""
+
+
+#: O que a tela e a guarda dizem quando falta o servidor próprio. Num lugar
+#: só para a recusa do disparo e o aviso da tela não divergirem.
+SEM_SERVIDOR_PROPRIO = (
+    'A comunicação em massa sai apenas pelo servidor de e-mail da própria '
+    'clínica. Cadastre e ative o servidor SMTP da clínica em Integrações → '
+    'SMS e e-mail para criar, testar e disparar campanhas.'
+)
+
+
+def has_own_server(tenant_id):
+    """A clínica pode fazer comunicação em massa? Vale para qualquer plano."""
+    return clinic_own_server(tenant_id) is not None
 
 
 def eligible_contacts(tenant_id):
@@ -175,8 +198,6 @@ def _envio_exclusivo(campaign):
 
 def guard(campaign):
     """Recusa o disparo quando falta algo. Erra para o lado de não enviar."""
-    from .models import MessagingSettings
-
     # `SENDING` saiu da lista. Aceita-lo fazia o segundo clique no botao de
     # disparar agendar uma segunda cadeia de fatias para a mesma campanha.
     # "Retomar" parte de `PAUSED`, entao nada legitimo se perde -- e quem
@@ -187,13 +208,8 @@ def guard(campaign):
         raise CampaignBlocked('Esta campanha já foi concluída ou cancelada.')
     if not campaign.subject.strip() or not campaign.body_text.strip():
         raise CampaignBlocked('Assunto e texto são obrigatórios.')
-    settings_row = MessagingSettings.objects.filter(tenant_id=campaign.tenant_id).first()
-    if settings_row is None or not settings_row.email_enabled or not settings_row.email_from_address:
-        raise CampaignBlocked(
-            'Configure e ative o servidor de e-mail da clínica antes de disparar '
-            'uma campanha. Comunicação em massa por remetente da instalação '
-            'queimaria a reputação de um domínio que não é o da clínica.'
-        )
+    if not has_own_server(campaign.tenant_id):
+        raise CampaignBlocked(SEM_SERVIDOR_PROPRIO)
     if not campaign.recipients.filter(status=RecipientStatus.PENDING).exists():
         raise CampaignBlocked('Nenhum destinatário na fila.')
 
@@ -219,7 +235,32 @@ def send_batch(campaign, limit=None):
         return _enviar_fatia(campaign, limit)
 
 
+def _pausar_sem_servidor(campaign):
+    """Para a campanha cujo servidor próprio sumiu no meio do envio.
+
+    Entre o disparo e a última fatia podem passar horas, e a clínica pode
+    desligar o servidor nesse meio-tempo. Seguir enviando faria o resto da
+    lista sair pelo servidor da instalação — exatamente o que a guarda
+    recusou no disparo. Pausar, e não cancelar: religado o servidor,
+    "retomar" continua de onde parou, sem reenviar a quem já recebeu.
+    """
+    if campaign.status == CampaignStatus.SENDING:
+        campaign.status = CampaignStatus.PAUSED
+        campaign.save(update_fields=['status'])
+        record_audit_event(
+            None, campaign.tenant_id, 'communications.campaign_paused',
+            object_type='marketing_campaign', object_id=campaign.id, outcome='success',
+            integrity_metadata={'motivo': 'sem_servidor_proprio'},
+        )
+
+
 def _enviar_fatia(campaign, limit):
+    if not has_own_server(campaign.tenant_id):
+        _pausar_sem_servidor(campaign)
+        restantes = campaign.recipients.filter(status=RecipientStatus.PENDING).count()
+        return {'enviados': 0, 'falhas': 0, 'pulados': 0, 'restantes': restantes,
+                'sem_servidor_proprio': True}
+
     pendentes = (
         campaign.recipients.filter(status=RecipientStatus.PENDING)
         .select_related('contact')[:limit]
@@ -239,8 +280,13 @@ def _enviar_fatia(campaign, limit):
         try:
             send_email(
                 contact.email, campaign.subject, _body_with_footer(campaign, contact),
-                tenant_id=campaign.tenant_id,
+                tenant_id=campaign.tenant_id, require_own_server=True,
             )
+        except OwnServerRequired:
+            # O servidor sumiu no meio da fatia. O destinatário fica
+            # pendente -- não falhou, não chegou a sair -- e a campanha para.
+            _pausar_sem_servidor(campaign)
+            break
         except EmailSendFailed as exc:
             recipient.status = RecipientStatus.FAILED
             # Classe do erro, não a mensagem crua: ela pode trazer de volta

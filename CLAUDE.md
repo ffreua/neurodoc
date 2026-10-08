@@ -359,6 +359,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_aviso_de_horario.py` | o paciente avisado ao **marcar, remarcar e cancelar**: o `Local` sendo o endereço e não o nome da clínica, o telefone, a falta de endereço declarada em vez de escondida, os três eventos emitidos e consumidos, a idempotência (com volume criado antes, senão passa sobre lista vazia) e o aviso saindo pelo worker |
 | `check_servicos_do_inquilino.py` | **IA, SMS e e-mail: a clínica usa o seu, e desligando volta ao padrão** — nos dois sentidos e nos três serviços, com as duas assimetrias deliberadas (desligar SMS com chave gravada é recusa, não retorno; configuração de IA pela metade cai no padrão em vez de quebrar), o corte por plano vindo antes da chave da clínica, e o **nome fantasia** editável sem que razão social e CNPJ saiam do lugar |
 | `check_provedor_e_sms.py` | o **padrão da instalação**, que só quem não configurou o seu exercita: o provedor de IA vindo do console e não do `.env`, a verificação que acusa modelo aposentado, a chave lida pelo provedor em vigor, 410 virando "repetir não resolve" e 503 virando "tente de novo", a varredura que impede qualquer view de enviar mensagem de dentro da requisição, o canal indisponível que não se disfarça de paciente sem telefone, e o processo `app` continuando **sem** secret de egresso |
+| `check_campanha_servidor_proprio.py` | **campanha só pelo servidor da clínica, em qualquer plano**: ativo sem host não conta, o plano não dá nem tira, as portas da tela recusadas no servidor e não só escondidas, o envio que perde o servidor no meio **pausando** em vez de recuar para a instalação, e o e-mail do dia a dia intacto |
 | `check_logotipo.py` | o logotipo é o da organização **aberta**: o cache do navegador revalidado em vez de guardado por cinco minutos, o validador que carrega o inquilino, a revalidação com o `ETag` da clínica anterior que não pode dar 304, a varredura atrás de `max-age` novo em URL que não distingue o que serve, e nenhum template remendando o cache por conta própria |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
@@ -612,6 +613,19 @@ Duas assimetrias, e as duas são decisão:
 o Gratuito não manda SMS nem com chave própria. **E-mail não é recurso de
 plano**, de propósito: gateá-lo tiraria do Gratuito a verificação de
 conta, a recuperação de senha e a entrega de documento.
+
+**A comunicação em massa é a exceção que não recua.** Campanha está em
+todos os planos e sai **só** pelo servidor SMTP da própria clínica —
+nunca pela cadeia até a instalação. "Servidor próprio" é
+`communications/email.py::clinic_own_server`: configuração ativa **e com
+host**; remetente ativo sem host sai pelo SMTP da instalação e não
+conta. Conferido em quatro portas (a tela, `marketing.guard`, cada
+fatia, que **pausa** se o servidor sumir no meio, e
+`send_email(require_own_server=True)`). O motivo não é comercial: a
+reputação do servidor da instalação é de todas as clínicas, e uma
+campanha em filtro de spam levaria junto a confirmação de conta e a
+recuperação de senha de quem não tem nada com ela.
+`check_campanha_servidor_proprio.py` cobre.
 
 E o que é do inquilino também na identidade: o **nome fantasia**
 (`Tenant.trade_name`) é editado em Identidade da clínica, enquanto razão

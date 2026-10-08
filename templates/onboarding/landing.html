@@ -339,6 +339,13 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                                 <span class="fw-bold text-muted">não incluído</span>
                                 {% endif %}
                             </div>
+                            {% comment %}E-mail em todos os cartões, e igual em todos:
+                            é o que responde a quem lê "SMS não incluído" no
+                            Gratuito e pergunta como o paciente fica sabendo.{% endcomment %}
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">E-mail</span>
+                                <span class="fw-bold text-success">NeuroDoc ou o seu</span>
+                            </div>
                         </div>
 
                         <ul class="nd-tick list-unstyled fs-12 mb-4">
@@ -400,7 +407,7 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
             <div class="col-lg-9">
                 <div class="card border-0 bg-light">
                     <div class="card-body p-4">
-                        <h6 class="fw-bold text-dark mb-3">Sobre a IA clínica e o SMS</h6>
+                        <h6 class="fw-bold text-dark mb-3">Sobre a IA clínica, o SMS e o e-mail</h6>
                         <p class="fs-13 text-muted mb-3">
                             Nos planos <strong>Básico</strong> e acima, o <strong>SMS</strong>
                             funciona desde o primeiro acesso; a <strong>IA clínica</strong>
@@ -416,13 +423,24 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                             É o caminho de quem precisa que os dados trafeguem dentro de
                             um contrato específico.
                         </p>
-                        <p class="fs-12 text-muted mb-0 border-start border-3 ps-3">
+                        <p class="fs-12 text-muted mb-3 border-start border-3 ps-3">
                             No <strong>plano Gratuito</strong>, a IA clínica e o SMS
                             <strong>não estão disponíveis</strong> — nem com chave própria.
                             Todo o resto funciona: prontuário, roteiro de exame, escalas,
-                            agenda, receita e laudo assinados. Os avisos que iriam por SMS
-                            seguem por <strong>e-mail</strong>, inclusive o código de
-                            acesso a documento.
+                            agenda, receita e laudo assinados. A comunicação com o paciente
+                            acontece por <strong>e-mail</strong> — confirmação e aviso de
+                            horário, entrega de documento e o código de acesso a ele —,
+                            saindo pelo <strong>e-mail do NeuroDoc</strong>, sem configurar
+                            nada, ou pelo <strong>servidor de e-mail da sua clínica</strong>
+                            (SMTP), se você cadastrar o seu.
+                        </p>
+                        <p class="fs-12 text-muted mb-0 border-start border-3 ps-3">
+                            <strong>Campanhas por e-mail</strong> — avisos e divulgação para
+                            muitos pacientes de uma vez, só a quem consentiu — estão em
+                            <strong>todos os planos</strong>, inclusive no Gratuito, e saem
+                            sempre pelo <strong>servidor de e-mail da própria clínica</strong>:
+                            basta cadastrá-lo. Envio em massa não sai pelo e-mail do NeuroDoc,
+                            para que a reputação do remetente seja a da clínica que escreve.
                         </p>
                     </div>
                 </div>

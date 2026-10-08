@@ -432,6 +432,31 @@ class ClinicEmailTestView(ManagerRequiredView):
 # --------------------------------------------------------------------------
 # Comunicação em massa
 # --------------------------------------------------------------------------
+#
+# Disponível em qualquer plano, e só com o servidor SMTP da própria clínica
+# (`marketing.has_own_server`). Sem ele, a área **abre** e explica o que
+# falta — 404 esconderia a funcionalidade de quem pode tê-la com um
+# cadastro —, as campanhas antigas continuam legíveis e pausáveis, e o que
+# envia (criar, testar, disparar, retomar) é recusado no servidor, não só
+# escondido no template.
+
+
+def _contexto_servidor(tenant_id):
+    from .marketing import SEM_SERVIDOR_PROPRIO, has_own_server
+
+    return {'own_server': has_own_server(tenant_id),
+            'own_server_message': SEM_SERVIDOR_PROPRIO}
+
+
+def _recusa_sem_servidor(request, destino='messaging:campaigns', **kwargs):
+    """Devolve o redirecionamento da recusa, ou `None` se pode seguir."""
+    from .marketing import SEM_SERVIDOR_PROPRIO, has_own_server
+
+    if has_own_server(request.access_context.tenant_id):
+        return None
+    messages.error(request, SEM_SERVIDOR_PROPRIO)
+    return redirect(destino, **kwargs)
+
 
 class CampaignListView(ManagerRequiredView):
     """Campanhas da clínica e o tamanho da base que consentiu."""
@@ -461,6 +486,7 @@ class CampaignListView(ManagerRequiredView):
             'unsubscribed': descadastrados,
             'with_email': com_email,
             'without_consent': max(0, com_email - consentiram - descadastrados),
+            **_contexto_servidor(tenant_id),
         })
 
 
@@ -468,6 +494,9 @@ class CampaignCreateView(ManagerRequiredView):
     def get(self, request):
         from .forms import MarketingCampaignForm
 
+        recusa = _recusa_sem_servidor(request)
+        if recusa is not None:
+            return recusa
         return render(request, 'communications/campaign_form.html', {
             'form': MarketingCampaignForm(),
         })
@@ -476,6 +505,9 @@ class CampaignCreateView(ManagerRequiredView):
         from .forms import MarketingCampaignForm
         from .marketing import build_recipients
 
+        recusa = _recusa_sem_servidor(request)
+        if recusa is not None:
+            return recusa
         form = MarketingCampaignForm(request.POST)
         if not form.is_valid():
             return render(request, 'communications/campaign_form.html', {'form': form})
@@ -525,6 +557,7 @@ class CampaignDetailView(ManagerRequiredView):
             'campaign': campaign, 'counts': campaign.counts,
             'delivery_rate': campaign.delivery_rate,
             'failed': falhas, 'skipped': pulados,
+            **_contexto_servidor(campaign.tenant_id),
         })
 
 
@@ -577,6 +610,11 @@ class CampaignTestView(ManagerRequiredView):
         campaign = get_object_or_404(
             MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
         )
+        recusa = _recusa_sem_servidor(
+            request, 'messaging:campaign-detail', campaign_id=campaign.id,
+        )
+        if recusa is not None:
+            return recusa
         form = EmailTestForm(request.POST)
         if not form.is_valid():
             messages.error(request, 'Informe um endereço válido para o teste.')
@@ -595,7 +633,7 @@ class CampaignTestView(ManagerRequiredView):
         )
         try:
             send_email(destino, f'[TESTE] {campaign.subject}', corpo,
-                       tenant_id=campaign.tenant_id)
+                       tenant_id=campaign.tenant_id, require_own_server=True)
         except EmailSendFailed as exc:
             messages.error(request, f'O envio de teste falhou: {exc}')
             return redirect('messaging:campaign-detail', campaign_id=campaign.id)

@@ -15,7 +15,7 @@ Há dois identificadores, com finalidades diferentes:
 A consolidação anterior à primeira atualização — retirada da captura
 local, campo narrativo do exame neurológico e agenda mensal visual —
 pertence à **v1.0**, conforme a decisão de produto tomada antes da
-entrega. A versão atual é a **1.8.3**.
+entrega. A versão atual é a **1.9**.
 
 - funcionalidade compatível avança a casa menor: 1.1, 1.2, 1.3;
 - mudança relevante e incompatível avança a casa maior: 2.0, 3.0;

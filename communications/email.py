@@ -28,6 +28,32 @@ def _clinic_settings(tenant_id):
     return row
 
 
+def clinic_own_server(tenant_id):
+    """A configuração de e-mail da clínica, só se ela tiver servidor próprio.
+
+    "Ativa" não basta, e a diferença é o que este nome existe para guardar:
+    a clínica pode ligar o e-mail com remetente e sem servidor — e aí a
+    mensagem sai no nome dela pelo SMTP da **instalação** (`_connection_for`).
+    Para o e-mail do dia a dia isso é o desejado; para a comunicação em
+    massa, não: mil mensagens de divulgação saindo pelo servidor do NeuroDoc
+    queimam a reputação de um domínio que serve a todas as clínicas, e
+    levam junto a confirmação de conta e a recuperação de senha de quem não
+    tem nada com a campanha.
+
+    É a única definição de "servidor próprio" do produto. A tela de
+    campanhas, a guarda do disparo e cada fatia do envio perguntam aqui —
+    três definições seriam três chances de uma divergir.
+    """
+    row = _clinic_settings(tenant_id)
+    if row is None or not (row.smtp_host or '').strip():
+        return None
+    return row
+
+
+class OwnServerRequired(EmailSendFailed):
+    """O envio exigia o servidor da clínica, e ele não está configurado."""
+
+
 class _Sender:
     """Remetente resolvido, num formato só.
 
@@ -112,16 +138,26 @@ def _connection_for(sender):
 
 
 def send_email(to_email, subject, body_text, physician_membership=None, tenant_id=None,
-               html_body=None):
+               html_body=None, require_own_server=False):
     """Envia e-mail pelo framework nativo do Django.
 
     O remetente sai de `resolve_sender` — médico, senão clínica, senão
     instalação. É por isso que o parâmetro é o vínculo, e não um endereço:
     quem decide o remetente é a configuração, não quem chama.
 
+    `require_own_server` é da comunicação em massa: com ele, a cadeia não
+    recua para o servidor da instalação — sem servidor próprio da clínica,
+    nada sai (`OwnServerRequired`). A guarda da campanha já confere antes;
+    esta é a rede embaixo, para o caso de a configuração mudar entre a
+    conferência e o envio.
+
     Em desenvolvimento o backend é o `locmem` (EMAIL_ENABLED=False, ver
     `core/settings.py`), e o envio continua sendo exercitável sem servidor.
     """
+    if require_own_server and clinic_own_server(tenant_id) is None:
+        raise OwnServerRequired(
+            'A clínica não tem servidor de e-mail próprio configurado.'
+        )
     sender = resolve_sender(physician_membership, tenant_id)
     from_email = sender.header if sender else settings.DEFAULT_FROM_EMAIL
     reply_to = [sender.reply_to] if sender and sender.reply_to else None

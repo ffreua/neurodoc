@@ -8,9 +8,13 @@
 {% endblock %}
 {% block page_actions %}
 <a class="btn btn-light" href="{% url 'messaging:settings' %}">Mensageria</a>
+{% if own_server %}
 <a class="btn btn-primary" href="{% url 'messaging:campaign-new' %}">Nova campanha</a>
+{% endif %}
 {% endblock %}
 {% block content %}
+
+{% if not own_server %}{% include "communications/_sem_servidor_proprio.html" %}{% endif %}
 
 {% comment %}A base que consentiu vem antes das campanhas, e não depois.
 

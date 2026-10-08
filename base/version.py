@@ -63,7 +63,16 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
-#: A terceira casa aparece aqui contra a regra escrita acima, e de
+#: A **1.9** abre a comunicação em massa a **todos os planos**, com uma
+#: condição que vale para todos: o servidor SMTP da própria clínica.
+#: Funcionalidade nova para o Gratuito e o Básico, e por isso a casa menor.
+#: Uma coisa deixa de funcionar, e é deliberado: a clínica com remetente
+#: próprio e **sem** servidor não dispara mais campanha — ela saía pelo
+#: SMTP da instalação, que entrega a confirmação de conta de todas as
+#: outras. Não chega a ser incompatível no sentido da casa maior: nada é
+#: apagado, a campanha antiga continua legível, e cadastrar o servidor
+#: devolve tudo.
+#:
 #: A **1.8** é a entrega de véspera de venda: intervalo pontual na agenda,
 #: naturalidade do paciente, os dados de cadastro numa gaveta durante o
 #: atendimento, aviso automático de horário marcado e cancelado, e o nome
@@ -76,21 +85,21 @@ carimbá-la na publicação.
 #: dois defeitos do mesmo tipo -- tudo que só quem depende do padrão da
 #: instalação exercita estava quebrado.
 #:
-#: propósito: a 1.1.1 corrigiu o dia errado na agenda, que a 1.1 publicou;
-#: a 1.6.1, o logotipo da clínica anterior que ficava no cache do
-#: navegador depois de trocar de organização; a 1.6.2, a leitura de laudo
-#: descartada inteira por um campo vazio fora de forma. Dizer "1.6" para
-#: as três faria o chamado de suporte não distinguir quem já tem a
-#: correção de quem ainda vê o defeito -- que é exatamente o que a versão
-#: existe para responder. Nos três casos o defeito foi relatado por quem
-#: usa, que é a condição: correção que ninguém notou não precisa de casa
-#: nova.
-VERSION = '1.8.3'
+#: A terceira casa aparece contra a regra escrita acima, e de propósito:
+#: a 1.1.1 corrigiu o dia errado na agenda, que a 1.1 publicou; a 1.6.1,
+#: o logotipo da clínica anterior que ficava no cache do navegador depois
+#: de trocar de organização; a 1.6.2, a leitura de laudo descartada
+#: inteira por um campo vazio fora de forma. Dizer "1.6" para as três
+#: faria o chamado de suporte não distinguir quem já tem a correção de
+#: quem ainda vê o defeito -- que é exatamente o que a versão existe para
+#: responder. Nos três casos o defeito foi relatado por quem usa, que é a
+#: condição: correção que ninguém notou não precisa de casa nova.
+VERSION = '1.9'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o que faltava para vender'
+CODENAME = 'o e-mail da clínica'
 
 
 def version_display():

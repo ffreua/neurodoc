@@ -130,6 +130,13 @@ PRD; é a referência operacional viva gerada a partir dele.
   fantasia nas mãos do inquilino, e a cadeia clínica → instalação dos
   três serviços externos, provada nos dois sentidos.
 
+- [Comunicação em massa: em qualquer plano, só pelo servidor da clínica](homologation/campanha-servidor-proprio.md) —
+  a campanha deixa de ser do Completo e passa a exigir o SMTP da própria
+  clínica em todos os planos; remetente ativo sem servidor, que saía pelo
+  da instalação, deixa de bastar. Quatro portas no servidor, a pausa
+  quando o servidor some no meio do envio, e a vitrine dizendo como o
+  Gratuito se comunica.
+
 - [O padrão da instalação: IA morta por 40 dias, SMS que nunca saiu](homologation/padrao-da-instalacao.md) —
   dois defeitos de 2026-10-06 com a mesma assinatura: só quem **não**
   configurou provedor próprio os encontra. O modelo de IA aposentado pelo
@@ -321,9 +328,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 - [Versionamento do produto](operations/versionamento.md) — versão exibida
   na interface, diferença para o SHA da release e regra de incremento
-  (versão atual: 1.8.3).
+  (versão atual: 1.9).
 - [Registro de releases](releases/README.md) — um arquivo por versão
-  publicada (PRD §18.6), da 1.0 à 1.8.3, com SHA, gates de homologação,
+  publicada (PRD §18.6), da 1.0 à 1.9, com SHA, gates de homologação,
   mudança de schema e rollback.
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/
   H-21/H-22 e revisão de H-03) com duas clínicas fictícias; P-02/P-05/P-06/

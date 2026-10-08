@@ -1,0 +1,17 @@
+{% comment %}Um aviso só, incluído na lista e no detalhe da campanha.
+
+A recusa é explicada **antes** de alguém escrever a campanha, e não no
+clique de disparar: descobrir que falta o servidor depois de redigir o
+texto é descobrir tarde. O texto vem de `marketing.SEM_SERVIDOR_PROPRIO`,
+o mesmo que a guarda do disparo devolve — a tela e a recusa não podem
+dizer coisas diferentes.{% endcomment %}
+<div class="alert alert-warning fade show fs-12 mb-4" role="alert">
+    <span class="fw-semibold d-block mb-1">Falta o servidor de e-mail da clínica</span>
+    {{ own_server_message }}
+    <span class="d-block mt-2">
+        Vale para qualquer plano. O e-mail do dia a dia — confirmação de horário,
+        entrega de documento, recuperação de senha — continua saindo normalmente,
+        pelo remetente do NeuroDoc ou pelo da clínica.
+    </span>
+    <a class="btn btn-sm btn-warning mt-3" href="{% url 'messaging:settings' %}">Cadastrar o servidor de e-mail</a>
+</div>

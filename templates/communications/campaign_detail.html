@@ -117,7 +117,15 @@
                 <h5 class="card-title mb-0">Ações</h5>
             </div>
             <div class="card-body d-flex flex-column gap-2">
-                {% if campaign.status == 'draft' %}
+                {% comment %}Sem servidor próprio, some o que **envia** —
+                disparar, retomar e o teste — e fica o que **para**: pausar
+                é a direção segura e nunca pode depender de configuração.{% endcomment %}
+                {% if not own_server and campaign.status != 'sending' and campaign.status != 'sent' and campaign.status != 'cancelled' %}
+                <span class="fs-12 text-muted">
+                    {{ own_server_message }}
+                </span>
+                <a class="btn btn-sm btn-warning" href="{% url 'messaging:settings' %}">Cadastrar o servidor de e-mail</a>
+                {% elif campaign.status == 'draft' %}
                 <form method="post" action="{% url 'messaging:campaign-action' campaign.id 'disparar' %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Disparar</button>
@@ -142,7 +150,7 @@
                 </span>
                 {% endif %}
 
-                {% if campaign.status == 'draft' %}
+                {% if campaign.status == 'draft' and own_server %}
                 <form method="post" action="{% url 'messaging:campaign-test' campaign.id %}"
                       class="border-top pt-3 mt-2" novalidate>
                     {% csrf_token %}

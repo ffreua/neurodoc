@@ -491,6 +491,13 @@ ARTICLES = [
              'sai **apenas** de quem autorizou receber comunicação — quem nunca '
              'autorizou não entra, e não há como incluí-lo.',
              'campanhas-nova.png', 'Nova campanha'),
+            ('Está em **todos os planos**, e exige o **servidor de e-mail da própria '
+             'clínica** (SMTP), cadastrado em **Integrações → SMS e e-mail**. Sem ele, a '
+             'tela abre e explica o que falta, mas não cria, não testa e não dispara: '
+             'envio em massa não sai pelo e-mail do NeuroDoc, para a reputação do '
+             'remetente ser a da clínica que escreve. O e-mail do dia a dia — horário, '
+             'documento, senha — continua saindo normalmente sem esse cadastro.',
+             '', ''),
             ('O consentimento é reconferido **no instante do envio**, e não só na '
              'montagem: entre criar a campanha e disparar podem passar dias, e quem se '
              'descadastrou nesse intervalo não recebe.',

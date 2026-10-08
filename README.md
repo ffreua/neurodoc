@@ -11,9 +11,9 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.8.3 "o que faltava para vender" (`base/version.py`) |
+| **Versão do produto** | 1.9 "o e-mail da clínica" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
-| **Verificação** | 96 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 97 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
 | **Repositório** | privado |
 
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.9** | 2026-10-08 | o e-mail da clínica | **Comunicação em massa em todos os planos**, saindo só pelo servidor SMTP da própria clínica. Antes bastava o remetente ativo, e remetente sem servidor saía pelo SMTP da instalação, que entrega a confirmação de conta de todas as clínicas. Sem servidor próprio, a área explica o que falta e não envia, e o envio que perde o servidor no meio pausa. A página de vendas passa a dizer que o Gratuito se comunica por e-mail, pelo NeuroDoc ou pelo servidor da clínica. |
 | **1.8.3** | 2026-10-07 | o que faltava para vender | **Aviso de horário não nasce de evento velho.** Ao entrar no ar, o consumidor novo encontrou 48 eventos de agendamento que estavam pendentes desde sempre — porque ninguém consumia aquele tópico — e avisou sobre todos: dez e-mails de madrugada sobre consultas já realizadas ou canceladas, quatro deles a pacientes reais. Agora o aviso ignora evento com mais de 6 h, consulta que já aconteceu, e fato que o estado atual contradiz. |
 | **1.8.2** | 2026-10-07 | o que faltava para vender | O dia da agenda com **intervalo de almoço** passava a dizer "fechado" assim que a última vaga era preenchida — e os pacientes já marcados sumiam da visão de mês. O rótulo saía de "há célula bloqueada e nenhuma livre", o que valia quando só feriado bloqueava célula; o almoço bloqueia uma. Agora "fechado" é o dia **inteiro** bloqueado, e nada menos. |
 | **1.8.1** | 2026-10-07 | o que faltava para vender | Os três defeitos do primeiro teste real da 1.8: remover uma grade **publicada no mesmo dia** devolvia erro 500; a pausa de almoço fechava a célula que tocava em vez de **partir o dia**, e a tarde voltava 20 min depois do fim do intervalo; e a naturalidade, no celular, vinha na ordem errada e sem autocomplete — o `<datalist>` nativo não abre em boa parte dos navegadores móveis. |
@@ -111,8 +112,10 @@ camadas independentes.
 
 **O que é da clínica.** E-mail, SMS e IA seguem a mesma cadeia — a clínica
 que configurou o seu usa o seu; a que desligou volta ao padrão da
-instalação. O nome fantasia é editado pela própria clínica; razão social e
-CNPJ continuam vindo do convite.
+instalação. A **comunicação em massa** é a exceção: está em todos os
+planos e sai só pelo servidor de e-mail da própria clínica. O nome
+fantasia é editado pela própria clínica; razão social e CNPJ continuam
+vindo do convite.
 
 **Plataforma.** Multi-inquilino com três camadas de autorização, trilha de
 auditoria imutável, backup cifrado com `age` e cópia externa, console de
