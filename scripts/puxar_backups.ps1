@@ -23,7 +23,7 @@
 [CmdletBinding()]
 param(
     # Pasta no disco externo. O script RECUSA rodar se a raiz dela nao existir.
-    [string]$Destino = 'E:\neurodoc-backups',
+    [string]$Destino = 'D:\neurodoc-backups',
 
     # Como se chega na VPS. O usuario precisa conseguir LER
     # /srv/neurodoc-backups (ver docs/operations/copia-externa.md).

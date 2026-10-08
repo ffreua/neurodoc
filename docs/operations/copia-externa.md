@@ -58,7 +58,7 @@ em `~/.ssh/authorized_keys` do `deploy`.
 ## A execução
 
 ```powershell
-.\scripts\puxar_backups.ps1 -Destino E:\neurodoc-backups
+.\scripts\puxar_backups.ps1 -Destino D:\neurodoc-backups
 ```
 
 O que ele faz, em ordem: **recusa rodar se o disco não estiver montado**
@@ -81,7 +81,7 @@ Registro em `<Destino>\puxar_backups.log`.
 
 ```powershell
 $acao = New-ScheduledTaskAction -Execute 'powershell.exe' `
-  -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\Users\ferna\projects\neurodoc\scripts\puxar_backups.ps1" -Destino E:\neurodoc-backups'
+  -Argument '-NoProfile -ExecutionPolicy Bypass -File "C:\Users\ferna\projects\neurodoc\scripts\puxar_backups.ps1" -Destino D:\neurodoc-backups'
 $gatilho = New-ScheduledTaskTrigger -Daily -At 09:00
 $config = New-ScheduledTaskSettingsSet -StartWhenAvailable -WakeToRun `
   -MultipleInstances IgnoreNew -ExecutionTimeLimit (New-TimeSpan -Hours 2)
@@ -118,8 +118,8 @@ despercebida.
 Um backup que ninguém olha não é backup. Uma vez por mês:
 
 ```powershell
-Get-Content E:\neurodoc-backups\puxar_backups.log -Tail 20
-(Get-ChildItem E:\neurodoc-backups -Directory | Where-Object { Test-Path "$($_.FullName)\VERIFICADO" }).Count
+Get-Content D:\neurodoc-backups\puxar_backups.log -Tail 20
+(Get-ChildItem D:\neurodoc-backups -Directory | Where-Object { Test-Path "$($_.FullName)\VERIFICADO" }).Count
 ```
 
 ## O que isto ainda não cobre

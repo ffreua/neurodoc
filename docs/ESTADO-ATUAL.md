@@ -58,8 +58,7 @@ contêiner.
 ### ~~P-10 — Backup só existe na máquina que ele protege~~ — resolvida em 2026-10-02
 
 O backup deixou de existir só na máquina que ele protege. Os **11
-conjuntos** estão em `D:
-eurodoc-backups` (SSD externo, 57,8 MB), cada
+conjuntos** estão em `D:\neurodoc-backups` (SSD externo, 57,8 MB), cada
 arquivo conferido por **SHA-256 contra o `manifest.json`**, e a tarefa
 diária das 09:00 está registrada no Windows e **já executou com sucesso**
 (resultado 0) — a execução sob o agendador foi testada, e não só a
