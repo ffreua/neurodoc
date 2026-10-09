@@ -140,6 +140,7 @@ class PortalRequestView(PortalBaseView):
             ), status=403)
         return render(request, self.template_name, self.base_context(
             patient=patient, kinds=DocumentRequestKind.choices, purposes=REPORT_PURPOSES,
+            identidade=portal.identity_token(request),
         ))
 
     def post(self, request, slug):
@@ -156,6 +157,19 @@ class PortalRequestView(PortalBaseView):
             return render(request, 'documents/portal_retorno.html', self.base_context(
                 bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
             ), status=403)
+
+        if not portal.token_confere(request, request.POST.get('identidade')):
+            # 409, e o formulário de novo **para quem está identificado
+            # agora**, com o nome à vista: a pessoa vê de quem é a ficha e
+            # escreve o pedido certo. Gravar o texto na ficha errada era o
+            # que acontecia.
+            return self._invalid(
+                request, patient,
+                f'Outra pessoa foi identificada neste navegador depois que este formulário '
+                f'foi aberto. Confira: o pedido agora será feito para '
+                f'{patient.full_name.split(" ")[0]}. Escreva-o de novo e envie.',
+                status=409,
+            )
 
         kind = request.POST.get('kind', '')
         if kind not in DocumentRequestKind.values:
@@ -182,7 +196,7 @@ class PortalRequestView(PortalBaseView):
     def _invalid(self, request, patient, erro, status=400):
         return render(request, self.template_name, self.base_context(
             patient=patient, kinds=DocumentRequestKind.choices,
-            purposes=REPORT_PURPOSES, error=erro,
+            purposes=REPORT_PURPOSES, error=erro, identidade=portal.identity_token(request),
         ), status=status)
 
     def _payload(self, request, kind):

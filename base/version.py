@@ -63,6 +63,11 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
+#: A **1.12.2** fecha o lote 1 da auditoria independente de 2026-10-09:
+#: o PDF de documento médico (a recepção imprime o emitido, e só), a
+#: finalização sobre o autosave, o reenvio com link morto, o `next` do
+#: MFA, o pedido do portal na ficha errada e o envio duplicado.
+#:
 #: A **1.12.1** corrige o despachante da outbox e os consumidores dele,
 #: a partir da auditoria externa de 2026-10-09: posse do lease, consumidor
 #: fora de transação externa, lembrete que não sai para consulta cancelada
@@ -115,7 +120,7 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.12.1'
+VERSION = '1.12.2'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

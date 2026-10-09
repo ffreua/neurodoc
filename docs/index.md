@@ -330,6 +330,11 @@ PRD; é a referência operacional viva gerada a partir dele.
   assíncrono, o que procedeu, o que foi corrigido (posse do lease,
   consumidor fora de transação externa, lembrete revalidado, idade do
   aviso, job de IA parado) e o que ficou de fora.
+- [A auditoria independente da 1.12.1](homologation/auditoria-1.12.1.md) —
+  17 achados de uma segunda auditoria externa, todos procedentes; o lote 1
+  (PDF de documento médico, finalização, reenvio, MFA, portal e envio
+  duplicado), a decisão de a recepção imprimir o documento emitido, e o
+  que fica de fora.
 - [Retenção, chaves e incidentes](governance/incident-response.md) —
   consolidação final de governança operacional.
 

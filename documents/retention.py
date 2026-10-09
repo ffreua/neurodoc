@@ -110,8 +110,22 @@ def garbage_collect(dry_run=True):
         # Um paciente costuma ter vários anexos na mesma passada, e cada
         # `retention_expires_at` custa quatro consultas.
         cache_guarda = {}
+        # PDF de documento médico nunca sai por aqui, mesmo excluído: o
+        # documento continua apontando para ele (auditoria de 2026-10-09,
+        # ND-1121-001). A tela de anexos já não deixa excluí-lo; isto é a
+        # rede para o que tenha sido excluído antes.
+        from .models import MedicalDocument
+
+        de_documento = (
+            set(MedicalDocument.objects.exclude(pdf_attachment=None).values_list('pdf_attachment_id', flat=True))
+            | set(MedicalDocument.objects.exclude(signed_pdf_attachment=None)
+                  .values_list('signed_pdf_attachment_id', flat=True))
+        )
         for attachment in candidates:
             if not attachment.storage_key:
+                continue
+            if attachment.id in de_documento:
+                retidos.append(attachment.id)
                 continue
             if not eliminacao_permitida(attachment.patient, attachment.classification,
                                         agora=agora, _cache=cache_guarda):

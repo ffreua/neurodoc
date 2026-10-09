@@ -169,6 +169,25 @@ def verified_patient(request, tenant):
     return Patient.objects.filter(id=data['patient_id'], tenant=tenant).first()
 
 
+def identity_token(request):
+    """O token da identificação em vigor, para ir no formulário."""
+    return (request.session.get(SESSION_KEY) or {}).get('token', '')
+
+
+def token_confere(request, enviado):
+    """O formulário foi aberto para **esta** identificação?
+
+    O token existia desde o começo, com o comentário prometendo a
+    conferência, e nem o formulário o mandava nem o envio o conferia
+    (auditoria de 2026-10-09, ND-1121-017). O caso real é o de quem pede
+    por duas pessoas no mesmo navegador -- a mãe que pede a receita de um
+    filho numa aba e identifica o outro na seguinte: o formulário da
+    primeira aba era gravado na ficha do segundo filho.
+    """
+    atual = identity_token(request)
+    return bool(atual) and bool(enviado) and secrets.compare_digest(str(atual), str(enviado))
+
+
 def clear(request):
     request.session.pop(SESSION_KEY, None)
 

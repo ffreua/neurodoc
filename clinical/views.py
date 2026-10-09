@@ -840,7 +840,7 @@ class FinalizeEncounterView(TenantScopedView):
         if membership is None:
             raise Http404
         try:
-            finalization.finalize_encounter(request.access_context, encounter, membership)
+            encounter = finalization.finalize_encounter(request.access_context, encounter, membership)
         except finalization.FinalizationError as exc:
             return _blocked(request, encounter, _texto_do_erro(exc))
         # O retorno **depois** da finalização, e não antes: se a finalização

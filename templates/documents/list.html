@@ -38,7 +38,7 @@
                                     não lê prontuário vê que existe documento — o que a
                                     recepção precisa para responder ao paciente que ligou —
                                     e não vê o que ele é.{% endcomment %}
-                                    {% if pode_ver_clinico or a.classification != 'clinical' %}
+                                    {% if a.mostra_nome %}
                                     <span class="d-block fw-semibold text-dark">{{ a.original_name }}</span>
                                     {% else %}
                                     <span class="d-block fw-semibold text-muted fst-italic">Documento clínico</span>
@@ -55,14 +55,16 @@
                                         {% comment %}Botão que devolve 404 é pior do que
                                         botão ausente: quem clica conclui que o sistema
                                         quebrou, e não que a regra é essa.{% endcomment %}
-                                        {% if a.scan_status == 'available' and pode_ver_clinico or a.scan_status == 'available' and a.classification != 'clinical' %}
+                                        {% if a.scan_status == 'available' and a.pode_abrir %}
                                         <a class="btn btn-sm btn-light-primary" href="{% url 'documents:download' a.id %}">Baixar</a>
                                         <a class="btn btn-sm btn-light" href="{% url 'documents:preview' a.id %}">Prévia</a>
                                         {% endif %}
+                                        {% if a.pode_remover %}
                                         <form method="post" action="{% url 'documents:delete' a.id %}">
                                             {% csrf_token %}
                                             <button type="submit" class="btn btn-sm btn-light-danger">Remover</button>
                                         </form>
+                                        {% endif %}
                                     </div>
                                 </td>
                             </tr>

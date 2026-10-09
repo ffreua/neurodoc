@@ -141,6 +141,21 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
     # Os dois canais passam por aqui, então a verificação é uma só.
     from tenancy.models import Tenant, TenantStatus
 
+    # A posse do envio vem antes de tudo. Ver `DeliveryStatus.SENDING`:
+    # quem não conseguir passar a entrega de "na fila" a "enviando" não
+    # envia -- outro processo já está enviando, ou já enviou.
+    #
+    # Fora de transação -- o caso do despachante, que deixou de abrir uma
+    # --, o `UPDATE` vale para as outras conexões na hora. Dentro de uma
+    # (a confirmação manual), o outro processo espera a trava da linha e
+    # a encontra já resolvida. Nos dois casos, um envio só.
+    if Delivery.objects.filter(
+        id=delivery.id, status=DeliveryStatus.PENDING,
+    ).update(status=DeliveryStatus.SENDING) != 1:
+        delivery.refresh_from_db(fields=['status', 'provider_id', 'next_attempt_at'])
+        return
+    delivery.status = DeliveryStatus.SENDING
+
     ativa = Tenant.objects.filter(
         id=delivery.tenant_id, status=TenantStatus.ACTIVE,
     ).exists()
@@ -172,6 +187,10 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error='channel_disabled')
         return
     except (EmailSendFailed, SmsSendFailed) as exc:
+        # De volta à fila, como era antes da posse: falha de transporte é
+        # tentativa registrada, e a entrega continua reenviável.
+        delivery.status = DeliveryStatus.PENDING
+        delivery.save(update_fields=['status'])
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error=exc.__class__.__name__)
         return
     except Exception as exc:
@@ -235,6 +254,16 @@ def deliver_document(document, force_new_link=False):
         )
         return []
 
+    if force_new_link:
+        # Uma vez, antes de qualquer link novo. Ficava dentro do laço, e a
+        # segunda volta revogava o link que a primeira acabara de mandar:
+        # no reenvio para e-mail e SMS, uma das duas mensagens chegava com
+        # link morto (auditoria de 2026-10-09, ND-1121-003). Revogar aqui
+        # fecha os links de antes do reenvio, que é a função dele, e deixa
+        # vivos os deste lote.
+        with transaction.atomic():
+            access.revoke_previous_tokens(document)
+
     deliveries = []
     for contact in contacts:
         for channel in _channels_for(contact):
@@ -270,8 +299,6 @@ def deliver_document(document, force_new_link=False):
                     },
                 )
                 if created or delivery.status == DeliveryStatus.PENDING:
-                    if force_new_link:
-                        access.revoke_previous_tokens(document)
                     token, raw_token = access.create_access_token(document, contact)
             if raw_token is not None:
                 link = f'{settings.PUBLIC_BASE_URL}/d/{raw_token}/'

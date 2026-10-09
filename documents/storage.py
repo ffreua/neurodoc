@@ -174,11 +174,20 @@ def local_path(attachment):
 
 
 def store_generated_attachment(tenant, patient, uploaded_by, content, original_name,
-                                classification=AttachmentClassification.ADMINISTRATIVE, encounter=None):
+                                classification=AttachmentClassification.CLINICAL, encounter=None):
     """For server-synthesized files (rendered/signed PDFs) rather than
     user uploads: no malware risk from content this application generated
     itself, so this skips quarantine/ClamAV entirely and publishes straight
     to AVAILABLE, deduped by sha256 exactly like publish_from_quarantine.
+
+    **Clínico por padrão.** Era administrativo, e todo PDF de receita,
+    relatório e pedido de exame nascia assim: aparecia com nome e botão de
+    baixar na lista de anexos de quem não lê prontuário -- inclusive o
+    rascunho, que é conteúdo clínico ainda não emitido -- e ficava fora da
+    guarda de vinte anos na coleta de arquivos (auditoria de 2026-10-09,
+    ND-1121-001). A recepção continua imprimindo o documento **emitido**:
+    quem libera é a relação com `MedicalDocument`, em
+    `documents.views._attachment_or_404`, e não a classificação.
     """
     sha256 = hashlib.sha256(content).hexdigest()
     final_dir = _published_dir(tenant.id) / sha256

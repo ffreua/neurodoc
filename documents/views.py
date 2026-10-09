@@ -16,7 +16,8 @@ from . import issuance
 from . import signing_sessions
 from .forms import AttachmentUploadForm, CredentialUploadForm, MedicalDocumentForm, SigningSessionStartForm
 from .models import (
-    Attachment, AttachmentClassification, AttachmentScanStatus, MedicalDocument, SigningCredential,
+    Attachment, AttachmentClassification, AttachmentScanStatus, MedicalDocument, MedicalDocumentStatus,
+    SigningCredential,
 )
 from .preview import PreviewUnavailable, render_preview_png
 from .retention import soft_delete_attachment
@@ -55,6 +56,45 @@ def _patient_or_404(request, patient_id):
     return get_object_or_404(scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id)
 
 
+#: Estados em que o documento médico já saiu: é o que a recepção imprime.
+DOCUMENTO_EMITIDO = (MedicalDocumentStatus.ISSUED, MedicalDocumentStatus.ISSUED_ON_PAPER)
+
+
+def _documentos_dos_anexos(ids):
+    """`{anexo_id: MedicalDocument}` para os anexos que são PDF de documento médico."""
+    from django.db.models import Q
+
+    ids = list(ids)
+    if not ids:
+        return {}
+    mapa = {}
+    for documento in MedicalDocument.objects.filter(
+        Q(pdf_attachment_id__in=ids) | Q(signed_pdf_attachment_id__in=ids),
+    ):
+        for anexo_id in (documento.pdf_attachment_id, documento.signed_pdf_attachment_id):
+            if anexo_id in ids:
+                mapa[anexo_id] = documento
+    return mapa
+
+
+def _pode_abrir(access_context, attachment, documento):
+    """Quem pode baixar e ver a prévia **deste** anexo.
+
+    O PDF de um documento médico é clínico, mas a recepção imprime a
+    receita e o relatório para entregar ao paciente -- decisão do
+    controlador em 2026-10-09. Então a regra é a do documento, e não a da
+    classificação: **emitido**, quem administra o cadastro do paciente
+    abre; **rascunho**, só quem lê prontuário, porque ali há conteúdo
+    clínico que o médico ainda não liberou.
+    """
+    if access_context.can(Capability.READ_CLINICAL):
+        return True
+    if documento is not None:
+        return (documento.status in DOCUMENTO_EMITIDO
+                and access_context.can(Capability.PATIENT_ADMIN))
+    return attachment.classification != AttachmentClassification.CLINICAL
+
+
 def _attachment_or_404(request, attachment_id):
     """O anexo, se quem pede tiver direito a **este** anexo.
 
@@ -70,14 +110,39 @@ def _attachment_or_404(request, attachment_id):
     ).first()
     if attachment is None:
         raise Http404
-    if (attachment.classification == AttachmentClassification.CLINICAL
-            and not request.access_context.can(Capability.READ_CLINICAL)):
+    documento = _documentos_dos_anexos([attachment.id]).get(attachment.id)
+    attachment.documento_medico = documento
+    if not _pode_abrir(request.access_context, attachment, documento):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.clinical_attachment_denied',
             object_type='attachment', object_id=attachment.id, outcome='denied',
         )
         raise Http404
     return attachment
+
+
+def _com_permissoes(request, attachments):
+    """Cada anexo com o que **esta** pessoa pode fazer com ele.
+
+    A tela pergunta aqui, e não refaz a regra no template: botão que
+    devolve 404 é pior do que botão ausente, e duas cópias da mesma regra
+    são duas chances de uma divergir de `_attachment_or_404`.
+    """
+    attachments = list(attachments)
+    documentos = _documentos_dos_anexos(a.id for a in attachments)
+    for anexo in attachments:
+        documento = documentos.get(anexo.id)
+        anexo.pode_abrir = _pode_abrir(request.access_context, anexo, documento)
+        # Nome à vista para quem pode abrir: o da receita emitida é o que a
+        # recepção procura para imprimir.
+        anexo.mostra_nome = anexo.pode_abrir
+        # O PDF de documento médico não se remove por esta tela, nem por
+        # quem lê prontuário: ele é o documento, e o documento tem ciclo
+        # próprio (rascunho, emissão, guarda). Removido aqui, a receita
+        # emitida continuaria apontando para um arquivo que a coleta
+        # apagaria.
+        anexo.pode_remover = documento is None
+    return attachments
 
 
 class AttachmentListView(TenantScopedView):
@@ -98,7 +163,9 @@ class AttachmentListView(TenantScopedView):
 
     def get(self, request, patient_id):
         patient = _patient_or_404(request, patient_id)
-        attachments = patient.attachments.filter(deleted_at=None).order_by('-created_at')
+        attachments = _com_permissoes(
+            request, patient.attachments.filter(deleted_at=None).order_by('-created_at'),
+        )
         return render(request, 'documents/list.html', {
             'patient': patient, 'attachments': attachments,
             'pode_ver_clinico': request.access_context.can(Capability.READ_CLINICAL),
@@ -109,7 +176,7 @@ class AttachmentListView(TenantScopedView):
         patient = _patient_or_404(request, patient_id)
         form = AttachmentUploadForm(request.POST, request.FILES)
         if not form.is_valid():
-            attachments = patient.attachments.filter(deleted_at=None).order_by('-created_at')
+            attachments = _com_permissoes(request, patient.attachments.filter(deleted_at=None).order_by('-created_at'))
             return render(request, 'documents/list.html', {'patient': patient, 'attachments': attachments, 'form': form})
         uploaded = request.FILES['file']
         from tenancy.models import Tenant
@@ -121,7 +188,7 @@ class AttachmentListView(TenantScopedView):
             )
         except (UploadRejected, QuotaExceeded) as exc:
             form.add_error('file', str(exc))
-            attachments = patient.attachments.filter(deleted_at=None).order_by('-created_at')
+            attachments = _com_permissoes(request, patient.attachments.filter(deleted_at=None).order_by('-created_at'))
             return render(request, 'documents/list.html', {'patient': patient, 'attachments': attachments, 'form': form})
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.attachment_uploaded',
@@ -180,6 +247,18 @@ class AttachmentPreviewView(TenantScopedView):
 class AttachmentDeleteView(TenantScopedView):
     def post(self, request, attachment_id):
         attachment = _attachment_or_404(request, attachment_id)
+        if attachment.documento_medico is not None:
+            # Ver `_com_permissoes`: o botão nem aparece, e isto é a recusa
+            # no servidor para quem montar o POST à mão.
+            record_audit_event(
+                request.user, request.access_context.tenant_id, 'documents.attachment_delete_denied',
+                object_type='attachment', object_id=attachment.id, outcome='denied',
+            )
+            messages.error(
+                request,
+                'Este PDF é de um documento médico e não pode ser removido pela lista de anexos.',
+            )
+            return redirect('documents:list', patient_id=attachment.patient_id)
         soft_delete_attachment(attachment, request.user.id, request.POST.get('reason', ''))
         return redirect('documents:list', patient_id=attachment.patient_id)
 

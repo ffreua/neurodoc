@@ -16,6 +16,7 @@ Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e v
 
 <form method="post" novalidate id="portal-form">
     {% csrf_token %}
+    <input type="hidden" name="identidade" value="{{ identidade }}">
 
     <div class="mb-4">
         <label class="form-label fw-semibold" for="kind">Tipo de solicitação</label>

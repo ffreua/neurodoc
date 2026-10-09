@@ -75,6 +75,18 @@ def missing_requirements(encounter):
 
 @transaction.atomic
 def finalize_encounter(context, encounter, actor_membership):
+    """Fecha o atendimento e devolve a linha **como ela está no banco**.
+
+    Relido sob trava, e gravando só os campos da finalização. Gravava a
+    instância que a view tinha carregado, inteira: se o autosave do último
+    parágrafo chegava junto com o clique em "Finalizar" -- que é
+    exatamente quando ele chega --, a finalização escrevia por cima o
+    texto de antes, e o hash selava a versão velha (auditoria de
+    2026-10-09, ND-1121-002). O autosave trava a mesma linha, então os
+    dois agora se enfileiram: ou o texto entra antes e é ele que se
+    finaliza, ou chega depois e encontra o atendimento fechado.
+    """
+    encounter = type(encounter).objects.select_for_update().get(id=encounter.id)
     if encounter.status == EncounterStatus.FINALIZED:
         raise FinalizationError('Este atendimento já está finalizado.')
 
@@ -95,7 +107,9 @@ def finalize_encounter(context, encounter, actor_membership):
     encounter.content_hash = encounter.compute_content_hash()
     encounter.row_version += 1
     encounter.full_clean()
-    encounter.save()
+    encounter.save(update_fields=[
+        'status', 'finalized_at', 'finalized_by', 'content_hash', 'row_version', 'updated_at',
+    ])
     record_audit_event(
         actor_membership.user_id, context.tenant_id, 'clinical.encounter_finalized',
         object_type='encounter', object_id=encounter.id, outcome='success',

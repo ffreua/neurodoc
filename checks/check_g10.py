@@ -198,8 +198,11 @@ if 'Data de nascimento' not in corpo:
     failures.append('a sessao de uma clinica valeu no portal da outra')
 
 print('=== 10. envio sem conteudo e recusado ===')
+# O formulario leva o token da identificacao que o abriu, como o
+# navegador faz (ND-1121-017); sem ele o envio e recusado com 409.
+IDENTIDADE = paciente_c.session['portal_patient']['token']
 r = paciente_c.post(f'/solicitacoes/{tenant.slug}/solicitar/', {
-    'kind': 'prescription_simple', 'requester': 'self',
+    'kind': 'prescription_simple', 'requester': 'self', 'identidade': IDENTIDADE,
     'med_name': '', 'med_dose': '', 'med_usage': ''})
 print('  HTTP', r.status_code, '|', 'Adicione ao menos uma medicação' in r.content.decode())
 if r.status_code != 400:
@@ -207,7 +210,7 @@ if r.status_code != 400:
 
 print('=== 11. medicacao pela metade e recusada ===')
 r = paciente_c.post(f'/solicitacoes/{tenant.slug}/solicitar/', {
-    'kind': 'prescription_simple', 'requester': 'self',
+    'kind': 'prescription_simple', 'requester': 'self', 'identidade': IDENTIDADE,
     'med_name': 'Levetiracetam', 'med_dose': '', 'med_usage': '1 cp'})
 print('  HTTP', r.status_code)
 if r.status_code != 400:
@@ -215,7 +218,7 @@ if r.status_code != 400:
 
 print('=== 12. pedido completo entra na fila ===')
 r = paciente_c.post(f'/solicitacoes/{tenant.slug}/solicitar/', {
-    'kind': 'prescription_simple', 'requester': 'other',
+    'kind': 'prescription_simple', 'requester': 'other', 'identidade': IDENTIDADE,
     'requester_name': 'Filha do paciente (teste G10)',
     'med_name': ['Levetiracetam', 'Acido valproico'],
     'med_dose': ['500 mg', '250 mg'],

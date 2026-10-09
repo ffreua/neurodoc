@@ -68,7 +68,7 @@ class MFAChallengeView(FormView):
         ok = mfa.verify_totp_token(user, code) or mfa.consume_recovery_code(user, code)
         if not ok:
             record_audit_event(user, None, 'auth.mfa_challenge_failed', outcome='denied')
-            form.add_error('code', 'Invalid code.')
+            form.add_error('code', 'Código inválido.')
             return self.form_invalid(form)
         del self.request.session[PENDING_MFA_SESSION_KEY]
         auth_login(self.request, user)
@@ -77,7 +77,11 @@ class MFAChallengeView(FormView):
         record_audit_event(
             user, None, 'auth.login', outcome='success', integrity_metadata={'mfa': True},
         )
-        return redirect(self.request.GET.get('next') or 'accounts:tenant-picker')
+        # `_safe_next`, como o resto do login: o `next` cru mandava quem
+        # acabou de provar o segundo fator para qualquer domínio escrito na
+        # URL -- o golpe de phishing perfeito, porque começa no endereço
+        # verdadeiro (auditoria de 2026-10-09, ND-1121-010).
+        return redirect(_safe_next(self.request) or 'accounts:tenant-picker')
 
 
 class VerifyEmailView(View):

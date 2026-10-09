@@ -11,6 +11,16 @@ class DeliveryChannel(models.TextChoices):
 
 class DeliveryStatus(models.TextChoices):
     PENDING = 'pending', 'Na fila'
+    #: Um processo tomou esta entrega e está falando com o provedor.
+    #:
+    #: É a posse do envio (auditoria de 2026-10-09, ND-1121-016). A chave
+    #: única da entrega impedia duas **linhas**, não dois **envios**: dois
+    #: consumidores do mesmo evento achavam a mesma entrega "na fila" e os
+    #: dois mandavam. Passar de `pending` a `sending` é um `UPDATE`
+    #: condicional, e só um ganha. Entrega que fique aqui é a de um
+    #: processo morto no meio do envio -- o desfecho é desconhecido, e a
+    #: tela mostra isso em vez de reenviar às cegas.
+    SENDING = 'sending', 'Enviando'
     ACCEPTED = 'accepted', 'Aceita pelo provedor'
     DELIVERED = 'delivered', 'Entregue'
     UNKNOWN = 'unknown', 'Sem confirmação'
