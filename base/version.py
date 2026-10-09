@@ -63,6 +63,10 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
+#: A **1.12** põe a assinatura do médico (com o QR) e o quadro da farmácia
+#: no rodapé da folha, em todo documento. Muda o que a clínica imprime, e
+#: por isso a casa menor, e não uma correção.
+#:
 #: A **1.11** acrescenta "limpar todas" à caixa de notificações, no sino e
 #: na central. Funcionalidade compatível, casa menor.
 #:
@@ -104,12 +108,12 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.11'
+VERSION = '1.12'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a caixa limpa'
+CODENAME = 'o rodapé'
 
 
 def version_display():

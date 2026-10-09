@@ -130,6 +130,12 @@ PRD; é a referência operacional viva gerada a partir dele.
   fantasia nas mãos do inquilino, e a cadeia clínica → instalação dos
   três serviços externos, provada nos dois sentidos.
 
+- [A assinatura no rodapé da folha](homologation/rodape-do-documento.md) —
+  em todo documento médico, a assinatura com o QR e o quadro da farmácia
+  descem ao pé da folha; quando não cabem, vão inteiros para o pé da
+  seguinte. O roteiro mede a posição do texto na página, e não só a
+  presença dele.
+
 - [O tipo de consulta no modal, e o CRM que já está em outra conta](homologation/tipo-de-consulta-e-crm.md) —
   trocar o tipo de um horário marcado antes da chegada e sem mexer no
   horário; e a recusa de CRM duplicado, que saía em inglês, passando a
@@ -334,9 +340,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 - [Versionamento do produto](operations/versionamento.md) — versão exibida
   na interface, diferença para o SHA da release e regra de incremento
-  (versão atual: 1.11).
+  (versão atual: 1.12).
 - [Registro de releases](releases/README.md) — um arquivo por versão
-  publicada (PRD §18.6), da 1.0 à 1.11, com SHA, gates de homologação,
+  publicada (PRD §18.6), da 1.0 à 1.12, com SHA, gates de homologação,
   mudança de schema e rollback.
 - [Homologação M2](homologation/M2.md) — gate de marco (H-08/H-09/H-13/H-14/
   H-21/H-22 e revisão de H-03) com duas clínicas fictícias; P-02/P-05/P-06/

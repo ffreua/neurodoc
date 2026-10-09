@@ -4,7 +4,7 @@ Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.11 "a caixa limpa" · **Produção:**
+**Versão:** 1.12 "o rodapé" · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
 
 ---
@@ -49,7 +49,7 @@ Isto era a maior incógnita do sistema. Não é mais — mas só vale para
 aquele backup e aquela chave: **refazer a prova depois de qualquer
 mudança no `BACKUP_AGE_RECIPIENT`.**
 
-**99 roteiros de verificação, nenhuma falha.** São o que substitui a
+**100 roteiros de verificação, nenhuma falha.** São o que substitui a
 suíte de testes (DEC-20). Rodar com `manage.py rodar_roteiros`, dentro do
 contêiner.
 
@@ -143,7 +143,7 @@ são tags, e tag é alvo móvel.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
   deploy.
-- O `CLAUDE.md` lista parte dos 99 roteiros ("os mais relevantes") e 4 views
+- O `CLAUDE.md` lista parte dos 100 roteiros ("os mais relevantes") e 4 views
   de catálogo têm `required_capability = None` sem o comentário que a
   convenção exige.
 

@@ -17,7 +17,8 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
 from reportlab.platypus import (
-    HRFlowable, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+    Flowable, HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table,
+    TableStyle,
 )
 
 
@@ -340,10 +341,74 @@ def _signature_footer(document):
         ('TOPPADDING', (0, 0), (-1, -1), 0),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
     ]))
-    # `KeepTogether` para a assinatura não ficar numa página e o QR na
-    # seguinte: um documento cuja assinatura se separou do código de
-    # verificação é um documento que a farmácia devolve.
-    return [KeepTogether([table])]
+    # Assinatura e QR numa tabela só, que `NoPeDaFolha` nunca parte: um
+    # documento cuja assinatura se separou do código de verificação é um
+    # documento que a farmácia devolve.
+    return [table]
+
+
+class NoPeDaFolha(Flowable):
+    """Desenha o que recebe colado no pé da folha, e ocupa o que sobra.
+
+    Cabeçalho no alto, corpo logo abaixo e **assinatura no rodapé**, como
+    o receituário em papel: a folha inteira é usada, e quem confere o
+    documento — o farmacêutico, o perito, o paciente — acha a assinatura,
+    o QR e o quadro da farmácia sempre no mesmo lugar, seja a receita de
+    uma linha ou o relatório de meia página. Antes o rodapé vinha logo
+    depois do corpo, e uma receita curta deixava meia folha em branco
+    **abaixo** da assinatura.
+
+    Como funciona: na medição, ocupa todo o espaço que resta na página;
+    no desenho, põe o conteúdo encostado no fim desse espaço. Se o corpo
+    for longo e o conteúdo não couber no que sobrou, `split` devolve
+    vazio e o ReportLab leva o bloco **inteiro** para a página seguinte,
+    onde ele desce ao pé do mesmo jeito. Nunca se parte: assinatura, QR e
+    o quadro do comprador/fornecedor ficam sempre juntos, na mesma folha.
+
+    A posição não afeta a assinatura digital: o campo PAdES é invisível
+    (`signing.sign_pdf` não desenha caixa), e a assinatura cobre o arquivo
+    inteiro, não um retângulo da página.
+    """
+
+    #: Folga para o arredondamento do ReportLab, em pontos. Ocupar a
+    #: altura disponível exata pode ser lido como "não coube" por fração
+    #: de ponto, e o bloco iria para uma página nova sem precisar.
+    _FOLGA = 1
+
+    def __init__(self, flowables):
+        super().__init__()
+        self._itens = list(flowables)
+        self._medidas = []
+        self._altura_conteudo = 0
+
+    def _medir(self, largura):
+        self._medidas = []
+        total = 0
+        for indice, item in enumerate(self._itens):
+            _, altura = item.wrap(largura, 10 ** 6)
+            antes = item.getSpaceBefore() if indice else 0
+            depois = item.getSpaceAfter() if indice < len(self._itens) - 1 else 0
+            self._medidas.append((item, altura, antes, depois))
+            total += antes + altura + depois
+        self._altura_conteudo = total
+        return total
+
+    def wrap(self, availWidth, availHeight):
+        self.width = availWidth
+        conteudo = self._medir(availWidth)
+        self.height = max(conteudo, availHeight - self._FOLGA)
+        return self.width, self.height
+
+    def split(self, availWidth, availHeight):
+        # Não se parte: vai inteiro para a próxima página.
+        return []
+
+    def draw(self):
+        y = self._altura_conteudo
+        for item, altura, antes, depois in self._medidas:
+            y -= antes + altura
+            item.drawOn(self.canv, 0, y)
+            y -= depois
 
 
 # --------------------------------------------------- receituário de controle
@@ -372,6 +437,16 @@ CONTROL_FIELD = ParagraphStyle(
     textColor=colors.HexColor('#111111'),
 )
 
+#: Rótulo que fica **acima** de uma área de preenchimento ("Assinatura do
+#: farmacêutico:", "Carimbo..."). Entrelinha própria, menor que a de
+#: `CONTROL_FIELD`: com a entrelinha de 15pt numa fileira de 0,42 cm
+#: (~12pt), o texto vazava para cima e a linha da fileira anterior o
+#: cortava ao meio -- defeito que existia e só ficou à vista quando o
+#: quadro desceu para o pé da folha.
+CONTROL_CAPTION = ParagraphStyle(
+    'ControlCaption', parent=CONTROL_FIELD, leading=9,
+)
+
 #: Altura das linhas de preenchimento. Precisa caber letra de mão adulta:
 #: uma linha de 8pt obriga quem escreve a espremer, e endereço espremido
 #: em receita retida é endereço ilegível na fiscalização.
@@ -387,6 +462,9 @@ def _control_identification_block():
     """
     def campo(texto):
         return Paragraph(texto_seguro(texto), CONTROL_FIELD)
+
+    def rotulo(texto):
+        return Paragraph(texto_seguro(texto), CONTROL_CAPTION)
 
     comprador = Table(
         [
@@ -415,14 +493,14 @@ def _control_identification_block():
     # espreme-los faz o carimbo cobrir a data.
     fornecedor = Table(
         [
-            [campo('Assinatura do farmacêutico:')],
+            [rotulo('Assinatura do farmacêutico:')],
             [''],
             [campo('Data:  ____ / ____ / ________')],
-            [campo('Carimbo da farmácia / drogaria:')],
+            [rotulo('Carimbo da farmácia / drogaria:')],
             [''],
         ],
         colWidths=[7.8 * cm],
-        rowHeights=[0.42 * cm, _WRITE_LINE, _WRITE_LINE, 0.42 * cm, _WRITE_LINE],
+        rowHeights=[0.5 * cm, _WRITE_LINE, _WRITE_LINE, 0.5 * cm, _WRITE_LINE],
     )
     fornecedor.setStyle(TableStyle([
         ('VALIGN', (0, 0), (-1, -1), 'BOTTOM'),
@@ -455,9 +533,10 @@ def _control_identification_block():
         ('TOPPADDING', (0, 1), (-1, 1), 2),
         ('BOTTOMPADDING', (0, 1), (-1, 1), 2),
     ]))
-    # `KeepTogether` porque o quadro partido entre duas páginas deixa
-    # metade dos campos numa folha que não é a que a farmácia retém.
-    return [KeepTogether([quadro])]
+    # Inteiro, porque o quadro partido entre duas páginas deixa metade dos
+    # campos numa folha que não é a que a farmácia retém -- quem garante é
+    # `NoPeDaFolha`, que nunca se parte.
+    return [quadro]
 
 
 def _one_copy(document, title, body_flowables, clinic, via_label='', include_address=False,
@@ -475,10 +554,15 @@ def _one_copy(document, title, body_flowables, clinic, via_label='', include_add
     story.extend(_patient_block(document, include_address))
     story.append(Spacer(1, 0.5 * cm))
     story.extend(body_flowables)
-    story.append(Spacer(1, 1 * cm))
-    story.append(HRFlowable(width='100%', thickness=0.5))
-    story.append(Spacer(1, 0.3 * cm))
-    story.extend(_signature_footer(document))
+    # Distância mínima entre o fim do corpo e o rodapé. O rodapé desce ao
+    # pé da folha (`NoPeDaFolha`), então na receita curta a distância real
+    # é a folha inteira; esta é a que vale quando o corpo quase a enche.
+    story.append(Spacer(1, 0.8 * cm))
+    rodape = [
+        HRFlowable(width='100%', thickness=0.5),
+        Spacer(1, 0.3 * cm),
+        *_signature_footer(document),
+    ]
     if control_identification:
         # Depois da assinatura, no pe da folha.
         #
@@ -491,8 +575,9 @@ def _one_copy(document, title, body_flowables, clinic, via_label='', include_add
         # os coloca no meio da folha obriga quem dispensa a caçar o campo
         # -- e o custo de contrariar um formulario que todo mundo conhece
         # e pago no balcao, nao aqui.
-        story.append(Spacer(1, 0.7 * cm))
-        story.extend(_control_identification_block())
+        rodape.append(Spacer(1, 0.7 * cm))
+        rodape.extend(_control_identification_block())
+    story.append(NoPeDaFolha(rodape))
     return story
 
 

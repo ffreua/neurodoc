@@ -329,6 +329,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_links_de_mensagem.py` | **todo link que sai numa mensagem abre**: nenhum e-mail é enfileirado antes do commit (transação desfeita não manda nada), o link do documento é aberto de verdade, o reenvio troca o link e revoga o anterior, e a verificação de e-mail, o convite e o descadastro respondem |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
 | `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
+| `check_rodape_do_documento.py` | a **assinatura no pé da folha** em todo documento, medida pela **posição** do texto na página (e não pela presença): receita curta, as duas vias do controle especial com o quadro abaixo da assinatura, o rodapé que vai **inteiro** para o pé da página seguinte quando o corpo enche a folha, e nenhuma folha extra |
 | `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |
 | `check_mobile.py` | aderência ao celular: o bloco de toque existe e pergunta por `pointer: coarse`, campos a 16px, alvo de 40px, tabela embrulhada, calha responsiva |
 | `check_backup.py` | restaurador carrega, trava única entre backup e arquivo morto, unidades do systemd executáveis |
