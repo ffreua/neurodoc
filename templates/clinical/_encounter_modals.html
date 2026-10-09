@@ -83,6 +83,8 @@ confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
                         {% if discard_summary.tem_historia %}<li>história preenchida</li>{% endif %}
                         {% if discard_summary.tem_conduta %}<li>conduta preenchida</li>{% endif %}
                         {% if discard_summary.tem_exame_texto %}<li>exame neurológico em texto livre preenchido</li>{% endif %}
+                        {% if discard_summary.tem_texto_livre %}<li>texto do atendimento escrito</li>{% endif %}
+                        {% if discard_summary.tem_impressoes %}<li>impressões preenchidas</li>{% endif %}
                         {% if discard_summary.exame %}<li>{{ discard_summary.exame }} item(ns) de exame</li>{% endif %}
                         {% if discard_summary.medicacoes %}<li>{{ discard_summary.medicacoes }} medicação(ões)</li>{% endif %}
                         {% if discard_summary.exames %}<li>{{ discard_summary.exames }} resultado(s) de exame</li>{% endif %}

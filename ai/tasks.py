@@ -494,7 +494,15 @@ def retomar_jobs_parados():
         updated_at__lt=agora - timezone.timedelta(minutes=JOB_PARADO_DEPOIS_DE_MINUTOS),
     )
     retomados = abandonados = 0
+    limite_retomada = agora - timezone.timedelta(minutes=JOB_PARADO_DEPOIS_DE_MINUTOS)
     for job in parados.order_by('updated_at')[:50]:
+        # O prazo de um dia conta do `updated_at`, que é quando o pedido
+        # entrou na fila (ou foi reaberto), e esta rotina **não o toca**. A
+        # primeira versão o renovava a cada retomada, e com a fila caída o
+        # job nunca completava um dia de idade: ficava "na fila" para
+        # sempre, que era o que ela existia para impedir (auditoria de
+        # 2026-10-09, ND-1121-012). A última retomada mora à parte, em
+        # `limits`, e só serve para não republicar a cada dez minutos.
         if job.updated_at < agora - timezone.timedelta(hours=JOB_ABANDONADO_DEPOIS_DE_HORAS):
             atualizados = AIJob.objects.filter(id=job.id, status=AIJobStatus.QUEUED).update(
                 status=AIJobStatus.FAILED,
@@ -509,13 +517,28 @@ def retomar_jobs_parados():
                 _notify_job_completion(job)
                 abandonados += 1
             continue
-        # O relógio anda antes de publicar: a próxima rodada só volta a
-        # este job se ele continuar parado por mais vinte minutos.
-        AIJob.objects.filter(id=job.id, status=AIJobStatus.QUEUED).update(updated_at=agora)
-        if job.kind in DOCUMENT_SOURCED_KINDS:
-            prepare_document_and_run.delay(str(job.id))
-        else:
-            run_ai_job.delay(str(job.id))
+        ultima = (job.limits or {}).get('retomado_em')
+        if ultima and timezone.datetime.fromisoformat(ultima) > limite_retomada:
+            continue
+        # Anotada antes de publicar: a próxima rodada só volta a este job
+        # se ele continuar parado por mais vinte minutos. `update`, e não
+        # `save`, para o `auto_now` não mover o prazo do dia.
+        AIJob.objects.filter(id=job.id, status=AIJobStatus.QUEUED).update(
+            limits={**(job.limits or {}), 'retomado_em': agora.isoformat()},
+        )
+        try:
+            if job.kind in DOCUMENT_SOURCED_KINDS:
+                prepare_document_and_run.delay(str(job.id))
+            else:
+                run_ai_job.delay(str(job.id))
+        except Exception as exc:
+            # Fila fora do ar: o job continua parado e entra na próxima
+            # rodada; os outros desta rodada não pagam por ele.
+            logger.error(
+                'ai: job parado nao voltou para a fila',
+                extra={'job_id': str(job.id), 'error_class': exc.__class__.__name__},
+            )
+            continue
         retomados += 1
     if retomados or abandonados:
         logger.warning(

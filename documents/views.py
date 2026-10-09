@@ -1,3 +1,4 @@
+import logging
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -25,6 +26,8 @@ from .signing import InvalidPfxPassword
 from .storage import QuotaExceeded, read_bytes, receive_upload
 from .tasks import scan_attachment
 from .validators import UploadRejected
+
+logger = logging.getLogger(__name__)
 
 
 class TenantScopedView(CapabilityRequiredView):
@@ -581,15 +584,31 @@ class MedicalDocumentSignView(SigningView):
         physician_membership = _own_doctor_membership_or_403(request)
         if physician_membership is None:
             return HttpResponseForbidden('Só um vínculo de médico pode assinar.')
-        try:
-            issuance.sign_and_issue(document, request, physician_membership)
-        except (issuance.NotReadyToSign, issuance.SigningNotAuthorized) as exc:
+        from .signing import SigningFailed
+
+        def recusa(mensagem):
             return render(request, 'documents/medical_detail.html', {
-                'document': document, 'is_own_document': True, 'sign_error': str(exc),
+                'document': document, 'is_own_document': True, 'sign_error': mensagem,
                 'active_session': signing_sessions.get_active_session(request, physician_membership),
                 'credentials': SigningCredential.objects.filter(physician=physician_membership),
                 'session_form': SigningSessionStartForm(), 'credential_form': CredentialUploadForm(),
             }, status=409)
+
+        try:
+            issuance.sign_and_issue(document, request, physician_membership)
+        except (issuance.NotReadyToSign, issuance.SigningNotAuthorized) as exc:
+            return recusa(str(exc))
+        except SigningFailed:
+            logger.exception('documents: falha inesperada ao assinar %s', document.id)
+            # O erro inesperado da biblioteca de assinatura virava "Server
+            # Error (500)". O documento volta a "pronto para assinar" (ver
+            # `issuance.sign_and_issue`), então a tela diz isso e deixa
+            # tentar de novo. Texto fixo, e não `str(exc)`: o que a
+            # biblioteca diz é para quem opera o servidor, e está no log.
+            return recusa(
+                'A assinatura não foi concluída por um erro inesperado. O documento '
+                'continua pronto para assinar — tente de novo; se repetir, avise o suporte.'
+            )
         return redirect('documents:medical-detail', document_id=document.id)
 
 

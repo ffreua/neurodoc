@@ -229,16 +229,49 @@ def discard_document(document, actor_id):
     document.delete()
 
 
-@transaction.atomic
 def sign_and_issue(document, request, physician_membership):
-    """Enforces the full authorization chain per document, per PRD 12.2:
+    """Assina e emite; a falha é registrada **depois** de desfeita.
+
+    Enforces the full authorization chain per document, per PRD 12.2:
     active signing session bound to *this* web session, a still-usable
-    credential, and the ephemeral tmpfs key actually present. Any failure
-    leaves the document not-issued -- recoverable failures (bad password,
-    expired/revoked credential, missing session) return it to
-    ready_to_sign for a retry; only an unexpected signing exception moves
-    it to the terminal `failed` state.
+    credential, and the ephemeral tmpfs key actually present.
+
+    Qualquer falha desfaz a transação inteira -- o número do documento, o
+    estado "assinando", o PDF desenhado -- e o documento continua "pronto
+    para assinar", para o médico tentar de novo. Era o que acontecia na
+    prática, embora este texto prometesse um estado terminal `failed` para
+    o erro inesperado: o `except` gravava `failed` e o evento de auditoria
+    e relançava a exceção **dentro** do `atomic`, que desfazia os dois
+    (auditoria de 2026-10-09, ND-1121-015). Ficou o comportamento que o
+    médico vê, que é o certo -- o erro inesperado da biblioteca de
+    assinatura não é culpa do documento --, e voltou o que se perdia: o
+    registro. Senha errada no certificado, chave de sessão ausente e erro
+    da assinatura entram na trilha numa transação própria, depois do
+    rollback.
     """
+    try:
+        return _sign_and_issue(document, request, physician_membership)
+    except Exception as exc:
+        falha = getattr(exc, 'nd_falha_de_assinatura', None)
+        if falha is not None:
+            outcome, motivo = falha
+            record_audit_event(
+                physician_membership.user_id, physician_membership.tenant_id,
+                'documents.medicaldocument_sign_failed',
+                object_type='medical_document', object_id=document.id, outcome=outcome,
+                integrity_metadata={'reason': motivo},
+            )
+        raise
+
+
+def _falhou(exc, outcome, motivo):
+    """Marca a exceção com o que `sign_and_issue` registra depois do rollback."""
+    exc.nd_falha_de_assinatura = (outcome, motivo)
+    return exc
+
+
+@transaction.atomic
+def _sign_and_issue(document, request, physician_membership):
     locked = MedicalDocument.objects.select_for_update().get(id=document.id)
     if locked.status != MedicalDocumentStatus.READY_TO_SIGN:
         raise NotReadyToSign('Document is not ready to sign')
@@ -254,12 +287,7 @@ def sign_and_issue(document, request, physician_membership):
     try:
         password = unlock_password(session)
     except SigningSessionKeyMissing as exc:
-        record_audit_event(
-            physician_membership.user_id, locked.tenant_id, 'documents.medicaldocument_sign_failed',
-            object_type='medical_document', object_id=locked.id, outcome='denied',
-            integrity_metadata={'reason': 'signing_session_key_missing'},
-        )
-        raise SigningNotAuthorized(str(exc)) from exc
+        raise _falhou(SigningNotAuthorized(str(exc)), 'denied', 'signing_session_key_missing') from exc
 
     locked.status = MedicalDocumentStatus.SIGNING
     locked.save(update_fields=['status'])
@@ -291,23 +319,9 @@ def sign_and_issue(document, request, physician_membership):
             reason=f'{document_kinds.TITLE[locked.kind]} — CRM {profile.crm_number}/{profile.crm_state}',
         )
     except InvalidPfxPassword as exc:
-        locked.status = MedicalDocumentStatus.READY_TO_SIGN
-        locked.save(update_fields=['status'])
-        record_audit_event(
-            physician_membership.user_id, locked.tenant_id, 'documents.medicaldocument_sign_failed',
-            object_type='medical_document', object_id=locked.id, outcome='denied',
-            integrity_metadata={'reason': 'invalid_pfx_password'},
-        )
-        raise SigningNotAuthorized(str(exc)) from exc
+        raise _falhou(SigningNotAuthorized(str(exc)), 'denied', 'invalid_pfx_password') from exc
     except SigningFailed as exc:
-        locked.status = MedicalDocumentStatus.FAILED
-        locked.save(update_fields=['status'])
-        record_audit_event(
-            physician_membership.user_id, locked.tenant_id, 'documents.medicaldocument_sign_failed',
-            object_type='medical_document', object_id=locked.id, outcome='failure',
-            integrity_metadata={'reason': 'signing_exception'},
-        )
-        raise
+        raise _falhou(exc, 'failure', 'signing_exception')
     finally:
         del pfx_bytes
 

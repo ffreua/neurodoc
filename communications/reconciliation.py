@@ -104,7 +104,13 @@ def reconcile_pending_sms():
             delivery.save(update_fields=['status', 'next_attempt_at'])
             continue
         try:
-            result = check_delivery([delivery.provider_id])
+            # Com a chave de **quem enviou**. O id da mensagem existe na conta
+            # da clinica que a mandou; perguntado com a chave da instalacao,
+            # o SMSDEV nao o conhece, e a entrega real terminava "sem
+            # confirmacao" (auditoria de 2026-10-09, ND-1121-006). So nao
+            # aparecia porque, ate aqui, a chave propria e a da instalacao
+            # eram a mesma conta.
+            result = check_delivery([delivery.provider_id], tenant_id=delivery.tenant_id)
         except (SmsChannelDisabled, SmsSendFailed) as exc:
             _record_poll(delivery, DeliveryAttemptOutcome.UNKNOWN, sanitized_error=exc.__class__.__name__)
             _schedule_next_or_give_up(delivery, poll_count)

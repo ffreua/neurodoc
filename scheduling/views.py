@@ -1033,9 +1033,15 @@ class RescheduleAppointmentView(TenantScopedView):
             messages.error(request, reason)
             return redirect(back)
         try:
-            services.reschedule_appointment(
+            appointment = services.reschedule_appointment(
                 request.access_context, appointment, new_start, new_end, request.user.id,
             )
+        except services.SchedulingError as exc:
+            # Cancelada ou mudada por outra pessoa enquanto esta tela
+            # estava aberta: a recusa diz o porquê, em vez de "o erro foi
+            # registrado", que é para defeito e não para regra.
+            messages.error(request, str(exc))
+            return redirect(back)
         except IntegrityError:
             # Ver o comentario da criacao de reserva: so o choque de
             # horario cai aqui.

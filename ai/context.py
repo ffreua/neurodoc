@@ -54,6 +54,29 @@ def build_ai_authorization(access_context, patient_id=None, encounter_id=None):
         raise AIAuthorizationDenied(
             f'O plano {plan_label(membership.tenant.plan)} não inclui o apoio clínico por IA.'
         )
+    # O papel, e não só o vínculo. Tirar o papel médico de alguém deixa o
+    # vínculo **ativo** -- ele continua na clínica como secretária, como
+    # gestor --, e um job já na fila seguia até o provedor com o prontuário
+    # de quem acabou de perder o direito de lê-lo (auditoria de
+    # 2026-10-09, ND-1121-004). A conta é a mesma de `capabilities_for`,
+    # que as telas e o chat já usam (`ai/tasks.py::_membership_id_of`):
+    # uma política só para os três caminhos.
+    #
+    # E o vínculo tem de ser **desta** pessoa: o contexto do worker é
+    # montado a partir do job, e um par usuário/vínculo trocado não pode
+    # valer como autorização de nenhum dos dois.
+    from tenancy.permissions import Capability, capabilities_for
+
+    if membership.user_id != access_context.user_id:
+        raise AIAuthorizationDenied('Seu vínculo com esta clínica não está ativo.')
+    capacidades = capabilities_for(
+        membership.roles, clinically_enabled=membership.can_practice_clinically(),
+        ai_contracted=True,
+    )
+    if Capability.CLINICAL_AI not in capacidades:
+        raise AIAuthorizationDenied(
+            'O apoio clínico por IA é do papel médico, e este vínculo não o tem mais.'
+        )
 
     patient = None
     if patient_id:

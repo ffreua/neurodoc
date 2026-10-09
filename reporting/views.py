@@ -222,6 +222,15 @@ class ExportDownloadView(TenantScopedView):
             raise Http404
         if export.status != ReportExportStatus.READY or not export.storage_key:
             raise Http404
+        # O prazo vale na hora do download, e não quando a limpeza passar.
+        # Dependia de `expire_exports`: com o beat atrasado ou o worker
+        # parado, o arquivo do acervo -- o prontuário da clínica inteira --
+        # continuava baixável depois das 24 h prometidas, por tempo
+        # indeterminado (auditoria de 2026-10-09, ND-1121-009).
+        from django.utils import timezone
+
+        if export.expires_at is not None and export.expires_at <= timezone.now():
+            raise Http404
         from .services import FORMATOS
 
         with open(export.storage_key, 'rb') as fh:

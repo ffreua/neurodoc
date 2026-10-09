@@ -140,6 +140,12 @@ def discard_summary(encounter):
                              or encounter.habits_history),
         'tem_conduta': bool(encounter.plan_text),
         'tem_exame_texto': bool(encounter.neurological_exam_text),
+        # O corpo do atendimento de texto livre, e as impressões. Ficavam
+        # de fora: um rascunho com a evolução inteira escrita era
+        # descartado como "vazio", sem pedir motivo e sem guardar na trilha
+        # o que havia (auditoria de 2026-10-09, ND-1121-013).
+        'tem_texto_livre': bool((encounter.free_text or '').strip()),
+        'tem_impressoes': bool((encounter.impressions or '').strip()),
         'exame': encounter.examination_findings.count(),
         'medicacoes': encounter.medications.count(),
         'exames': encounter.exam_results.count(),
@@ -151,6 +157,7 @@ def has_content(encounter):
     resumo = discard_summary(encounter)
     return bool(
         resumo['tem_historia'] or resumo['tem_conduta'] or resumo['tem_exame_texto']
+        or resumo['tem_texto_livre'] or resumo['tem_impressoes']
         or resumo['exame'] or resumo['medicacoes'] or resumo['exames'] or resumo['hipoteses']
     )
 

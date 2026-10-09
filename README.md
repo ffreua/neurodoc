@@ -11,7 +11,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.12.2 "o rodapé" (`base/version.py`) |
+| **Versão do produto** | 1.12.3 "o rodapé" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Verificação** | 100 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.12.3** | 2026-10-09 | o rodapé | Lote 2 da auditoria independente: **remarcar** recusa consulta já cancelada (e diz por quê); falha ao **assinar** — inclusive senha errada do certificado — fica na trilha de auditoria e deixa de virar erro 500; **descartar** evolução em texto livre pede motivo; a confirmação de entrega do **SMS** usa a conta da própria clínica, e a recusa do provedor deixa de aparecer como aceita; **exportação** vencida não baixa mais; e a IA confere o papel médico na hora de executar. |
 | **1.12.2** | 2026-10-09 | o rodapé | Lote 1 da auditoria independente: o **PDF de receita e relatório** deixa de aparecer como anexo comum — a recepção baixa e imprime o documento **emitido**, não abre o rascunho, e ninguém o remove pela lista de anexos; **finalizar** não grava mais por cima do último trecho salvo pelo autosave; o **reenvio** para e-mail e SMS deixa os dois links valendo; o pedido do **portal** não cai mais na ficha de outro paciente identificado no mesmo navegador; o retorno depois do **MFA** não sai do domínio; e uma entrega não sai duas vezes. |
 | **1.12.1** | 2026-10-09 | o rodapé | Correções do processamento assíncrono apontadas por auditoria externa: quem **perdeu a posse** de um evento não o processa nem sobrescreve o desfecho; o consumidor roda **fora** de transação externa (o link do documento existe antes de o SMS sair); o **lembrete não sai** para consulta cancelada, remarcada ou já começada; o aviso de horário mede a idade pelo instante em que o fato aconteceu; job de IA parado na fila é **retomado**; falha de consumidor deixa log com nome. Sem migração. |
 | **1.12** | 2026-10-08 | o rodapé | A **assinatura do médico**, com o QR, e no controle especial o **quadro do comprador e do fornecedor**, passam a ficar sempre no **pé da folha**, em todo documento: cabeçalho no alto, corpo no meio, rodapé embaixo. Se o corpo enche a folha, o rodapé vai inteiro para o pé da seguinte, e nunca se parte. Os rótulos do quadro do fornecedor deixam de sair cortados por uma linha. |

@@ -114,7 +114,18 @@ def send_sms(number, message, refer, tenant_id=None):
         raise SmsSendFailed(f'SMSDEV request failed: {exc.__class__.__name__}') from exc
     if response.status_code != 200:
         raise SmsSendFailed(f'SMSDEV returned HTTP {response.status_code}')
-    return response.json()
+    payload = response.json()
+    # HTTP 200 nao e "aceito". O SMSDEV responde 200 tambem quando recusa
+    # -- `{"situacao": "ERRO", "descricao": "..."}`, a mesma forma que
+    # `check_balance` ja tratava --, e isto devolvia o JSON como sucesso:
+    # a entrega ficava "aceita pelo provedor", sem id, com a mensagem nunca
+    # enviada (auditoria de 2026-10-09, ND-1121-007). So a recusa
+    # **explicita** vira falha; qualquer outra forma segue como antes, para
+    # nao recusar resposta valida que este codigo ainda nao conheca.
+    if isinstance(payload, dict) and str(payload.get('situacao', '')).upper() == 'ERRO':
+        descricao = str(payload.get('descricao', ''))[:80]
+        raise SmsSendFailed(f'SMSDEV recusou o envio: {descricao}')
+    return payload
 
 
 def check_balance(tenant_id=None):

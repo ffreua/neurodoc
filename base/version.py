@@ -63,6 +63,11 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
+#: A **1.12.3** fecha o lote 2 da mesma auditoria: IA pelo papel
+#: clínico, consulta relida sob trava, SMS conferido com a chave de quem
+#: enviou, exportação vencida e duplicada, prazo da retomada de IA,
+#: descarte de texto livre e a falha de assinatura na trilha.
+#:
 #: A **1.12.2** fecha o lote 1 da auditoria independente de 2026-10-09:
 #: o PDF de documento médico (a recepção imprime o emitido, e só), a
 #: finalização sobre o autosave, o reenvio com link morto, o `next` do
@@ -120,7 +125,7 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.12.2'
+VERSION = '1.12.3'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

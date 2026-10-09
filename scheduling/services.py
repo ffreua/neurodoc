@@ -74,9 +74,38 @@ def reserve_appointment(
     return appointment
 
 
+def _relida(appointment):
+    """A consulta como está no banco, travada até o fim da transação.
+
+    As transições gravavam a instância que a tela tinha carregado, inteira.
+    Duas pessoas na mesma consulta -- uma cancela, a outra remarca --, e a
+    remarcação gravava por cima o estado "agendado" da cópia velha: a
+    consulta cancelada voltava à agenda, sem o motivo do cancelamento
+    (auditoria de 2026-10-09, ND-1121-014). Relida sob trava, a segunda
+    espera a primeira e decide sobre o que de fato ficou.
+    """
+    return type(appointment).objects.select_for_update().get(id=appointment.id)
+
+
+#: Remarcar é mudar o quando de um horário que ainda vai acontecer.
+REMARCAVEIS = (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED)
+
+
 @transaction.atomic
 def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, actor_id, buffer_minutes=0):
     _lock_days(appointment.physician_membership_id, _days_spanned(new_starts_at, new_ends_at))
+    vista_versao = appointment.row_version
+    appointment = _relida(appointment)
+    if appointment.status not in REMARCAVEIS:
+        raise SchedulingError(
+            f'Este horário está "{appointment.get_status_display().lower()}" e não pode '
+            'mais ser remarcado. Recarregue a agenda.'
+        )
+    if appointment.row_version != vista_versao:
+        raise SchedulingError(
+            'Este horário mudou desde que você abriu a tela — outra pessoa pode ter '
+            'remarcado ou cancelado. Recarregue antes de remarcar.'
+        )
     old_starts_at, old_ends_at, old_version = appointment.starts_at, appointment.ends_at, appointment.row_version
     appointment.starts_at = new_starts_at
     appointment.ends_at = new_ends_at
@@ -102,6 +131,7 @@ def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, act
 
 @transaction.atomic
 def transition_appointment(appointment, new_status, actor_id, **extra_fields):
+    appointment = _relida(appointment)
     current = AppointmentStatus(appointment.status)
     allowed = ALLOWED_TRANSITIONS.get(current, set())
     if new_status not in allowed:
@@ -121,6 +151,7 @@ def transition_appointment(appointment, new_status, actor_id, **extra_fields):
     return appointment
 
 
+@transaction.atomic
 def cancel_appointment(appointment, actor_id, reason=''):
     result = transition_appointment(appointment, AppointmentStatus.CANCELLED, actor_id, cancellation_reason=reason)
     invalidate_stale_reminders(result)
@@ -288,6 +319,7 @@ def change_appointment_patient(context, appointment, new_patient, reason, actor_
     log, porque "quem estava marcado nesse horário" é pergunta que se faz
     depois.
     """
+    appointment = _relida(appointment)
     if appointment.status not in (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED):
         raise SchedulingError(
             'Só é possível trocar o paciente de um horário agendado ou confirmado.'
@@ -332,6 +364,7 @@ def change_appointment_type(context, appointment, new_type, actor_id):
     """
     from .models import AppointmentType
 
+    appointment = _relida(appointment)
     if appointment.status not in (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED):
         raise SchedulingError(
             'Só é possível trocar o tipo de um horário agendado ou confirmado. '

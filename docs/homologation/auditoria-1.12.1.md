@@ -47,6 +47,35 @@ A recepção **imprime** receitas e relatórios emitidos para entregar ao
 paciente. Por isso a regra não é "clínico fecha", e sim "emitido abre para
 quem administra o cadastro do paciente" (`PATIENT_ADMIN`).
 
+## Lote 2 — o restante barato (1.12.3)
+
+| Achado | O que foi feito |
+| --- | --- |
+| **ND-004** IA depois de perder o papel médico | `build_ai_authorization` reconstrói as capacidades (`capabilities_for`) e exige `CLINICAL_AI`, como o chat já fazia; e o vínculo tem de ser do usuário do contexto. Antes de mexer: os 10 jobs de produção foram todos pedidos por vínculo com papel médico e CRM verificado |
+| **ND-014** cópia velha reativa consulta cancelada | Remarcar, transições, troca de paciente e troca de tipo **releem a consulta sob trava**. Remarcar só vale para agendada ou confirmada e na versão que a tela viu; a recusa aparece na tela, e não como "o erro foi registrado". Cancelar ficou atômico com a invalidação dos lembretes e o evento |
+| **ND-006** DLR com a chave errada | `check_delivery(..., tenant_id=delivery.tenant_id)` |
+| **ND-007** "ERRO" com HTTP 200 | Só a recusa **explícita** (`situacao: ERRO`) vira `SmsSendFailed`; qualquer outra forma segue como antes |
+| **ND-009** exportação vencida | O download confere `expires_at` |
+| **ND-011** exportação duas vezes | Posse por `UPDATE` condicional de `queued` para `running`; quem perde não mexe |
+| **ND-012** prazo da retomada de IA | A retomada não toca mais o `updated_at`; anota a última vez em `limits.retomado_em`. Falha ao publicar um job não derruba a rodada |
+| **ND-013** descarte de texto livre | Texto livre e impressões contam como conteúdo, pedem motivo e aparecem no resumo do que se perde |
+| **ND-015** falha de assinatura sem registro | A falha é registrada **depois** do rollback, numa transação própria — inclusive a senha errada do certificado, que também se perdia. O documento continua "pronto para assinar", que era o comportamento real |
+
+### O que não foi seguido no ND-015
+
+O relatório recomendava persistir o estado terminal `failed`. Não foi
+feito: o comportamento que o médico vê hoje — e sempre viu, porque o
+rollback desfazia o `failed` — é "tente de novo", e um erro inesperado da
+biblioteca de assinatura não é defeito do documento. Trancá-lo em `failed`
+obrigaria a refazer o documento. O que se perdia, e voltou, é o registro.
+De quebra, esse erro deixou de virar "Server Error (500)" na tela.
+
+### O que o relatório não tinha visto no ND-014
+
+A tela de remarcar não conferia o estado da consulta **nunca**, nem sem
+concorrência. E a troca de paciente e a troca de tipo tinham o mesmo
+padrão de gravar a cópia velha inteira; receberam a mesma releitura.
+
 ## O que não se faz, e por quê
 
 - **ND-005 / A2 por inteiro** — guardar a intenção de envio para reenviar
@@ -60,6 +89,9 @@ quem administra o cadastro do paciente" (`PATIENT_ADMIN`).
   sem métrica que justifique — o próprio relatório diz o mesmo.
 
 ## Verificação
+
+`check_auditoria_lote2.py`: com o código anterior **reprova em 19
+verificações**; com o novo, passa inteiro.
 
 `check_auditoria_lote1.py`: com o código anterior **reprova em 16
 verificações** (e para no fim porque o código antigo gravou o pedido do
