@@ -453,3 +453,72 @@ def verificar_provedor_da_instalacao():
         return gravar(False, f'Falha ao testar o modelo: {type(exc).__name__}.', modelos)
 
     return gravar(True, f'{provedor} respondeu, e {modelo} está ativo.', modelos)
+
+
+#: Um job na fila há mais que isto se perdeu no caminho até o worker.
+#:
+#: Tem de passar do `expires=900` de `run_ai_job`: antes disso a mensagem
+#: original pode estar viva na fila, e reenfileirar seria pedir duas
+#: vezes (o que `run_job` recusa, com o lock e a conferência do estado,
+#: mas não há por que contar com isso).
+JOB_PARADO_DEPOIS_DE_MINUTOS = 20
+#: Depois disto o resultado já não serve ao atendimento que o pediu, e o
+#: certo é deixar o médico pedir de novo -- não rodar sozinho dias depois.
+JOB_ABANDONADO_DEPOIS_DE_HORAS = 24
+
+
+@shared_task(name='ai.tasks.retomar_jobs_parados')
+def retomar_jobs_parados():
+    """Acha o job que ficou "na fila" sem nunca chegar ao worker.
+
+    Três caminhos levam a isso, e nenhum deixava rastro: a publicação na
+    fila falhando depois do commit; a mensagem descartada pelo `expires`
+    quando a fila de IA atrasa mais de quinze minutos; e, até a auditoria
+    de 2026-10-09 (A3), o resumo automático publicado antes de o job
+    existir para o worker. O job ficava `queued` para sempre, e
+    `create_job` não reabre job `queued` -- o botão de pedir de novo não
+    fazia nada.
+
+    Entre vinte minutos e um dia, reenfileira pelo mesmo caminho do pedido
+    (laudo passa pela preparação, que espera o antivírus e roda o OCR).
+    Depois de um dia, encerra como falha com a explicação, e o médico pede
+    de novo se ainda quiser.
+    """
+    from django.utils import timezone
+
+    from .models import DOCUMENT_SOURCED_KINDS
+
+    agora = timezone.now()
+    parados = AIJob.objects.filter(
+        status=AIJobStatus.QUEUED,
+        updated_at__lt=agora - timezone.timedelta(minutes=JOB_PARADO_DEPOIS_DE_MINUTOS),
+    )
+    retomados = abandonados = 0
+    for job in parados.order_by('updated_at')[:50]:
+        if job.updated_at < agora - timezone.timedelta(hours=JOB_ABANDONADO_DEPOIS_DE_HORAS):
+            atualizados = AIJob.objects.filter(id=job.id, status=AIJobStatus.QUEUED).update(
+                status=AIJobStatus.FAILED,
+                status_detail='A tarefa ficou na fila e não chegou a rodar. Peça de novo.',
+                updated_at=agora,
+            )
+            if atualizados:
+                job.refresh_from_db()
+                from .extraction import sync_exam_result_status
+
+                sync_exam_result_status(job)
+                _notify_job_completion(job)
+                abandonados += 1
+            continue
+        # O relógio anda antes de publicar: a próxima rodada só volta a
+        # este job se ele continuar parado por mais vinte minutos.
+        AIJob.objects.filter(id=job.id, status=AIJobStatus.QUEUED).update(updated_at=agora)
+        if job.kind in DOCUMENT_SOURCED_KINDS:
+            prepare_document_and_run.delay(str(job.id))
+        else:
+            run_ai_job.delay(str(job.id))
+        retomados += 1
+    if retomados or abandonados:
+        logger.warning(
+            'ai: jobs parados na fila', extra={'retomados': retomados, 'abandonados': abandonados},
+        )
+    return {'retomados': retomados, 'abandonados': abandonados}

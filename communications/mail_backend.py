@@ -28,7 +28,11 @@ eventos despachados por `events.tasks.dispatch_outbox`, que já roda no
 worker — o que sobra são os disparos feitos direto de uma view, anotados
 em `docs/homologation/email-delivery.md`.
 """
+import logging
+
 from django.core.mail.backends.base import BaseEmailBackend
+
+logger = logging.getLogger(__name__)
 
 
 class AttachmentNotSupported(Exception):
@@ -114,8 +118,31 @@ class WorkerEmailBackend(BaseEmailBackend):
                 if self.fail_silently:
                     continue
                 raise
-            transaction.on_commit(
-                lambda payload=dados: deliver_installation_email.delay(payload)
-            )
+            transaction.on_commit(lambda payload=dados: _publicar(deliver_installation_email, payload))
             aceitas += 1
         return aceitas
+
+
+def _publicar(tarefa, dados):
+    """Põe a mensagem na fila, e diz em voz alta quando não conseguiu.
+
+    Depois do commit, uma falha aqui não desfaz mais nada: o que a
+    transação gravou já está gravado. Ela ainda sobe -- fora de transação
+    o `on_commit` roda na hora, e quem chamou (`communications.services
+    ._send`) registra a entrega como falha em vez de "aceita"; numa view,
+    a tela mostra o erro e a pessoa repete. Mas dentro de uma transação
+    que já fechou, o único rastro que sobra é este log, e sem ele a
+    mensagem sumia sem nome (auditoria de 2026-10-09, A2).
+
+    Sem destinatário nem assunto no log: o endereço é de paciente, e o
+    assunto pode dizer de que se trata.
+    """
+    try:
+        tarefa.delay(dados)
+    except Exception as exc:
+        logger.error(
+            'e-mail da instalação não entrou na fila depois do commit',
+            extra={'error_class': exc.__class__.__name__},
+            exc_info=True,
+        )
+        raise

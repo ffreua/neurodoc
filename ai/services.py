@@ -101,7 +101,10 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
         job.status = AIJobStatus.QUEUED if settings.AI_ENABLED else AIJobStatus.DISABLED
         job.status_detail = ''
         job.cancel_requested_at = None
-        job.save(update_fields=['status', 'status_detail', 'cancel_requested_at'])
+        # `updated_at` junto: é por ele que `retomar_jobs_parados` mede
+        # há quanto tempo o job espera, e `auto_now` não anda quando o
+        # campo fica de fora de `update_fields`.
+        job.save(update_fields=['status', 'status_detail', 'cancel_requested_at', 'updated_at'])
     record_audit_event(
         authorization.user_id, access_context.tenant_id, 'ai.job_created',
         object_type='ai_job', object_id=job.id, outcome='success',

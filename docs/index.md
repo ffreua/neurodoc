@@ -325,6 +325,11 @@ PRD; é a referência operacional viva gerada a partir dele.
   entre inquilinos — era o cache do navegador, que a revisão de
   isolamento não tinha olhado. Traz a regra geral de prazo de cache e o
   roteiro que a cobra.
+- [O despachante da outbox](homologation/despachante-da-outbox.md) — a
+  auditoria externa de 2026-10-09: oito achados no processamento
+  assíncrono, o que procedeu, o que foi corrigido (posse do lease,
+  consumidor fora de transação externa, lembrete revalidado, idade do
+  aviso, job de IA parado) e o que ficou de fora.
 - [Retenção, chaves e incidentes](governance/incident-response.md) —
   consolidação final de governança operacional.
 

@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.db import transaction
 
 from clinical.models import Encounter
 from tenancy.context import AccessContext
@@ -48,5 +49,13 @@ def handle_encounter_finalized(event):
         fake_context, AIJobKind.ENCOUNTER_SUMMARY, purpose='Resumo automático ao finalizar atendimento',
         patient_id=encounter.patient_id, encounter_id=encounter.id,
     )
+    # Para a fila só depois do commit. O despachante já não envolve o
+    # consumidor numa transação (ver `events/dispatcher.py`), e então
+    # `create_job` confirma o job antes desta linha; `on_commit` é a
+    # garantia de que continua assim se alguém chamar isto de dentro de
+    # um `atomic`. Publicado antes, o worker podia receber o id de uma
+    # linha que ainda não via, falhar sem achar o job, e o job ficar
+    # "na fila" para sempre (auditoria de 2026-10-09, A3). Se a
+    # publicação se perder mesmo assim, `retomar_jobs_parados` o acha.
     if job.status == AIJobStatus.QUEUED:
-        run_ai_job.delay(str(job.id))
+        transaction.on_commit(lambda: run_ai_job.delay(str(job.id)))

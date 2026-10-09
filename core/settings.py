@@ -204,6 +204,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'events.tasks.dispatch_outbox',
         'schedule': 5,
     },
+    # Job de IA que ficou "na fila" sem chegar ao worker. Dez minutos
+    # porque o corte e de vinte: ninguem espera mais que meia hora por um
+    # job perdido. Ver `ai.tasks.retomar_jobs_parados`.
+    'ai-retomar-jobs-parados': {
+        'task': 'ai.tasks.retomar_jobs_parados',
+        'schedule': 600,
+    },
     'communications-reconcile-pending-sms': {
         'task': 'communications.tasks.reconcile_pending_sms',
         'schedule': 60,

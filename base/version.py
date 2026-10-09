@@ -63,6 +63,13 @@ carimbá-la na publicação.
 
 #: A versão do produto. O primeiro deploy é a 1.0.
 #:
+#: A **1.12.1** corrige o despachante da outbox e os consumidores dele,
+#: a partir da auditoria externa de 2026-10-09: posse do lease, consumidor
+#: fora de transação externa, lembrete que não sai para consulta cancelada
+#: e job de IA parado na fila retomado. Terceira casa pela mesma regra da
+#: 1.6.1: quem pediu a auditoria é quem usa, e o suporte precisa
+#: distinguir quem já tem a correção.
+#:
 #: A **1.12** põe a assinatura do médico (com o QR) e o quadro da farmácia
 #: no rodapé da folha, em todo documento. Muda o que a clínica imprime, e
 #: por isso a casa menor, e não uma correção.
@@ -108,7 +115,7 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.12'
+VERSION = '1.12.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

@@ -54,8 +54,14 @@ def _aviso(event, motivo):
 
     from .services import deliver_appointment_notice
 
-    emitido_em = event.available_at or event.created_at
-    idade = timezone.now() - emitido_em
+    # `created_at`, e nunca `available_at`. Aquele é quando o fato
+    # aconteceu; este é **quando tentar de novo**, e o despachante o
+    # empurra para a frente a cada espera sem consumidor e a cada recuo.
+    # Medida por ele, a janela via todo evento como recém-nascido: o de
+    # dez dias atrás, empurrado há dois minutos, passava -- que é
+    # exatamente o replay que ela existe para barrar (auditoria de
+    # 2026-10-09, A6).
+    idade = timezone.now() - event.created_at
     if idade > JANELA_DO_AVISO:
         logger.info(
             'Aviso de horário descartado por evento antigo',

@@ -323,8 +323,39 @@ def _sms_document_message(link):
     return SMS_DOCUMENT_TEMPLATE_CURTO.format(link=link)
 
 
-@transaction.atomic
+#: Estados em que um lembrete ainda faz sentido. Fora deles o paciente
+#: já chegou, já foi atendido, faltou ou teve a consulta cancelada.
+LEMBRETE_ESTADOS_VALIDOS = ('scheduled', 'confirmed')
+
+
 def deliver_appointment_reminder(appointment, event_version):
+    """Lembra o paciente do horário marcado.
+
+    **O estado de agora manda sobre o evento de então** -- a mesma regra
+    de `deliver_appointment_notice`, que o lembrete não tinha. Cancelar
+    derruba os lembretes ainda pendentes (`invalidate_stale_reminders`),
+    mas um que o despachante já tinha reclamado escapava, e saía
+    "lembrete de consulta" para consulta cancelada (auditoria de
+    2026-10-09, A5). Consulta que já começou também não vira lembrete:
+    é o caso do evento atrasado por um worker parado.
+
+    A versão do evento **não** é comparada com a do agendamento, apesar
+    de parecer o óbvio: `row_version` sobe também ao confirmar e ao
+    trocar o tipo, que não reagendam lembrete nenhum -- comparar
+    calaria o lembrete de toda consulta confirmada. Quem descobre o
+    lembrete substituído por uma remarcação é o consumidor
+    (`scheduling.handlers`), olhando se há evento mais novo.
+
+    Sem `atomic` em volta, de propósito: cada entrega se grava sozinha.
+    Dentro de uma transação, uma falha ao pôr o e-mail na fila acontecia
+    **depois** do commit que já dizia "aceita", e a mensagem sumia com a
+    lista de entregas afirmando o contrário. Fora dela a falha cai em
+    `_send`, que a registra na própria entrega.
+    """
+    if appointment.status not in LEMBRETE_ESTADOS_VALIDOS:
+        return []
+    if appointment.starts_at <= timezone.now():
+        return []
     contacts = _eligible_reminder_contacts(appointment.patient)
     if not contacts:
         from django.utils import timezone as _tz

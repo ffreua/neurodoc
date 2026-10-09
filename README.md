@@ -11,7 +11,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.12 "o rodapé" (`base/version.py`) |
+| **Versão do produto** | 1.12.1 "o rodapé" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Verificação** | 100 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.12.1** | 2026-10-09 | o rodapé | Correções do processamento assíncrono apontadas por auditoria externa: quem **perdeu a posse** de um evento não o processa nem sobrescreve o desfecho; o consumidor roda **fora** de transação externa (o link do documento existe antes de o SMS sair); o **lembrete não sai** para consulta cancelada, remarcada ou já começada; o aviso de horário mede a idade pelo instante em que o fato aconteceu; job de IA parado na fila é **retomado**; falha de consumidor deixa log com nome. Sem migração. |
 | **1.12** | 2026-10-08 | o rodapé | A **assinatura do médico**, com o QR, e no controle especial o **quadro do comprador e do fornecedor**, passam a ficar sempre no **pé da folha**, em todo documento: cabeçalho no alto, corpo no meio, rodapé embaixo. Se o corpo enche a folha, o rodapé vai inteiro para o pé da seguinte, e nunca se parte. Os rótulos do quadro do fornecedor deixam de sair cortados por uma linha. |
 | **1.11** | 2026-10-08 | a caixa limpa | **Limpar todas as notificações**, no sino e na central, com confirmação. Apaga a caixa da pessoa naquela clínica (lidas e não lidas) e nada além: a caixa da outra clínica e a de outra pessoa ficam, e o que cada aviso apontava (pedido do portal, resultado, exportação) continua onde está. |
 | **1.10** | 2026-10-08 | a recepção | O **tipo de consulta** de um horário marcado passa a ser trocado no próprio modal da agenda (clicando no rótulo ou em "Alterar o tipo de consulta"), só antes da chegada, porque no check-in o tipo define o preço da cobrança, e sem mexer no horário. O **CRM já registrado em outra conta** deixa de ser recusado em inglês ("Physician profile com este Crm number...") e passa a dizer o caminho: convidar a conta onde o registro está. A unicidade do CRM continua, e é ela que impede alguém de assinar no nome de outro médico. |
