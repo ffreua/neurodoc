@@ -56,6 +56,12 @@ urlpatterns = [
         views.LocalHolidayDeleteView.as_view(), name='delete-local-holiday',
     ),
 
+    # O botão "Incluir horário" ao lado do dia, nas três visões.
+    path(
+        '<uuid:membership_id>/incluir-horario/',
+        views.ExtraHoursCreateView.as_view(), name='add-extra-hours',
+    ),
+
     # Reservas.
     path('<uuid:membership_id>/marcar/', views.QuickBookingView.as_view(), name='quick-book'),
     path('reservar/', views.ReserveAppointmentView.as_view(), name='reserve'),

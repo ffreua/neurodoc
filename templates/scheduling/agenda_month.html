@@ -57,6 +57,7 @@ contexto completo.{% endcomment %}
                         <td class="p-1 {% if not day.in_month %}bg-gray-100{% endif %}"
                             style="vertical-align:top">
                             <div class="nd-month-day p-2 rounded-3 text-start {% if day.is_today %}bg-soft-primary{% endif %}">
+                                <div class="d-flex align-items-start justify-content-between gap-1">
                                 <a class="d-inline-block text-decoration-none"
                                    href="{% url 'scheduling:week' %}?physician={{ doctor.id }}&date={{ day.date|date:'Y-m-d' }}"
                                    aria-label="Abrir a semana de {{ day.date|date:'d/m/Y' }}">
@@ -64,6 +65,17 @@ contexto completo.{% endcomment %}
                                     {{ day.date|date:"j" }}
                                 </span>
                                 </a>
+                                {% if pode_incluir_horario and day.in_month and not day.is_past %}
+                                {% with ultima=day.cells|last %}
+                                <button type="button" class="btn btn-xs btn-light-primary fs-11 px-2 py-0 lh-sm" data-nd-extra
+                                        data-nd-extra-day="{{ day.date|date:'Y-m-d' }}"
+                                        data-nd-extra-label="{{ day.date|date:'d/m/Y' }}"
+                                        data-nd-extra-sugestao="{% if ultima %}{{ ultima.end|date:'H:i' }}{% endif %}"
+                                        title="Incluir horário extra em {{ day.date|date:'d/m' }}"
+                                        aria-label="Incluir horário extra em {{ day.date|date:'d/m/Y' }}">+</button>
+                                {% endwith %}
+                                {% endif %}
+                                </div>
                                 {% if not day.works %}
                                 {% comment %}Dia sem grade não recebe crachá nenhum: um "0 livres"
                                 em sábado e domingo enche o calendário de informação que não é

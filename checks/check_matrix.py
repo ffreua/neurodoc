@@ -34,10 +34,22 @@ encounter = Encounter.objects.filter(tenant__slug=TENANT).first()
 # de quarentena). Baixa-lo responde 404 -- corretamente, porque anexo
 # reprovado no antivirus nao se entrega --, e o roteiro lia isso como
 # "doctor-b nao tem permissao". Acusava o produto por fazer a coisa certa.
+#
+# E sem os PDFs de documento medico: desde a 1.12.2 a recepcao baixa o
+# documento **emitido** para imprimir, de proposito, e outros roteiros da
+# bateria deixam alguns desses no banco. Com `.first()` sem ordem, a
+# rodada de 2026-10-14 caiu num deles e acusou a secretaria de baixar
+# "anexo clinico" -- de novo o roteiro acusando o produto por fazer a
+# coisa certa.
+from documents.models import MedicalDocument
+
+_pdfs_de_documento = set(
+    MedicalDocument.objects.values_list('pdf_attachment_id', flat=True)
+) | set(MedicalDocument.objects.values_list('signed_pdf_attachment_id', flat=True))
 clinical_att = Attachment.objects.filter(
     tenant__slug=TENANT, classification=AttachmentClassification.CLINICAL,
     deleted_at=None, scan_status=AttachmentScanStatus.AVAILABLE,
-).first()
+).exclude(id__in=[i for i in _pdfs_de_documento if i]).order_by('created_at').first()
 
 # (rotulo, url, {perfil: esperado})
 CASES = [

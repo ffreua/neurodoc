@@ -281,3 +281,46 @@ def nd_na_lista(nome, lista):
     if not lista:
         return False
     return nome in [parte.strip() for parte in str(lista).split(',')]
+
+
+@register.filter
+def nd_idade(patient, referencia=None):
+    """A idade do paciente para pôr ao lado do nome, ou vazio.
+
+    `referencia` é a data em que se quer a idade. No prontuário é a do
+    atendimento, e não a de hoje: quem relê a consulta de 2019 de uma
+    criança precisa saber que ela tinha 4 anos ali, não 10 — a dose, a
+    escala e o diagnóstico diferencial foram escolhidos para os 4.
+
+    Abaixo de um ano sai em meses (a idade em anos seria "0", que não diz
+    nada), e o ano de nascimento estimado sai com "~": é o cadastro que
+    não tem a data, e a tela não pode fingir que tem. Vazio quando não há
+    nem uma coisa nem outra — quem desenha decide como mostrar a ausência.
+    """
+    from datetime import datetime
+
+    from django.utils import timezone
+
+    from patients.observations import age_at
+
+    if patient is None:
+        return ''
+    if isinstance(referencia, datetime):
+        referencia = timezone.localtime(referencia).date() if timezone.is_aware(referencia) else referencia.date()
+    referencia = referencia or timezone.localdate()
+    nascimento = getattr(patient, 'birth_date', None)
+    if nascimento:
+        if nascimento > referencia:
+            return ''
+        anos = age_at(nascimento, referencia)
+        if anos >= 1:
+            return f'{anos} ano{"s" if anos != 1 else ""}'
+        meses = (referencia.year - nascimento.year) * 12 + referencia.month - nascimento.month
+        if referencia.day < nascimento.day:
+            meses -= 1
+        meses = max(meses, 0)
+        return f'{meses} {"mês" if meses == 1 else "meses"}'
+    estimado = getattr(patient, 'estimated_birth_year', None)
+    if estimado and estimado <= referencia.year:
+        return f'~{referencia.year - estimado} anos'
+    return ''

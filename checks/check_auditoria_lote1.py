@@ -339,14 +339,21 @@ finally:
     DocumentAccessToken.objects.filter(document_id__in=criados['documentos']).delete()
     DocumentRequest.objects.filter(patient_id__in=criados['pacientes']).delete()
     PatientContact.objects.filter(id__in=criados['contatos']).delete()
-    if criados.get('atendimento'):
-        from clinical.models import Encounter
-
-        Encounter.objects.filter(id=criados['atendimento']).delete()
+    # Os PDFs saem **antes** do atendimento: se a limpeza dele falhar, o
+    # que sobra no banco nao pode ser PDF de documento, que o
+    # `check_matrix` lia como "anexo clinico" (2026-10-14).
     MedicalDocument.objects.filter(id__in=criados['documentos']).update(
         pdf_attachment=None, signed_pdf_attachment=None)
     MedicalDocument.objects.filter(id__in=criados['documentos']).delete()
     Attachment.objects.filter(id__in=criados['anexos']).delete()
+    if criados.get('atendimento'):
+        from clinical.models import Encounter
+        from finance.models import Receivable
+
+        # Finalizar gera a cobranca -- as vezes pelo worker, em paralelo,
+        # e por isso a limpeza so quebrava de vez em quando.
+        Receivable.objects.filter(encounter_id=criados['atendimento']).delete()
+        Encounter.objects.filter(id=criados['atendimento']).delete()
     Patient.objects.filter(id__in=criados['pacientes']).delete()
 
 print()

@@ -78,6 +78,9 @@ sem caçar em cartões laterais.{% endcomment %}
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                     <h4 class="fw-bold text-dark mb-0">{{ patient.full_name }}</h4>
+                    {% with idade=patient|nd_idade %}
+                    {% if idade %}<span class="fs-14 text-muted fw-semibold">{{ idade }}</span>{% endif %}
+                    {% endwith %}
                     <span class="badge bg-soft-{{ patient.status|nd_tone }} text-{{ patient.status|nd_tone }}">
                         {{ patient.get_status_display }}
                     </span>
@@ -93,7 +96,7 @@ sem caçar em cartões laterais.{% endcomment %}
                     {% if patient.record_number %}
                     <span class="fw-semibold text-dark">Prontuário {{ patient.record_number }}</span>
                     {% endif %}
-                    <span>{% if age is not None %}{{ age }} anos{% else %}idade desconhecida{% endif %}</span>
+                    {% if not patient|nd_idade %}<span>idade desconhecida</span>{% endif %}
                     <span>CPF {{ patient.cpf|default:"não informado" }}</span>
                     <span>{{ patient.get_sex_at_registration_display }}</span>
                     {% if patient.city %}<span>{{ patient.city }}{% if patient.state %}/{{ patient.state }}{% endif %}</span>{% endif %}

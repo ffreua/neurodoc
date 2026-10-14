@@ -7,8 +7,12 @@ se troca no proprio modal -- com duas travas que este roteiro tenta furar:
 1. **so antes do check-in**: o tipo escolhe o preco na tabela de
    honorarios, e a cobranca nasce no check-in. Depois dele, trocar o tipo
    deixaria a cobranca dizendo uma coisa e o agendamento outra;
-2. **o horario nao muda**: trocar o tipo nao estica nem encolhe a consulta
-   -- esticar podia invadir o horario seguinte, ja ocupado.
+2. **a duracao acompanha o tipo, o inicio nao muda** (desde 2026-10-13;
+   antes o horario ficava intacto, e a primeira consulta das 17h trocada
+   para retorno continuava ocupando ate 18h20). Encolher libera as celulas
+   do fim; esticar so se o tempo seguinte estiver livre, e a recusa nao
+   muda nada; encaixe nao passa pela grade; o intervalo pos-consulta da
+   reserva e preservado.
 
 E as de sempre: a rota nao pode ser engolida pela rota generica de acao
 (`<id>/<action>/`, que daria 404), outra clinica nao alcanca, e o ato
@@ -28,7 +32,10 @@ from django.utils import timezone
 from audit.models import AuditEvent
 from patients.models import Patient, RegistrationStage
 from scheduling import services
-from scheduling.models import Appointment, AppointmentStatus, AppointmentType
+from scheduling.availability import _combine, day_grid
+from scheduling.models import (
+    Appointment, AppointmentStatus, AppointmentType, AppointmentTypeDuration, AvailabilityRule,
+)
 from tenancy.context import AccessContext
 from tenancy.models import Membership, MembershipStatus, Tenant
 
@@ -49,7 +56,7 @@ tenant_b = Tenant.objects.get(slug='demo-clinica-b')
 def vinculo(t, papel):
     return Membership.objects.filter(
         tenant=t, status=MembershipStatus.ACTIVE, roles__contains=[papel],
-    ).select_related('user').first()
+    ).select_related('user').order_by('created_at').first()
 
 
 medico = vinculo(tenant, 'doctor')
@@ -94,15 +101,31 @@ ctx = AccessContext(
     tenant_status=tenant.status, capabilities=frozenset(),
 )
 
+# Duracoes fixadas pelo roteiro (e devolvidas no fim): 80 e 40, como no
+# consultorio. Sem isto o roteiro dependeria do que a demonstracao tiver.
+duracoes_antes = {
+    d.appointment_type: d.minutes
+    for d in AppointmentTypeDuration.objects.filter(physician_membership=medico)
+}
+for tipo, minutos in ((AppointmentType.FIRST_VISIT, 80), (AppointmentType.FOLLOW_UP, 80),
+                      (AppointmentType.RETURN_VISIT, 40), (AppointmentType.PROCEDURE, 40)):
+    AppointmentTypeDuration.objects.update_or_create(
+        tenant=tenant, physician_membership=medico, appointment_type=tipo,
+        defaults={'minutes': minutos},
+    )
+regra = None
+
 try:
-    print('=== 1. agendado: troca o tipo, e so o tipo ===')
+    print('=== 1. agendado: troca o tipo, e a duracao acompanha ===')
     a = marcar(AppointmentStatus.SCHEDULED, 0)
     inicio, fim, versao = a.starts_at, a.ends_at, a.row_version
     services.change_appointment_type(ctx, a, AppointmentType.RETURN_VISIT, secretaria.user_id)
     a.refresh_from_db()
     confere(a.type == AppointmentType.RETURN_VISIT, 'o tipo mudou')
-    confere((a.starts_at, a.ends_at) == (inicio, fim),
-            'o horario nao mudou (retorno dura menos, e a consulta nao encolheu)')
+    confere(a.starts_at == inicio, 'o inicio nao mudou')
+    confere(a.ends_at == inicio + timedelta(minutes=40),
+            'o fim encolheu para a duracao do retorno', str(a.ends_at))
+    confere(a.occupied_range.upper == a.ends_at, 'a faixa ocupada no banco encolheu junto')
     confere(a.row_version == versao + 1, 'a versao da linha avancou')
     trilha = AuditEvent.objects.filter(
         action='scheduling.appointment_type_changed', object_id=a.id).first()
@@ -111,6 +134,10 @@ try:
         meta = trilha.integrity_metadata or {}
         confere(meta.get('previous_type') == 'first_visit' and meta.get('new_type') == 'return_visit',
                 'a trilha diz de que tipo para que tipo', str(meta))
+        from datetime import datetime as _dt
+
+        confere(_dt.fromisoformat(meta.get('old_ends_at', '1970-01-01T00:00:00+00:00')) == fim,
+                'a trilha guarda o fim anterior', str(meta))
 
     print('=== 2. o mesmo tipo nao e um ato ===')
     antes = AuditEvent.objects.filter(action='scheduling.appointment_type_changed',
@@ -189,14 +216,110 @@ try:
     confere("getAttribute('data-nd-type-code')" in js,
             'o modal abre o seletor no tipo atual')
     for valor, rotulo in AppointmentType.choices:
-        confere(f'<option value="{valor}">{rotulo}</option>' in corpo, f'opcao {rotulo}')
+        confere(f'<option value="{valor}">{rotulo} — ' in corpo, f'opcao {rotulo}, com os minutos')
+    confere('O horário continua o mesmo' not in corpo,
+            'o modal nao promete mais que o horario continua o mesmo')
+
+    print('=== 9. a grade: encolher libera, esticar so onde cabe ===')
+    dia = (base + timedelta(days=1)).date()
+    t0 = _combine(dia, base.time())
+    regra = AvailabilityRule.objects.create(
+        tenant=tenant, physician_membership=medico, weekday=dia.weekday(),
+        local_start=base.time(), local_end=(base + timedelta(hours=4)).time(),
+        starts_on=dia, ends_on=dia, slot_minutes=40,
+    )
+
+    def no_dia(minutos, duracao, tipo, folga=0, **extra):
+        inicio = t0 + timedelta(minutes=minutos)
+        fim = inicio + timedelta(minutes=duracao)
+        x = Appointment.objects.create(
+            tenant=tenant, patient=paciente, physician_membership=medico,
+            starts_at=inicio, ends_at=fim,
+            occupied_range=(inicio, fim + timedelta(minutes=folga)),
+            status=AppointmentStatus.SCHEDULED, type=tipo, **extra,
+        )
+        criados.append(x.id)
+        return x
+
+    def celula(hora):
+        return next((cel for cel in day_grid(medico.id, dia) if cel['start'] == hora), {})
+
+    p1 = no_dia(0, 80, AppointmentType.FIRST_VISIT)
+    confere(celula(t0 + timedelta(minutes=40)).get('status') == 'busy',
+            'antes: a primeira consulta ocupa a segunda celula')
+    services.change_appointment_type(ctx, p1, AppointmentType.RETURN_VISIT, secretaria.user_id)
+    confere(celula(t0 + timedelta(minutes=40)).get('status') == 'free',
+            'trocada para retorno, a segunda celula volta a ficar livre '
+            '(o caso das 17h que continuava ate 18h20)')
+
+    services.change_appointment_type(ctx, p1, AppointmentType.FIRST_VISIT, secretaria.user_id)
+    p1.refresh_from_db()
+    confere(p1.ends_at == t0 + timedelta(minutes=80) and p1.type == AppointmentType.FIRST_VISIT,
+            'esticar de volta funciona quando o tempo seguinte esta livre')
+
+    services.change_appointment_type(ctx, p1, AppointmentType.RETURN_VISIT, secretaria.user_id)
+    no_dia(40, 40, AppointmentType.RETURN_VISIT)
+    try:
+        services.change_appointment_type(ctx, p1, AppointmentType.FIRST_VISIT, secretaria.user_id)
+        recusa = ''
+    except services.SchedulingError as exc:
+        recusa = str(exc)
+    p1.refresh_from_db()
+    confere(bool(recusa), 'esticar sobre outro paciente e recusado')
+    confere('remarque' in recusa, 'a recusa diz o caminho (remarcar)', recusa)
+    confere(p1.type == AppointmentType.RETURN_VISIT and p1.ends_at == t0 + timedelta(minutes=40),
+            'a recusa nao muda nada: nem tipo nem fim')
+
+    ultimo = no_dia(200, 40, AppointmentType.RETURN_VISIT)  # ultima celula da janela de 4h
+    try:
+        services.change_appointment_type(ctx, ultimo, AppointmentType.FIRST_VISIT, secretaria.user_id)
+        recusa = ''
+    except services.SchedulingError as exc:
+        recusa = str(exc)
+    confere('termina' in recusa, 'esticar alem do fim do expediente e recusado, dizendo onde termina',
+            recusa)
+
+    encaixe = no_dia(40, 40, AppointmentType.RETURN_VISIT, is_overbook=True,
+                     override_reason='roteiro')
+    services.change_appointment_type(ctx, encaixe, AppointmentType.FIRST_VISIT, secretaria.user_id)
+    encaixe.refresh_from_db()
+    confere(encaixe.ends_at == encaixe.starts_at + timedelta(minutes=80),
+            'encaixe estica sem passar pela grade, como foi marcado')
+
+    folgado = no_dia(80, 80, AppointmentType.FIRST_VISIT, folga=10)
+    services.change_appointment_type(ctx, folgado, AppointmentType.RETURN_VISIT, secretaria.user_id)
+    folgado.refresh_from_db()
+    confere(folgado.occupied_range.upper == folgado.ends_at + timedelta(minutes=10),
+            'o intervalo pos-consulta da reserva e preservado', str(folgado.occupied_range))
+
+    print('=== 10. a tela diz o horario novo ===')
+    # O encaixe de 40 a 120 min ocupa a celula de 80: tira-lo do caminho,
+    # senao esticar o `folgado` e (corretamente) recusado.
+    Appointment.objects.filter(id=encaixe.id).update(status=AppointmentStatus.CANCELLED)
+    r = c.post(f'/app/scheduling/{folgado.id}/tipo/', {'appointment_type': 'first_visit'},
+               follow=True)
+    import html as _html
+
+    pagina = _html.unescape(r.content.decode())
+    fim_local = timezone.localtime(folgado.starts_at + timedelta(minutes=80)).strftime('%H:%M')
+    confere('Tipo alterado para Primeira consulta' in pagina and f'às {fim_local}' in pagina,
+            'a mensagem diz o novo tipo e o novo horario', f'{r.status_code} fim={fim_local}')
 finally:
     Appointment.objects.filter(id__in=criados).delete()
     Patient.objects.filter(id=paciente.id).delete()
+    if regra is not None:
+        regra.delete()
+    AppointmentTypeDuration.objects.filter(physician_membership=medico).exclude(
+        appointment_type__in=list(duracoes_antes),
+    ).delete()
+    for tipo, minutos in duracoes_antes.items():
+        AppointmentTypeDuration.objects.filter(
+            physician_membership=medico, appointment_type=tipo,
+        ).update(minutes=minutos)
 
 print('---')
 if failures:
     for linha in failures:
         print('FALHA:', linha)
     raise SystemExit(1)
-print('OK: o tipo se troca antes da chegada, e so o tipo.')
+print('OK: o tipo se troca antes da chegada, e a duracao acompanha onde couber.')

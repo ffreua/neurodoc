@@ -26,10 +26,12 @@
                     <a class="fw-bold text-dark fs-14" href="{% url 'patients:detail' encounter.patient_id %}">
                         {{ encounter.patient.full_name }}
                     </a>
+                    {% with idade=encounter.patient|nd_idade:encounter.occurred_at %}
+                    {% if idade %}<span class="fs-13 text-muted" title="Idade na data do atendimento">{{ idade }}</span>{% endif %}
+                    {% endwith %}
                     <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">
                         {{ encounter.get_status_display }}
                     </span>
-                    <span class="badge bg-gray-200 text-dark">versão {{ encounter.row_version }}</span>
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-3 fs-12 text-muted mt-1">
                     <span>{{ encounter.occurred_at|date:"d/m/Y H:i" }}</span>

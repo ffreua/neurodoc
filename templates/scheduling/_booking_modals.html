@@ -256,13 +256,14 @@ clicado diz qual horário e qual paciente.
                         <input type="hidden" name="return_to" value="{{ request.path }}">
                         <label class="form-label fw-semibold" for="slot-type-select">Tipo de consulta</label>
                         <select class="form-select form-select-sm" name="appointment_type" id="slot-type-select">
-                            {% for value, label in type_choices %}
-                            <option value="{{ value }}">{{ label }}</option>
+                            {% for item in durations %}
+                            <option value="{{ item.value }}">{{ item.label }} — {{ item.minutes }} min</option>
                             {% endfor %}
                         </select>
                         <div class="form-text fs-11">
-                            O horário continua o mesmo. Se a consulta precisar de mais
-                            tempo, use Remarcar.
+                            O início continua o mesmo e o fim acompanha a duração do novo
+                            tipo: um tipo mais curto libera o horário que sobra; um mais
+                            longo só é aceito se o tempo seguinte estiver livre.
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm mt-2" data-nd-busy>Salvar tipo</button>
                     </form>
@@ -308,3 +309,55 @@ clicado diz qual horário e qual paciente.
         </div>
     </div>
 </div>
+
+{% comment %}--------------------------------------------- incluir horário{% endcomment %}
+{% comment %}Um modal só para as três visões; o botão ao lado do dia diz qual
+dia e sugere o início (o fim do último horário daquele dia). Só existe para
+quem pode configurar esta agenda -- e a view confere de novo.{% endcomment %}
+{% if pode_incluir_horario %}
+<div class="modal fade" id="extra-modal" tabindex="-1" aria-hidden="true" aria-labelledby="extra-modal-title">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{% url 'scheduling:add-extra-hours' doctor.id %}" id="extra-form">
+                {% csrf_token %}
+                <input type="hidden" name="date" id="extra-date">
+                <input type="hidden" name="return_to" value="{{ request.path }}">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="extra-modal-title">Incluir horário</h5>
+                        <span class="fs-11 text-muted" id="extra-when"></span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="extra-start">Início</label>
+                            <input type="time" class="form-control" name="start_time" id="extra-start" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="extra-cells">Horários</label>
+                            <select class="form-select" name="cells" id="extra-cells">
+                                {% for n in '12345678'|make_list %}
+                                <option value="{{ n }}">{{ n }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-text fs-11">
+                        Cada horário tem {{ slot_minutes }} min, a célula desta agenda.
+                        {% for item in durations %}{% if item.value == 'first_visit' %}Uma primeira consulta ({{ item.minutes }} min) precisa de {{ item.cells }}.{% endif %}{% endfor %}
+                    </div>
+                    <label class="form-label fw-semibold mt-3" for="extra-reason">Motivo (opcional)</label>
+                    <input type="text" class="form-control" name="reason" id="extra-reason" maxlength="255"
+                           placeholder="Ex.: atendimento estendido">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Incluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -356,12 +356,30 @@ def change_appointment_type(context, appointment, new_type, actor_id):
     preço de um tipo e o agendamento dizendo outro. Depois do check-in, o
     lugar de corrigir é o financeiro, com ajuste e motivo.
 
-    **O horário não muda.** A duração vem do tipo na hora de marcar, mas
-    trocar o tipo não estica nem encolhe a consulta: esticar podia invadir
-    o horário seguinte, já ocupado, e encolher liberaria uma sobra que
-    ninguém pediu. Quem precisa de mais tempo remarca — remarcar é mudar o
-    quando; isto é mudar o quê.
+    **A duração acompanha o tipo; o início não muda.** Até 2026-10-13 a
+    troca deixava o horário intacto, com o argumento de que encolher
+    "liberaria uma sobra que ninguém pediu". Pediram: a primeira consulta
+    das 17h (80 min) trocada para retorno (40 min) continuava ocupando até
+    18h20, e o horário das 17h40 não voltava a ficar livre. A duração é do
+    tipo em toda outra porta (`reserve_from_grid`); só aqui ela ficava
+    presa ao tipo anterior.
+
+    - **encolher** sempre cabe, e as células do fim voltam a ficar livres;
+    - **esticar** passa pela mesma conferência de quem marca
+      (`availability.fits`, ignorando a própria consulta): se o tempo a
+      mais invade outro paciente, um bloqueio ou o fim do expediente, a
+      troca é recusada inteira, dizendo por quê, e nada muda — o caminho
+      é remarcar para onde caiba;
+    - **encaixe** não passa pela grade, como não passou ao ser marcado.
+
+    O intervalo pós-consulta (`buffer_minutes`) que a reserva tiver é
+    preservado: ele é medido do fim, e o fim é o que muda.
     """
+    from datetime import timedelta
+
+    from django.db import IntegrityError
+
+    from .availability import fits
     from .models import AppointmentType
 
     appointment = _relida(appointment)
@@ -375,16 +393,132 @@ def change_appointment_type(context, appointment, new_type, actor_id):
     previous = appointment.type
     if previous == new_type:
         return appointment
+
+    old_ends_at = appointment.ends_at
+    new_ends_at = appointment.starts_at + timedelta(
+        minutes=duration_for(appointment.physician_membership_id, new_type),
+    )
+    rotulo = AppointmentType(new_type).label
+    if new_ends_at > old_ends_at and not appointment.is_overbook:
+        _lock_days(
+            appointment.physician_membership_id,
+            _days_spanned(appointment.starts_at, new_ends_at),
+        )
+        ok, reason = fits(
+            appointment.physician_membership_id, appointment.starts_at, new_ends_at,
+            ignorar=appointment.id,
+        )
+        if not ok:
+            raise SlotUnavailable(
+                f'Não foi possível trocar para {rotulo}: {reason} '
+                'Para manter o novo tipo, remarque para um horário em que ele caiba.'
+            )
+
+    upper = getattr(appointment.occupied_range, 'upper', None)
+    buffer_minutes = int((upper - old_ends_at).total_seconds() // 60) if upper else 0
     appointment.type = new_type
+    appointment.ends_at = new_ends_at
+    appointment.occupied_range = _build_occupied_range(
+        appointment.starts_at, new_ends_at, max(buffer_minutes, 0),
+    )
     appointment.row_version += 1
     appointment.full_clean()
-    appointment.save()
+    try:
+        with transaction.atomic():
+            appointment.save()
+    except IntegrityError:
+        # A ExclusionConstraint pegou quem marcou no tempo a mais entre a
+        # conferência e a gravação.
+        raise SlotUnavailable(
+            f'Não foi possível trocar para {rotulo}: o horário seguinte acabou de ser '
+            'ocupado por outra reserva.'
+        )
     record_audit_event(
         actor_id, context.tenant_id, 'scheduling.appointment_type_changed',
         object_type='appointment', object_id=appointment.id, outcome='success',
-        integrity_metadata={'previous_type': previous, 'new_type': new_type},
+        integrity_metadata={
+            'previous_type': previous, 'new_type': new_type,
+            'old_ends_at': old_ends_at.isoformat(), 'new_ends_at': new_ends_at.isoformat(),
+        },
     )
     return appointment
+
+
+@transaction.atomic
+def include_extra_hours(context, physician_membership, day, start_time, cells, reason=''):
+    """Abre horário extra num dia, a partir da própria agenda.
+
+    O atendimento extra já existia (`ScheduleBlockKind.EXTRA_AVAILABILITY`),
+    mas só em Configurar horários, com início e fim digitados como data e
+    hora. A secretária que ouve "o doutor vai ficar até mais tarde na
+    quinta" está olhando a agenda, não a configuração.
+
+    Pede **quantos horários**, e não o fim: o fim é calculado da célula do
+    dia. Um fim digitado à mão que não fechasse a célula abria uma janela
+    em que nenhuma consulta cabe — o extra seria gravado e não apareceria
+    na grade, e a secretária concluiria que o botão não funciona.
+
+    Recusa, dizendo por quê, o que viraria grade torta ou letra morta:
+
+    - horário que já é de atendimento (a cadência seria dupla, e as
+      células se sobreporiam);
+    - horário sob bloqueio de data (férias, feriado): o bloqueio vence o
+      extra em `open_intervals`, e o extra não abriria nada;
+    - o que já passou, e o que atravessa a meia-noite.
+    """
+    from datetime import timedelta
+
+    from .availability import (
+        _combine, _subtract, blocks_on, breaks_on, day_bounds, rules_on, slot_minutes_for,
+        suggested_slot_minutes,
+    )
+    from .models import ScheduleBlockKind
+
+    if not 1 <= cells <= 24:
+        raise SchedulingError('Informe de 1 a 24 horários.')
+    rules = rules_on(physician_membership.id, day)
+    step = (
+        slot_minutes_for(physician_membership.id, day, rules=rules)
+        or suggested_slot_minutes(physician_membership.id)
+    )
+    inicio = _combine(day, start_time)
+    fim = inicio + timedelta(minutes=step * cells)
+    if fim > day_bounds(day)[1]:
+        raise SchedulingError('O horário extra precisa terminar no mesmo dia.')
+    if inicio < timezone.now():
+        raise SchedulingError('Não dá para incluir horário que já passou.')
+
+    _lock_days(physician_membership.id, [day])
+    blocks = blocks_on(physician_membership.id, day)
+    declarado = [(_combine(day, r.local_start), _combine(day, r.local_end)) for r in rules]
+    for pausa in breaks_on(physician_membership.id, day):
+        declarado = _subtract(
+            declarado, _combine(day, pausa.local_start), _combine(day, pausa.local_end),
+        )
+    declarado += [
+        (b.start_at, b.end_at) for b in blocks if b.kind == ScheduleBlockKind.EXTRA_AVAILABILITY
+    ]
+
+    def _hhmm(valor):
+        return timezone.localtime(valor).strftime('%H:%M')
+
+    for comeco, termino in sorted(declarado):
+        if comeco < fim and inicio < termino:
+            raise SchedulingError(
+                f'Das {_hhmm(comeco)} às {_hhmm(termino)} já é horário de atendimento '
+                'neste dia. Escolha um início fora desse período.'
+            )
+    for b in blocks:
+        if b.kind != ScheduleBlockKind.EXTRA_AVAILABILITY and b.start_at < fim and inicio < b.end_at:
+            raise SchedulingError(
+                f'Este horário está bloqueado na agenda ({b.reason or b.get_kind_display()}). '
+                'Remova o bloqueio em Configurar horários antes de abrir horário nele.'
+            )
+
+    return create_block(
+        context, physician_membership, ScheduleBlockKind.EXTRA_AVAILABILITY, inicio, fim,
+        reason=reason or 'Horário incluído pela agenda',
+    )
 
 
 @transaction.atomic

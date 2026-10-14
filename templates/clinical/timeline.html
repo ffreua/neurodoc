@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load nd static %}
 {% load nd %}
 {% block title %}Prontuário — {{ patient.full_name }}{% endblock %}
 {% block page_title %}Prontuário{% endblock %}
@@ -54,7 +54,7 @@ padrao tem de ser o que registra mais.{% endcomment %}
     <div class="col-12">
         <div class="card stretch stretch-full">
             <div class="card-header d-flex align-items-center justify-content-between">
-                <h5 class="card-title mb-0">Linha do tempo — {{ patient.full_name }}</h5>
+                <h5 class="card-title mb-0">Linha do tempo — {{ patient.full_name }}{% with idade=patient|nd_idade %}{% if idade %} <span class="fs-13 text-muted fw-normal">· {{ idade }}</span>{% endif %}{% endwith %}</h5>
                 <span class="badge bg-soft-primary text-primary">{{ encounters|length }} atendimento{{ encounters|length|pluralize }}</span>
             </div>
             <div class="card-body p-0">

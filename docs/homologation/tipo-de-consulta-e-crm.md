@@ -30,7 +30,7 @@ aceitam a troca. Chegou, em atendimento, concluído, falta e cancelado
 recusam, no servidor; o JS só esconde o botão. Depois da chegada, o
 lugar de corrigir é o financeiro, com ajuste e motivo.
 
-**O horário não muda.** A duração vem do tipo na hora de marcar, mas
+**O horário não muda** (regra substituída na 1.13: a duração passou a acompanhar o tipo — ver `agenda-duracao-e-horario-extra.md`). A duração vem do tipo na hora de marcar, mas
 trocar o tipo não estica nem encolhe a consulta. Esticar podia invadir o
 horário seguinte, já ocupado. Encolher liberaria uma sobra que ninguém
 pediu. O seletor mostra os tipos **sem** os minutos, de propósito, e o

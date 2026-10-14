@@ -435,7 +435,7 @@ def available_slots(physician_membership_id, day, minutes=None):
     return slots
 
 
-def fits(physician_membership_id, starts_at, ends_at):
+def fits(physician_membership_id, starts_at, ends_at, ignorar=None):
     """Se o intervalo cabe inteiro em célula livre.
 
     Usado antes de reservar. O banco já impede sobreposição pela
@@ -448,9 +448,19 @@ def fits(physician_membership_id, starts_at, ends_at):
     Dizer "horário já ocupado" para um horário visivelmente livre na tela
     faz a secretária desconfiar da agenda em vez de escolher outro tipo de
     atendimento.
+
+    `ignorar` é a própria consulta, quando é ela quem pergunta — esticar o
+    tipo, ou remarcar meia hora para frente. Sem isso a consulta das 17h
+    não podia passar a terminar às 18h20 porque "às 17h o horário já está
+    ocupado": por ela mesma.
     """
     day = timezone.localtime(starts_at).date()
-    cells = day_grid(physician_membership_id, day)
+    appointments = None
+    if ignorar is not None:
+        appointments = [
+            a for a in appointments_on(physician_membership_id, day) if a.id != ignorar
+        ]
+    cells = day_grid(physician_membership_id, day, appointments=appointments)
     covered = [c for c in cells if c['start'] < ends_at and c['end'] > starts_at]
     if not covered:
         return False, 'Fora dos horários de atendimento deste médico.'

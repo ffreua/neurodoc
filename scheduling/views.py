@@ -20,7 +20,7 @@ from .availability import (
     suggested_slot_minutes, type_durations, week_grid,
 )
 from .forms import (
-    ChangePatientForm, DoctorChoiceForm, LocalHolidayForm, QuickBookingForm,
+    ChangePatientForm, DoctorChoiceForm, ExtraHoursForm, LocalHolidayForm, QuickBookingForm,
     RescheduleAppointmentForm, ReserveAppointmentForm, ScheduleBlockForm, TypeDurationForm,
     WeeklyScheduleForm,
 )
@@ -133,7 +133,7 @@ def _nav_urls(route, doctor, current, previous, following, today):
     }
 
 
-def _booking_context(doctor, day):
+def _booking_context(request, doctor, day):
     """Contexto que o modal de marcação (`_booking_modals.html`) exige.
 
     Existe como função porque o modal é incluído por mais de uma tela — a
@@ -158,11 +158,14 @@ def _booking_context(doctor, day):
         'slot_minutes': step,
         'booking_form': QuickBookingForm(),
         'change_form': ChangePatientForm(),
-        # Para trocar o tipo de um horário já marcado. Sem minutos, de
-        # propósito: trocar o tipo não muda a duração (ver
-        # `services.change_appointment_type`), e mostrar "80 min" ao lado
-        # faria supor que muda.
+        # Para trocar o tipo de um horário já marcado. O seletor do modal
+        # usa `durations`, com os minutos: trocar o tipo muda a duração
+        # (ver `services.change_appointment_type`).
         'type_choices': AppointmentType.choices,
+        # Quem marca não é necessariamente quem abre horário: o botão
+        # "Incluir horário" só aparece para quem poderia configurar esta
+        # agenda, e a view confere de novo.
+        'pode_incluir_horario': can_configure_agenda_of(request.access_context, doctor.id),
     }
 
 
@@ -224,7 +227,7 @@ class AgendaWeekView(TenantScopedView):
         times, columns = week_grid(doctor.id, week_start)
         context.update({
             'times': times, 'columns': columns,
-            **_booking_context(doctor, week_start),
+            **_booking_context(request, doctor, week_start),
             'has_schedule': bool(times),
             'totals': {
                 'free': sum(column['free'] for column in columns),
@@ -257,7 +260,7 @@ class AgendaDayView(TenantScopedView):
         cells = day_grid(doctor.id, day)
         context.update({
             'cells': cells,
-            **_booking_context(doctor, day),
+            **_booking_context(request, doctor, day),
             'has_schedule': bool(cells),
             'free': sum(1 for cell in cells if cell['status'] == 'free'),
             'busy': sum(1 for cell in cells if cell['status'] == 'busy'),
@@ -345,7 +348,7 @@ class AgendaMonthView(TenantScopedView):
             'booked': sum(row.get('booked', 0) for day, row in summary.items()
                           if day.month == month_start.month),
         }
-        booking_context = _booking_context(doctor, month_start) if doctor is not None else {}
+        booking_context = _booking_context(request, doctor, month_start) if doctor is not None else {}
         return render(request, 'scheduling/agenda_month.html', {
             'doctors': doctors, 'doctor': doctor, 'view_mode': 'month',
             'month_start': month_start, 'weeks': weeks, 'today': today,
@@ -512,6 +515,40 @@ class BlockCreateView(ScheduleConfigView):
         )
         messages.success(request, 'Registrado na agenda.')
         return redirect(f'{reverse("scheduling:settings")}?physician={doctor.id}')
+
+
+class ExtraHoursCreateView(ScheduleConfigView):
+    """O botão "Incluir horário" ao lado do dia, nas três visões da agenda.
+
+    Mesma permissão de Configurar horários, por objeto: a secretária abre
+    horário na agenda de qualquer médico, o médico só na dele. Abrir
+    horário é mudar a grade de alguém, não marcar nela.
+    """
+
+    def post(self, request, membership_id):
+        doctor = _doctor_to_configure_or_404(request, membership_id)
+        form = ExtraHoursForm(request.POST)
+        day = _parse_date(request.POST.get('date'))
+        if not form.is_valid():
+            messages.error(request, _first_error(form))
+            return _agenda_redirect(request, doctor, day)
+        day = form.cleaned_data['date']
+        try:
+            block = services.include_extra_hours(
+                request.access_context, doctor, day, form.cleaned_data['start_time'],
+                form.cleaned_data['cells'], reason=form.cleaned_data.get('reason', ''),
+            )
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        inicio = timezone.localtime(block.start_at).strftime('%H:%M')
+        fim = timezone.localtime(block.end_at).strftime('%H:%M')
+        messages.success(
+            request,
+            f'Horário incluído em {day.strftime("%d/%m/%Y")}, das {inicio} às {fim}. '
+            'Para desfazer, remova-o em Configurar horários.',
+        )
+        return _agenda_redirect(request, doctor, day)
 
 
 class BlockDeleteView(ScheduleConfigView):
@@ -874,9 +911,12 @@ class ChangeAppointmentTypeView(TenantScopedView):
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
+        appointment.refresh_from_db()
+        inicio = timezone.localtime(appointment.starts_at).strftime('%H:%M')
+        fim = timezone.localtime(appointment.ends_at).strftime('%H:%M')
         messages.success(
             request,
-            f'Tipo alterado para {appointment.get_type_display()}. O horário continua o mesmo.',
+            f'Tipo alterado para {appointment.get_type_display()}: das {inicio} às {fim}.',
         )
         return _agenda_redirect(request, doctor, day)
 
@@ -1028,7 +1068,7 @@ class RescheduleAppointmentView(TenantScopedView):
         day_param = timezone.localtime(new_start).date().isoformat()
         back = f'{reverse("scheduling:reschedule", args=[appointment.id])}?date={day_param}'
 
-        ok, reason = fits(doctor.id, new_start, new_end)
+        ok, reason = fits(doctor.id, new_start, new_end, ignorar=appointment.id)
         if not ok:
             messages.error(request, reason)
             return redirect(back)

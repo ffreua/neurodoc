@@ -294,6 +294,19 @@ class ScheduleBlockForm(forms.Form):
         return cleaned
 
 
+class ExtraHoursForm(forms.Form):
+    """Incluir horário extra num dia, a partir da agenda.
+
+    Quantidade de horários em vez de hora de fim: o fim sai da célula do
+    dia (ver `services.include_extra_hours`).
+    """
+
+    date = forms.DateField(label='Dia', widget=HTML5DateInput())
+    start_time = forms.TimeField(label='Início', widget=HTML5TimeInput())
+    cells = forms.IntegerField(label='Quantidade de horários', min_value=1, max_value=24, initial=1)
+    reason = forms.CharField(label='Motivo', max_length=255, required=False)
+
+
 class LocalHolidayForm(forms.Form):
     """Feriado estadual ou municipal, cadastrado pela clínica.
 

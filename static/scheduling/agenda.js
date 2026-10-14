@@ -121,6 +121,27 @@
         });
     }
 
+    /* ------------------------------------------ incluir horário no dia */
+
+    /* O modal só existe para quem pode configurar esta agenda; sem ele, o
+     * botão também não foi desenhado. O início vem sugerido com o fim do
+     * último horário do dia, que é o caso comum: "vou ficar até mais tarde". */
+    var extraModal = document.getElementById('extra-modal');
+    if (extraModal) {
+        document.addEventListener('click', function (event) {
+            var botao = event.target.closest('[data-nd-extra]');
+            if (!botao) return;
+            event.preventDefault();
+            document.getElementById('extra-date').value = botao.getAttribute('data-nd-extra-day');
+            document.getElementById('extra-when').textContent = botao.getAttribute('data-nd-extra-label');
+            document.getElementById('extra-start').value = botao.getAttribute('data-nd-extra-sugestao') || '';
+            document.getElementById('extra-cells').value = '1';
+            document.getElementById('extra-reason').value = '';
+            window.NeuroDoc.openModal(extraModal);
+            window.setTimeout(function () { document.getElementById('extra-start').focus(); }, 60);
+        });
+    }
+
     /* --------------------------------------- ações num horário marcado */
 
     if (slotModal) {

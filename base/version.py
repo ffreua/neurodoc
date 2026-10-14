@@ -125,12 +125,19 @@ carimbá-la na publicação.
 #: quem ainda vê o defeito -- que é exatamente o que a versão existe para
 #: responder. Nos três casos o defeito foi relatado por quem usa, que é a
 #: condição: correção que ninguém notou não precisa de casa nova.
-VERSION = '1.12.3'
+#: A **1.13** é da recepção outra vez: trocar o tipo do horário passa a
+#: mudar a duração (encolher libera as células; esticar só onde couber),
+#: o botão "Incluir horário" ao lado do dia nas três visões da agenda, e a
+#: idade do paciente ao lado do nome na ficha e no prontuário. A troca de
+#: tipo muda de comportamento, mas no sentido que quem usa esperava -- o
+#: antigo era relatado como defeito --, e nada deixa de funcionar: casa
+#: menor.
+VERSION = '1.13'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o rodapé'
+CODENAME = 'a agenda'
 
 
 def version_display():

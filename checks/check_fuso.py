@@ -148,7 +148,9 @@ conferir('exatamente uma celula marcada como hoje', len(celulas), 1)
 if celulas:
     from datetime import datetime as _dt
 
-    trecho = mes[celulas[0].start():celulas[0].start() + 400]
+    # 800 e nao 400: desde a 1.13 o numero do dia divide a linha com o
+    # botao "Incluir horario", num `<div>` a mais antes do link.
+    trecho = mes[celulas[0].start():celulas[0].start() + 800]
     rotulo = re.search(r'aria-label="Abrir a semana de (\d{2}/\d{2}/\d{4})"', trecho)
     conferir('a celula marcada diz que dia e', rotulo is not None, True)
     if rotulo:

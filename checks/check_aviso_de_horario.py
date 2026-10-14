@@ -183,7 +183,7 @@ confere(bool(consulta.patient.contacts.filter(email__gt='').exists()),
         'ha contato com e-mail para o aviso alcancar')
 
 
-def _limpar_avisos():
+def _limpar_avisos(agendamento=None):
     """Tira os avisos que uma passagem anterior deixou.
 
     Na ordem das chaves estrangeiras: `DeliveryAttempt` protege
@@ -198,21 +198,37 @@ def _limpar_avisos():
     from communications.models import DeliveryAttempt
 
     entregas = Delivery.objects.filter(
-        appointment=consulta, idempotency_key__startswith='notice:',
+        appointment=agendamento or consulta, idempotency_key__startswith='notice:',
     )
     DeliveryAttempt.objects.filter(delivery__in=entregas).delete()
     entregas.delete()
 
 
-_limpar_avisos()
-antes = Delivery.objects.filter(appointment=consulta).count()
+# **Um agendamento futuro, criado aqui.** Usava `consulta`, o primeiro
+# agendamento do banco -- e o aviso, corretamente, nao sai para consulta
+# que ja passou (`deliver_appointment_notice`). Num banco de demonstracao
+# semeado ha dias, esse primeiro ja estava no passado, e a secao falhava
+# por idade do banco, nao por defeito (2026-10-13).
+from datetime import timedelta as _td6
+from scheduling.models import Appointment as _Ap6, AppointmentStatus as _St6
+
+_inicio6 = (timezone.now() + _td6(days=5)).replace(second=0, microsecond=0)
+alvo = _Ap6.objects.create(
+    tenant=consulta.tenant, patient=consulta.patient,
+    physician_membership=consulta.physician_membership,
+    starts_at=_inicio6, ends_at=_inicio6 + _td6(minutes=40),
+    occupied_range=(_inicio6, _inicio6 + _td6(minutes=40)),
+    status=_St6.SCHEDULED, type=consulta.type,
+)
+_limpar_avisos(alvo)
+antes = Delivery.objects.filter(appointment=alvo).count()
 # `booked`, e nao `cancelled`: o agendamento usado aqui esta de pe, e
 # a guarda de coerencia (ver `deliver_appointment_notice`) recusa
 # avisar cancelamento de quem nao foi cancelado. Medir idempotencia
 # com um motivo que o produto recusa mede o nada.
-primeira = deliver_appointment_notice(consulta, 'booked', consulta.row_version)
-segunda = deliver_appointment_notice(consulta, 'booked', consulta.row_version)
-criadas = Delivery.objects.filter(appointment=consulta).count() - antes
+primeira = deliver_appointment_notice(alvo, 'booked', alvo.row_version)
+segunda = deliver_appointment_notice(alvo, 'booked', alvo.row_version)
+criadas = Delivery.objects.filter(appointment=alvo).count() - antes
 print(f'  entregas criadas: {criadas} (duas chamadas do mesmo evento)')
 confere(len(primeira) >= 1,
         'o aviso gerou entrega de verdade -- sem isto o resto desta secao '
@@ -228,10 +244,15 @@ confere(all(d.channel == DeliveryChannel.EMAIL for d in primeira),
 
 # Versao diferente do agendamento e aviso diferente: cancelar depois de
 # remarcar sao dois fatos, e o paciente precisa dos dois.
-terceira = deliver_appointment_notice(consulta, 'booked', consulta.row_version + 1)
+terceira = deliver_appointment_notice(alvo, 'booked', alvo.row_version + 1)
 confere(all(d.id not in {x.id for x in primeira} for d in terceira),
         'versao nova do agendamento gera aviso novo')
-_limpar_avisos()
+_limpar_avisos(alvo)
+from communications.models import DeliveryAttempt as _DA6
+
+_DA6.objects.filter(delivery__appointment=alvo).delete()
+Delivery.objects.filter(appointment=alvo).delete()
+alvo.delete()
 # O contato continua vivo ate o fim do roteiro: as secoes seguintes
 # tambem precisam de alguem para quem escrever, e apaga-lo aqui as fazia
 # medir lista vazia.
