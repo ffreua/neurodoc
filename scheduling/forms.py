@@ -307,6 +307,13 @@ class ExtraHoursForm(forms.Form):
     reason = forms.CharField(label='Motivo', max_length=255, required=False)
 
 
+class RemoveFreeSlotForm(forms.Form):
+    """Excluir o horário livre clicado; o servidor confere na grade se ele
+    ainda está livre (ver `services.remove_free_slot`)."""
+
+    starts_at = forms.DateTimeField(widget=forms.HiddenInput)
+
+
 class LocalHolidayForm(forms.Form):
     """Feriado estadual ou municipal, cadastrado pela clínica.
 

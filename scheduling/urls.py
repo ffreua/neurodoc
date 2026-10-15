@@ -61,6 +61,11 @@ urlpatterns = [
         '<uuid:membership_id>/incluir-horario/',
         views.ExtraHoursCreateView.as_view(), name='add-extra-hours',
     ),
+    # E o avesso: excluir o horário livre, do modal de marcar.
+    path(
+        '<uuid:membership_id>/excluir-horario/',
+        views.FreeSlotRemoveView.as_view(), name='remove-free-slot',
+    ),
 
     # Reservas.
     path('<uuid:membership_id>/marcar/', views.QuickBookingView.as_view(), name='quick-book'),

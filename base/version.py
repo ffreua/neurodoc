@@ -132,7 +132,10 @@ carimbá-la na publicação.
 #: tipo muda de comportamento, mas no sentido que quem usa esperava -- o
 #: antigo era relatado como defeito --, e nada deixa de funcionar: casa
 #: menor.
-VERSION = '1.13'
+#: A **1.14** acrescenta o avesso do "Incluir horário": excluir o horário
+#: livre do próprio modal de marcar. Funcionalidade nova, nada muda para
+#: quem não a usa: casa menor.
+VERSION = '1.14'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

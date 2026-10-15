@@ -16,7 +16,7 @@ repositório com mudança rastreada não commitada, então o registro entra na
 mesma árvore que vai ao ar.
 
 A versão de produto segue `docs/operations/versionamento.md`. A versão
-atual é a **1.13**. O SHA continua mudando em toda publicação, mesmo
+atual é a **1.14**. O SHA continua mudando em toda publicação, mesmo
 quando `VERSION` não muda.
 
 ## O que há aqui
@@ -46,3 +46,4 @@ quando pedem homologação própria, como a 1.6.1 e a 1.6.2.
 | 1.12.2 | [`1.12.2-auditoria-lote-1.md`](1.12.2-auditoria-lote-1.md) |
 | 1.12.3 | [`1.12.3-auditoria-lote-2.md`](1.12.3-auditoria-lote-2.md) |
 | 1.13 | [`1.13-a-agenda.md`](1.13-a-agenda.md) |
+| 1.14 | [`1.14-excluir-horario.md`](1.14-excluir-horario.md) |

@@ -522,6 +522,82 @@ def include_extra_hours(context, physician_membership, day, start_time, cells, r
 
 
 @transaction.atomic
+def remove_free_slot(context, physician_membership, starts_at):
+    """Exclui um horário livre, a partir do próprio modal de marcar.
+
+    É o avesso de `include_extra_hours`, e pela mesma razão: a secretária
+    que ouve "na terça às 15h eu não atendo" está olhando a agenda, e
+    Configurar horários pedia início e fim digitados para fechar uma
+    célula só.
+
+    **Só fecha o que está livre agora**, conferido na grade montada dentro
+    da trava do dia — a mesma de `reserve_from_grid`. Sem a trava, duas
+    secretárias (uma marcando, outra excluindo) poderiam gravar as duas
+    coisas, e o paciente ficaria marcado num horário que a agenda diz não
+    existir. A grade responde de uma vez pelo passado, pelo ocupado, pelo
+    já bloqueado e pelo que nunca foi horário.
+
+    Duas formas de fechar, e a escolha é para a grade não mentir:
+
+    - a célula que **é** um atendimento extra inteiro (o horário incluído
+      pela agenda, de uma célula) tem o extra apagado: incluir e excluir é
+      desfazer, e um bloqueio por cima deixaria na tela uma célula fechada
+      num horário em que o médico nunca atendeu;
+    - qualquer outra vira `ScheduleBlock` de bloqueio, do tamanho da
+      célula. A célula continua aparecendo, fechada e com o motivo, e
+      volta a abrir removendo o bloqueio em Configurar horários. Apagar a
+      regra semanal não serve: ela vale para todas as terças.
+    """
+    from .availability import blocks_on, day_grid
+    from .models import ScheduleBlockKind
+
+    day = timezone.localtime(starts_at).date()
+    _lock_days(physician_membership.id, [day])
+
+    cell = next(
+        (c for c in day_grid(physician_membership.id, day) if c['start'] == starts_at), None,
+    )
+    if cell is None or cell['status'] != 'free':
+        raise SlotUnavailable(
+            'Este horário não está mais livre — foi marcado, bloqueado ou já passou. '
+            'A agenda foi atualizada.'
+        )
+
+    extra = next(
+        (b for b in blocks_on(physician_membership.id, day)
+         if b.kind == ScheduleBlockKind.EXTRA_AVAILABILITY
+         and b.start_at == cell['start'] and b.end_at == cell['end']),
+        None,
+    )
+    if extra is not None:
+        extra_id = extra.id
+        extra.delete()
+        record_audit_event(
+            context.user_id, context.tenant_id, 'scheduling.block_deleted',
+            object_type='membership', object_id=physician_membership.id, outcome='success',
+            integrity_metadata={
+                'block_id': str(extra_id), 'kind': ScheduleBlockKind.EXTRA_AVAILABILITY,
+                'start': cell['start'].isoformat(), 'end': cell['end'].isoformat(),
+                'origem': 'excluir_horario',
+            },
+        )
+        # O extra pode ter sido gravado sobre a janela semanal por
+        # Configurar horários, que não recusa isso. Apagá-lo então não
+        # fecha nada, e a célula continuaria livre.
+        still_free = any(
+            c['start'] == starts_at and c['status'] == 'free'
+            for c in day_grid(physician_membership.id, day)
+        )
+        if not still_free:
+            return None
+
+    return create_block(
+        context, physician_membership, ScheduleBlockKind.BLOCK, cell['start'], cell['end'],
+        reason='Horário excluído pela agenda',
+    )
+
+
+@transaction.atomic
 def create_block(context, physician_membership, kind, start_at, end_at, reason=''):
     from .models import ScheduleBlock
 

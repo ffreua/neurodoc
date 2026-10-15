@@ -101,6 +101,13 @@
             bookStartsAt.value = cell.getAttribute('data-nd-iso');
             bookDate.value = cell.getAttribute('data-nd-start').slice(0, 10);
             bookWhen.textContent = cell.getAttribute('data-nd-when');
+            /* O formulário de excluir só existe para quem pode configurar esta
+             * agenda; para os outros o botão nem foi desenhado. */
+            var removeStartsAt = document.getElementById('slot-remove-starts-at');
+            if (removeStartsAt) {
+                removeStartsAt.value = bookStartsAt.value;
+                document.getElementById('slot-remove-date').value = bookDate.value;
+            }
             /* Cada abertura começa limpa: reaproveitar o paciente escolhido na
              * abertura anterior marcaria a pessoa errada no horário novo. */
             bookPatientId.value = '';

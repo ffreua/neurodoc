@@ -11,9 +11,9 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.13 "a agenda" (`base/version.py`) |
+| **Versão do produto** | 1.14 "a agenda" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
-| **Verificação** | 100 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 106 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
 | **Repositório** | privado |
 
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.14** | 2026-10-15 | a agenda | **Excluir este horário** no modal que abre ao clicar num horário livre, nas visões de mês, semana e dia: o horário passa a aparecer fechado, com o motivo; o que tinha sido incluído pela agenda simplesmente some. Para quem pode configurar aquela agenda. |
 | **1.13** | 2026-10-13 | a agenda | **Trocar o tipo** do horário passa a mudar a duração: encolher libera o horário que sobra, esticar só onde o tempo seguinte estiver livre. Botão **Incluir horário** ao lado do dia nas visões de mês, semana e dia. **Idade** do paciente ao lado do nome na ficha e no prontuário (no atendimento, a idade na data dele); sai o selo interno "versão N". |
 | **1.12.3** | 2026-10-09 | o rodapé | Lote 2 da auditoria independente: **remarcar** recusa consulta já cancelada (e diz por quê); falha ao **assinar** — inclusive senha errada do certificado — fica na trilha de auditoria e deixa de virar erro 500; **descartar** evolução em texto livre pede motivo; a confirmação de entrega do **SMS** usa a conta da própria clínica, e a recusa do provedor deixa de aparecer como aceita; **exportação** vencida não baixa mais; e a IA confere o papel médico na hora de executar. |
 | **1.12.2** | 2026-10-09 | o rodapé | Lote 1 da auditoria independente: o **PDF de receita e relatório** deixa de aparecer como anexo comum — a recepção baixa e imprime o documento **emitido**, não abre o rascunho, e ninguém o remove pela lista de anexos; **finalizar** não grava mais por cima do último trecho salvo pelo autosave; o **reenvio** para e-mail e SMS deixa os dois links valendo; o pedido do **portal** não cai mais na ficha de outro paciente identificado no mesmo navegador; o retorno depois do **MFA** não sai do domínio; e uma entrega não sai duas vezes. |

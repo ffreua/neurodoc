@@ -21,7 +21,7 @@ from .availability import (
 )
 from .forms import (
     ChangePatientForm, DoctorChoiceForm, ExtraHoursForm, LocalHolidayForm, QuickBookingForm,
-    RescheduleAppointmentForm, ReserveAppointmentForm, ScheduleBlockForm, TypeDurationForm,
+    RemoveFreeSlotForm, RescheduleAppointmentForm, ReserveAppointmentForm, ScheduleBlockForm, TypeDurationForm,
     WeeklyScheduleForm,
 )
 from .models import (
@@ -548,6 +548,39 @@ class ExtraHoursCreateView(ScheduleConfigView):
             f'Horário incluído em {day.strftime("%d/%m/%Y")}, das {inicio} às {fim}. '
             'Para desfazer, remova-o em Configurar horários.',
         )
+        return _agenda_redirect(request, doctor, day)
+
+
+class FreeSlotRemoveView(ScheduleConfigView):
+    """"Excluir este horário", no modal que abre ao clicar num horário livre.
+
+    A permissão é a de Incluir horário, e pela mesma razão: tirar um
+    horário é mudar a grade do médico, não marcar nela. A recepção marca
+    na agenda de qualquer médico, mas o médico só fecha horário na dele.
+    """
+
+    def post(self, request, membership_id):
+        doctor = _doctor_to_configure_or_404(request, membership_id)
+        form = RemoveFreeSlotForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, 'Não foi possível identificar o horário. Clique nele de novo.')
+            return _agenda_redirect(request, doctor, _parse_date(request.POST.get('date')))
+        starts_at = form.cleaned_data['starts_at']
+        day = timezone.localtime(starts_at).date()
+        try:
+            block = services.remove_free_slot(request.access_context, doctor, starts_at)
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        quando = f'{day.strftime("%d/%m/%Y")} às {timezone.localtime(starts_at).strftime("%H:%M")}'
+        if block is None:
+            messages.success(request, f'Horário de {quando} excluído da agenda.')
+        else:
+            messages.success(
+                request,
+                f'Horário de {quando} excluído da agenda. '
+                'Para reabri-lo, remova o bloqueio em Configurar horários.',
+            )
         return _agenda_redirect(request, doctor, day)
 
 
