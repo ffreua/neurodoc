@@ -35,7 +35,8 @@ from django.utils import timezone
 
 from .models import (
     AppointmentStatus,
-    DEFAULT_TYPE_MINUTES, OCCUPYING_STATUSES, Appointment, AppointmentType,
+    DEFAULT_TYPE_MINUTES, MOTIVO_BLOQUEIO_PELA_AGENDA, OCCUPYING_STATUSES, Appointment,
+    AppointmentType,
     AppointmentTypeDuration, AvailabilityRule, RecurringBreak, ScheduleBlock,
     ScheduleBlockKind,
 )
@@ -358,6 +359,17 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
                 # semanal. Célula "blocked" sem motivo faz a secretária
                 # ligar para o médico perguntando se dá para encaixar.
                 'reason': (block.reason or block.get_kind_display()) if block else '',
+                # O bloqueio desta célula foi feito pelo botão "Bloquear este
+                # horário", do tamanho dela? Então a tela oferece desfazer
+                # com um clique; os de Configurar horários ficam por lá.
+                'unblock_id': (
+                    block.id if status == 'blocked' and block is not None
+                    and block.kind == ScheduleBlockKind.BLOCK
+                    and block.reason == MOTIVO_BLOQUEIO_PELA_AGENDA
+                    and block.start_at == cursor and block.end_at == cell_end
+                    and cell_end > now
+                    else None
+                ),
             })
             cursor = cell_end
 
@@ -379,7 +391,7 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
         if not any(w_start < fim and inicio < w_end for w_start, w_end in janelas_da_regra):
             continue
         cells.append({
-            'start': inicio, 'end': fim, 'status': 'blocked',
+            'start': inicio, 'end': fim, 'status': 'blocked', 'unblock_id': None,
             'appointment': None, 'block': None, 'exibida': None, 'is_start': False,
             'reason': pausa.reason or 'Intervalo',
         })

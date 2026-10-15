@@ -136,6 +136,8 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
             </button>
             {% elif cell.status == 'past' %}
             <div class="nd-slot nd-slot-past" role="gridcell">—</div>
+            {% elif cell.unblock_id and pode_incluir_horario %}
+            {% include "scheduling/_desbloquear.html" with visao="semana" %}
             {% else %}
             <div class="nd-slot nd-slot-blocked" role="gridcell" title="{{ cell.reason }}">
                 <span class="d-block text-truncate">{{ cell.reason|default:"fechado" }}</span>

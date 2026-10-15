@@ -108,6 +108,9 @@
                 {% endif %}
                 {% elif cell.status == 'past' %}
                 <span class="fs-12 text-muted">horário já passou</span>
+                {% elif cell.unblock_id and pode_incluir_horario %}
+                <span class="badge bg-gray-200 text-dark me-2">{{ cell.reason }}</span>
+                {% include "scheduling/_desbloquear.html" with visao="dia" %}
                 {% else %}
                 <span class="badge bg-gray-200 text-dark">{{ cell.reason|default:"fechado" }}</span>
                 {% endif %}

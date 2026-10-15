@@ -149,8 +149,12 @@ clicado diz qual horário e qual paciente.
                     por hábito. Pertence ao formulário de baixo (`form=`), porque
                     formulário dentro de formulário o navegador desfaz.{% endcomment %}
                     {% if pode_incluir_horario %}
-                    <button type="submit" form="slot-remove-form" class="btn btn-light-danger me-auto"
-                            data-nd-busy>Excluir este horário</button>
+                    <div class="d-flex flex-wrap gap-2 me-auto">
+                        <button type="submit" form="slot-remove-form" class="btn btn-light-danger"
+                                data-nd-busy>Excluir este horário</button>
+                        <button type="submit" form="slot-block-form" class="btn btn-light-warning"
+                                data-nd-busy>Bloquear este horário</button>
+                    </div>
                     {% endif %}
                     <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" data-nd-busy>Marcar</button>
@@ -165,6 +169,17 @@ clicado diz qual horário e qual paciente.
                 {% csrf_token %}
                 <input type="hidden" name="starts_at" id="slot-remove-starts-at">
                 <input type="hidden" name="date" id="slot-remove-date">
+                <input type="hidden" name="return_to" value="{{ request.path }}">
+            </form>
+            {% comment %}Bloquear não é excluir: o bloqueado continua na grade e
+            conta como bloqueado na estatística do mês; o excluído some e não
+            conta. A confirmação diz isso, porque é o que decide qual botão
+            apertar.{% endcomment %}
+            <form method="post" action="{% url 'scheduling:block-free-slot' doctor.id %}" id="slot-block-form"
+                  data-nd-confirm="Bloquear este horário? Ele continua na agenda como bloqueado, entra na estatística como bloqueado, e se libera com um clique nele.">
+                {% csrf_token %}
+                <input type="hidden" name="starts_at" id="slot-block-starts-at">
+                <input type="hidden" name="date" id="slot-block-date">
                 <input type="hidden" name="return_to" value="{{ request.path }}">
             </form>
             {% endif %}

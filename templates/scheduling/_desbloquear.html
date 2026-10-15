@@ -1,0 +1,33 @@
+{% comment %}A célula bloqueada pelo botão "Bloquear este horário" se
+desfaz com um clique nela, nas três visões. Só para quem pode configurar
+esta agenda; os bloqueios de Configurar horários não chegam aqui
+(`unblock_id` vazio), e o servidor confere de novo.
+
+Recebe `cell` e `visao` ("semana", "dia" ou "mes"): o que muda entre elas
+é só a aparência do botão.{% endcomment %}
+<form method="post" action="{% url 'scheduling:unblock-slot' doctor.id %}" class="nd-unblock-form"
+      data-nd-confirm="Liberar o horário de {{ cell.start|date:'d/m/Y' }} às {{ cell.start|date:'H:i' }}? Ele volta a ficar livre para marcar.">
+    {% csrf_token %}
+    <input type="hidden" name="block_id" value="{{ cell.unblock_id }}">
+    <input type="hidden" name="date" value="{{ cell.start|date:'Y-m-d' }}">
+    <input type="hidden" name="return_to" value="{{ request.path }}">
+    {% if visao == 'mes' %}
+    <button type="submit" class="nd-month-slot nd-month-slot-blocked" data-nd-busy
+            title="{{ cell.start|date:'H:i' }} — bloqueado · clique para liberar"
+            aria-label="Horário de {{ cell.start|date:'H:i' }} bloqueado; liberar">
+        <span>{{ cell.start|date:'H:i' }}h</span>
+        <strong>Bloqueado</strong>
+    </button>
+    {% elif visao == 'dia' %}
+    <button type="submit" class="btn btn-xs btn-light-warning" data-nd-busy
+            aria-label="Horário de {{ cell.start|date:'H:i' }} bloqueado; liberar">
+        Bloqueado · liberar
+    </button>
+    {% else %}
+    <button type="submit" class="nd-slot nd-slot-blocked nd-slot-unblock" role="gridcell" data-nd-busy
+            title="Bloqueado — clique para liberar"
+            aria-label="Horário de {{ cell.start|date:'H:i' }} bloqueado; liberar">
+        <span class="d-block text-truncate">Bloqueado</span>
+    </button>
+    {% endif %}
+</form>

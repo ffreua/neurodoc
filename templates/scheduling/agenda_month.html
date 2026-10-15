@@ -191,6 +191,19 @@ contexto completo.{% endcomment %}
                                         <span>{{ cell.start|date:'H:i' }}h</span>
                                         <strong>Vago</strong>
                                     </span>
+                                    {% elif cell.status == 'blocked' and cell.unblock_id %}
+                                    {% comment %}Só o bloqueio feito pelo modal aparece no
+                                    mês: foi um horário que alguém fechou de propósito e
+                                    pode querer reabrir. O almoço e o bloqueio de
+                                    Configurar horários continuam fora, como sempre.{% endcomment %}
+                                    {% if pode_incluir_horario %}
+                                    {% include "scheduling/_desbloquear.html" with visao="mes" %}
+                                    {% else %}
+                                    <span class="nd-month-slot nd-month-slot-blocked" title="{{ cell.start|date:'H:i' }} — bloqueado">
+                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                        <strong>Bloqueado</strong>
+                                    </span>
+                                    {% endif %}
                                     {% endif %}
                                     {% endfor %}
                                 </div>

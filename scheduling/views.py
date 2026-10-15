@@ -21,7 +21,7 @@ from .availability import (
 )
 from .forms import (
     ChangePatientForm, DoctorChoiceForm, ExtraHoursForm, LocalHolidayForm, QuickBookingForm,
-    RemoveFreeSlotForm, RescheduleAppointmentForm, ReserveAppointmentForm, ScheduleBlockForm, TypeDurationForm,
+    RemoveFreeSlotForm, RescheduleAppointmentForm, UnblockSlotForm, ReserveAppointmentForm, ScheduleBlockForm, TypeDurationForm,
     WeeklyScheduleForm,
 )
 from .models import (
@@ -588,6 +588,60 @@ class FreeSlotRemoveView(ScheduleConfigView):
         return _agenda_redirect(request, doctor, day)
 
 
+class FreeSlotBlockView(ScheduleConfigView):
+    """"Bloquear este horário", ao lado de Excluir no modal de marcar.
+
+    Mesma permissão de Excluir e de Incluir horário. A diferença para o
+    Excluir é a estatística: o bloqueado conta como bloqueado no mês, o
+    excluído não conta (ver `services.block_free_slot`).
+    """
+
+    def post(self, request, membership_id):
+        doctor = _doctor_to_configure_or_404(request, membership_id)
+        form = RemoveFreeSlotForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, 'Não foi possível identificar o horário. Clique nele de novo.')
+            return _agenda_redirect(request, doctor, _parse_date(request.POST.get('date')))
+        starts_at = form.cleaned_data['starts_at']
+        day = timezone.localtime(starts_at).date()
+        try:
+            services.block_free_slot(request.access_context, doctor, starts_at)
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        quando = f'{day.strftime("%d/%m/%Y")} às {timezone.localtime(starts_at).strftime("%H:%M")}'
+        messages.success(
+            request,
+            f'Horário de {quando} bloqueado. Para liberá-lo, clique nele na agenda.',
+        )
+        return _agenda_redirect(request, doctor, day)
+
+
+class SlotUnblockView(ScheduleConfigView):
+    """O clique na célula bloqueada pelo modal: desfaz o bloqueio."""
+
+    def post(self, request, membership_id):
+        doctor = _doctor_to_configure_or_404(request, membership_id)
+        form = UnblockSlotForm(request.POST)
+        day = _parse_date(request.POST.get('date'))
+        if not form.is_valid():
+            messages.error(request, 'Não foi possível identificar o horário. Clique nele de novo.')
+            return _agenda_redirect(request, doctor, day)
+        try:
+            inicio = services.unblock_slot(
+                request.access_context, doctor, form.cleaned_data['block_id'],
+            )
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        local = timezone.localtime(inicio)
+        messages.success(
+            request,
+            f'Horário de {local.strftime("%d/%m/%Y")} às {local.strftime("%H:%M")} liberado.',
+        )
+        return _agenda_redirect(request, doctor, local.date())
+
+
 class BlockDeleteView(ScheduleConfigView):
     def post(self, request, membership_id, block_id):
         doctor = _doctor_to_configure_or_404(request, membership_id)
@@ -988,7 +1042,8 @@ class RescheduleAppointmentView(TenantScopedView):
 
     def _context(self, request, appointment, **overrides):
         current = timezone.localtime(appointment.starts_at)
-        minutes = int((appointment.ends_at - appointment.starts_at).total_seconds() // 60)
+        # A lista oferece onde cabe a duração do tipo, que é a que o POST grava.
+        minutes = services.duration_for(appointment.physician_membership_id, appointment.type)
 
         month_ref = _parse_date(request.GET.get('month'), default=current.date().replace(day=1))
         month_start = month_ref.replace(day=1)
@@ -1070,11 +1125,13 @@ class RescheduleAppointmentView(TenantScopedView):
         appointment = self._appointment(request, appointment_id)
         doctor = appointment.physician_membership
         original_day = timezone.localtime(appointment.starts_at).date()
-        minutes = int((appointment.ends_at - appointment.starts_at).total_seconds() // 60)
+        minutes = services.duration_for(doctor.id, appointment.type)
 
         # O clique num horário da lista manda apenas o início; o fim vem da
-        # duração da própria consulta. Digitar o fim à mão numa remarcação
-        # seria a chance de encurtar a consulta sem querer.
+        # duração **do tipo**, como em toda outra porta. Até a 1.14.2 vinha
+        # da duração que a consulta tinha, e com isso uma consulta gravada
+        # com a duração errada (um retorno de 80 min, do tempo em que trocar
+        # o tipo não mexia no fim) carregava o erro para cada remarcação.
         raw_start = request.POST.get('starts_at')
         raw_end = request.POST.get('ends_at')
         row_version = request.POST.get('row_version') or appointment.row_version

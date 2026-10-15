@@ -141,7 +141,11 @@ carimbá-la na publicação.
 #: A **1.14.2**: o aviso de cancelamento chegava duas vezes na mesma
 #: caixa quando o paciente tinha dois contatos com o mesmo e-mail. Um
 #: envio por endereço, em todo envio automático.
-VERSION = '1.14.2'
+#: A **1.15**: "Bloquear este horário" ao lado de Excluir -- o bloqueado
+#: conta na estatística, o excluído não --, liberado com um clique na
+#: célula; e a consulta futura gravada com a duração de outro tipo volta à
+#: do seu (migração `scheduling/0007`), com a remarcação seguindo o tipo.
+VERSION = '1.15'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

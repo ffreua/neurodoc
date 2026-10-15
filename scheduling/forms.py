@@ -314,6 +314,13 @@ class RemoveFreeSlotForm(forms.Form):
     starts_at = forms.DateTimeField(widget=forms.HiddenInput)
 
 
+class UnblockSlotForm(forms.Form):
+    """Desfazer o bloqueio feito pelo botão "Bloquear este horário"; o
+    servidor confere que é um desses (ver `services.unblock_slot`)."""
+
+    block_id = forms.UUIDField(widget=forms.HiddenInput)
+
+
 class LocalHolidayForm(forms.Form):
     """Feriado estadual ou municipal, cadastrado pela clínica.
 

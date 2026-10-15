@@ -66,6 +66,15 @@ urlpatterns = [
         '<uuid:membership_id>/excluir-horario/',
         views.FreeSlotRemoveView.as_view(), name='remove-free-slot',
     ),
+    # Bloquear (conta na estatística, ao contrário de excluir) e desfazer.
+    path(
+        '<uuid:membership_id>/bloquear-horario/',
+        views.FreeSlotBlockView.as_view(), name='block-free-slot',
+    ),
+    path(
+        '<uuid:membership_id>/desbloquear-horario/',
+        views.SlotUnblockView.as_view(), name='unblock-slot',
+    ),
 
     # Reservas.
     path('<uuid:membership_id>/marcar/', views.QuickBookingView.as_view(), name='quick-book'),

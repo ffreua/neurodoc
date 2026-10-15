@@ -188,6 +188,13 @@ class ScheduleBlockKind(models.TextChoices):
     REMOVED_SLOT = 'removed_slot', 'Horário excluído'
 
 
+#: O motivo que o botão "Bloquear este horário" grava. É o que a grade
+#: mostra na célula, e o que `services.unblock_slot` exige para desfazer:
+#: um bloqueio digitado em Configurar horários (férias de uma tarde, uma
+#: cirurgia) não se desfaz por um clique na agenda.
+MOTIVO_BLOQUEIO_PELA_AGENDA = 'Horário bloqueado pela agenda'
+
+
 class ScheduleBlock(TenantModel):
     physician_membership = models.ForeignKey(
         'tenancy.Membership', on_delete=models.PROTECT, related_name='schedule_blocks',

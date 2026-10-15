@@ -7,7 +7,9 @@ from .events import (
     emit_appointment_cancelled, emit_appointment_rescheduled, emit_appointment_reserved,
     invalidate_stale_reminders, schedule_reminders,
 )
-from .models import ALLOWED_TRANSITIONS, Appointment, AppointmentStatus
+from .models import (
+    ALLOWED_TRANSITIONS, MOTIVO_BLOQUEIO_PELA_AGENDA, Appointment, AppointmentStatus,
+)
 
 
 class SchedulingError(Exception):
@@ -642,6 +644,79 @@ def remove_free_slot(context, physician_membership, starts_at):
         context, physician_membership, ScheduleBlockKind.REMOVED_SLOT, cell['start'], cell['end'],
         reason='Horário excluído pela agenda',
     )
+
+
+@transaction.atomic
+def block_free_slot(context, physician_membership, starts_at):
+    """Bloqueia um horário livre, a partir do próprio modal de marcar.
+
+    Irmão de `remove_free_slot`, e a diferença entre os dois é a
+    estatística: **bloqueado** é horário que existia e não foi oferecido
+    (o médico vai a um congresso, a sala está em reforma), e entra na
+    conta dos bloqueados do mês; **excluído** é horário que deixou de
+    existir, e não entra em conta nenhuma. Pedido do Dr. Fernando ao
+    testar a 1.14.1: com só o Excluir, a estatística perdia o horário que
+    ele quis fechar sem tirar da agenda.
+
+    A célula continua desenhada, "bloqueada", e se desfaz com um clique
+    nela (`unblock_slot`). Mesma trava e mesma conferência na grade de
+    `remove_free_slot`: só fecha o que está livre agora.
+    """
+    from .availability import day_grid
+    from .models import ScheduleBlockKind
+
+    day = timezone.localtime(starts_at).date()
+    _lock_days(physician_membership.id, [day])
+    cell = next(
+        (c for c in day_grid(physician_membership.id, day) if c['start'] == starts_at), None,
+    )
+    if cell is None or cell['status'] != 'free':
+        raise SlotUnavailable(
+            'Este horário não está mais livre — foi marcado, bloqueado ou já passou. '
+            'A agenda foi atualizada.'
+        )
+    return create_block(
+        context, physician_membership, ScheduleBlockKind.BLOCK, cell['start'], cell['end'],
+        reason=MOTIVO_BLOQUEIO_PELA_AGENDA,
+    )
+
+
+@transaction.atomic
+def unblock_slot(context, physician_membership, block_id):
+    """Desfaz o bloqueio feito por `block_free_slot`, com um clique na célula.
+
+    Só o que aquele botão gravou (tipo e motivo), e só o que ainda não
+    passou: desbloquear um horário de ontem mudaria a estatística de um
+    dia encerrado sem devolver vaga nenhuma.
+    """
+    from .models import ScheduleBlock, ScheduleBlockKind
+
+    block = (
+        ScheduleBlock.objects.select_for_update()
+        .filter(
+            id=block_id, tenant_id=context.tenant_id, physician_membership=physician_membership,
+            kind=ScheduleBlockKind.BLOCK, reason=MOTIVO_BLOQUEIO_PELA_AGENDA,
+        )
+        .first()
+    )
+    if block is None:
+        raise SchedulingError(
+            'Este bloqueio não existe mais, ou foi feito em Configurar horários — '
+            'remova-o por lá.'
+        )
+    if block.end_at <= timezone.now():
+        raise SchedulingError('Este horário já passou; o bloqueio fica como registro do dia.')
+    inicio, fim = block.start_at, block.end_at
+    block.delete()
+    record_audit_event(
+        context.user_id, context.tenant_id, 'scheduling.block_deleted',
+        object_type='membership', object_id=physician_membership.id, outcome='success',
+        integrity_metadata={
+            'block_id': str(block_id), 'kind': ScheduleBlockKind.BLOCK,
+            'start': inicio.isoformat(), 'end': fim.isoformat(), 'origem': 'desbloquear_horario',
+        },
+    )
+    return inicio
 
 
 @transaction.atomic

@@ -727,6 +727,23 @@ button.nd-slot-free:focus-visible {
     );
 }
 
+/* O formulário de liberar não pode ocupar lugar na grade: a célula é o
+ * botão dentro dele. */
+.nd-unblock-form {
+    display: contents;
+}
+
+button.nd-slot-unblock {
+    cursor: pointer;
+    font: inherit;
+}
+
+button.nd-slot-unblock:hover,
+button.nd-slot-unblock:focus-visible {
+    color: #92400e;
+    border-color: #f59e0b;
+}
+
 .nd-slot-busy {
     cursor: pointer;
     border-color: rgba(52, 84, 209, .25);
@@ -813,6 +830,22 @@ button.nd-month-slot-free:focus-visible {
     color: #14532d;
     background: #bbf7d0;
     border-color: #22c55e;
+}
+
+.nd-month-slot-blocked {
+    color: #92400e;
+    background: #fef3c7;
+    border-color: #fcd34d;
+}
+
+button.nd-month-slot-blocked {
+    cursor: pointer;
+}
+
+button.nd-month-slot-blocked:hover,
+button.nd-month-slot-blocked:focus-visible {
+    background: #fde68a;
+    border-color: #f59e0b;
 }
 
 .nd-month-slot-busy {

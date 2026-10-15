@@ -107,6 +107,8 @@
             if (removeStartsAt) {
                 removeStartsAt.value = bookStartsAt.value;
                 document.getElementById('slot-remove-date').value = bookDate.value;
+                document.getElementById('slot-block-starts-at').value = bookStartsAt.value;
+                document.getElementById('slot-block-date').value = bookDate.value;
             }
             /* Cada abertura começa limpa: reaproveitar o paciente escolhido na
              * abertura anterior marcaria a pessoa errada no horário novo. */
