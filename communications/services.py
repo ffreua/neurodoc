@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from patients.contacts import authorized_document_contacts
+from patients.contacts import SELF_RELATIONSHIP, authorized_document_contacts
 
 from . import access
 from .email import EmailSendFailed, send_email
@@ -82,6 +82,38 @@ def _eligible_reminder_contacts(patient):
             or (c.sms_enabled and c.verified_phone_at and c.phone)
         )
     ]
+
+
+def _proprio_primeiro(contacts):
+    """Os contatos com o do próprio paciente na frente.
+
+    É a ordem que decide quem fica quando dois contatos têm o mesmo
+    endereço (`_repetido`): a entrega fica registrada no contato do
+    paciente, e não no do parente que por acaso deu o mesmo e-mail.
+    """
+    return sorted(contacts, key=lambda c: c.relationship != SELF_RELATIONSHIP)
+
+
+def _repetido(vistos, contact, channel):
+    """Este endereço já recebeu esta mensagem neste envio?
+
+    **Um envio por endereço, e não por contato.** A entrega percorre os
+    contatos do paciente, e nada impede dois deles com o mesmo e-mail -- o
+    paciente e a mãe que usa a caixa dele, ou o contato digitado de novo.
+    Cada um tem a sua `Delivery`, com chave própria, e por isso a
+    idempotência não pegava: o mesmo cancelamento chegava duas vezes à
+    mesma caixa (relatado em 2026-10-15, testando o servidor SMTP da
+    clínica). Telefone compara pelos dígitos, e-mail sem caixa nem espaço.
+    """
+    if channel == DeliveryChannel.EMAIL:
+        endereco = (contact.email or '').strip().lower()
+    else:
+        endereco = ''.join(ch for ch in (contact.phone or '') if ch.isdigit())
+    chave = (channel, endereco)
+    if chave in vistos:
+        return True
+    vistos.add(chave)
+    return False
 
 
 def _channels_for(contact):
@@ -265,8 +297,11 @@ def deliver_document(document, force_new_link=False):
             access.revoke_previous_tokens(document)
 
     deliveries = []
-    for contact in contacts:
+    vistos = set()
+    for contact in _proprio_primeiro(contacts):
         for channel in _channels_for(contact):
+            if _repetido(vistos, contact, channel):
+                continue
             idem_key = f'document:{document.id}:{contact.id}:{channel}'
             if force_new_link:
                 # Chave nova a cada reenvio: a restrição de unicidade
@@ -402,8 +437,11 @@ def deliver_appointment_reminder(appointment, event_version):
         REMINDER_MESSAGE_TEMPLATE, clinic, '', when, '',
     )
     deliveries = []
-    for contact in contacts:
+    vistos = set()
+    for contact in _proprio_primeiro(contacts):
         for channel in _channels_for(contact):
+            if _repetido(vistos, contact, channel):
+                continue
             idem_key = f'reminder:{appointment.id}:{event_version}:{contact.id}:{channel}'
             delivery, created = Delivery.objects.get_or_create(
                 tenant=appointment.tenant, idempotency_key=idem_key,
@@ -509,7 +547,10 @@ def deliver_return_reminder(scheduled_return):
     )
 
     entregas = []
-    for contato in contatos:
+    vistos = set()
+    for contato in _proprio_primeiro(contatos):
+        if _repetido(vistos, contato, DeliveryChannel.EMAIL):
+            continue
         chave = f'return:{scheduled_return.id}:{contato.id}'
         entrega, criada = Delivery.objects.get_or_create(
             tenant_id=scheduled_return.tenant_id, idempotency_key=chave,
@@ -631,9 +672,11 @@ def confirmation_contacts(appointment, channel):
     mensagem não leva conteúdo clínico.
     """
     field = 'email' if channel == DeliveryChannel.EMAIL else 'phone'
+    vistos = set()
     return [
-        contact for contact in appointment.patient.contacts.all()
+        contact for contact in _proprio_primeiro(appointment.patient.contacts.all())
         if _still_valid(contact) and getattr(contact, field)
+        and not _repetido(vistos, contact, channel)
     ]
 
 

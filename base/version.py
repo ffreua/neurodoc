@@ -138,7 +138,10 @@ carimbá-la na publicação.
 #: A **1.14.1** corrige o que o médico achou testando a 1.14 no mesmo
 #: dia: o horário excluído aparecia "fechado" (no mês, o dia inteiro) e
 #: Incluir horário no mesmo lugar era recusado. Agora ele some e volta.
-VERSION = '1.14.1'
+#: A **1.14.2**: o aviso de cancelamento chegava duas vezes na mesma
+#: caixa quando o paciente tinha dois contatos com o mesmo e-mail. Um
+#: envio por endereço, em todo envio automático.
+VERSION = '1.14.2'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
