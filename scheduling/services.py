@@ -458,10 +458,16 @@ def include_extra_hours(context, physician_membership, day, start_time, cells, r
     em que nenhuma consulta cabe — o extra seria gravado e não apareceria
     na grade, e a secretária concluiria que o botão não funciona.
 
+    **Horário excluído pelo modal de marcar é reaberto**, e não recusado:
+    excluir e incluir de novo no mesmo lugar é desfazer. O pedaço do
+    período que estava excluído volta (o `REMOVED_SLOT` é apagado ou
+    aparado), e só o que fica fora de toda janela vira atendimento extra
+    novo. Devolve esse extra, ou `None` quando só houve reabertura.
+
     Recusa, dizendo por quê, o que viraria grade torta ou letra morta:
 
-    - horário que já é de atendimento (a cadência seria dupla, e as
-      células se sobreporiam);
+    - horário que já é de atendimento e **não** foi excluído (a cadência
+      seria dupla, e as células se sobreporiam);
     - horário sob bloqueio de data (férias, feriado): o bloqueio vence o
       extra em `open_intervals`, e o extra não abriria nada;
     - o que já passou, e o que atravessa a meia-noite.
@@ -502,23 +508,59 @@ def include_extra_hours(context, physician_membership, day, start_time, cells, r
     def _hhmm(valor):
         return timezone.localtime(valor).strftime('%H:%M')
 
-    for comeco, termino in sorted(declarado):
-        if comeco < fim and inicio < termino:
-            raise SchedulingError(
-                f'Das {_hhmm(comeco)} às {_hhmm(termino)} já é horário de atendimento '
-                'neste dia. Escolha um início fora desse período.'
-            )
+    removidos = [
+        b for b in blocks
+        if b.kind == ScheduleBlockKind.REMOVED_SLOT and b.start_at < fim and inicio < b.end_at
+    ]
+    # O que já é atendimento **e está valendo**: a janela declarada dentro
+    # do pedido, menos o que foi excluído (e que agora será reaberto).
+    vigente = [(max(c, inicio), min(t, fim)) for c, t in declarado if c < fim and inicio < t]
+    for b in removidos:
+        vigente = _subtract(vigente, b.start_at, b.end_at)
+    if vigente:
+        comeco, termino = min(vigente)
+        raise SchedulingError(
+            f'Das {_hhmm(comeco)} às {_hhmm(termino)} já é horário de atendimento '
+            'neste dia. Escolha um início fora desse período.'
+        )
     for b in blocks:
-        if b.kind != ScheduleBlockKind.EXTRA_AVAILABILITY and b.start_at < fim and inicio < b.end_at:
+        if (b.kind not in (ScheduleBlockKind.EXTRA_AVAILABILITY, ScheduleBlockKind.REMOVED_SLOT)
+                and b.start_at < fim and inicio < b.end_at):
             raise SchedulingError(
                 f'Este horário está bloqueado na agenda ({b.reason or b.get_kind_display()}). '
                 'Remova o bloqueio em Configurar horários antes de abrir horário nele.'
             )
 
-    return create_block(
-        context, physician_membership, ScheduleBlockKind.EXTRA_AVAILABILITY, inicio, fim,
-        reason=reason or 'Horário incluído pela agenda',
-    )
+    for b in removidos:
+        sobra = _subtract([(b.start_at, b.end_at)], inicio, fim)
+        reaberto = (max(b.start_at, inicio), min(b.end_at, fim))
+        if sobra:
+            # O excluído passava do período pedido: reabre só o que foi pedido.
+            b.start_at, b.end_at = sobra[0]
+            b.save(update_fields=['start_at', 'end_at'])
+            for comeco, termino in sobra[1:]:
+                create_block(
+                    context, physician_membership, ScheduleBlockKind.REMOVED_SLOT,
+                    comeco, termino, reason=b.reason,
+                )
+        else:
+            b.delete()
+        record_audit_event(
+            context.user_id, context.tenant_id, 'scheduling.slot_reopened',
+            object_type='membership', object_id=physician_membership.id, outcome='success',
+            integrity_metadata={'start': reaberto[0].isoformat(), 'end': reaberto[1].isoformat()},
+        )
+
+    novo = [(inicio, fim)]
+    for comeco, termino in declarado:
+        novo = _subtract(novo, comeco, termino)
+    extra = None
+    for comeco, termino in novo:
+        extra = create_block(
+            context, physician_membership, ScheduleBlockKind.EXTRA_AVAILABILITY, comeco, termino,
+            reason=reason or 'Horário incluído pela agenda',
+        )
+    return extra
 
 
 @transaction.atomic
@@ -543,10 +585,15 @@ def remove_free_slot(context, physician_membership, starts_at):
       pela agenda, de uma célula) tem o extra apagado: incluir e excluir é
       desfazer, e um bloqueio por cima deixaria na tela uma célula fechada
       num horário em que o médico nunca atendeu;
-    - qualquer outra vira `ScheduleBlock` de bloqueio, do tamanho da
-      célula. A célula continua aparecendo, fechada e com o motivo, e
-      volta a abrir removendo o bloqueio em Configurar horários. Apagar a
-      regra semanal não serve: ela vale para todas as terças.
+    - qualquer outra vira `ScheduleBlock` de horário excluído
+      (`REMOVED_SLOT`), do tamanho da célula. Ela **some** da grade, e
+      volta com Incluir horário no mesmo lugar. Apagar a regra semanal
+      não serve: ela vale para todas as terças.
+
+    Na 1.14 a segunda forma era um bloqueio comum, que a grade desenhava
+    "fechado" -- e que fazia Incluir horário recusar o lugar como "já é
+    horário de atendimento". Quem exclui quer que o horário suma e
+    possa voltar.
     """
     from .availability import blocks_on, day_grid
     from .models import ScheduleBlockKind
@@ -592,7 +639,7 @@ def remove_free_slot(context, physician_membership, starts_at):
             return None
 
     return create_block(
-        context, physician_membership, ScheduleBlockKind.BLOCK, cell['start'], cell['end'],
+        context, physician_membership, ScheduleBlockKind.REMOVED_SLOT, cell['start'], cell['end'],
         reason='Horário excluído pela agenda',
     )
 

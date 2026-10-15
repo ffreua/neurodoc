@@ -1,6 +1,6 @@
 # Excluir um horário livre, do modal de marcar
 
-**Versão:** 1.14 · **Data:** 2026-10-15 ·
+**Versão:** 1.14 (corrigida na 1.14.1) · **Data:** 2026-10-15 ·
 **Roteiro:** `check_excluir_horario.py` (novo)
 
 ## O pedido
@@ -65,3 +65,26 @@ modal das três visões só para quem pode.
 
 **Bateria:** 106 roteiros, nenhuma falha (2026-10-15, local, imagem
 reconstruída).
+
+## Correção da 1.14.1
+
+O desenho acima, de **célula fechada com o motivo**, não sobreviveu ao
+primeiro teste real: no mês o dia aparecia "fechado", e Incluir horário
+no mesmo lugar era recusado porque o extra continuava por baixo do
+bloqueio. Quem exclui quer que o horário suma e possa voltar.
+
+Agora a tabela é esta:
+
+| A célula clicada | O que acontece |
+| --- | --- |
+| Horário da grade semanal | Vira **horário excluído** (`REMOVED_SLOT`) do tamanho da célula e **some** da grade |
+| Um atendimento extra inteiro | O extra é apagado, e a célula some |
+| Uma célula no meio de um extra maior | Horário excluído só dela; as vizinhas continuam livres |
+| Ocupada, já bloqueada, passada ou inexistente | Recusa, sem gravar nada |
+
+E **Incluir horário** sobre um horário excluído o reabre
+(`scheduling.slot_reopened` na trilha); só o que ficar fora de toda
+janela vira extra novo. Sobre horário de atendimento que **não** foi
+excluído, continua recusando — a cadência dupla que a regra impede não
+mudou. O "buraco sem explicação" que o desenho original temia é o que
+quem exclui pediu; o registro continua listado em Configurar horários.

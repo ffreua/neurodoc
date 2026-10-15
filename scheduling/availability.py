@@ -285,7 +285,13 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     for block in extra:
         declared.append((block.start_at, block.end_at))
 
-    blocking = [b for b in blocks if b.kind != ScheduleBlockKind.EXTRA_AVAILABILITY]
+    # O horário excluído fecha como bloqueio (`open_intervals` já o
+    # desconta), mas não vira célula "blocked": a tela não o desenha.
+    removidos = [b for b in blocks if b.kind == ScheduleBlockKind.REMOVED_SLOT]
+    blocking = [
+        b for b in blocks
+        if b.kind not in (ScheduleBlockKind.EXTRA_AVAILABILITY, ScheduleBlockKind.REMOVED_SLOT)
+    ]
     now = timezone.now()
     occupying = [a for a in appointments if a.status in OCCUPYING_STATUSES]
     # O que **aconteceu** e já não ocupa: concluído e falta. Entra só para
@@ -316,6 +322,14 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
                 (a for a in realizados if a.starts_at < cell_end and a.ends_at > cursor), None,
             )
 
+            if appointment is None and realizado is None and any(
+                b.start_at < cell_end and b.end_at > cursor for b in removidos
+            ):
+                # Some da grade, como quem excluiu queria. Com paciente
+                # (encaixe, ou consulta que já aconteceu) a célula continua:
+                # esconder quem foi atendido seria mentir sobre o dia.
+                cursor = cell_end
+                continue
             if appointment is not None:
                 status = 'busy'
             elif block is not None or not inside_open:

@@ -541,12 +541,20 @@ class ExtraHoursCreateView(ScheduleConfigView):
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
+        if block is None:
+            # Só reabriu o que tinha sido excluído: não há extra novo.
+            messages.success(
+                request,
+                f'Horário reaberto em {day.strftime("%d/%m/%Y")} a partir das '
+                f'{form.cleaned_data["start_time"].strftime("%H:%M")}.',
+            )
+            return _agenda_redirect(request, doctor, day)
         inicio = timezone.localtime(block.start_at).strftime('%H:%M')
         fim = timezone.localtime(block.end_at).strftime('%H:%M')
         messages.success(
             request,
             f'Horário incluído em {day.strftime("%d/%m/%Y")}, das {inicio} às {fim}. '
-            'Para desfazer, remova-o em Configurar horários.',
+            'Para desfazer, clique no horário e use Excluir este horário.',
         )
         return _agenda_redirect(request, doctor, day)
 
@@ -568,19 +576,15 @@ class FreeSlotRemoveView(ScheduleConfigView):
         starts_at = form.cleaned_data['starts_at']
         day = timezone.localtime(starts_at).date()
         try:
-            block = services.remove_free_slot(request.access_context, doctor, starts_at)
+            services.remove_free_slot(request.access_context, doctor, starts_at)
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
         quando = f'{day.strftime("%d/%m/%Y")} às {timezone.localtime(starts_at).strftime("%H:%M")}'
-        if block is None:
-            messages.success(request, f'Horário de {quando} excluído da agenda.')
-        else:
-            messages.success(
-                request,
-                f'Horário de {quando} excluído da agenda. '
-                'Para reabri-lo, remova o bloqueio em Configurar horários.',
-            )
+        messages.success(
+            request,
+            f'Horário de {quando} excluído da agenda. Para trazê-lo de volta, use Incluir horário.',
+        )
         return _agenda_redirect(request, doctor, day)
 
 

@@ -179,6 +179,13 @@ class ScheduleBlockKind(models.TextChoices):
     VACATION = 'vacation', 'Férias'
     HOLIDAY = 'holiday', 'Feriado'
     EXTRA_AVAILABILITY = 'extra_availability', 'Atendimento extra'
+    # O horário tirado da agenda pelo modal de marcar. Fecha como o
+    # bloqueio, mas a grade **não o desenha**: quem exclui um horário quer
+    # que ele suma, e não uma célula "fechada" no lugar -- no mês, um dia
+    # só com células assim aparecia como "fechado". E "Incluir horário" no
+    # mesmo lugar o reabre (`services.include_extra_hours`), em vez de
+    # recusar como "já é horário de atendimento".
+    REMOVED_SLOT = 'removed_slot', 'Horário excluído'
 
 
 class ScheduleBlock(TenantModel):

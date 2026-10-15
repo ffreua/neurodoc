@@ -161,7 +161,7 @@ clicado diz qual horário e qual paciente.
             servidor só fecha o que ainda estiver livre.{% endcomment %}
             {% if pode_incluir_horario %}
             <form method="post" action="{% url 'scheduling:remove-free-slot' doctor.id %}" id="slot-remove-form"
-                  data-nd-confirm="Excluir este horário da agenda? Ele deixa de aparecer como livre para marcar.">
+                  data-nd-confirm="Excluir este horário da agenda? Ele some da agenda, e volta com Incluir horário.">
                 {% csrf_token %}
                 <input type="hidden" name="starts_at" id="slot-remove-starts-at">
                 <input type="hidden" name="date" id="slot-remove-date">

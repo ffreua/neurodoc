@@ -4,11 +4,15 @@ Pedido de 2026-10-15: o avesso de "Incluir horario". Quem clica num
 horario livre ja via "paciente cadastrado" e "pre-cadastro"; agora ve
 tambem "Excluir este horario". O que este roteiro tenta quebrar:
 
-1. a celula do horario semanal vira **bloqueio do tamanho da celula**,
-   aparece fechada com o motivo, e nao aceita mais reserva;
+1. a celula do horario semanal vira **horario excluido** do tamanho da
+   celula, **some** da grade e nao aceita mais reserva; e Incluir horario
+   no mesmo lugar a **reabre** em vez de recusar;
 2. a celula que **e** um atendimento extra inteiro tem o extra apagado
-   (incluir e excluir e desfazer), e a celula some da grade; a do meio de
-   um extra maior vira bloqueio, sem levar as vizinhas;
+   (incluir e excluir e desfazer); a do meio de um extra maior some sem
+   levar as vizinhas;
+2b. o caso relatado na 1.14 (2026-10-15): incluir dois horarios, excluir
+   os dois -- o mes nao pode dizer "fechado" -- e incluir de novo no
+   mesmo lugar, que antes era recusado como "ja e horario de atendimento";
 3. so fecha o que esta livre: ocupado, ja bloqueado, passado e horario
    que nunca existiu sao recusados, sem gravar nada;
 4. a permissao e a de configurar **aquela** agenda, e outra clinica
@@ -30,7 +34,7 @@ from django.utils import timezone
 from audit.models import AuditEvent
 from patients.models import Patient, RegistrationStage
 from scheduling import services
-from scheduling.availability import _combine, available_slots, day_grid
+from scheduling.availability import _combine, available_slots, day_grid, month_summary
 from scheduling.models import (
     Appointment, AppointmentStatus, AppointmentType, ScheduleBlock, ScheduleBlockKind,
 )
@@ -116,17 +120,29 @@ try:
     else:
         d, c = semanal
         bloco = services.remove_free_slot(ctx, medico, c['start'])
-        confere(bloco is not None and bloco.kind == ScheduleBlockKind.BLOCK
+        confere(bloco is not None and bloco.kind == ScheduleBlockKind.REMOVED_SLOT
                 and bloco.start_at == c['start'] and bloco.end_at == c['end'],
-                'grava bloqueio exatamente do tamanho da celula')
-        depois = celula(d, c['start'])
-        confere(depois is not None and depois['status'] == 'blocked'
-                and 'excluído' in depois['reason'],
-                'a celula continua na grade, fechada e com o motivo', str(depois and depois['status']))
+                'grava horario excluido exatamente do tamanho da celula')
+        confere(celula(d, c['start']) is None, 'a celula some da grade (nada de "fechado")')
         confere(all(s != c['start'] for s, _ in available_slots(medico.id, d, minutes=1)),
                 'e some da lista de horarios livres')
         confere(AuditEvent.objects.filter(action='scheduling.block_created', object_id=medico.id).exists(),
                 'o ato ficou na trilha')
+        hora = timezone.localtime(c['start']).time()
+        r = services.include_extra_hours(ctx, medico, d, hora, 1)
+        volta = celula(d, c['start'])
+        confere(r is None and volta is not None and volta['status'] == 'free'
+                and not ScheduleBlock.objects.filter(id=bloco.id).exists(),
+                'incluir no mesmo lugar reabre, sem extra por cima', str(volta and volta['status']))
+        confere(AuditEvent.objects.filter(action='scheduling.slot_reopened', object_id=medico.id).exists(),
+                'a reabertura ficou na trilha')
+        try:
+            services.include_extra_hours(ctx, medico, d, hora, 1)
+            r = ''
+        except services.SchedulingError as exc:
+            r = str(exc)
+        confere('já é horário de atendimento' in r,
+                'incluir sobre horario semanal que nao foi excluido continua recusado', r)
 
     print('=== 2. atendimento extra: desfazer o inteiro, bloquear o do meio ===')
     um = services.include_extra_hours(ctx, medico, dia, time(1, 0), 1)
@@ -141,11 +157,41 @@ try:
     passo = (tres.end_at - tres.start_at) / 3
     meio = tres.start_at + passo
     r = services.remove_free_slot(ctx, medico, meio)
-    confere(r is not None and r.kind == ScheduleBlockKind.BLOCK and ScheduleBlock.objects.filter(id=tres.id).exists(),
-            'a do meio de um extra maior vira bloqueio e o extra fica')
+    confere(r is not None and r.kind == ScheduleBlockKind.REMOVED_SLOT
+            and ScheduleBlock.objects.filter(id=tres.id).exists() and celula(dia, meio) is None,
+            'a do meio de um extra maior some e o extra fica')
     vizinhas = [celula(dia, tres.start_at), celula(dia, meio + passo)]
     confere(all(v is not None and v['status'] == 'free' for v in vizinhas),
             'as vizinhas continuam livres', str([v and v['status'] for v in vizinhas]))
+
+    print('=== 2b. incluir dois, excluir os dois, incluir de novo ===')
+    dia2 = dia + timedelta(days=1)
+    dois = services.include_extra_hours(ctx, medico, dia2, time(1, 0), 2)
+    meia = (dois.end_at - dois.start_at) / 2
+    for inicio in (dois.start_at, dois.start_at + meia):
+        services.remove_free_slot(ctx, medico, inicio)
+    resumo = month_summary(medico.id, [dia2])[dia2]
+    confere(resumo['blocked'] == 0 and not any(
+        c['start'] in (dois.start_at, dois.start_at + meia) for c in resumo['cells']),
+        'o mes nao desenha os excluidos nem diz "fechado"', str(resumo['blocked']))
+    try:
+        r = services.include_extra_hours(ctx, medico, dia2, time(1, 0), 2)
+        recusado = ''
+    except services.SchedulingError as exc:
+        recusado = str(exc)
+    confere(not recusado, 'incluir de novo no mesmo lugar e aceito', recusado)
+    livres = [celula(dia2, dois.start_at), celula(dia2, dois.start_at + meia)]
+    confere(all(c is not None and c['status'] == 'free' for c in livres),
+            'e os dois horarios voltam livres', str([c and c['status'] for c in livres]))
+    confere(not ScheduleBlock.objects.filter(
+        physician_membership=medico, kind=ScheduleBlockKind.REMOVED_SLOT,
+        start_at__gte=dois.start_at, end_at__lte=dois.end_at).exists(),
+        'sem horario excluido sobrando por baixo')
+    services.remove_free_slot(ctx, medico, dois.start_at + meia)
+    r = services.include_extra_hours(ctx, medico, dia2, timezone.localtime(dois.start_at + meia).time(), 2)
+    confere(r is not None and r.start_at == dois.end_at and r.end_at == dois.end_at + meia,
+            'incluir passando do excluido reabre um e cria extra so para o resto',
+            r and f'{r.start_at} {r.end_at}')
 
     print('=== 3. so fecha o que esta livre ===')
     n = ScheduleBlock.objects.filter(physician_membership=medico).count()
@@ -191,7 +237,7 @@ try:
     else:
         print('  --    demonstracao sem dois medicos so-medico; fronteira entre colegas nao exercitada')
     r = cliente(secretaria).post(url, dados)
-    confere(r.status_code == 302 and celula(dia, livre)['status'] == 'blocked',
+    confere(r.status_code == 302 and celula(dia, livre) is None,
             'a secretaria exclui pelo POST', str(r.status_code))
     confere('/app/scheduling/dia/' in r.get('Location', ''), 'e volta para a visao de onde veio')
     r = cliente(secretaria).post(url, {'starts_at': 'lixo', 'date': dia.isoformat()})

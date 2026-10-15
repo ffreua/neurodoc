@@ -135,7 +135,10 @@ carimbá-la na publicação.
 #: A **1.14** acrescenta o avesso do "Incluir horário": excluir o horário
 #: livre do próprio modal de marcar. Funcionalidade nova, nada muda para
 #: quem não a usa: casa menor.
-VERSION = '1.14'
+#: A **1.14.1** corrige o que o médico achou testando a 1.14 no mesmo
+#: dia: o horário excluído aparecia "fechado" (no mês, o dia inteiro) e
+#: Incluir horário no mesmo lugar era recusado. Agora ele some e volta.
+VERSION = '1.14.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
