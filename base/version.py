@@ -161,7 +161,9 @@ carimbá-la na publicação.
 #: central de ajuda passam a contar que o portal também recebe laudos.
 #: A **1.17**: alterar uma medicação do atendimento pelo lápis ao lado da
 #: lixeira, no lugar -- mudar a dose não exige mais excluir e incluir de
-#: novo, nem perde o "em uso desde", a indicação e a observação.
+#: novo, nem perde o "em uso desde", a indicação e a observação. E toda
+#: confirmação passa a ser só o modal do sistema: o `nd-inline.js` fazia a
+#: mesma pergunta pela caixa do navegador, antes e depois do modal.
 VERSION = '1.17'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de

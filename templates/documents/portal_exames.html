@@ -141,10 +141,21 @@ a tela e a recusa não poderem divergir.{% endcomment %}
             var f = input.files && input.files[0];
             if (!f) { return; }
             var pdf = /\.pdf$/i.test(f.name);
+            // O aviso aparece na própria linha, e não numa caixa do
+            // navegador: as mensagens são do sistema (2026-10-19).
+            var aviso = input.parentNode.querySelector('[data-exame-aviso]');
+            if (!aviso) {
+                aviso = document.createElement('span');
+                aviso.className = 'd-block fs-12 text-danger mt-1';
+                aviso.setAttribute('data-exame-aviso', '');
+                aviso.setAttribute('role', 'alert');
+                input.parentNode.appendChild(aviso);
+            }
+            aviso.textContent = '';
             if (!pdf || f.size > limite) {
-                window.alert(!pdf
-                    ? 'Este canal aceita apenas arquivos PDF.'
-                    : 'Este arquivo tem mais de ' + Math.round(limite / 1048576) + ' MB, que é o limite.');
+                aviso.textContent = !pdf
+                    ? 'Este canal aceita apenas arquivos PDF. Escolha outro arquivo.'
+                    : 'Este arquivo tem mais de ' + Math.round(limite / 1048576) + ' MB, que é o limite. Escolha outro arquivo.';
                 input.value = '';
             }
         });

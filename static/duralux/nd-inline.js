@@ -29,9 +29,19 @@
     /* O texto da pergunta vem do atributo, porque quem sabe o que está
      * prestes a acontecer é a tela: "arquivar todo o histórico financeiro"
      * e "desfazer este repasse" merecem perguntas diferentes. */
+    /* **Só onde não há o modal do sistema.** `base.html` declara
+     * `#nd-confirm-modal`, e `app.js::initConfirm` faz a pergunta nele. Esta
+     * função perguntava também, com o `window.confirm` do navegador -- e,
+     * como este arquivo carrega com `defer` e registra o ouvinte antes de o
+     * `app.js` registrar o dele (no `DOMContentLoaded`), quem limpava as
+     * notificações via a caixa do Chrome, depois o modal, e de novo a caixa
+     * do Chrome quando o modal reenviava o formulário: três perguntas para
+     * uma ação (relatado em 2026-10-19). Agora o modal é o único; a caixa do
+     * navegador fica de reserva para página que não tenha o modal. */
     document.addEventListener('submit', function (evento) {
         var form = evento.target;
         if (!form || !form.hasAttribute('data-nd-confirm')) return;
+        if (document.getElementById('nd-confirm-modal')) return;
         if (!window.confirm(form.getAttribute('data-nd-confirm'))) {
             evento.preventDefault();
         }
