@@ -167,7 +167,7 @@ class AttachmentListView(TenantScopedView):
     def get(self, request, patient_id):
         patient = _patient_or_404(request, patient_id)
         attachments = _com_permissoes(
-            request, patient.attachments.filter(deleted_at=None).order_by('-created_at'),
+            request, patient.attachments.filter(deleted_at=None).select_related('envio_portal').order_by('-created_at'),
         )
         return render(request, 'documents/list.html', {
             'patient': patient, 'attachments': attachments,
@@ -179,7 +179,7 @@ class AttachmentListView(TenantScopedView):
         patient = _patient_or_404(request, patient_id)
         form = AttachmentUploadForm(request.POST, request.FILES)
         if not form.is_valid():
-            attachments = _com_permissoes(request, patient.attachments.filter(deleted_at=None).order_by('-created_at'))
+            attachments = _com_permissoes(request, patient.attachments.filter(deleted_at=None).select_related('envio_portal').order_by('-created_at'))
             return render(request, 'documents/list.html', {'patient': patient, 'attachments': attachments, 'form': form})
         uploaded = request.FILES['file']
         from tenancy.models import Tenant
@@ -191,7 +191,7 @@ class AttachmentListView(TenantScopedView):
             )
         except (UploadRejected, QuotaExceeded) as exc:
             form.add_error('file', str(exc))
-            attachments = _com_permissoes(request, patient.attachments.filter(deleted_at=None).order_by('-created_at'))
+            attachments = _com_permissoes(request, patient.attachments.filter(deleted_at=None).select_related('envio_portal').order_by('-created_at'))
             return render(request, 'documents/list.html', {'patient': patient, 'attachments': attachments, 'form': form})
         record_audit_event(
             request.user, request.access_context.tenant_id, 'documents.attachment_uploaded',
@@ -325,7 +325,7 @@ class PatientDocumentsView(ClinicalDocumentView):
         )
         attachments = (
             patient.attachments.filter(deleted_at=None)
-            .select_related('encounter')
+            .select_related('encounter', 'envio_portal')
             .order_by('-created_at')
         )
         return render(request, 'documents/patient_documents.html', {
@@ -804,3 +804,28 @@ class SigningSessionRevokeView(SigningView):
             object_type='signing_session', object_id=session.id, outcome='success',
         )
         return redirect('documents:credential-list')
+
+
+class PortalExamAcknowledgeView(ClinicalDocumentView):
+    """"Ciente" dos laudos que o paciente mandou pelo portal.
+
+    Marca todos os envios pendentes do paciente de uma vez: o alerta do
+    prontuário mostra os pendentes juntos, e quem os viu viu todos. Exige
+    capacidade clínica, a mesma de abrir os arquivos -- marcar como visto
+    o que não se pode abrir seria afirmar uma leitura que não houve.
+    """
+
+    def post(self, request, patient_id):
+        from django.utils.http import url_has_allowed_host_and_scheme
+
+        from .portal_exames import marcar_vistos
+
+        patient = _patient_or_404(request, patient_id)
+        if marcar_vistos(request.access_context, patient, request.access_context.membership_id):
+            messages.success(request, 'Exames enviados pelo paciente marcados como vistos.')
+        destino = request.POST.get('next', '')
+        if not url_has_allowed_host_and_scheme(
+            destino, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+        ):
+            destino = reverse('documents:list', args=[patient.id])
+        return redirect(destino)

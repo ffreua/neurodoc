@@ -10,6 +10,10 @@ urlpatterns = [
         'patients/<uuid:patient_id>/documentos/',
         views.PatientDocumentsView.as_view(), name='patient-documents',
     ),
+    path(
+        'patients/<uuid:patient_id>/exames-do-portal/ciente/',
+        views.PortalExamAcknowledgeView.as_view(), name='portal-exams-ack',
+    ),
     path('<uuid:attachment_id>/download/', views.AttachmentDownloadView.as_view(), name='download'),
     path('<uuid:attachment_id>/preview/', views.AttachmentPreviewView.as_view(), name='preview'),
     path('<uuid:attachment_id>/delete/', views.AttachmentDeleteView.as_view(), name='delete'),

@@ -61,6 +61,7 @@ entra na evolução.{% endcomment %}
 {% endif %}
 {% endblock %}
 {% block content %}
+{% nd_exames_do_portal encounter.patient %}
 
 {% comment %}Gancho de `clinical/atendimento.js` — o mesmo do estruturado:
 Ctrl+S salva, Alt+P abre a consulta anterior e o texto digitado vai para o

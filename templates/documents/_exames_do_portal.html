@@ -1,0 +1,33 @@
+{% if envios %}
+{% comment %}Vermelho e no topo: é o aviso que a clínica pediu para o
+médico não abrir o prontuário sem saber que chegou exame. Some quando
+alguém com acesso clínico marca "Ciente".{% endcomment %}
+<div class="alert alert-danger d-flex flex-column gap-2 mb-4" role="alert">
+    <div class="fw-bold">
+        {% if envios|length == 1 %}O paciente enviou 1 exame pelo portal.
+        {% else %}O paciente enviou {{ envios|length }} exames pelo portal.{% endif %}
+    </div>
+    <ul class="mb-0 ps-3 fs-13">
+        {% for e in envios %}
+        <li>
+            <strong>{{ e.exam_label }}</strong>
+            — realizado em {{ e.performed_on|date:"d/m/Y" }}, {{ e.performed_at_place }}
+            <span class="text-muted">(enviado em {{ e.created_at|date:"d/m/Y H:i" }}{% if not e.requester_is_patient %} por {{ e.requester_name }}{% endif %})</span>
+            {% if e.attachment.scan_status == 'available' %}
+            · <a href="{% url 'documents:download' e.attachment_id %}">baixar</a>
+            {% elif e.attachment.scan_status == 'quarantined' %}
+            · <span class="text-muted">em verificação de vírus</span>
+            {% endif %}
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="d-flex gap-2 flex-wrap">
+        <a class="btn btn-sm btn-light" href="{% url 'documents:list' patient.id %}">Ver anexos</a>
+        <form method="post" action="{% url 'documents:portal-exams-ack' patient.id %}">
+            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+            <input type="hidden" name="next" value="{{ next }}">
+            <button type="submit" class="btn btn-sm btn-danger">Ciente</button>
+        </form>
+    </div>
+</div>
+{% endif %}

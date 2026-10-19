@@ -54,6 +54,12 @@ REGISTRY = {
     'patient': Target(
         'patients:detail', 'patients.Patient', 'Abrir ficha do paciente',
     ),
+    # Laudo enviado pelo paciente no portal: leva à lista de anexos dele,
+    # onde o arquivo está, e não a um envio isolado -- um envio traz até
+    # cinco exames, e o médico os lê juntos.
+    'portal_exam': Target(
+        'documents:list', 'patients.Patient', 'Ver exames enviados',
+    ),
 }
 
 

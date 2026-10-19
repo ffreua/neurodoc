@@ -324,3 +324,34 @@ def nd_idade(patient, referencia=None):
     if estimado and estimado <= referencia.year:
         return f'~{referencia.year - estimado} anos'
     return ''
+
+
+@register.inclusion_tag('documents/_exames_do_portal.html', takes_context=True)
+def nd_exames_do_portal(context, patient):
+    """Alerta de laudos que o paciente mandou pelo portal e ninguém viu.
+
+    Tag, e não variável de cada view, porque o alerta aparece onde o
+    médico abre o prontuário -- linha do tempo, os dois tipos de
+    atendimento e a ficha --, e quatro views lembrando de montar o mesmo
+    contexto são quatro chances de uma esquecer.
+
+    Só para quem lê prontuário: a secretária sabe que chegou anexo pela
+    lista, e o alerta diria qual exame é.
+    """
+    request = context.get('request')
+    ctx = getattr(request, 'access_context', None)
+    vazio = {'envios': [], 'patient': patient}
+    if patient is None or ctx is None:
+        return vazio
+    from tenancy.permissions import Capability
+
+    if not ctx.can(Capability.READ_CLINICAL) or str(patient.tenant_id) != str(ctx.tenant_id):
+        return vazio
+    from documents.portal_exames import pendentes
+
+    return {
+        'envios': list(pendentes(patient)),
+        'patient': patient,
+        'next': request.get_full_path(),
+        'csrf_token': context.get('csrf_token'),
+    }

@@ -272,12 +272,17 @@ try:
     p_b = (grande.end_at - grande.start_at) / 8
     inicio_ret = grande.start_at
     folga = timedelta(minutes=5)
+    # O longo dura **tres** vezes o tipo, e nao duas. Com duas, num banco
+    # recem-semeado (celula de 40 min, o MDC das duracoes padrao) nenhuma
+    # celula comecava entre o fim do tipo mais a folga e o fim gravado: a
+    # lista do `sobra()` vinha vazia e o roteiro reprovava sem defeito
+    # nenhum -- e so passava no banco antigo, de celula menor (2026-10-18).
     longo = consulta(paciente_novo('PACIENTE RETORNO LONGO'), inicio_ret,
-                     inicio_ret + timedelta(minutes=ret * 2), AppointmentType.RETURN_VISIT, folga=folga)
-    certo = consulta(paciente_novo('PACIENTE RETORNO CERTO'), inicio_ret + timedelta(minutes=ret * 3),
-                     inicio_ret + timedelta(minutes=ret * 4), AppointmentType.RETURN_VISIT)
-    encaixe = consulta(paciente_novo('PACIENTE ENCAIXE LONGO'), inicio_ret + timedelta(minutes=ret * 4),
-                       inicio_ret + timedelta(minutes=ret * 6), AppointmentType.RETURN_VISIT,
+                     inicio_ret + timedelta(minutes=ret * 3), AppointmentType.RETURN_VISIT, folga=folga)
+    certo = consulta(paciente_novo('PACIENTE RETORNO CERTO'), inicio_ret + timedelta(minutes=ret * 4),
+                     inicio_ret + timedelta(minutes=ret * 5), AppointmentType.RETURN_VISIT)
+    encaixe = consulta(paciente_novo('PACIENTE ENCAIXE LONGO'), inicio_ret + timedelta(minutes=ret * 5),
+                       inicio_ret + timedelta(minutes=ret * 7), AppointmentType.RETURN_VISIT,
                        is_overbook=True, override_reason='Roteiro')
     ontem_1h = _combine(timezone.localdate() - timedelta(days=2), time(1, 0))
     passado = consulta(paciente_novo('PACIENTE PASSADO LONGO'), ontem_1h,
@@ -288,7 +293,7 @@ try:
     def sobra():
         return [c for c in day_grid(medico.id, dia_b)
                 if c['start'] >= inicio_ret + timedelta(minutes=ret) + folga
-                and c['start'] < inicio_ret + timedelta(minutes=ret * 2)]
+                and c['start'] < inicio_ret + timedelta(minutes=ret * 3)]
     confere(sobra() and all(c['status'] == 'busy' for c in sobra()),
             'antes: o tempo a mais ocupa a celula seguinte (o defeito)',
             str([c['status'] for c in sobra()]))

@@ -35,7 +35,13 @@ class Attachment(TenantModel):
         max_length=40, choices=AttachmentScanStatus.choices, default=AttachmentScanStatus.QUARANTINED,
     )
     scan_error = models.CharField(max_length=255, blank=True)
-    uploaded_by = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='+')
+    #: Quem enviou. Nulo só quando quem enviou não tem conta: o paciente,
+    #: pelo portal (`PortalExamUpload` diz quem preencheu). Era obrigatório,
+    #: e obrigar aqui faria o portal inventar um usuário dono do arquivo --
+    #: o que poria na trilha um médico que nunca tocou nele.
+    uploaded_by = models.ForeignKey(
+        'accounts.User', on_delete=models.PROTECT, related_name='+', null=True, blank=True,
+    )
     document_date = models.DateField(null=True, blank=True)
     encryption_metadata = models.JSONField(default=dict, blank=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
@@ -265,3 +271,87 @@ class DocumentRequest(TenantModel):
 
     def __str__(self):
         return f'{self.get_kind_display()} — {self.patient_id} ({self.status})'
+
+
+class PortalExamType(models.TextChoices):
+    """O que o paciente diz que o exame é.
+
+    Lista fechada, com "Outro" e o nome escrito à mão: em texto livre o
+    mesmo exame chega como "RM", "ressonancia" e "Ressonância do crânio", e
+    o médico que procura "a ressonância que ele mandou" não acha pela lista.
+    A ordem é a da frequência numa clínica de neurologia, não a alfabética.
+    """
+
+    RESSONANCIA = 'ressonancia', 'Ressonância magnética'
+    TOMOGRAFIA = 'tomografia', 'Tomografia computadorizada'
+    ELETRONEUROMIOGRAFIA = 'eletroneuromiografia', 'Eletroneuromiografia'
+    ELETROENCEFALOGRAMA = 'eletroencefalograma', 'Eletroencefalograma'
+    LABORATORIAL = 'laboratorial', 'Exames laboratoriais (sangue, urina)'
+    LIQUOR = 'liquor', 'Líquor'
+    DOPPLER = 'doppler', 'Doppler / ultrassonografia'
+    POLISSONOGRAFIA = 'polissonografia', 'Polissonografia'
+    POTENCIAL_EVOCADO = 'potencial_evocado', 'Potencial evocado'
+    NEUROPSICOLOGICA = 'neuropsicologica', 'Avaliação neuropsicológica'
+    RAIO_X = 'raio_x', 'Raio-X'
+    OUTRO = 'outro', 'Outro'
+
+
+class PortalExamUpload(TenantModel):
+    """Laudo de exame que o próprio paciente enviou pelo portal.
+
+    O arquivo é um `Attachment` como qualquer outro -- mesma quarentena,
+    mesmo antivírus, mesma guarda de vinte anos, mesma regra de quem abre --
+    e entra direto no prontuário, sem fila de aprovação: é resultado de
+    exame que o paciente já tem na mão, não pedido de ato médico.
+
+    O que esta linha acrescenta ao anexo é o que só o paciente sabe dizer
+    (qual exame, quando, onde) e o **ciente** do médico: o envio fica
+    marcado como novo no prontuário até alguém com acesso clínico dizer
+    que viu. Sem isso o laudo entraria calado numa lista que ninguém abre
+    sem motivo.
+    """
+
+    patient = models.ForeignKey(
+        'patients.Patient', on_delete=models.PROTECT, related_name='exames_do_portal',
+    )
+    attachment = models.OneToOneField(
+        Attachment, on_delete=models.PROTECT, related_name='envio_portal',
+    )
+    exam_type = models.CharField(max_length=40, choices=PortalExamType.choices)
+    #: O nome do exame quando o tipo é "Outro". Vazio nos demais.
+    exam_other = models.CharField(max_length=120, blank=True)
+    performed_on = models.DateField()
+    #: Laboratório, clínica ou profissional que fez o exame.
+    performed_at_place = models.CharField(max_length=160)
+    #: Nome do arquivo como chegou. O anexo grava um nome gerado (tipo e
+    #: data), porque o do paciente costuma ter acento, espaço duplo e
+    #: parêntese, que o validador de nome recusa; este fica só de registro.
+    original_filename = models.CharField(max_length=255, blank=True)
+
+    requester_name = models.CharField(max_length=255)
+    requester_is_patient = models.BooleanField(default=True)
+    privacy_ack_at = models.DateTimeField(null=True, blank=True)
+    privacy_notice_version = models.CharField(max_length=20, blank=True)
+    origin_ip_protected = models.CharField(max_length=64, blank=True)
+
+    acknowledged_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+
+    class Meta(TenantModel.Meta):
+        indexes = [
+            models.Index(
+                fields=['tenant', 'patient', 'acknowledged_at'],
+                name='documents_portalexam_pend_idx',
+            ),
+        ]
+
+    @property
+    def exam_label(self):
+        if self.exam_type == PortalExamType.OUTRO and self.exam_other:
+            return self.exam_other
+        return self.get_exam_type_display()
+
+    def __str__(self):
+        return f'{self.exam_label} — {self.patient_id} ({self.performed_on})'

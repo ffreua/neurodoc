@@ -1,0 +1,153 @@
+{% extends "base_auth.html" %}
+{% block title %}Enviar exames — {{ clinic_name }}{% endblock %}
+{% block card_width %}wd-700{% endblock %}
+{% block tagline %}{{ clinic_name }}{% endblock %}
+{% block heading %}Enviar resultados de exames{% endblock %}
+{% block subheading %}
+Paciente identificado: <strong>{{ patient.full_name }}</strong>.
+Os arquivos vão direto para o seu prontuário, e o médico é avisado.
+{% endblock %}
+{% block content %}
+
+{% comment %}O aviso em vermelho é o que a clínica pediu, e vem antes do
+formulário: quem lê depois de escolher o arquivo já escolheu a foto do
+pedido médico. Os números saem da view (que os lê de `portal_exames`), para
+a tela e a recusa não poderem divergir.{% endcomment %}
+<div class="alert alert-danger fs-13" role="alert">
+    <strong>Anexe APENAS laudos de exames e resultados finais.</strong>
+    Não envie pedidos médicos, receitas, fotos ou documentos pessoais.
+    <span class="d-block mt-1">
+        <strong>Aceitamos somente arquivos PDF</strong> — até {{ max_arquivos }}
+        arquivos por envio, com no máximo {{ max_mb }} MB cada.
+    </span>
+</div>
+
+{% if error %}
+<div class="alert alert-warning fade show fs-13" role="alert">{{ error }}</div>
+{% endif %}
+
+<form method="post" enctype="multipart/form-data" novalidate id="portal-exames-form"
+      data-max-bytes="{{ max_bytes }}">
+    {% csrf_token %}
+    <input type="hidden" name="identidade" value="{{ identidade }}">
+
+    <div class="mb-4">
+        <label class="form-label fw-semibold">Quem está enviando</label>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="requester" id="req-self"
+                   value="self" checked>
+            <label class="form-check-label" for="req-self">O próprio paciente</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="requester" id="req-other" value="other">
+            <label class="form-check-label" for="req-other">Familiar, cuidador ou responsável</label>
+        </div>
+        <input type="text" class="form-control mt-2" name="requester_name" id="requester_name"
+               placeholder="Nome de quem está enviando" maxlength="255" hidden>
+    </div>
+
+    {% comment %}As cinco linhas vão no HTML, e o JS só revela a seguinte.
+    Sem JS a primeira continua funcionando sozinha; com JS ninguém vê cinco
+    blocos vazios para mandar um exame.{% endcomment %}
+    {% for i in linhas %}
+    <fieldset class="border rounded p-3 mb-3" data-exame-linha="{{ i }}"{% if not forloop.first %} hidden{% endif %}>
+        <legend class="float-none w-auto px-2 fs-13 fw-bold mb-0">Exame {{ i }}</legend>
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="arquivo_{{ i }}">Arquivo PDF</label>
+            <input type="file" class="form-control" id="arquivo_{{ i }}" name="arquivo_{{ i }}"
+                   accept="application/pdf,.pdf">
+        </div>
+        <div class="row g-2">
+            <div class="col-sm-6 mb-2">
+                <label class="form-label fw-semibold" for="tipo_{{ i }}">Qual exame</label>
+                <select class="form-select" id="tipo_{{ i }}" name="tipo_{{ i }}" data-exame-tipo>
+                    <option value="">Selecione…</option>
+                    {% for value, label in tipos %}
+                    <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <input type="text" class="form-control mt-2" name="outro_{{ i }}" maxlength="120"
+                       placeholder="Escreva o nome do exame" data-exame-outro hidden>
+            </div>
+            <div class="col-sm-6 mb-2">
+                <label class="form-label fw-semibold" for="data_{{ i }}">Data de realização</label>
+                <input type="date" class="form-control" id="data_{{ i }}" name="data_{{ i }}"
+                       max="{{ hoje }}">
+            </div>
+        </div>
+        <div>
+            <label class="form-label fw-semibold" for="local_{{ i }}">Onde foi realizado</label>
+            <input type="text" class="form-control" id="local_{{ i }}" name="local_{{ i }}"
+                   maxlength="160" placeholder="Laboratório, clínica ou profissional">
+        </div>
+    </fieldset>
+    {% endfor %}
+
+    <button type="button" class="btn btn-sm btn-light-primary mb-4" id="add-exame" hidden>
+        + Adicionar outro exame
+    </button>
+
+    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Enviar exames</button>
+</form>
+
+<p class="fs-12 text-muted mt-3 mb-0">
+    Precisa de receita, relatório ou pedido de exame?
+    <a href="{% url 'portal:request' slug %}">Fazer uma solicitação</a>.
+</p>
+
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ nd_csp_nonce }}">
+(function () {
+    var form = document.getElementById('portal-exames-form');
+    if (!form) { return; }
+
+    var nome = document.getElementById('requester_name');
+    form.querySelectorAll('input[name="requester"]').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            nome.hidden = (form.querySelector('input[name="requester"]:checked').value !== 'other');
+        });
+    });
+
+    // "Outro" pede o nome do exame; os demais tipos não.
+    form.querySelectorAll('[data-exame-tipo]').forEach(function (sel) {
+        var outro = sel.parentNode.querySelector('[data-exame-outro]');
+        function sync() { outro.hidden = sel.value !== 'outro'; }
+        sel.addEventListener('change', sync);
+        sync();
+    });
+
+    // Revela a próxima linha; o botão some quando as cinco estão à vista.
+    var linhas = form.querySelectorAll('[data-exame-linha]');
+    var add = document.getElementById('add-exame');
+    function proxima() {
+        for (var i = 0; i < linhas.length; i++) { if (linhas[i].hidden) { return linhas[i]; } }
+        return null;
+    }
+    add.hidden = proxima() === null;
+    add.addEventListener('click', function () {
+        var p = proxima();
+        if (p) { p.hidden = false; }
+        add.hidden = proxima() === null;
+    });
+
+    // Avisa do tamanho antes de enviar: descobrir no servidor, depois de
+    // subir 15 MB pelo celular, é a pior hora. O servidor confere de novo.
+    var limite = parseInt(form.getAttribute('data-max-bytes'), 10);
+    form.querySelectorAll('input[type="file"]').forEach(function (input) {
+        input.addEventListener('change', function () {
+            var f = input.files && input.files[0];
+            if (!f) { return; }
+            var pdf = /\.pdf$/i.test(f.name);
+            if (!pdf || f.size > limite) {
+                window.alert(!pdf
+                    ? 'Este canal aceita apenas arquivos PDF.'
+                    : 'Este arquivo tem mais de ' + Math.round(limite / 1048576) + ' MB, que é o limite.');
+                input.value = '';
+            }
+        });
+    });
+})();
+</script>
+{% include "documents/_portal_encarregado.html" %}
+{% endblock %}

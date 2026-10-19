@@ -51,6 +51,7 @@ entra na evolução.{% endcomment %}
 {% endif %}
 {% endblock %}
 {% block content %}
+{% nd_exames_do_portal encounter.patient %}
 
 {% comment %}`data-nd-atendimento` é o gancho de `clinical/atendimento.js`:
 atalhos de teclado, rascunho local e a gaveta da consulta anterior. O id do

@@ -1,0 +1,34 @@
+{% extends "base_auth.html" %}
+{% block title %}Exames enviados — {{ clinic_name }}{% endblock %}
+{% block card_width %}wd-550{% endblock %}
+{% block tagline %}{{ clinic_name }}{% endblock %}
+{% block heading %}Exames enviados{% endblock %}
+{% block subheading %}
+{% if quantos == 1 %}O seu exame chegou ao prontuário.{% elif quantos %}Os seus {{ quantos }} exames chegaram ao prontuário.{% else %}Os seus exames chegaram ao prontuário.{% endif %}
+O médico é avisado e verá os resultados.
+{% endblock %}
+{% block content %}
+
+<div class="alert alert-success fade show fs-13" role="alert">
+    Você não precisa enviar de novo. O mesmo arquivo enviado várias vezes
+    aparece repetido no prontuário.
+</div>
+
+{% comment %}Dito porque é a expectativa que gera a ligação do dia seguinte:
+mandar o exame não é ter o exame avaliado.{% endcomment %}
+<p class="fs-13 text-muted">
+    Enviar o exame não substitui a consulta. O médico avalia os resultados no
+    atendimento ou, se for o caso, a clínica entra em contato pelos canais de sempre.
+</p>
+
+<p class="fs-12 text-muted mb-0">
+    Por segurança, encerramos a identificação. Para enviar outros exames ou fazer
+    uma solicitação, informe novamente o CPF e a data de nascimento.
+</p>
+
+<a class="btn btn-light-primary w-100 mt-3" href="{% url 'portal:identify' slug %}">
+    Voltar ao início
+</a>
+
+{% include "documents/_portal_encarregado.html" %}
+{% endblock %}

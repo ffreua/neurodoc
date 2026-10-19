@@ -8,6 +8,7 @@ expira em trinta minutos.
 from django.contrib import messages
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
+from django.utils import timezone
 from django.views import View
 
 from audit.services import record_audit_event
@@ -35,6 +36,17 @@ class PortalBaseView(View):
             raise Http404
         self.slug = slug
         return super().dispatch(request, slug, *args, **kwargs)
+
+    def _bloqueado(self, request, impedimento, patient):
+        """A tela da janela de retorno, com a porta do envio de exames.
+
+        Mesma tela e mesmo 403 nas três portas do pedido. O que ela ganhou
+        foi o caminho para mandar laudo, que a janela não barra.
+        """
+        return render(request, 'documents/portal_retorno.html', self.base_context(
+            bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
+            pode_enviar_exames=True,
+        ), status=403)
 
     def base_context(self, **extra):
         context = {
@@ -68,7 +80,12 @@ class PortalIdentifyView(PortalBaseView):
     template_name = 'documents/portal_identify.html'
 
     def get(self, request, slug):
-        if portal.verified_patient(request, self.tenant) is not None:
+        patient = portal.verified_patient(request, self.tenant)
+        # Quem a janela de retorno barrou continua identificado (para
+        # poder mandar exame), e por isso volta ao formulário, e não ao
+        # pedido: senão a mãe que identificou um filho barrado ficaria
+        # trinta minutos sem conseguir identificar o outro.
+        if patient is not None and portal_retorno.bloqueio(self.clinic, patient) is None:
             return redirect('portal:request', slug=slug)
         return render(request, self.template_name, self.base_context())
 
@@ -107,19 +124,18 @@ class PortalIdentifyView(PortalBaseView):
         # descobrir a recusa depois de descrever cinco medicamentos é pior
         # do que descobrir antes de começar.
         #
-        # A sessão é descartada junto. Mantê-la deixaria `/solicitar/`
-        # acessível por link direto a quem a tela acabou de recusar.
+        # A sessão **continua** (até 2026-10-18 era descartada aqui), porque
+        # a janela barra pedido de ato médico e não o envio de laudo de
+        # exame -- ver `documents.portal_exames`. `/solicitar/` não fica
+        # aberto por isso: ele confere a janela de novo a cada GET e POST.
         impedimento = portal_retorno.bloqueio(self.clinic, patient)
         if impedimento is not None:
-            portal.clear(request)
             record_audit_event(
                 None, self.tenant.id, 'documents.portal_request_window_closed',
                 object_type='patient', object_id=patient.id, outcome='denied',
                 integrity_metadata={'dias': impedimento.dias},
             )
-            return render(request, 'documents/portal_retorno.html', self.base_context(
-                bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
-            ), status=403)
+            return self._bloqueado(request, impedimento, patient)
         return redirect('portal:request', slug=slug)
 
 
@@ -134,10 +150,7 @@ class PortalRequestView(PortalBaseView):
             return redirect('portal:identify', slug=slug)
         impedimento = portal_retorno.bloqueio(self.clinic, patient)
         if impedimento is not None:
-            portal.clear(request)
-            return render(request, 'documents/portal_retorno.html', self.base_context(
-                bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
-            ), status=403)
+            return self._bloqueado(request, impedimento, patient)
         return render(request, self.template_name, self.base_context(
             patient=patient, kinds=DocumentRequestKind.choices, purposes=REPORT_PURPOSES,
             identidade=portal.identity_token(request),
@@ -153,10 +166,7 @@ class PortalRequestView(PortalBaseView):
         # antes não pode valer como autorização depois.
         impedimento = portal_retorno.bloqueio(self.clinic, patient)
         if impedimento is not None:
-            portal.clear(request)
-            return render(request, 'documents/portal_retorno.html', self.base_context(
-                bloqueio=impedimento, patient_first_name=patient.full_name.split(' ')[0],
-            ), status=403)
+            return self._bloqueado(request, impedimento, patient)
 
         if not portal.token_confere(request, request.POST.get('identidade')):
             # 409, e o formulário de novo **para quem está identificado
@@ -246,6 +256,88 @@ class PortalDoneView(PortalBaseView):
 
     def get(self, request, slug):
         return render(request, self.template_name, self.base_context())
+
+
+class PortalExamUploadView(PortalBaseView):
+    """Envio de laudos de exame pelo paciente. Ver `documents.portal_exames`.
+
+    Exige a mesma identificação dos pedidos, e só ela: a janela de retorno
+    não se aplica (ver o módulo).
+    """
+
+    template_name = 'documents/portal_exames.html'
+
+    def get(self, request, slug):
+        patient = portal.verified_patient(request, self.tenant)
+        if patient is None:
+            return redirect('portal:identify', slug=slug)
+        return render(request, self.template_name, self._context(request, patient))
+
+    def post(self, request, slug):
+        from . import portal_exames
+
+        patient = portal.verified_patient(request, self.tenant)
+        if patient is None:
+            return redirect('portal:identify', slug=slug)
+
+        if not portal.token_confere(request, request.POST.get('identidade')):
+            return self._invalid(
+                request, patient,
+                f'Outra pessoa foi identificada neste navegador depois que esta página '
+                f'foi aberta. Confira: os exames agora serão enviados para '
+                f'{patient.full_name.split(" ")[0]}. Escolha os arquivos de novo e envie.',
+                status=409,
+            )
+
+        proprio = request.POST.get('requester') != 'other'
+        nome = (patient.full_name if proprio
+                else (request.POST.get('requester_name') or '').strip())
+        if not nome:
+            return self._invalid(request, patient, 'Informe o nome de quem está enviando.')
+
+        if portal_exames.limite_excedido(request):
+            return self._invalid(
+                request, patient,
+                'Muitos envios a partir deste endereço. Aguarde e tente novamente.',
+                status=429,
+            )
+
+        try:
+            linhas = portal_exames.ler_formulario(request.POST, request.FILES)
+            portal_exames.receber(request, self.tenant, patient, linhas, nome, proprio)
+        except portal_exames.EnvioRecusado as exc:
+            return self._invalid(request, patient, str(exc))
+
+        request.session['portal_exames_enviados'] = len(linhas)
+        return redirect('portal:exams-done', slug=slug)
+
+    def _context(self, request, patient, **extra):
+        from . import portal_exames
+        from .models import PortalExamType
+
+        return self.base_context(
+            patient=patient, identidade=portal.identity_token(request),
+            tipos=PortalExamType.choices, linhas=range(1, portal_exames.MAX_ARQUIVOS + 1),
+            max_arquivos=portal_exames.MAX_ARQUIVOS,
+            max_mb=portal_exames.MAX_BYTES // (1024 * 1024),
+            max_bytes=portal_exames.MAX_BYTES,
+            hoje=timezone.localdate().isoformat(),
+            **extra,
+        )
+
+    def _invalid(self, request, patient, erro, status=400):
+        # Os arquivos não voltam no formulário -- o navegador não deixa
+        # repreencher um campo de arquivo --, e a mensagem diz qual linha.
+        return render(request, self.template_name,
+                      self._context(request, patient, error=erro), status=status)
+
+
+class PortalExamDoneView(PortalBaseView):
+    template_name = 'documents/portal_exames_enviados.html'
+
+    def get(self, request, slug):
+        quantos = request.session.pop('portal_exames_enviados', None)
+        return render(request, self.template_name, self.base_context(quantos=quantos))
 
 
 class PortalMedicationSearchView(PortalBaseView):

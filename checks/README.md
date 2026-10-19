@@ -121,12 +121,78 @@ sai com código 1 listando as falhas quando não passa.
 | `check_planos` | Limites de plano nas seis portas, e o que acontece ao rebaixar |
 | `check_precadastro` | Contato do pré-cadastro e confirmação antes de entrar na lista de pacientes |
 | `check_prontuario` | Número do prontuário e documentos por paciente |
-| `check_roles` | Resposta de cada papel nas telas principais |
+| `check_roles` | Resposta de cada papel nas telas principais — **só imprime, não reprova**: a regressão só aparece para quem lê a saída. Quem afirma a matriz é `check_matrix` |
 | `check_roteiro` | A clínica nasce com o roteiro de exame instalado |
 | `check_resto` | Hábitos, confirmação por e-mail, pedido editável, receita, console |
 | `check_secretary` | A secretária trabalha, e não passa do que lhe compete |
 | `check_super` | O console da instalação por dentro, e o que ele não mostra |
-| `check_tenantb` | A segunda clínica não vê dado da primeira |
+| `check_tenantb` | O que o mesmo usuário alcança em cada organização — **só imprime, não reprova**, como `check_roles` |
+| `check_alerta_erro` | O e-mail de alerta do erro 500 não leva settings nem segredo |
+| `check_auditoria_lote1` | Auditoria de 2026-10-09, lote 1: PDF emitido × rascunho, finalização × autosave, reenvio, `next` do MFA, portal (exige PostgreSQL) |
+| `check_auditoria_lote2` | Auditoria de 2026-10-09, lote 2: IA para quem perdeu o papel, cancelamento que a cópia velha não desfaz, DLR, "ERRO" com HTTP 200, exportação, retomada de IA |
+| `check_aviso_de_horario` | Paciente avisado ao marcar, remarcar e cancelar, com o endereço como `Local` |
+| `check_backup` | Restaurador carrega, trava única entre backup e arquivo morto, unidades do systemd |
+| `check_bloquear_horario` | Bloquear horário livre (fica e conta na estatística) e a duração que segue o tipo nas consultas antigas |
+| `check_campanha_servidor_proprio` | Campanha só sai pelo servidor SMTP da própria clínica, em qualquer plano |
+| `check_cobranca_checkin` | O check-in gera uma cobrança só, reaproveitada pelo atendimento |
+| `check_colaboradores` | Convite de colaborador, confirmação de conta e credenciais |
+| `check_contatos_indicadores` | Contato editável, e pré-cadastro fora dos indicadores e da cota |
+| `check_contrato` | Contrato de adesão: cláusulas, aceite gravado com o texto, prazos, via ao contratante |
+| `check_crm_em_outra_conta` | CRM já registrado em outra conta: recusa útil, sem revelar o e-mail |
+| `check_csp` | Política de conteúdo: nonce, nada de `onclick`, `<script>` sem nonce reprovado |
+| `check_decisoes` | Decisões da auditoria pré-deploy: endereço da API de IA (SSRF) e a coleta em ensaio nos dois sentidos |
+| `check_declaracao` | Declaração de comparecimento sem CID nem diagnóstico, e que não é atestado |
+| `check_despachante` | Outbox: posse do evento, consumidor fora de transação, idade do aviso (exige PostgreSQL) |
+| `check_dinheiro` | Pagamento e ajuste aceitam o formato brasileiro e não dão 500 |
+| `check_entrega_documento` | Entrega ao paciente que não derruba a tela: SMS num segmento, e-mail sai mesmo com SMS quebrado, saída pelo worker |
+| `check_exames_do_portal` | Laudo enviado pelo paciente no portal: só PDF, 5 por envio, 3 MB, tudo ou nada, prontuário certo, alerta e ciente do médico, e a janela de retorno que não o barra |
+| `check_estruturado` | Prontuário estruturado: impressões na aba, "trazer tudo", cada envio voltando para a sua aba |
+| `check_evolucao` | Série temporal: eixo proporcional à data, escala no próprio domínio |
+| `check_excluir_horario` | "Excluir este horário" some com a célula, e "Incluir horário" a reabre |
+| `check_exportacao` | Exportação do acervo em MD e JSON: quem pode pedir cada um, o arquivo do worker |
+| `check_fuso` | O "hoje" é o de Brasília: varre o repositório atrás de `date.today()` e `timezone.now().date()` |
+| `check_honorario_tipo` | Honorário por tipo de atendimento |
+| `check_ia_assincrona` | Conclusão visível do job de IA, e revisão tardia de laudo como adendo |
+| `check_ia_plano` | A IA segue o plano contratado: capacidade, autorização do job, resumo automático, chat |
+| `check_idade` | Idade ao lado do nome, e no atendimento a idade na data dele |
+| `check_idioma` | Tudo que o usuário lê está em português (varre o código) |
+| `check_importacao` | Migração de cadastro: ninguém nasce autorizado a receber mensagem, repetível, CPF repetido não derruba |
+| `check_imutabilidade` | O que não pode mudar: finalizado, salvamento concorrente, trilha, guarda de 20 anos |
+| `check_incluir_horario` | Botão "Incluir horário" nas três visões, e as recusas |
+| `check_intervalos_e_ficha` | Intervalo pontual da agenda nos três caminhos, naturalidade, gaveta da ficha |
+| `check_js_atributo` | JS que monta atributo HTML sem escapar aspas (varre JS e templates) |
+| `check_leitura_laudo` | Leitura de laudo: forma normalizada, conteúdo sob guarda, `response_format` com recuo |
+| `check_links_de_mensagem` | Todo link que sai em e-mail ou SMS abre, e nada é enfileirado antes do commit |
+| `check_login` | Duas portas de entrada que devolviam tela crua |
+| `check_logotipo` | O logotipo é o da organização aberta, sem cache de cinco minutos |
+| `check_mensagem_clinica` | "Fale com a NeuroDoc" e sugestões: da clínica para o console |
+| `check_mensagem_paciente` | O texto do SMS e do e-mail ao paciente |
+| `check_mensagens` | Chat da equipe: conversa única por par, fronteira entre clínicas, contador |
+| `check_mes_e_estatisticas` | Visão de mês e estatísticas: o passado não mente |
+| `check_mfa_reconfirmacao` | Reconfirmar o segundo fator sem derrubar a sessão |
+| `check_minha_conta` | Cada um edita o próprio nome, e só o próprio |
+| `check_minha_conta_overlay` | "Minha conta" abre e salva no modal, com página inteira de reserva |
+| `check_mobile` | Aderência ao celular, no que dá para conferir sem navegador (varre templates) |
+| `check_nome_caixa_alta` | Nome do paciente em caixa alta pelos quatro caminhos de criação |
+| `check_nome_exibido` | O nome na tela é o mesmo da receita |
+| `check_paginacao` | Primeira e última página das listagens, criando volume antes de olhar |
+| `check_perimetro` | A borda: CSRF, desidentificação, IP do visitante atrás do proxy |
+| `check_por_cid` | Busca de paciente por CID: fronteira de papel e a última palavra por código |
+| `check_portal_retorno` | Portal barra consulta com mais de 180 dias, quando manda barrar, nas três portas |
+| `check_provedor_e_sms` | O padrão da instalação para IA e SMS, e nenhuma view enviando de dentro da requisição |
+| `check_receitas` | Catálogo CMED, emissão em papel, QR só em documento assinado (exige `import_cmed`) |
+| `check_recontratacao` | Recontratar preserva a conta e devolve o acesso com convite novo |
+| `check_relatorio_ia` | Relatório escrito pela IA vira rascunho, e o texto editado é o que vai assinado |
+| `check_retencao_transitoria` | Dado transitório some no prazo: notificação 7/15 dias, entrega 15 |
+| `check_retorno` | Retorno programado: data, aviso 20 dias antes, fila da secretária |
+| `check_rodape_do_documento` | Assinatura no pé da folha, medida pela posição do texto no PDF |
+| `check_seo` | O que o buscador vê: `<title>`, `noindex`, sitemap, canônica, JSON-LD |
+| `check_servicos_do_inquilino` | IA, SMS e e-mail da clínica, e o retorno ao padrão quando desliga |
+| `check_sms_plano` | O SMS segue o plano contratado |
+| `check_texto_livre` | Atendimento em texto livre ao lado do estruturado, e o adendo depois de fechado |
+| `check_tipo_de_consulta` | Trocar o tipo de um horário marcado só antes da chegada, com a duração acompanhando |
+| `check_um_envio_por_endereco` | Um envio por endereço, e não por contato |
+| `check_chat_stream_ui.cjs` | Evento terminal encerra a geração na tela do chat. **É Node**: o `rodar_roteiros` não o vê; rode com `node checks/check_chat_stream_ui.cjs` |
 
 ## Cuidados
 

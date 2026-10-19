@@ -145,12 +145,16 @@ carimbá-la na publicação.
 #: conta na estatística, o excluído não --, liberado com um clique na
 #: célula; e a consulta futura gravada com a duração de outro tipo volta à
 #: do seu (migração `scheduling/0007`), com a remarcação seguindo o tipo.
-VERSION = '1.15'
+#: A **1.16**: o paciente envia laudos de exame em PDF pelo portal, que
+#: entram direto no prontuário com tipo, data e local, e acendem um alerta
+#: para o médico até ele marcar "Ciente" (migração `documents/0008`, só de
+#: expansão); e a lista de anexos ganha a data de envio antes do nome.
+VERSION = '1.16'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a agenda'
+CODENAME = 'os exames do paciente'
 
 
 def version_display():

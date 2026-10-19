@@ -11,7 +11,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.15 "a agenda" (`base/version.py`) |
+| **Versão do produto** | 1.16 "os exames do paciente" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Verificação** | 108 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.16** | 2026-10-18 | os exames do paciente | O paciente **envia laudos de exame em PDF pelo portal** (até 5 por envio, 3 MB cada, com qual exame, data e local), que entram direto no prontuário e acendem um **alerta vermelho** para o médico até ele marcar "Ciente"; a janela de retorno de 180 dias barra o pedido, não o laudo. E a lista de anexos ganha a coluna **Anexado em** antes do nome. |
 | **1.15** | 2026-10-15 | a agenda | **Bloquear este horário** no modal do horário livre, ao lado de Excluir: o bloqueado fica na agenda e **conta** na estatística do mês, o excluído some e não conta; a célula bloqueada se libera com um clique. E a consulta futura gravada com a duração de outro tipo (o retorno de 80 min, de antes da 1.13) volta à duração do seu, liberando o horário seguinte; a remarcação passa a gravar a duração do tipo. |
 | **1.14.2** | 2026-10-15 | a agenda | O mesmo aviso não chega mais **duas vezes na mesma caixa**: quando o paciente tem dois contatos com o mesmo e-mail (ou o mesmo celular), aviso de horário, lembrete, aviso de retorno e entrega de documento saem uma vez por endereço, registrados no contato do próprio paciente. |
 | **1.14.1** | 2026-10-15 | a agenda | O horário excluído **some** da agenda, em vez de aparecer "fechado" (no mês, o dia inteiro aparecia fechado), e **Incluir horário** no mesmo lugar o traz de volta — antes era recusado como "já é horário de atendimento". Os excluídos na 1.14 são convertidos. |

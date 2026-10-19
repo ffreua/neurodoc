@@ -172,7 +172,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `clinical` | `Encounter` em dois tipos (`kind`: prontuário estruturado ou **texto livre**), achados do exame, diagnósticos, medicações, resultados de exame e valores laboratoriais, aditamento (nos **dois** tipos), cópia da consulta anterior (item a item ou **tudo de uma vez**), **busca de paciente por CID** (`por_cid.py`) e a **série temporal** em gráfico (`series.py`) |
 | `exams` | motor do roteiro de exame em árvore (387 nós, YAML) e 14 escalas pontuadas |
 | `scheduling` | agenda por médico, regras de disponibilidade, **intervalos pontuais** (`RecurringBreak`: o almoço, que não é `buffer_minutes` nem bloqueio de data), bloqueios, feriados, **retorno programado** (`returns.py`), a **declaração de comparecimento** (`declaracao.py`) e as **estatísticas do mês** (`estatisticas.py`, contagens para os quatro papéis) |
-| `documents` | anexos (com antivírus), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
+| `documents` | anexos (com antivírus), **laudos enviados pelo paciente no portal** (`portal_exames.py`: direto ao prontuário, alerta até o ciente do médico), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
 | `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores, o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) e a **leitura de laudo anexado** (`graphs.py` + `schemas.py`: forma normalizada, conteúdo sob guarda — ver §7-F) |
@@ -354,6 +354,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_retorno.py` | retorno programado: meses de calendário sem estourar o fim do mês, um retorno por atendimento, a janela de 20 dias com o dia perdido recuperado, o `notified_at` que barra o segundo e-mail, a recusa do contato respeitada, a redação de cuidado e não de captação, e a fila da secretária |
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
 | `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
+| `check_exames_do_portal.py` | o **laudo enviado pelo paciente no portal**: só PDF, até 5 por envio e 3 MB cada, onze recusas sem gravar nada, **tudo ou nada**, o formulário de um paciente que não grava na ficha de outro, o arquivo clínico em quarentena sem autor de conta, o aviso ao médico e não à secretária, o **alerta no prontuário** que some no "Ciente" (que a secretária e outra clínica não marcam), e a janela de retorno que barra o pedido e **não** o laudo |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
 | `check_leitura_laudo.py` | a leitura de laudo pela IA: a **forma** que o modelo devolve é normalizada (lista vazia, `null` e número em campo de texto) e o **conteúdo** continua sob as mesmas guardas (faixa do laudo, probabilidade numérica, marcador de desidentificação); a varredura que impede esquema novo de nascer fora de `ArtifactModel` e prompt novo de nascer sem tipo; o recuo quando o provedor recusa `response_format`, sem confundir isso com falha de rede; e o diagnóstico da recusa gravado **sem nenhum valor do laudo** |
 | `check_intervalos_e_ficha.py` | o **intervalo pontual** da agenda (o almoço, que não é o `buffer_minutes` nem um `ScheduleBlock`) recortando os **três** caminhos — a grade, a lista de horários livres e a validação da reserva —, as quatro recusas do formulário, a vigência que encerra em vez de apagar; a **naturalidade** nos três estados com catálogo do IBGE sugerindo e texto livre aceitando; e a **gaveta da ficha** no atendimento, sem formulário dentro |
@@ -454,6 +455,8 @@ responsabilidade do art. 37. Nulo é um terceiro estado, e é o que permite
 o responsável mudar o padrão e a mudança valer para quem não se
 manifestou. **Não barrar não impede ninguém de prescrever:** o pedido
 chega à fila como qualquer outro, e a decisão continua do médico.
+
+**O envio de laudo de exame não passa por ela** (1.16, `documents/portal_exames.py`): mandar o resultado de um exame não é pedir ato médico. Por isso a identificação de quem é barrado não é mais descartada — o pedido continua recusado nas três portas, e a mesma sessão abre `/solicitacoes/<slug>/exames/`. Detalhe em `docs/homologation/exames-pelo-portal.md`.
 
 Conta **qualquer** atendimento, inclusive em rascunho — rascunho significa
 que o médico abriu a ficha durante a visita. Confere em **três portas**:
@@ -687,6 +690,11 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
   em que entrou em uso real: o que está provado, o que está aberto, e as
   lições que custaram caro. É o arquivo que responde "onde estamos" a
   quem (ou ao que) chega agora.
+- `docs/CODEBASE_MAP.md` — o mapa do código gerado pela Cartographer
+  (2026-10-18, v1.15): o que cada módulo exporta, os fluxos em diagrama,
+  as pegadinhas e a tabela "para mexer em X, abra Y". É síntese de
+  leitura, não especificação — onde divergir deste arquivo ou do código,
+  vale o código.
 - `PRD.md` — a especificação completa (matriz de permissão §4, roteiro de
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
