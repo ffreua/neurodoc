@@ -1,0 +1,20 @@
+# Só a Cloudflare chega às portas 80 e 443 (ver ops/cloudflare_firewall.sh).
+#
+# **Não é instalado pelo setup_deploy.sh, de propósito.** Só faz sentido
+# com o proxy da Cloudflare ligado no DNS: numa instalação em modo
+# "só DNS", ele fecharia o site para todo visitante. Quem liga o proxy
+# instala à mão — o passo está em docs/operations/manutencao.md.
+#
+# Roda como root (é iptables) e com /bin/bash, pelo mesmo motivo do
+# /bin/sh dos outros moldes: o script é versionado em modo 644.
+[Unit]
+Description=Restringe as portas 80 e 443 do NeuroDoc as faixas da Cloudflare
+Requires=docker.service
+After=docker.service network-online.target ufw.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/neurodoc
+ExecStart=/bin/bash /srv/neurodoc/ops/cloudflare_firewall.sh
+TimeoutStartSec=3min
