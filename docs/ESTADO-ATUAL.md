@@ -5,7 +5,7 @@ em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
 **Versão:** 1.15 "a agenda" · **Produção:**
-`https://neurodoc.app.br` (VPS Integrator, `ssh deploy@23.106.44.46`)
+`https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
 
@@ -138,6 +138,18 @@ são tags, e tag é alvo móvel.
   Dra. Karina: o código é aberto sob a MIT, e o contrato rege só o serviço
   hospedado, sem restringir nem ampliar o que a licença concede. Quem
   aceitou a 1.0 segue com ela arquivada (cláusula 17.4, sem novo aceite).
+- **O domínio não passa pelo proxy da Cloudflare** (conferido em
+  2026-10-19). `neurodoc.app.br` e os subdomínios estão em modo "só DNS" e
+  resolvem direto para a VPS, e a resposta sai do `uvicorn`, sem cabeçalho
+  da Cloudflare. Por isso o IP do servidor é público de qualquer jeito —
+  ele saiu dos documentos (que usam o apelido `neurodoc-vps` do
+  `~/.ssh/config`), mas isso só passa a esconder algo depois de o proxy
+  ser ligado. **A ordem importa:** primeiro ligar o proxy (nuvem laranja)
+  no domínio e no curinga, com o SSL em *Full (strict)*; conferir o site,
+  o streaming do chat e o IP do visitante nos limitadores; e só então
+  restringir as portas 80 e 443 da VPS às faixas da Cloudflare — feita
+  antes, a restrição tira o site do ar. O `traefik.yml` já confia nas
+  faixas dela (`ops/make_runtime.py`).
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
@@ -264,7 +276,7 @@ gravado antes de enviar, para o SMS.
 docker compose exec app python manage.py rodar_roteiros
 
 # Publicar — build e deploy rodam NA VPS, nunca localmente
-ssh deploy@23.106.44.46 "cd /srv/neurodoc && git pull --ff-only \
+ssh neurodoc-vps "cd /srv/neurodoc && git pull --ff-only \
   && bash scripts/deploy.sh --check \
   && (setsid nohup bash scripts/deploy.sh > /tmp/deploy.log 2>&1 < /dev/null &)"
 ```

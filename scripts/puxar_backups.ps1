@@ -27,7 +27,7 @@ param(
 
     # Como se chega na VPS. O usuario precisa conseguir LER
     # /srv/neurodoc-backups (ver docs/operations/copia-externa.md).
-    [string]$Servidor = 'deploy@23.106.44.46',
+    [string]$Servidor = 'neurodoc-vps',
 
     [string]$Origem = '/srv/neurodoc-backups',
 

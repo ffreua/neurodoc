@@ -45,7 +45,7 @@ do servidor real, onde `setup_deploy.sh` substituiu o usuário por
 Conferir, do PC:
 
 ```powershell
-ssh deploy@23.106.44.46 "ls /srv/neurodoc-backups | head"
+ssh neurodoc-vps "ls /srv/neurodoc-backups | head"
 ```
 
 ### 2. Chave SSH sem senha para a tarefa agendada

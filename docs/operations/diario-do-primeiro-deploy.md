@@ -8,7 +8,7 @@ realidade.
 
 | | |
 | --- | --- |
-| Servidor | VPS na **Integrator**, `23.106.44.46`, Ubuntu 24.04.5, 6 vCPU, 16 GB |
+| Servidor | VPS na **Integrator**, Ubuntu 24.04.5, 6 vCPU, 16 GB |
 | Domínio | `neurodoc.app.br`, DNS na Cloudflare, registros **cinza** (sem proxy) |
 | E-mail | `contato@neurodoc.app.br`, Hostinger — só o e-mail é Hostinger |
 | Usuário de operação | `deploy` (e não `neurodocops`, como o roteiro supõe) |

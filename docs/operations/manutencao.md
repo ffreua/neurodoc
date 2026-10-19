@@ -10,8 +10,22 @@ Escrito para ser seguido sem saber administrar servidor. Cada situação tem
 **Como entrar no servidor.** Abra o PowerShell e digite:
 
 ```
-ssh deploy@23.106.44.46
+ssh neurodoc-vps
 ```
+
+`neurodoc-vps` é um **apelido** definido no `~/.ssh/config` desta máquina
+(`C:\Users\<você>\.ssh\config` no Windows) — o endereço do servidor mora
+lá, e não no repositório, que é público. Numa máquina nova, crie o arquivo:
+
+```
+Host neurodoc-vps
+    HostName <IP-da-VPS>
+    User deploy
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+A cópia diária do backup (`scripts/puxar_backups.ps1`) usa o mesmo
+apelido: sem ele, ela para de puxar.
 
 Você fica lá dentro até digitar `exit`. Onde aparecer `cd /srv/neurodoc`,
 é porque o comando só funciona nessa pasta.
@@ -21,7 +35,7 @@ Você fica lá dentro até digitar `exit`. Onde aparecer `cd /srv/neurodoc`,
 ## 1. Toda semana: o sistema está de pé?
 
 ```
-ssh deploy@23.106.44.46 "docker service ls"
+ssh neurodoc-vps "docker service ls"
 ```
 
 **Certo:** sete linhas, e a coluna `REPLICAS` com `2/2` no `app` e `1/1`
@@ -30,8 +44,8 @@ nos outros seis. Os dois números de cada par iguais.
 **Errado:** algum `0/1`. Veja o que houve:
 
 ```
-ssh deploy@23.106.44.46 "docker service ps neurodoc_v1_app --no-trunc"
-ssh deploy@23.106.44.46 "docker service logs neurodoc_v1_app --tail 100"
+ssh neurodoc-vps "docker service ps neurodoc_v1_app --no-trunc"
+ssh neurodoc-vps "docker service logs neurodoc_v1_app --tail 100"
 ```
 
 Troque `app` pelo serviço com problema. Copie a saída e peça ajuda — ela
@@ -42,7 +56,7 @@ diz a causa.
 ## 2. Toda semana: o backup rodou?
 
 ```
-ssh deploy@23.106.44.46 "ls -1 /srv/neurodoc-backups/ | tail -3"
+ssh neurodoc-vps "ls -1 /srv/neurodoc-backups/ | tail -3"
 ```
 
 **Certo:** a pasta mais recente é de hoje ou de ontem. O nome é a data em
@@ -51,13 +65,13 @@ UTC (`20260926T060116Z` = 26/09 às 03:01 no horário do Brasil).
 **Errado:** a mais recente tem vários dias. Veja o porquê:
 
 ```
-ssh deploy@23.106.44.46 "journalctl -u neurodoc-backup.service -n 30 --no-pager"
+ssh neurodoc-vps "journalctl -u neurodoc-backup.service -n 30 --no-pager"
 ```
 
 Para rodar um backup agora, sem esperar a madrugada:
 
 ```
-ssh deploy@23.106.44.46 "sudo systemctl start neurodoc-backup.service"
+ssh neurodoc-vps "sudo systemctl start neurodoc-backup.service"
 ```
 
 ### 2.1 Levar uma cópia para fora do servidor
@@ -69,7 +83,7 @@ Uma vez por mês, no PowerShell:
 cd $env:USERPROFILE\Documents
 mkdir -Force backups-neurodoc
 cd backups-neurodoc
-scp -r deploy@23.106.44.46:/srv/neurodoc-backups/* .
+scp -r neurodoc-vps:/srv/neurodoc-backups/* .
 ```
 
 Depois copie essa pasta para um HD externo ou nuvem.
@@ -172,7 +186,7 @@ git push origin main
 **Depois, no servidor:**
 
 ```
-ssh deploy@23.106.44.46
+ssh neurodoc-vps
 cd /srv/neurodoc
 git pull
 bash scripts/deploy.sh --check
@@ -216,7 +230,7 @@ primeiro passo devolve `secret is in use by the following service`.
 ### Senha do e-mail
 
 ```
-ssh deploy@23.106.44.46
+ssh neurodoc-vps
 cd /srv/neurodoc
 docker service update --secret-rm NEURODOC_SMTP_PASSWORD neurodoc_v1_celery_worker
 docker secret rm NEURODOC_SMTP_PASSWORD
@@ -235,7 +249,7 @@ docker exec $(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) python m
 São **dois lugares**, e esquecer o segundo quebra o próximo deploy:
 
 ```
-ssh deploy@23.106.44.46
+ssh neurodoc-vps
 printf 'https://ffreua:TOKEN-NOVO@github.com\n' > ~/.git-credentials
 printf '%s' 'TOKEN-NOVO' | docker login ghcr.io -u ffreua --password-stdin
 ```
@@ -248,7 +262,7 @@ certificado daqui a dois meses — e a falha não avisa na hora de trocar,
 avisa quando o certificado vence.
 
 ```
-ssh deploy@23.106.44.46
+ssh neurodoc-vps
 cd /srv/neurodoc
 docker service update --secret-rm CLOUDFLARE_DNS_API_TOKEN neurodoc_v1_traefik
 docker secret rm CLOUDFLARE_DNS_API_TOKEN
@@ -272,7 +286,7 @@ de segredo.
 ### O navegador reclama do certificado HTTPS
 
 ```
-ssh deploy@23.106.44.46 "docker service logs neurodoc_v1_traefik --tail 50 | grep -i acme"
+ssh neurodoc-vps "docker service logs neurodoc_v1_traefik --tail 50 | grep -i acme"
 ```
 
 Quase sempre é o token da Cloudflare vencido ou revogado. Recrie-o (§5) e
@@ -281,7 +295,7 @@ republique.
 ### A TUSS está vazia
 
 ```
-ssh deploy@23.106.44.46 "docker exec \$(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) python manage.py sync_tuss"
+ssh neurodoc-vps "docker exec \$(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) python manage.py sync_tuss"
 ```
 
 Se der `ReadTimeout`, é o servidor da ANS fora do ar — não é problema
@@ -292,7 +306,7 @@ nosso. Tente noutro dia; o timer refaz sozinho aos domingos às 4h.
 A Anvisa publica listas novas periodicamente. Confira antes, sem gravar:
 
 ```
-ssh deploy@23.106.44.46 "docker exec \$(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) python manage.py import_cmed --dry-run"
+ssh neurodoc-vps "docker exec \$(docker ps -q -f name=neurodoc_v1_celery_worker | head -1) python manage.py import_cmed --dry-run"
 ```
 
 Se o número de apresentações fizer sentido, rode de novo sem `--dry-run`.
@@ -300,13 +314,13 @@ Se o número de apresentações fizer sentido, rode de novo sem `--dry-run`.
 ### O disco está enchendo
 
 ```
-ssh deploy@23.106.44.46 "df -h /; docker system df"
+ssh neurodoc-vps "df -h /; docker system df"
 ```
 
 Para limpar imagens antigas (não toca em dado nenhum):
 
 ```
-ssh deploy@23.106.44.46 "docker image prune -af --filter until=720h"
+ssh neurodoc-vps "docker image prune -af --filter until=720h"
 ```
 
 ### Ligar o HSTS (uma vez só, e sem volta)
@@ -315,7 +329,7 @@ Só depois de semanas com o cadeado funcionando sem aviso. O navegador
 guarda a instrução por um ano e **não há como desfazer pelo servidor**.
 
 ```
-ssh deploy@23.106.44.46
+ssh neurodoc-vps
 cd /srv/neurodoc
 sed -i 's/^SECURE_HSTS_SECONDS=.*/SECURE_HSTS_SECONDS=31536000/' .env
 bash scripts/deploy.sh --skip-build
@@ -345,5 +359,5 @@ Se o site estiver fora do ar e você precisar de uma ação só, é esta — ela
 volta para a versão anterior, que funcionava:
 
 ```
-ssh deploy@23.106.44.46 "docker service rollback neurodoc_v1_app"
+ssh neurodoc-vps "docker service rollback neurodoc_v1_app"
 ```
