@@ -46,38 +46,23 @@ meio para criar um token é o que faz o primeiro deploy virar uma tarde:
 
 ### 1.2 Leve o script para a VPS
 
-O repositório é **privado**, então o `curl https://raw.githubusercontent.com/...`
-que se vê nos tutoriais devolve **404** — aquele endereço não lê
-repositório privado. Da sua máquina, no PowerShell:
-
-```powershell
-scp -i $env:USERPROFILE\.ssh\neurodoc `
-    $env:USERPROFILE\projects\neurodoc\scripts\setup_deploy.sh `
-    root@SEU-IP:/root/
-```
-
-É o caminho mais simples, e a vantagem não é só comodidade: **nenhum token
-precisa existir na VPS antes de o script rodar**. Quem cria a chave do
-GitHub e faz o login no registry é ele, na ordem certa.
-
-Se preferir baixar de dentro da VPS, use a **API** do GitHub, que lê
-repositório privado (o host `raw.` não lê):
+O repositório é **público** desde 2026-10-19, então basta clonar — sem
+token. Na VPS, como `root`:
 
 ```bash
-curl -fsSL \
-  -H "Authorization: Bearer SEU-TOKEN" \
-  -H "Accept: application/vnd.github.raw" \
-  https://api.github.com/repos/ffreua/neurodoc/contents/scripts/setup_deploy.sh \
-  -o setup_deploy.sh
+git clone https://github.com/ffreua/neurodoc.git /srv/neurodoc
+cp /srv/neurodoc/scripts/setup_deploy.sh /root/
 ```
 
-Ou clone o repositório antes, por HTTPS com token — o script percebe o
-clone existente e pula a etapa de trazer o código:
+O script percebe o clone existente e pula a etapa de trazer o código. O
+token do GitHub continua necessário, mas para outra coisa: **publicar a
+imagem** no registry (seção 9), e quem pede por ele é o próprio script,
+na ordem certa.
 
-```bash
-git clone https://SEU-TOKEN@github.com/ffreua/neurodoc.git /opt/neurodoc
-bash /opt/neurodoc/scripts/setup_deploy.sh
-```
+> Num **fork**, clone o seu repositório e troque o domínio antes de rodar:
+> ele está em `docker-stack.yml`, em `ops/deploy.py` (a conferência de
+> hosts e de `PUBLIC_BASE_URL`) e em `DOMINIO=` no próprio
+> `setup_deploy.sh`.
 
 ### 1.3 Rode, como `root`
 

@@ -70,6 +70,25 @@ AUTOR = {
     'site': {'rotulo': 'rarosbrasil.com.br', 'url': 'https://www.rarosbrasil.com.br'},
 }
 
+#: O código-fonte é público, e a página diz onde.
+#:
+#: Até 2026-10-19 o repositório era privado e a página mandava escrever
+#: pedindo acesso. Aberto, o pedido muda de natureza: quem usa o código
+#: sem pagar nada é convidado a dizer que usou (a estrela) e, se quiser, a
+#: contribuir com qualquer valor. O PIX é a chave e não um QR: uma chave
+#: se copia e se confere a olho; um QR numa página que qualquer um pode
+#: imitar pede confiança no desenho.
+#:
+#: Aqui, e não no template, pela razão do resto do módulo — e porque o
+#: README repete os mesmos dois endereços, e `check_landing` confere que a
+#: página mostra exatamente estes.
+CODIGO_ABERTO = {
+    'licenca': 'MIT',
+    'repositorio': 'https://github.com/ffreua/neurodoc',
+    'repositorio_rotulo': 'github.com/ffreua/neurodoc',
+    'pix': 'fernando.freua@gmail.com',
+}
+
 #: Cada item: o que a clínica ganha, não o que o código faz.
 RECURSOS = [
     {

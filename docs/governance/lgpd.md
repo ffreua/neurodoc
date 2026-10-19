@@ -150,7 +150,7 @@ perguntar.
 | Exigência | Onde está tratada |
 | --- | --- |
 | Papéis de controlador e operador | Cláusula 5 do contrato (§9), incluindo o NeuroDoc como controlador independente dos dados da relação comercial |
-| Instrumento do art. 39 | Contrato de adesão versão 1.0, redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, aceito por toda clínica na adesão (§9) |
+| Instrumento do art. 39 | Contrato de adesão (versão 1.1 desde 2026-10-19; a 1.0 segue arquivada com cada aceite), redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, aceito por toda clínica na adesão (§9) |
 | Bases legais do tratamento | Matriz do §2, sob a redação contratual da cláusula 5 e a responsabilidade de cada controlador |
 | Suboperadores | Cláusula 8: autorização, dever de informar, direito de oposição e rescisão sem ônus |
 | Transferência internacional | Cláusula 10: mecanismo admitido pela LGPD e pela ANPD, cláusulas-padrão quando aplicáveis. A IA segue desligada por padrão |

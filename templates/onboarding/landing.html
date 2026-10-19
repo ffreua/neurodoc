@@ -530,11 +530,26 @@ escreve e ninguém verifica.{% endcomment %}
                     “{{ autor.frase }}”
                 </blockquote>
                 <p class="fs-14 text-muted">{{ autor.resumo }}</p>
-                <div class="alert alert-primary fs-13" role="note">
-                    <strong>Open Source — licença MIT.</strong>
-                    O código-fonte do NeuroDoc é aberto. Para solicitar acesso ao
-                    repositório no GitHub, escreva para
-                    <a href="mailto:fernando.freua@hc.fm.usp.br">fernando.freua@hc.fm.usp.br</a>.
+                {% comment %}O repositório é público desde 2026-10-19. O pedido a
+                quem usa é o de quem dá o código: a estrela, e uma contribuição
+                se quiser. A chave PIX vem com o botão de copiar do nd-inline.js
+                (data-nd-copy), porque digitar e-mail de cabeça é onde a
+                contribuição se perde.{% endcomment %}
+                <div class="alert alert-primary fs-13" role="note" id="codigo-aberto">
+                    <strong>Open Source — licença {{ codigo_aberto.licenca }}.</strong>
+                    O código-fonte do NeuroDoc é público no GitHub:
+                    <a href="{{ codigo_aberto.repositorio }}" target="_blank"
+                       rel="noopener noreferrer">{{ codigo_aberto.repositorio_rotulo }}</a>.
+                    Se o projeto for útil para você, deixe uma
+                    <strong>estrela</strong> no repositório — é o que mostra a
+                    outros médicos que ele existe e é usado.
+                    <div class="mt-2">
+                        Contribuição de qualquer valor ajuda a manter o
+                        desenvolvimento. PIX:
+                        <strong id="nd-pix">{{ codigo_aberto.pix }}</strong>
+                        <button type="button" class="btn btn-sm btn-light ms-1 py-0"
+                                data-nd-copy="nd-pix">Copiar</button>
+                    </div>
                 </div>
                 <ul class="nd-tick list-unstyled fs-12 text-muted mb-4">
                     {% for credencial in autor.credenciais %}<li>{{ credencial }}</li>{% endfor %}
@@ -685,4 +700,8 @@ escreve e ninguém verifica.{% endcomment %}
 </section>
 
 <script src="{% static 'onboarding/landing.js' %}"></script>
+{% comment %}O base_public.html não carrega o nd-inline.js (é dele o botão de
+copiar a chave PIX). Só esta página o pede, e aqui ele não tem o que mais
+fazer: não há confirmação nem outro data-nd-* do nd-inline nela.{% endcomment %}
+<script src="{% static 'duralux/nd-inline.js' %}" defer></script>
 {% endblock %}

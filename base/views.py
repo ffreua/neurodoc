@@ -11,7 +11,7 @@ from tenancy.invitations import peek_invitation
 from tenancy.models import InvitationPurpose
 from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
 
-from .content import AUTOR, ESPECIALIDADES, FAQ, RECURSOS
+from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, FAQ, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
@@ -160,6 +160,7 @@ class LandingView(View):
             # a que ele se refere.
             'ha_promocao': any(p['price'].get('promo') for p in planos),
             'autor': AUTOR,
+            'codigo_aberto': CODIGO_ABERTO,
             'recursos': RECURSOS,
             # O que, neste sistema, nao e de neurologia. Vem do catalogo
             # como o resto do texto desta pagina: a lista precisa ser

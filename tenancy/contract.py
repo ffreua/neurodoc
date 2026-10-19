@@ -32,10 +32,21 @@ fora da folha, como num selo de conferência.
 #: ser da advogada: a minuta dela separa "versão" de "data de vigência", e
 #: juntar as duas num campo só obrigaria a inventar uma versão nova a cada
 #: correção de vigência.
-VERSAO = '1.0'
+#:
+#: **1.1** (2026-10-19): um item a mais na cláusula 16, e nada mais muda.
+#: O repositório ficou público sob a licença MIT, e a 1.0 dizia que o
+#: código-fonte pertence ao CONTRATADO e que o contrato "não transfere sua
+#: propriedade intelectual" sem dizer que esse mesmo código é aberto. As
+#: duas coisas são compatíveis — a MIT licencia o uso do código sem tirar
+#: a autoria de ninguém, e este contrato trata do serviço hospedado —, mas
+#: só o texto da advogada pode dizer isso por ela. O item 16.3 foi
+#: autorizado pela Dra. Karina Albuquerque Freua em 2026-10-19. Pela
+#: cláusula 17.4 é correção que não reduz direito nem amplia obrigação:
+#: quem aceitou a 1.0 continua com a 1.0 arquivada, sem novo aceite.
+VERSAO = '1.1'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-09-21'
+VIGENCIA_DESDE = '2026-10-19'
 
 TITULO = 'Contrato de Adesão ao NeuroDoc'
 
@@ -613,6 +624,14 @@ _CLAUSULAS = [
 
             'Este contrato concede direito de uso do sistema, mas não transfere '
             'sua propriedade intelectual.',
+
+            'O código-fonte do NeuroDoc é publicado em repositório público sob a '
+            'licença MIT, que rege, de forma independente deste contrato, o uso, '
+            'a cópia, a modificação e a distribuição do código por qualquer '
+            'interessado. Este contrato disciplina exclusivamente a prestação, '
+            'pelo CONTRATADO à CONTRATANTE, do serviço hospedado e operado pelo '
+            'CONTRATADO, e não restringe nem amplia os direitos conferidos por '
+            'aquela licença.',
 
             'O CONTRATADO não adquire titularidade nem direito de exploração '
             'econômica própria sobre os dados clínicos e pessoais tratados em nome '

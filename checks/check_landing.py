@@ -69,13 +69,19 @@ corpo = publica.content.decode()
 print(f'  GET / -> {publica.status_code}')
 if publica.status_code != 200:
     falhas.append('a pagina de vendas nao abriu')
+# O repositorio e publico desde 2026-10-19: a pagina aponta para ele,
+# pede a estrela e mostra a chave PIX -- os tres vindo de
+# `base.content.CODIGO_ABERTO`, que e o mesmo lugar de onde o README copia.
+from base.content import CODIGO_ABERTO
 codigo_aberto = all(trecho in corpo for trecho in [
-    'Open Source', 'licença MIT', 'fernando.freua@hc.fm.usp.br',
-    'mailto:fernando.freua@hc.fm.usp.br',
+    'Open Source', 'licença MIT', f'href="{CODIGO_ABERTO["repositorio"]}"',
+    'estrela', CODIGO_ABERTO['pix'], 'data-nd-copy="nd-pix"',
 ])
-print(f'  Open Source, MIT e contato para GitHub presentes={codigo_aberto}')
+print(f'  Open Source, MIT, repositorio, estrela e PIX presentes={codigo_aberto}')
 if not codigo_aberto:
-    falhas.append('a landing nao explica o acesso Open Source sob MIT e como solicitar o GitHub')
+    falhas.append('a landing nao aponta o repositorio publico, a estrela e o PIX')
+if 'solicitar acesso' in corpo:
+    falhas.append('a landing ainda manda pedir acesso a um repositorio que e publico')
 for code in PUBLIC_ORDER:
     cfg = PLANS[code]
     if cfg['max_patients'] is None:

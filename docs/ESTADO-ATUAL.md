@@ -132,13 +132,12 @@ são tags, e tag é alvo móvel.
 
 ### Outras
 
-- **A `LICENSE` diz MIT e o contrato diz o contrário.** A cláusula 16 do
-  contrato de adesão afirma que o código-fonte pertence ao contratado e que
-  o contrato "não transfere sua propriedade intelectual"; um arquivo MIT na
-  árvore concede a qualquer um o direito de copiar, modificar, distribuir e
-  sublicenciar. Com o repositório privado, nada foi concedido a ninguém — a
-  contradição vira real no dia em que o código for para um terceiro.
-  Trocar por nota proprietária é decisão do titular.
+- ~~**A `LICENSE` diz MIT e o contrato diz o contrário.**~~ **Resolvida em
+  2026-10-19.** O repositório ficou público sob a MIT, e o contrato de
+  adesão passou à **versão 1.1**, com o item 16.3 autorizado pela
+  Dra. Karina: o código é aberto sob a MIT, e o contrato rege só o serviço
+  hospedado, sem restringir nem ampliar o que a licença concede. Quem
+  aceitou a 1.0 segue com ela arquivada (cláusula 17.4, sem novo aceite).
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
