@@ -105,12 +105,15 @@ docker compose exec app python manage.py seed_demo
 Abra <http://localhost:8000> e entre com uma conta de demonstração — a
 senha de todas é `DemoS3nha!123`:
 
-| Conta | Papel na Clínica A de demonstração |
+| Conta | Papel |
 | --- | --- |
-| `doctor-a@demo.neurodoc.local` | médica e responsável: prontuário, documentos, agenda e organização |
-| `doctor-b@demo.neurodoc.local` | médico: o próprio prontuário e a própria agenda |
-| `secretary-a@demo.neurodoc.local` | secretária: agenda e cadastro, sem acesso ao prontuário |
-| `manager-a@demo.neurodoc.local` | gestora: financeiro e indicadores |
+| `doctor-a@demo.neurodoc.local` | médica e responsável, nas **duas** clínicas de demonstração: prontuário, documentos, agenda e organização |
+| `doctor-b@demo.neurodoc.local` | médico da Clínica A: o próprio prontuário e a própria agenda |
+| `secretary-a@demo.neurodoc.local` | secretária, nas **duas** clínicas: agenda e cadastro, sem acesso ao prontuário |
+| `manager-a@demo.neurodoc.local` | gestora da Clínica A: financeiro e indicadores |
+
+Quem tem vínculo com as duas clínicas escolhe a organização ao entrar — é
+o mesmo caminho de quem atende em mais de um consultório.
 
 Os pacientes, as agendas e as clínicas são fictícios. Nunca use a
 demonstração com dados de paciente real.
