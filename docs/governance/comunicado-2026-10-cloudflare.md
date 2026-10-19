@@ -1,15 +1,22 @@
 # Comunicado às clínicas — novo suboperador (Cloudflare)
 
-**Rascunho para revisão da Dra. Karina Albuquerque Freua antes do envio.**
-Ele cumpre a cláusula 8.4 do contrato de adesão (inclusão de suboperador
-comunicada à CONTRATANTE) e lembra os direitos das cláusulas 8.5 e 8.6.
-Uma observação honesta para a revisão: a cláusula pede comunicação
-**prévia**, e a Cloudflare foi ligada em 2026-10-19, antes deste aviso —
-por isso o texto oferece o mesmo direito de oposição e de rescisão sem
-multa que a clínica teria se tivesse sido avisada antes, e a opção de
-voltar ao modo anterior.
+**Aprovado pela Dra. Karina Albuquerque Freua em 2026-10-19.** Cumpre a
+cláusula 8.4 do contrato de adesão (inclusão de suboperador comunicada à
+CONTRATANTE) e lembra os direitos das cláusulas 8.5 e 8.6. A cláusula
+pede comunicação **prévia**; a Cloudflare foi ligada antes do aviso como
+**medida urgente de proteção** da disponibilidade e do endereço do
+servidor, e a advogada considerou a comunicação posterior juridicamente
+justificada nessas condições. Por isso o texto diz que foi urgente e
+mantém o mesmo direito de oposição e de rescisão sem multa que a clínica
+teria com o aviso antecipado.
 
-Destinatários: o e-mail do responsável (papel *owner*) de cada clínica.
+**Enviado em 2026-10-19** de `contato@neurodoc.app.br`, pelo SMTP da
+instalação, um e-mail por clínica, ao responsável (papel *owner*) das
+quatro clínicas de terceiros: Caldas, Rego e Urbano; Luca SB; Santos
+Dias Medical Care; e Schalch Serviços Médicos. Cópia oculta para
+`contato@neurodoc.app.br`, que guarda o registro. As duas clínicas do
+próprio titular (Consultório Dr Fernando Freua e Consultório FK) não
+receberam, por já conhecerem a mudança.
 
 ---
 
@@ -26,7 +33,7 @@ passa pela **Cloudflare**, empresa de segurança e rede, antes de chegar
 ao servidor. O sistema, os seus dados e a forma de usar continuam
 exatamente os mesmos; nada foi migrado nem copiado.
 
-**Por que.** A Cloudflare protege o servidor contra ataques de
+**Por que, e por que agora.** Foi uma medida urgente de proteção, adotada antes deste aviso para não deixar o servidor exposto enquanto ele era preparado. A Cloudflare protege o servidor contra ataques de
 sobrecarga, que poderiam deixar o prontuário indisponível durante o
 atendimento, e esconde o endereço do servidor na internet. Desde a
 mesma data, o servidor só aceita conexões vindas dela.

@@ -152,11 +152,13 @@ são tags, e tag é alvo móvel.
   (`ops/cloudflare_firewall.sh`, com timer diário que reaplica na subida e
   atualiza a lista). Conferido de fora: pelo domínio abre, direto no IP é
   recusado, o SSH entra e o worker alcança SMTP, SMS e IA.
-  **Ainda aberto:** enviar às clínicas o comunicado de suboperador
-  (`docs/governance/comunicado-2026-10-cloudflare.md`, para revisão da
-  Dra. Karina) — a cláusula 8.4 pede o aviso, e a relação está em
-  `docs/governance/suboperadores.md`. E desligar no painel a "ofuscação
-  de e-mail" da Cloudflare, que reescreve o HTML das páginas.
+  O comunicado de suboperador (cláusula 8.4) foi **enviado às quatro
+  clínicas de terceiros em 2026-10-19**, aprovado pela Dra. Karina, que
+  considerou justificada a comunicação posterior por ter sido medida
+  urgente (`docs/governance/comunicado-2026-10-cloudflare.md`); a relação
+  está em `docs/governance/suboperadores.md`. A ofuscação de e-mail da
+  Cloudflare foi desligada no mesmo dia, e as páginas chegam como o
+  servidor as monta.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
