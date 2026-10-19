@@ -40,6 +40,10 @@ urlpatterns = [
     ),
     path('<uuid:encounter_id>/medicacoes/', views.MedicationCreateView.as_view(), name='add-medication'),
     path(
+        '<uuid:encounter_id>/medicacoes/<uuid:medication_id>/editar/',
+        views.MedicationUpdateView.as_view(), name='update-medication',
+    ),
+    path(
         '<uuid:encounter_id>/medicacoes/<uuid:medication_id>/remover/',
         views.MedicationDeleteView.as_view(), name='delete-medication',
     ),

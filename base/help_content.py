@@ -123,6 +123,12 @@ ARTICLES = [
              '— medicações em uso, por exemplo. Cada item vem para revisão, e você '
              'aceita ou descarta um a um. O sistema nunca copia nada sozinho.',
              '', ''),
+            ('Na aba **Medicações em uso**, o **lápis** ao lado de cada medicação abre o '
+             'cadastro dela já preenchido: mude a dose, a posologia ou a situação e '
+             'salve, sem excluir e incluir de novo — o "em uso desde", a indicação e a '
+             'observação continuam. Vale enquanto o atendimento está aberto; depois de '
+             'finalizado, a correção é por retificação.',
+             '', ''),
             ('**Finalizar** fecha o atendimento com sua autoria, a data e a versão. '
              'Depois disso o texto não é apagado: uma correção entra como '
              '**retificação**, que preserva o que estava escrito antes e registra o '

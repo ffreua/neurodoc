@@ -266,8 +266,10 @@ class MedicationForm(forms.ModelForm):
             'autocomplete': 'off',
             'data-nd-med-url': reverse('catalogs:medicamento-search'),
             # Seletor relativo ao `data-nd-med-grupo`: funciona nas duas
-            # telas sem depender de id global ou de posição no HTML.
-            'data-nd-med-dose': "[name='dose']",
+            # telas sem depender de id global ou de posição no HTML. Com o
+            # prefixo do formulário de edição (um por linha da lista), o
+            # nome do campo de dose muda, e o seletor acompanha.
+            'data-nd-med-dose': f"[name='{self.add_prefix('dose')}']",
         })
 
 

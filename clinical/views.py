@@ -408,6 +408,14 @@ class EncounterDetailView(TenantScopedView):
         from ai.services import latest_diagnostic_support
 
         medications = list(encounter.medications.all())
+        # Um formulário de edição por linha, já preenchido. O prefixo é o
+        # id da medicação: com dez linhas na tela, campos sem prefixo
+        # repetiriam `id_dose` dez vezes, e o autocomplete preencheria a
+        # dose da linha errada.
+        for medication in medications:
+            medication.edit_form = MedicationForm(
+                instance=medication, prefix=_prefixo_da_medicacao(medication),
+            )
         exam_results = list(
             encounter.exam_results.select_related('attachment').prefetch_related('lab_values')
         )
@@ -971,6 +979,48 @@ class MedicationCreateView(TenantScopedView):
             integrity_metadata={'name': medication.name},
         )
         messages.success(request, f'{medication.name} incluído nas medicações em uso.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
+
+
+def _prefixo_da_medicacao(medication):
+    return f'med{medication.id.hex}'
+
+
+class MedicationUpdateView(TenantScopedView):
+    """Altera uma medicação já registrada neste atendimento.
+
+    Antes, mudar a dose era excluir e cadastrar de novo -- o que perdia o
+    "em uso desde", a indicação e a observação, e deixava na trilha uma
+    remoção e uma inclusão onde houve um ajuste. Vale a mesma regra das
+    outras escritas do prontuário: só enquanto o atendimento não foi
+    finalizado; depois, a correção é por adendo.
+
+    A trilha guarda **quais campos** mudaram, e não os valores: dose é
+    conteúdo clínico, e a trilha não guarda conteúdo clínico.
+    """
+
+    def post(self, request, encounter_id, medication_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-medicacoes')
+        medication = get_object_or_404(
+            Medication, tenant_id=request.access_context.tenant_id, encounter=encounter, id=medication_id,
+        )
+        form = MedicationForm(
+            request.POST, instance=medication, prefix=_prefixo_da_medicacao(medication),
+        )
+        if not form.is_valid():
+            return _blocked(request, encounter, _first_error(form), anchor='tab-medicacoes')
+        if not form.has_changed():
+            messages.info(request, f'Nada mudou em {medication.name}.')
+            return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
+        medication = form.save()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.medication_updated',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'name': medication.name, 'campos': sorted(form.changed_data)},
+        )
+        messages.success(request, f'{medication.name} atualizado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
 
 

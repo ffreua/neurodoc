@@ -11,7 +11,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.16.2 "os exames do paciente" (`base/version.py`) |
+| **Versão do produto** | 1.17 "os exames do paciente" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Verificação** | 108 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.17** | 2026-10-19 | os exames do paciente | **Alterar a medicação** do atendimento pelo **lápis** ao lado da lixeira: o cadastro abre já preenchido logo abaixo da linha, e mudar a dose não exige mais excluir e incluir de novo — o "em uso desde", a indicação e a observação ficam. Só com o atendimento aberto; a trilha registra quais campos mudaram, sem os valores. |
 | **1.16.2** | 2026-10-19 | os exames do paciente | Textos do portal e da vitrine: em urgência, o portal manda ao **serviço de urgência e emergência mais próximo** (e não mais "ligue para a clínica"); o rodapé deixa de oferecer remarcar consulta, que o portal não faz; e a **página de vendas** e a **central de ajuda** (artigo do portal, avisos, identidade da clínica e perguntas frequentes) contam que o portal também **recebe os laudos dos exames**. |
 | **1.16.1** | 2026-10-18 | os exames do paciente | O primeiro envio real de exame foi recusado: o formulário do portal estava aberto antes de um **login no mesmo navegador**, que troca o token de segurança. Agora entrar no sistema **encerra a identificação do portal**, a recusa explica e oferece abrir a página de novo (e não manda o paciente ao login), há **Encerrar identificação** nas telas do portal, e os textos e o aviso de privacidade dizem que o portal também **recebe laudos** — com o aviso vermelho já na página de solicitação. |
 | **1.16** | 2026-10-18 | os exames do paciente | O paciente **envia laudos de exame em PDF pelo portal** (até 5 por envio, 3 MB cada, com qual exame, data e local), que entram direto no prontuário e acendem um **alerta vermelho** para o médico até ele marcar "Ciente"; a janela de retorno de 180 dias barra o pedido, não o laudo. E a lista de anexos ganha a coluna **Anexado em** antes do nome. |

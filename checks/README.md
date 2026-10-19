@@ -146,6 +146,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_dinheiro` | Pagamento e ajuste aceitam o formato brasileiro e não dão 500 |
 | `check_entrega_documento` | Entrega ao paciente que não derruba a tela: SMS num segmento, e-mail sai mesmo com SMS quebrado, saída pelo worker |
 | `check_exames_do_portal` | Laudo enviado pelo paciente no portal: só PDF, 5 por envio, 3 MB, tudo ou nada, prontuário certo, alerta e ciente do médico, e a janela de retorno que não o barra |
+| `check_medicacao_editar` | Alterar a medicação no lugar: o lápis e o formulário preenchido por linha, só o campo mudado muda, a trilha sem valores, sem mudança sem rastro, e as recusas (finalizado, secretária, outra clínica, outro atendimento) |
 | `check_estruturado` | Prontuário estruturado: impressões na aba, "trazer tudo", cada envio voltando para a sua aba |
 | `check_evolucao` | Série temporal: eixo proporcional à data, escala no próprio domínio |
 | `check_excluir_horario` | "Excluir este horário" some com a célula, e "Incluir horário" a reabre |

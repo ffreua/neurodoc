@@ -159,7 +159,10 @@ carimbá-la na publicação.
 #: emergência mais próximo (e não à clínica), o rodapé do portal deixa de
 #: oferecer remarcar consulta, que ele não faz, e a página de vendas e a
 #: central de ajuda passam a contar que o portal também recebe laudos.
-VERSION = '1.16.2'
+#: A **1.17**: alterar uma medicação do atendimento pelo lápis ao lado da
+#: lixeira, no lugar -- mudar a dose não exige mais excluir e incluir de
+#: novo, nem perde o "em uso desde", a indicação e a observação.
+VERSION = '1.17'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
