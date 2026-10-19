@@ -143,9 +143,14 @@ são tags, e tag é alvo móvel.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
   deploy.
-- O `CLAUDE.md` lista parte dos 100 roteiros ("os mais relevantes") e 4 views
-  de catálogo têm `required_capability = None` sem o comentário que a
-  convenção exige.
+- O `CLAUDE.md` lista parte dos roteiros ("os mais relevantes"), de
+  propósito. A lista completa, com uma linha por roteiro, passou a ser a de
+  `checks/README.md` (completada em 2026-10-18, eram 44 de 108), e a fonte
+  que não envelhece é `manage.py rodar_roteiros --listar`.
+- ~~4 views de catálogo têm `required_capability = None` sem o comentário
+  que a convenção exige~~ — resolvido: a justificativa está na docstring
+  de `catalogs/views.py::CatalogView`, de onde as quatro herdam (conferido
+  em 2026-10-18).
 
 ## 4. As lições que custaram caro nesta sessão
 

@@ -19,17 +19,28 @@ identificador do documento, e não a receita. Para ler o prontuário de um
 paciente continua sendo preciso ter vínculo clínico naquela clínica, o que
 aparece na própria trilha.
 
-**Duas escritas, e so duas** (setembro/2026): emitir convite de plataforma
-e mudar o plano de uma organizacao. As duas sao atos comerciais sobre a
-instalacao, nao sobre pacientes, e nao existem em nenhuma outra tela -
-quem vende e quem opera o servidor. Cada uma exige motivo e grava
-`AuditEvent`.
+**As escritas, e so estas.** Em setembro/2026 eram duas, e este paragrafo
+dizia "duas, e so duas" ate 2026-10-18, quando ja eram seis:
+
+- comerciais: emitir e revogar convite de plataforma
+  (`InvitationsView`, `InvitationRevokeView`), mudar o plano
+  (`TenantPlanView`) e suspender, encerrar ou reativar a organizacao
+  (`TenantStatusView`);
+- de operacao (Operacao, em `/instalacao/operacao/`): o provedor de IA
+  padrao (`InstallationAIView`), a lista de enderecos de IA liberados
+  (`AIAllowlistView`) e o ensaio da coleta de arquivos
+  (`GarbageCollectionView`).
+
+Todas sao atos sobre a instalacao, nao sobre pacientes, e nao existem em
+nenhuma outra tela. Todas gravam `AuditEvent`. Exigem motivo escrito a
+troca de plano, a mudanca de estado e a autorizacao de apagar arquivos -
+as tres que alguem vai precisar explicar meses depois.
 
 O resto do que exige escrita - criar usuario, mudar senha, corrigir dado -
 continua no admin tecnico do Django (`/admin/`), que ja registra cada
 alteracao em `LogEntry`. Este console nao duplica aquilo; ele aponta para
-la. E nenhuma das duas escritas toca em prontuario, que e a linha que o
-arquivo inteiro protege.
+la. E nenhuma destas escritas toca em prontuario, que e a linha que o
+arquivo inteiro protege. Escrita nova aqui entra nesta lista.
 
 Acesso: `is_superuser` **e** MFA verificada, a mesma exigência dos painéis
 técnicos (`base.middleware.TechnicalPanelMFAMiddleware`). Um console que

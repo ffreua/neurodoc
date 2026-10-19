@@ -1,10 +1,17 @@
 # Baseline de ambiente, imagens e versões
 
-P-02 (URL Git, permissão GHCR, IP/arquitetura e acesso da VPS) segue **pendente**
-nesta execução: nenhuma VPS foi acessada, nenhuma imagem foi publicada e nenhum
-deploy foi executado. Este documento registra a arquitetura e as versões
-selecionadas no PRD (seção 8.2 e 17.1), para que a homologação de S10 tenha uma
-referência única quando o acesso à VPS for concedido.
+Este documento registra a arquitetura e as versões selecionadas no PRD (seção
+8.2 e 17.1). Foi escrito em S01, **antes** de existir VPS, e partes dele
+descrevem esse momento — estão marcadas como histórico.
+
+**Atualização de 2026-10-18.** A P-02 foi resolvida em 2026-09-25 (ver
+`docs/decisions.md`): repositório `github.com/ffreua/neurodoc`, imagens em
+`ghcr.io/ffreua/neurodoc`, VPS Integrator x86_64 com 6 vCPU e 15 GB, primeiro
+deploy em 2026-09-25 e uso real desde 2026-10-02. Este arquivo seguiu dizendo
+"pendente" por três semanas depois disso. A tabela de capacidade abaixo é a
+**proposta** do PRD, e não a máquina que existe. As versões de Docker e do
+Compose na VPS não foram registradas aqui; quem precisar delas deve
+perguntar à própria VPS (`docker version`), não a este documento.
 
 ## Topologia e capacidade propostas
 
@@ -52,7 +59,7 @@ recusa múltiplos nós (volumes locais não seguem uma task migrada).
 | Redis | 8.10.1 | Avaliar licenciamento aplicável à distribuição |
 | Traefik | 3.7.12 | Provider `swarm` |
 | Docker Engine | 29.8.0 (candidato do guia) | Verificar versão disponível no repositório Ubuntu e fixá-la |
-| Compose plugin | Versão estável do repositório Docker | **Registrada nesta execução:** Docker Desktop local relata `Docker Engine 29.7.2`; Compose plugin `v2` (via `docker compose`). Confirmar exatamente a versão instalada na VPS no primeiro provisionamento (P-02) |
+| Compose plugin | Versão estável do repositório Docker | **Registrada nesta execução:** Docker Desktop local relata `Docker Engine 29.7.2`; Compose plugin `v2` (via `docker compose`). A versão instalada na VPS não foi registrada aqui (histórico de S01, antes da VPS existir) |
 | WhiteNoise | 6.12.0 | Storage de manifesto e compressão apenas |
 | Modelo de IA padrão | `z-ai/glm-5.3-flash` via OpenRouter | Validar recursos/provedor final por configuração |
 
@@ -84,8 +91,16 @@ conjunto de pacotes de topo com resolução completa em menos de um minuto.
 Em produção, cada imagem de aplicação é publicada no registry configurado
 em `REGISTRY` (`.env`) — nesta instalação, `ghcr.io/ffreua/neurodoc` — com a
 tag do SHA Git completo, e o stack recebe o
-**digest** confirmado pelo registry — nunca a tag `latest`. Isso depende do
-acesso GHCR de P-02; nenhuma imagem foi publicada nesta execução.
+**digest** confirmado pelo registry — nunca a tag `latest`
+(`ops/deploy.py::resolve_image` recusa referência sem tag ou com `:latest`).
+Em S01 nenhuma imagem tinha sido publicada; desde 2026-09-25 é assim que cada
+deploy publica.
+
+As quatro imagens de infraestrutura (postgres, rabbitmq, redis, traefik)
+continuam referenciadas por tag. O `.env` da VPS fixa o digest do Postgres
+que já roda, e o deploy aborta se alguma delas mudar em relação ao último
+deploy bem-sucedido. Fixar as outras três por digest é decisão aberta,
+registrada em `docs/ESTADO-ATUAL.md`.
 
 ## Evidências de convergência local (S01)
 
@@ -138,8 +153,9 @@ conjunta").
 
 ## Pendências explícitas desta seção
 
-- P-02: URL Git, permissão GHCR, IP/arquitetura e acesso da VPS — sem isso,
-  S10-T01/T02 (primeira publicação e homologação) não podem prosseguir.
-- Digests de produção: dependem da publicação real das imagens (P-02, P-04).
+- ~~P-02: URL Git, permissão GHCR, IP/arquitetura e acesso da VPS~~ —
+  resolvida em 2026-09-25.
+- Digests de produção: o da aplicação é resolvido a cada deploy; os de
+  infraestrutura seguem por tag, exceto o do Postgres (ver acima).
 - Este documento não substitui H-21/H-22 (homologação de deploy e backup),
   que exigem execução real na VPS.
