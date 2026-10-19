@@ -138,18 +138,21 @@ são tags, e tag é alvo móvel.
   Dra. Karina: o código é aberto sob a MIT, e o contrato rege só o serviço
   hospedado, sem restringir nem ampliar o que a licença concede. Quem
   aceitou a 1.0 segue com ela arquivada (cláusula 17.4, sem novo aceite).
-- **O domínio não passa pelo proxy da Cloudflare** (conferido em
-  2026-10-19). `neurodoc.app.br` e os subdomínios estão em modo "só DNS" e
-  resolvem direto para a VPS, e a resposta sai do `uvicorn`, sem cabeçalho
-  da Cloudflare. Por isso o IP do servidor é público de qualquer jeito —
-  ele saiu dos documentos (que usam o apelido `neurodoc-vps` do
-  `~/.ssh/config`), mas isso só passa a esconder algo depois de o proxy
-  ser ligado. **A ordem importa:** primeiro ligar o proxy (nuvem laranja)
-  no domínio e no curinga, com o SSL em *Full (strict)*; conferir o site,
-  o streaming do chat e o IP do visitante nos limitadores; e só então
-  restringir as portas 80 e 443 da VPS às faixas da Cloudflare — feita
-  antes, a restrição tira o site do ar. O `traefik.yml` já confia nas
-  faixas dela (`ops/make_runtime.py`).
+- **Cloudflare: proxy ligado em 2026-10-19; falta fechar a origem.**
+  `neurodoc.app.br` e o curinga passam pela Cloudflare (nuvem laranja; os
+  registros de e-mail continuam "só DNS", como devem). No mesmo dia, o
+  `TRUSTED_PROXIES` do `.env` da VPS ganhou as faixas da Cloudflare
+  (<https://www.cloudflare.com/ips-v4> e `ips-v6`): sem elas o app via o
+  IP do nó da Cloudflare e não o do visitante, e todos os pacientes que
+  passassem pelo mesmo nó dividiriam o limite de tentativas do portal.
+  Conferido pela chave do limitador de login, que passou a trazer o IP
+  real. A cópia do `.env` anterior ficou em `.env.antes-cloudflare-*`.
+  **Ainda aberto:** conferir no painel que o SSL está em *Full (strict)*
+  e restringir as portas 80 e 443 da VPS às faixas da Cloudflare — até
+  lá, quem conhece o IP (ele esteve no DNS público até hoje) chega à
+  origem sem passar por ela. A lista de faixas muda raramente, mas muda:
+  ao restringir a porta, a mesma lista precisa ser atualizada nos dois
+  lugares.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
