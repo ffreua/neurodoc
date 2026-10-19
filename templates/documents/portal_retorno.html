@@ -105,6 +105,7 @@ barreira (ver `documents.portal_exames`). Quem volta depois de muito tempo
 {% endif %}
 
 <a class="btn btn-light w-100" href="{% url 'portal:identify' slug=slug %}">Voltar ao início</a>
+{% if pode_enviar_exames %}{% include "documents/_portal_sair.html" %}{% endif %}
 
 {% include "documents/_portal_encarregado.html" %}
 

@@ -95,3 +95,15 @@ qual exame é, como em qualquer anexo clínico.
 
 Também na 1.16, a coluna **Anexado em** antes do nome na lista de anexos
 (`documents/list.html` e `documents/patient_documents.html`).
+
+## 1.16.1: o primeiro envio real
+
+O primeiro envio em produção foi recusado pelo token CSRF: o formulário
+estava aberto antes de um login no mesmo navegador, e o login troca o
+token. A identificação do portal sobreviveu ao login. As correções e a
+linha do tempo estão em `docs/releases/1.16.1-o-primeiro-envio-real.md`.
+
+**A lição para quem escreve roteiro de formulário público:** o
+`Client()` do Django dispensa o CSRF. Formulário que o paciente envia se
+testa também com `Client(enforce_csrf_checks=True)`, como fazem as seções
+12 a 15 de `check_exames_do_portal.py`.

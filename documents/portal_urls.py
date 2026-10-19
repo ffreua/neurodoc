@@ -17,6 +17,7 @@ urlpatterns = [
     path('<slug:slug>/solicitar/', portal_views.PortalRequestView.as_view(), name='request'),
     path('<slug:slug>/enviado/', portal_views.PortalDoneView.as_view(), name='done'),
     path('<slug:slug>/exames/', portal_views.PortalExamUploadView.as_view(), name='exams'),
+    path('<slug:slug>/sair/', portal_views.PortalLeaveView.as_view(), name='leave'),
     path(
         '<slug:slug>/exames/enviados/',
         portal_views.PortalExamDoneView.as_view(), name='exams-done',

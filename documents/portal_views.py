@@ -332,6 +332,23 @@ class PortalExamUploadView(PortalBaseView):
                       self._context(request, patient, error=erro), status=status)
 
 
+class PortalLeaveView(PortalBaseView):
+    """Encerra a identificação sem enviar nada.
+
+    A identificação já se encerrava ao concluir um pedido ou um envio de
+    exames, e expirava em trinta minutos. Faltava a saída de quem desiste
+    no meio, ou termina e quer deixar o computador -- o caso da recepção,
+    da lan house e do celular emprestado. Só POST: um link de GET que
+    encerra sessão pode ser disparado por qualquer página.
+    """
+
+    def post(self, request, slug):
+        portal.clear(request)
+        request.session.pop('portal_exames_enviados', None)
+        messages.info(request, 'Identificação encerrada.')
+        return redirect('portal:identify', slug=slug)
+
+
 class PortalExamDoneView(PortalBaseView):
     template_name = 'documents/portal_exames_enviados.html'
 

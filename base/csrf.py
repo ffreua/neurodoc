@@ -32,8 +32,20 @@ def csrf_failure(request, reason='', template_name='base/csrf_failure.html'):
     e nao ajuda quem esta do outro lado. Ele ja vai para o log do
     servidor, que e onde alguem investigando vai procurar.
     """
+    # O portal do paciente e as paginas publicas nao tem "tela de entrada":
+    # quem esta ali nao tem conta. Mandar o paciente para o login do
+    # sistema, como a tela fazia, era um beco sem saida -- o caminho de
+    # volta dele e a propria pagina, com token novo (2026-10-18).
+    publico = request.path.startswith(('/solicitacoes/', '/d/', '/verificar/'))
     return render(
         request, template_name,
-        {'caminho_de_volta': request.path, 'autenticado': request.user.is_authenticated},
+        {
+            'caminho_de_volta': request.path,
+            'autenticado': request.user.is_authenticated,
+            'publico': publico,
+            # O arquivo escolhido nao volta: o navegador nao deixa
+            # repreencher campo de arquivo, e a tela precisa dizer isso.
+            'tinha_arquivo': bool(request.FILES) if publico else False,
+        },
         status=403,
     )

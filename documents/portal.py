@@ -34,7 +34,11 @@ from base.net import client_ip
 #: Versão do aviso de privacidade aceito. Muda quando o texto muda, e fica
 #: gravado no pedido: demonstrar consentimento exige saber **a que** a
 #: pessoa consentiu, não só que consentiu.
-PRIVACY_NOTICE_VERSION = '2026-09-v1'
+#:
+#: `2026-10-v2`: a finalidade passou a incluir receber os laudos de exames
+#: que o paciente envia (1.16). Os pedidos e envios anteriores continuam
+#: com a versão que foi aceita.
+PRIVACY_NOTICE_VERSION = '2026-10-v2'
 
 SESSION_KEY = 'portal_patient'
 SESSION_MAX_AGE_SECONDS = 30 * 60

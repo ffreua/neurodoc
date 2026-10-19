@@ -362,6 +362,104 @@ r = c.post(f'/solicitacoes/{clinica.slug}/exames/', dados)
 confere(r.status_code == 429, f'acima do limite -> 429 ({r.status_code})')
 zera_balde()
 
+# Daqui em diante, com o CSRF ligado, como num navegador. O cliente de
+# teste do Django dispensa o CSRF por padrao, e foi por isso que as
+# secoes acima passaram enquanto a producao recusava o primeiro envio
+# real (2026-10-18): o formulario fora aberto antes de um login no mesmo
+# navegador, e o login troca o token.
+import re
+
+from documents import portal as portal_mod
+
+
+def token_da_pagina(r):
+    m = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', r.content.decode())
+    return m.group(1) if m else ''
+
+
+def navegador_identificado(paciente=_paciente):
+    zera_balde()
+    b = Client(enforce_csrf_checks=True)
+    r = b.get(f'/solicitacoes/{clinica.slug}/')
+    b.post(f'/solicitacoes/{clinica.slug}/', {
+        'cpf': paciente.cpf, 'birth_date': paciente.birth_date.isoformat(),
+        'privacy_ack': '1', 'csrfmiddlewaretoken': token_da_pagina(r),
+    })
+    return b
+
+
+print('=== 12. com CSRF de verdade, o envio passa ===')
+b = navegador_identificado()
+r = b.get(f'/solicitacoes/{clinica.slug}/exames/')
+confere(r.status_code == 200, f'navegador identificado abre /exames/ ({r.status_code})')
+antes = PortalExamUpload.objects.filter(patient=_paciente).count()
+with mock.patch.object(scan_attachment, 'delay'):
+    r = b.post(f'/solicitacoes/{clinica.slug}/exames/', {
+        **linha(1), 'arquivo_1': arquivo(), 'requester': 'self',
+        'identidade': b.session['portal_patient']['token'],
+        'csrfmiddlewaretoken': token_da_pagina(r),
+    })
+confere(r.status_code == 302, f'envio com token do formulario -> 302 ({r.status_code})')
+novo = PortalExamUpload.objects.filter(patient=_paciente).order_by('-created_at').first()
+confere(PortalExamUpload.objects.filter(patient=_paciente).count() == antes + 1, 'o envio gravou')
+confere(novo is not None and novo.privacy_notice_version == portal_mod.PRIVACY_NOTICE_VERSION
+        == '2026-10-v2', 'grava a versao do aviso que cita o envio de laudos')
+
+print('=== 13. login no meio: nada gravado, saida clara, identificacao encerrada ===')
+b = navegador_identificado()
+r = b.get(f'/solicitacoes/{clinica.slug}/exames/')
+token_velho, identidade = token_da_pagina(r), b.session['portal_patient']['token']
+b.force_login(User.objects.get(email='doctor-a@demo.neurodoc.local'))
+confere('portal_patient' not in b.session, 'o login encerrou a identificacao do portal')
+# O login de verdade troca o cookie CSRF (`rotate_token`); o `force_login`
+# do cliente de teste so grava o cookie de sessao. A troca e feita a mao,
+# para o formulario aberto antes ficar com o token velho, como no navegador.
+from django.middleware.csrf import _get_new_csrf_string
+
+b.cookies[dj_settings.CSRF_COOKIE_NAME] = _get_new_csrf_string()
+antes = PortalExamUpload.objects.filter(patient=_paciente).count()
+r = b.post(f'/solicitacoes/{clinica.slug}/exames/', {
+    **linha(1), 'arquivo_1': arquivo(), 'requester': 'self',
+    'identidade': identidade, 'csrfmiddlewaretoken': token_velho,
+})
+corpo = r.content.decode()
+confere(r.status_code == 403, f'formulario de antes do login -> 403 ({r.status_code})')
+confere(PortalExamUpload.objects.filter(patient=_paciente).count() == antes, 'nada gravado')
+confere('Os arquivos não foram enviados' in corpo, 'a tela diz que os arquivos nao foram')
+confere(f'href="/solicitacoes/{clinica.slug}/exames/"' in corpo, 'e oferece abrir a pagina de novo')
+anon = Client(enforce_csrf_checks=True)
+r = anon.post(f'/solicitacoes/{clinica.slug}/exames/', {'csrfmiddlewaretoken': 'x' * 64})
+corpo = r.content.decode()
+confere(r.status_code == 403 and 'tela de entrada' not in corpo,
+        'paciente sem conta nao e mandado ao login do sistema')
+r = b.get(f'/solicitacoes/{clinica.slug}/exames/')
+confere(r.status_code == 302, f'depois do login, /exames/ pede identificacao de novo ({r.status_code})')
+
+print('=== 14. sair sem enviar ===')
+b = navegador_identificado()
+r = b.get(f'/solicitacoes/{clinica.slug}/exames/')
+confere('Encerrar identificação' in r.content.decode(), 'o botao de sair esta na tela de envio')
+r = b.get(f'/solicitacoes/{clinica.slug}/sair/')
+confere(r.status_code == 405, f'GET nao encerra ({r.status_code})')
+r = b.post(f'/solicitacoes/{clinica.slug}/sair/', {'csrfmiddlewaretoken': token_da_pagina(
+    b.get(f'/solicitacoes/{clinica.slug}/exames/'))})
+confere(r.status_code == 302 and 'portal_patient' not in b.session, 'POST encerra a identificacao')
+r = b.get(f'/solicitacoes/{clinica.slug}/exames/')
+confere(r.status_code == 302, f'e /exames/ volta a pedir CPF ({r.status_code})')
+
+print('=== 15. os textos ===')
+corpo = Client().get(f'/solicitacoes/{clinica.slug}/').content.decode()
+confere('enviar os laudos dos exames' in corpo, 'a primeira tela diz que o portal recebe laudos')
+confere('receber os laudos de exames que eu enviar' in corpo, 'o aviso de privacidade cita o envio')
+perfil.patient_portal_requires_recent_visit = False
+perfil.save(update_fields=['patient_portal_requires_recent_visit'])
+b = navegador_identificado()
+corpo = b.get(f'/solicitacoes/{clinica.slug}/solicitar/').content.decode()
+confere('alert-danger' in corpo and 'APENAS laudos de exames e resultados finais' in corpo,
+        'a pagina de solicitacao ja traz o aviso vermelho')
+confere('Encerrar identificação' in corpo, 'e o botao de sair')
+zera_balde()
+
 if falhas:
     print(f'\nFALHA: {len(falhas)} problema(s):')
     for f in falhas:

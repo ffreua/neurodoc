@@ -90,6 +90,8 @@ a tela e a recusa não poderem divergir.{% endcomment %}
     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Enviar exames</button>
 </form>
 
+{% include "documents/_portal_sair.html" %}
+
 <p class="fs-12 text-muted mt-3 mb-0">
     Precisa de receita, relatório ou pedido de exame?
     <a href="{% url 'portal:request' slug %}">Fazer uma solicitação</a>.

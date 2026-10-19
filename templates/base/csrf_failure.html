@@ -20,7 +20,15 @@ que esta página deveria evitar.
     Abrir a tela de novo resolve, e é o que o botão abaixo faz.
 </p>
 
-{% if autenticado %}
+{% if publico %}
+{% if tinha_arquivo %}
+<p class="fs-13 text-muted">
+    <strong>Os arquivos não foram enviados.</strong> Ao abrir a página de novo,
+    escolha-os outra vez antes de enviar.
+</p>
+{% endif %}
+<a class="btn btn-primary w-100" href="{{ caminho_de_volta }}">Abrir a página de novo</a>
+{% elif autenticado %}
 <a class="btn btn-primary w-100 mb-2" href="{{ caminho_de_volta }}">Abrir a página de novo</a>
 <a class="btn btn-light-primary w-100" href="/app/">Ir para o início</a>
 {% else %}

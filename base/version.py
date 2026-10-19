@@ -149,7 +149,13 @@ carimbá-la na publicação.
 #: entram direto no prontuário com tipo, data e local, e acendem um alerta
 #: para o médico até ele marcar "Ciente" (migração `documents/0008`, só de
 #: expansão); e a lista de anexos ganha a data de envio antes do nome.
-VERSION = '1.16'
+#: A **1.16.1** corrige o que o primeiro envio real mostrou: o formulário
+#: aberto antes de um login no mesmo navegador era recusado pelo token CSRF,
+#: e a identificação do portal sobrevivia ao login. Entrar no sistema agora
+#: encerra a identificação, a recusa no portal explica e oferece o caminho
+#: de volta, há "Encerrar identificação" nas telas do portal, e os textos
+#: dizem que ele também recebe laudos.
+VERSION = '1.16.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

@@ -6,7 +6,8 @@
 {% block heading %}O que você precisa?{% endblock %}
 {% block subheading %}
 Paciente identificado: <strong>{{ patient.full_name }}</strong>.
-Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e vindas.
+Você pode enviar resultados de exames ou fazer uma solicitação. No pedido, descreva
+com o máximo de detalhe — quanto mais claro, menos idas e vindas.
 {% endblock %}
 {% block content %}
 
@@ -17,12 +18,20 @@ Descreva o pedido com o máximo de detalhe — quanto mais claro, menos idas e v
 {% comment %}O envio de laudos é outra tela, e não um quinto tipo no menu
 abaixo: ele não é pedido (vai direto ao prontuário), tem outro formulário
 (arquivo, tipo, data, local) e não passa pela janela de retorno.{% endcomment %}
-<div class="border rounded p-3 mb-4 d-flex align-items-center justify-content-between gap-3 flex-wrap">
-    <div class="fs-13">
-        <strong class="d-block text-dark">Já fez exames?</strong>
-        Envie os laudos e resultados em PDF para o seu prontuário.
+<div class="border rounded p-3 mb-4">
+    <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
+        <div class="fs-13">
+            <strong class="d-block text-dark">Já fez exames?</strong>
+            Envie os laudos e resultados em PDF para o seu prontuário.
+        </div>
+        <a class="btn btn-sm btn-light-primary" href="{% url 'portal:exams' slug %}">Enviar resultados de exames</a>
     </div>
-    <a class="btn btn-sm btn-light-primary" href="{% url 'portal:exams' slug %}">Enviar resultados de exames</a>
+    {% comment %}O mesmo aviso da tela de envio, já aqui: quem decide se
+    clica é quem precisa saber, antes, o que pode mandar.{% endcomment %}
+    <div class="alert alert-danger fs-12 mt-3 mb-0" role="alert">
+        <strong>Envie APENAS laudos de exames e resultados finais</strong>, somente em
+        PDF. Não envie pedidos médicos, receitas, fotos ou documentos pessoais.
+    </div>
 </div>
 
 <form method="post" novalidate id="portal-form">
@@ -129,6 +138,8 @@ abaixo: ele não é pedido (vai direto ao prontuário), tem outro formulário
 
     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Enviar solicitação</button>
 </form>
+
+{% include "documents/_portal_sair.html" %}
 
 {% endblock %}
 {% block scripts %}
