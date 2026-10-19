@@ -147,12 +147,16 @@ são tags, e tag é alvo móvel.
   passassem pelo mesmo nó dividiriam o limite de tentativas do portal.
   Conferido pela chave do limitador de login, que passou a trazer o IP
   real. A cópia do `.env` anterior ficou em `.env.antes-cloudflare-*`.
-  **Ainda aberto:** conferir no painel que o SSL está em *Full (strict)*
-  e restringir as portas 80 e 443 da VPS às faixas da Cloudflare — até
-  lá, quem conhece o IP (ele esteve no DNS público até hoje) chega à
-  origem sem passar por ela. A lista de faixas muda raramente, mas muda:
-  ao restringir a porta, a mesma lista precisa ser atualizada nos dois
-  lugares.
+  No mesmo dia: SSL em **Full (strict)** no painel, e as portas 80 e 443
+  da VPS **fechadas para quem não é a Cloudflare**
+  (`ops/cloudflare_firewall.sh`, com timer diário que reaplica na subida e
+  atualiza a lista). Conferido de fora: pelo domínio abre, direto no IP é
+  recusado, o SSH entra e o worker alcança SMTP, SMS e IA.
+  **Ainda aberto:** enviar às clínicas o comunicado de suboperador
+  (`docs/governance/comunicado-2026-10-cloudflare.md`, para revisão da
+  Dra. Karina) — a cláusula 8.4 pede o aviso, e a relação está em
+  `docs/governance/suboperadores.md`. E desligar no painel a "ofuscação
+  de e-mail" da Cloudflare, que reescreve o HTML das páginas.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
 - **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
   sozinha de hora em hora desde 02/10; antes disso o laço morria a cada

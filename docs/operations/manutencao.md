@@ -361,3 +361,43 @@ volta para a versão anterior, que funcionava:
 ```
 ssh neurodoc-vps "docker service rollback neurodoc_v1_app"
 ```
+
+---
+
+## Firewall da Cloudflare: o site abre pelo domínio e não pelo IP
+
+Desde 2026-10-19 as portas 80 e 443 só aceitam conexão vinda da
+Cloudflare (`ops/cloudflare_firewall.sh`). Um timer reaplica a trava a
+cada subida da máquina e uma vez por dia, atualizando a lista de faixas.
+
+**Conferir se está ativa:**
+
+```
+ssh neurodoc-vps "systemctl list-timers neurodoc-cloudflare-fw.timer; sudo journalctl -u neurodoc-cloudflare-fw.service -n 3 --no-pager"
+```
+
+Deu certo se a última linha diz "Trava aplicada ... respondeu 200 pela
+borda". Se a rodada não conseguir confirmar o site pela Cloudflare, ela
+**desfaz a trava sozinha** e registra "A trava foi DESFEITA" — o site
+fica aberto como antes, e o que precisa ser visto é a Cloudflare.
+
+**Desfazer numa emergência** (por exemplo, para voltar o DNS ao modo
+"só DNS"; sem isso, desligar o proxy tira o site do ar):
+
+```
+ssh neurodoc-vps "sudo systemctl disable --now neurodoc-cloudflare-fw.timer && cd /srv/neurodoc && sudo bash ops/cloudflare_firewall.sh --remover"
+```
+
+**Reinstalar** (depois de um `git pull` que mude o script ou as unidades):
+
+```
+ssh neurodoc-vps "cd /srv/neurodoc && sudo cp ops/neurodoc-cloudflare-fw.service ops/neurodoc-cloudflare-fw.timer /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now neurodoc-cloudflare-fw.timer"
+```
+
+**A mesma lista em três lugares.** As faixas da Cloudflare valem no
+firewall (atualizado sozinho), no `traefik.yml` (refeito a cada deploy) e
+no `TRUSTED_PROXIES` do `.env` da VPS (**escrito à mão**). Se a
+Cloudflare anunciar faixa nova, acrescente-a ao `TRUSTED_PROXIES` e
+republique — senão o sistema volta a ver o IP da Cloudflare no lugar do
+visitante para quem chegar por ela.
+

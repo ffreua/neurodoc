@@ -95,11 +95,11 @@ documento.
 
 | Serviço | O que recebe | Fica onde | O que falta |
 | --- | --- | --- | --- |
-| VPS (hospedagem) | Tudo: banco, anexos, backup local | A definir na contratação | Contrato com cláusulas do art. 39; confirmar região |
+| VPS (hospedagem) | Tudo: banco, anexos, backup local | **EUA** — Leaseweb USA (contratada pela Integrator), San Jose, Califórnia; conferido em 2026-10-19 | **Transferência internacional existente desde o primeiro deploy**: precisa de base do art. 33 e de constar na relação de suboperadores |
 | SMTP (e-mail) | Nome do paciente, assunto neutro, link opaco — **nunca diagnóstico** | Provedor do contrato | Contrato; confirmar região |
 | SMS | Telefone e mensagem neutra | SMSDEV (Brasil) | Contrato |
 | Provedor de IA | Texto clínico **desidentificado** | Fora do Brasil, na maioria dos provedores | **Transferência internacional**: exige base do art. 33. Desligado até resolver |
-| Cloudflare (se usada) | Metadado de conexão e IP | Fora do Brasil | Avaliar como transferência |
+| Cloudflare (proxy, desde 2026-10-19) | **Todo o tráfego entre navegador e servidor, em claro na borda dela**: ela encerra o TLS para filtrar e reabre até a VPS (modo *Full (strict)*). Conteúdo clínico, senhas e laudos passam por ela; ela não os armazena como serviço, mas os processa | Rede global; para o Brasil, normalmente o nó de São Paulo — com a VPS nos EUA, o dado sai do país de qualquer forma | Suboperador de dado sensível: a inclusão é **comunicada previamente** às clínicas (cláusula 8.4); o DPA da Cloudflare, com cláusulas-padrão para transferência, vale pelo contrato de serviço dela. Em modo "só DNS" (até 2026-10-19) recebia só a consulta de nome |
 | Destino externo do backup | Backup cifrado (`age`) | A definir | O destino não lê o conteúdo — a chave privada não sai da custódia do controlador |
 
 **Retirar o nome não dispensa a obrigação.** Dado pseudonimizado que pode
@@ -162,7 +162,8 @@ perguntar.
 
 **O que continua sendo trabalho, sem ser bloqueio.** O contrato prevê
 documentos "quando disponibilizados" — os Anexos I a V, o Aviso de
-Privacidade e a relação pública de suboperadores. Nenhum existe hoje, e o
+Privacidade e a relação pública de suboperadores. A relação existe desde
+2026-10-19, em [`suboperadores.md`](suboperadores.md); os demais ainda não, e o
 contrato não os promete como existentes: a tela lista cada um com o seu
 estado. Publicá-los melhora o conjunto e não condiciona a operação.
 
