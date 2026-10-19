@@ -214,8 +214,8 @@ ARTICLES = [
     },
     {
         'slug': 'solicitacoes',
-        'title': 'Portal de solicitações do paciente',
-        'summary': 'O paciente pede renovação de receita; o médico decide.',
+        'title': 'Portal do paciente: solicitações e envio de exames',
+        'summary': 'O paciente pede documentos e envia laudos; o médico decide e é avisado.',
         'audience': 'Médico, gestor',
         'steps': [
             ('O portal é publicado por clínica e vem **desligado**. Ligue-o em '
@@ -234,6 +234,27 @@ ARTICLES = [
             ('Na revisão, o texto do paciente aparece **ao lado** do rascunho que '
              'você vai emitir — e o rascunho é editável antes de virar documento. '
              'Você também pode recusar, com motivo registrado.',
+             '', ''),
+            ('Pelo mesmo portal, o paciente **envia os laudos dos exames** que já fez: '
+             'até **5 PDFs por vez, de até 3 MB cada**, informando qual exame é, a data '
+             'de realização e onde foi feito. A tela avisa, em vermelho, que só se '
+             'mandam laudos e resultados finais — pedido médico, receita e foto, não.',
+             '', ''),
+            ('O laudo **entra direto no prontuário**, sem fila: é resultado que o '
+             'paciente já tem, e não pedido de ato médico. Ele passa pela mesma '
+             'verificação de vírus de qualquer anexo e aparece em **Anexos** pelo nome '
+             'do exame, com as marcas *Enviado pelo paciente* e *Novo*.',
+             '', ''),
+            ('Quem tem acesso clínico recebe o aviso no sino, e o prontuário mostra um '
+             '**alerta vermelho** no topo — na linha do tempo, no atendimento e na '
+             'ficha — até alguém apertar **Ciente**, que fica registrado com quem e '
+             'quando. A secretária vê que chegou um anexo do paciente, mas não qual '
+             'exame é.',
+             '', ''),
+            ('A regra dos **180 dias sem consulta** barra os pedidos, e **não** o '
+             'envio de laudo: quem volta depois de muito tempo é justamente quem traz '
+             'exame novo. A identificação do paciente se encerra ao concluir o envio, '
+             'pelo botão *Encerrar identificação* ou em trinta minutos.',
              '', ''),
         ],
     },
@@ -450,8 +471,9 @@ ARTICLES = [
              'e e-mail — enquanto estiver vazio, o portal do paciente diz, com todas as '
              'letras, que a clínica ainda não designou ninguém.',
              'clinica-encarregado.png', 'Encarregado de dados'),
-            ('Na mesma tela fica a **publicação do portal** de solicitações, em botão '
-             'próprio. É ação separada de propósito: trocar o CEP corrige uma impressão; '
+            ('Na mesma tela fica a **publicação do portal** do paciente, em botão '
+             'próprio — o portal recebe os pedidos e os laudos de exames que o paciente '
+             'envia. É ação separada de propósito: trocar o CEP corrige uma impressão; '
              'publicar o portal abre um endereço na internet que aceita CPF e data de '
              'nascimento de pacientes.',
              '', ''),
@@ -523,7 +545,8 @@ ARTICLES = [
         'audience': 'Todos',
         'steps': [
             ('O **sino**, no topo da tela, acende quando há algo esperando: um pedido do '
-             'portal, uma exportação pronta, um documento que terminou de ser assinado. '
+             'portal, um exame que o paciente enviou, uma exportação pronta, um '
+             'documento que terminou de ser assinado. '
              'As cinco últimas aparecem ali mesmo.',
              'notificacoes-sino.png', 'Sino de notificações'),
             ('A **central** lista tudo, com as não lidas primeiro. Ordenar só por data '
@@ -688,11 +711,22 @@ FAQ_USO = [
                     'entra no prontuário sem você aceitar.',
     },
     {
+        'pergunta': 'O paciente disse que enviou um exame pelo portal. Onde ele está?',
+        'resposta': 'Em Anexos, no prontuário dele, pelo nome do exame e com a marca '
+                    '"Enviado pelo paciente". Enquanto nenhum médico marcar "Ciente", o '
+                    'prontuário mostra um alerta vermelho no topo. Se não estiver lá, o '
+                    'envio não foi concluído: o portal só grava quando o paciente chega à '
+                    'tela de "Exames enviados", e um arquivo que não é PDF ou passa de '
+                    '3 MB é recusado na hora, sem gravar nenhum dos outros.',
+    },
+    {
         'pergunta': 'Como digitalizo um exame pelo scanner?',
         'resposta': 'A captura direta por scanner foi retirada. Digitalize o documento '
                     'no aplicativo do fabricante ou no sistema do computador; depois, '
                     'abra o paciente no NeuroDoc, entre em Anexos e envie o arquivo '
-                    'pronto. Nenhum equipamento local ou da rede é pareado pelo sistema.',
+                    'pronto. Nenhum equipamento local ou da rede é pareado pelo sistema. '
+                    'O laudo que o próprio paciente tem em PDF ele mesmo pode enviar, '
+                    'pelo portal do paciente: entra direto no prontuário dele.',
     },
 ]
 

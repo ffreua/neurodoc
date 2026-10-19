@@ -42,7 +42,7 @@ from django.conf import settings
 #: sitemap. À mão de propósito: `localdate()` faria toda página parecer
 #: atualizada em toda publicação, o rastreador aprenderia que o sinal não
 #: significa nada e passaria a ignorá-lo. Mexer no texto é mexer aqui.
-ATUALIZADO = date(2026, 10, 3)
+ATUALIZADO = date(2026, 10, 19)
 
 #: O que o produto responde quando perguntam "isso é o quê". Entra na
 #: descrição da raiz, no JSON-LD e no cartão de compartilhamento.

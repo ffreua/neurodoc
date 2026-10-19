@@ -61,6 +61,7 @@ medida técnica está no código.
 | Dado financeiro | Cobrança e repasse | Art. 7º, V — execução de contrato | Separado do prontuário; papel financeiro não lê nota clínica |
 | Trilha de auditoria (quem fez o quê) | Segurança e prestação de contas | Art. 7º, II e art. 46 — obrigação legal e medida de segurança | `INSERT`-only no banco (trigger + `REVOKE`); nunca guarda texto clínico |
 | Texto enviado a provedor de IA | Apoio à redação e ao resumo, com revisão médica | Depende de §5 — **pendente** | Desidentificação local antes de sair; política que bloqueia envio (fail-closed); provedor e chave da própria clínica |
+| Laudo de exame enviado pelo paciente no portal (1.16) | Compor o prontuário com o resultado que o paciente já tem | Art. 11, II, "f" — tutela da saúde; ciência registrada no aviso de privacidade `2026-10-v2` | Só PDF de até 3 MB; quarentena e antivírus antes de liberar; anexo **clínico** (quem não lê prontuário vê a linha, não o exame); guarda de 20 anos como o resto do prontuário; o portal não devolve ao paciente o que ele enviou |
 | IP de quem acessa portal público | Conter abuso (força bruta, raspagem) | Art. 7º, IX — legítimo interesse | Guardado como hash (`origin_ip_protected`); limite por IP resolvido por proxy confiável |
 
 ---

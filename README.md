@@ -11,7 +11,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão do produto** | 1.16.1 "os exames do paciente" (`base/version.py`) |
+| **Versão do produto** | 1.16.2 "os exames do paciente" (`base/version.py`) |
 | **Produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Verificação** | 108 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
@@ -41,6 +41,7 @@ o defeito.
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.16.2** | 2026-10-19 | os exames do paciente | Textos do portal e da vitrine: em urgência, o portal manda ao **serviço de urgência e emergência mais próximo** (e não mais "ligue para a clínica"); o rodapé deixa de oferecer remarcar consulta, que o portal não faz; e a **página de vendas** e a **central de ajuda** (artigo do portal, avisos, identidade da clínica e perguntas frequentes) contam que o portal também **recebe os laudos dos exames**. |
 | **1.16.1** | 2026-10-18 | os exames do paciente | O primeiro envio real de exame foi recusado: o formulário do portal estava aberto antes de um **login no mesmo navegador**, que troca o token de segurança. Agora entrar no sistema **encerra a identificação do portal**, a recusa explica e oferece abrir a página de novo (e não manda o paciente ao login), há **Encerrar identificação** nas telas do portal, e os textos e o aviso de privacidade dizem que o portal também **recebe laudos** — com o aviso vermelho já na página de solicitação. |
 | **1.16** | 2026-10-18 | os exames do paciente | O paciente **envia laudos de exame em PDF pelo portal** (até 5 por envio, 3 MB cada, com qual exame, data e local), que entram direto no prontuário e acendem um **alerta vermelho** para o médico até ele marcar "Ciente"; a janela de retorno de 180 dias barra o pedido, não o laudo. E a lista de anexos ganha a coluna **Anexado em** antes do nome. |
 | **1.15** | 2026-10-15 | a agenda | **Bloquear este horário** no modal do horário livre, ao lado de Excluir: o bloqueado fica na agenda e **conta** na estatística do mês, o excluído some e não conta; a célula bloqueada se libera com um clique. E a consulta futura gravada com a duração de outro tipo (o retorno de 80 min, de antes da 1.13) volta à duração do seu, liberando o horário seguinte; a remarcação passa a gravar a duração do tipo. |
@@ -108,7 +109,9 @@ disponibilidade, **intervalos pontuais** (o almoço), bloqueios, feriados e
 retorno programado; **aviso automático** ao paciente ao marcar, remarcar e
 cancelar, com o endereço e o telefone da clínica; cadastro com
 **naturalidade** (5.571 municípios do IBGE no autocomplete); portal
-público onde o paciente pede receita sem criar conta; outbox de entrega
+público onde o paciente pede receita, relatório ou pedido de exames sem
+criar conta, e **envia os laudos dos exames que fez** (PDF, direto no
+prontuário, com alerta ao médico até o "Ciente"); outbox de entrega
 por e-mail e SMS com links opacos, OTP e confirmação de entrega lida do
 provedor; convênios, honorários com vigência,
 recebíveis e pagamentos (tudo em `Decimal`); exportação do acervo em
@@ -183,7 +186,7 @@ No banco, o isolamento é reforçado por chave estrangeira composta
 | `clinical` | atendimento nos dois tipos, exame, diagnósticos, medicações, adendo, cópia da consulta anterior, série temporal |
 | `exams` | motor do roteiro em árvore e as 14 escalas |
 | `scheduling` | agenda, disponibilidade, intervalos pontuais, bloqueios, retorno programado, declaração, estatísticas |
-| `documents` | anexos com antivírus, documentos médicos, assinatura PAdES, QR público, portal de solicitações, OCR |
+| `documents` | anexos com antivírus, documentos médicos, assinatura PAdES, QR público, portal do paciente (solicitações e envio de laudos), OCR |
 | `communications` | outbox, links opacos com OTP, aviso de horário, campanhas com consentimento, credenciais da clínica |
 | `finance` | honorários com vigência, recebíveis, pagamentos, ajustes |
 | `ai` | jobs com revisão médica, desidentificação, chat com streaming, relatório do paciente, leitura de laudo |

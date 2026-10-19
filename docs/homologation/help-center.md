@@ -42,7 +42,7 @@ quem muda a tela vê o texto no mesmo diff.
 | 5 | O exame neurológico estruturado | Médico |
 | 6 | Emitir e assinar um documento | Médico |
 | 7 | Entregar o documento ao paciente | Médico, secretaria |
-| 8 | Portal de solicitações do paciente | Médico, gestor |
+| 8 | Portal do paciente: solicitações e envio de exames | Médico, gestor |
 | 9 | Buscar códigos CID-10 e TUSS | Todos |
 | 10 | Chat de apoio | Médico |
 | 11 | Convênios, planos e valores | Dono, gestor, médico |

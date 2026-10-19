@@ -111,11 +111,13 @@ RECURSOS = [
                  'perguntar se o horário cabe.',
     },
     {
-        'titulo': 'Portal do paciente para renovação de receita',
-        'texto': 'O paciente pede a renovação sem criar conta e sem ligar para a '
-                 'recepção. O pedido entra numa fila que exige capacidade clínica: '
-                 'quem decide o que será emitido, e se será, continua sendo o '
-                 'médico.',
+        'titulo': 'Portal do paciente: pedidos e envio de exames',
+        'texto': 'O paciente pede receita, relatório ou pedido de exames sem criar '
+                 'conta e sem ligar para a recepção — o pedido entra numa fila que '
+                 'só o médico revisa, e quem decide o que será emitido continua '
+                 'sendo ele. Pelo mesmo portal, o paciente envia em PDF os laudos '
+                 'dos exames que já fez: eles entram direto no prontuário, e o '
+                 'médico é avisado até marcar que viu.',
     },
     {
         'titulo': 'Inteligência artificial como copiloto, nunca como autor',
@@ -189,8 +191,9 @@ ESPECIALIDADES = {
          'recebíveis, pagamentos e ajustes — tudo em centavos, sem ponto '
          'flutuante.'),
         ('Portal do paciente e entrega por link',
-         'O paciente pede receita, relatório ou exame sem criar conta, e recebe '
-         'o documento por link com código de acesso.'),
+         'O paciente pede receita, relatório ou exame sem criar conta, envia os '
+         'laudos dos exames que fez direto para o prontuário, e recebe o '
+         'documento por link com código de acesso.'),
         ('IA que redige, médico que assina',
          'Resumo do atendimento, leitura de laudo e relatório para o paciente. '
          'O texto sai desidentificado e nada entra no prontuário sem o médico '
@@ -238,7 +241,8 @@ FAQ = [
                     'com as vinte e seis mil apresentações da Anvisa, laudo e '
                     'atestado assinados digitalmente com verificação por QR, '
                     'CID-10 e TUSS completos, convênios, honorários e '
-                    'recebíveis, portal para o paciente pedir receita, '
+                    'recebíveis, portal para o paciente pedir receita e '
+                    'enviar os laudos dos exames, '
                     'exportação do acervo e o apoio de inteligência artificial. '
                     'O roteiro de exame com trezentos e oitenta e sete itens e '
                     'as catorze escalas pontuadas são o que há a mais para a '
