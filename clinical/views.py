@@ -404,7 +404,7 @@ class EncounterDetailView(TenantScopedView):
         leitura-de-laudo-por-ia.md`): o resultado de exame é o que o médico
         registra, e os valores entram pela tabela de analitos, à mão.
         """
-        from ai.services import latest_diagnostic_support
+        from ai.services import latest_diagnostic_support, resumos_aprovados
 
         medications = list(encounter.medications.all())
         # Um formulário de edição por linha, já preenchido. O prefixo é o
@@ -445,6 +445,7 @@ class EncounterDetailView(TenantScopedView):
                 })
 
         return {
+            'resumos_ia': resumos_aprovados(encounter),
             'medications': medications,
             'medication_form': MedicationForm(),
             'exam_results': exam_results,

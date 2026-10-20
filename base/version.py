@@ -175,12 +175,16 @@ carimbá-la na publicação.
 #: trocar o ícone de verdade, e toca uma amostra ao ser ligado.
 #: A **1.19.1**: o CEP novo troca o endereço também na edição da ficha
 #: (antes só preenchia campo vazio, e a rua da casa antiga ficava).
-VERSION = '1.19.1'
+#: A **1.20**: o resumo por IA aprovado aparece no atendimento (antes só
+#: o aviso do sino levava a ele); a busca de paciente acha pelas palavras
+#: do nome em qualquer ordem e sem acento; e a recusa de duração na agenda
+#: diz como resolver.
+VERSION = '1.20'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o recado que se apaga'
+CODENAME = 'o que se aprova, se encontra'
 
 
 def version_display():

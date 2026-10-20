@@ -1,0 +1,58 @@
+{% comment %}Resumos por IA que o médico aprovou neste atendimento.
+
+Ficam AO LADO do registro, e não dentro dele: aprovar é juízo editorial,
+e a IA não escreve no prontuário sozinha. Antes o texto aprovado só era
+alcançável pelo aviso do sino, que a retenção apaga em 7 a 15 dias. Fechado
+por padrão — a tela do atendimento é para escrever, e o resumo é consulta.
+Ver `ai/services.py::resumos_aprovados`.{% endcomment %}
+{% load nd %}
+{% if resumos_ia %}
+<div class="card mb-4 border-primary-subtle">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <button type="button" class="btn btn-link p-0 text-start text-decoration-none"
+                data-bs-toggle="collapse" data-bs-target="#nd-resumos-ia"
+                aria-expanded="false" aria-controls="nd-resumos-ia">
+            <span class="card-title mb-0 fw-semibold text-dark">
+                Resumos por IA aprovados
+                <span class="badge bg-soft-primary text-primary ms-1">{{ resumos_ia|length }}</span>
+            </span>
+            <span class="d-block fs-11 text-muted fw-normal">
+                Último aprovado em {{ resumos_ia.0.reviewed_at|date:"d/m/Y H:i" }} — clique para ver.
+                Consulta de apoio: não faz parte do registro clínico.
+            </span>
+        </button>
+    </div>
+    <div class="collapse" id="nd-resumos-ia">
+        <div class="card-body">
+            {% for artifact in resumos_ia %}
+            <div class="{% if not forloop.last %}border-bottom pb-3 mb-3{% endif %}">
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-2 fs-11 text-muted">
+                    <span>Gerado em {{ artifact.job.created_at|date:"d/m/Y H:i" }}</span>
+                    <span>·</span>
+                    <span>aprovado em {{ artifact.reviewed_at|date:"d/m/Y H:i" }}{% if artifact.reviewer %} por {{ artifact.reviewer.user.get_full_name }}{% endif %}</span>
+                    {% if artifact.review_state == "edited" %}<span class="badge bg-soft-warning text-warning">Editado</span>{% endif %}
+                    {% if nd_can.clinical_ai %}
+                    <a href="{% url 'ai:job-detail' artifact.job_id %}" class="ms-auto">Abrir</a>
+                    {% endif %}
+                </div>
+                <p class="fs-13 nd-prose mb-2">{{ artifact.result.summary|linebreaksbr }}</p>
+                {% if artifact.result.qualitative_hypotheses %}
+                <div class="fs-12 mb-2">
+                    <span class="fw-semibold">Hipóteses (qualitativas):</span>
+                    <ul class="mb-0 ps-3">
+                        {% for h in artifact.result.qualitative_hypotheses %}<li>{{ h }}</li>{% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if artifact.result.missing_information %}
+                <div class="fs-12 mb-1"><span class="fw-semibold">Informação ausente:</span> {{ artifact.result.missing_information }}</div>
+                {% endif %}
+                {% if artifact.result.limitations %}
+                <div class="fs-12 text-muted"><span class="fw-semibold">Limitações:</span> {{ artifact.result.limitations }}</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}

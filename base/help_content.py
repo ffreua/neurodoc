@@ -57,7 +57,9 @@ ARTICLES = [
         'audience': 'Secretaria, médico, gestor',
         'steps': [
             ('Em **Pacientes → Lista de pacientes** você busca por nome, por CPF ou '
-             'pelo número do prontuário — pode digitar `000123` ou só `123`.',
+             'pelo número do prontuário — pode digitar `000123` ou só `123`. No nome, '
+             'basta parte das palavras, em qualquer ordem e sem acento: "maria silva" '
+             'acha MARIA DE FÁTIMA DA SILVA. Vale também para a busca da agenda.',
              'paciente-lista.png', 'Lista de pacientes'),
             ('**Novo paciente** abre o cadastro em seções. O CPF é obrigatório e '
              'conferido pelos dígitos verificadores; o CEP preenche município e UF '
@@ -139,6 +141,12 @@ ARTICLES = [
              'Depois disso o texto não é apagado: uma correção entra como '
              '**retificação**, que preserva o que estava escrito antes e registra o '
              'motivo. É o que a lei espera de prontuário.',
+             '', ''),
+            ('Com o atendimento finalizado, **Resumo por IA** gera um resumo do caso '
+             'para sua revisão. Aprovar não escreve nada no prontuário — a IA nunca '
+             'escreve no registro sozinha —, mas o resumo aprovado fica guardado no '
+             'próprio atendimento, no quadro **Resumos por IA aprovados**, no alto da '
+             'página: clique para abrir e copie o que quiser usar.',
              '', ''),
         ],
     },

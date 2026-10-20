@@ -17,6 +17,7 @@ from .context import AIAuthorizationDenied, build_ai_authorization
 from .graphs import PROMPT_VERSION, build_graph, build_prompt
 from .models import (
     TIPOS_APOSENTADOS, PATIENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus,
+    AIReviewState,
 )
 from .providers import ProviderUnavailable, get_chat_model
 from .schemas import SCHEMA_VERSION
@@ -466,6 +467,26 @@ def latest_diagnostic_support(encounter):
         return None, None
     artifact = AIArtifact.objects.filter(job=job).order_by('-created_at').first()
     return job, artifact
+
+
+def resumos_aprovados(encounter):
+    """Resumos por IA deste atendimento que o médico aprovou, do mais novo.
+
+    "Aceitar" é juízo editorial e nunca escreveu no prontuário — de
+    propósito, a IA não escreve no registro clínico sozinha. Mas a única
+    porta de volta ao texto aprovado era o aviso do sino, que a retenção
+    apaga em 7 a 15 dias: depois disso o resumo continuava no banco sem
+    nenhuma tela que levasse a ele. Ele aparece no atendimento, ao lado do
+    registro e fora dele — não entra no texto clínico nem no `content_hash`.
+    """
+    return list(
+        AIArtifact.objects.filter(
+            tenant_id=encounter.tenant_id,
+            job__encounter_id=encounter.id,
+            job__kind=AIJobKind.ENCOUNTER_SUMMARY,
+            review_state__in=(AIReviewState.ACCEPTED, AIReviewState.EDITED),
+        ).select_related('job', 'reviewer__user').order_by('-reviewed_at')
+    )
 
 
 def cancel_job(job, actor_id):

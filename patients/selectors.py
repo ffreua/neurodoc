@@ -1,5 +1,7 @@
+import unicodedata
+
 from django.core.paginator import Paginator
-from django.db.models import Q
+from django.db.models import CharField, Q, Transform
 from django.http import Http404
 
 from tenancy.selectors import scope_to_tenant
@@ -14,6 +16,50 @@ PAGE_SIZE = 25
 #: rolagem e sem esconder o rodapé com as teclas; mais que isso vira lista,
 #: e para lista existe a tela de pacientes.
 BUSCA_RAPIDA_LIMITE = 6
+
+
+_COM_ACENTO = 'ÁÀÂÃÄÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑáàâãäéèêëíìîïóòôõöúùûüçñ'
+_SEM_ACENTO = 'AAAAAEEEEIIIIOOOOOUUUUCNaaaaaeeeeiiiiooooouuuucn'
+
+
+class SemAcento(Transform):
+    """`full_name__sem_acento__icontains`: compara sem acento, no banco.
+
+    O banco não tem a extensão `unaccent` (instalá-la é DDL em produção, e o
+    catálogo já contornou o mesmo problema com coluna própria). `TRANSLATE`
+    é do PostgreSQL desde sempre e troca letra por letra, o que basta para o
+    português: o nome é gravado em caixa alta e com acento
+    (`naming.normalizar_nome`), e quem procura digita "jose", não "JOSÉ".
+    """
+
+    lookup_name = 'sem_acento'
+    template = "TRANSLATE(%(expressions)s, '" + _COM_ACENTO + "', '" + _SEM_ACENTO + "')"
+
+
+CharField.register_lookup(SemAcento)
+
+
+def _sem_acento(texto):
+    return ''.join(
+        c for c in unicodedata.normalize('NFKD', texto) if not unicodedata.combining(c)
+    )
+
+
+def _filtro_de_nome(query):
+    """Cada palavra digitada precisa estar no nome — em qualquer ordem.
+
+    Era `full_name__icontains=query`, o trecho exato: "carlos silva" não
+    achava CARLOS ADULTO DA SILVA, e "jose" não achava JOSÉ. Quem procura
+    um paciente de quatro nomes digita o primeiro e o último — relatado em
+    2026-10-20, na agenda, como "a paciente não aparece".
+    """
+    palavras = [p for p in _sem_acento(query).split() if not p.isdigit()]
+    if not palavras:
+        return Q(pk__in=[])
+    filtro = Q()
+    for palavra in palavras:
+        filtro &= Q(full_name__sem_acento__icontains=palavra)
+    return filtro
 
 
 def _base_queryset(context):
@@ -54,7 +100,7 @@ def _filtro_de_busca(query):
         return Q()
     digits = ''.join(c for c in query if c.isdigit())
 
-    filtro = Q(full_name__icontains=query)
+    filtro = _filtro_de_nome(query)
     if digits:
         filtro |= Q(cpf=digits)
         filtro |= Q(contacts__phone=digits)
@@ -128,7 +174,7 @@ def autocomplete_patients(context, query):
     return (
         _base_queryset(context)
         .filter(status=PatientStatus.ACTIVE)
-        .filter(Q(full_name__icontains=query) | by_record)
+        .filter(_filtro_de_nome(query) | by_record)
         .order_by('full_name')[:AUTOCOMPLETE_LIMIT]
     )
 

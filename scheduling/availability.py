@@ -511,7 +511,9 @@ def fits(physician_membership_id, starts_at, ends_at, ignorar=None):
         end_local = timezone.localtime(covered[-1]['end']).strftime('%H:%M')
         return False, (
             f'Um atendimento de {minutes} minutos não cabe a partir daqui: '
-            f'o atendimento deste dia termina às {end_local}.'
+            f'o atendimento deste dia termina às {end_local}. Escolha um tipo '
+            f'mais curto, ou use "Incluir horário" para estender o dia depois '
+            f'das {end_local} e marque de novo.'
         )
     return True, ''
 
