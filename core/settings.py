@@ -232,6 +232,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'scheduling.tasks.avisar_retornos',
         'schedule': crontab(hour=6, minute=0),
     },
+    # Chat da equipe: mensagem vive 72 horas (teamchat/services.py). De
+    # hora em hora, para o prazo prometido na janela ser o prazo cumprido.
+    'teamchat-apagar-vencidas': {
+        'task': 'teamchat.tasks.apagar_vencidas',
+        'schedule': crontab(minute=35),
+    },
     'notifications-purge-expired': {
         'task': 'notifications.tasks.purge_expired',
         'schedule': crontab(hour=1, minute=10),

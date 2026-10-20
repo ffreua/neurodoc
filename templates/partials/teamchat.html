@@ -21,7 +21,8 @@ chat em silêncio.{% endcomment %}
      data-url-stream="{% url 'teamchat:stream' %}"
      data-url-conversa="{% url 'teamchat:thread' '00000000-0000-0000-0000-000000000000' %}"
      data-url-enviar="{% url 'teamchat:send' '00000000-0000-0000-0000-000000000000' %}"
-     data-url-lida="{% url 'teamchat:read' '00000000-0000-0000-0000-000000000000' %}">
+     data-url-lida="{% url 'teamchat:read' '00000000-0000-0000-0000-000000000000' %}"
+     data-url-apagar="{% url 'teamchat:clear' '00000000-0000-0000-0000-000000000000' %}">
     {% csrf_token %}
 
     <div class="nd-tc-win" role="dialog" aria-modal="false"
@@ -51,7 +52,8 @@ chat em silêncio.{% endcomment %}
                 a tela, e um aviso que precisa ser descoberto e ligado não
                 avisa ninguém.{% endcomment %}
                 <button type="button" class="nd-tc-icone" data-nd-tc="som"
-                        id="nd-tc-som" aria-pressed="true" aria-label="Desligar aviso sonoro">
+                        id="nd-tc-som" aria-pressed="true" aria-label="Desligar aviso sonoro"
+                        title="Aviso sonoro de mensagem nova (com a janela fechada)">
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nd-tc-som-ligado"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="nd-tc-som-mudo" hidden><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
                 </button>
@@ -85,6 +87,14 @@ chat em silêncio.{% endcomment %}
                     <header class="nd-tc-thread-head">
                         <span class="nd-tc-quem" id="nd-tc-quem"></span>
                         <span class="nd-tc-papeis fs-11 text-muted" id="nd-tc-papeis"></span>
+                        {% comment %}Apaga só para quem clica: a cópia do colega fica
+                        até as 72 horas (teamchat/services.py). A confirmação é o
+                        segundo clique no mesmo botão, e não uma caixa do navegador
+                        (check_confirmacao_unica).{% endcomment %}
+                        <button type="button" class="nd-tc-apagar" data-nd-tc="apagar" id="nd-tc-apagar"
+                                title="Apaga esta conversa da sua janela. O colega mantém a cópia dele até as 72 horas.">
+                            Apagar conversa
+                        </button>
                     </header>
 
                     <div class="nd-tc-msgs" id="nd-tc-msgs"></div>
@@ -97,6 +107,8 @@ chat em silêncio.{% endcomment %}
                     <p class="nd-tc-aviso">
                         Recado interno — <strong>não é prontuário</strong>. O que
                         precisa ficar registrado vai na evolução do atendimento.
+                        As mensagens são <strong>apagadas sozinhas 72 horas</strong>
+                        depois de enviadas.
                     </p>
 
                     {% if request.access_context.tenant_is_read_only %}

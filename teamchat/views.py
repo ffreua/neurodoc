@@ -125,7 +125,9 @@ class ThreadView(TeamChatView):
             desde = parse_datetime(request.GET.get('desde') or '')
         except ValueError:
             desde = None
-        mensagens = services.messages_of(ctx.tenant_id, conversation_id, desde=desde)
+        mensagens = services.messages_of(
+            ctx.tenant_id, conversation_id, desde=desde, apagada_em=participacao.cleared_at,
+        )
         return JsonResponse({
             'mensagens': [services.message_payload(m) for m in mensagens],
             'nao_lidas': participacao.unread_count,
@@ -147,6 +149,17 @@ class SendView(TeamChatView):
         except services.ChatError as erro:
             return _recusa(str(erro))
         return JsonResponse({'mensagem': services.message_payload(mensagem)})
+
+
+class ClearView(TeamChatView):
+    """Apaga a conversa para quem pediu (`services.apagar_conversa`)."""
+
+    def post(self, request, conversation_id):
+        ctx = request.access_context
+        if services.membership_in(ctx.tenant_id, conversation_id, ctx.user_id) is None:
+            raise Http404
+        services.apagar_conversa(ctx.tenant_id, conversation_id, ctx.user_id)
+        return JsonResponse({'total': services.unread_total(ctx.tenant_id, ctx.user_id)})
 
 
 class ReadView(TeamChatView):

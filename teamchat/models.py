@@ -109,6 +109,11 @@ class ConversationMember(TenantModel):
     user = models.ForeignKey('accounts.User', on_delete=models.PROTECT, related_name='teamchat_memberships')
     unread_count = models.PositiveIntegerField(default=0)
     last_read_at = models.DateTimeField(null=True, blank=True)
+    #: Até quando esta pessoa apagou a conversa. O que veio antes some da
+    #: janela **dela**; a do colega continua igual até as 72 horas apagarem
+    #: de vez (`services.RETENCAO_HORAS`). Apagar a cópia do outro por um
+    #: clique seu seria decidir pelo histórico de outra pessoa.
+    cleared_at = models.DateTimeField(null=True, blank=True)
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [

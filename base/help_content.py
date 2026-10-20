@@ -597,11 +597,23 @@ ARTICLES = [
              'equipe-chat-janela.png', 'Janela de mensagens'),
             ('A lista mostra quem está online e quantas mensagens você não leu. Há uma '
              'conversa por par de pessoas: procurar alguém duas vezes abre a mesma '
-             'conversa, com todo o histórico.',
+             'conversa.',
              'equipe-chat-lista.png', 'Lista de conversas'),
             ('**Isto não é prontuário, e a tela diz isso.** Combinar um encaixe ou avisar '
              'que o paciente chegou é o uso; registrar conduta clínica não é — o que vale '
              'como registro é o atendimento, não a conversa.',
+             '', ''),
+            ('As mensagens são **apagadas sozinhas 72 horas** depois de enviadas — o '
+             'recado de sexta à tarde ainda está lá na segunda de manhã, e depois disso '
+             'some. Para apagar antes, use **Apagar conversa**, no alto da conversa, e '
+             'clique de novo em "Confirmar?". Apaga só a **sua** janela: o colega mantém '
+             'a cópia dele até completar as 72 horas.',
+             '', ''),
+            ('O **ícone de alto-falante**, ao lado do X, liga e desliga o **aviso sonoro** '
+             'de mensagem nova. O som toca quando a janela está **fechada** — com ela '
+             'aberta a mensagem já está à vista. Ao ligar, ele toca uma vez para você '
+             'ouvir como é. A escolha vale para este computador: dá para deixar som na '
+             'recepção e silêncio no consultório.',
              '', ''),
             ('Mensagem não atravessa clínicas. Quem trabalha em duas organizações tem '
              'duas listas separadas, e a de uma nunca aparece na outra.',

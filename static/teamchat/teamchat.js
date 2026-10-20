@@ -188,6 +188,10 @@
             window.localStorage.setItem(SOM_CHAVE, ligado ? 'on' : 'off');
         } catch (e) { /* navegação privada: vale só nesta sessão */ }
         pintarBotaoSom();
+        /* Ligar toca o aviso uma vez, na hora. O som de verdade só soa com
+         * a janela fechada, e sem esta amostra o clique em "ligar" não
+         * tinha resposta nenhuma — parecia botão quebrado. */
+        if (ligado) { tocarAviso(true); }
     }
 
     function pintarBotaoSom() {
@@ -198,14 +202,29 @@
         botao.setAttribute('aria-label', ligado ? 'Desligar aviso sonoro' : 'Ligar aviso sonoro');
         var icoLigado = document.getElementById('nd-tc-som-ligado');
         var icoMudo = document.getElementById('nd-tc-som-mudo');
-        if (icoLigado) { icoLigado.hidden = !ligado; }
-        if (icoMudo) { icoMudo.hidden = ligado; }
+        /* `setAttribute`, e não `.hidden = ...`: os ícones são <svg>, e a
+         * propriedade `hidden` só existe em elemento HTML. Atribuída num
+         * SVG, ela vira uma propriedade solta que não esconde nada — o
+         * estado mudava e o ícone não, e o botão parecia não fazer nada. */
+        if (icoLigado) { mostrarIcone(icoLigado, ligado); }
+        if (icoMudo) { mostrarIcone(icoMudo, !ligado); }
     }
 
-    function tocarAviso() {
+    function mostrarIcone(icone, visivel) {
+        if (visivel) {
+            icone.removeAttribute('hidden');
+            icone.style.display = '';
+        } else {
+            icone.setAttribute('hidden', '');
+            icone.style.display = 'none';
+        }
+    }
+
+    function tocarAviso(amostra) {
         if (!somLigado()) { return; }
-        /* Janela aberta não precisa de som: a mensagem está à vista. */
-        if (raiz && !raiz.hidden) { return; }
+        /* Janela aberta não precisa de som: a mensagem está à vista. A
+         * amostra de quando se liga o som é a exceção. */
+        if (!amostra && raiz && !raiz.hidden) { return; }
         /* Uma mensagem por segundo de um colega apressado não vira cinco
          * beeps: o aviso é "chegou alguma coisa", não "chegou mais uma". */
         var agora = Date.now();
@@ -423,6 +442,8 @@
         var meuPedido = pedidoAtual;
         pessoaAtual = pessoa;
         conversaAtual = '';
+        var botaoApagar = document.getElementById('nd-tc-apagar');
+        if (botaoApagar) { clearTimeout(confirmacaoApagar); voltarApagar(botaoApagar); }
         rotuloQuem.textContent = pessoa.nome;
         rotuloPapeis.textContent = pessoa.papeis.join(' · ');
         blocoVazio.hidden = true;
@@ -456,6 +477,43 @@
              * o `conversaAtual = ''` acima garante. */
             avisarErro(e.message + ' Escolha a pessoa de novo.');
         });
+    }
+
+    /* Apagar a conversa: dois cliques no mesmo botão, e não uma caixa do
+     * navegador (`check_confirmacao_unica`). O primeiro troca o rótulo para
+     * "Confirmar? Apaga para você" por quatro segundos; só o segundo, dentro
+     * desse prazo, apaga. Apaga só a janela de quem clica — a cópia do
+     * colega fica até as 72 horas. */
+    var confirmacaoApagar = null;
+
+    function pedirApagar(alvo) {
+        if (!conversaAtual) { return; }
+        if (!alvo.classList.contains('is-confirmar')) {
+            alvo.classList.add('is-confirmar');
+            alvo.textContent = 'Confirmar? Apaga para você';
+            clearTimeout(confirmacaoApagar);
+            confirmacaoApagar = setTimeout(function () { voltarApagar(alvo); }, 4000);
+            return;
+        }
+        clearTimeout(confirmacaoApagar);
+        voltarApagar(alvo);
+        var conversa = conversaAtual;
+        pedir(endereco(raiz.dataset.urlApagar, conversa), {}).then(function (dados) {
+            if (conversa !== conversaAtual) { return; }
+            painelMsgs.textContent = '';
+            vistas = Object.create(null);
+            ultimoDia = '';
+            atualizarBadge(dados.total);
+            pessoas.forEach(function (p) {
+                if (p.conversa === conversa) { p.nao_lidas = 0; }
+            });
+            desenharPessoas();
+        }).catch(function (e) { avisarErro(e.message); });
+    }
+
+    function voltarApagar(alvo) {
+        alvo.classList.remove('is-confirmar');
+        alvo.textContent = 'Apagar conversa';
     }
 
     function marcarLida() {
@@ -747,6 +805,7 @@
         if (!acao) { return; }
         if (acao.dataset.ndTc === 'fechar') { fechar(); }
         if (acao.dataset.ndTc === 'som') { definirSom(!somLigado()); }
+        if (acao.dataset.ndTc === 'apagar') { pedirApagar(acao); }
         if (acao.dataset.ndTc === 'lista') {
             janela.classList.remove('is-conversa');
             botaoVoltar(false);

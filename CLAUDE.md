@@ -177,7 +177,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
 | `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores, o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) e o **chat que conhece o sistema** (`conhecimento.py`: na conversa sem paciente, trechos do manual e da documentação técnica escolhidos por pergunta — ver §7-H). A leitura de laudo anexado **saiu na 1.18** (§7-F) |
 | `notifications` | sino do usuário |
-| `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
+| `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso; por isso **esquece**: a mensagem vive 72 horas (`services.RETENCAO_HORAS`, apagada de hora em hora) e cada pessoa pode apagar a própria janela antes (`cleared_at`) |
 | `audit` | trilha imutável (`record_audit_event`) |
 | `reporting` | indicadores e **exportação do acervo** (cadastro e prontuário em Markdown e JSON); CSV protegido contra injeção de fórmula, tudo expira em 24 h |
 | `integrations` | antivírus, CEP e TUSS; os modelos antigos de captura permanecem apenas como proveniência histórica |
@@ -329,6 +329,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_links_de_mensagem.py` | **todo link que sai numa mensagem abre**: nenhum e-mail é enfileirado antes do commit (transação desfeita não manda nada), o link do documento é aberto de verdade, o reenvio troca o link e revoga o anterior, e a verificação de e-mail, o convite e o descadastro respondem |
 | `check_chatbot.py`, `check_ia_padrao.py` | IA e chat |
 | `check_mensagens.py` | chat da equipe: conversa única por par, participação, fronteira entre clínicas, contador não lido, envio congelado na clínica suspensa |
+| `check_mensagens_retencao.py` | o chat da equipe **esquece** (1.19): o vencido some da janela antes da limpeza, a limpeza apaga do banco e **refaz o não lido**, a conversa vazia antiga sai e a recém-aberta fica, "Apagar conversa" vale **só para quem clica** (o colega segue vendo), sem `GET` e com 404 para quem não participa, a trilha sem o texto; e o ícone do som trocado por atributo, não por `.hidden` (que não existe em `<svg>`) |
 | `check_rodape_do_documento.py` | a **assinatura no pé da folha** em todo documento, medida pela **posição** do texto na página (e não pela presença): receita curta, as duas vias do controle especial com o quadro abaixo da assinatura, o rodapé que vai **inteiro** para o pé da página seguinte quando o corpo enche a folha, e nenhuma folha extra |
 | `check_receitas.py` | catálogo CMED e a busca, documento sem atendimento, emissão em papel, e o QR só em documento assinado |
 | `check_mobile.py` | aderência ao celular: o bloco de toque existe e pergunta por `pointer: coarse`, campos a 16px, alvo de 40px, tabela embrulhada, calha responsiva |

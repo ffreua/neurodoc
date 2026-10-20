@@ -1,5 +1,15 @@
 # Mensagens da equipe — janela flutuante ao lado do sino
 
+> **1.19 — a mensagem vive 72 horas.** Em uso real, recados de semanas
+> continuavam na janela. Desde a 1.19 a mensagem é apagada do banco 72
+> horas depois de enviada (`teamchat.tasks.apagar_vencidas`, de hora em
+> hora; a janela já esconde o vencido antes), o contador de não lidas é
+> refeito quando some mensagem que ninguém leu, e **Apagar conversa** limpa
+> a janela de quem clica (`ConversationMember.cleared_at`) sem tocar na do
+> colega. O botão de som trocava o ícone com `.hidden`, que não existe em
+> `<svg>`: o estado mudava e o ícone não. Verificação em
+> `checks/check_mensagens_retencao.py`.
+
 > **Estado: homologado na pilha local (2026-09-17).** Evidência coletada
 > com `checks/check_mensagens.py` rodando dentro do contêiner contra o
 > PostgreSQL e o Redis reais, e com `curl -N` **através do Traefik real**

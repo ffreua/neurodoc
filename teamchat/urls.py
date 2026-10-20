@@ -17,4 +17,5 @@ urlpatterns = [
     path('lida/<uuid:conversation_id>/', views.ReadView.as_view(), name='read'),
     path('<uuid:conversation_id>/', views.ThreadView.as_view(), name='thread'),
     path('<uuid:conversation_id>/enviar/', views.SendView.as_view(), name='send'),
+    path('<uuid:conversation_id>/apagar/', views.ClearView.as_view(), name='clear'),
 ]

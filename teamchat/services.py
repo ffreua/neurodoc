@@ -21,6 +21,15 @@ from .models import MAX_BODY, Conversation, ConversationMember, Message, direct_
 #: numa janela que a pessoa abriu para escrever uma linha.
 PAGE_SIZE = 50
 
+#: Quanto tempo uma mensagem da equipe vive. O chat é recado interno, não
+#: prontuário (o aviso na janela diz isso), e não tem guarda legal: o que
+#: precisa ficar vai na evolução do atendimento. Guardado para sempre, ele
+#: viraria um segundo prontuário informal, sem assinatura e sem a guarda do
+#: registro clínico -- e com dado de paciente dentro. Setenta e duas horas
+#: cobrem o fim de semana: o recado de sexta à tarde ainda está lá na
+#: segunda de manhã.
+RETENCAO_HORAS = 72
+
 _ROLE_LABELS = dict(Role.choices)
 
 
@@ -110,7 +119,7 @@ def membership_in(tenant_id, conversation_id, user_id):
     )
 
 
-def messages_of(tenant_id, conversation_id, desde=None):
+def messages_of(tenant_id, conversation_id, desde=None, apagada_em=None):
     """As mensagens da conversa: as últimas `PAGE_SIZE`, ou o que chegou
     depois de `desde`.
 
@@ -122,7 +131,14 @@ def messages_of(tenant_id, conversation_id, desde=None):
     está anotado aqui como não usado para que ninguém o leia como se
     estivesse.
     """
-    consulta = Message.objects.filter(tenant_id=tenant_id, conversation_id=conversation_id)
+    # O que passou das 72 horas some da janela já, sem esperar a limpeza de
+    # hora em hora apagar do banco; e o que a pessoa apagou some só dela.
+    piso = limite_de_retencao()
+    if apagada_em is not None and apagada_em > piso:
+        piso = apagada_em
+    consulta = Message.objects.filter(
+        tenant_id=tenant_id, conversation_id=conversation_id, created_at__gt=piso,
+    )
     if desde is not None:
         return list(consulta.filter(created_at__gt=desde).select_related('sender'))
     # Últimas N em ordem cronológica: a consulta desce por data e a lista
@@ -211,6 +227,74 @@ def mark_read(tenant_id, conversation_id, user_id):
     return ConversationMember.objects.filter(
         tenant_id=tenant_id, conversation_id=conversation_id, user_id=user_id,
     ).update(unread_count=0, last_read_at=timezone.now())
+
+
+def apagar_conversa(tenant_id, conversation_id, user_id):
+    """Apaga a conversa **para quem pediu**.
+
+    Marca `cleared_at` e zera o que faltava ler. As mensagens continuam no
+    banco para o colega até completarem 72 horas, quando a limpeza as apaga
+    de vez. A trilha registra que a conversa foi apagada, sem texto nenhum:
+    o recado interno não é prontuário e não vai para a auditoria.
+    """
+    from audit.services import record_audit_event
+
+    agora = timezone.now()
+    atualizados = ConversationMember.objects.filter(
+        tenant_id=tenant_id, conversation_id=conversation_id, user_id=user_id,
+    ).update(cleared_at=agora, unread_count=0, last_read_at=agora)
+    if atualizados:
+        record_audit_event(
+            user_id, tenant_id, 'teamchat.conversation_cleared',
+            object_type='conversation', object_id=conversation_id, outcome='success',
+        )
+    return bool(atualizados)
+
+
+def limite_de_retencao():
+    """O instante antes do qual mensagem nenhuma é mostrada nem guardada."""
+    return timezone.now() - timezone.timedelta(hours=RETENCAO_HORAS)
+
+
+def apagar_vencidas():
+    """Apaga do banco as mensagens com mais de 72 horas.
+
+    Roda de hora em hora (`teamchat.tasks.apagar_vencidas`). Três passos, e
+    a ordem importa:
+
+    1. apaga as mensagens vencidas;
+    2. **refaz** o contador de não lidas de quem tinha alguma: mensagem que
+       sumiu sem ser lida não pode continuar acendendo a badge do
+       cabeçalho — o contador é denormalizado, e só aqui ele pode divergir;
+    3. apaga a conversa que ficou sem mensagem nenhuma, com as
+       participações. Ela renasce sozinha na próxima mensagem
+       (`open_direct`), e guardada vazia só diria quem falou com quem.
+
+    Devolve as contagens, para o log da tarefa.
+    """
+    limite = limite_de_retencao()
+    with transaction.atomic():
+        apagadas, _ = Message.objects.filter(created_at__lte=limite).delete()
+        corrigidos = 0
+        for membro in ConversationMember.objects.filter(unread_count__gt=0).select_for_update():
+            desde = max(filter(None, [membro.last_read_at, membro.cleared_at, limite]))
+            reais = Message.objects.filter(
+                tenant_id=membro.tenant_id, conversation_id=membro.conversation_id,
+                created_at__gt=desde,
+            ).exclude(sender_id=membro.user_id).count()
+            if reais != membro.unread_count:
+                membro.unread_count = reais
+                membro.save(update_fields=['unread_count'])
+                corrigidos += 1
+        # Só a vazia **antiga**: a conversa aberta agora, que ainda não teve
+        # a primeira mensagem, não pode sumir entre o clique e o envio.
+        vazias = list(
+            Conversation.objects.filter(messages__isnull=True, created_at__lte=limite)
+            .values_list('id', flat=True)
+        )
+        ConversationMember.objects.filter(conversation_id__in=vazias).delete()
+        conversas, _ = Conversation.objects.filter(id__in=vazias).delete()
+    return {'mensagens': apagadas, 'contadores': corrigidos, 'conversas': conversas}
 
 
 def unread_total(tenant_id, user_id):

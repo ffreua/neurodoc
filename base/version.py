@@ -169,12 +169,16 @@ carimbá-la na publicação.
 #: busca escolhe para cada pergunta (`ai/conhecimento.py`). E a leitura do
 #: laudo anexado pela IA sai: falhava mais do que lia (migração `ai/0009`,
 #: só de dados, encerra o que ela deixou pendente).
-VERSION = '1.18'
+#: A **1.19**: o chat da equipe esquece -- a mensagem é apagada 72 horas
+#: depois de enviada, e "Apagar conversa" limpa a janela de quem clica
+#: (migração `teamchat/0002`, só de expansão). E o botão de som passa a
+#: trocar o ícone de verdade, e toca uma amostra ao ser ligado.
+VERSION = '1.19'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o chat que conhece o sistema'
+CODENAME = 'o recado que se apaga'
 
 
 def version_display():

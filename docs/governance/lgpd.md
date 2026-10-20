@@ -73,6 +73,7 @@ medida técnica está no código.
 | Prontuário (atendimento, documento, anexo clínico, medição) | **20 anos do último registro**, contados em calendário | Lei 13.787/2018, art. 6º; CFM 1.821/2007 |
 | Anexo administrativo | 30 dias após remoção lógica | Decisão de produto |
 | Token de acesso a documento | 30 dias | DEC-21 |
+| Mensagem do chat interno da equipe (1.19) | **72 horas** da mensagem, apagada de hora em hora (`teamchat.tasks.apagar_vencidas`); antes disso, cada pessoa apaga a própria janela | Decisão de produto: é recado, não prontuário, e guardado para sempre viraria registro clínico informal, sem assinatura e com dado de paciente |
 | Exportação de relatório | 24 horas | Decisão de produto |
 | Trilha de auditoria | Sem expurgo | Prestação de contas (art. 37) |
 
