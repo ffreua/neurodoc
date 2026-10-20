@@ -285,10 +285,6 @@ class ExamResultForm(forms.ModelForm):
         help_text='Até 25 MB. Passa por verificação de malware antes de ficar disponível.',
         widget=forms.ClearableFileInput(attrs={'accept': '.pdf,.jpg,.jpeg,.png,.tif,.tiff'}),
     )
-    run_extraction = forms.BooleanField(
-        label='Pedir à IA para ler o laudo', required=False, initial=True,
-        help_text='Gera um rascunho para sua revisão. Nada entra no prontuário sem você aceitar.',
-    )
 
     class Meta:
         model = ExamResult
@@ -306,8 +302,8 @@ class ExamResultForm(forms.ModelForm):
             'service_name': forms.TextInput(attrs={'placeholder': 'Onde foi realizado'}),
             'performed_on': HTML5DateInput(),
             'report_text': forms.Textarea(attrs={
-                'rows': 6, 'placeholder': 'Transcrição do laudo. Pode ficar em branco e ser preenchido '
-                                          'pela leitura do PDF depois da sua revisão.',
+                'rows': 6, 'placeholder': 'Transcrição ou resumo do laudo. O PDF anexado fica '
+                                          'guardado junto, para conferência.',
             }),
             'conclusion': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Impressão diagnóstica do laudo'}),
         }

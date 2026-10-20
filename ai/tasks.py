@@ -28,11 +28,10 @@ def _notify_job_completion(job):
         target_type='ai_job', target_id=job.id,
     ).exists():
         return
-    document_job = job.kind in {'lab_extraction', 'report_transcription'}
     if job.status == AIJobStatus.SUCCEEDED:
-        title = 'Leitura do laudo pronta para revisão' if document_job else 'Tarefa de IA concluída'
+        title = 'Tarefa de IA concluída'
     else:
-        title = 'A leitura do laudo não foi concluída' if document_job else 'A tarefa de IA não foi concluída'
+        title = 'A tarefa de IA não foi concluída'
     notify_user(
         job.tenant, job.user_id, kind=kind, sanitized_title=title,
         target_type='ai_job', target_id=job.id,
@@ -53,19 +52,11 @@ def run_ai_job(job_id):
             job.status_detail = 'A tarefa não foi concluída. Tente novamente.'
             job.save(update_fields=['status', 'status_detail'])
         if job is not None:
-            from .extraction import sync_exam_result_status
-            sync_exam_result_status(job)
             _notify_job_completion(job)
         return {'status': 'failed'}
 
     job = AIJob.objects.filter(id=job_id).first()
     if job is not None:
-        # A tela do prontuário lê o estado da leitura no próprio resultado de
-        # exame, não na tabela de jobs; é aqui que os dois se reencontram,
-        # tanto no sucesso quanto na falha.
-        from .extraction import sync_exam_result_status
-
-        sync_exam_result_status(job)
         _notify_job_completion(job)
 
     if artifact is None:
@@ -73,100 +64,23 @@ def run_ai_job(job_id):
     return {'status': AIJobStatus.SUCCEEDED, 'artifact_id': str(artifact.id)}
 
 
-#: Um laudo recém-enviado ainda está na fila do antivírus. Esperar em vez de
-#: falhar é o que faz o botão "ler o laudo" funcionar no mesmo gesto do envio.
-SCAN_WAIT_SECONDS = 10
-SCAN_MAX_ATTEMPTS = 30
+@shared_task(name='ai.tasks.prepare_document_and_run')
+def prepare_document_and_run(job_id):
+    """Esvazia a fila da leitura de laudo, que saiu na 1.18.
 
-
-def _fail_document_preparation(job, detail, reason):
-    from .extraction import sync_exam_result_status
-
-    job.status = AIJobStatus.FAILED
-    job.status_detail = detail[:255]
-    job.save(update_fields=['status', 'status_detail'])
-    sync_exam_result_status(job)
-    _notify_job_completion(job)
-    return {'status': 'failed', 'reason': reason}
-
-
-@shared_task(name='ai.tasks.prepare_document_and_run', bind=True, max_retries=SCAN_MAX_ATTEMPTS, expires=1800)
-def prepare_document_and_run(self, job_id):
-    """Deixa o laudo legível e então roda a leitura.
-
-    Três coisas acontecem antes da chamada ao modelo, e nenhuma delas pode
-    ser pulada:
-
-    1. **espera a verificação de malware.** Arquivo em quarentena não é
-       aberto nem para ler texto.
-    2. **roda o OCR local** quando o PDF não tem camada de texto — é o caso
-       do laudo digitalizado, que é justamente o que se pede ao escanear. O
-       OCR é o tesseract em pt-BR, na própria máquina; o arquivo não sai
-       daqui.
-    3. só então executa o job, que desidentifica o texto e faz a chamada.
+    A tarefa preparava o PDF (antivírus, OCR) e rodava a leitura. Ela fica
+    registrada com o mesmo nome só para a mensagem antiga que ainda estiver
+    no broker na hora da publicação: sem tarefa com esse nome, o worker a
+    descartaria com "unregistered task" e o job ficaria "na fila" até a
+    retomada desistir dele, um dia depois. Assim ele é encerrado na hora,
+    com a explicação.
     """
-    from documents.models import AttachmentScanStatus
-    from documents.ocr import OcrError, run_ocr
+    from .services import LEITURA_RETIRADA
 
-    from documents.storage import local_path
-
-    from .documents import MIN_TEXT_LAYER_CHARS, _ocr_text, _pdf_text_layer
-
-    def _text_layer_of(att):
-        """Camada de texto do PDF, descomprimindo se preciso."""
-        with local_path(att) as caminho:
-            return _pdf_text_layer(caminho)
-
-    job = AIJob.objects.filter(id=job_id).first()
-    if job is None or job.status != AIJobStatus.QUEUED:
-        return {'status': 'skipped'}
-
-    from clinical.models import ExamResult
-
-    exam_result = ExamResult.objects.filter(
-        tenant_id=job.tenant_id, id=(job.target_ref or {}).get('exam_result_id'),
-    ).select_related('attachment').first()
-    attachment = exam_result.attachment if exam_result else None
-    if attachment is None:
-        return _fail_document_preparation(
-            job, 'Laudo não encontrado para este exame.', 'no attachment',
-        )
-
-    if attachment.scan_status == AttachmentScanStatus.REJECTED:
-        return _fail_document_preparation(
-            job, 'O laudo foi recusado na verificação de malware.', 'rejected',
-        )
-
-    if attachment.scan_status != AttachmentScanStatus.AVAILABLE:
-        if self.request.retries >= SCAN_MAX_ATTEMPTS:
-            return _fail_document_preparation(
-                job,
-                'O laudo não ficou disponível após a verificação de segurança. Tente novamente.',
-                'scan timeout',
-            )
-        raise self.retry(countdown=SCAN_WAIT_SECONDS)
-
-    # OCR só quando faz falta: laudo emitido por sistema tem camada de texto,
-    # e rasterizar cem páginas à toa custa minutos de worker.
-    try:
-        needs_ocr = (
-            attachment.original_name.lower().endswith('.pdf')
-            and len(_text_layer_of(attachment).strip()) < MIN_TEXT_LAYER_CHARS
-        ) or not attachment.original_name.lower().endswith('.pdf')
-        if needs_ocr and len(_ocr_text(attachment).strip()) < MIN_TEXT_LAYER_CHARS:
-            run_ocr(attachment)
-    except OcrError as exc:
-        return _fail_document_preparation(
-            job, f'Não foi possível reconhecer o texto do laudo: {exc}', 'ocr',
-        )
-    except Exception:
-        logger.exception('Falha ao preparar laudo para IA', extra={'job_id': str(job.id)})
-        return _fail_document_preparation(
-            job, 'Não foi possível preparar o laudo para leitura. Tente novamente.',
-            'document preparation',
-        )
-
-    return run_ai_job(str(job.id))
+    atualizados = AIJob.objects.filter(id=job_id, status=AIJobStatus.QUEUED).update(
+        status=AIJobStatus.CANCELLED, status_detail=LEITURA_RETIRADA,
+    )
+    return {'status': 'cancelled' if atualizados else 'skipped'}
 
 
 def _build_chat_messages(session, user_text):
@@ -479,14 +393,14 @@ def retomar_jobs_parados():
     `create_job` não reabre job `queued` -- o botão de pedir de novo não
     fazia nada.
 
-    Entre vinte minutos e um dia, reenfileira pelo mesmo caminho do pedido
-    (laudo passa pela preparação, que espera o antivírus e roda o OCR).
+    Entre vinte minutos e um dia, reenfileira pelo mesmo caminho do pedido.
     Depois de um dia, encerra como falha com a explicação, e o médico pede
     de novo se ainda quiser.
     """
     from django.utils import timezone
 
-    from .models import DOCUMENT_SOURCED_KINDS
+    from .models import TIPOS_APOSENTADOS
+    from .services import LEITURA_RETIRADA
 
     agora = timezone.now()
     parados = AIJob.objects.filter(
@@ -496,6 +410,14 @@ def retomar_jobs_parados():
     retomados = abandonados = 0
     limite_retomada = agora - timezone.timedelta(minutes=JOB_PARADO_DEPOIS_DE_MINUTOS)
     for job in parados.order_by('updated_at')[:50]:
+        # Leitura de laudo parada na fila (tipo aposentado na 1.18): não
+        # volta para a fila, é encerrada com a explicação.
+        if job.kind in TIPOS_APOSENTADOS:
+            AIJob.objects.filter(id=job.id, status=AIJobStatus.QUEUED).update(
+                status=AIJobStatus.CANCELLED, status_detail=LEITURA_RETIRADA,
+            )
+            abandonados += 1
+            continue
         # O prazo de um dia conta do `updated_at`, que é quando o pedido
         # entrou na fila (ou foi reaberto), e esta rotina **não o toca**. A
         # primeira versão o renovava a cada retomada, e com a fila caída o
@@ -511,9 +433,6 @@ def retomar_jobs_parados():
             )
             if atualizados:
                 job.refresh_from_db()
-                from .extraction import sync_exam_result_status
-
-                sync_exam_result_status(job)
                 _notify_job_completion(job)
                 abandonados += 1
             continue
@@ -527,10 +446,7 @@ def retomar_jobs_parados():
             limits={**(job.limits or {}), 'retomado_em': agora.isoformat()},
         )
         try:
-            if job.kind in DOCUMENT_SOURCED_KINDS:
-                prepare_document_and_run.delay(str(job.id))
-            else:
-                run_ai_job.delay(str(job.id))
+            run_ai_job.delay(str(job.id))
         except Exception as exc:
             # Fila fora do ar: o job continua parado e entra na próxima
             # rodada; os outros desta rodada não pagam por ele.

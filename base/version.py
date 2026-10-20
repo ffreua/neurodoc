@@ -164,12 +164,17 @@ carimbá-la na publicação.
 #: novo, nem perde o "em uso desde", a indicação e a observação. E toda
 #: confirmação passa a ser só o modal do sistema: o `nd-inline.js` fazia a
 #: mesma pergunta pela caixa do navegador, antes e depois do modal.
-VERSION = '1.17'
+#: A **1.18**: o chat de apoio sem paciente passa a responder também sobre o
+#: uso do sistema, pelos trechos do manual e da documentação técnica que a
+#: busca escolhe para cada pergunta (`ai/conhecimento.py`). E a leitura do
+#: laudo anexado pela IA sai: falhava mais do que lia (migração `ai/0009`,
+#: só de dados, encerra o que ela deixou pendente).
+VERSION = '1.18'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'os exames do paciente'
+CODENAME = 'o chat que conhece o sistema'
 
 
 def version_display():

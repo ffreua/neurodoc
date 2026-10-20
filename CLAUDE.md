@@ -175,7 +175,7 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 | `documents` | anexos (com antivírus), **laudos enviados pelo paciente no portal** (`portal_exames.py`: direto ao prontuário, alerta até o ciente do médico), documentos médicos, **assinatura PAdES** via pyHanko, verificação pública por QR, portal de solicitações (com **janela de retorno**, `portal_retorno.py`), OCR, arquivo morto |
 | `communications` | outbox de entrega (e-mail/SMS), links opacos com OTP, campanhas com consentimento, credenciais SMTP/SMS da clínica |
 | `finance` | tabela de honorários com vigência, recebíveis, pagamentos, ajustes (tudo em `Decimal`) |
-| `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores, o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) e a **leitura de laudo anexado** (`graphs.py` + `schemas.py`: forma normalizada, conteúdo sob guarda — ver §7-F) |
+| `ai` | jobs de IA com revisão médica obrigatória, desidentificação, chat persistente com streaming (Redis Streams + SSE), catálogo de dez provedores, o **relatório do paciente** (`relatorio.py`: a IA redige, o médico revisa e assina) e o **chat que conhece o sistema** (`conhecimento.py`: na conversa sem paciente, trechos do manual e da documentação técnica escolhidos por pergunta — ver §7-H). A leitura de laudo anexado **saiu na 1.18** (§7-F) |
 | `notifications` | sino do usuário |
 | `teamchat` | **mensagens internas da equipe** — janela flutuante ao lado do sino, conversa de duas pessoas, presença e entrega ao vivo (Redis Streams + SSE). Não é prontuário, e a tela diz isso |
 | `audit` | trilha imutável (`record_audit_event`) |
@@ -358,7 +358,8 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_medicacao_editar.py` | **alterar a medicação** do atendimento pelo lápis: um formulário por linha com prefixo próprio (sem `id_dose` repetido, e o autocomplete preenchendo a dose **daquela** linha), só o campo mudado muda, a trilha com os **nomes** dos campos e não os valores, envio sem mudança sem rastro, e as recusas — finalizado, secretária, outra clínica, medicação de outro atendimento |
 | `check_confirmacao_unica.py` | **uma pergunta por ação**: a confirmação é o modal do sistema (`app.js::initConfirm`), e o `window.confirm` do `nd-inline.js` só vale em página sem o modal — os dois respondiam ao mesmo `data-nd-confirm`, e limpar avisos perguntava três vezes; varre templates e scripts atrás de `window.confirm/alert/prompt` novo |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
-| `check_leitura_laudo.py` | a leitura de laudo pela IA: a **forma** que o modelo devolve é normalizada (lista vazia, `null` e número em campo de texto) e o **conteúdo** continua sob as mesmas guardas (faixa do laudo, probabilidade numérica, marcador de desidentificação); a varredura que impede esquema novo de nascer fora de `ArtifactModel` e prompt novo de nascer sem tipo; o recuo quando o provedor recusa `response_format`, sem confundir isso com falha de rede; e o diagnóstico da recusa gravado **sem nenhum valor do laudo** |
+| `check_leitura_retirada.py` | a **leitura de laudo pela IA saiu por inteiro** (1.18) e o resto da IA ficou: a caixa, o botão e as rotas `ler-laudo/` e `rascunho/` sumidos, o exame com PDF registrado sem nascer job nem com `run_extraction` forjado, `create_job` recusando o tipo aposentado, e o job antigo que ainda chegar ao worker — direto, pela mensagem velha da fila ou pela retomada — **cancelado com a explicação**; e as duas varreduras que valem para toda tarefa de IA: esquema fora de `ArtifactModel` e prompt sem tipo |
+| `check_chat_manual.py` | o **chat sem paciente responde pelo manual** (1.18): o índice traz o manual e a documentação técnica e deixa de fora plano de trabalho e histórico de publicação, a busca acha o trecho certo para pergunta de uso (com o radical: "exporto" acha "Exportar"), o trecho chega ao prompt com a fonte, a pergunta de seguimento acha pela anterior, a **conversa com paciente fica só com o prontuário**, e sem trecho o prompt manda dizer que não encontrou |
 | `check_intervalos_e_ficha.py` | o **intervalo pontual** da agenda (o almoço, que não é o `buffer_minutes` nem um `ScheduleBlock`) recortando os **três** caminhos — a grade, a lista de horários livres e a validação da reserva —, as quatro recusas do formulário, a vigência que encerra em vez de apagar; a **naturalidade** nos três estados com catálogo do IBGE sugerindo e texto livre aceitando; e a **gaveta da ficha** no atendimento, sem formulário dentro |
 | `check_aviso_de_horario.py` | o paciente avisado ao **marcar, remarcar e cancelar**: o `Local` sendo o endereço e não o nome da clínica, o telefone, a falta de endereço declarada em vez de escondida, os três eventos emitidos e consumidos, a idempotência (com volume criado antes, senão passa sobre lista vazia) e o aviso saindo pelo worker |
 | `check_servicos_do_inquilino.py` | **IA, SMS e e-mail: a clínica usa o seu, e desligando volta ao padrão** — nos dois sentidos e nos três serviços, com as duas assimetrias deliberadas (desligar SMS com chave gravada é recusa, não retorno; configuração de IA pela metade cai no padrão em vez de quebrar), o corte por plano vindo antes da chave da clínica, e o **nome fantasia** editável sem que razão social e CNPJ saiam do lugar |
@@ -570,6 +571,16 @@ Vazio não emite nada. Detalhe e homologação em
 
 ## 7-F. O que a IA devolve: forma e conteúdo
 
+> **A leitura de laudo anexado saiu na 1.18.** Em uso real ela falhou mais
+> do que leu — de cinco pedidos em produção, três falharam e nenhum valor
+> chegou ao prontuário. Saíram a caixa do formulário, o botão, as rotas, a
+> tela do rascunho, as duas tarefas do grafo e os esquemas delas; os dois
+> valores ficam em `AIJobKind` porque há histórico no banco
+> (`ai/models.py::TIPOS_APOSENTADOS`), e o que chegar ao worker é
+> cancelado com a explicação. **A lição abaixo continua valendo** para as
+> tarefas que ficaram — resumo, apoio diagnóstico e relatório —, e as
+> varreduras dela moram agora em `check_leitura_retirada.py`.
+
 **`ai/schemas.py` é o contrato de saída, e ele distingue duas coisas que
 pareciam uma.** **Forma** é como o modelo serializou — lista no lugar de
 texto, `null` no lugar de `""`, número sem aspas. **Conteúdo** é o que o
@@ -584,8 +595,8 @@ sentidos possíveis: em 2026-10-05 uma leitura de laudo inteira — trinta e
 um analitos corretos — foi descartada porque `unreadable_sections`, o
 campo que diz o que **não** foi lido, voltou `[]` em vez de `""`.
 
-Três regras saem daí, e todas as três têm varredura em
-`check_leitura_laudo.py`:
+Três regras saem daí; as duas primeiras têm varredura em
+`check_leitura_retirada.py`:
 
 - **esquema novo herda de `ArtifactModel`**, inclusive o aninhado — o
   campo fora de forma costuma estar dentro da lista, não ao lado dela;
@@ -594,7 +605,9 @@ Três regras saem daí, e todas as três têm varredura em
   os dois que nunca tinham tido um sucesso;
 - **`response_format: json_schema`** vai junto do pedido nas tarefas de
   `STRUCTURED_OUTPUT_TASKS`, com recuo se o provedor recusar o parâmetro:
-  "suporta `json_schema`" é propriedade do modelo, não do provedor.
+  "suporta `json_schema`" é propriedade do modelo, não do provedor. O
+  conjunto está **vazio** desde a 1.18 (as duas que pediam eram as
+  leituras de laudo); o mecanismo ficou para a próxima.
 
 **Recusa é explicada em dois lugares, e os dois são necessários.** O
 médico lê a mensagem em português na linha do exame; `failure_diagnostics`
@@ -651,6 +664,38 @@ adesão apontar para um nome que ninguém assinou.
 
 `check_servicos_do_inquilino.py` cobre a tabela inteira; o caso que deu
 origem a ela está em `docs/homologation/padrao-da-instalacao.md`.
+
+## 7-H. O chat que conhece o sistema
+
+**`ai/conhecimento.py`.** Na conversa **sem paciente**, o chat de apoio
+também tira dúvida de uso do NeuroDoc. Para cada pergunta, a busca escolhe
+até quatro trechos do **manual** (`base/help_content.py`, com 30% de
+vantagem: é escrito para quem está na tela) e da **documentação técnica**
+(`docs/homologation/` e `docs/governance/`), e eles vão no prompt com a
+fonte. É RAG, e a busca é **por palavras (BM25 sobre o radical, sem
+acento)**, não por embeddings — pelos mesmos motivos de o chat entregar
+fatos em vez de oferecer ferramentas: não depende do provedor (embedding
+é outra chamada, que metade do catálogo não tem), o corpus é pequeno e
+fala a língua da tela, e o índice é montado na memória do texto que está
+na imagem, sem base vetorial para manter.
+
+Três fronteiras, todas em `check_chat_manual.py`:
+
+- **conversa com paciente não recebe o manual** — ali a janela é do
+  prontuário;
+- **o que o `build_chat_prompt` devolve como `contexto` continua sendo só
+  prontuário** — é o que a auditoria e o `check_chatbot` leem como dado de
+  paciente enviado; o manual vai só na mensagem de sistema;
+- **plano de trabalho e histórico de publicação ficam fora do corpus**
+  (`docs/releases/`, `docs/superpowers/`): descrevem como o sistema *foi*
+  feito, e o modelo os leria como descrição do que ele *é*.
+
+**O corte de pontuação é medido, não chutado** (`PONTUACAO_MINIMA = 5`):
+pergunta de uso fica entre 7 e 15, pergunta clínica pura entre 4 e 6, e as
+faixas se tocam — a documentação cita doenças como exemplo. Por isso o
+prompt diz que os trechos valem só para pergunta sobre o sistema, e que a
+de neurologia os ignora. Sem trecho nenhum, o prompt manda dizer que não
+encontrou no manual, em vez de descrever uma tela de memória.
 
 ## 8. Deploy
 

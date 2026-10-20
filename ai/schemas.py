@@ -12,11 +12,10 @@ Duas dessas regras merecem ser lidas antes de mexer aqui:
   Um percentual saído de um modelo de linguagem dentro de um prontuário
   parece medida e não é; seria lido como calibrado sem nunca ter sido
   validado. O validador recusa qualquer texto em formato de percentual.
-- **faixa de referência vem do laudo.** Na extração de exame laboratorial o
-  modelo transcreve a referência impressa no documento; ele não pode
-  inventá-la nem trazer de memória, porque ela varia com laboratório,
-  método, idade e sexo. Sem referência no laudo, o analito fica sem
-  classificação em vez de ser chamado de normal.
+- **faixa de referência vem do laudo** era a guarda da leitura de laudo
+  pela IA, que saiu na 1.18 (`ai/models.py::TIPOS_APOSENTADOS`). A regra
+  continua valendo onde o valor é digitado: `clinical.LabValue` só
+  classifica o analito com a faixa do próprio laudo.
 """
 
 import re
@@ -104,7 +103,7 @@ class ArtifactModel(BaseModel):
     `field_validator` rodam em modo `after`, isto é, **depois** desta
     conversão — nenhum deles deixou de valer.
 
-    Vale para os esquemas aninhados também (`ExtractedAnalyte`,
+    Vale para os esquemas aninhados também (`DiagnosticHypothesis`,
     `ReportSection`): o campo fora de forma costuma estar dentro da lista,
     não ao lado dela.
     """
@@ -250,68 +249,6 @@ class DiagnosticSupportArtifact(ArtifactModel):
     suggested_next_steps: list[SuggestedNextStep] = Field(default_factory=list, max_length=15)
     missing_information: str = Field(default='', max_length=4000)
     limitations: str = Field(min_length=1, max_length=4000)
-    requires_physician_review: Literal[True] = True
-    disclaimer: str = MEDICAL_REVIEW_NOTICE
-    source_refs: list[SourceReference] = Field(default_factory=list)
-
-
-# --------------------------------------------------------------------------
-# Leitura de laudo laboratorial
-# --------------------------------------------------------------------------
-
-class ExtractedAnalyte(ArtifactModel):
-    """Um analito lido do laudo, com a referência do próprio laudo.
-
-    `reference_low`/`reference_high` ficam `None` quando o documento não
-    traz a faixa. O sistema calcula a classificação a partir daí — o modelo
-    **não** decide se o valor é normal, porque essa decisão precisa ser
-    reproduzível a partir do que está escrito no papel.
-    """
-
-    analyte: str = Field(min_length=1, max_length=200)
-    value_text: str = Field(min_length=1, max_length=100)
-    numeric_value: Optional[float] = None
-    unit: str = Field(default='', max_length=40)
-    reference_low: Optional[float] = None
-    reference_high: Optional[float] = None
-    reference_text: str = Field(default='', max_length=120)
-
-
-class LabExtractionArtifact(ArtifactModel):
-    exam_name: str = Field(default='', max_length=255)
-    collected_on: str = Field(default='', max_length=30)
-    service_name: str = Field(default='', max_length=255)
-    analytes: list[ExtractedAnalyte] = Field(default_factory=list, max_length=200)
-    unreadable_sections: str = Field(default='', max_length=2000)
-    limitations: str = Field(min_length=1, max_length=2000)
-    requires_physician_review: Literal[True] = True
-    disclaimer: str = MEDICAL_REVIEW_NOTICE
-    source_refs: list[SourceReference] = Field(default_factory=list)
-
-
-# --------------------------------------------------------------------------
-# Transcrição de laudo de imagem / EEG / ENMG
-# --------------------------------------------------------------------------
-
-class ReportTranscriptionArtifact(ArtifactModel):
-    """Laudo transcrito, não interpretado.
-
-    `report_text` e `conclusion` devem reproduzir o que está no documento.
-    A instrução ao modelo é explícita quanto a não resumir nem completar o
-    laudo: o prontuário registra o que o laudo diz, e um resumo silencioso
-    apagaria justamente o detalhe que faz o achado significar algo.
-    """
-
-    detected_category: Literal[
-        'imaging', 'neurophysiology', 'laboratory', 'pathology', 'genetics', 'other'
-    ] = 'other'
-    exam_name: str = Field(default='', max_length=255)
-    performed_on: str = Field(default='', max_length=30)
-    service_name: str = Field(default='', max_length=255)
-    report_text: str = Field(default='', max_length=20000)
-    conclusion: str = Field(default='', max_length=4000)
-    unreadable_sections: str = Field(default='', max_length=2000)
-    limitations: str = Field(min_length=1, max_length=2000)
     requires_physician_review: Literal[True] = True
     disclaimer: str = MEDICAL_REVIEW_NOTICE
     source_refs: list[SourceReference] = Field(default_factory=list)

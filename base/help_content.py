@@ -129,6 +129,12 @@ ARTICLES = [
              'observação continuam. Vale enquanto o atendimento está aberto; depois de '
              'finalizado, a correção é por retificação.',
              '', ''),
+            ('Na aba **Resultados de exames**, registre o exame com o laudo em PDF '
+             'anexado. Os valores do laboratorial entram na **tabela de analitos**, '
+             'com a faixa de referência do próprio laudo, e o que estiver fora dela '
+             'fica destacado; de imagem, EEG e ENMG, cole ou resuma o laudo no campo '
+             'Laudo. O PDF fica guardado junto, para conferência.',
+             '', ''),
             ('**Finalizar** fecha o atendimento com sua autoria, a data e a versão. '
              'Depois disso o texto não é apagado: uma correção entra como '
              '**retificação**, que preserva o que estava escrito antes e registra o '
@@ -291,14 +297,21 @@ ARTICLES = [
     {
         'slug': 'chat',
         'title': 'Chat de apoio',
-        'summary': 'Conversar com a IA sobre um paciente, com o prontuário como fonte.',
+        'summary': 'Conversar com a IA sobre um paciente ou sobre o uso do sistema.',
         'audience': 'Médico — planos Completo e Personalizado',
         'steps': [
             ('Abra uma conversa e escolha o paciente pelo nome. Com paciente, a IA '
              'consulta o prontuário **dele** — atendimentos, exames, medicações e '
-             'diagnósticos registrados. Sem paciente, ela ajuda com redação e dúvidas '
-             'gerais, sem acessar prontuário nenhum.',
+             'diagnósticos registrados. Sem paciente, ela ajuda com dúvidas de neurologia, '
+             'redação e **o uso do próprio NeuroDoc**, sem acessar prontuário nenhum.',
              'chat-nova.png', 'Nova conversa'),
+            ('Na conversa **sem paciente**, pergunte como fazer algo no sistema — '
+             '"como bloqueio um horário?", "onde fica o laudo que o paciente mandou?". '
+             'Para cada pergunta, a IA consulta este manual e a documentação técnica e '
+             'responde a partir do que está escrito, citando a página. Se não estiver '
+             'documentado, ela diz que não encontrou, em vez de descrever uma tela de '
+             'memória.',
+             '', ''),
             ('Cada conversa é isolada: nenhuma herda o contexto de outra. A resposta '
              'aparece sendo escrita, e você pode parar no meio.',
              'chat-conversa.png', 'Conversa aberta'),
@@ -567,7 +580,7 @@ ARTICLES = [
             ('**Limpar** (no sino) e **Limpar todas** (na central) tiram todos os avisos '
              'da sua caixa nesta clínica, lidos e não lidos, depois de uma confirmação. '
              'Não volta — mas o que eles apontavam continua onde está: o pedido do '
-             'portal segue na fila, o resultado da IA e a exportação seguem abertos. '
+             'portal segue na fila, a tarefa da IA e a exportação seguem abertas. '
              'Sem limpar, os lidos saem sozinhos em 7 dias e os não lidos em 15.',
              '', ''),
         ],

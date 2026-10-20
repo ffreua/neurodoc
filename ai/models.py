@@ -30,11 +30,19 @@ class AIJobKind(models.TextChoices):
 PATIENT_SOURCED_KINDS = frozenset({AIJobKind.PATIENT_REPORT})
 
 
-#: Tarefas cuja fonte é um documento anexado, e não o texto do atendimento.
-#: A distinção decide duas coisas: a chave de idempotência (o PDF, não a
-#: versão do prontuário) e a verificação de desatualização — editar a conduta
-#: não invalida a leitura de um laudo.
-DOCUMENT_SOURCED_KINDS = frozenset({
+#: Tipos aposentados na 1.18: a leitura de laudo anexado pela IA.
+#:
+#: Em uso real ela falhou mais do que leu (de cinco pedidos em produção,
+#: três falharam e nenhum valor chegou ao prontuário), e o rascunho que não
+#: chega é só um passo a mais no meio da consulta. Saíram o pedido, a tela
+#: de revisão, as rotas, os prompts e os esquemas.
+#:
+#: Os dois valores continuam em `AIJobKind` de propósito: há jobs e
+#: artefatos antigos com eles no banco, e a trilha de auditoria aponta para
+#: esses registros. Nenhum caminho cria job destes tipos -- `create_job`
+#: recusa -- e o que chegar ao worker (mensagem antiga na fila, retomada de
+#: job parado) é cancelado com a explicação, em vez de falhar no provedor.
+TIPOS_APOSENTADOS = frozenset({
     AIJobKind.LAB_EXTRACTION, AIJobKind.REPORT_TRANSCRIPTION,
 })
 

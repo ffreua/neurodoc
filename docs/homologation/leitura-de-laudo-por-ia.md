@@ -1,5 +1,15 @@
 # A leitura de laudo pela IA: forma se normaliza, conteúdo não
 
+> **Recurso retirado na 1.18 (2026-10-19).** A leitura do laudo anexado
+> pela IA saiu do sistema: em uso real ela falhou mais do que leu — de
+> cinco pedidos em produção, três falharam e nenhum valor chegou ao
+> prontuário. O resultado de exame e o PDF continuam; os valores entram
+> pela tabela de analitos. Este documento fica como registro do que foi
+> tentado e da lição de forma e conteúdo, que segue valendo para as
+> tarefas de IA que ficaram (`CLAUDE.md` §7-F). O que confere a retirada
+> é `checks/check_leitura_retirada.py`.
+
+
 **Defeito encontrado em uso real, em 2026-10-05**, durante um
 atendimento. O médico anexou um laudo laboratorial e pediu a leitura. A
 resposta demorou, e a notificação trouxe isto:

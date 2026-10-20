@@ -23,8 +23,7 @@ from langgraph.graph import END, StateGraph
 from pydantic import ValidationError
 
 from .schemas import (
-    ClinicalSummaryArtifact, DiagnosticSupportArtifact, LabExtractionArtifact,
-    PatientReportArtifact, ReportTranscriptionArtifact,
+    ClinicalSummaryArtifact, DiagnosticSupportArtifact, PatientReportArtifact,
 )
 
 logger = logging.getLogger(__name__)
@@ -80,59 +79,6 @@ Caso (já desidentificado):
 {context}
 """
 
-LAB_EXTRACTION_PROMPT = """Transcreva os resultados do laudo laboratorial abaixo em dados \
-estruturados. Você é um transcritor, não um intérprete.
-
-Regras que não admitem exceção:
-1. Copie a faixa de referência **do próprio laudo**. Nunca traga faixa de referência de \
-memória ou de outro laboratório: ela varia com laboratório, método, idade e sexo.
-2. Se o laudo não trouxer faixa para um analito, deixe "reference_low", "reference_high" \
-como null e "reference_text" vazio. NÃO invente e NÃO diga se o valor é normal — quem \
-classifica é o sistema, comparando com a faixa que veio no papel.
-3. Preencha "numeric_value" só quando o resultado for um número; resultado como \
-"não reagente" ou "< 0,3" vai apenas em "value_text" (e o operador de comparação fica lá).
-4. "value_text" reproduz o resultado como está escrito, com a vírgula decimal do laudo se \
-for o caso. "numeric_value" usa ponto decimal.
-5. Trecho ilegível ou cortado vai em "unreadable_sections", nomeando o que ficou de fora, \
-numa única string. Se nada ficou ilegível, mande a string vazia "" — não mande lista nem \
-null. Não preencha por dedução.
-
-{json_only} Campos: "exam_name" (string), "collected_on" (string, a data como está no \
-laudo), "service_name" (string), "analytes" (lista de objetos com "analyte" (string), \
-"value_text" (string), "numeric_value" (número ou null), "unit" (string), "reference_low" \
-(número ou null), "reference_high" (número ou null), "reference_text" (string)), \
-"unreadable_sections" (string), "limitations" (string, nunca vazia), \
-"requires_physician_review" (sempre true), "disclaimer" (string).
-
-Texto do documento (já desidentificado):
-{context}
-"""
-
-REPORT_TRANSCRIPTION_PROMPT = """Identifique o tipo de exame do documento abaixo e transcreva \
-o laudo. Você transcreve, não interpreta e não resume.
-
-Regras que não admitem exceção:
-1. "report_text" reproduz a descrição do laudo como está escrita. Não resuma, não reordene \
-e não corrija: o detalhe que parece redundante é justamente o que dá sentido ao achado.
-2. "conclusion" recebe apenas a conclusão/impressão que o laudo declara. Se o laudo não \
-tem conclusão explícita, deixe vazio — não escreva uma.
-3. Não acrescente hipótese, correlação clínica ou recomendação que não esteja no documento.
-4. "detected_category": "imaging" para tomografia, ressonância, ultrassom, radiografia; \
-"neurophysiology" para eletroencefalograma, eletroneuromiografia, potencial evocado, \
-polissonografia; "laboratory" para exame de sangue, urina ou liquor; "pathology" para \
-anatomia patológica; "genetics" para exame genético; "other" quando não se encaixar.
-5. Trecho ilegível vai em "unreadable_sections", nomeando o que ficou de fora, numa única \
-string. Se nada ficou ilegível, mande a string vazia "" — não mande lista nem null.
-
-{json_only} Campos: "detected_category" (string), "exam_name" (string), "performed_on" \
-(string), "service_name" (string), "report_text" (string), "conclusion" (string), \
-"unreadable_sections" (string), "limitations" (string, nunca vazia), \
-"requires_physician_review" (sempre true), "disclaimer" (string).
-
-Texto do documento (já desidentificado):
-{context}
-"""
-
 REPORT_PROMPT = """Você redige o RASCUNHO de um relatório médico. O autor é o médico: ele vai ler, corrigir e assinar o que você escrever, e é ele quem responde pelo documento. Seu trabalho é organizar o que está no prontuário abaixo na forma de um relatório.
 
 Destinatário: {destinatario}.
@@ -165,8 +111,6 @@ TASKS = {
     'patient_summary': (SUMMARY_PROMPT, ClinicalSummaryArtifact),
     'patient_report': (REPORT_PROMPT, PatientReportArtifact),
     'diagnostic_support': (DIAGNOSTIC_SUPPORT_PROMPT, DiagnosticSupportArtifact),
-    'lab_extraction': (LAB_EXTRACTION_PROMPT, LabExtractionArtifact),
-    'report_transcription': (REPORT_TRANSCRIPTION_PROMPT, ReportTranscriptionArtifact),
 }
 
 
@@ -188,7 +132,10 @@ class GraphState(TypedDict):
 #: nunca tiveram um sucesso. Uma recusa do provedor aqui não pode piorar
 #: nada, enquanto ligá-la de saída no resumo e no relatório, que
 #: funcionam hoje, arriscaria derrubá-los por um parâmetro.
-STRUCTURED_OUTPUT_TASKS = frozenset({'lab_extraction', 'report_transcription'})
+# Vazio desde a 1.18: as duas tarefas que pediam o esquema ao provedor eram
+# as leituras de laudo, que saíram. O mecanismo fica (com o recuo para o
+# provedor que recusa o parâmetro) para a próxima tarefa de saída estruturada.
+STRUCTURED_OUTPUT_TASKS = frozenset()
 
 #: Como se reconhece "não aceito esse parâmetro" no meio de um erro de
 #: provedor. É farejar texto, e é feio; a alternativa é não pedir esquema

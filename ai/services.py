@@ -16,17 +16,13 @@ from . import deidentification, privacy_policy
 from .context import AIAuthorizationDenied, build_ai_authorization
 from .graphs import PROMPT_VERSION, build_graph, build_prompt
 from .models import (
-    DOCUMENT_SOURCED_KINDS, PATIENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus,
+    TIPOS_APOSENTADOS, PATIENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus,
 )
 from .providers import ProviderUnavailable, get_chat_model
 from .schemas import SCHEMA_VERSION
 from .tools import clinical as clinical_tools
 
 DEFAULT_LIMITS = {'timeout_seconds': 30, 'max_output_chars': 20000}
-
-#: Ler um laudo de dez páginas é mais lento que resumir um atendimento, e o
-#: laudo laboratorial pode devolver duzentos analitos.
-DOCUMENT_LIMITS = {'timeout_seconds': 180, 'max_output_chars': 60000}
 
 #: Escrever um relatorio sobre vinte atendimentos e mais lento que resumir
 #: um, e a saida e prosa, nao campo estruturado: o teto do resumo cortaria
@@ -38,13 +34,18 @@ REPORT_LIMITS = {'timeout_seconds': 240, 'max_output_chars': 30000}
 logger = logging.getLogger(__name__)
 
 
+#: O que o médico lê no job antigo de leitura de laudo que chegar ao worker.
+LEITURA_RETIRADA = (
+    'A leitura de laudo por IA foi retirada do sistema. O exame continua '
+    'registrado; inclua os valores e o laudo à mão.'
+)
+
+
 class JobNotRunnable(Exception):
     pass
 
 
 def _limits_for(kind):
-    if kind in DOCUMENT_SOURCED_KINDS:
-        return dict(DOCUMENT_LIMITS)
     if kind == AIJobKind.PATIENT_REPORT:
         return dict(REPORT_LIMITS)
     return dict(DEFAULT_LIMITS)
@@ -61,14 +62,16 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
     entrasse, corrigir uma vírgula na conduta faria a extração do PDF
     aparecer como desatualizada.
     """
+    if kind in TIPOS_APOSENTADOS:
+        # A leitura de laudo saiu na 1.18 (`ai/models.py::TIPOS_APOSENTADOS`).
+        # Nenhuma tela pede mais, e um caminho esquecido que pedisse criaria
+        # um job que o worker só cancelaria.
+        raise ValueError(f'Tarefa de IA retirada do sistema: {kind}')
     authorization = build_ai_authorization(access_context, patient_id, encounter_id)
 
     encounter = Encounter.objects.filter(id=authorization.encounter_id).first() if authorization.encounter_id else None
     target_ref = target_ref or {}
-    if kind in DOCUMENT_SOURCED_KINDS:
-        source_version = 0
-        target = ':'.join(f'{key}={value}' for key, value in sorted(target_ref.items()))
-    elif kind in PATIENT_SOURCED_KINDS:
+    if kind in PATIENT_SOURCED_KINDS:
         # O paciente sozinho nao distingue um relatorio do outro. O que
         # distingue e a finalidade e o texto que o medico escreveu,
         # resumidos em `ref` por `relatorio.referencia_do_pedido`. Sem
@@ -202,34 +205,6 @@ def _gather_patient_report_context(authorization, patient, job):
     return contexto, source_refs, extras, recorte
 
 
-def _gather_document_context(job):
-    """Texto do laudo apontado pelo job, reautorizado pelo tenant.
-
-    Devolve `(texto, source_refs)`. O arquivo em si nunca sai daqui: o que
-    segue para o provedor é este texto, depois de desidentificado.
-    """
-    from clinical.models import ExamResult
-
-    from .documents import attachment_text
-
-    exam_result_id = (job.target_ref or {}).get('exam_result_id')
-    exam_result = ExamResult.objects.filter(
-        tenant_id=job.tenant_id, id=exam_result_id, encounter_id=job.encounter_id,
-    ).select_related('attachment').first()
-    if exam_result is None:
-        raise LookupError('Resultado de exame não encontrado neste atendimento.')
-
-    text, origin, truncated = attachment_text(exam_result.attachment)
-    notes = [f'Origem do texto: {"OCR local" if origin == "ocr" else "camada de texto do PDF"}.']
-    if truncated:
-        notes.append('Documento longo: apenas o início foi lido.')
-    source_refs = [{
-        'type': 'attachment', 'id': str(exam_result.attachment_id),
-        'version_or_hash': exam_result.attachment.sha256,
-    }]
-    return f'{" ".join(notes)}\n\n{text}', source_refs
-
-
 def _provenance_of(chat_model, tenant_id):
     """Provedor e modelo que produziram este artefato.
 
@@ -349,6 +324,8 @@ def run_job(job_id):
     job = AIJob.objects.select_for_update().get(id=job_id)
     if job.status != AIJobStatus.QUEUED:
         raise JobNotRunnable(f'Job {job.id} is {job.status}, not queued')
+    if job.kind in TIPOS_APOSENTADOS:
+        return _fail(job, AIJobStatus.CANCELLED, LEITURA_RETIRADA, 'ai.job_cancelled')
 
     fake_context = AccessContext(
         user_id=job.user_id, tenant_id=job.tenant_id, membership_id=job.membership_id,
@@ -360,21 +337,15 @@ def run_job(job_id):
         return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_authorization_denied')
 
     encounter = Encounter.objects.filter(id=job.encounter_id).first() if job.encounter_id else None
-    is_document_job = job.kind in DOCUMENT_SOURCED_KINDS
     if job.encounter_id and encounter is None:
         return _fail(job, AIJobStatus.FAILED, 'Atendimento não encontrado.', 'ai.job_failed')
-    if job.encounter_id and not is_document_job and encounter.row_version != job.source_version:
+    if job.encounter_id and encounter.row_version != job.source_version:
         return _fail(job, AIJobStatus.STALE, 'Source changed since the job was queued', 'ai.job_stale')
 
     patient = Patient.objects.filter(id=job.patient_id).first() if job.patient_id else None
     prompt_extras, recorte = {}, None
 
-    if is_document_job:
-        try:
-            raw_context, source_refs = _gather_document_context(job)
-        except Exception as exc:
-            return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_failed')
-    elif job.kind == AIJobKind.PATIENT_REPORT:
+    if job.kind == AIJobKind.PATIENT_REPORT:
         if patient is None:
             return _fail(job, AIJobStatus.FAILED, 'Paciente nao encontrado.', 'ai.job_failed')
         context, source_refs, prompt_extras, recorte = _gather_patient_report_context(

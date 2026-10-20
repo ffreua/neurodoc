@@ -60,14 +60,6 @@ urlpatterns = [
         '<uuid:encounter_id>/analitos/<uuid:value_id>/remover/',
         views.LabValueDeleteView.as_view(), name='delete-lab-value',
     ),
-    path(
-        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/ler-laudo/',
-        views.ExamResultExtractView.as_view(), name='extract-exam-result',
-    ),
-    path(
-        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/rascunho/',
-        views.ExamResultDraftReviewView.as_view(), name='review-exam-draft',
-    ),
     path('<uuid:encounter_id>/diagnoses/', views.DiagnosisCreateView.as_view(), name='add-diagnosis'),
     path(
         '<uuid:encounter_id>/apoio-diagnostico/',

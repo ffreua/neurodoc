@@ -156,7 +156,8 @@ PRD; é a referência operacional viva gerada a partir dele.
   requisição, onde o secret do SMS não existe. O provedor padrão passa ao
   console, com verificação no worker.
 
-- [Leitura de laudo pela IA: forma e conteúdo](homologation/leitura-de-laudo-por-ia.md) —
+- [O chat que conhece o sistema](homologation/chat-com-manual.md) — a conversa sem paciente responde pelo manual e pela documentação técnica (1.18).
+- [Leitura de laudo pela IA: forma e conteúdo](homologation/leitura-de-laudo-por-ia.md) — **retirada na 1.18**;
   o defeito de 2026-10-05: um laudo lido corretamente foi descartado
   inteiro porque o campo "o que não consegui ler" voltou como lista
   vazia. A fronteira entre normalizar a forma que o modelo devolve e

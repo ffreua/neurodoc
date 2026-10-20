@@ -4,12 +4,10 @@
 O laudo em PDF entra como anexo do paciente — mesma quarentena, mesma
 verificação de malware, mesmo controle de download dos outros documentos.
 
-Quando a IA lê o laudo, o que ela produz aparece aqui como **rascunho**. O
-texto e os analitos só entram no prontuário quando um médico aceita
-(RF-11-B): extração de PDF erra de formas silenciosas — troca a coluna de
-referência pela de resultado, perde o sinal de "menor que" — e cada um
-desses erros gravado sem ninguém olhar é dado clínico falso com aparência de
-dado conferido.
+O laudo e os analitos são registrados pelo médico. A leitura do PDF pela
+IA, que gerava um rascunho para revisão, saiu na 1.18: em uso real ela
+falhava mais do que lia, e um rascunho que não chega vira só um passo a
+mais na consulta (`docs/homologation/leitura-de-laudo-por-ia.md`).
 {% endcomment %}
 <div class="card-body">
     {% if encounter.status != 'finalized' %}
@@ -23,13 +21,12 @@ dado conferido.
             {% include "partials/field.html" with field=exam_result_form.performed_on col="col-lg-2 col-md-4" %}
             {% include "partials/field.html" with field=exam_result_form.service_name col="col-lg-2 col-md-8" %}
             {% include "partials/field.html" with field=exam_result_form.report_file col="col-lg-6" %}
-            {% if nd_can.clinical_ai %}{% include "partials/field.html" with field=exam_result_form.run_extraction col="col-lg-6" %}{% endif %}
             {% include "partials/field.html" with field=exam_result_form.report_text col="col-lg-8" %}
             {% include "partials/field.html" with field=exam_result_form.conclusion col="col-lg-4" %}
         </div>
         <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Incluir exame</button>
         <span class="fs-11 text-muted ms-2">
-            Exame laboratorial vira tabela de analitos; imagem, EEG e ENMG têm o laudo transcrito.
+            Laboratorial: inclua os valores na tabela de analitos, depois de salvar. Imagem, EEG e ENMG: cole ou resuma o laudo no campo Laudo.
         </span>
     </form>
     {% endif %}
@@ -41,11 +38,6 @@ dado conferido.
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <span class="fw-bold text-dark fs-14">{{ result.name }}</span>
                     <span class="badge bg-soft-primary text-primary">{{ result.get_category_display }}</span>
-                    {% if result.display_extraction_status != 'none' %}
-                    <span class="badge bg-soft-{{ result.display_extraction_status|nd_tone }} text-{{ result.display_extraction_status|nd_tone }}">
-                        IA: {{ result.display_extraction_status_label }}
-                    </span>
-                    {% endif %}
                 </div>
                 <div class="d-flex flex-wrap align-items-center gap-3 fs-11 text-muted mt-1">
                     <span>{{ result.performed_on|date:"d/m/Y"|default:"data não informada" }}</span>
@@ -56,32 +48,12 @@ dado conferido.
                     </span>
                     {% endif %}
                 </div>
-                {% if result.extraction_detail %}
-                {% comment %}Vermelho só para falha de verdade. "IA desligada" não
-                é erro deste exame, e pintar de vermelho fazia o cartão parecer com
-                problema quando estava apenas sem leitura.{% endcomment %}
-                <span class="d-block fs-11 mt-1 {% if result.extraction_status == 'failed' or result.extraction_status == 'blocked' %}text-danger{% else %}text-muted{% endif %}">
-                    {{ result.extraction_detail }}
-                </span>
-                {% endif %}
             </div>
             <div class="d-inline-flex flex-wrap gap-1">
                 {% if result.attachment and result.attachment.scan_status == 'available' %}
                 <a class="btn btn-sm btn-light" href="{% url 'documents:download' result.attachment.id %}">
                     Abrir laudo
                 </a>
-                {% endif %}
-                {% comment %}O estado da leitura continua aparecendo acima mesmo
-                sem a IA no plano -- e o registro do que ja foi lido, e escondê-lo
-                apagaria informacao de quem foi rebaixado. O que sai e o botao de
-                pedir de novo.{% endcomment %}
-                {% if result.attachment and nd_can.clinical_ai %}
-                <form method="post" action="{% url 'clinical:extract-exam-result' encounter.id result.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
-                        {% if result.extraction_status == 'none' %}Ler laudo com IA{% else %}Ler de novo{% endif %}
-                    </button>
-                </form>
                 {% endif %}
                 {% if encounter.status != 'finalized' %}
                 <form method="post" action="{% url 'clinical:delete-exam-result' encounter.id result.id %}">
@@ -94,11 +66,6 @@ dado conferido.
                 {% endif %}
             </div>
         </div>
-
-        {% comment %}Rascunho da IA aguardando revisão.{% endcomment %}
-        {% if result.draft and result.draft.review_state == 'pending' %}
-        {% include "clinical/_exam_draft.html" with result=result draft=result.draft %}
-        {% endif %}
 
         {% comment %}Sem laudo, sem analito e sem formulário, o corpo do cartão
         não é renderizado: uma faixa cinza vazia embaixo do título parecia

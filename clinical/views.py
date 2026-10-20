@@ -33,7 +33,7 @@ from .forms import (
 from .models import (
     EncounterKind,
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
-    ExamResult, ExtractionStatus, LabValue, Medication, ReviewAction,
+    ExamResult, LabValue, Medication, ReviewAction,
 )
 
 
@@ -400,11 +400,10 @@ class EncounterDetailView(TenantScopedView):
     def _extra_tabs(self, request, encounter):
         """Medicações, resultados de exame e o painel de apoio da IA.
 
-        Os rascunhos da IA vêm junto do resultado a que pertencem: o médico
-        revisa o rascunho olhando o exame, não numa fila de artefatos
-        separada do prontuário.
+        A leitura de laudo pela IA saiu na 1.18 (`docs/homologation/
+        leitura-de-laudo-por-ia.md`): o resultado de exame é o que o médico
+        registra, e os valores entram pela tabela de analitos, à mão.
         """
-        from ai.extraction import latest_draft
         from ai.services import latest_diagnostic_support
 
         medications = list(encounter.medications.all())
@@ -424,21 +423,6 @@ class EncounterDetailView(TenantScopedView):
             result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
             result.values_in = [v for v in values if v.flag == 'normal']
             result.values_unknown = [v for v in values if v.flag == 'no_reference']
-            result.draft = (
-                latest_draft(result)
-                if result.extraction_status in (ExtractionStatus.READY, ExtractionStatus.ACCEPTED,
-                                                ExtractionStatus.REJECTED)
-                else None
-            )
-            result.display_extraction_status = result.extraction_status
-            result.display_extraction_status_label = result.get_extraction_status_display()
-            if encounter.status == EncounterStatus.FINALIZED and result.draft is not None:
-                if result.draft.review_state == 'accepted':
-                    result.display_extraction_status = ExtractionStatus.ACCEPTED
-                    result.display_extraction_status_label = ExtractionStatus.ACCEPTED.label
-                elif result.draft.review_state == 'rejected':
-                    result.display_extraction_status = ExtractionStatus.REJECTED
-                    result.display_extraction_status_label = ExtractionStatus.REJECTED.label
 
         support_job, support_artifact = latest_diagnostic_support(encounter)
         support_hypotheses, support_steps = [], []
@@ -1093,29 +1077,7 @@ class ExamResultCreateView(TenantScopedView):
             integrity_metadata={'name': exam_result.name, 'has_report': attachment is not None},
         )
 
-        if attachment is not None and form.cleaned_data.get('run_extraction'):
-            from ai.context import AIAuthorizationDenied
-            from ai.extraction import ExtractionUnavailable, request_extraction
-
-            try:
-                job = request_extraction(request.access_context, exam_result)
-            except (ExtractionUnavailable, AIAuthorizationDenied) as exc:
-                messages.warning(request, f'Exame registrado, mas a leitura por IA não foi iniciada: {exc}')
-                return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
-            if job.status == 'disabled':
-                messages.warning(
-                    request,
-                    f'{exam_result.name} registrado. A leitura por IA está desligada nesta '
-                    'instalação, então o laudo ficou anexado para transcrição manual.',
-                )
-            else:
-                messages.success(
-                    request,
-                    f'{exam_result.name} registrado. A IA está lendo o laudo; o rascunho aparece '
-                    'aqui para sua revisão em instantes.',
-                )
-        else:
-            messages.success(request, f'{exam_result.name} registrado.')
+        messages.success(request, f'{exam_result.name} registrado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 
@@ -1177,76 +1139,6 @@ class LabValueDeleteView(TenantScopedView):
         analyte = value.analyte
         value.delete()
         messages.success(request, f'{analyte} removido.')
-        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
-
-
-class ExamResultExtractView(TenantScopedView):
-    """Pede (ou repete) a leitura do laudo pela IA."""
-
-    def post(self, request, encounter_id, exam_result_id):
-        from ai.context import AIAuthorizationDenied
-        from ai.extraction import ExtractionUnavailable, request_extraction
-
-        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
-        try:
-            job = request_extraction(request.access_context, exam_result)
-        except (ExtractionUnavailable, AIAuthorizationDenied) as exc:
-            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
-        if job.status == 'disabled':
-            messages.warning(request, 'A leitura por IA está desligada nesta instalação.')
-        else:
-            messages.success(request, 'Leitura do laudo solicitada. O rascunho aparece aqui para revisão.')
-        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
-
-
-class ExamResultDraftReviewView(TenantScopedView):
-    """Aceita ou recusa o rascunho da IA para um resultado de exame.
-
-    É este passo — e só ele — que transforma leitura de PDF em conteúdo do
-    prontuário (RF-11-B). Enquanto ninguém aceita, o rascunho existe como
-    artefato revisável e o registro segue vazio.
-    """
-
-    def post(self, request, encounter_id, exam_result_id):
-        from ai.extraction import (
-            ExtractionUnavailable, accept_draft, accept_draft_as_amendment,
-            latest_draft, reject_draft,
-        )
-
-        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
-        artifact = latest_draft(exam_result)
-        if artifact is None:
-            return _blocked(request, encounter, 'Não há rascunho para revisar.', anchor='tab-exames')
-
-        membership = _doctor_membership(request)
-        if membership is None:
-            return _blocked(
-                request, encounter,
-                'Só um médico com vínculo ativo pode revisar o rascunho da IA.', anchor='tab-exames',
-            )
-        action = request.POST.get('action')
-        try:
-            if action == 'accept':
-                if encounter.is_editable():
-                    accept_draft(artifact, exam_result, membership, request.access_context.user_id)
-                    messages.success(request, 'Rascunho revisado e incorporado ao prontuário.')
-                else:
-                    accept_draft_as_amendment(
-                        artifact, exam_result, membership, request.access_context,
-                    )
-                    messages.success(request, 'Leitura revisada e registrada como adendo ao atendimento finalizado.')
-            elif action == 'reject':
-                reject_draft(
-                    artifact, exam_result, membership, request.access_context.user_id,
-                    request.POST.get('reason', ''),
-                )
-                messages.success(request, 'Rascunho recusado. Nada foi gravado no prontuário.')
-            else:
-                return _blocked(request, encounter, 'Ação inválida.', anchor='tab-exames')
-        except ExtractionUnavailable as exc:
-            return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-exames')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 

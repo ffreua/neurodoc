@@ -163,7 +163,8 @@ sai com código 1 listando as falhas quando não passa.
 | `check_incluir_horario` | Botão "Incluir horário" nas três visões, e as recusas |
 | `check_intervalos_e_ficha` | Intervalo pontual da agenda nos três caminhos, naturalidade, gaveta da ficha |
 | `check_js_atributo` | JS que monta atributo HTML sem escapar aspas (varre JS e templates) |
-| `check_leitura_laudo` | Leitura de laudo: forma normalizada, conteúdo sob guarda, `response_format` com recuo |
+| `check_leitura_retirada` | A leitura de laudo pela IA saiu de todos os caminhos (1.18), o job antigo é cancelado com a explicação, e as varreduras de esquema e de prompt que valem para toda tarefa de IA |
+| `check_chat_manual` | O chat sem paciente responde pelo manual e pela documentação técnica (RAG por palavras), com a fonte; a conversa com paciente fica só com o prontuário |
 | `check_links_de_mensagem` | Todo link que sai em e-mail ou SMS abre, e nada é enfileirado antes do commit |
 | `check_login` | Duas portas de entrada que devolviam tela crua |
 | `check_logotipo` | O logotipo é o da organização aberta, sem cache de cinco minutos |

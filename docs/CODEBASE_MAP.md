@@ -70,7 +70,7 @@ neurodoc/
 ├── finance/         honorários com vigência, cobrança no check-in, pagamento, ajuste, repasse
 ├── documents/       anexos (antivírus, OCR), documentos médicos, PAdES, QR, portal, retenção 20 anos
 ├── communications/  outbox de entrega (e-mail/SMS), link opaco, campanhas, SMTP/SMS da clínica
-├── ai/              jobs com revisão médica, chat com SSE, provedores, desidentificação, relatório, leitura de laudo
+├── ai/              jobs com revisão médica, chat com SSE (com o manual do sistema, sem paciente), provedores, desidentificação, relatório
 ├── events/          OutboxEvent + despachante com posse por lease
 ├── audit/           AuditEvent INSERT-only (única porta: record_audit_event)
 ├── notifications/   sino do usuário
@@ -439,7 +439,8 @@ sequenceDiagram
 | **Novo tipo de documento médico** | `documents/pdf/<tipo>.py`, `document_kinds.py`, `MedicalDocument.kind`; `check_docform`, `check_rodape_do_documento` |
 | **Nova mensagem ao paciente** | produtor grava `OutboxEvent`, handler em `communications/handlers.py` registrado no `apps.py`, envio por `services._send` (nunca na view; `check_provedor_e_sms` varre) |
 | **Novo consumidor de evento** | `register_handler` no `AppConfig.ready()`; idempotente por chave própria; conferir a idade do evento (`created_at`) |
-| **Nova tarefa de IA** | `ai/graphs.TASKS` + esquema herdando `ArtifactModel` + prompt que declara o tipo de cada campo; `check_leitura_laudo` |
+| **Nova tarefa de IA** | `ai/graphs.TASKS` + esquema herdando `ArtifactModel` + prompt que declara o tipo de cada campo; `check_leitura_retirada` (seções 4 e 5) |
+| **O que o chat sabe do sistema** | `ai/conhecimento.py` (corpus, busca, corte) e `ai/chat_prompt.py` (`COM_MANUAL`, `SEM_MANUAL`); `check_chat_manual` |
 | **Configuração que vira sem deploy** | `base.models.InstallationSettings` + tela em `ops/superadmin.py` |
 | **Página pública indexável** | `base/seo.PAGINAS`; `check_seo` |
 | **Variável de ambiente nova** | `.env.example`, `ops/make_runtime.py` (`COMMON_KEYS` ou `OPTIONAL_KEYS`), `ops/local_compose.py` |

@@ -1,4 +1,10 @@
-"""Conclusão visível de jobs e revisão tardia de laudo como adendo."""
+"""Conclusão visível de jobs de IA.
+
+Até a 1.17 este roteiro cobria também a leitura de laudo pela IA (prazo do
+job documental e o rascunho revisado depois da finalização entrando como
+adendo). A leitura saiu na 1.18; o que a substitui é
+`check_leitura_retirada.py`, que confere que ela saiu por inteiro.
+"""
 import uuid
 from unittest.mock import patch
 
@@ -10,7 +16,7 @@ settings.SECURE_SSL_REDIRECT = False
 
 from ai import services, tasks
 from ai.models import AIArtifact, AIJob, AIJobKind, AIJobStatus
-from clinical.models import ClinicalAmendment, Encounter, EncounterStatus, ExamResult, ExtractionStatus
+from clinical.models import Encounter, EncounterStatus
 from notifications.models import Notification
 from tenancy.context import AccessContext
 from tenancy.models import Membership, MembershipStatus, Role, Tenant
@@ -42,16 +48,8 @@ session["tenant_id"] = str(tenant.id)
 session.save()
 
 created_jobs = []
-created_results = []
-created_amendments = []
 
-print("=== 1. laudo tem prazo apropriado para documento ===")
-limits = services._limits_for(AIJobKind.LAB_EXTRACTION)
-print("  timeout=", limits["timeout_seconds"])
-if limits["timeout_seconds"] < 180:
-    falhas.append("a leitura documental ainda expira em menos de 180 segundos")
-
-print("=== 2. tela de job ativo se atualiza sozinha ===")
+print("=== 1. tela de job ativo se atualiza sozinha ===")
 job = AIJob.objects.create(
     tenant=tenant, user=doctor.user, membership=doctor,
     patient=encounter.patient, encounter=encounter,
@@ -67,7 +65,7 @@ print("  atualização presente=", atualiza)
 if not atualiza:
     falhas.append("a tela do job não acompanha a conclusão enquanto está aberta")
 
-print("=== 3. tarefa concluída cria notificação navegável ===")
+print("=== 2. tarefa concluída cria notificação navegável ===")
 def concluir(job_id):
     current = AIJob.objects.get(id=job_id)
     artifact = AIArtifact.objects.create(
@@ -87,63 +85,13 @@ print("  notificação=", notified)
 if not notified:
     falhas.append("a conclusão do resumo não cria notificação para quem pediu")
 
-print("=== 4. rascunho concluído após finalização entra como adendo ===")
-exam = ExamResult.objects.create(
-    tenant=tenant, encounter=encounter, patient=encounter.patient,
-    category="laboratory", name="Hemograma do roteiro", extraction_status=ExtractionStatus.READY,
-)
-created_results.append(exam)
-lab_job = AIJob.objects.create(
-    tenant=tenant, user=doctor.user, membership=doctor,
-    patient=encounter.patient, encounter=encounter,
-    kind=AIJobKind.LAB_EXTRACTION, target_ref={"exam_result_id": str(exam.id)},
-    source_version=0, purpose="roteiro de laudo", status=AIJobStatus.SUCCEEDED,
-    limits={"timeout_seconds": 180, "max_output_chars": 60000},
-    idempotency_key=f"roteiro-laudo-{uuid.uuid4()}",
-)
-created_jobs.append(lab_job)
-artifact = AIArtifact.objects.create(
-    tenant=tenant, job=lab_job, schema_version="v1", provider="roteiro", model="roteiro",
-    prompt_version="v3", result={
-        "analytes": [{
-            "analyte": "Hemoglobina", "value_text": "13,5", "numeric_value": 13.5,
-            "unit": "g/dL", "reference_low": 12, "reference_high": 16,
-            "reference_text": "12 a 16",
-        }],
-        "disclaimer": "Revisão médica obrigatória.",
-    },
-)
-antes = encounter.amendments.count()
-response = client.post(
-    f"/app/clinical/{encounter.id}/exames/{exam.id}/rascunho/", {"action": "accept"},
-)
-depois = encounter.amendments.count()
-artifact.refresh_from_db()
-exam.refresh_from_db()
-print(
-    "  status=", response.status_code, "adendos=", antes, "->", depois,
-    "revisão=", artifact.review_state, "exame imutável=", exam.extraction_status == ExtractionStatus.READY,
-)
-if (
-    response.status_code not in (302, 303)
-    or depois != antes + 1
-    or artifact.review_state != "accepted"
-    or exam.extraction_status != ExtractionStatus.READY
-):
-    falhas.append("a revisão tardia do laudo não foi incorporada como adendo")
-else:
-    created_amendments.extend(encounter.amendments.order_by("-created_at")[:1])
-
 Notification.objects.filter(target_type="ai_job", target_id__in=[j.id for j in created_jobs]).delete()
-for amendment in created_amendments:
-    amendment.delete()
 AIArtifact.objects.filter(job__in=created_jobs).delete()
 AIJob.objects.filter(id__in=[j.id for j in created_jobs]).delete()
-ExamResult.objects.filter(id__in=[r.id for r in created_results]).delete()
 
 print("---")
 if falhas:
     for falha in falhas:
         print("FALHA:", falha)
     raise SystemExit(1)
-print("OK: jobs avisam e laudos tardios entram por adendo revisado.")
+print("OK: jobs de IA avisam quando terminam e a tela acompanha.")

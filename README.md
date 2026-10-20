@@ -11,10 +11,10 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.17 "os exames do paciente" (`base/version.py`) |
+| **Versão** | 1.18 "o chat que conhece o sistema" (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
-| **Verificação** | 111 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 112 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
 
 ## Apoie o projeto
@@ -65,9 +65,10 @@ de sair, chat persistente com streaming (Redis Streams + SSE), catálogo de
 dez provedores e a possibilidade de a clínica apontar o próprio contrato.
 O **provedor padrão** da instalação é trocado no console, com verificação
 de que o modelo ainda existe. Relatório do paciente redigido pela IA e
-assinado pelo médico; leitura de laudo anexado com a forma normalizada e
-o conteúdo sob guarda. O apoio clínico é recurso de plano, vetado em duas
-camadas independentes.
+assinado pelo médico. Na conversa sem paciente, o chat de apoio também
+responde sobre o **uso do sistema**, pelos trechos do manual e da
+documentação técnica que a busca escolhe para cada pergunta. O apoio
+clínico é recurso de plano, vetado em duas camadas independentes.
 
 **O que é da clínica.** E-mail, SMS e IA seguem a mesma cadeia — a clínica
 que configurou o seu usa o seu; a que desligou volta ao padrão da
@@ -228,6 +229,7 @@ registro em [`docs/releases/`](docs/releases/).
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.18** | 2026-10-19 | o chat que conhece o sistema | O **chat de apoio sem paciente responde sobre o uso do NeuroDoc**: para cada pergunta, a busca escolhe trechos do manual e da documentação técnica, e a IA responde a partir deles, citando a página — e diz que não encontrou, em vez de inventar uma tela. A conversa com paciente segue só com o prontuário. E a **leitura do laudo anexado pela IA sai**: em uso real falhava mais do que lia; o exame e o PDF continuam, e os valores entram pela tabela de analitos. |
 | **1.17** | 2026-10-19 | os exames do paciente | **Alterar a medicação** do atendimento pelo **lápis** ao lado da lixeira: o cadastro abre já preenchido logo abaixo da linha, e mudar a dose não exige mais excluir e incluir de novo — o "em uso desde", a indicação e a observação ficam. Só com o atendimento aberto; a trilha registra quais campos mudaram, sem os valores. E **uma pergunta por ação**: limpar avisos (e toda ação com confirmação) mostrava a caixa do navegador, o modal do sistema e a caixa de novo; agora só o modal. E o **código aberto**: o repositório fica público sob a MIT, a página de vendas aponta para ele com o pedido de estrela e a chave PIX, e o contrato de adesão passa à **versão 1.1**, com o item 16.3 dizendo que ele rege o serviço hospedado e não o código. |
 | **1.16.2** | 2026-10-19 | os exames do paciente | Textos do portal e da vitrine: em urgência, o portal manda ao **serviço de urgência e emergência mais próximo** (e não mais "ligue para a clínica"); o rodapé deixa de oferecer remarcar consulta, que o portal não faz; e a **página de vendas** e a **central de ajuda** (artigo do portal, avisos, identidade da clínica e perguntas frequentes) contam que o portal também **recebe os laudos dos exames**. |
 | **1.16.1** | 2026-10-18 | os exames do paciente | O primeiro envio real de exame foi recusado: o formulário do portal estava aberto antes de um **login no mesmo navegador**, que troca o token de segurança. Agora entrar no sistema **encerra a identificação do portal**, a recusa explica e oferece abrir a página de novo (e não manda o paciente ao login), há **Encerrar identificação** nas telas do portal, e os textos e o aviso de privacidade dizem que o portal também **recebe laudos** — com o aviso vermelho já na página de solicitação. |
@@ -317,7 +319,7 @@ No banco, o isolamento é reforçado por chave estrangeira composta
 | `documents` | anexos com antivírus, documentos médicos, assinatura PAdES, QR público, portal do paciente (solicitações e envio de laudos), OCR |
 | `communications` | outbox, links opacos com OTP, aviso de horário, campanhas com consentimento, credenciais da clínica |
 | `finance` | honorários com vigência, recebíveis, pagamentos, ajustes |
-| `ai` | jobs com revisão médica, desidentificação, chat com streaming, relatório do paciente, leitura de laudo |
+| `ai` | jobs com revisão médica, desidentificação, chat com streaming (que, sem paciente, consulta o manual), relatório do paciente |
 | `notifications` · `teamchat` | sino do usuário · mensagens internas da equipe |
 | `audit` · `events` | trilha imutável · outbox de eventos com dispatcher idempotente |
 | `reporting` · `integrations` · `ops` | indicadores e exportação · antivírus/CEP/TUSS · deploy, backup, saúde, console (com as chaves de **Operação**) |

@@ -145,8 +145,9 @@ RECURSOS = [
         # visitante que le a lista de recursos e assina o Gratuito
         # descobriria a diferenca depois de pagar. E a mesma divergencia
         # que `plans.has_clinical_ai` corrige do lado do servidor.
-        'texto': 'A partir do plano Completo: resumo do atendimento, leitura de laudo '
-                 'e conversa sobre o caso, sempre com revisão médica antes de '
+        'texto': 'A partir do plano Completo: resumo do atendimento, relatório para o '
+                 'paciente e conversa sobre o caso — e um chat que também tira dúvidas '
+                 'sobre o uso do sistema —, sempre com revisão médica antes de '
                  'qualquer coisa entrar no prontuário. O texto é desidentificado '
                  'antes de sair, e o envio é recusado quando não satisfaz a política '
                  'de privacidade — a clínica pode usar o próprio provedor e a '
@@ -214,7 +215,8 @@ ESPECIALIDADES = {
          'laudos dos exames que fez direto para o prontuário, e recebe o '
          'documento por link com código de acesso.'),
         ('IA que redige, médico que assina',
-         'Resumo do atendimento, leitura de laudo e relatório para o paciente. '
+         'Resumo do atendimento, relatório para o paciente e um chat que também '
+         'responde sobre o uso do sistema. '
          'O texto sai desidentificado e nada entra no prontuário sem o médico '
          'aceitar — o que vale para qualquer especialidade.'),
     ],
