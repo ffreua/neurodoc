@@ -109,24 +109,54 @@
         status.className = 'fs-11 ' + (tone || 'text-muted');
     }
 
+    /* O que o CEP pode reescrever é o que ninguém digitou NESTA tela.
+     * A regra antiga era "só preenche campo vazio", para não apagar o
+     * logradouro digitado antes do CEP no cadastro novo — e na edição isso
+     * a impedia de funcionar: o paciente que mudou de casa chega com a rua
+     * antiga preenchida, e o CEP novo trocava o município deixando a rua, o
+     * bairro e o número da casa anterior. Valor que veio do banco não é
+     * escolha de quem está na tela; valor digitado aqui é. */
+    var ENDERECO = ['street', 'number', 'complement', 'district'];
+    var digitado = {};
+    ENDERECO.forEach(function (name) {
+        var field = el(name);
+        if (field) field.addEventListener('input', function () { digitado[name] = true; });
+    });
+    var cepInicial = cep ? onlyDigits(cep.value) : '';
+
     function fill(name, value, force) {
         var field = el(name);
         if (!field || !value) return;
-        /* Só sobrescreve o que o CEP realmente determina (município e UF).
-         * Logradouro e bairro digitados à mão são preservados. */
-        if (!force && field.value.trim()) return;
+        if (!force && field.value.trim() && digitado[name]) return;
         field.value = value;
     }
 
-    function applyAddress(address) {
+    function limparDoEnderecoAnterior(name) {
+        /* Número e complemento não vêm do CEP: com a rua trocada, os da
+         * casa antiga ficariam valendo para a nova sem ninguém perceber. */
+        var field = el(name);
+        if (field && !digitado[name]) field.value = '';
+    }
+
+    function applyAddress(address, cepMudou) {
         fill('city', address.city, true);
+        if (cepMudou) {
+            /* Rua e bairro antigos saem mesmo quando o CEP novo não os
+             * informa (CEP geral de cidade) — senão ficaria a rua velha. */
+            ['street', 'district'].forEach(limparDoEnderecoAnterior);
+            ['number', 'complement'].forEach(limparDoEnderecoAnterior);
+        }
         fill('street', address.street, false);
         fill('district', address.district, false);
         var state = el('state');
         if (state && address.state) state.value = address.state;
 
         if (address.street) {
-            setStatus('Endereço encontrado (' + address.city + '/' + address.state + ').', 'text-success');
+            setStatus(
+                'Endereço encontrado (' + address.city + '/' + address.state + ').' +
+                    (cepMudou ? ' Informe o número e o complemento do endereço novo.' : ''),
+                'text-success'
+            );
         } else if (address.by_street === false) {
             setStatus(
                 'CEP geral de ' + address.city + '/' + address.state + ' — informe o logradouro.',
@@ -155,7 +185,9 @@
             })
             .then(function (data) {
                 if (data.found) {
-                    applyAddress(data.address);
+                    /* Reabrir a ficha e redigitar o MESMO CEP não é mudança
+                     * de endereço: não apaga número nem complemento. */
+                    applyAddress(data.address, Boolean(cepInicial) && digits !== cepInicial);
                 } else {
                     setStatus('CEP não encontrado — preencha o endereço à mão.', 'text-danger');
                 }

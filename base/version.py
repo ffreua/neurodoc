@@ -173,7 +173,9 @@ carimbá-la na publicação.
 #: depois de enviada, e "Apagar conversa" limpa a janela de quem clica
 #: (migração `teamchat/0002`, só de expansão). E o botão de som passa a
 #: trocar o ícone de verdade, e toca uma amostra ao ser ligado.
-VERSION = '1.19'
+#: A **1.19.1**: o CEP novo troca o endereço também na edição da ficha
+#: (antes só preenchia campo vazio, e a rua da casa antiga ficava).
+VERSION = '1.19.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
