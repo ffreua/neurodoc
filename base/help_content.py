@@ -210,6 +210,14 @@ ARTICLES = [
              'incompleto — descobrir isso com o paciente no balcão significa que ele '
              'volta ao consultório.',
              '', ''),
+            ('**Desde 31/10/2026, a receita de controle especial sai só em papel**, para '
+             'assinar e carimbar. A Anvisa passou a exigir a numeração do SNCR na receita de '
+             'controle especial **eletrônica** (RDC 1.000/2025), e a integração do NeuroDoc '
+             'com o SNCR está em implantação — até ela entrar no ar, o botão de assinar '
+             'digitalmente some dessa receita. A receita impressa e assinada à mão continua '
+             'válida. Antimicrobianos e agonistas de GLP-1 (receita sujeita à retenção) seguem '
+             'a mesma regra na versão eletrônica: a tela avisa, e a escolha é do médico.',
+             '', ''),
             ('A captura direta por **scanner foi retirada do NeuroDoc**. Digitalize '
              'pelo aplicativo do fabricante ou pelo sistema do computador e envie '
              'o arquivo pronto em **Anexos**. O sistema não procura, pareia nem '

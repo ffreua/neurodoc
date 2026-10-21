@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static %}
+{% load static sncr_transicao %}
 {% block title %}Novo documento médico — NeuroDoc{% endblock %}
 {% block page_title %}Novo documento médico{% endblock %}
 {% block breadcrumb %}
@@ -90,6 +90,14 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                     visíveis, que é o comportamento de antes — a tela continua
                     utilizável, só menos guiada.{% endcomment %}
                     <div class="row g-3 mt-1" data-nd-doc-kind="prescription">
+                        {% comment %}Aviso transitório do SNCR: os dois, porque o
+                        formato ainda não foi escolhido quando a tela abre.{% endcomment %}
+                        <div class="col-12">
+                            {% aviso_sncr formato="special_control" as aviso_rce %}
+                            {% include "documents/_aviso_sncr.html" with aviso=aviso_rce %}
+                            {% aviso_sncr formato="simple" as aviso_ret %}
+                            {% include "documents/_aviso_sncr.html" with aviso=aviso_ret %}
+                        </div>
                         {% include "partials/field.html" with field=form.prescription_format col="col-md-6" %}
                         {% comment %}Busca na tabela de medicamentos da Anvisa (CMED).
 

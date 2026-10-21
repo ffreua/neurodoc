@@ -6,16 +6,22 @@ arquivo resume, não substitui a inspeção.
 
 | Campo | Valor |
 | --- | --- |
-| Sprint / gate | **Sprint 0 — auditoria e prova de comunicação.** Gate 0 aguardando o proprietário |
-| Branch | `sncr/sprint-0` (local; **sem push**) |
-| Commit-base | `2af8a17` — `main`, NeuroDoc 1.21 |
-| Código funcional alterado | **nenhum** |
-| Produção | **não alterada**; nenhuma chamada à API de produção do SNCR |
-| Relatório da sprint | [SPRINT-0-RELATORIO.md](SPRINT-0-RELATORIO.md) |
+| Sprint / gate | **Sprint 0 concluída; decisões D1–D7 tomadas em 2026-10-21.** Sprint 1 liberada, com a numeração real **bloqueada pelo CNPJ** ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)) |
+| Commit-base | `2af8a17` (1.21); a Sprint 0 e a 1.21.1 entraram em `main` |
+| Código funcional alterado | **1.21.1** — só a transição da D1 (`documents/sncr_transicao.py`); a integração em si ainda não tem código |
+| Produção | 1.21.1 publicada com a transição; **nenhuma chamada à API de produção do SNCR** |
+| Relatório da Sprint 0 | [SPRINT-0-RELATORIO.md](SPRINT-0-RELATORIO.md) |
+| Decisões | [DECISOES.md](DECISOES.md) |
 
 ## Decisões aprovadas
 
-Nenhuma ainda. As decisões pendentes estão no relatório, seção 9.
+Todas em [DECISOES.md](DECISOES.md), em 2026-10-21: D1 (RCE só em papel
+a partir de 31/10, com aviso e e-mail às clínicas — **feito, 1.21.1**),
+D2 (CNPJ **pendente**, seguir sem ele), D3 (login Gov.br de treinamento e
+um bloco em homologação; cada médico com o próprio bloco), D4 (o
+servidor chama a API), D5 (escopo RCE + RET), D6 (impressa no leiaute da
+clínica, eletrônica no modelo da Anvisa), D7 (importar a lista oficial
+da Portaria 344).
 
 ## O que a Sprint 0 fez
 
@@ -35,21 +41,22 @@ Nenhuma ainda. As decisões pendentes estão no relatório, seção 9.
 
 ## Próxima ação exata
 
-Aguardar a decisão do proprietário sobre as **sete perguntas** do
-relatório (seção 9). As duas primeiras bloqueiam tudo o mais:
-
-1. o que fazer com a RCE **assinada digitalmente** a partir de
-   **31/10/2026**, quando ela passa a exigir numeração SNCR;
-2. qual **CNPJ de mantenedora** o NeuroDoc informará ao SNCR.
-
-Depois, com autorização, a prova de comunicação completa (Gov.br de
-treinamento do médico + um bloco de RCE em homologação).
+1. **Sprint 1**, em branch própria (`sncr/sprint-1`, a partir de `main`):
+   catálogo da lista oficial da Portaria 344 (D7, vigente: RDC nº 1.036,
+   de 09/07/2026, "Atualização n. 101"), cliente da API, login Gov.br pelo
+   servidor (D4), modelo de blocos e números por médico, estado incerto,
+   trilha, chave desligada.
+2. **Prova de comunicação (D3):** o proprietário faz o login Gov.br de
+   treinamento numa página local; o bloco em homologação espera o CNPJ.
+3. Quando o CNPJ chegar: seguir a lista de
+   [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md).
 
 ## Pendências
 
-- Consulta em produção (só leitura) de quantas RCE foram assinadas
-  digitalmente: a VPS não aceitou SSH a partir da rede em uso em
-  2026-10-21 (porta 22 bloqueada na saída). Repetir de outra rede.
+- ~~Consulta em produção de quantas RCE foram assinadas digitalmente~~ —
+  feita em 2026-10-21: **5**, todas da clínica do proprietário; as outras
+  clínicas emitiram RCE só em papel (1).
+- **CNPJ da mantenedora** — [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md).
 - Ler o texto vigente da Portaria SVS/MS 344/1998 e da Portaria 6/1999
   sobre o número máximo de medicamentos por receita, por lista.
 - Obter a lista oficial de substâncias controladas em formato processável.

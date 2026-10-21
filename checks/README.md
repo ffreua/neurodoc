@@ -187,6 +187,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_por_cid` | Busca de paciente por CID: fronteira de papel e a última palavra por código |
 | `check_portal_retorno` | Portal barra consulta com mais de 180 dias, quando manda barrar, nas três portas |
 | `check_provedor_e_sms` | O padrão da instalação para IA e SMS, e nenhuma view enviando de dentro da requisição |
+| `check_sncr_transicao` | Transição do SNCR (1.21.1): a RCE eletrônica para em 31/10/2026 (dia de Brasília), recusada no servidor e na tela sem gastar número; o papel continua; a receita simples só recebe o aviso |
 | `check_receitas` | Catálogo CMED, emissão em papel, QR só em documento assinado (exige `import_cmed`) |
 | `check_recontratacao` | Recontratar preserva a conta e devolve o acesso com convite novo |
 | `check_relatorio_ia` | Relatório escrito pela IA vira rascunho, e o texto editado é o que vai assinado |

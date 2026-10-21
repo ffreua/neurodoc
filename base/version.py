@@ -181,7 +181,10 @@ carimbá-la na publicação.
 #: diz como resolver.
 #: A **1.21**: todo PDF com cabeçalho e rodapé em todas as folhas; a
 #: assinatura continua só na última folha de cada via.
-VERSION = '1.21'
+#: A **1.21.1**: transição do SNCR — a partir de 31/10/2026 a Receita de
+#: Controle Especial deixa de ser assinada digitalmente sem numeração do
+#: SNCR (sai para assinar e carimbar), com aviso na tela da receita.
+VERSION = '1.21.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

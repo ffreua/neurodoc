@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd %}
+{% load nd sncr_transicao %}
 {% block title %}{{ document.get_kind_display }} — NeuroDoc{% endblock %}
 {% block page_title %}{{ document.get_kind_display }}{% endblock %}
 {% block breadcrumb %}
@@ -233,6 +233,10 @@
                 <h5 class="card-title mb-0">Ações do médico</h5>
             </div>
             <div class="card-body d-flex flex-column gap-2">
+                {% if document.status == "draft" or document.status == "ready_to_sign" %}
+                {% aviso_sncr document as aviso %}
+                {% include "documents/_aviso_sncr.html" with aviso=aviso %}
+                {% endif %}
                 {% if document.status == "draft" %}
                 <form method="post" action="{% url 'documents:medical-review' document.id %}">
                     {% csrf_token %}
@@ -243,7 +247,12 @@
                     <button type="submit" class="btn btn-light-danger w-100">Descartar rascunho</button>
                 </form>
                 {% elif document.status == "ready_to_sign" %}
-                {% if active_session %}
+                {% rce_assinatura_bloqueada document as rce_bloqueada %}
+                {% if rce_bloqueada %}
+                {% comment %}Sem o botão de assinar: o servidor recusaria
+                (issuance._sign_and_issue). A emissão em papel, logo abaixo,
+                é o caminho válido.{% endcomment %}
+                {% elif active_session %}
                 <form method="post" action="{% url 'documents:medical-sign' document.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Assinar e emitir</button>
