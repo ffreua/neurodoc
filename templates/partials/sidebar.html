@@ -91,6 +91,20 @@
                 </li>
                 {% endif %}
 
+                {% comment %}Numeração do SNCR (Anvisa): os blocos de número da receita
+                eletrônica, que são do médico. Só aparece com a integração ligada
+                (docs/sncr/); a view confere a capacidade de novo.{% endcomment %}
+                {% if nd_sncr_ativo and nd_can.issue_document %}
+                <li class="nxl-item {% if nd_section == 'sncr' %}active{% endif %}">
+                    <a class="nxl-link" href="{% url 'sncr:painel' %}">
+                        <span class="nxl-micon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+                        </span>
+                        <span class="nxl-mtext">Numeração SNCR</span>
+                    </a>
+                </li>
+                {% endif %}
+
                 {% comment %}Busca por diagnóstico: item clínico, e por isso atrás
                 de `read_clinical`. A lista de pacientes do bloco administrativo
                 responde à pergunta da recepção e é aberta aos quatro papéis; esta

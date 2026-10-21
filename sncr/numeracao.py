@@ -118,6 +118,65 @@ def reservar(medico, tipo, ambiente, documento, tenant_id):
     return numero
 
 
+def _ordem_do_documento(qs):
+    """A ordem fixa dos números de um documento: a do bloco.
+
+    Com uma folha por medicamento (decisão I12), a folha *n* leva o *n*-ésimo
+    número desta ordem. Ela não depende de quando cada número foi reservado,
+    então o rascunho reaberto e a releitura depois de assinar casam cada
+    número com a mesma folha.
+    """
+    return qs.order_by('bloco__created_at', 'ordem')
+
+
+def reservar_varios(medico, tipo, ambiente, documento, tenant_id, quantidade):
+    """Um número por medicamento do documento, na ordem do bloco.
+
+    Tudo ou nada **pela transação de quem chama** (a da assinatura): se
+    faltar número para alguma folha, `SemNumeroLivre` desfaz as reservas
+    feitas antes e nenhuma folha sai. Idempotente por documento, como
+    `reservar`: os números que o documento já tem são reaproveitados, e só
+    o que falta é tirado do bloco.
+    """
+    if quantidade < 1:
+        raise ValueError('A receita precisa de ao menos um número.')
+    ja = list(_ordem_do_documento(
+        NumeroSncr.objects.select_for_update(of=('self',)).filter(
+            documento=documento, tipo=tipo, ambiente=ambiente,
+            estado__in=[EstadoNumero.RESERVADO, EstadoNumero.CONSUMIDO],
+        )
+    ))
+    while len(ja) < quantidade:
+        numero = (
+            NumeroSncr.objects.select_for_update(skip_locked=True, of=('self',))
+            .filter(medico=medico, tipo=tipo, ambiente=ambiente, estado=EstadoNumero.LIVRE, bloco__utilizavel=True)
+            .order_by('bloco__created_at', 'ordem')
+            .first()
+        )
+        if numero is None:
+            faltam = quantidade - len(ja)
+            raise SemNumeroLivre(
+                f'Faltam {faltam} número(s) SNCR livre(s) deste tipo para as {quantidade} folhas. Peça um bloco novo.'
+            )
+        numero.estado = EstadoNumero.RESERVADO
+        numero.documento = documento
+        numero.tenant_id = tenant_id
+        numero.reservado_em = timezone.now()
+        numero.save(update_fields=['estado', 'documento', 'tenant', 'reservado_em', 'updated_at'])
+        ja.append(numero)
+    # A ordem de quem foi reservado agora pode não ser a do bloco (outra
+    # assinatura simultânea pode ter levado um número do meio): reordena.
+    ja.sort(key=lambda n: (n.bloco.created_at, n.ordem))
+    return ja[:quantidade]
+
+
+def numeros_do_documento(documento_id):
+    """Os números reservados ou usados por um documento, na ordem das folhas."""
+    return list(_ordem_do_documento(NumeroSncr.objects.filter(
+        documento_id=documento_id, estado__in=[EstadoNumero.RESERVADO, EstadoNumero.CONSUMIDO],
+    )).select_related('bloco'))
+
+
 @transaction.atomic
 def consumir(numero):
     """O número foi impresso numa receita emitida e assinada. Não volta."""

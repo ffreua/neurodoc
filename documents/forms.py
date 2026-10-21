@@ -43,6 +43,12 @@ class MedicalDocumentForm(forms.Form):
     )
     referral_specialty = forms.CharField(label='Especialidade do encaminhamento', required=False, max_length=255)
     reason = forms.CharField(label='Motivo', required=False, widget=forms.Textarea(attrs={'rows': 2}))
+    classificacao_confirmada = forms.BooleanField(
+        label='Confirmo a classificação desta receita', required=False,
+        help_text='Marque quando o NeuroDoc não encontrar o medicamento na lista oficial, ou quando '
+                  'ele só vai para a Receita de Controle Especial pelo adendo da lista (dose e forma). '
+                  'A confirmação fica gravada com a receita.',
+    )
 
     def __init__(self, *args, locked_kind=None, **kwargs):
         """`locked_kind` trava o tipo — é o caso da retificação.
@@ -53,12 +59,52 @@ class MedicalDocumentForm(forms.Form):
         do original, lia campos que o formulário não pediu.
         """
         super().__init__(*args, **kwargs)
+        self._acrescentar_receita_eletronica()
         if locked_kind:
             self.fields['kind'].initial = locked_kind
             self.fields['kind'].disabled = True
             self.fields['kind'].help_text = (
                 'O tipo é o do documento que está sendo retificado e não muda.'
             )
+
+    def _acrescentar_receita_eletronica(self):
+        """Os itens estruturados e, com o SNCR ligado, os formatos eletrônicos.
+
+        Os campos dos itens existem sempre (o formulário tem um conjunto
+        fixo de nomes), mas as opções de formato eletrônico só aparecem com a
+        integração ligada (`sncr.models.Configuracao.ativo`): desligada, o
+        valor `sncr_rce` enviado à mão é "escolha inválida", e o servidor
+        nunca começa uma receita que não pode numerar.
+        """
+        from sncr import receita
+        from sncr.models import Configuracao
+
+        exemplos = {
+            'nome': 'Ex.: Sertralina (nome da substância, DCB)', 'concentracao': 'Ex.: 50 mg',
+            'forma': 'Ex.: comprimido revestido', 'quantidade': 'Ex.: 60 comprimidos',
+            'posologia': 'Ex.: 1 comprimido pela manhã',
+        }
+        for n in range(1, receita.LIMITE_MEDICAMENTOS + 1):
+            for campo in receita.CAMPOS_DO_ITEM:
+                self.fields[f'item{n}_{campo}'] = forms.CharField(
+                    label=receita.ROTULOS_DO_ITEM[campo], required=False,
+                    max_length=receita.TAMANHO_MAXIMO[campo],
+                    widget=(forms.Textarea(attrs={'rows': 2, 'placeholder': exemplos[campo]}) if campo == 'posologia'
+                            else forms.TextInput(attrs={'placeholder': exemplos[campo]})),
+                )
+        if Configuracao.carregar().ativo:
+            self.fields['prescription_format'].choices = (
+                list(PRESCRIPTION_FORMAT_CHOICES) + list(receita.FORMAT_CHOICES)
+            )
+
+    def itens_do_sncr(self):
+        """Os campos de cada item, agrupados para o template desenhar por linha."""
+        from sncr import receita
+
+        return [
+            (n, [self[f'item{n}_{campo}'] for campo in receita.CAMPOS_DO_ITEM])
+            for n in range(1, receita.LIMITE_MEDICAMENTOS + 1)
+        ]
 
     def clean(self):
         """Exige os campos do tipo escolhido — e só os dele.
@@ -75,9 +121,19 @@ class MedicalDocumentForm(forms.Form):
         kind = cleaned.get('kind')
         if not kind or kind not in document_kinds.REQUIRED_FIELDS:
             return cleaned
+        from sncr import receita
+
+        eletronica = cleaned.get('prescription_format') in receita.FORMATOS
         for name in document_kinds.REQUIRED_FIELDS[kind]:
+            # Na receita eletrônica a prescrição em texto é montada dos itens.
+            if eletronica and name == 'prescription_text':
+                continue
             if not (cleaned.get(name) or '').strip():
                 self.add_error(name, 'Este campo é obrigatório para o tipo escolhido.')
+        if kind == 'prescription' and eletronica:
+            for campo in receita.CAMPOS_DO_ITEM:
+                if not (cleaned.get(f'item1_{campo}') or '').strip():
+                    self.add_error(f'item1_{campo}', 'Preencha o primeiro medicamento por inteiro.')
         return cleaned
 
 

@@ -1,3 +1,5 @@
+from sncr.receita import CAMPOS_DO_FORMULARIO as ITENS_DO_SNCR
+
 from .models import MedicalDocumentKind
 
 NUMBER_PREFIX = {
@@ -25,7 +27,14 @@ OPTIONAL_FIELDS = {
     # `prescription_format` decide se a receita sai em uma via ou em duas
     # (controle especial). Opcional porque a receita simples é o padrão e
     # não exige escolha — o valor ausente é lido como simples.
-    MedicalDocumentKind.PRESCRIPTION: ('special_instructions', 'prescription_format'),
+    #
+    # Os itens (`item1_nome`...) e a confirmação da classificação só valem
+    # para a receita eletrônica do SNCR; `issuance.create_draft` os tira do
+    # conteúdo das outras, para a receita impressa não guardar quinze chaves
+    # vazias.
+    MedicalDocumentKind.PRESCRIPTION: (
+        'special_instructions', 'prescription_format', 'classificacao_confirmada', *ITENS_DO_SNCR,
+    ),
     MedicalDocumentKind.REPORT: (),
     MedicalDocumentKind.REQUEST: (),
     MedicalDocumentKind.REFERRAL: (),

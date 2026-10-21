@@ -189,6 +189,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_provedor_e_sms` | O padrão da instalação para IA e SMS, e nenhuma view enviando de dentro da requisição |
 | `check_sncr_transicao` | Transição do SNCR (1.21.1): a RCE eletrônica para em 31/10/2026 (dia de Brasília), recusada no servidor e na tela sem gastar número; o papel continua; a receita simples só recebe o aviso |
 | `check_sncr_numeracao` | Pedido de bloco do SNCR (Anvisa simulada): impedimentos, corpo do manual, desfechos (incerto não se repete), reserva simultânea sem repetir número, bloco do médico, token fora da trilha |
+| `check_sncr_receita` | Receita eletrônica do SNCR (Sprint 2): quantidade por extenso, até 3 medicamentos, classificação pela lista oficial (Notificação recusada, adendo e desconhecido com confirmação, controlado fora da RET), **uma folha e um número por medicamento** (faltando número, nada sai), PDF sobre o modelo da Anvisa sem timbre, **assinatura PAdES real e válida**, número só consumido depois de assinado, bloco do médico nas duas clínicas, e o papel e a receita simples intocados |
 | `check_portaria344` | Lista oficial das substâncias controladas (Portaria 344/98): leitura inteira do ato vigente, receituário da norma, parser estrito, classificação por palavra inteira |
 | `check_receitas` | Catálogo CMED, emissão em papel, QR só em documento assinado (exige `import_cmed`) |
 | `check_recontratacao` | Recontratar preserva a conta e devolve o acesso com convite novo |

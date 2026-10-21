@@ -29,14 +29,27 @@ SPECIAL_COPIES = (
 )
 
 
+#: As receitas eletrônicas com numeração do SNCR (Anvisa). Moram em
+#: `sncr/receita.py` e são desenhadas por `sncr/pdf_oficial.py`, no modelo
+#: da Anvisa e **sem** o timbre da clínica — por isso o `render` abaixo as
+#: desvia antes de chegar a `build_pdf` (decisão D6, `docs/sncr/`).
+SNCR_RCE = 'sncr_rce'
+SNCR_RET = 'sncr_ret'
+ELECTRONIC_FORMATS = (SNCR_RCE, SNCR_RET)
+
+
 def prescription_format(document):
     value = (document.content_snapshot or {}).get('prescription_format') or SIMPLE
-    return value if value in dict(FORMAT_CHOICES) else SIMPLE
+    return value if value in dict(FORMAT_CHOICES) or value in ELECTRONIC_FORMATS else SIMPLE
 
 
 def render(document):
     content = document.content_snapshot
     kind = prescription_format(document)
+    if kind in ELECTRONIC_FORMATS:
+        from sncr.pdf_oficial import render as render_sncr
+
+        return render_sncr(document)
 
     def body():
         """Reconstruído a cada via.

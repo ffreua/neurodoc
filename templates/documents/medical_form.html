@@ -99,6 +99,48 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                             {% include "documents/_aviso_sncr.html" with aviso=aviso_ret %}
                         </div>
                         {% include "partials/field.html" with field=form.prescription_format col="col-md-6" %}
+
+                        {% comment %}Receita eletrônica do SNCR (docs/sncr/): itens
+                        estruturados no lugar do texto livre, porque o modelo da Anvisa
+                        pede cinco campos por medicamento e a classificação pela lista
+                        oficial precisa saber qual é o medicamento. O JavaScript mostra
+                        este bloco só nos formatos eletrônicos e o de texto livre só nos
+                        impressos; sem JavaScript os dois ficam à mostra, e o servidor
+                        lê o que o formato pede.{% endcomment %}
+                        <div class="col-12" data-nd-rx="sncr">
+                            <div class="alert alert-info fs-12 mb-3" role="note">
+                                <strong>Receita eletrônica com numeração do SNCR (Anvisa).</strong>
+                                Sai no modelo oficial da Anvisa, sem o cabeçalho da clínica. Até
+                                <strong>3 medicamentos</strong>, e <strong>cada um sai na sua folha, com o
+                                seu número SNCR</strong> — o paciente pode levar cada folha a uma farmácia.
+                                Os números são do seu bloco e atribuídos na assinatura digital, que é uma
+                                só para todas as folhas. Escreva o nome da substância (DCB); a quantidade
+                                em algarismos — o número por extenso é acrescentado sozinho.
+                            </div>
+                            {% for numero, campos in form.itens_do_sncr %}
+                            <fieldset class="border rounded-3 p-3 mb-3">
+                                <legend class="fs-13 fw-semibold float-none w-auto px-2 mb-0">
+                                    Medicamento {{ numero }}{% if numero > 1 %} <span class="text-muted fw-normal">(opcional)</span>{% endif %}
+                                </legend>
+                                <div class="row g-2">
+                                    {% for campo in campos %}
+                                    {% if forloop.first %}
+                                    {% include "partials/field.html" with field=campo col="col-md-6" %}
+                                    {% elif forloop.last %}
+                                    {% include "partials/field.html" with field=campo col="col-12" %}
+                                    {% else %}
+                                    {% include "partials/field.html" with field=campo col="col-md-2" %}
+                                    {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </fieldset>
+                            {% endfor %}
+                            <div class="row g-3">
+                                {% include "partials/field.html" with field=form.classificacao_confirmada col="col-12" %}
+                            </div>
+                        </div>
+
+                        <div class="col-12" data-nd-rx="impressa"><div class="row g-3">
                         {% comment %}Busca na tabela de medicamentos da Anvisa (CMED).
 
                         Fica **acima** da prescrição e escreve nela: escolher um
@@ -137,6 +179,7 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                         </div>
                         {% include "partials/field.html" with field=form.prescription_text col="col-12" %}
                         {% include "partials/field.html" with field=form.special_instructions col="col-12" %}
+                        </div></div>
                     </div>
 
                     <div class="row g-3 mt-1" data-nd-doc-kind="report">

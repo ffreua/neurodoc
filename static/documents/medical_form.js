@@ -34,4 +34,29 @@
 
     kindField.addEventListener('change', apply);
     apply();
+
+    /* Dentro da receita: o bloco do formato escolhido. A receita eletrônica
+     * do SNCR (`sncr_*`) usa os itens estruturados; as impressas, o texto
+     * livre. O formato só existe com a receita escolhida, e o bloco escondido
+     * sai do envio (`disabled`) — senão os itens vazios iriam junto da
+     * receita impressa e vice-versa. */
+    var formatField = form.querySelector('[name="prescription_format"]');
+    var rxGroups = form.querySelectorAll('[data-nd-rx]');
+    if (!formatField || !rxGroups.length) return;
+
+    function applyFormat() {
+        var isPrescription = kindField.value === 'prescription';
+        var wanted = (formatField.value || '').indexOf('sncr_') === 0 ? 'sncr' : 'impressa';
+        rxGroups.forEach(function (group) {
+            var mine = isPrescription && group.getAttribute('data-nd-rx') === wanted;
+            group.hidden = !mine;
+            group.querySelectorAll('input, select, textarea').forEach(function (input) {
+                input.disabled = !mine;
+            });
+        });
+    }
+
+    formatField.addEventListener('change', applyFormat);
+    kindField.addEventListener('change', applyFormat);
+    applyFormat();
 })();

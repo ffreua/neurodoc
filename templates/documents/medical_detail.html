@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd sncr_transicao %}
+{% load nd sncr_transicao sncr_receita %}
 {% block title %}{{ document.get_kind_display }} — NeuroDoc{% endblock %}
 {% block page_title %}{{ document.get_kind_display }}{% endblock %}
 {% block breadcrumb %}
@@ -19,6 +19,7 @@
 {% endif %}
 {% endblock %}
 {% block content %}
+{% receita_sncr document as rx %}
 <div class="row g-4">
     <div class="col-xxl-8 col-lg-7">
         <div class="card stretch stretch-full">
@@ -39,6 +40,20 @@
                                 <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Número</th>
                                 <td class="pe-4 fw-semibold text-dark">{{ document.document_number|default:"rascunho — sem validade" }}</td>
                             </tr>
+                            {% if rx %}
+                            <tr>
+                                <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Receita</th>
+                                <td class="pe-4">{{ rx.tipo.label }} — eletrônica, modelo da Anvisa</td>
+                            </tr>
+                            <tr>
+                                <th class="ps-4 fs-12 text-muted fw-normal" scope="row">{% if rx.folhas > 1 %}Números SNCR{% else %}Número SNCR{% endif %}</th>
+                                <td class="pe-4 fw-semibold text-dark">
+                                    {% if rx.numeros %}{{ rx.numeros|join:", " }}{% if rx.homologacao %} <span class="badge bg-soft-danger text-danger">homologação — sem validade</span>{% endif %}
+                                    {% if rx.folhas > 1 %}<div class="fs-12 text-muted fw-normal">Uma folha por medicamento, cada uma com o seu número.</div>{% endif %}
+                                    {% else %}<span class="text-muted fw-normal">{% if rx.folhas > 1 %}{{ rx.folhas }} números, um por medicamento, atribuídos na assinatura digital, do seu bloco{% else %}atribuído na assinatura digital, do seu bloco{% endif %}</span>{% endif %}
+                                </td>
+                            </tr>
+                            {% endif %}
                             <tr>
                                 <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Versão</th>
                                 <td class="pe-4"><span class="badge bg-gray-200 text-dark">v{{ document.version }}</span></td>
@@ -55,7 +70,39 @@
             </div>
         </div>
 
-        {% if is_own_document and document.status == "issued" %}
+        {% if rx %}
+        {% comment %}A classificação de cada item pela lista oficial (Portaria 344),
+        como foi feita no rascunho. Mostrada para o médico conferir antes de
+        assinar — o programa sugere, e a confirmação, quando houve, fica
+        registrada (sncr/receita.py).{% endcomment %}
+        <div class="card stretch stretch-full mt-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Medicamentos e classificação</h5>
+            </div>
+            <div class="card-body">
+                {% for linha in rx.itens %}
+                <div class="mb-3">
+                    <div class="fw-semibold text-dark">{{ forloop.counter }}. {{ linha.item.nome }} — {{ linha.item.concentracao }} — {{ linha.item.forma }}{% if linha.numero %} <span class="badge bg-gray-200 text-dark">SNCR {{ linha.numero }}</span>{% endif %}</div>
+                    <div class="fs-12">Quantidade: {{ linha.item.quantidade }} · Posologia: {{ linha.item.posologia }}</div>
+                    <div class="fs-12 text-muted">
+                        {% for s in linha.substancias %}
+                        {{ s.nome }} — lista {{ s.lista }} ({{ s.receituario_texto }}{% if s.adendo_rce %}, RCE pelo adendo{% endif %}){% if not forloop.last %}; {% endif %}
+                        {% empty %}
+                        Não encontrado na lista oficial.
+                        {% endfor %}
+                        {% if linha.origem == 'cmed' %}(substância identificada pelo nome comercial, na tabela da CMED){% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                <p class="fs-11 text-muted mb-0">
+                    Lista oficial: {{ rx.lista_oficial|default:"não importada" }}.
+                    {% if rx.confirmada %}Classificação confirmada pelo médico.{% endif %}
+                </p>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_own_document and document.status == "issued" and not rx %}
         <div class="card stretch stretch-full mt-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Correção (nova versão)</h5>
@@ -271,6 +318,14 @@
                 VALIDADE" em vermelho. O documento ganha número e data e sai
                 **sem QR**: no papel, quem responde por ele é a assinatura de
                 próprio punho e o carimbo.{% endcomment %}
+                {% if rx %}
+                {% comment %}A receita eletrônica não tem versão em papel
+                (issuance.issue_on_paper recusa, decisão I10).{% endcomment %}
+                <p class="fs-11 text-muted mb-0">
+                    Receita eletrônica: só vale assinada digitalmente, com o número do SNCR. Para
+                    papel, descarte e crie uma receita impressa.
+                </p>
+                {% else %}
                 <form method="post" action="{% url 'documents:medical-issue-paper' document.id %}"
                       data-nd-confirm="Emitir para assinatura de próprio punho? O documento ganha número e não poderá mais ser assinado digitalmente.">
                     {% csrf_token %}
@@ -278,6 +333,7 @@
                         Emitir para assinar e carimbar
                     </button>
                 </form>
+                {% endif %}
                 <form method="post" action="{% url 'documents:medical-discard' document.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-light-danger w-100">Descartar</button>

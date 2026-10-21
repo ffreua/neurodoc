@@ -7,6 +7,8 @@ from django.utils import timezone
 from audit.services import record_audit_event
 from events.models import OutboxEvent, OutboxEventStatus
 
+from sncr import receita as sncr_receita
+
 from . import document_kinds, sncr_transicao
 from .credentials import credential_is_usable, decrypt_pfx_bytes
 from .models import MedicalDocument, MedicalDocumentKind, MedicalDocumentStatus
@@ -57,6 +59,26 @@ def _validate_special_control(kind, content_fields, patient):
         )
 
 
+def _conteudo_da_receita(kind, content_fields, patient):
+    """Prepara o conteúdo da receita conforme o formato.
+
+    A receita **eletrônica do SNCR** passa por `sncr.receita.preparar`, que
+    classifica cada item pela lista oficial, aplica os limites e devolve o
+    conteúdo com os itens estruturados (e a prescrição em texto, para quem
+    já lê esse campo). Qualquer outro documento só perde os campos dos itens,
+    que o formulário manda vazios.
+    """
+    from sncr import receita
+
+    campos = dict(content_fields)
+    confirmada = bool(campos.pop('classificacao_confirmada', False))
+    if kind == MedicalDocumentKind.PRESCRIPTION and campos.get('prescription_format') in receita.FORMATOS:
+        return receita.preparar(campos, patient, confirmada=confirmada)
+    for nome in receita.CAMPOS_DO_FORMULARIO:
+        campos.pop(nome, None)
+    return campos
+
+
 def _as_issued(document):
     """O documento com estado `issued` **só em memória**, para desenhar.
 
@@ -96,6 +118,14 @@ def issue_on_paper(document, actor_id):
     locked = MedicalDocument.objects.select_for_update().get(pk=document.pk)
     if locked.status not in (MedicalDocumentStatus.DRAFT, MedicalDocumentStatus.READY_TO_SIGN):
         raise ValueError('Só um rascunho ou documento pronto para assinar pode ser emitido em papel.')
+    if sncr_receita.eh_eletronica(locked):
+        # O modelo eletrônico impresso sem número nem assinatura digital
+        # pareceria uma receita válida e não é (decisão I10). O papel é outro
+        # documento: a Receita de Controle Especial no leiaute da clínica.
+        raise ValueError(
+            'A receita eletrônica do SNCR só existe assinada digitalmente, com o número da Anvisa. '
+            'Para emitir em papel, crie uma receita de controle especial (ou simples) impressa.'
+        )
     locked.document_number = _next_document_number(locked.tenant_id, locked.kind)
     locked.issued_at = timezone.now()
     pdf_bytes = render_medical_document_pdf(_as_paper(locked))
@@ -156,6 +186,7 @@ def create_draft(tenant, patient, encounter, physician_membership, actor_id, kin
     if not PhysicianProfile.objects.filter(user_id=physician_membership.user_id).exists():
         raise MissingPhysicianProfile('Este médico ainda não tem CRM registrado no perfil. '
             'Preencha em Minha conta antes de emitir documento.')
+    content_fields = _conteudo_da_receita(kind, content_fields, patient)
     document_kinds.validate_content(kind, content_fields)
     _validate_special_control(kind, content_fields, patient)
     document = MedicalDocument.objects.create(
@@ -181,6 +212,14 @@ def create_draft(tenant, patient, encounter, physician_membership, actor_id, kin
 def create_correction(original, actor_id, content_fields, reason=''):
     if original.status != MedicalDocumentStatus.ISSUED:
         raise NotReadyToSign('Only an issued document can be corrected')
+    if sncr_receita.eh_eletronica(original):
+        # O número do SNCR da original já foi usado e não se cancela (FAQ
+        # P35–36); a "correção" seria outra receita, com outro número, e a
+        # primeira continuaria valendo na farmácia. Emite-se uma nova.
+        raise ValueError(
+            'A receita eletrônica do SNCR não é retificada: o número dela já foi usado. '
+            'Emita uma receita nova.'
+        )
     corrected = create_draft(
         original.tenant, original.patient, original.encounter, original.physician, actor_id,
         original.kind, content_fields, version=original.version + 1, replaces_document=original,
@@ -264,6 +303,49 @@ def sign_and_issue(document, request, physician_membership):
         raise
 
 
+def _reservar_numeros_sncr(locked, physician_membership, session):
+    """Reserva os números do SNCR da receita eletrônica, ou `None` para as outras.
+
+    **Um número por medicamento** (decisão I12): cada medicamento sai na sua
+    folha do modelo oficial, e cada folha é uma receita com número próprio —
+    o paciente que compra em farmácias diferentes leva a cada uma a folha
+    dela, e a farmácia registra o uso daquele número só. Falta número para
+    uma folha, nenhuma sai: a exceção desfaz a transação e as reservas.
+
+    Dentro da transação da assinatura, de propósito: se o desenho ou a
+    assinatura falharem, o rollback devolve o número a livre — e é seguro,
+    porque o PDF com aquele número só existiu na memória e nunca saiu do
+    servidor. O número é **do médico** (o bloco é dele, decisão D3): outro
+    médico da mesma clínica nunca o recebe. Consumido só depois de assinado.
+    """
+    tipo = sncr_receita.tipo_do_documento(locked)
+    if tipo is None:
+        return None
+    from sncr import numeracao
+    from sncr.models import Configuracao
+
+    config = Configuracao.carregar()
+    if not config.ativo:
+        raise _falhou(NotReadyToSign(
+            'A receita eletrônica com numeração do SNCR está desligada nesta instalação. '
+            'Use a receita impressa.'
+        ), 'denied', 'sncr_desligado')
+    perfil = physician_membership.user.physician_profile
+    folhas = len((locked.content_snapshot or {}).get('itens') or [])
+    try:
+        numeros = numeracao.reservar_varios(perfil, tipo, config.ambiente, locked, locked.tenant_id, folhas)
+    except numeracao.SemNumeroLivre as exc:
+        raise _falhou(NotReadyToSign(
+            f'Você não tem números do SNCR livres para as {folhas} folha(s) desta receita (um por '
+            'medicamento). Peça um bloco em “Numeração SNCR” (entrando com o Gov.br) e assine de '
+            'novo — o rascunho continua pronto, e nenhum número foi gasto.'
+        ), 'denied', 'sncr_sem_numero') from exc
+    locked.nd_numeros_sncr = [n.numero for n in numeros]
+    locked.nd_ambiente_sncr = config.ambiente
+    locked.nd_registro_assinatura = ''
+    return numeros
+
+
 def _falhou(exc, outcome, motivo):
     """Marca a exceção com o que `sign_and_issue` registra depois do rollback."""
     exc.nd_falha_de_assinatura = (outcome, motivo)
@@ -301,6 +383,8 @@ def _sign_and_issue(document, request, physician_membership):
     locked.status = MedicalDocumentStatus.SIGNING
     locked.save(update_fields=['status'])
 
+    numeros_sncr = _reservar_numeros_sncr(locked, physician_membership, session)
+
     # O PDF assinado é montado **agora**, e não é o rascunho.
     #
     # Antes se assinava o arquivo gerado na criação do rascunho, e aquele
@@ -314,6 +398,12 @@ def _sign_and_issue(document, request, physician_membership):
     # que cobre os bytes do arquivo inteiro.
     locked.document_number = _next_document_number(locked.tenant_id, locked.kind)
     locked.issued_at = timezone.now()
+    if numeros_sncr is not None:
+        from sncr.pdf_oficial import registro_de_assinatura
+
+        locked.nd_registro_assinatura = registro_de_assinatura(
+            physician_membership.user.physician_profile, session.credential, locked.issued_at,
+        )
     if not locked.validation_token:
         # Documento criado antes de o código de verificação existir.
         locked.validation_token = new_validation_token()
@@ -349,6 +439,18 @@ def _sign_and_issue(document, request, physician_membership):
         # escrevê-lo mudaria o hash.
         'content_sha256': hashlib.sha256(signed_bytes).hexdigest(),
     }
+    if numeros_sncr is not None:
+        from sncr import numeracao
+
+        for numero in numeros_sncr:
+            numeracao.consumir(numero)
+        # Na ordem das folhas: o n-ésimo número é o do n-ésimo medicamento.
+        locked.signature_metadata['sncr'] = {
+            'numeros': [n.numero for n in numeros_sncr],
+            'tipo': numeros_sncr[0].tipo,
+            'ambiente': numeros_sncr[0].ambiente,
+            'registro_assinatura': locked.nd_registro_assinatura,
+        }
     locked.save(update_fields=[
         'document_number', 'signed_pdf_attachment', 'status', 'issued_at',
         'signature_metadata', 'validation_token',

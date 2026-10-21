@@ -4,9 +4,9 @@ Exigem `ISSUE_DOCUMENT` — quem emite receita — e um perfil profissional:
 o bloco é do médico (`sncr/models.py`), e o painel mostra **só os dele**,
 em qualquer clínica em que ele esteja. A secretária e o gestor não abrem.
 
-Ainda sem link no menu: a integração nasce desligada, e o link entra com
-a ativação (Sprint 3). Até lá a tela existe para o roteiro e para o teste
-real autorizado (decisão D8).
+O link do menu ("Numeração SNCR") aparece só com a integração ligada
+(`base/context_processors.py`, `nd_sncr_ativo`); desligada — o padrão —,
+a tela existe para o roteiro e para o teste real autorizado (decisão D8).
 """
 
 from django.contrib import messages

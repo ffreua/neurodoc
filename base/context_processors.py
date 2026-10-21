@@ -64,6 +64,7 @@ def shell(request):
         'nd_view': _view_name(request),
         'nd_portal_requests': 0,
         'nd_portal_visible': False,
+        'nd_sncr_ativo': False,
         'nd_tenant': None,
         'nd_clinic_has_logo': False,
         'nd_roles': [],
@@ -118,6 +119,13 @@ def shell(request):
         mine.order_by(F('read_at').asc(nulls_first=True), '-created_at')[:5]
     )
     data.update(_portal_badge(context))
+    # Numeração do SNCR: o item do menu existe só com a integração ligada
+    # (`sncr.models.Configuracao.ativo`) e só para quem emite receita. Uma
+    # linha só, lida para quem tem a capacidade.
+    if context.can(Capability.ISSUE_DOCUMENT):
+        from sncr.models import Configuracao
+
+        data['nd_sncr_ativo'] = Configuracao.objects.filter(ativo=True).exists()
     return data
 
 
