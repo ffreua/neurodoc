@@ -29,9 +29,11 @@ e Respostas — Integração, P34). Sem ele, o pedido de bloco não é feito.
 Marcar cada item ao concluir, e trocar o estado lá em cima para
 **RESOLVIDA**, com a data.
 
-- [ ] Gravar o CNPJ na configuração da instalação de produção (console
-      `/instalacao/operacao/`, campo do SNCR) e no `.env.example` como
-      exemplo vazio.
+- [ ] Gravar o CNPJ na configuração da instalação de produção: console
+      `/instalacao/operacao/`, cartão "Receita eletrônica com numeração do
+      SNCR", campo **CNPJ da mantenedora** (pronto desde a Sprint 3; valida
+      os dígitos e vai à trilha). Ele aparece também no rodapé de cada
+      folha da receita eletrônica ("Identificação da plataforma").
 - [ ] **Contrato de adesão** (`tenancy/contract.py::CONTRATADO`): hoje o
       contratado é pessoa física. Passar a empresa a mantenedora exige
       **versão nova** do contrato (cláusula 17.6), redigida pela Dra.
@@ -43,8 +45,9 @@ Marcar cada item ao concluir, e trocar o estado lá em cima para
       `templates/onboarding/landing.html`): identificação da empresa.
 - [ ] **JSON-LD** (`base/seo.py`): a organização que publica o produto.
 - [ ] **README** (seção de licença e do serviço hospedado).
-- [ ] Prova de comunicação: o **bloco de RCE em homologação** autorizado
-      na D3 (um só, no ambiente de treinamento).
+- [ ] O teste real (D8, que substituiu a prova em homologação da D3): o
+      primeiro bloco de RCE pedido pelo proprietário **em produção**,
+      seguindo [ATIVACAO.md](ATIVACAO.md).
 - [ ] Atualizar `docs/sncr/ESTADO_EXECUCAO.md` e este arquivo.
 
 ## Onde procurar

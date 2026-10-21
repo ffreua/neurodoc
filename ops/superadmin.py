@@ -539,6 +539,7 @@ class OperationsView(SuperAdminView):
             'ia_base_url': base_url,
             'ia_modelos': config.ai_available_models or [],
             'ia_fora_da_lista': config.ia_modelo_fora_da_lista,
+            'sncr': sncr_resumo(),
         })
 
 
@@ -676,6 +677,121 @@ class AIAllowlistView(SuperAdminView):
                 request,
                 'Lista limpa: só os provedores do catálogo são alcançáveis.',
             )
+        return redirect('superadmin:operations')
+
+
+#: Palavra que se digita para ligar a receita eletrônica do SNCR.
+CONFIRMACAO_LIGAR_SNCR = 'LIGAR'
+
+
+def sncr_resumo():
+    """O que a tela de Operação mostra do SNCR: a chave e os números dela.
+
+    Contagens, nunca conteúdo: quantos pedidos esperam conferência (os
+    incertos barram o médico de pedir de novo), quantos blocos e números.
+    """
+    from sncr.models import (
+        Ambiente, BlocoNumeracao, Configuracao, EstadoNumero, EstadoPedido, NumeroSncr, PedidoNumeracao,
+    )
+
+    config = Configuracao.carregar()
+    numeros = NumeroSncr.objects.filter(ambiente=config.ambiente)
+    return {
+        'config': config,
+        'confirmacao': CONFIRMACAO_LIGAR_SNCR,
+        'ambientes': Ambiente.choices,
+        'incertos': PedidoNumeracao.objects.filter(estado=EstadoPedido.INCERTO).count(),
+        'blocos': BlocoNumeracao.objects.filter(ambiente=config.ambiente).count(),
+        'livres': numeros.filter(estado=EstadoNumero.LIVRE, bloco__utilizavel=True).count(),
+        'usados': numeros.filter(estado=EstadoNumero.CONSUMIDO).count(),
+        'medicos': BlocoNumeracao.objects.filter(ambiente=config.ambiente).values('medico').distinct().count(),
+    }
+
+
+class SncrInstallationView(SuperAdminView):
+    """A chave da receita eletrônica do SNCR, o ambiente e o CNPJ da mantenedora.
+
+    **Assimétrico, como a coleta.** Desligar é um clique: a receita
+    eletrônica some do formulário e a impressa continua — é a direção
+    segura e o freio de emergência. Ligar exige o CNPJ válido (a Anvisa o
+    pede em todo pedido de bloco), digitar a palavra e escrever o motivo,
+    porque do outro lado há receita que vai à farmácia com número da Anvisa.
+
+    **Ambiente só se troca desligada.** Com ela ligada, mudar de
+    homologação para produção no meio do dia deixaria rascunhos montados
+    para um ambiente sendo assinados noutro, e a numeração de um não vale
+    no outro. Ver `docs/sncr/ATIVACAO.md`.
+    """
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from base.validators import is_valid_cnpj
+        from sncr.models import Ambiente, Configuracao
+
+        config = Configuracao.carregar()
+        acao = request.POST.get('acao')
+        antes = {'ativo': config.ativo, 'ambiente': config.ambiente, 'cnpj': bool(config.cnpj_mantenedora)}
+
+        if acao == 'desligar':
+            config.ativo = False
+            evento, aviso = 'ops.sncr_disabled', (
+                'Receita eletrônica do SNCR desligada. O formulário volta a oferecer só as impressas.'
+            )
+        elif acao == 'cnpj':
+            cnpj = ''.join(c for c in request.POST.get('cnpj', '') if c.isdigit())
+            if cnpj and not is_valid_cnpj(cnpj):
+                messages.error(request, 'CNPJ inválido. Confira os quatorze dígitos. Nada foi alterado.')
+                return redirect('superadmin:operations')
+            if not cnpj and config.ativo:
+                messages.error(request, 'Com a integração ligada o CNPJ não pode ficar vazio. Desligue antes.')
+                return redirect('superadmin:operations')
+            config.cnpj_mantenedora = cnpj
+            evento, aviso = 'ops.sncr_cnpj_changed', 'CNPJ da mantenedora gravado.'
+        elif acao == 'ambiente':
+            ambiente = request.POST.get('ambiente')
+            if ambiente not in Ambiente.values:
+                raise Http404
+            if config.ativo:
+                messages.error(request, 'O ambiente só muda com a integração desligada. Nada foi alterado.')
+                return redirect('superadmin:operations')
+            config.ambiente = ambiente
+            evento, aviso = 'ops.sncr_environment_changed', f'Ambiente: {config.get_ambiente_display()}.'
+        elif acao == 'ligar':
+            if not is_valid_cnpj(config.cnpj_mantenedora):
+                messages.error(
+                    request,
+                    'Grave o CNPJ da mantenedora antes de ligar: a Anvisa o exige em todo pedido de '
+                    'bloco. Nada foi alterado.',
+                )
+                return redirect('superadmin:operations')
+            if (request.POST.get('confirmacao') or '').strip() != CONFIRMACAO_LIGAR_SNCR:
+                messages.error(
+                    request,
+                    f'Para ligar, digite {CONFIRMACAO_LIGAR_SNCR} no campo de confirmação. Nada foi alterado.',
+                )
+                return redirect('superadmin:operations')
+            motivo = (request.POST.get('motivo') or '').strip()
+            if not motivo:
+                messages.error(request, 'Escreva o motivo. Nada foi alterado.')
+                return redirect('superadmin:operations')
+            config.ativo = True
+            evento, aviso = 'ops.sncr_enabled', (
+                f'Receita eletrônica do SNCR ligada, ambiente {config.get_ambiente_display()}.'
+            )
+        else:
+            raise Http404
+
+        config.full_clean()
+        config.save()
+        metadados = {'antes': antes, 'ativo': config.ativo, 'ambiente': config.ambiente,
+                     'cnpj': bool(config.cnpj_mantenedora)}
+        if acao == 'ligar':
+            metadados['motivo'] = motivo[:255]
+        record_audit_event(
+            request.user, None, evento, object_type='sncr_configuracao', object_id=config.id,
+            outcome='success', integrity_metadata=metadados,
+        )
+        messages.success(request, aviso)
         return redirect('superadmin:operations')
 
 

@@ -293,6 +293,7 @@
                     {% csrf_token %}
                     <button type="submit" class="btn btn-light-danger w-100">Descartar rascunho</button>
                 </form>
+                {% if rx %}{% include "documents/_refazer_impressa.html" %}{% endif %}
                 {% elif document.status == "ready_to_sign" %}
                 {% rce_assinatura_bloqueada document as rce_bloqueada %}
                 {% if rce_bloqueada %}
@@ -321,10 +322,7 @@
                 {% if rx %}
                 {% comment %}A receita eletrônica não tem versão em papel
                 (issuance.issue_on_paper recusa, decisão I10).{% endcomment %}
-                <p class="fs-11 text-muted mb-0">
-                    Receita eletrônica: só vale assinada digitalmente, com o número do SNCR. Para
-                    papel, descarte e crie uma receita impressa.
-                </p>
+                {% include "documents/_refazer_impressa.html" %}
                 {% else %}
                 <form method="post" action="{% url 'documents:medical-issue-paper' document.id %}"
                       data-nd-confirm="Emitir para assinatura de próprio punho? O documento ganha número e não poderá mais ser assinado digitalmente.">

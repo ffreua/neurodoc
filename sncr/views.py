@@ -79,3 +79,25 @@ class RetornoView(SncrView):
         nivel = messages.success if pedido.estado == 'concluido' else messages.error
         nivel(request, pedido.mensagem)
         return redirect('sncr:painel')
+
+
+class ConferirPedidoView(SncrView):
+    """O médico registra o que viu no portal do SNCR sobre um pedido incerto."""
+
+    def post(self, request, pedido_id):
+        medico = _medico(request)
+        if medico is None:
+            raise Http404
+        gerado = request.POST.get('resultado')
+        if gerado not in ('gerado', 'nao_gerado'):
+            raise Http404
+        try:
+            pedido = fluxo.resolver_incerto(
+                pedido_id, medico, request.user.id, gerado=gerado == 'gerado',
+                inicio=request.POST.get('inicio', ''), fim=request.POST.get('fim', ''),
+            )
+        except fluxo.PedidoRecusado as exc:
+            messages.error(request, str(exc))
+            return redirect('sncr:painel')
+        messages.success(request, pedido.mensagem)
+        return redirect('sncr:painel')

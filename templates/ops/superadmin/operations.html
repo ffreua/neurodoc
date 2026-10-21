@@ -128,6 +128,107 @@ que o botão enfileira uma verificação em vez de perguntar na hora.
 
 <div class="row g-4">
 
+    {# ------------------------------------------- receita eletrônica SNCR #}
+    <div class="col-12">
+        <div class="card stretch stretch-full" data-nd-sncr-console>
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Receita eletrônica com numeração do SNCR (Anvisa)</h5>
+                {% if sncr.config.ativo %}
+                <span class="badge bg-soft-success text-success">Ligada — {{ sncr.config.get_ambiente_display }}</span>
+                {% else %}
+                <span class="badge bg-soft-primary text-primary">Desligada</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    Ligada, o formulário da receita passa a oferecer a <strong>RCE e a RET
+                    eletrônicas</strong>, no modelo da Anvisa, com um número do bloco do médico por
+                    folha. A receita impressa continua igual nos dois estados. Passo a passo e
+                    reversão: <code>docs/sncr/ATIVACAO.md</code>.
+                </p>
+                <div class="row g-3 fs-12 mb-3">
+                    <div class="col-sm-3"><span class="d-block text-muted">Médicos com bloco</span><strong>{{ sncr.medicos }}</strong></div>
+                    <div class="col-sm-3"><span class="d-block text-muted">Números livres</span><strong>{{ sncr.livres }}</strong></div>
+                    <div class="col-sm-3"><span class="d-block text-muted">Números usados</span><strong>{{ sncr.usados }}</strong></div>
+                    <div class="col-sm-3"><span class="d-block text-muted">Pedidos incertos</span>
+                        <strong class="{% if sncr.incertos %}text-danger{% endif %}">{{ sncr.incertos }}</strong></div>
+                </div>
+                {% if sncr.incertos %}
+                <div class="alert alert-light-danger fs-12" role="alert">
+                    Há pedido de bloco com resultado incerto: o médico precisa conferir no portal do
+                    SNCR e registrar o que encontrou no painel "Numeração SNCR" dele. Até lá, ele não
+                    pede outro bloco do mesmo tipo.
+                </div>
+                {% endif %}
+
+                <div class="row g-4">
+                    <div class="col-lg-4">
+                        <form method="post" action="{% url 'superadmin:operations-sncr' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="cnpj">
+                            <label class="form-label fs-12" for="sncr-cnpj">CNPJ da mantenedora</label>
+                            <input type="text" class="form-control form-control-sm mb-2" id="sncr-cnpj" name="cnpj"
+                                   value="{{ sncr.config.cnpj_mantenedora }}" inputmode="numeric" maxlength="18">
+                            <span class="form-text fs-11 d-block mb-2">
+                                Da empresa responsável pelo NeuroDoc — nunca o de uma clínica cliente
+                                (FAQ de Integração, P34).
+                            </span>
+                            <button type="submit" class="btn btn-light-primary btn-sm" data-nd-busy>Gravar CNPJ</button>
+                        </form>
+                    </div>
+                    <div class="col-lg-4">
+                        <form method="post" action="{% url 'superadmin:operations-sncr' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="ambiente">
+                            <label class="form-label fs-12" for="sncr-ambiente">Ambiente da Anvisa</label>
+                            <select class="form-select form-select-sm mb-2" id="sncr-ambiente" name="ambiente"
+                                    {% if sncr.config.ativo %}disabled{% endif %}>
+                                {% for valor, rotulo in sncr.ambientes %}
+                                <option value="{{ valor }}" {% if valor == sncr.config.ambiente %}selected{% endif %}>{{ rotulo }}</option>
+                                {% endfor %}
+                            </select>
+                            <span class="form-text fs-11 d-block mb-2">
+                                Só muda com a integração desligada. O número da homologação não vale em farmácia.
+                            </span>
+                            {% if not sncr.config.ativo %}
+                            <button type="submit" class="btn btn-light-primary btn-sm" data-nd-busy>Gravar ambiente</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                    <div class="col-lg-4">
+                        {% if sncr.config.ativo %}
+                        {% comment %}Desligar é um clique, como voltar a coleta ao ensaio:
+                        é o freio de emergência.{% endcomment %}
+                        <form method="post" action="{% url 'superadmin:operations-sncr' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="desligar">
+                            <button type="submit" class="btn btn-primary" data-nd-busy>Desligar agora</button>
+                        </form>
+                        <p class="fs-11 text-muted mt-2 mb-0">
+                            Um clique: as receitas já emitidas continuam valendo, e os números
+                            livres ficam guardados para quando ligar de novo.
+                        </p>
+                        {% else %}
+                        <form method="post" action="{% url 'superadmin:operations-sncr' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="acao" value="ligar">
+                            <label class="form-label fs-12" for="sncr-motivo">Por que ligar?</label>
+                            <input type="text" class="form-control form-control-sm mb-2" id="sncr-motivo"
+                                   name="motivo" maxlength="255" placeholder="Ex.: CNPJ registrado e primeiro bloco conferido">
+                            <label class="form-label fs-12" for="sncr-confirmacao">
+                                Digite <code>{{ sncr.confirmacao }}</code> para confirmar
+                            </label>
+                            <input type="text" class="form-control form-control-sm mb-2" id="sncr-confirmacao"
+                                   name="confirmacao" autocomplete="off">
+                            <button type="submit" class="btn btn-danger btn-sm" data-nd-busy>Ligar a receita eletrônica</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {# ------------------------------------------------ coleta de lixo #}
     <div class="col-lg-6">
         <div class="card stretch stretch-full">

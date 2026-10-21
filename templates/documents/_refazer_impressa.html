@@ -1,0 +1,14 @@
+{% comment %}A contingência (decisão I15): quando o SNCR não dá — sem
+número, sem sessão, integração desligada —, o médico refaz como
+impressa, escolhendo; nada converte sozinho.{% endcomment %}
+<form method="post" action="{% url 'documents:medical-to-paper' document.id %}"
+      data-nd-confirm="Refazer esta receita como receita impressa, para assinar e carimbar? O rascunho eletrônico é descartado; a prescrição é copiada e nenhum número do SNCR é gasto.">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-light w-100" data-nd-busy>
+        Refazer como receita impressa
+    </button>
+</form>
+<p class="fs-11 text-muted mb-0">
+    Sem número do SNCR ou sem certificado agora? A receita eletrônica só vale
+    assinada digitalmente; a impressa sai no leiaute da clínica, para assinar à mão.
+</p>

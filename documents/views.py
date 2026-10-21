@@ -444,6 +444,29 @@ class MedicalDocumentIssueOnPaperView(ClinicalDocumentView):
         return redirect('documents:medical-detail', document_id=document.id)
 
 
+class MedicalDocumentToPaperView(ClinicalDocumentView):
+    """A contingência da receita eletrônica do SNCR: refazê-la como impressa.
+
+    `POST` e com confirmação na tela: é o médico quem escolhe o papel
+    (decisão I15). O rascunho eletrônico é descartado e o impresso abre no
+    lugar, pronto para "Emitir para assinar e carimbar".
+    """
+
+    def post(self, request, document_id):
+        document = _medical_document_or_404(request, document_id)
+        try:
+            novo = issuance.converter_para_impressa(document, request.user.id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('documents:medical-detail', document_id=document.id)
+        messages.success(
+            request,
+            'Receita refeita como impressa, com a mesma prescrição. Confira e emita para assinar e '
+            'carimbar. O rascunho eletrônico foi descartado e nenhum número do SNCR foi gasto.',
+        )
+        return redirect('documents:medical-detail', document_id=novo.id)
+
+
 class MedicalDocumentDetailView(ClinicalDocumentView):
     def get(self, request, document_id):
         document = _medical_document_or_404(request, document_id)

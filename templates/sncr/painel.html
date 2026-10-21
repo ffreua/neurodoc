@@ -60,6 +60,30 @@
                     <span class="fw-semibold">{{ p.tipo }}</span> · {{ p.created_at|date:"d/m/Y H:i" }} ·
                     {{ p.get_estado_display }}
                     {% if p.mensagem %}<span class="d-block text-muted">{{ p.mensagem }}</span>{% endif %}
+                    {% if p.estado == 'incerto' %}
+                    {% comment %}A reconciliação que a API não tem (decisão I14): o médico
+                    confere no portal do SNCR, que mostra a numeração dele, e diz o que
+                    encontrou. Nada se repete sozinho.{% endcomment %}
+                    <div class="border rounded p-2 mt-2 bg-light" data-nd-sncr-conferir>
+                        <span class="d-block fw-semibold">Confira em sncr.anvisa.gov.br</span>
+                        <span class="d-block text-muted mb-2">Entre com o seu Gov.br, veja se a Anvisa gerou um bloco de {{ p.tipo }} nesta data e registre aqui.</span>
+                        <form method="post" action="{% url 'sncr:conferir' p.id %}" class="mb-2"
+                              data-nd-confirm="Confirmar que o portal do SNCR NÃO mostra bloco gerado por este pedido? Você poderá pedir de novo.">
+                            {% csrf_token %}
+                            <input type="hidden" name="resultado" value="nao_gerado">
+                            <button type="submit" class="btn btn-light btn-sm" data-nd-busy>Nenhum bloco foi gerado</button>
+                        </form>
+                        <form method="post" action="{% url 'sncr:conferir' p.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="resultado" value="gerado">
+                            <div class="row g-2 mb-2">
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" name="inicio" placeholder="Primeiro número" autocomplete="off" required></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" name="fim" placeholder="Último número" autocomplete="off" required></div>
+                            </div>
+                            <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>O bloco foi gerado: registrar</button>
+                        </form>
+                    </div>
+                    {% endif %}
                 </div>
                 {% empty %}
                 <span class="fs-12 text-muted">Nenhum pedido ainda.</span>

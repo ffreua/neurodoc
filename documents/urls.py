@@ -30,6 +30,10 @@ urlpatterns = [
         'medical/<uuid:document_id>/emitir-em-papel/',
         views.MedicalDocumentIssueOnPaperView.as_view(), name='medical-issue-paper',
     ),
+    path(
+        'medical/<uuid:document_id>/refazer-impressa/',
+        views.MedicalDocumentToPaperView.as_view(), name='medical-to-paper',
+    ),
     path('medical/<uuid:document_id>/', views.MedicalDocumentDetailView.as_view(), name='medical-detail'),
     path('medical/<uuid:document_id>/review/', views.MedicalDocumentReviewView.as_view(), name='medical-review'),
     path('medical/<uuid:document_id>/discard/', views.MedicalDocumentDiscardView.as_view(), name='medical-discard'),

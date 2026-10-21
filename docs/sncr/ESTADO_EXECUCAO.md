@@ -6,12 +6,14 @@ arquivo resume, não substitui a inspeção.
 
 | Campo | Valor |
 | --- | --- |
-| Sprint / gate | **Sprint 2 concluída na branch, aguardando o proprietário (Gate 2).** Sprint 3 não iniciada |
-| Branch | `sncr/sprint-1` (Sprints 1 e 2), **local, sem push** |
+| Sprint / gate | **Sprint 3 concluída na branch — as três sprints prontas, aguardando o Gate 3 do proprietário.** Próximo passo: autorização para publicar **desligada** ([ATIVACAO.md](ATIVACAO.md)) |
+| Branch | `sncr/sprint-1` (Sprints 1, 2 e 3), **local, sem push** |
 | Commit-base | `0676059` (`main`, 1.21.1 publicada) |
 | Produção | **1.21.1** — só a transição da D1. **Nada da integração está em produção**, e nenhuma chamada à API do SNCR de produção foi feita |
 | Bloqueio para ativar | **CNPJ da mantenedora** ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)); depois, o teste real (D8) |
-| Decisões | [DECISOES.md](DECISOES.md) — D1 a D8 do proprietário, I1 a I13 de implementação |
+| Decisões | [DECISOES.md](DECISOES.md) — D1 a D8 do proprietário, I1 a I16 de implementação |
+| Ativação e reversão | [ATIVACAO.md](ATIVACAO.md) — o passo a passo de publicar desligada, ligar, o teste real e voltar atrás |
+| Ajuda (a publicar na ativação) | [AJUDA.md](AJUDA.md) |
 | Relatório da Sprint 0 | [SPRINT-0-RELATORIO.md](SPRINT-0-RELATORIO.md) |
 
 ## Onde está cada coisa
@@ -28,7 +30,11 @@ arquivo resume, não substitui a inspeção.
 | PDF no modelo da Anvisa | `sncr/pdf_oficial.py` + `sncr/modelos/rce_eletronica_anvisa.pdf` (SHA-256 conferido) — uma folha por medicamento |
 | Emissão e assinatura | `documents/issuance.py` (`_conteudo_da_receita`, `_reservar_numeros_sncr`, consumo depois de assinado), despacho do PDF em `documents/pdf/prescription.py` |
 | Telas | `documents/forms.py` e `templates/documents/medical_form.html` (os 3 medicamentos estruturados, só com o SNCR ligado), `templates/documents/medical_detail.html` + `sncr/templatetags/sncr_receita.py` (números e classificação), link "Numeração SNCR" no menu (`templates/partials/sidebar.html`, `base/context_processors.py`) |
-| Roteiros | `check_sncr_numeracao` (Sprint 1, Anvisa simulada), `check_sncr_receita` (Sprint 2, **assinatura PAdES real** com certificado de teste) |
+| Console da instalação (ligar, ambiente, CNPJ) | `ops/superadmin.py::SncrInstallationView` e `sncr_resumo`, rota `/instalacao/operacao/sncr/`, cartão em `templates/ops/superadmin/operations.html` |
+| Conferência do pedido incerto | `sncr/fluxo.py::resolver_incerto`, `sncr/views.py::ConferirPedidoView`, rota `/app/sncr/pedido/<id>/conferir/`, formulário no `templates/sncr/painel.html` |
+| Contingência: refazer como impressa | `documents/issuance.py::converter_para_impressa`, `documents/views.py::MedicalDocumentToPaperView`, rota `medical/<id>/refazer-impressa/`, parcial `templates/documents/_refazer_impressa.html` |
+| Aviso de 31/10 com a integração ligada | `documents/sncr_transicao.py::aviso` (`_integracao_ligada`) |
+| Roteiros | `check_sncr_numeracao` (Sprint 1, Anvisa simulada), `check_sncr_receita` (Sprint 2, **assinatura PAdES real** com certificado de teste), `check_sncr_contingencia` (Sprint 3) |
 
 ## Sprint 1 — numeração (concluída)
 
@@ -65,19 +71,28 @@ número (I7), faixa irreconhecível não utilizável (I8). Anvisa
   medicamentos inspecionadas em imagem em 2026-10-21; **bateria completa:
   120 roteiros, nenhuma falha** (2026-10-21, imagem reconstruída).
 
+## Sprint 3 — contingência e preparação (concluída na branch)
+
+- **Console da instalação** (I16): CNPJ da mantenedora, ambiente e a
+  chave, com desligar em um clique e ligar com CNPJ válido, `LIGAR` e
+  motivo na trilha; números, médicos com bloco e pedidos incertos à vista.
+- **Pedido incerto conferido pelo médico** (I14), no painel: "nenhum bloco
+  foi gerado" ou a faixa de exatamente 1.000 números vista no portal.
+- **Contingência** (I15): "Refazer como receita impressa" no rascunho
+  eletrônico, com confirmação; as recusas da assinatura apontam o botão.
+- **Aviso de 31/10** apontando a eletrônica quando ligada; a trava da RCE
+  impressa assinada digitalmente continua.
+- **Documentos:** [ATIVACAO.md](ATIVACAO.md) (publicar, ligar, teste real,
+  reverter, monitorar) e [AJUDA.md](AJUDA.md) (artigo pronto, publicado só
+  na ativação).
+- **Evidência:** `check_sncr_contingencia` verde (41 itens); **bateria
+  completa: 121 roteiros, nenhuma falha** (2026-10-21, imagem reconstruída).
+
 ## Próxima ação exata
 
-1. **Gate 2:** o proprietário aprova a Sprint 2.
-2. **Sprint 3** — contingência e preparação:
-   - oferecer a receita impressa quando o SNCR falhar ou faltar número,
-     com confirmação do médico (cenários 1 e 4 do plano), sem converter
-     sozinho;
-   - tela de conferência dos pedidos **incertos** e dos números perdidos;
-   - retirar o aviso transitório da 1.21.1 **quando** a integração for
-     ligada em produção (`documents/sncr_transicao.py`), e não antes;
-   - ajuda da central (`base/help_content.py`) e documento de homologação;
-   - plano de ativação: `Configuracao.ativo` desligado no deploy, ligado
-     só depois do CNPJ e do primeiro bloco real.
+1. **Gate 3:** o proprietário aprova as três sprints.
+2. Com autorização: **publicar desligada**, passos 1 a 8 de
+   [ATIVACAO.md](ATIVACAO.md) (versão nova, `import_portaria344` no worker).
 3. **Quando o CNPJ chegar:** [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md); depois,
    o primeiro pedido real em produção, pelo proprietário (D8).
 

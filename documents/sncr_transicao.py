@@ -54,6 +54,12 @@ def _formato(document):
     return (document.content_snapshot or {}).get('prescription_format') or ''
 
 
+def _integracao_ligada():
+    from sncr.models import Configuracao
+
+    return Configuracao.carregar().ativo
+
+
 def _em_vigor(hoje=None):
     return (hoje or timezone.localdate()) >= DATA_EXIGENCIA
 
@@ -80,6 +86,21 @@ def aviso(document=None, hoje=None, formato=None):
     if formato is None:
         return None
     vigente = _em_vigor(hoje)
+    if formato == SPECIAL_CONTROL and _integracao_ligada():
+        # Ligada a integração, o aviso deixa de ser "aguarde" e passa a dizer
+        # o caminho: a RCE assinada digitalmente é a eletrônica, com número.
+        # A trava da assinatura da RCE impressa continua — ela é da norma, e
+        # não da falta da integração.
+        return {
+            'nivel': 'danger' if vigente else 'warning',
+            'titulo': 'Receita de Controle Especial impressa',
+            'texto': (
+                'Para assinar digitalmente, use a Receita de Controle Especial eletrônica, com '
+                'numeração do SNCR (Anvisa, RDC 1.000/2025). Esta, impressa, '
+                + ('sai para assinar e carimbar.' if vigente
+                   else 'deixa de ser assinada digitalmente em 31/10/2026; depois disso, sai para assinar e carimbar.')
+            ),
+        }
     if formato == SPECIAL_CONTROL:
         if vigente:
             return {

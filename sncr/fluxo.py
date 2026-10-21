@@ -210,3 +210,54 @@ def pedidos_parados():
             pedido, EstadoPedido.INCERTO,
             'O pedido foi interrompido no meio. O bloco pode ter sido entregue: confira no portal do SNCR.',
         )
+
+
+#: O bloco de RCE e de RET tem 1.000 números (Manual v5). A faixa
+#: conferida no portal e digitada à mão tem de ter exatamente isso: um
+#: dígito errado no início ou no fim viraria um bloco de outro tamanho.
+NUMEROS_POR_BLOCO = 1000
+
+
+def resolver_incerto(pedido_id, medico, ator_id, *, gerado, inicio='', fim=''):
+    """O médico conferiu no portal do SNCR o que aconteceu com o pedido incerto.
+
+    É a reconciliação que a API não tem (decisão I14): ela não consulta nem
+    cancela bloco, então quem sabe é o portal da Anvisa, onde o próprio
+    médico vê a numeração que recebeu. Duas respostas:
+
+    - **nenhum bloco foi gerado** — o pedido vira `FALHOU` (não conta no
+      limite do mês, porque não gerou nada) e o médico pode pedir de novo;
+    - **o bloco foi gerado** — o médico digita início e fim como o portal
+      mostra; a faixa tem de ter os 1.000 números do bloco e não pode repetir
+      número já registrado. O pedido vira `CONCLUIDO` com o bloco.
+
+    Só o próprio médico, e só pedido seu ainda incerto.
+    """
+    from .numeracao import enumerar
+
+    with transaction.atomic():
+        pedido = (PedidoNumeracao.objects.select_for_update()
+                  .filter(pk=pedido_id, medico=medico, estado=EstadoPedido.INCERTO).first())
+        if pedido is None:
+            raise PedidoRecusado('Este pedido não está mais pendente de conferência.')
+        if not gerado:
+            _encerrar(pedido, EstadoPedido.FALHOU,
+                      'Conferido pelo médico no portal do SNCR: nenhum bloco foi gerado por este pedido.',
+                      pedido.http_status, actor_id=ator_id)
+            return pedido
+        inicio, fim = (inicio or '').strip(), (fim or '').strip()
+        numeros = enumerar(inicio, fim)
+        if numeros is None or len(numeros) != NUMEROS_POR_BLOCO:
+            raise PedidoRecusado(
+                f'Início e fim não formam uma faixa de {NUMEROS_POR_BLOCO} números. Copie os dois '
+                'exatamente como o portal do SNCR mostra, com os zeros à esquerda.'
+            )
+        bloco = registrar_bloco(pedido, {'inicio': inicio, 'fim': fim, 'quantidade': NUMEROS_POR_BLOCO})
+        if not bloco.utilizavel:
+            # A faixa repete número já registrado: o bloco fica gravado como
+            # não utilizável, e o pedido, conferido — sem número adivinhado.
+            mensagem = f'Conferido no portal do SNCR, mas não utilizável: {bloco.motivo_bloqueio}'
+        else:
+            mensagem = f'Conferido pelo médico no portal do SNCR: bloco {inicio} a {fim}.'
+        _encerrar(pedido, EstadoPedido.CONCLUIDO, mensagem, pedido.http_status, actor_id=ator_id)
+        return pedido

@@ -50,6 +50,10 @@ urlpatterns = [
         superadmin.AIAllowlistView.as_view(), name='operations-ai-allowlist',
     ),
     path(
+        'operacao/sncr/',
+        superadmin.SncrInstallationView.as_view(), name='operations-sncr',
+    ),
+    path(
         'operacao/coleta/',
         superadmin.GarbageCollectionView.as_view(), name='operations-gc',
     ),

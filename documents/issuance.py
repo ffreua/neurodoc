@@ -268,6 +268,49 @@ def discard_document(document, actor_id):
     document.delete()
 
 
+@transaction.atomic
+def converter_para_impressa(document, actor_id):
+    """A contingência da receita eletrônica: refazê-la como receita impressa.
+
+    Quando o SNCR não dá — integração desligada, número que falta, bloco
+    que não chegou —, o médico pode seguir pelo papel, **escolhendo** isso
+    (decisão I15): nada converte sozinho. Cria um rascunho novo no formato
+    impresso correspondente — a RCE eletrônica vira a RCE impressa no
+    leiaute da clínica (D6); a RET vira a receita simples, que é como a
+    retenção sai no papel — com a mesma prescrição em texto, e descarta o
+    rascunho eletrônico. Os dois na mesma transação: ou fica o eletrônico,
+    ou fica o impresso.
+
+    Só rascunho: a eletrônica emitida já tem número da Anvisa e vale como
+    está (decisão I10).
+    """
+    from .pdf.prescription import SIMPLE, SPECIAL_CONTROL
+
+    locked = MedicalDocument.objects.select_for_update().get(pk=document.pk)
+    tipo = sncr_receita.tipo_do_documento(locked)
+    if tipo is None:
+        raise ValueError('Só a receita eletrônica do SNCR é refeita como impressa.')
+    if locked.status not in (MedicalDocumentStatus.DRAFT, MedicalDocumentStatus.READY_TO_SIGN):
+        raise ValueError('Só o rascunho da receita eletrônica pode ser refeito como impresso.')
+    snapshot = locked.content_snapshot or {}
+    formato = SPECIAL_CONTROL if tipo == 'RCE' else SIMPLE
+    novo = create_draft(
+        locked.tenant, locked.patient, locked.encounter, locked.physician, actor_id,
+        MedicalDocumentKind.PRESCRIPTION, {
+            'prescription_format': formato,
+            'prescription_text': snapshot.get('prescription_text', ''),
+            'special_instructions': snapshot.get('special_instructions', ''),
+        },
+    )
+    record_audit_event(
+        actor_id, locked.tenant_id, 'documents.medicaldocument_converted_to_paper',
+        object_type='medical_document', object_id=novo.id, outcome='success',
+        integrity_metadata={'origem': str(locked.id), 'de': snapshot.get('prescription_format'), 'para': formato},
+    )
+    discard_document(locked, actor_id)
+    return novo
+
+
 def sign_and_issue(document, request, physician_membership):
     """Assina e emite; a falha é registrada **depois** de desfeita.
 
@@ -328,7 +371,7 @@ def _reservar_numeros_sncr(locked, physician_membership, session):
     if not config.ativo:
         raise _falhou(NotReadyToSign(
             'A receita eletrônica com numeração do SNCR está desligada nesta instalação. '
-            'Use a receita impressa.'
+            'Use “Refazer como receita impressa”.'
         ), 'denied', 'sncr_desligado')
     perfil = physician_membership.user.physician_profile
     folhas = len((locked.content_snapshot or {}).get('itens') or [])
@@ -338,7 +381,8 @@ def _reservar_numeros_sncr(locked, physician_membership, session):
         raise _falhou(NotReadyToSign(
             f'Você não tem números do SNCR livres para as {folhas} folha(s) desta receita (um por '
             'medicamento). Peça um bloco em “Numeração SNCR” (entrando com o Gov.br) e assine de '
-            'novo — o rascunho continua pronto, e nenhum número foi gasto.'
+            'novo — o rascunho continua pronto, e nenhum número foi gasto. Se não puder esperar, '
+            'use “Refazer como receita impressa”.'
         ), 'denied', 'sncr_sem_numero') from exc
     locked.nd_numeros_sncr = [n.numero for n in numeros]
     locked.nd_ambiente_sncr = config.ambiente
