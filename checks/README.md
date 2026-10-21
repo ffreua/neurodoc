@@ -192,7 +192,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_relatorio_ia` | Relatório escrito pela IA vira rascunho, e o texto editado é o que vai assinado |
 | `check_retencao_transitoria` | Dado transitório some no prazo: notificação 7/15 dias, entrega 15 |
 | `check_retorno` | Retorno programado: data, aviso 20 dias antes, fila da secretária |
-| `check_rodape_do_documento` | Assinatura no pé da folha, medida pela posição do texto no PDF |
+| `check_rodape_do_documento` | Assinatura no pé da última folha de cada via, e cabeçalho e rodapé de página ("Página N de M" por via) em toda folha, medidos pela posição do texto no PDF |
 | `check_seo` | O que o buscador vê: `<title>`, `noindex`, sitemap, canônica, JSON-LD |
 | `check_servicos_do_inquilino` | IA, SMS e e-mail da clínica, e o retorno ao padrão quando desliga |
 | `check_sms_plano` | O SMS segue o plano contratado |

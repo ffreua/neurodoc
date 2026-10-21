@@ -16,9 +16,10 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm, mm
+from reportlab.pdfgen import canvas as rl_canvas
 from reportlab.platypus import (
-    Flowable, HRFlowable, Image, Paragraph, SimpleDocTemplate, Spacer, Table,
-    TableStyle,
+    BaseDocTemplate, Flowable, Frame, HRFlowable, Image, PageBreak, PageTemplate,
+    Paragraph, Spacer, Table, TableStyle,
 )
 
 
@@ -539,16 +540,155 @@ def _control_identification_block():
     return [quadro]
 
 
-def _one_copy(document, title, body_flowables, clinic, via_label='', include_address=False,
-              control_identification=False):
-    story = []
+# ------------------------------------------------- cabeçalho e rodapé de página
+#
+# Pedido de 2026-10-20: **toda folha** com cabeçalho e rodapé. O timbre era
+# parte do texto corrido — saía uma vez, no começo da via —, e o documento
+# de duas folhas tinha o cabeçalho na primeira e o rodapé só na segunda. A
+# folha 2 de um relatório, solta da 1, não dizia de quem era nem de quem
+# tratava.
+#
+# Agora são três regiões fixas em cada folha:
+#
+# - **cabeçalho**, no alto: a via, o timbre (logotipo, clínica, médico) e a
+#   linha. Desenhado pelo modelo de página no fim de cada folha
+#   (`onPageEnd`), quando o marcador de via (`_MarcaVia`) daquela folha já
+#   foi lido — por isso a 2ª via sai com "2ª via" desde a primeira folha;
+# - **rodapé de página**, dentro da margem de baixo, que já existia em
+#   branco: uma linha fina com o documento, o número, o paciente e "Página
+#   N de M" contado **por via** (a farmácia retém a 1ª via; "página 3 de 4"
+#   nela faria procurar uma folha que está com o paciente). Desenhado no fim
+#   do arquivo (`_canvas_paginado`), que é quando se sabe quantas são;
+# - **corpo**, no meio, entre os dois.
+#
+# A **assinatura** — com o QR e, no controle especial, o quadro da farmácia
+# — continua só no pé da **última** folha de cada via (`NoPeDaFolha`):
+# repetida em cada folha seria uma assinatura por página onde houve um ato
+# só, e o quadro em branco duas vezes na mesma via confundiria o balcão.
+# Pedido explícito, na mesma data: "a assinatura pode ser só na última
+# página, mas todas devem ter cabeçalho e rodapé".
+#
+# A primeira folha fica como era: o cabeçalho ocupa o mesmo lugar no alto,
+# e o rodapé de página mora na margem que já estava vazia.
+
+#: Folga interna do quadro de texto do ReportLab (o padrão de `Frame`). O
+#: timbre é desenhado com a mesma folga, para alinhar com o corpo.
+_FOLGA_DO_QUADRO = 6
+
+RODAPE_DE_PAGINA_STYLE = ParagraphStyle(
+    'RodapeDePagina', parent=STYLES['Normal'], fontSize=7, leading=9,
+    textColor=colors.HexColor('#666666'),
+)
+
+
+class _MarcaVia(Flowable):
+    """Marcador sem tamanho: "daqui em diante, esta é a via N".
+
+    O cabeçalho de cada folha precisa saber de que via ela é, e quem sabe é
+    a história do documento, não o modelo de página.
+    """
+
+    def __init__(self, indice, rotulo):
+        super().__init__()
+        self.indice, self.rotulo = indice, rotulo
+        self.width = self.height = 0
+
+    def wrap(self, availWidth, availHeight):
+        return 0, 0
+
+    def draw(self):
+        self.canv._nd_via = (self.indice, self.rotulo)
+
+
+def _cabecalho_de_pagina(document, clinic, via_label):
+    itens = []
     if via_label:
-        story.append(Paragraph(via_label, VIA_STYLE))
-        story.append(Spacer(1, 0.1 * cm))
-    story.extend(_letterhead(document, clinic))
-    story.append(Spacer(1, 0.3 * cm))
-    story.append(HRFlowable(width='100%', thickness=0.5))
-    story.append(Spacer(1, 0.3 * cm))
+        itens.append(Paragraph(via_label, VIA_STYLE))
+        itens.append(Spacer(1, 0.1 * cm))
+    itens.extend(_letterhead(document, clinic))
+    itens.append(Spacer(1, 0.3 * cm))
+    itens.append(HRFlowable(width='100%', thickness=0.5))
+    itens.append(Spacer(1, 0.3 * cm))
+    return itens
+
+
+def _altura(itens, largura):
+    total = 0
+    for indice, item in enumerate(itens):
+        _, altura = item.wrap(largura, 10 ** 6)
+        antes = item.getSpaceBefore() if indice else 0
+        total += antes + altura + item.getSpaceAfter()
+    return total
+
+
+def _desenhar_de_cima(canvas, itens, x, topo, largura):
+    y = topo
+    for indice, item in enumerate(itens):
+        _, altura = item.wrap(largura, 10 ** 6)
+        y -= (item.getSpaceBefore() if indice else 0) + altura
+        item.drawOn(canvas, x, y)
+        y -= item.getSpaceAfter()
+
+
+def _texto_do_rodape(document, title):
+    numero = document.document_number or 'rascunho'
+    paciente = document.patient.full_name if document.patient_id else ''
+    partes = [f'{title} nº {numero}', paciente]
+    return ' · '.join(texto_seguro(p) for p in partes if p)
+
+
+def _canvas_paginado(texto_rodape, margem_esquerda, margem_direita):
+    """Canvas que só escreve "Página N de M" quando já sabe o M.
+
+    O ReportLab desenha folha por folha e não sabe, na primeira, quantas
+    virão. Este canvas guarda cada folha em vez de fechá-la, e no fim
+    escreve o rodapé de página em todas — a receita conhecida de paginação
+    do ReportLab. A contagem é **por via**.
+    """
+
+    class _CanvasPaginado(rl_canvas.Canvas):
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._folhas = []
+
+        def showPage(self):
+            self._folhas.append(dict(self.__dict__))
+            self._startPage()
+
+        def save(self):
+            vias = [estado.get('_nd_via', (0, ''))[0] for estado in self._folhas]
+            for indice, estado in enumerate(self._folhas):
+                self.__dict__.update(estado)
+                via = vias[indice]
+                self._rodape_de_pagina(vias[:indice + 1].count(via), vias.count(via))
+                super().showPage()
+            super().save()
+
+        def _rodape_de_pagina(self, pagina, total):
+            x0 = margem_esquerda
+            x1 = self._pagesize[0] - margem_direita
+            self.saveState()
+            self.setStrokeColor(colors.HexColor('#bbbbbb'))
+            self.setLineWidth(0.4)
+            self.line(x0, 1.2 * cm, x1, 1.2 * cm)
+            numero = f'Página {pagina} de {total}'
+            self.setFont('Helvetica', 7)
+            self.setFillColor(colors.HexColor('#666666'))
+            self.drawRightString(x1, 0.8 * cm, numero)
+            largura_numero = self.stringWidth(numero, 'Helvetica', 7)
+            texto = Paragraph(texto_rodape, RODAPE_DE_PAGINA_STYLE)
+            _, altura = texto.wrap(x1 - x0 - largura_numero - 0.6 * cm, 2 * cm)
+            texto.drawOn(self, x0, 0.8 * cm + 7 - altura)
+            self.restoreState()
+
+    return _CanvasPaginado
+
+
+def _one_copy(document, title, body_flowables, clinic, via_index=0, via_label='',
+              include_address=False, control_identification=False):
+    # O timbre não está aqui: é desenhado em toda folha pelo modelo de
+    # página (ver o bloco acima). Aqui fica o que é desta via e corre.
+    story = [_MarcaVia(via_index, via_label)]
     story.append(Paragraph(title, TITLE_STYLE))
     story.append(Spacer(1, 0.4 * cm))
     story.extend(_patient_block(document, include_address))
@@ -592,32 +732,59 @@ def build_pdf(document, title, body_flowables, copies=(), include_address=False,
     `body_flowables` é reconstruído por via — um `Flowable` do reportlab
     guarda estado de posicionamento depois de desenhado, e reaproveitar a
     mesma instância em duas páginas produz a segunda em branco. Por isso o
-    parâmetro pode ser uma função que devolve a lista.
+    parâmetro pode ser uma função que devolve a lista. Pelo mesmo motivo o
+    cabeçalho é montado de novo em cada folha.
     """
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf, pagesize=A4, topMargin=1.6 * cm, bottomMargin=1.6 * cm,
-        leftMargin=2 * cm, rightMargin=2 * cm,
+    margem_lateral, margem_alto, margem_baixo = 2 * cm, 1.6 * cm, 1.6 * cm
+    largura_pagina, altura_pagina = A4
+    clinic = _clinic_profile(document)
+    labels = list(copies) or ['']
+
+    largura_util = largura_pagina - 2 * margem_lateral - 2 * _FOLGA_DO_QUADRO
+    # O cabeçalho tem a mesma altura em toda folha (o rótulo de via, quando
+    # há, ocupa uma linha em todas): mede-se uma vez, e o corpo começa logo
+    # abaixo dele.
+    altura_cabecalho = _altura(_cabecalho_de_pagina(document, clinic, labels[0]), largura_util)
+    topo_do_cabecalho = altura_pagina - margem_alto - _FOLGA_DO_QUADRO
+
+    def desenhar_cabecalho(canvas, doc):
+        _, rotulo = getattr(canvas, '_nd_via', (0, labels[0]))
+        canvas.saveState()
+        _desenhar_de_cima(
+            canvas, _cabecalho_de_pagina(document, clinic, rotulo),
+            margem_lateral + _FOLGA_DO_QUADRO, topo_do_cabecalho, largura_util,
+        )
+        canvas.restoreState()
+
+    corpo = Frame(
+        margem_lateral, margem_baixo,
+        largura_pagina - 2 * margem_lateral,
+        altura_pagina - margem_alto - margem_baixo - _FOLGA_DO_QUADRO - altura_cabecalho,
+        topPadding=0, id='corpo',
+    )
+    doc = BaseDocTemplate(
+        buf, pagesize=A4, topMargin=margem_alto, bottomMargin=margem_baixo,
+        leftMargin=margem_lateral, rightMargin=margem_lateral,
         title=f'{title} — {document.document_number or "rascunho"}',
         author=_physician_profile(document).professional_name,
+        pageTemplates=[PageTemplate(id='folha', frames=[corpo], onPageEnd=desenhar_cabecalho)],
     )
-    clinic = _clinic_profile(document)
 
     def flowables_for_copy():
         return body_flowables() if callable(body_flowables) else list(body_flowables)
 
     story = []
-    labels = list(copies) or ['']
     for index, label in enumerate(labels):
         if index:
-            from reportlab.platypus import PageBreak
-
             story.append(PageBreak())
         story.extend(_one_copy(
             document, title, flowables_for_copy(), clinic,
-            via_label=label, include_address=include_address,
+            via_index=index, via_label=label, include_address=include_address,
             control_identification=control_identification,
         ))
 
-    doc.build(story)
+    doc.build(story, canvasmaker=_canvas_paginado(
+        _texto_do_rodape(document, title), margem_lateral, margem_lateral,
+    ))
     return buf.getvalue()

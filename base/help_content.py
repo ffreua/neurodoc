@@ -199,6 +199,11 @@ ARTICLES = [
              'sistema. A página mostra tipo, número, médico, CRM e data, e **nenhum '
              'conteúdo clínico**.',
              'documento-verificar.png', 'Verificação pública'),
+            ('Documento de mais de uma folha traz o **cabeçalho** (clínica e médico) e o '
+             '**rodapé** (documento, paciente e "Página N de M") em **todas** as folhas, '
+             'para uma folha solta continuar dizendo de quem é e de quem trata. A '
+             'assinatura e o QR ficam no pé da última folha.',
+             '', ''),
             ('A receita de **controle especial** sai em duas vias, com o endereço '
              'completo do paciente e o quadro de identificação do comprador exigido '
              'pela Portaria 344/98. O sistema recusa emiti-la se o endereço estiver '

@@ -69,9 +69,34 @@ seções:
 **Conferido contra o defeito.** Com o comportamento antigo simulado
 (rodapé logo depois do corpo), o roteiro reprova em 8 verificações.
 
-## O que fica aberto
+## Cabeçalho e rodapé em toda folha (1.21, 2026-10-20)
 
-Quando o rodapé vai para a página seguinte, essa página tem só o rodapé,
-sem repetir o cabeçalho nem a identificação do paciente. Era assim antes
-(o rodapé ia para o alto da folha seguinte) e continua assim, agora no pé.
-Repetir o cabeçalho em páginas de continuação é melhoria à parte.
+O que esta seção registrava como aberto — a folha de continuação sem o
+cabeçalho — apareceu em uso real: o documento de duas folhas tinha o timbre
+numa e a assinatura na outra, e a folha solta não dizia de quem era.
+
+O timbre deixou de ser texto corrido. `documents/pdf/common.py::build_pdf`
+monta cada folha com três regiões fixas:
+
+- **cabeçalho** no alto, em toda folha: a via, o logotipo, a clínica, o
+  médico e a linha — desenhado no fim de cada folha, quando o marcador de
+  via (`_MarcaVia`) daquela folha já foi lido;
+- **rodapé de página** dentro da margem de baixo, que já existia em branco:
+  documento, número, paciente e **"Página N de M" contado por via** (a
+  farmácia retém a 1ª via; "página 3 de 4" nela faria procurar uma folha
+  que está com o paciente);
+- o **corpo**, entre os dois.
+
+A **assinatura continua só no pé da última folha de cada via**, por pedido
+expresso: "a assinatura pode ser só na última página, mas todas devem ter
+cabeçalho e rodapé". Repeti-la seria uma assinatura por página onde houve
+um ato só, e o quadro da farmácia em branco duas vezes na mesma via
+confundiria o balcão.
+
+A primeira folha fica como era: o cabeçalho ocupa o mesmo lugar, e o
+rodapé de página mora na margem. A contagem de folhas dos casos medidos não
+mudou (receita 1, controle especial 2, controle longo 4, relatório longo 2).
+
+`check_rodape_do_documento` ganhou a seção 6: em cada folha, o timbre acima
+de 85% da altura, "Página N de M" e o paciente no pé, a assinatura presente
+só na última folha de cada via, e cada folha da 2ª via dizendo "2ª via".

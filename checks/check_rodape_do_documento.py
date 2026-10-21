@@ -16,7 +16,12 @@ assinatura no meio da folha):
 3. corpo que enche a folha: o rodape vai INTEIRO para a pagina seguinte,
    no pe dela, e nunca se parte (assinatura, QR e quadro na mesma folha);
 4. relatorio de mais de uma pagina: o rodape no pe da ultima;
-5. nenhuma folha so com o rodape quando ele cabia na anterior.
+5. nenhuma folha so com o rodape quando ele cabia na anterior;
+6. (2026-10-20) TODA folha com cabecalho e rodape de pagina -- o timbre
+   saia uma vez, no comeco da via, e o documento de duas folhas tinha o
+   cabecalho numa e o rodape na outra. A assinatura continua so na ultima
+   folha de cada via; o rodape de pagina diz o documento, o paciente e
+   "Pagina N de M", contado por via.
 """
 import io
 import secrets
@@ -141,6 +146,42 @@ for kind, conteudo, esperado in [
     confere(len(pdf.pages) == esperado, f'{kind}: {esperado} pagina', str(len(pdf.pages)))
     y = y_de(pdf.pages[0], ASSINATURA)
     confere(y is not None and y < 0.25, f'{kind}: assinatura no pe', f'y={y}')
+
+print('=== 6. toda folha com cabecalho e rodape de pagina ===')
+CLINICA = tenant.trade_name or tenant.legal_name
+for nome, kind, conteudo, vias in [
+    ('relatorio longo', 'report', {'report_text': texto}, 1),
+    ('controle longo', 'prescription', {'prescription_format': 'special_control',
+                                        'prescription_text': longo}, 2),
+    ('receita curta', 'prescription', {'prescription_format': 'simple',
+                                       'prescription_text': '1. Topiramato 25 mg.'}, 1),
+]:
+    pdf = gerar(kind, conteudo)
+    total = len(pdf.pages)
+    por_via = total // vias
+    for n, pagina in enumerate(pdf.pages, start=1):
+        cab = y_do_corpo(pagina, CLINICA)
+        confere(cab is not None and cab > 0.85, f'{nome}, folha {n}: o timbre no alto', f'y={cab}')
+        esperado = f'Página {(n - 1) % por_via + 1} de {por_via}'
+        yr = y_de(pagina, esperado)
+        confere(yr is not None and yr < 0.05, f'{nome}, folha {n}: "{esperado}" no pe', f'y={yr}')
+        confere(y_de(pagina, paciente.full_name) is not None and
+                y_de(pagina, paciente.full_name) < 0.05,
+                f'{nome}, folha {n}: o paciente no rodape de pagina')
+        ultima_da_via = n % por_via == 0
+        tem_assinatura = y_de(pagina, ASSINATURA) is not None
+        confere(tem_assinatura == ultima_da_via,
+                f'{nome}, folha {n}: assinatura {"presente" if ultima_da_via else "ausente"}'
+                ' (so na ultima da via)', str(tem_assinatura))
+    if vias == 2:
+        # O rotulo inteiro, e nao "1ª via": o corpo da receita de controle
+        # diz "A 1ª via fica retida na farmacia" -- inclusive na 2ª via.
+        rotulos = [('1ª VIA — RETENÇÃO' in (p.extract_text() or '').upper(),
+                    '2ª VIA — ORIENTAÇÃO' in (p.extract_text() or '').upper()) for p in pdf.pages]
+        confere(all(r == (True, False) for r in rotulos[:por_via]) and
+                all(r == (False, True) for r in rotulos[por_via:]),
+                f'{nome}: cada folha diz a sua via, inclusive a segunda folha de cada uma',
+                str(rotulos))
 
 print('---')
 if failures:

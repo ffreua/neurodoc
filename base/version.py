@@ -179,12 +179,14 @@ carimbá-la na publicação.
 #: o aviso do sino levava a ele); a busca de paciente acha pelas palavras
 #: do nome em qualquer ordem e sem acento; e a recusa de duração na agenda
 #: diz como resolver.
-VERSION = '1.20'
+#: A **1.21**: todo PDF com cabeçalho e rodapé em todas as folhas; a
+#: assinatura continua só na última folha de cada via.
+VERSION = '1.21'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o que se aprova, se encontra'
+CODENAME = 'toda folha diz de quem é'
 
 
 def version_display():
