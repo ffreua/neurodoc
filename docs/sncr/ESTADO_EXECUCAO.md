@@ -39,17 +39,28 @@ da Portaria 344).
   TLS, início do login, recusa sem token).
 - Bateria local de referência — resultado no relatório, seção 7.
 
+## Sprint 1 — andamento (branch `sncr/sprint-1`, local, sem push)
+
+| Item | Estado |
+| --- | --- |
+| D7 — catálogo da Portaria 344 | **pronto na branch**: `catalogs/portaria344.py` (parser estrito), `catalogs/controlados.py` (importação e classificação), `import_portaria344` (roda no worker), migração `catalogs/0009` (só expansão), cópia do ato vigente em `catalogs/data/portaria344-rdc1036-2026.html`, roteiro `check_portaria344`. Classificação contra a CMED inteira: 216 de 2.258 substâncias controladas, cada uma na lista certa, < 1 ms por consulta |
+| D3 — prova do login Gov.br | **página pronta e testada até o Gov.br** (`scripts/sncr_prova_login.py`); aguarda o login do proprietário. Sem bloco: o pedido vai sem CNPJ e é recusado na validação |
+| Cliente, autenticação no servidor, blocos e números por médico | **não começado** — o desenho depende do resultado da prova (L7: o `Origin` exigido na troca do token vindo do servidor) |
+| Ir à produção | o catálogo só sobe junto com o uso (Sprint 2); hoje nada o consultaria |
+
 ## Próxima ação exata
 
-1. **Sprint 1**, em branch própria (`sncr/sprint-1`, a partir de `main`):
-   catálogo da lista oficial da Portaria 344 (D7, vigente: RDC nº 1.036,
-   de 09/07/2026, "Atualização n. 101"), cliente da API, login Gov.br pelo
-   servidor (D4), modelo de blocos e números por médico, estado incerto,
-   trilha, chave desligada.
-2. **Prova de comunicação (D3):** o proprietário faz o login Gov.br de
-   treinamento numa página local; o bloco em homologação espera o CNPJ.
-3. Quando o CNPJ chegar: seguir a lista de
-   [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md).
+1. **O proprietário faz o login da prova (D3)**: cadastro único em
+   https://sncr-treinamento.anvisa.gov.br/ com a conta Gov.br de testes
+   (Instruções de Integração v1.0, §2.1), depois
+   `python scripts/sncr_prova_login.py --crm 134498 --uf SP` e abrir
+   http://localhost:8765/ **no mesmo computador**. A evidência sai em JSON,
+   sem token.
+2. Registrar o resultado no relatório e classificar a prova (APROVADO /
+   PARCIAL / BLOQUEADO).
+3. Seguir a Sprint 1: cliente, autenticação pelo servidor, modelo de
+   blocos e números por médico, estado incerto, trilha, chave desligada.
+4. Quando o CNPJ chegar: [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md).
 
 ## Pendências
 

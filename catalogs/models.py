@@ -9,6 +9,7 @@ class CatalogSystem(models.TextChoices):
     CID10 = 'CID10', 'CID-10'
     TUSS = 'TUSS', 'TUSS'
     CMED = 'CMED', 'CMED/Anvisa (medicamentos)'
+    PORTARIA_344 = 'P344', 'Portaria 344/98 (substâncias controladas)'
 
 
 class CatalogReleaseStatus(models.TextChoices):
@@ -306,3 +307,60 @@ class Municipality(TimestampedModel):
     @property
     def label(self):
         return f'{self.name}/{self.uf}'
+
+
+class ControlledList(TimestampedModel):
+    """Uma lista do Anexo I da Portaria SVS/MS 344/1998 ("C1", "B1"...).
+
+    Ver `catalogs/portaria344.py`: a lista decide o receituário, e o
+    `receituario` é o que a norma fixa para ela, não a leitura do texto.
+    O `adendo` guarda as exceções por dose, forma e associação **como
+    texto**, para o médico ler — o sistema não as aplica sozinho.
+    """
+
+    release = models.ForeignKey(CatalogRelease, on_delete=models.PROTECT, related_name='controlled_lists')
+    code = models.CharField('lista', max_length=4)
+    title = models.CharField('título', max_length=300, blank=True)
+    receituario = models.CharField('receituário', max_length=40)
+    receituario_texto = models.CharField('receituário (texto do anexo)', max_length=300, blank=True)
+    adendo = models.TextField('adendo', blank=True)
+    position = models.PositiveSmallIntegerField('ordem', default=0)
+
+    class Meta:
+        verbose_name = 'lista de substâncias controladas'
+        verbose_name_plural = 'listas de substâncias controladas'
+        constraints = [
+            models.UniqueConstraint(fields=['release', 'code'], name='catalogs_controlledlist_release_code_uniq'),
+        ]
+
+    def __str__(self):
+        return f'Lista {self.code}'
+
+
+class ControlledSubstance(TimestampedModel):
+    """Uma substância de uma lista da Portaria 344, na redação do anexo.
+
+    `search_text` é o nome e os sinônimos sem acento e em maiúsculas — a
+    mesma forma de `catalogs.importers.normalize_for_search` —, porque a
+    classificação compara com a substância da CMED ("CLORIDRATO DE
+    SERTRALINA") e o banco não tem `unaccent`.
+    """
+
+    release = models.ForeignKey(CatalogRelease, on_delete=models.PROTECT, related_name='controlled_substances')
+    controlled_list = models.ForeignKey(ControlledList, on_delete=models.PROTECT, related_name='substances')
+    number = models.PositiveSmallIntegerField('número na lista')
+    name = models.CharField('substância', max_length=500)
+    synonyms = models.TextField('sinônimos', blank=True)
+    search_text = models.TextField(blank=True, default='')
+
+    class Meta:
+        verbose_name = 'substância controlada'
+        verbose_name_plural = 'substâncias controladas'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['controlled_list', 'number'], name='catalogs_controlledsubstance_list_number_uniq',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.name} ({self.controlled_list.code})'
