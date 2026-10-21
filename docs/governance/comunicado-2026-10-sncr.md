@@ -52,4 +52,19 @@ NeuroDoc — contato@neurodoc.app.br
 
 ## Registro do envio
 
-A preencher no envio.
+**Enviado em 2026-10-21**, depois da publicação da 1.21.1, de
+`contato@neurodoc.app.br`, pelo SMTP da instalação (no worker), um e-mail
+por clínica, com a saudação ao nome da clínica e cópia oculta para
+`contato@neurodoc.app.br`. O servidor aceitou os cinco:
+
+| Clínica | Responsável (*owner*) |
+| --- | --- |
+| Caldas, Rego e Urbano Serviços Médicos | jcc.urbano@gmail.com |
+| Caixeta Serviços Médicos (C e N Serviços Médicos LTDA) | saracaixetadesouza@gmail.com |
+| Luca SB | suzano.luca@gmail.com |
+| Santos Dias Medical Care | amandaselvatici.consultorio@gmail.com |
+| Schalch Serviços Médicos | alexandre.schalch@gmail.com |
+
+As duas clínicas do próprio titular (Freua Serviços Médicos e FK Freua)
+não receberam, por ele ser o autor da mudança. Em produção, as 5 RCE
+assinadas digitalmente até esta data são todas da clínica do titular.
