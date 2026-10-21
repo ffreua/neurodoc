@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Numeração SNCR — NeuroDoc{% endblock %}
+{% block page_title %}Numeração SNCR{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Numeração SNCR</li>
+{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-xxl-8">
+        {% if not config.ativo %}
+        <div class="alert alert-warning fade show fs-12" role="alert" data-nd-sncr-desligado>
+            <span class="fw-semibold d-block">Integração com o SNCR desligada</span>
+            A receita eletrônica com numeração da Anvisa está em implantação. Até ser ligada, a
+            Receita de Controle Especial sai para assinar e carimbar.
+        </div>
+        {% endif %}
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Números da Anvisa — {{ medico.professional_name }}, CRM {{ medico.crm_number }}/{{ medico.crm_state }}</h5>
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    O SNCR entrega os números em blocos de 1.000, até 3 blocos por mês de cada tipo.
+                    O bloco é seu — vale em todas as clínicas em que você atende —, e o NeuroDoc usa
+                    só os números que ele mesmo recebeu. Para pedir, você entra com o Gov.br.
+                    Ambiente: <strong>{{ config.get_ambiente_display }}</strong>.
+                </p>
+                <div class="row g-3">
+                    {% for tipo in tipos %}
+                    <div class="col-md-6">
+                        <div class="border rounded p-3 h-100" data-nd-sncr-tipo="{{ tipo.codigo }}">
+                            <span class="fw-semibold d-block">{{ tipo.rotulo }} ({{ tipo.codigo }})</span>
+                            <span class="fs-2 fw-bold">{{ tipo.saldo }}</span>
+                            <span class="fs-12 text-muted">número(s) livre(s)</span>
+                            {% if tipo.impedimentos %}
+                            <ul class="fs-12 text-muted mt-2 mb-0 ps-3">
+                                {% for motivo in tipo.impedimentos %}<li>{{ motivo }}</li>{% endfor %}
+                            </ul>
+                            {% else %}
+                            <form method="post" action="{% url 'sncr:pedir' tipo.codigo %}" class="mt-2"
+                                  data-nd-confirm="Pedir um bloco de 1.000 números de {{ tipo.codigo }} à Anvisa? Você vai entrar com o Gov.br. Cada pedido conta 1 dos 3 do mês, e o bloco não pode ser devolvido.">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary" data-nd-busy>Pedir bloco com o Gov.br</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xxl-4">
+        <div class="card stretch stretch-full">
+            <div class="card-header"><h5 class="card-title mb-0">Pedidos</h5></div>
+            <div class="card-body">
+                {% for p in pedidos %}
+                <div class="border-bottom py-2 fs-12" data-nd-sncr-pedido="{{ p.estado }}">
+                    <span class="fw-semibold">{{ p.tipo }}</span> · {{ p.created_at|date:"d/m/Y H:i" }} ·
+                    {{ p.get_estado_display }}
+                    {% if p.mensagem %}<span class="d-block text-muted">{{ p.mensagem }}</span>{% endif %}
+                </div>
+                {% empty %}
+                <span class="fs-12 text-muted">Nenhum pedido ainda.</span>
+                {% endfor %}
+                {% if blocos %}
+                <h6 class="mt-3">Blocos recebidos</h6>
+                {% for b in blocos %}
+                <div class="fs-12 py-1">{{ b.tipo }}: {{ b.inicio }} a {{ b.fim }}{% if not b.utilizavel %} — <span class="text-danger">{{ b.motivo_bloqueio }}</span>{% endif %}</div>
+                {% endfor %}
+                {% endif %}
+                <span class="d-block fs-12 text-muted mt-2">{{ usados }} número(s) já usado(s) em receitas.</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

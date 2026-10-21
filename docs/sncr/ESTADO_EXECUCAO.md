@@ -44,23 +44,20 @@ da Portaria 344).
 | Item | Estado |
 | --- | --- |
 | D7 — catálogo da Portaria 344 | **pronto na branch**: `catalogs/portaria344.py` (parser estrito), `catalogs/controlados.py` (importação e classificação), `import_portaria344` (roda no worker), migração `catalogs/0009` (só expansão), cópia do ato vigente em `catalogs/data/portaria344-rdc1036-2026.html`, roteiro `check_portaria344`. Classificação contra a CMED inteira: 216 de 2.258 substâncias controladas, cada uma na lista certa, < 1 ms por consulta |
-| D3 — prova do login Gov.br | **página pronta e testada até o Gov.br** (`scripts/sncr_prova_login.py`); aguarda o login do proprietário. Sem bloco: o pedido vai sem CNPJ e é recusado na validação |
-| Cliente, autenticação no servidor, blocos e números por médico | **não começado** — o desenho depende do resultado da prova (L7: o `Origin` exigido na troca do token vindo do servidor) |
+| D3 — prova do login Gov.br | **bloqueada por causa externa**: o SNCR de treinamento falha ao consultar o CFM ("Erro ao buscar inscrições de conselhos") há dias. Substituída pela D8: o teste real será em produção. A página da prova (`scripts/sncr_prova_login.py`) fica para quando o treinamento voltar |
+| Cliente, autenticação pelo servidor, blocos e números por médico | **pronto na branch** (app `sncr/`, migração `sncr/0001`, roteiro `check_sncr_numeracao`, 44 itens): cliente com os desfechos classificados, login Gov.br com troca **na requisição** (I5), pedido preso à sessão do navegador e de uso único, incerto sem repetição (I6), números com `UNIQUE` e reserva com `skip_locked` só na linha do número (I7 — a primeira versão travava o bloco e o roteiro pegou), faixa irreconhecível não utilizável (I8), tarefa que marca pedido parado como incerto. **Desligado** por padrão e sem link no menu. Anvisa **simulada**; o teste real é o primeiro pedido em produção (D8) |
 | Ir à produção | o catálogo só sobe junto com o uso (Sprint 2); hoje nada o consultaria |
 
 ## Próxima ação exata
 
-1. **O proprietário faz o login da prova (D3)**: cadastro único em
-   https://sncr-treinamento.anvisa.gov.br/ com a conta Gov.br de testes
-   (Instruções de Integração v1.0, §2.1), depois
-   `python scripts/sncr_prova_login.py --crm 134498 --uf SP` e abrir
-   http://localhost:8765/ **no mesmo computador**. A evidência sai em JSON,
-   sem token.
-2. Registrar o resultado no relatório e classificar a prova (APROVADO /
-   PARCIAL / BLOQUEADO).
-3. Seguir a Sprint 1: cliente, autenticação pelo servidor, modelo de
-   blocos e números por médico, estado incerto, trilha, chave desligada.
-4. Quando o CNPJ chegar: [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md).
+1. **Gate 1:** bateria completa verde na branch; apresentar ao proprietário.
+2. **Sprint 2** — a receita eletrônica: lista estruturada de medicamentos na
+   receita, classificação pela lista oficial (D7), limite `min(3, regra)`,
+   PDF no modelo da Anvisa (gerador separado, sem timbre), número SNCR
+   reservado e consumido na assinatura, aviso transitório da 1.21.1 retirado
+   quando o fluxo estiver no ar.
+3. Quando o CNPJ chegar: [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md); depois, o
+   primeiro pedido real em produção (D8).
 
 ## Pendências
 

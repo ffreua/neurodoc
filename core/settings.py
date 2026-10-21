@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'base', 'accounts', 'tenancy', 'patients',
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
     'finance', 'ai', 'notifications', 'audit', 'reporting',
-    'integrations', 'events', 'exams', 'teamchat',
+    'integrations', 'events', 'exams', 'teamchat', 'sncr',
 ]
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',
@@ -164,6 +164,12 @@ CELERY_TASK_ROUTES = {
     'reporting.tasks.*': {'queue': 'documents'},
 }
 CELERY_BEAT_SCHEDULE = {
+    # SNCR: pedido de numeração parado em "enviando" (o app caiu no meio
+    # da chamada) vira incerto. Não fala com a Anvisa; só banco.
+    'sncr-pedidos-parados': {
+        'task': 'sncr.tasks.marcar_pedidos_parados',
+        'schedule': 300.0,
+    },
     # Espelho da TUSS: domingo, 04h. A tabela muda por resolucao normativa
     # -- semanas ou meses --, entao semanal sobra; o que nao pode e nunca
     # atualizar. Roda no worker, que e quem tem saida para a internet.

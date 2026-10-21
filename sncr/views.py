@@ -1,0 +1,81 @@
+"""As telas do SNCR: o painel de numeração do médico, o pedido e o retorno.
+
+Exigem `ISSUE_DOCUMENT` — quem emite receita — e um perfil profissional:
+o bloco é do médico (`sncr/models.py`), e o painel mostra **só os dele**,
+em qualquer clínica em que ele esteja. A secretária e o gestor não abrem.
+
+Ainda sem link no menu: a integração nasce desligada, e o link entra com
+a ativação (Sprint 3). Até lá a tela existe para o roteiro e para o teste
+real autorizado (decisão D8).
+"""
+
+from django.contrib import messages
+from django.http import Http404
+from django.shortcuts import redirect, render
+
+from accounts.models import PhysicianProfile
+from tenancy.permissions import Capability, CapabilityRequiredView
+
+from . import fluxo
+from .models import BlocoNumeracao, Configuracao, EstadoNumero, NumeroSncr, PedidoNumeracao, TipoReceita
+from .numeracao import saldo
+
+
+def _medico(request):
+    if not request.access_context.has_role('doctor'):
+        return None
+    return PhysicianProfile.objects.filter(user=request.user).first()
+
+
+class SncrView(CapabilityRequiredView):
+    required_capability = Capability.ISSUE_DOCUMENT
+
+
+class PainelView(SncrView):
+    def get(self, request):
+        medico = _medico(request)
+        if medico is None:
+            raise Http404
+        config = Configuracao.carregar()
+        tipos = []
+        for tipo in TipoReceita:
+            tipos.append({
+                'codigo': tipo.value, 'rotulo': tipo.label,
+                'saldo': saldo(medico, tipo.value, config.ambiente),
+                'impedimentos': fluxo.conferir(config, medico, tipo.value),
+            })
+        return render(request, 'sncr/painel.html', {
+            'config': config, 'medico': medico, 'tipos': tipos,
+            'blocos': BlocoNumeracao.objects.filter(medico=medico).order_by('-created_at')[:20],
+            'pedidos': PedidoNumeracao.objects.filter(medico=medico).order_by('-created_at')[:20],
+            'usados': NumeroSncr.objects.filter(medico=medico, estado=EstadoNumero.CONSUMIDO).count(),
+        })
+
+
+class PedirView(SncrView):
+    def post(self, request, tipo):
+        if tipo not in TipoReceita.values:
+            raise Http404
+        medico = _medico(request)
+        if medico is None:
+            raise Http404
+        try:
+            _pedido, endereco = fluxo.iniciar(request, medico, tipo, request.access_context.tenant_id)
+        except fluxo.PedidoRecusado as exc:
+            messages.error(request, str(exc))
+            return redirect('sncr:painel')
+        return redirect(endereco)
+
+
+class RetornoView(SncrView):
+    """O SNCR devolve o navegador aqui com `?session_id=` (uso único, 30 s)."""
+
+    def get(self, request):
+        try:
+            pedido = fluxo.concluir(request, request.GET.get('session_id', ''))
+        except fluxo.PedidoRecusado as exc:
+            messages.error(request, str(exc))
+            return redirect('sncr:painel')
+        nivel = messages.success if pedido.estado == 'concluido' else messages.error
+        nivel(request, pedido.mensagem)
+        return redirect('sncr:painel')

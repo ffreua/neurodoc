@@ -125,6 +125,34 @@ RET para antimicrobiano e GLP-1, e aplicar o limite de medicamentos por
 receita. A tarja da CMED continua só como sugestão; quem decide é a lista
 oficial.
 
+## D8 — Seguir sem a prova em homologação; o teste real é em produção
+
+**Decidida em 2026-10-21.** O SNCR de treinamento falhou por vários dias
+no passo em que consulta o CFM ("Erro ao buscar inscrições de conselhos"),
+depois do login Gov.br bem-sucedido. No mesmo dia, o proprietário pediu
+os próprios números de RCE **pelo Memed**, em produção, com o mesmo
+Gov.br, sem problema — o que prova que o SNCR de **produção** aceita a
+identidade dele e acha o CRM.
+
+**Decisão.** Seguir a implementação **supondo que a API funciona como
+documentada**; o teste "de vida real" é o proprietário, já com a
+integração pronta, entrar com o Gov.br e pedir o primeiro bloco **em
+produção**. "Se funcionar, é porque funciona."
+
+**Consequências, registradas para não surpreender:**
+
+1. O teste real **pede um bloco de verdade**: consome 1 dos 3 pedidos de
+   RCE do mês do CRM (FAQ Integração P33).
+2. **O bloco obtido pelo Memed não é usado pelo NeuroDoc.** O controle de
+   uso dos números é de cada plataforma (FAQ P38); dividir um bloco entre
+   duas plataformas arriscaria o mesmo número em duas receitas.
+3. O teste real **depende do CNPJ** ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)).
+4. Se a resposta do primeiro pedido se perder, ele fica **incerto** e
+   **não é repetido** sozinho; no pior caso, um pedido do mês se perde.
+5. O que é suposição até o teste — o `Origin` mandado pelo servidor, o
+   conteúdo do token, o formato da resposta (L2) — fica isolado em
+   `sncr/cliente.py`, para o ajuste, se houver, ficar ali.
+
 ---
 
 ## Decisões de desenho tomadas na implementação
@@ -137,3 +165,8 @@ Registradas aqui para que a próxima sessão não as refaça.
 | I2 | A data da D1 é o **dia de Brasília** (`timezone.localdate`) | O processo roda em UTC; às 21h de 30/10 ele já diria 31 |
 | I3 | A recusa da D1 entra na trilha (`documents.medicaldocument_sign_failed`, motivo `rce_eletronica_sem_numeracao_sncr`) e **não gasta número** | O número só nasce na assinatura bem-sucedida; o médico emite em papel em seguida |
 | I4 | Para controlados, assinatura **qualificada ICP-Brasil**, embora o FAQ de Integração (P43) aceite a avançada para RCE/RET | O FAQ da RDC 1.000 (P40–41) e a Lei 14.063/2020, art. 13, exigem a qualificada para controlados; vale a regra mais estrita. O NeuroDoc já assina com A1 |
+| I5 | A troca do `session_id` pelo token e o pedido de bloco acontecem **na requisição do médico**, e não numa tarefa Celery — exceção deliberada à regra do `CLAUDE.md` §2 | O token vive 30 s e o `session_id` também; o worker roda tarefas de até 45 min (TUSS) com concorrência 2, e uma fila ocupada mataria o token antes de usá-lo. A regra existe por segredo, nova tentativa e espera do usuário — aqui não há segredo da instalação (o token é do médico), nova tentativa é **proibida** (cada pedido gasta 1 de 3 no mês) e o médico está esperando na tela de qualquer jeito. Depende de o `app` ter saída para a internet (tem, ver `CLAUDE.md` §2 e P-11): se a P-11 isolar o `app`, isto passa a uma fila dedicada |
+| I6 | O pedido de bloco **nunca é repetido** automaticamente; tempo esgotado depois de enviar vira **incerto** | A API não tem consulta de bloco nem cancelamento (FAQ P35–36); repetir às cegas pode gastar mais um dos 3 pedidos do mês |
+| I7 | Os números do bloco são gravados um por linha, com `UNIQUE` por ambiente e tipo, e reservados com `select_for_update(skip_locked)` | Nenhum número em duas receitas, mesmo com duas abas, duas réplicas do `app` ou dois médicos ao mesmo tempo (FAQ P38: o controle de uso é da plataforma) |
+| I8 | Bloco cujo início e fim não formam uma faixa numérica fica **bloqueado para uso**, e nada é inventado | O formato do número pode mudar (a Anvisa anunciou a ampliação); sem saber enumerar, não se adivinha número |
+
