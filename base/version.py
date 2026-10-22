@@ -195,12 +195,20 @@ carimbá-la na publicação.
 #: console (chave cifrada no banco), que responde sozinho quando a chamada
 #: ao principal falha -- só para quem usa o padrão da instalação. Nasce
 #: desligado. Migração `base/0003`, só de expansão.
-VERSION = '1.23'
+#: A **1.24**: quatro ações rápidas no chat com paciente, que só escrevem o
+#: pedido no campo (revisar diagnóstico, revisar evolução, preparar retorno,
+#: explicar ao paciente); e a auditoria incremental de 2026-10 -- a pergunta
+#: do chat uma vez só ao provedor, a nova tentativa do worker que não repete
+#: SMS, a TUSS uma por vez, a agenda da semana em lote, consultas fixas em
+#: documentos e no mês, recusas do contato em português, o pedido do médico
+#: que não manda sobre as regras do relatório e rótulos para o leitor de
+#: tela. Sem migração.
+VERSION = '1.24'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a IA que não para sozinha'
+CODENAME = 'o pedido pronto'
 
 
 def version_display():

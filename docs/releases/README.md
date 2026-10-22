@@ -48,3 +48,4 @@ quando pedem homologação própria, como a 1.6.1 e a 1.6.2.
 | 1.13 | [`1.13-a-agenda.md`](1.13-a-agenda.md) |
 | 1.14, 1.14.1, 1.14.2 | [`1.14-excluir-horario.md`](1.14-excluir-horario.md) |
 | 1.15 | [`1.15-bloquear-horario.md`](1.15-bloquear-horario.md) |
+| 1.24 | [`1.24-o-pedido-pronto.md`](1.24-o-pedido-pronto.md) |
