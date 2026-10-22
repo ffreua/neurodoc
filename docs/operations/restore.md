@@ -1,8 +1,22 @@
 # Backup e restauração
 
+Revisto em 2026-10-22 contra `ops/backup.py`, `scripts/backup.sh` e
+`ops/restore.py`. Estado: o backup diário roda desde 2026-09-26, a cópia
+fora da VPS existe desde 2026-10-02 ([`copia-externa.md`](copia-externa.md)),
+e a metade de dados da restauração (`--prepare-data`) foi exercitada contra
+backup real. **O `--activate` nunca foi executado** — ver o fim deste
+documento.
+
 ## Backup (`ops/backup.py`, timer `neurodoc-backup.timer`)
 
-Rodando diariamente às 03:00 (`America/Sao_Paulo`) num host com Swarm ativo:
+Rodando diariamente às 03:00 (`America/Sao_Paulo`, com até 10 minutos de
+atraso aleatório) num host com Swarm ativo, por `scripts/backup.sh`, que
+**espera** até 45 minutos pela trava `.runtime/operation.lock` — a mesma
+do deploy — em vez de desistir: em 2026-10-02 um deploy das 03:01 às 03:12
+fez o backup daquela noite sair calado, quando a trava ainda era `flock -n`.
+Se a espera estoura, o `journal` diz `NAO HOUVE BACKUP` e o porquê.
+
+O backup em si:
 adquire um `pg_advisory_lock` no Postgres — a mesma trava que a aplicação
 pega para coletar lixo ou compactar o arquivo morto
 (`ops/locks.py::BACKUP_LOCK`), de modo que nenhum arquivo é movido, comprimido
@@ -11,8 +25,10 @@ ou apagado durante a cópia —, gera `pg_dump --format=custom` do banco e um
 (`media`, `signing`, `letsencrypt`), cifrando cada stream diretamente com
 `age -r <destinatário>` sem nunca gravar texto plano em disco. Um
 `manifest.json` com hash SHA-256 e tamanho de cada arquivo, mais um marcador
-`COMPLETE`, fecha o conjunto; a retenção mínima é de 7 dias e só remove
-pastas com `COMPLETE` presente.
+`COMPLETE`, fecha o conjunto. A retenção é `BACKUP_RETENTION_DAYS` (30 no
+`.env.example`; menos de 7 é recusado) e só remove pastas com `COMPLETE`
+presente. O manifesto registra também a release que estava no ar
+(`.runtime/last-successful.json`), que é a que a restauração vai exigir.
 
 **Levar a cópia para fora da VPS** é
 [`copia-externa.md`](copia-externa.md): o backup acima mora na mesma máquina
@@ -67,11 +83,39 @@ docker swarm init
 docker node update --label-add neurodoc_data=true $(docker node ls -q)
 docker network create --driver overlay --internal neurodoc_v1_internal
 for s in NEURODOC_DB_ADMIN_PASSWORD NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD; do
-  openssl rand -base64 48 | tr -d '
-
-' | docker secret create "$s" -
+  openssl rand -base64 48 | tr -d '\r\n' | docker secret create "$s" -
 done
 ```
+
+## O que o `--activate` exige a mais
+
+Lido em `ops/restore.py::activate`; **nunca executado**. Ele sobe o stack
+inteiro, e por isso roda o **preflight completo** de `ops/deploy.py` antes
+de tudo — o host de recuperação precisa estar como a produção, não só como
+o Postgres da etapa anterior:
+
+| Precisa | Por quê |
+| --- | --- |
+| Tudo o que o preflight cobra (`docs/operations/deploy.md`) | as três redes, os **quinze** segredos, o `tmpfs` de `/run/neurodoc-signing` com dono UID 10001, nó único, `.env` de produção, árvore Git sem mudança rastreada |
+| `NEURODOC_PFX_MASTER_KEY` e `NEURODOC_SECRETS_MASTER_KEY` **de produção** | o resto pode nascer novo; estas não |
+| `NEURODOC_RECOVERY_MODE=True` | segura o consumo das tarefas de domínio (o worker passa a ouvir só a fila `recovery`) |
+| `AI_ENABLED`, `EMAIL_ENABLED` e `SMS_ENABLED` em `False` | nada sai para paciente nem provedor enquanto o estado restaurado não foi conferido |
+| `git checkout` do **SHA exato** do manifesto | recusa outro commit: o banco restaurado tem o esquema daquela release |
+| O `.runtime/restore-data.json` do `--prepare-data` | prova que os dados restaurados são deste backup |
+
+Depois do `--activate`, e antes de ligar qualquer canal, o comando
+`prepare_recovery` (no `app`, com `--operator-email` de um superusuário e
+`--reason`) invalida as sessões, revoga sessões de assinatura e links de
+documento, e marca entregas e eventos pendentes para reconciliação — ver
+abaixo.
+
+> **Defeito conhecido, não corrigido em 2026-10-22.** O `--activate` busca
+> as faixas de IP da Cloudflare com o `urllib` puro. O `ops/deploy.py`
+> parou exatamente nesse pedido no primeiro deploy — a Cloudflare devolve
+> 403 ao `User-Agent` padrão do `urllib` — e passou a se identificar
+> (`ops/deploy.py::buscar`, commit `a7d8132`); o `ops/restore.py` ficou
+> com o pedido antigo. Até a correção, espere que o `--activate` pare ali,
+> depois do preflight e antes do `stack deploy`.
 
 ## Primeiro drill real — 2026-09-26
 
@@ -98,7 +142,16 @@ com ele a medição de RPO/RTO. **H-22 deixa de estar sem nenhuma evidência**:
 a metade que não dependia de chave-mestra está exercitada contra backup
 real gerado por timer real.
 
-## Verificado nesta etapa (sem VPS/backup externo real)
+## Segunda prova — 2026-10-02
+
+O backup de 01/10, gerado pelo timer na VPS, foi baixado, decifrado com a
+chave privada do controlador e conferido: dump PostgreSQL válido, 86
+tabelas, entre elas `patients_patient`, `clinical_encounter` e
+`documents_medicaldocument` (registrado em `docs/ESTADO-ATUAL.md` §2). A
+prova vale para aquela chave: **refazê-la depois de qualquer mudança em
+`BACKUP_AGE_RECIPIENT`.**
+
+## Verificado em S10, antes da VPS
 
 - **Mecânica criptográfica do `age`**: roundtrip completo testado com um
   par de chaves real gerado por `age-keygen`, reproduzindo exatamente as
@@ -129,14 +182,15 @@ real gerado por timer real.
   - Confirmado também que o comando **recusa** rodar fora do modo de
     recuperação ou com qualquer canal externo habilitado.
 
-## Decisões de escopo
+## O que continua aberto
 
-- Um drill completo (`ops/backup.py` real → cópia para fora da VPS →
-  `ops/restore.py --prepare-data` → `--activate` num host separado) depende
-  de uma VPS real em Swarm (P-02) e de um destino externo autorizado com
-  titular de chave definido (P-10) — nenhum dos dois está disponível. RPO/RTO
-  não puderam ser medidos contra infraestrutura real; H-22 permanece aberto
-  até essas duas pendências resolverem.
-- O `manifest.json`/hash/`COMPLETE` e a recusa de host não-vazio foram
-  verificados por leitura de código (lógica pura, sem dependência externa
-  além do Docker/Swarm em si).
+Este trecho dizia que o drill completo dependia de P-02 (VPS real) e P-10
+(destino externo). As duas estão resolvidas — a VPS desde 2026-09-25, a
+cópia externa desde 2026-10-02. O que falta agora é só o que depende de
+fazer:
+
+- **O `--activate` num host separado**, com as chaves-mestras reais, e com
+  ele a primeira medição de RPO/RTO. H-22 segue aberto até lá. Antes, a
+  correção do defeito do `User-Agent` descrito acima.
+- O roteiro de restauração a cada seis meses está em
+  [`manutencao.md`](manutencao.md) §3.

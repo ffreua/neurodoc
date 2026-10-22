@@ -16,8 +16,13 @@ repositório com mudança rastreada não commitada, então o registro entra na
 mesma árvore que vai ao ar.
 
 A versão de produto segue `docs/operations/versionamento.md`. A versão
-atual é a **1.15**. O SHA continua mudando em toda publicação, mesmo
+atual é a **1.24**. O SHA continua mudando em toda publicação, mesmo
 quando `VERSION` não muda.
+
+> **Prática atual (desde a 1.1):** a nota leva o nome da **versão**, é
+> escrita no repositório antes da publicação e recebe o SHA publicado num
+> commit seguinte; `NEURODOC_RELEASE_APPROVED` fica ligado na VPS. O texto
+> acima descreve a regra original do PRD (§18.6), com nota por SHA.
 
 ## O que há aqui
 
@@ -48,4 +53,16 @@ quando pedem homologação própria, como a 1.6.1 e a 1.6.2.
 | 1.13 | [`1.13-a-agenda.md`](1.13-a-agenda.md) |
 | 1.14, 1.14.1, 1.14.2 | [`1.14-excluir-horario.md`](1.14-excluir-horario.md) |
 | 1.15 | [`1.15-bloquear-horario.md`](1.15-bloquear-horario.md) |
+| 1.16 | [`1.16-os-exames-do-paciente.md`](1.16-os-exames-do-paciente.md) |
+| 1.16.1 | [`1.16.1-o-primeiro-envio-real.md`](1.16.1-o-primeiro-envio-real.md) |
+| 1.16.2 | [`1.16.2-textos-do-portal.md`](1.16.2-textos-do-portal.md) |
+| 1.17 | [`1.17-alterar-medicacao.md`](1.17-alterar-medicacao.md) |
+| 1.18 | [`1.18-o-chat-que-conhece-o-sistema.md`](1.18-o-chat-que-conhece-o-sistema.md) |
+| 1.19 | [`1.19-o-recado-que-se-apaga.md`](1.19-o-recado-que-se-apaga.md) |
+| 1.19.1 | [`1.19.1-cep-na-edicao.md`](1.19.1-cep-na-edicao.md) |
+| 1.20 | [`1.20-o-que-se-aprova-se-encontra.md`](1.20-o-que-se-aprova-se-encontra.md) |
+| 1.21 | [`1.21-toda-folha-diz-de-quem-e.md`](1.21-toda-folha-diz-de-quem-e.md) |
+| 1.21.1 | [`1.21.1-transicao-sncr.md`](1.21.1-transicao-sncr.md) |
+| 1.22 | [`1.22-receita-da-anvisa-desligada.md`](1.22-receita-da-anvisa-desligada.md) |
+| 1.23 | [`1.23-ia-que-nao-para-sozinha.md`](1.23-ia-que-nao-para-sozinha.md) |
 | 1.24 | [`1.24-o-pedido-pronto.md`](1.24-o-pedido-pronto.md) |

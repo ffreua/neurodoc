@@ -22,8 +22,11 @@ as cópias de fora — é assim que ransomware destrói backup. Puxando, a VPS
 não tem credencial nenhuma do disco: **ela não sabe que o disco existe.**
 
 O custo é que o PC precisa estar ligado e o SSD plugado na hora. Isso é
-barato aqui: a VPS guarda 9 dias, então qualquer execução dentro de 9 dias
-pega tudo. Perder um dia não perde nada.
+barato aqui: a VPS guarda os conjuntos por `BACKUP_RETENTION_DAYS` (30 no
+`.env.example`; `ops/backup.py` recusa menos de 7), então qualquer execução
+dentro desse prazo pega tudo. Perder um dia não perde nada. (Esta linha
+dizia "9 dias": era quantos backups existiam em 2026-10-02, uma semana
+depois do primeiro, e não o prazo de guarda.)
 
 **A chave privada não é usada neste caminho**, de propósito. O PC guarda
 cópia cifrada, e só. Decifrar é `docs/operations/restore.md`.
@@ -33,14 +36,15 @@ cópia cifrada, e só. Decifrar é `docs/operations/restore.md`.
 ### 1. Permissão: nada a fazer
 
 Conferido na VPS em 2026-10-02: `/srv/neurodoc-backups` é `0700` **do
-próprio `deploy`**, que é quem roda a unidade de backup e quem entra por
-SSH. O acesso de leitura já existe.
+próprio usuário de operação** (`<usuario>` daqui em diante), que é quem
+roda a unidade de backup e quem entra por SSH. O acesso de leitura já
+existe.
 
-Vale registrar porque a versão anterior desta página mandava rodar
-`usermod -aG neurodocops deploy` e afrouxar o diretório para `0750` — lido
-do molde `ops/neurodoc-backup.service` (que diz `User=neurodocops`) em vez
-do servidor real, onde `setup_deploy.sh` substituiu o usuário por
-`deploy`. Seria afrouxar permissão à toa.
+Vale registrar porque a versão anterior desta página mandava pôr
+`<usuario>` no grupo `neurodocops` e afrouxar o diretório para `0750` —
+lido do molde `ops/neurodoc-backup.service` (que diz `User=neurodocops`) em
+vez do servidor real, onde `setup_deploy.sh` substituiu o usuário pelo de
+operação. Seria afrouxar permissão à toa.
 
 Conferir, do PC:
 
@@ -53,7 +57,7 @@ ssh neurodoc-vps "ls /srv/neurodoc-backups | head"
 A tarefa roda sem ninguém olhando; uma chave com passphrase a trava para
 sempre, em silêncio. Se a chave atual tem passphrase, gere uma dedicada a
 este uso (`ssh-keygen -t ed25519 -f ~/.ssh/neurodoc_backup`) e registre-a
-em `~/.ssh/authorized_keys` do `deploy`.
+em `~/.ssh/authorized_keys` do `<usuario>`.
 
 ## A execução
 
@@ -98,8 +102,7 @@ tarefa roda, o do dia já existe.
 ## Executado em 2026-10-02
 
 Não é mais um plano. Os **11 conjuntos** da VPS estão em
-`D:
-eurodoc-backups` (SSD `SSD_Freua`, 57,8 MB), de 26/09 a 02/10, todos
+`D:\neurodoc-backups` (SSD `SSD_Freua`, 57,8 MB), de 26/09 a 02/10, todos
 com `VERIFICADO`. A tarefa diária está registrada e **foi disparada à mão
 para confirmar que roda sob o agendador** — resultado 0. Esse teste
 importa mais que o manual: é no contexto do agendador que uma chave SSH

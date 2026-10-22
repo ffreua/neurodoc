@@ -1,45 +1,114 @@
-# Métricas operacionais e redação final
+# Saúde, logs e alertas
+
+Revisto em 2026-10-22 contra `core/settings.py`, `ops/http_health.py`,
+`ops/probe_ready.py`, `ops/celery_health.py`, `ops/queue_probe.py`,
+`base/logging.py` e `ai/tasks.py`. Não há provedor externo de métricas nem
+de observabilidade (Sentry, Grafana e afins): o que existe é o que está
+aqui, e a rotina de olhar está em [`manutencao.md`](manutencao.md) §1 e §2.
+
+## Sondas de saúde
+
+Quatro, e cada uma responde a uma pergunta diferente — confundi-las é o
+jeito de achar que está tudo bem quando não está.
+
+| Sonda | Pergunta | Quem usa |
+| --- | --- | --- |
+| `/health/` (`ops/http_health.py::HealthMiddleware`) | o processo web responde? | o `HEALTHCHECK` do `app`, o *healthcheck* do Traefik, o fim de cada deploy (pelo domínio público) e o timer do firewall da Cloudflare |
+| `ops/probe_ready.py` | o banco responde, não há migration pendente e os estáticos da release estão prontos? | o deploy, dentro de cada contêiner `app`, antes de declarar sucesso |
+| `ops/celery_health.py` | o worker responde a `ping`? o beat escreveu o batimento há menos de 60 s? | o `HEALTHCHECK` do worker e o do beat |
+| `ops/queue_probe.py` | a fila e o backend de resultado funcionam de ponta a ponta? | ninguém automaticamente — é para rodar à mão |
+
+**`/health/` é só de vida.** Ele responde `ok` no próprio middleware, antes
+de qualquer view, e **não toca o banco**: banco fora do ar não o derruba.
+Ele confere o `Host` (`request.get_host()`), então um host fora de
+`ALLOWED_HOSTS` recebe 400 em vez de `ok`. Quem pergunta pelo banco e pelo
+esquema é o `probe_ready.py`.
+
+`queue_probe.py` manda a tarefa `base.tasks.operational_ping` à fila
+`maintenance` (ou `recovery`, em modo de recuperação) e espera a resposta,
+que traz `ok`, o `RELEASE_ID` e a versão do produto:
+
+```bash
+docker exec $(docker ps -q -f name=neurodoc_v1_app | head -1) python /app/ops/queue_probe.py
+```
+
+Resposta boa: `Queue and result backend responded to an operational probe.`
 
 ## Logs
 
-`base.logging.RedactSensitiveDataFilter` (aplicado a todo handler de
-console) substitui qualquer valor associado a uma chave sensível
-(`password`, `token`, `secret`, `otp`, `authorization`, `pfx`, `code_hash`)
-por `[REDACTED]` em `record.msg`/`record.args` antes de qualquer log sair —
-testado desde S02 (M0) e revalidado aqui.
+Tudo vai para a saída do contêiner, e se lê pelo serviço:
 
-## Alertas (`ADMINS`/`AdminEmailHandler`, novo em S10)
+```bash
+docker service logs neurodoc_v1_app --tail 100
+docker service logs neurodoc_v1_celery_worker --tail 100
+docker service logs neurodoc_v1_traefik --tail 50
+```
 
-`django.request` com nível `ERROR` (qualquer 5xx não tratado) dispara um
-e-mail para os destinatários definidos em `ALERT_ADMIN_EMAILS`, usando o
-mesmo backend nativo de e-mail já homologado em S08. Django só envia esses
-e-mails com `DEBUG=False` (padrão de produção).
+- **Nível.** A raiz registra a partir de `WARNING`; o worker e o beat rodam
+  com `--loglevel=WARNING`; o Traefik, com `log.level: WARN`. O `uvicorn`
+  sobe com `--no-access-log`: não há linha por requisição.
+- **Redação.** `base.logging.RedactSensitiveDataFilter` está no handler de
+  console **e** no de e-mail: troca por `[REDACTED]` o valor que vier
+  depois de `password`, `token`, `secret`, `otp`, `authorization`, `pfx` ou
+  `code_hash`.
+- **Host inválido** (`django.security.DisallowedHost`) vai só para o
+  console, sem e-mail — senão cada varredura da internet viraria alerta.
+- **Política de conteúdo**: as violações chegam em `/csp-report/` e saem no
+  log da aplicação com o prefixo `csp:`.
 
-**Risco identificado e corrigido nesta sprint**: o filtro padrão do Django
-para o corpo do e-mail de erro (`SafeExceptionReporterFilter`) só oculta
-campos de POST cujo **nome** pareça sensível (`password`, `token`, ...) —
-ele não tem como saber que `chief_complaint` ou `hpi` é texto clínico. Uma
-falha 500 dentro de uma view de prontuário enviaria o corpo da requisição
-inteiro (incluindo texto clínico) para a caixa de e-mail de operação. Criado
-`base.logging.NoPostDataExceptionReporterFilter`, que suprime **todos** os
-parâmetros de POST do relatório de erro (`DEFAULT_EXCEPTION_REPORTER_FILTER`
-em `core/settings.py`) — um alerta precisa do traceback e do caminho da
-requisição, nunca do corpo.
+Os temporizadores do host escrevem no `journal`, não no Docker:
 
-**Testado de ponta a ponta**: com `ALERT_ADMIN_EMAILS` configurado, uma
-requisição POST sintética contendo um trecho de queixa clínica reconhecível
-foi submetida a um erro simulado no logger `django.request`; o e-mail
-gerado (capturado no backend `locmem`) chegou ao destinatário configurado
-com o traceback, mas **sem** o trecho clínico em lugar nenhum do corpo —
-confirmado por busca textual no e-mail renderizado real.
+```bash
+journalctl -u neurodoc-backup.service -n 30 --no-pager
+journalctl -u neurodoc-cloudflare-fw.service -n 5 --no-pager
+journalctl -u neurodoc-signing-cleanup.service -n 5 --no-pager
+```
 
-## Decisões de escopo
+## Alertas por e-mail
 
-- Nenhum provedor de métricas/observabilidade externo (Sentry, Grafana
-  Cloud, etc.) está contratado — não há P- numerado especificamente para
-  isso, mas na prática depende da mesma decisão de operação que P-03
-  (credenciais de serviços externos). O mecanismo de alerta por e-mail
-  nativo do Django cobre o aceite mínimo ("alertas chegam ao destinatário
-  definido") sem exigir um provedor terceiro; métricas de performance
-  (RNF-01, H-23) permanecem para medição quando houver capacidade de
-  produção real (P-02).
+São dois, para destinatários diferentes.
+
+### Erro 500 → `ALERT_ADMIN_EMAILS`
+
+O logger `django.request` em `ERROR` — qualquer 5xx não tratado — dispara o
+`AdminEmailHandler` para os endereços de `ALERT_ADMIN_EMAILS`. O Django só
+manda esses e-mails com `DEBUG=False`, e o envio sai pela fila como
+qualquer outro e-mail: quem fala com o SMTP é o worker.
+
+O relatório de erro não carrega o corpo da requisição.
+`base.logging.NoPostDataExceptionReporterFilter`
+(`DEFAULT_EXCEPTION_REPORTER_FILTER` em `core/settings.py`) suprime todos
+os parâmetros de POST: o filtro padrão do Django só esconde campo cujo
+**nome** pareça sensível e não tem como saber que `chief_complaint` é
+texto clínico. Um alerta precisa do traceback e do caminho, nunca do corpo.
+Testado de ponta a ponta em S10, com um trecho de queixa clínica num POST
+sintético que não apareceu em lugar nenhum do e-mail gerado.
+
+### IA da instalação falhando → superadministradores (1.23)
+
+`ai.tasks.vigiar_ia_da_instalacao`, no beat, **de hora em hora no minuto
+47**: confere o provedor de IA padrão da instalação e, se configurada, a
+reserva. Na passagem para a falha manda e-mail a **todo superusuário
+ativo** com e-mail cadastrado — não a `ALERT_ADMIN_EMAILS` —, repete uma
+vez a cada 24 horas enquanto durar, e para sozinho quando a verificação
+volta a passar. O e-mail diz se a reserva está cobrindo, porque isso muda a
+urgência, e aponta `/instalacao/operacao/`.
+
+É a peça que faltou nos quarenta dias de `410 Gone` de 2026 (§7-D do
+`CLAUDE.md`): a verificação existia, mas só rodava quando alguém clicava.
+
+## O que se olha à mão
+
+| Quando | O quê | Onde |
+| --- | --- | --- |
+| Toda semana | os sete serviços de pé; o backup do dia | [`manutencao.md`](manutencao.md) §1 e §2 |
+| Todo mês | a cópia externa conferida | [`copia-externa.md`](copia-externa.md) |
+| A cada 6 meses | restaurar de verdade | [`restore.md`](restore.md) |
+
+## O que ainda não existe
+
+- **Alerta de backup que falhou.** O `neurodoc-backup.service` falha no
+  `journal` e ninguém é avisado. A defesa hoje é olhar (§2 da manutenção):
+  a tarefa diária da cópia externa também não acusa o dia que faltou — ela
+  registra `0 novo(s)` no log e sai com sucesso.
+- **Métricas de desempenho** (RNF-01, H-23): nenhuma medição sob carga.

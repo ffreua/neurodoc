@@ -1,210 +1,183 @@
-# Deploy do NeuroDoc
+# Deploy do NeuroDoc — por onde começar
 
-Roteiro operacional resumido, produzido na auditoria pré-deploy de
-2026-09-24 com os comandos **reais** do projeto.
+**Esta é a porta de entrada** de tudo que é publicação e operação. Ela diz
+como a produção está montada, como se publica uma versão hoje e onde está
+o detalhe de cada assunto. Revista em 2026-10-22, com a **1.24** no ar.
 
-> **O passo a passo completo do primeiro deploy é
-> [`docs/operations/primeiro-deploy.md`](docs/operations/primeiro-deploy.md)**
-> — 1.000 linhas, com as telas e as armadilhas de cada etapa. Este arquivo é
-> o mapa; aquele é o território. Onde os dois divergirem, **vale aquele**, e
-> este está errado.
->
-> Complementos: [`deploy.md`](docs/operations/deploy.md) (mecanismo),
-> [`rollback.md`](docs/operations/rollback.md),
-> [`restore.md`](docs/operations/restore.md),
-> [`monitoring.md`](docs/operations/monitoring.md),
-> [`environment.md`](docs/operations/environment.md).
+A primeira versão deste arquivo foi escrita na auditoria pré-deploy de
+2026-09-24, antes de existir servidor; ela está no histórico do Git. O que
+mudou desde então — certificado por desafio de DNS, proxy da Cloudflare,
+segredos do Swarm em vez de arquivos, rollback que não é `--skip-build` —
+está corrigido aqui e nos documentos abaixo.
+
+| Para | Leia |
+| --- | --- |
+| Montar um servidor do zero | [`docs/operations/primeiro-deploy.md`](docs/operations/primeiro-deploy.md) (e `scripts/setup_deploy.sh`, que o executa) |
+| Operar no dia a dia: publicar, conferir, trocar senha, firewall | [`docs/operations/manutencao.md`](docs/operations/manutencao.md) |
+| Entender o mecanismo: preflight, rollout, estáticos | [`docs/operations/deploy.md`](docs/operations/deploy.md) |
+| Voltar uma versão | [`docs/operations/rollback.md`](docs/operations/rollback.md) |
+| Backup e restauração | [`docs/operations/restore.md`](docs/operations/restore.md) |
+| Cópia do backup fora da VPS | [`docs/operations/copia-externa.md`](docs/operations/copia-externa.md) |
+| Saber se está de pé: saúde, logs, alertas | [`docs/operations/monitoring.md`](docs/operations/monitoring.md) |
+| Número de versão × SHA | [`docs/operations/versionamento.md`](docs/operations/versionamento.md) |
+| Imagens e versões de componentes | [`docs/operations/environment.md`](docs/operations/environment.md) |
+| O que aconteceu no primeiro deploy | [`docs/operations/diario-do-primeiro-deploy.md`](docs/operations/diario-do-primeiro-deploy.md) (histórico) |
+
+`DEPLOY_CHECKLIST.md` e `PRE_DEPLOY_AUDIT.md` são o registro do primeiro
+deploy (1.0, setembro de 2026) e **não** descrevem o procedimento de hoje.
+
+Onde este arquivo e o código divergirem, vale o código: `ops/deploy.py`,
+`docker-stack.yml`, `ops/make_runtime.py`.
 
 ---
 
-## Pré-requisitos
+## Como a produção está montada
 
 | | |
 | --- | --- |
-| VPS | Debian/Ubuntu recente, com `age` disponível nos repositórios |
-| Porte | 4 vCPU / 8 GB / 80 GB SSD atende com folga os sete serviços |
-| Rede | 80 e 443 abertas; 22 restrita |
-| DNS | `neurodoc.app.br` apontando para a VPS **antes** do deploy (Let's Encrypt valida por HTTP) |
-| Registro | Acesso de escrita ao registry de imagens (`REGISTRY`) |
-| Local | Docker, `git`, Python 3 na máquina que publica |
+| Servidor | VPS Ubuntu 24.04, **Docker Swarm de um nó só** — o preflight recusa mais de um (`NEURODOC_NODES=1`), porque os volumes são locais e não seguem uma tarefa migrada |
+| Projeto | `/srv/neurodoc` (o caminho padrão das unidades do systemd) |
+| Serviços | sete: `app` (2 réplicas), `celery_worker`, `celery_beat`, `db`, `rabbitmq`, `redis`, `traefik` |
+| Imagem | `ghcr.io/ffreua/neurodoc:<SHA do commit>`, entregue ao stack **por digest** (`REGISTRY` no `.env`) |
+| Borda | **Cloudflare com proxy** (desde 2026-10-19, SSL em *Full (strict)*) → Traefik → `app` |
+| Certificado da origem | Let's Encrypt pelo Traefik, por **desafio de DNS na Cloudflare** (`dnsChallenge`, token no segredo `CLOUDFLARE_DNS_API_TOKEN`). A porta 80 não participa da emissão |
+| Firewall | UFW com 22/80/443; e 80/443 **só para as faixas da Cloudflare** (`ops/cloudflare_firewall.sh`, timer `neurodoc-cloudflare-fw.timer`) |
+| Segredos | **quinze segredos do Swarm** (`docker secret`), lidos de `docker-stack.yml`. `.secrets/` é só do ambiente local |
+| Temporizadores | `neurodoc-backup.timer` (03:00 de Brasília), `neurodoc-signing-cleanup.timer` (a cada 5 min), `neurodoc-cloudflare-fw.timer` (na subida e uma vez por dia) |
 
-## Configuração do servidor
+**O `app` tem saída para a internet**, ao contrário do que alguns
+documentos antigos dizem: ele está em `traefik_public`, que não é
+`internal`. O que o impede de enviar e-mail, SMS ou falar com a IA é não
+receber os segredos de saída (`ops/make_runtime.py` só os entrega ao
+worker). Ver o §2 do `CLAUDE.md`.
 
-```bash
-# Na VPS, como root. Idempotente: retoma de onde parou.
-./scripts/setup_deploy.sh
-```
+## Publicar uma versão
 
-Ele instala Docker, ativa o Swarm, instala `fail2ban`, ajusta o fuso e
-instala os utilitários — **incluindo `age`**, sem o qual a cópia de segurança
-não roda. Se `age` não existir na distribuição, o roteiro **para** e aponta o
-release oficial: seguir sem ele é escrever um timer de backup que nunca vai
-funcionar.
-
-## Variáveis de ambiente
-
-```bash
-cp .env.example .env    # 42 variáveis; nenhuma delas é segredo
-```
-
-Obrigatórias de conferir:
-
-| Variável | Valor |
-| --- | --- |
-| `DEBUG` | `False` (o preflight recusa `True`) |
-| `PUBLIC_BASE_URL` | `https://neurodoc.app.br` (o preflight recusa outro) |
-| `ALLOWED_HOSTS` | domínio real, com e sem `www` |
-| `CSRF_TRUSTED_ORIGINS` | `https://` + domínio |
-| `ACME_EMAIL` | e-mail real (o preflight recusa `CHANGE_ME`) |
-| `ALERT_ADMIN_EMAILS` | quem recebe alerta de erro |
-| `SECURE_HSTS_SECONDS` | **`0` neste primeiro deploy** |
-| `TRUSTED_PROXIES` | **acrescente as faixas da Cloudflare se ela estiver na frente** |
-| `REGISTRY` | `host/namespace/repositorio` |
-| `NEURODOC_SCHEMA_CHANGE` | `expand` |
-
-**Segredos** — nunca no `.env`. Um arquivo por segredo em `.secrets/`, modo
-0600, sem quebra de linha final:
-
-```
-DJANGO_SECRET_KEY  DB_APP_PASSWORD  DB_OWNER_PASSWORD
-RABBITMQ_PASSWORD  REDIS_PASSWORD   SECRETS_MASTER_KEY
-PFX_MASTER_KEY     SMTP_PASSWORD    SMSDEV_API_KEY
-```
-
-`ops/make_runtime.py` distribui cada segredo só ao serviço que precisa dele —
-o `app` não recebe as credenciais de saída, o `worker` não recebe a chave do
-dono do banco.
-
-## Banco
+**No computador de desenvolvimento**, com a bateria verde e a versão
+fechada: a nota em `docs/releases/` (nomeada pela versão, como
+`1.24-o-pedido-pronto.md`) entra no mesmo commit, **antes** do push.
 
 ```bash
-# Uma vez, antes do primeiro deploy: papéis, privilégios e extensão.
-./ops/postgres_init.sh
+git push origin main
 ```
 
-Cria `neurodoc_owner` (cria esquema) e `neurodoc_app` (só lê e grava dado),
-revoga `CREATE` do `PUBLIC` e instala `btree_gist`. As 86 migrations rodam no
-start do serviço `app`, que é o único com `RUN_MIGRATIONS=True`.
-
-## Publicação
+**Na VPS**, como o usuário de operação:
 
 ```bash
-# 1. Confere sem publicar nada — preflight completo.
-.venv-ops/bin/python -m ops.deploy --check
-
-# 2. Publica: constrói, empurra por digest, atualiza o stack, espera saúde.
-.venv-ops/bin/python -m ops.deploy
-#    ou, com a trava de execução única:
-./scripts/deploy.sh
+cd /srv/neurodoc
+git pull --ff-only
+bash scripts/deploy.sh --check
+setsid nohup bash scripts/deploy.sh > /tmp/deploy.log 2>&1 < /dev/null &
+tail -f /tmp/deploy.log
 ```
 
-O preflight recusa `DEBUG=True`, `ACME_EMAIL` inválido, `PUBLIC_BASE_URL`
-errado, `REGISTRY` mal formado e release não aprovada. `scripts/deploy.sh`
-envolve tudo num `flock` — dois deploys simultâneos não se atropelam.
+Por que cada linha:
 
-**Antes de `NEURODOC_RELEASE_APPROVED=True`:** copie
-`docs/releases/1.0-PRIMEIRO-DEPLOY.md` para `docs/releases/<SHA>.md` e
-preencha os campos entre `<>`.
+- **`--check` primeiro.** Roda o preflight inteiro e para — sem build,
+  sem push, sem `stack deploy`. Sem ele, a única forma de descobrir que
+  falta um segredo ou uma entrada de `ALLOWED_HOSTS` é começar uma
+  publicação de verdade. A resposta boa é `Preflight aprovado: ...`.
+- **`setsid nohup`**: a publicação leva de 10 a 25 minutos. Presa à sessão
+  SSH, uma queda de conexão a mata no meio do `stack deploy`.
+- **Nunca commite na VPS.** O deploy faz `git pull --ff-only`; um commit
+  local diverge do `origin` e a publicação seguinte para ali.
 
-## Primeiro acesso
+Termina com duas linhas — a versão do produto e o SHA:
+
+```
+NeuroDoc 1.24 publicado.
+Release <sha> deployed; all services are healthy.
+```
+
+### O que o deploy faz, na ordem (`ops/deploy.py`)
+
+1. **Preflight** — a lista completa está em
+   [`docs/operations/deploy.md`](docs/operations/deploy.md).
+2. `git pull --ff-only` e se reexecuta com o código novo.
+3. Gera os `env_file` de cada papel em `.runtime/` (cada segredo só para
+   quem precisa dele).
+4. Resolve as imagens de infraestrutura por digest e **recusa** se alguma
+   mudou desde a última publicação (`Infrastructure image changed`): trocar
+   Postgres, RabbitMQ, Redis ou Traefik é manutenção planejada, não efeito
+   colateral de publicar aplicação.
+5. Constrói e empurra `REGISTRY:<SHA>` — **na VPS** —, a menos que essa tag
+   já exista no registry.
+6. Confere que a imagem carrega o SHA certo, prepara os volumes, busca as
+   faixas da Cloudflare e escreve o `traefik.yml`.
+7. `docker stack deploy` e espera: cada serviço convergido e saudável,
+   `ops/probe_ready.py` em cada `app` (banco, nenhuma migration pendente,
+   estáticos prontos) e, por fim, `/health/` pelo domínio público.
+8. Só então grava `.runtime/last-successful.json` (e guarda o anterior em
+   `previous-successful.json`).
+
+**Quem migra o banco é o `app`, na subida** (`bootstrap_release` →
+`ops/runtime.py::prepare_release`), pela conexão `migrations`, sob trava do
+PostgreSQL — duas réplicas subindo juntas migram uma vez só. **Nunca rode
+`manage.py migrate` à mão**: a conexão padrão é `neurodoc_app`, sem DDL, e
+para em `permission denied for schema public`.
+
+### As três chaves do `.env` que o deploy cobra
+
+| Chave | Valor | Por quê |
+| --- | --- | --- |
+| `NEURODOC_RELEASE_APPROVED` | `True` | Trava declarativa: o preflight só confere que alguém a ligou. Quem responde "homologado por quem, com base em quê" é a nota em `docs/releases/` |
+| `NEURODOC_SCHEMA_CHANGE` | `expand` | Qualquer outro valor é recusado. Mudança que apaga ou renomeia coluna exige procedimento de manutenção |
+| `TRUSTED_PROXIES` | faixas privadas **e** as da Cloudflare | Declarada vazia, é recusada. Sem as faixas da Cloudflare, o produto vê o IP do nó dela e não o do visitante, e os limites de tentativa viram um balde só |
+
+`.env` só aceita chave que exista no `.env.example` — chave nova entra
+primeiro no molde, onde aparece num diff.
+
+## Conferir depois de publicar
 
 ```bash
-docker exec -it <container-app> python manage.py create_superadmin seu@email.com
+docker service ls                                   # sete serviços, 2/2 no app e 1/1 nos outros
+curl -s https://neurodoc.app.br/health/             # ok
+curl -sI https://neurodoc.app.br/ | grep -i 'strict-transport\|x-frame\|nosniff\|referrer\|content-security'
 ```
 
-**Configure a MFA antes de qualquer outra coisa** — `/admin/` e `/instalacao/`
-exigem `is_superuser` **e** MFA verificada, e sem ela você não entra.
+E na interface: o rodapé mostra a versão nova, e `/instalacao/` mostra a
+versão ao lado do build (SHA).
 
-Depois: emita o convite de plataforma da clínica-sede, faça a adesão pelo
-cadastro (o aceite do contrato grava SHA-256 e manda a via por e-mail) e
-preencha o **encarregado de dados** em Identidade da clínica — enquanto
-estiver vazio, o portal do paciente diz que a clínica não designou ninguém.
+O teste antigo de `Host:` desconhecido devolvendo 400 **não vale mais de
+fora**: com a Cloudflare na frente, quem responde a um host estranho é a
+borda dela, e a origem não aceita conexão de mais ninguém.
 
-## Workers e tarefas agendadas
+## Voltar atrás
 
-Os três processos sobem pelo stack. O `celery_beat` carrega seis tarefas:
+Resumo — o procedimento está em
+[`docs/operations/rollback.md`](docs/operations/rollback.md):
 
-| Tarefa | Quando |
-| --- | --- |
-| `events.tasks.dispatch_outbox` | a cada minuto |
-| `communications.tasks.reconcile_pending_sms` | periódica |
-| `reporting.tasks.expire_exports` | periódica |
-| `documents.tasks.update_clamav_definitions` | periódica |
-| `catalogs.tasks.sync_tuss` | domingo, 4h |
-| `documents.tasks.compact_archive` | trimestral, dia 1, 3h |
-
-> **Aberto:** `documents/retention.py::garbage_collect` **não** está agendado.
-> Ver `PRE_DEPLOY_AUDIT.md` §9 (D-02) — é decisão sua.
-
-## E-mail
-
-```bash
-docker exec -it <container-worker> python manage.py testar_email seu@email.com
-```
-
-O envio sai **sempre pelo worker**: só a ele o segredo de SMTP é entregue, e
-só ele pode tentar de novo quando o provedor falha.
-
-## HTTPS
-
-Traefik pede o certificado ao Let's Encrypt na subida, validando por HTTP —
-por isso o DNS precisa estar apontado **antes**. Confirme o certificado real e
-o 301 de HTTP para HTTPS.
-
-**Só então** ligue `SECURE_HSTS_SECONDS`: o navegador guarda a instrução e não
-há como voltar atrás pelo servidor.
-
-## Validação pós-deploy
-
-```bash
-curl -I http://neurodoc.app.br/                  # 301 para https
-curl -s  https://neurodoc.app.br/health/          # saudável
-curl -sI https://neurodoc.app.br/ | grep -i \
-  'strict-transport\|x-frame\|nosniff\|referrer'
-curl -sI -H 'Host: invalido.example' https://neurodoc.app.br/   # 400
-```
-
-Na interface: rodapé com **versão 1.0**, `/ajuda/` com as 47 capturas,
-`/contrato/`, login com MFA, cadastro de paciente, marcação na agenda,
-emissão de documento, `/instalacao/` só com MFA.
-
-Lista completa: `DEPLOY_CHECKLIST.md` e `TEST_MATRIX.md`.
-
-## Rollback
-
-```bash
-# Volta ao digest anterior, sem reconstruir.
-.venv-ops/bin/python -m ops.deploy --skip-build
-```
-
-Detalhe em [`docs/operations/rollback.md`](docs/operations/rollback.md).
-**Nesta release não há migration a reverter**: o banco nasce do zero, a
-mudança é *expand* e nada é migrado.
+- se a versão nova não fica saudável durante a publicação, o Swarm volta
+  **o serviço que falhou** sozinho e o deploy termina com erro;
+- para voltar de propósito, `docker service rollback` nos **três** serviços
+  que usam a imagem da aplicação (`app`, `celery_worker`, `celery_beat`);
+- **`deploy.sh --skip-build` não é rollback**: ele republica a imagem de
+  `last-successful.json`, que é a versão que acabou de entrar.
 
 ## Backup e restauração
 
-```bash
-./scripts/backup.sh                 # cifra com age; trava compartilhada
-.venv-ops/bin/python -m ops.restore # restauração
-```
+- **Backup diário** às 03:00 de Brasília, cifrado com `age` antes de tocar
+  o disco, em `/srv/neurodoc-backups` (`scripts/backup.sh` →
+  `ops/backup.py`). Banco e os volumes `media`, `signing` e `letsencrypt`.
+- **Cópia fora da VPS**: um PC puxa todo dia às 09:00 e confere cada
+  arquivo pelo SHA-256 do manifesto
+  ([`copia-externa.md`](docs/operations/copia-externa.md)). A VPS não sabe
+  que a cópia existe, de propósito.
+- **Restauração** só num host separado e vazio
+  ([`restore.md`](docs/operations/restore.md)). Refazer a prova depois de
+  qualquer mudança em `BACKUP_AGE_RECIPIENT`.
 
-Duas coisas a fazer **antes** de considerar o deploy concluído:
-
-1. **Levar o backup para fora da VPS.** `BACKUP_DIR` local resolve "apaguei
-   sem querer"; não resolve "a máquina morreu". Como o arquivo é cifrado com
-   `age`, o destino não precisa ser confiável.
-2. **Testar a restauração num host separado.** Backup não testado é
-   suposição, e a guarda de 20 anos da Lei 13.787/2018 não aceita suposição.
-
-## Solução de problemas
+## Quando algo dá errado
 
 | Sintoma | Onde olhar |
 | --- | --- |
-| `app` reinicia em laço | `docker service logs` — normalmente segredo faltando ou migration |
-| 400 em toda requisição | `ALLOWED_HOSTS` sem o domínio |
-| CSRF recusado no login | `CSRF_TRUSTED_ORIGINS` sem `https://` + domínio |
-| Certificado não emitido | DNS ainda não propagado, ou 80 fechada |
-| E-mail não sai | Rode `testar_email` **no worker**; confira `SMTP_PASSWORD` em `.secrets/` |
-| Tarefa não roda | `celery_beat` de pé? `dispatch_outbox` a cada minuto? |
-| Backup falha | `age` instalado? Chave de destinatário configurada? |
-| Deploy travado | `.runtime/operation.lock` de uma execução anterior |
+| `deploy.sh` sai na hora, com código 1 e sem mensagem | Outra operação segura `.runtime/operation.lock` — outro deploy, ou **o backup das 03:00**, que usa a mesma trava. O arquivo existir não é trava: a trava é do processo, e some quando ele termina. Espere e rode de novo |
+| `Infrastructure image changed` | Uma tag de infraestrutura foi republicada no registry. Fixe no `.env` o digest que **já roda** e trate a troca como manutenção (ver `docs/ESTADO-ATUAL.md`, o caso do Postgres em 2026-10-06) |
+| `Unknown configuration keys` | Chave no `.env` que não existe no `.env.example` |
+| `app` reinicia em laço | `docker service ps neurodoc_v1_app --no-trunc` e `docker service logs neurodoc_v1_app --tail 100` — normalmente segredo faltando ou migration |
+| Erro 526 da Cloudflare | O certificado da **origem** não vale (Full strict o exige). `docker service logs neurodoc_v1_traefik --tail 50 \| grep -i acme` — quase sempre o token da Cloudflare |
+| Site fora pelo domínio, tudo verde na VPS | O firewall da Cloudflare: `journalctl -u neurodoc-cloudflare-fw.service -n 5`. Ver [`manutencao.md`](docs/operations/manutencao.md) |
+| 400 em toda requisição | `ALLOWED_HOSTS` |
+| CSRF recusado no login | `CSRF_TRUSTED_ORIGINS` |
+| E-mail não sai | `testar_email` e `docker service logs neurodoc_v1_celery_worker` — quem fala com o SMTP é o worker |
+| Backup não rodou | `journalctl -u neurodoc-backup.service -n 30` |

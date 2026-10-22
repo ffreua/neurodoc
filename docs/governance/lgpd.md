@@ -160,7 +160,7 @@ perguntar.
 | Retenção e eliminação | Cláusula 13 e a matriz do §3, aplicadas por `documents/retention.py` |
 | Incidentes | Cláusula 14: comunicação ao controlador em até 24 horas, cooperação na apuração, comunicação externa por quem a lei obriga |
 | Medidas técnicas | §5, cada uma com o roteiro que a verifica |
-| SNCR / receita de controle especial | Fora de escopo: o sistema não integra o SNCR nem emite receita de controle especial por via eletrônica (§8, P-07) |
+| SNCR / receita de controle especial | A integração com o SNCR foi publicada **desligada** na 1.22 (2026-10-21) e aguarda o CNPJ da mantenedora para ser ligada (`docs/sncr/ESTADO_EXECUCAO.md`). Até lá, a receita de controle especial sai impressa, e a partir de 31/10/2026 a eletrônica sem numeração do SNCR deixa de ser assinada (1.21.1) |
 
 **O que continua sendo trabalho, sem ser bloqueio.** O contrato prevê
 documentos "quando disponibilizados" — os Anexos I a V, o Aviso de
@@ -264,8 +264,9 @@ a 1.0 precisa poder reler a 1.0 depois de a 2.0 entrar no ar.
 
 **O que o contrato promete e ainda não existe.** As cláusulas 8.2 e 8.3
 prometem relação de suboperadores em local acessível, e os Anexos I a V
-estão condicionados a "quando disponibilizados". Nenhum deles existe
-hoje. A lista de anexos aparece na tela **com o estado de cada um**, em
+estão condicionados a "quando disponibilizados". A relação de
+suboperadores existe desde 2026-10-19 ([`suboperadores.md`](suboperadores.md));
+os Anexos I a V, ainda não. A lista de anexos aparece na tela **com o estado de cada um**, em
 vez de prometer seis documentos que a clínica não encontra: anexo
 prometido e ausente é pior do que anexo nenhum, porque a ausência vira
 argumento contra quem prometeu. Publicá-los é o item 4 do §6.

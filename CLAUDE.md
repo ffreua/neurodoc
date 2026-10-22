@@ -56,7 +56,7 @@ especificação, ~360 KB) e em `docs/` (homologação por sprint, publicada em
 ## 2. Topologia
 
 ```
-Navegador → Traefik (TLS) → Django ASGI (app) → PostgreSQL
+Navegador → Cloudflare (proxy) → Traefik (TLS) → Django ASGI (app) → PostgreSQL
                                    ↓
                               RabbitMQ → Celery worker → PostgreSQL
                                               ↓         ↘ IA / SMTP / SMSDEV
@@ -65,6 +65,14 @@ Navegador → Traefik (TLS) → Django ASGI (app) → PostgreSQL
 
 Sete serviços permanentes: `app`, `celery_worker`, `celery_beat`, `db`,
 `rabbitmq`, `redis`, `traefik` (+ `mailpit` só no ambiente local).
+
+**Na frente de tudo, a Cloudflare** (proxy, SSL *Full (strict)*, desde
+2026-10-19): as portas 80 e 443 da origem só aceitam as faixas dela
+(`ops/cloudflare_firewall.sh`, reaplicado por `neurodoc-cloudflare-fw.timer`
+na cadeia `DOCKER-USER` — o `ufw` não vale para porta publicada pelo
+Docker), e o certificado da origem é do Let's Encrypt pelo desafio **DNS-01**
+na API da Cloudflare, não HTTP-01. `TRUSTED_PROXIES` traz as faixas dela,
+para o IP do visitante sair do cabeçalho certo.
 
 **Regra de rede que explica muito código:** e-mail, SMS, IA e o espelho da
 TUSS saem sempre por **tarefa Celery**, nunca de dentro da requisição. O
@@ -728,7 +736,19 @@ encontrou no manual, em vez de descrever uma tela de memória.
 ## 8. Deploy
 
 Docker Swarm, imagem publicada por SHA do commit, Traefik com Let's
-Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
+Encrypt (DNS-01 pela Cloudflare, §2). `scripts/deploy.sh` → `ops/deploy.py`,
+com trava de execução. **A porta de entrada é `DEPLOY.md`.**
+
+- **`--skip-build` não é rollback.** Ele republica a imagem de
+  `.runtime/last-successful.json`, que é a da publicação **atual**. Voltar
+  versão é `docker service rollback` nos **três** serviços da aplicação
+  (`app`, `celery_worker`, `celery_beat`) — só o `app` deixaria worker e
+  beat no código novo. Ver `docs/operations/rollback.md`.
+- **Nunca commite na VPS.** O deploy faz `git pull --ff-only`, e um commit
+  local trava a publicação seguinte. A nota da versão é escrita aqui e
+  chega lá pelo `pull`.
+- Três temporizadores do systemd: backup diário, limpeza de chaves de
+  assinatura e o firewall da Cloudflare.
 
 - **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`, e
   `scripts/setup_deploy.sh` para fazê-lo sozinho numa VPS limpa (retoma de
@@ -746,6 +766,10 @@ Encrypt. `scripts/deploy.sh` → `ops/deploy.py`, com trava de execução.
   bloqueado. Leia o log (`csp:`) por algumas semanas de uso real antes de
   pôr `True`. Ao contrário do HSTS, **este dá para voltar**: `False` e
   republicar. Ver `base/csp.py` e `docs/homologation/csp.md`.
+
+  **Em produção, HSTS e CSP estão ligados desde 2026-10-02**
+  (`SECURE_HSTS_SECONDS=31536000`, `CSP_ENFORCE=True`); o que começa
+  desligado é o padrão do código, para instalação nova.
 
   A consequência prática para quem escreve tela: **nada de `onclick` nem
   de `<script>` sem nonce**. Atributo de evento não é coberto por nonce, e

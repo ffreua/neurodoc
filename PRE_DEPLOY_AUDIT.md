@@ -1,5 +1,13 @@
 # Auditoria Pré-Deploy — NeuroDoc 1.0
 
+> **Documento histórico** (de 2026-09-24, revisto até 2026-10-02): a
+> auditoria que antecedeu o primeiro deploy. Não é reescrita; números,
+> pendências e o estado "não exercitado numa VPS" são daquele momento. O
+> procedimento em vigor está em [`DEPLOY.md`](DEPLOY.md), e o estado atual
+> em [`docs/ESTADO-ATUAL.md`](docs/ESTADO-ATUAL.md). Três trechos que
+> levariam a erro hoje estão anotados onde aparecem: §19 (segredos), §21
+> (cópia externa) e §22 (rollback).
+
 **Data:** 2026-09-24 · **Revisão auditada:** `00e094e` + correções desta auditoria
 **Escopo:** repositório inteiro (826 arquivos versionados, ~113 mil linhas)
 
@@ -625,6 +633,11 @@ preflight do deploy recusa `DEBUG=True`.
 42 documentadas em `.env.example`, 32 lidas por `env()` no código, 9 segredos
 por `secret()` (arquivo em `.secrets/`, nunca no `.env`).
 
+> *Nota de 2026-10-22:* `.secrets/` é o ambiente **local**. Em produção os
+> segredos são do Swarm — quinze, os de `docker-stack.yml` —, criados com
+> `docker secret create` e entregues a cada serviço como
+> `/run/secrets/<NOME>`; o preflight confere cada um.
+
 **Conferi as duas direções:**
 
 - **Usadas e não documentadas:** 6 — `DB_HOST`, `RUN_MIGRATIONS`,
@@ -662,12 +675,21 @@ por mim (§25).
   recuperação. `BACKUP_DIR` local resolve "apaguei sem querer"; não resolve "a
   máquina morreu".
 
+> *Nota de 2026-10-22:* P-10 foi resolvida em 2026-10-02 — um PC puxa a
+> cópia todo dia e a confere pelo manifesto
+> (`docs/operations/copia-externa.md`).
+
 ## 22. Rollback
 
 `ops/deploy.py` publica por digest e sabe voltar à versão anterior. A pergunta
 "como retorno à versão anterior se o deploy falhar?" tem resposta: republicar
 o digest anterior. Como o banco nasce do zero nesta release, **não há
 migration a reverter**.
+
+> *Nota de 2026-10-22:* o `DEPLOY.md` desta auditoria mandava fazer isso
+> com `ops.deploy --skip-build` — que **não** volta versão: republica a
+> imagem de `last-successful.json`, a da publicação atual. O procedimento
+> real está em `docs/operations/rollback.md`.
 
 ## 23. Procedimento de deploy
 

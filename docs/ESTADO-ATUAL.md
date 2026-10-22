@@ -1,10 +1,13 @@
-# Onde o NeuroDoc está — 2026-10-02
+# Onde o NeuroDoc está — desde 2026-10-02
 
 Leia isto antes de mexer em qualquer coisa. É o retrato do sistema no dia
 em que ele passou a ser usado de verdade, com o que está provado, o que
 está aberto e o que já quebrou antes.
 
-**Versão:** 1.15 "a agenda" · **Produção:**
+Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
+cada versão está no `README.md` e em `docs/releases/`.
+
+**Versão:** 1.24 "o pedido pronto" (2026-10-22) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---

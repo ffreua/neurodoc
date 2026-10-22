@@ -163,8 +163,11 @@ docker compose exec -T app python manage.py shell < checks/check_planos.py
 ## Publicar numa VPS
 
 A produção roda em **Docker Swarm de um nó**, com a imagem publicada no
-GitHub Container Registry e identificada pelo SHA do commit, e o Traefik
-emitindo o certificado do Let's Encrypt.
+GitHub Container Registry e identificada pelo SHA do commit, o Traefik
+emitindo o certificado do Let's Encrypt por desafio de DNS na Cloudflare, e
+a Cloudflare na frente, com proxy. A porta de entrada da operação é o
+[`DEPLOY.md`](DEPLOY.md): como a produção está montada, como se publica e
+onde está cada assunto.
 
 **O que você precisa:**
 
@@ -210,7 +213,15 @@ setsid nohup bash scripts/deploy.sh > /tmp/deploy.log 2>&1 < /dev/null &   # pub
 O deploy constrói a imagem, sobe as réplicas novas antes de derrubar as
 antigas, migra o banco na subida e só termina quando `/health/` responde.
 Rollback, backup (cifrado e com cópia externa), restauração e
-monitoramento: [`docs/operations/`](docs/operations/).
+monitoramento: [`docs/operations/`](docs/operations/). Voltar uma versão é
+`docker service rollback` nos **três** serviços da aplicação, e não
+`--skip-build`, que republica a atual
+([`rollback.md`](docs/operations/rollback.md)).
+
+Com o proxy da Cloudflare ligado, ponha as faixas dela em
+`TRUSTED_PROXIES` e feche as portas 80 e 443 para quem não é ela
+(`ops/cloudflare_firewall.sh`, instalado à mão — ver
+[`manutencao.md`](docs/operations/manutencao.md)).
 
 Duas chaves começam desligadas **de propósito**: `SECURE_HSTS_SECONDS`
 (ligue só com o HTTPS comprovado — o navegador guarda a instrução e não há
@@ -375,6 +386,7 @@ mais pegam quem chega:
 | [`docs/index.md`](docs/index.md) | índice da documentação técnica, publicada em `/technical-docs/` (MFA) |
 | [`docs/decisions.md`](docs/decisions.md) | decisões (DEC-xx) e pendências (P-xx) com dono e condição de liberação |
 | [`docs/governance/lgpd.md`](docs/governance/lgpd.md) | matriz de tratamento, operadores, medidas técnicas e o roteiro que verifica cada uma |
+| [`DEPLOY.md`](DEPLOY.md) | **a porta de entrada da operação**: como a produção está montada, como se publica, e o índice de `docs/operations/` |
 | [`docs/operations/`](docs/operations/) | deploy, rollback, backup, cópia externa, monitoramento |
 | [`docs/homologation/`](docs/homologation/) | homologação por entrega — é onde mora o "por que ficou assim" |
 | [`docs/releases/`](docs/releases/) | registro de cada release publicada (PRD §18.6) |

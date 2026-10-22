@@ -61,7 +61,7 @@ recusa múltiplos nós (volumes locais não seguem uma task migrada).
 | Docker Engine | 29.8.0 (candidato do guia) | Verificar versão disponível no repositório Ubuntu e fixá-la |
 | Compose plugin | Versão estável do repositório Docker | **Registrada nesta execução:** Docker Desktop local relata `Docker Engine 29.7.2`; Compose plugin `v2` (via `docker compose`). A versão instalada na VPS não foi registrada aqui (histórico de S01, antes da VPS existir) |
 | WhiteNoise | 6.12.0 | Storage de manifesto e compressão apenas |
-| Modelo de IA padrão | `z-ai/glm-5.3-flash` via OpenRouter | Validar recursos/provedor final por configuração |
+| Modelo de IA padrão | `z-ai/glm-5.3-flash` via OpenRouter | Seleção do PRD. Hoje o padrão da instalação é escolhido em `/instalacao/operacao/` (`InstallationSettings`, §7-D do `CLAUDE.md`); `AI_PROVIDER`/`AI_MODEL` do `.env` semeiam a linha e só valem com o campo vazio |
 
 ### Ferramenta de resolução de dependências
 

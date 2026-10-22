@@ -365,6 +365,19 @@ O `*` (curinga) atende os subdomínios por clínica. Deixe os dois
 **Proxied**: é assim que a Cloudflare esconde o IP do servidor e filtra
 tráfego hostil antes de ele chegar em você.
 
+Com o proxy ligado, duas coisas vêm junto, e as duas foram feitas na
+produção em 2026-10-19 (o primeiro deploy subiu com os registros cinza):
+
+- **`TRUSTED_PROXIES`** no `.env` (passo 10) precisa das faixas da
+  Cloudflare (<https://www.cloudflare.com/ips-v4> e `ips-v6`) além das
+  privadas. Sem elas o sistema vê o IP do nó da Cloudflare, e todos os
+  visitantes que passam pelo mesmo nó dividem o limite de tentativas.
+- **Fechar a origem**: as portas 80 e 443 só para as faixas da Cloudflare,
+  com `ops/cloudflare_firewall.sh` e o timer `neurodoc-cloudflare-fw.timer`.
+  O `setup_deploy.sh` **não** o instala, de propósito — sem o proxy ligado
+  ele tiraria o site do ar. A instalação está em
+  [`manutencao.md`](manutencao.md), seção do firewall da Cloudflare.
+
 ### 5.3 Modo de SSL
 
 Em **SSL/TLS → Overview**, escolha **Full (strict)**.
@@ -410,9 +423,16 @@ Deve imprimir `map[neurodoc_data:true]`.
 
 ### 6.3 Criar as três redes
 
-A separação é o coração da segurança da instalação: **só o worker alcança
-a internet**. O processo web não alcança — e é por isso que um e-mail sai
-pela fila, e não de dentro da requisição.
+A separação põe banco e filas numa rede sem saída (`neurodoc_v1_internal`)
+e dá ao worker uma rede de saída própria (`neurodoc_v1_egress`).
+
+> **O processo web também alcança a internet** — este parágrafo dizia o
+> contrário até 2026-10-22. O `app` está em `traefik_public`, que não pode
+> ser `--internal`: o Traefik precisa sair para a Let's Encrypt e para a API
+> da Cloudflare. O que impede o `app` de mandar e-mail, SMS ou falar com a
+> IA é outra coisa: ele **não recebe** os segredos de saída, que só vão ao
+> worker. É por isso que um e-mail sai pela fila, e não de dentro da
+> requisição. Ver o §2 do `CLAUDE.md`.
 
 ```bash
 docker network create --driver overlay --attachable traefik_public
@@ -436,13 +456,20 @@ As chaves de sessão de assinatura digital **não podem tocar o disco**.
 
 ```bash
 sudo mkdir -p /run/neurodoc-signing
-sudo mount -t tmpfs -o size=16m,mode=0700 tmpfs /run/neurodoc-signing
-echo 'tmpfs /run/neurodoc-signing tmpfs size=16m,mode=0700 0 0' | sudo tee -a /etc/fstab
+sudo mount -t tmpfs -o size=16m,mode=0700,uid=10001,gid=10001 tmpfs /run/neurodoc-signing
+echo 'tmpfs /run/neurodoc-signing tmpfs size=16m,mode=0700,uid=10001,gid=10001 0 0' | sudo tee -a /etc/fstab
 findmnt -n -o FSTYPE -T /run/neurodoc-signing
+stat -c %u /run/neurodoc-signing
 ```
 
-A última linha deve imprimir `tmpfs`. A linha no `/etc/fstab` faz isso
-sobreviver a um reinício do servidor.
+A penúltima linha deve imprimir `tmpfs`, e a última `10001`. A linha no
+`/etc/fstab` faz isso sobreviver a um reinício do servidor.
+
+O `uid=10001` não é detalhe: é o usuário da aplicação dentro da imagem, e
+quem grava nesta pasta é ela. Montada com o dono padrão, a pasta fica de
+`root` e o preflight recusa (`must be owned by UID 10001`) — sem essa
+conferência, a falha só apareceria na primeira assinatura de receita, em
+produção. O `setup_deploy.sh` já monta assim.
 
 ---
 
@@ -724,6 +751,8 @@ Se der erro, a mensagem diz exatamente o que falta. Os mais comuns:
 | `The persistent-data node label is missing` | Passo 6.2 |
 | `Invalid network isolation` | Passo 6.3, rede criada sem `--internal` |
 | `Signing session keys must reside on tmpfs` | Passo 6.4 |
+| `/run/neurodoc-signing must be owned by UID 10001` | Passo 6.4, montado sem `uid=10001,gid=10001` |
+| `TRUSTED_PROXIES esta declarada e vazia` | Passo 10: apague a linha ou preencha as faixas |
 | `docker secret inspect` falhou | Passo 7, falta um segredo |
 | `Commit or resolve tracked changes` | `git status` e resolva |
 
@@ -868,7 +897,8 @@ sudo chmod 700 /srv/neurodoc-backups
 sudo cp ops/neurodoc-backup.service ops/neurodoc-backup.timer /etc/systemd/system/
 sudo cp ops/neurodoc-signing-cleanup.service ops/neurodoc-signing-cleanup.timer /etc/systemd/system/
 # Só se o projeto ou o usuário não forem os padrões:
-#   sudo sed -i "s#/srv/neurodoc#$(pwd)#g; s#neurodocops#$(id -un)#g" #     /etc/systemd/system/neurodoc-{backup,signing-cleanup}.service
+#   sudo sed -i "s#/srv/neurodoc#$(pwd)#g; s#neurodocops#$(id -un)#g" \
+#     /etc/systemd/system/neurodoc-{backup,signing-cleanup}.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer
 systemctl list-timers | grep neurodoc
@@ -965,17 +995,28 @@ Confira com `manage.py testar_email` (passo 15.5).
 
 ## 16. Publicar uma atualização
 
-Depois que tudo estiver no ar, atualizar é isto:
+Depois que tudo estiver no ar, a nota da versão é escrita e commitada **no
+seu computador**, junto do código, e nomeada pela versão
+(`docs/releases/1.24-o-pedido-pronto.md`). Na VPS, só se puxa e publica:
 
 ```bash
-cd /opt/neurodoc
-git rev-parse HEAD                                    # anote o SHA novo
-cp docs/releases/TEMPLATE.md docs/releases/<SHA>.md   # registre a homologação
-nano docs/releases/<SHA>.md
-git add docs/releases/ && git commit -m "Registro da release <SHA>"
-.venv-ops/bin/python -m ops.deploy --check            # confira
-.venv-ops/bin/python -m ops.deploy                    # publique
+cd /srv/neurodoc                     # ou o caminho desta instalação
+git pull --ff-only
+bash scripts/deploy.sh --check       # confira
+setsid nohup bash scripts/deploy.sh > /tmp/deploy.log 2>&1 < /dev/null &
+tail -f /tmp/deploy.log
 ```
+
+`NEURODOC_RELEASE_APPROVED=True` fica ligado no `.env` depois do primeiro
+deploy; o registro de cada versão é a nota. O procedimento completo, com o
+porquê de cada linha, está no `DEPLOY.md` da raiz e em
+[`manutencao.md`](manutencao.md) §4.
+
+> **Até 2026-10-22 esta seção mandava commitar a nota na própria VPS,
+> nomeada pelo SHA.** Não faça isso: o deploy roda `git pull --ff-only`, e
+> o commit local faz o histórico da VPS divergir do `origin` — a publicação
+> seguinte para no `git pull`. E o commit que cria `<SHA>.md` muda o SHA que
+> o arquivo nomeia.
 
 O que acontece por baixo:
 
@@ -983,8 +1024,8 @@ O que acontece por baixo:
   subindo antes de a antiga sair — ninguém vê o site fora do ar;
 - as migrações de banco rodam sob trava, uma vez só, mesmo com duas
   réplicas subindo juntas;
-- se a versão nova não ficar saudável, o Swarm **volta sozinho** para a
-  anterior.
+- se a versão nova não ficar saudável, o Swarm **volta sozinho** o serviço
+  que falhou — cada serviço pela sua regra, não os três juntos.
 
 Mudança de banco que apaga coluna exige procedimento de manutenção: o
 preflight recusa enquanto `NEURODOC_SCHEMA_CHANGE` não for `expand`. É
@@ -993,11 +1034,17 @@ site.
 
 ### Voltar atrás de propósito
 
+Os três serviços que usam a imagem da aplicação, e não só o `app` — o
+worker e o beat seguiriam rodando o código novo:
+
 ```bash
 docker service rollback neurodoc_v1_app
+docker service rollback neurodoc_v1_celery_worker
+docker service rollback neurodoc_v1_celery_beat
 ```
 
-Ver também `docs/operations/rollback.md`.
+E leia [`rollback.md`](rollback.md) antes do próximo deploy: depois desta
+volta, um `--skip-build` republica a versão da qual se saiu.
 
 ---
 
@@ -1008,8 +1055,8 @@ Ver também `docs/operations/rollback.md`.
 | Ver se está tudo de pé | `docker service ls` |
 | Ver o que houve com um serviço | `docker service ps neurodoc_v1_app --no-trunc` |
 | Ler o log | `docker service logs neurodoc_v1_app --tail 100 -f` |
-| Publicar atualização | `.venv-ops/bin/python -m ops.deploy` |
-| Conferir sem publicar | `.venv-ops/bin/python -m ops.deploy --check` |
-| Voltar atrás | `docker service rollback neurodoc_v1_app` |
+| Publicar atualização | `bash scripts/deploy.sh` (com `setsid nohup`, ver §16) |
+| Conferir sem publicar | `bash scripts/deploy.sh --check` |
+| Voltar atrás | `docker service rollback` em `neurodoc_v1_app`, `neurodoc_v1_celery_worker` e `neurodoc_v1_celery_beat` |
 | Testar e-mail | `manage.py testar_email <endereço>` |
 | Atualizar a TUSS | `manage.py sync_tuss` (no worker) |

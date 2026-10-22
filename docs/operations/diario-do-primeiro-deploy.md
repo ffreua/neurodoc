@@ -11,7 +11,7 @@ realidade.
 | Servidor | VPS na **Integrator**, Ubuntu 24.04.5, 6 vCPU, 16 GB |
 | Domínio | `neurodoc.app.br`, DNS na Cloudflare, registros **cinza** (sem proxy) |
 | E-mail | `contato@neurodoc.app.br`, Hostinger — só o e-mail é Hostinger |
-| Usuário de operação | `deploy` (e não `neurodocops`, como o roteiro supõe) |
+| Usuário de operação | `<usuario>` (e não `neurodocops`, como o roteiro supõe; o nome fica fora do repositório público) |
 | Projeto em | `/srv/neurodoc` |
 | Release no ar | `205c5c79` · produto **1.0** |
 
@@ -19,7 +19,7 @@ realidade.
 
 ## 1. O que foi feito, na ordem
 
-**Preparação do servidor.** `sudo` sem senha para o `deploy`; utilitários
+**Preparação do servidor.** `sudo` sem senha para o usuário de operação; utilitários
 (inclusive o `age`, que o backup exige); fuso `America/Sao_Paulo`;
 `fail2ban` com jail de SSH; swap de 4 GB; UFW liberando só 22, 80 e 443;
 *tuning* de produção no `sysctl`; Docker 29.8.1 com `daemon.json` de
@@ -150,6 +150,12 @@ ambiente — as duas chaves-mestras tinham sido geradas com o mesmo valor, e
 o roteiro existe exatamente para acusar isso. Corrigido o ambiente, passou.
 
 ## 6. O que fica em aberto
+
+> **Em 2026-10-22**, esta tabela é a de setembro. Desde então: HSTS ligado
+> (2026-10-02, com subdomínios), proxy da Cloudflare ligado com a origem
+> fechada às faixas dela (2026-10-19), TUSS parcial e se retomando de hora
+> em hora; o `--activate` segue sem ter sido feito. O estado corrente está
+> em `docs/ESTADO-ATUAL.md`.
 
 | | |
 | --- | --- |

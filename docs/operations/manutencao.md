@@ -20,9 +20,12 @@ lá, e não no repositório, que é público. Numa máquina nova, crie o arquivo
 ```
 Host neurodoc-vps
     HostName <IP-da-VPS>
-    User deploy
+    User <usuario>
     IdentityFile ~/.ssh/id_ed25519
 ```
+
+`<usuario>` é o usuário de operação da VPS — o mesmo que roda o backup.
+Nem ele nem o IP entram no repositório.
 
 A cópia diária do backup (`scripts/puxar_backups.ps1`) usa o mesmo
 apelido: sem ele, ela para de puxar.
@@ -74,19 +77,17 @@ Para rodar um backup agora, sem esperar a madrugada:
 ssh neurodoc-vps "sudo systemctl start neurodoc-backup.service"
 ```
 
-### 2.1 Levar uma cópia para fora do servidor
+### 2.1 A cópia fora do servidor
 
 Backup que só existe no servidor não protege contra perder o servidor.
-Uma vez por mês, no PowerShell:
+Desde 2026-10-02 isso é automático: uma tarefa agendada no PC puxa da VPS
+todo dia às 09:00 e confere cada arquivo pelo SHA-256 do manifesto
+(`scripts/puxar_backups.ps1`). Este parágrafo mandava, até 2026-10-22, um
+`scp` manual por mês — que não confere nada e é dispensável hoje.
 
-```
-cd $env:USERPROFILE\Documents
-mkdir -Force backups-neurodoc
-cd backups-neurodoc
-scp -r neurodoc-vps:/srv/neurodoc-backups/* .
-```
-
-Depois copie essa pasta para um HD externo ou nuvem.
+O que fazer aqui é **conferir**, uma vez por mês, que ela está puxando —
+os comandos e o que fazer se não estiver estão em
+[`copia-externa.md`](copia-externa.md).
 
 **Nunca guarde a `CHAVE-BACKUP.key` no mesmo lugar dos backups.** Quem
 pegar os dois juntos tem o prontuário inteiro. A chave num gerenciador de
@@ -188,10 +189,23 @@ git push origin main
 ```
 ssh neurodoc-vps
 cd /srv/neurodoc
-git pull
+git pull --ff-only
 bash scripts/deploy.sh --check
-bash scripts/deploy.sh
+setsid nohup bash scripts/deploy.sh > /tmp/deploy.log 2>&1 < /dev/null &
+tail -f /tmp/deploy.log
 ```
+
+O `setsid nohup` desprende a publicação da sessão SSH: se a conexão cair
+no meio dos 10 a 25 minutos, o deploy continua. O `tail -f` só acompanha —
+`Ctrl+C` nele não interrompe nada. Acabou bem quando aparecem
+`NeuroDoc <versão> publicado.` e `Release ... deployed; all services are
+healthy.`
+
+**Nunca faça commit na VPS.** O próprio deploy roda `git pull --ff-only`,
+e um commit local faz a publicação seguinte parar ali.
+
+Se o `deploy.sh` sair na hora, sem mensagem: outra operação segura a trava
+— outro deploy, ou o backup das 03:00. Espere e rode de novo.
 
 **O build roda no servidor, não no seu computador.** Não é preciso subir a
 pilha local para publicar — ela serve para rodar os roteiros de
@@ -208,12 +222,19 @@ aprovar.** A publicação leva de 10 a 25 minutos e não derruba o site: as
 duas réplicas trocam uma de cada vez, a nova subindo antes de a antiga
 sair.
 
-**Se der errado:** o Swarm volta sozinho para a versão anterior. Para
-forçar a volta:
+**Se der errado:** o Swarm volta sozinho o serviço que não ficou saudável
+— só aquele. Para voltar de propósito, são os **três** serviços que usam a
+imagem da aplicação:
 
 ```
 docker service rollback neurodoc_v1_app
+docker service rollback neurodoc_v1_celery_worker
+docker service rollback neurodoc_v1_celery_beat
 ```
+
+Depois de voltar assim, **não use `deploy.sh --skip-build`** até publicar a
+correção: ele republica a versão da qual você acabou de sair. O porquê e a
+conferência estão em [`rollback.md`](rollback.md).
 
 **Nunca rode `manage.py migrate` à mão.** A conexão padrão é o usuário da
 aplicação, sem permissão de criar tabela — dá `permission denied for
@@ -283,14 +304,21 @@ de segredo.
 
 ## 6. Situações específicas
 
-### O navegador reclama do certificado HTTPS
+### Erro 526 da Cloudflare (o certificado do servidor)
+
+Com o proxy da Cloudflare ligado (desde 2026-10-19), o navegador vê o
+certificado **da Cloudflare**, não o nosso. Quando o certificado do
+servidor vence ou não é renovado, o sintoma não é aviso de cadeado: é a
+página de erro **526** da Cloudflare, porque o modo *Full (strict)* exige
+certificado válido na origem.
 
 ```
 ssh neurodoc-vps "docker service logs neurodoc_v1_traefik --tail 50 | grep -i acme"
 ```
 
-Quase sempre é o token da Cloudflare vencido ou revogado. Recrie-o (§5) e
-republique.
+Quase sempre é o token da Cloudflare vencido ou revogado — é com ele que
+o Traefik prova à Let's Encrypt que o domínio é nosso, por desafio de
+DNS. Recrie-o (§5) e republique.
 
 ### A TUSS está vazia
 
@@ -299,7 +327,8 @@ ssh neurodoc-vps "docker exec \$(docker ps -q -f name=neurodoc_v1_celery_worker 
 ```
 
 Se der `ReadTimeout`, é o servidor da ANS fora do ar — não é problema
-nosso. Tente noutro dia; o timer refaz sozinho aos domingos às 4h.
+nosso. Tente noutro dia; o beat refaz sozinho aos domingos às 4h, e
+retoma de hora em hora a sincronização que ficou pela metade.
 
 ### Atualizar a lista de medicamentos (CMED)
 
@@ -325,7 +354,8 @@ ssh neurodoc-vps "docker image prune -af --filter until=720h"
 
 ### Ligar o HSTS (uma vez só, e sem volta)
 
-Só depois de semanas com o cadeado funcionando sem aviso. O navegador
+**Feito em 2026-10-02**, com subdomínios (`docs/ESTADO-ATUAL.md` §1). Fica
+aqui para uma instalação nova. Só depois de semanas com o cadeado funcionando sem aviso. O navegador
 guarda a instrução por um ano e **não há como desfazer pelo servidor**.
 
 ```
@@ -342,7 +372,7 @@ bash scripts/deploy.sh --skip-build
 | Quando | O quê |
 | --- | --- |
 | **Toda semana** | §1 serviços de pé · §2 backup rodou |
-| **Todo mês** | §2.1 cópia do backup para fora do servidor |
+| **Todo mês** | §2.1 conferir que a cópia externa está puxando |
 | **A cada 6 meses** | §3 restaurar de verdade e conferir os números |
 | **A cada 90 dias** | Trocar o token do GitHub (§5) — ele vence sozinho |
 | **Quando lembrar** | §6 conferir o disco e atualizar a CMED |
@@ -355,12 +385,15 @@ Copie **a saída inteira** do comando que falhou. A mensagem de erro é o
 diagnóstico; descrevê-la com as próprias palavras perde exatamente a
 informação que resolve.
 
-Se o site estiver fora do ar e você precisar de uma ação só, é esta — ela
-volta para a versão anterior, que funcionava:
+Se o site estiver fora do ar logo depois de uma publicação e você precisar
+de uma ação só, é esta — ela volta os três serviços da aplicação para a
+versão anterior, que funcionava:
 
 ```
-ssh neurodoc-vps "docker service rollback neurodoc_v1_app"
+ssh neurodoc-vps "for s in app celery_worker celery_beat; do docker service rollback neurodoc_v1_\$s; done"
 ```
+
+E depois leia [`rollback.md`](rollback.md) antes do próximo deploy.
 
 ---
 
