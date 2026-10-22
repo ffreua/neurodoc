@@ -32,6 +32,17 @@ LIMITE_RIGIDO_SEGUNDOS = 50 * 60
 #: anterior, e o que interessa e terminar.
 ESPERA_PARA_RETOMAR_SEGUNDOS = 60
 
+#: Trava da sincronizacao da TUSS: uma por vez (auditoria de 2026-10, C3).
+#:
+#: `retomar_tuss_incompleta` roda de hora em hora e dispara uma rodada
+#: sempre que ha rascunho -- e ha rascunho tambem enquanto a cadeia esta
+#: **viva**, no meio de uma rodada. A segunda rodada baixava as mesmas
+#: paginas e morria na unicidade do codigo, depois de ocupar um dos dois
+#: lugares do worker por ate 45 minutos. Com a trava, quem chega com outra
+#: rodada em andamento sai na hora, sem reagendar: a que esta rodando ja
+#: agenda a proxima. Numero na mesma familia de `ops/locks.py`.
+TUSS_LOCK = 72654004
+
 
 @shared_task(
     name='catalogs.tasks.sync_tuss', expires=3600,
@@ -50,9 +61,20 @@ def sync_tuss_task(table=None):
     de minuto em minuto; o timer semanal tenta de novo no domingo. Progresso
     e a condicao de parada deste laco, e e ela que o torna finito.
     """
+    from django.db import connection
+
     from integrations import tuss
 
     alvo = table or tuss.DEFAULT_TABLE
+    # Trava de sessao, e nao de transacao: a rodada grava em varias
+    # transacoes curtas ao longo de 45 minutos. Se o worker morrer no meio,
+    # a conexao cai e o PostgreSQL solta a trava sozinho.
+    with connection.cursor() as cursor:
+        cursor.execute('SELECT pg_try_advisory_lock(%s)', [TUSS_LOCK])
+        peguei = cursor.fetchone()[0]
+    if not peguei:
+        logger.info('sync_tuss: outra rodada em andamento; esta nao roda')
+        return {'ok': True, 'em_andamento': True}
     try:
         resultado = tuss.sync_incremental(alvo)
     except tuss.TussUnavailable as exc:
@@ -64,6 +86,9 @@ def sync_tuss_task(table=None):
         # impede o corte de virar tarefa com erro toda semana.
         logger.warning('sync_tuss interrompida: %s: %s', type(exc).__name__, exc)
         return {'ok': False, 'error': f'{type(exc).__name__}'}
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute('SELECT pg_advisory_unlock(%s)', [TUSS_LOCK])
 
     if resultado['completo']:
         logger.info(
