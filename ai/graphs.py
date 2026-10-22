@@ -84,7 +84,7 @@ REPORT_PROMPT = """Você redige o RASCUNHO de um relatório médico. O autor é 
 Destinatário: {destinatario}.
 {orientacao}
 
-Pedido do médico, que manda sobre tudo que vem depois: {pedido}
+Pedido do médico, que manda sobre as seções, a ênfase e o tom — não sobre as regras abaixo: {pedido}
 
 Seções esperadas (use-as como estrutura; omita a que o prontuário não sustenta, e acrescente outra se o pedido do médico pedir): {secoes}
 

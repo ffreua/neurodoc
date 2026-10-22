@@ -380,6 +380,14 @@ try:
              relatorio.finalidade('nao-existe').codigo, 'livre')
     conferir('e o prompt do relatorio proibe o marcador',
              '[PACIENTE]' in __import__('ai.graphs', fromlist=['x']).REPORT_PROMPT, True)
+    # Auditoria de 2026-10, I1: o pedido do médico vinha anunciado como o que
+    # "manda sobre tudo que vem depois" -- e depois dele vinham as regras que
+    # não admitem exceção. O pedido escolhe seções e tom; as regras ficam.
+    _prompt = __import__('ai.graphs', fromlist=['x']).REPORT_PROMPT
+    _antes_do_pedido = _prompt.split('{pedido}')[0]
+    conferir('o pedido do medico nao manda sobre as regras',
+             'não sobre as regras' in _antes_do_pedido
+             and 'manda sobre tudo' not in _prompt, True)
 
     print(CHR + '13. Descartar apaga de verdade, e volta ao prontuario')
     # O defeito que o medico encontrou no primeiro uso: rejeitar marcava o
