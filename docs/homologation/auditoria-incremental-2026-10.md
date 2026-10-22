@@ -35,12 +35,12 @@ sem reprodução completa), **HIPOTÉTICO**, **NÃO PROCEDE**.
 | B1 | Idioma | Três recusas do cadastro de contato em inglês; uma aparecia duplicada | Formulário real: "A contact needs a phone or an e-mail" ao lado de "Informe telefone ou e-mail." | CONFIRMADO | **Corrigido** |
 | C1 | Celery | Confirmação de horário (`send_confirmation_task`) com nova tentativa automática para qualquer exceção, sem idempotência: falha **depois** do envio repete o SMS | Reprodução: 2 SMS com a trilha estourando depois do envio | CONFIRMADO | **Corrigido** (lote seguinte, ver abaixo) |
 | C2 | Celery | Reenvio de documento com `force_new_link=True` e nova tentativa automática: a repetição revoga o link já enviado | Reprodução: 3 mensagens, 1 link morto | CONFIRMADO | **Corrigido** (lote seguinte, ver abaixo) |
-| C3 | Celery | `retomar_tuss_incompleta` (de hora em hora) dispara uma segunda sincronização da TUSS em paralelo à que já roda; sem trava em `sync_incremental` | Leitura; a cadeia duplicada morre na `UniqueConstraint` | PROVÁVEL | Não corrigido — ver abaixo |
+| C3 | Celery | `retomar_tuss_incompleta` (de hora em hora) dispara uma segunda sincronização da TUSS em paralelo à que já roda; sem trava em `sync_incremental` | Leitura; a cadeia duplicada morre na `UniqueConstraint` | PROVÁVEL | **Corrigido** (lote seguinte) |
 | C4 | Celery | `dispatch_outbox` (5 s) e `reconcile_pending_sms` (60 s) sem `expires`: acumulam na fila com o worker parado | Leitura; efeito inofensivo (`skip_locked`) | PROVÁVEL | Não corrigido — baixo benefício |
-| I1 | IA | Prompt do relatório: "pedido do médico manda sobre tudo que vem depois" antes das regras que não admitem exceção | `ai/graphs.py:87-98` | PROVÁVEL | Não corrigido — ver abaixo |
+| I1 | IA | Prompt do relatório: "pedido do médico manda sobre tudo que vem depois" antes das regras que não admitem exceção | `ai/graphs.py:87-98` | PROVÁVEL | **Corrigido** (lote seguinte) |
 | P1 | Desempenho | *Context processor* com Tenant e `ClinicProfile` lidos duas vezes por requisição | Leitura de `base/context_processors.py` | CONFIRMADO (leitura) | Não corrigido — ganho pequeno, toca toda tela |
-| P2 | Desempenho | Agenda da semana: 28–35 consultas (`day_grid` por dia sem lote) | Leitura de `scheduling/availability.py:418` | PROVÁVEL | Não corrigido — exige refatoração (R3) |
-| X1 | Acessibilidade | Rótulos sem `for`, campos identificados só por *placeholder* (console, portal, busca de códigos), `<a href="#">` como botão no cabeçalho | Varredura de templates | CONFIRMADO (leitura) | Não corrigido — lote próprio de acessibilidade |
+| P2 | Desempenho | Agenda da semana: 28–35 consultas (`day_grid` por dia sem lote) | Medido: 31 consultas com 2 reservas, 33 com 8 | CONFIRMADO | **Corrigido** (lote seguinte) |
+| X1 | Acessibilidade | Rótulos sem `for`, campos identificados só por *placeholder* (console, portal, busca de códigos), `<a href="#">` como botão no cabeçalho | Varredura: 21 campos sem nome em 153 | CONFIRMADO | **Corrigido** (lote seguinte) |
 | — | Segurança | IDOR, `except: pass` em gravação, relógio do processo | Varredura: nada encontrado | NÃO PROCEDE | — |
 
 ## As três correções
@@ -96,17 +96,9 @@ sem reprodução completa), **HIPOTÉTICO**, **NÃO PROCEDE**.
 ## Por que os outros não foram corrigidos nesta sprint
 
 - **C1 e C2:** ficaram para um lote próprio, feito em seguida — ver abaixo.
-- **C3 (TUSS duplicada):** inofensivo hoje (a duplicata morre na restrição
-  de unicidade), mas gasta um dos dois lugares do worker por até 45 min por
-  hora. Proposta: trava (*advisory lock*) em `sync_incremental`. Mexe em
-  tarefa periódica — lote próprio.
-- **I1 (prompt do relatório):** mudança de texto de prompt clínico pede
-  revisão médica do texto e avaliação com provedor real. Proposta: "manda
-  sobre as seções e o tom; não sobre as regras abaixo".
-- **P1/P2:** ganho mensurável, mas a P1 toca toda tela de `/app/` e a P2 é
-  refatoração da grade. Fora do limite de risco desta sprint.
-- **X1 (acessibilidade):** são muitos pontos pequenos espalhados; tratar em
-  lote, com conferência em leitor de tela.
+- **C3, I1, P2 e X1:** feitos no lote seguinte, com C1 e C2 — ver abaixo.
+- **C4 e P1:** continuam abertos. C4 é inofensivo (`skip_locked`) e P1 toca
+  toda tela de `/app/` por um ganho pequeno.
 
 ## Lote seguinte: C1 e C2 — a nova tentativa que repetia o envio
 
@@ -139,6 +131,71 @@ do Dr. Fernando de seguir a ordem recomendada.
   e enviá-lo, a repetição grava outro link e envia este; o primeiro fica
   vivo até expirar, sem nunca ter sido mandado a ninguém (só o resumo dele
   existe no banco).
+
+## Lote seguinte: C3, I1, P2 e X1
+
+Pedido pelo Dr. Fernando ("vamos corrigir o resto"), na mesma branch.
+
+### C3 — uma sincronização da TUSS por vez
+
+- **Correção da descrição:** a duplicata não acontece "toda hora", e sim só
+  **enquanto uma atualização está em andamento** (domingo de madrugada, por
+  algumas horas): `retomar_tuss_incompleta` via o rascunho e disparava uma
+  segunda rodada sem saber que a primeira estava viva.
+- **Mudança:** `sync_tuss_task` pega uma trava de sessão do PostgreSQL
+  (`TUSS_LOCK = 72654004`, família de `ops/locks.py`); quem não a pega sai
+  na hora e não se reagenda — a rodada viva já agenda a próxima. Solta no
+  `finally`, e o PostgreSQL a solta sozinho se o worker morrer.
+- **Roteiro:** `check_tuss_uma_rodada.py` — segura a trava por outra conexão
+  e confere que a segunda rodada não chama a ANS; sem disputa, roda e se
+  reagenda como antes; a trava é solta também quando a rodada estoura.
+
+### I1 — o pedido do médico no prompt do relatório
+
+- **Antes:** "Pedido do médico, que manda sobre tudo que vem depois" — e
+  depois vinham as regras que não admitem exceção.
+- **Depois:** "Pedido do médico, que manda sobre as seções, a ênfase e o
+  tom — não sobre as regras abaixo". Aprovado pelo Dr. Fernando.
+- **Roteiro:** seção 12 de `check_relatorio_ia.py`.
+- **Não avaliado:** o efeito com o provedor real (os roteiros usam o
+  simulado). A frase só estreita o alcance do pedido; não acrescenta regra.
+
+### P2 — agenda da semana em lote
+
+- **Mudança:** `week_grid` carrega regras, bloqueios, pausas e reservas uma
+  vez para os sete dias e entrega a cada dia a parte dele, como
+  `month_summary` já fazia. `day_grid` não mudou.
+- **Medição** (`week_grid`, semana montada em transação desfeita):
+
+  | | 2 reservas | 8 reservas |
+  | --- | --- | --- |
+  | Antes | 31 | 33 |
+  | Depois | 6 | 6 |
+
+- **Roteiro:** `check_semana_em_lote.py` — a semana inteira comparada
+  **célula por célula** com `day_grid` dia a dia (com e sem cancelados), num
+  cenário com regra que termina no meio da semana, regra que começa no meio
+  dela, pausa, bloqueio com motivo, férias, horário excluído, atendimento
+  extra no sábado e consulta de 80 minutos.
+- **Observação, sem mudança:** a semana e o dia não recebem o histórico
+  (`done`); só o mês mostra o atendimento concluído como "atendido". Era
+  assim antes, e continua — mudar seria comportamento novo, não otimização.
+
+### X1 — campos sem nome para o leitor de tela
+
+- **Mudança, só atributos:** `for`/`id` nos formulários do console
+  (estado e plano da organização, com o id da organização no `id`, porque a
+  tabela repete o formulário por linha); `aria-label` nos campos que só
+  tinham o exemplo cinza (busca de CID e TUSS, portal, chat, SNCR, convites,
+  reset de MFA); o título dos grupos de rádio e de caixas ligado ao grupo
+  (`role="radiogroup"`/`group` + `aria-labelledby`); `role="button"` nos
+  três links sem destino do cabeçalho. Nenhum layout mudou.
+- **Antes:** 21 dos 153 campos escritos à mão sem nome. **Depois:** 0.
+- **Roteiro:** `check_rotulos.py` — varre todos os templates e reprova
+  campo novo sem nome; reprovou nos templates antigos (6 falhas).
+- **Não feito:** conferência com leitor de tela de verdade (NVDA, TalkBack).
+  O que a varredura garante é a marcação; a experiência ainda pede um teste
+  manual.
 
 ## Reversão
 
