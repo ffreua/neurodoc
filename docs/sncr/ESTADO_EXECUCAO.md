@@ -6,10 +6,10 @@ arquivo resume, não substitui a inspeção.
 
 | Campo | Valor |
 | --- | --- |
-| Sprint / gate | **Sprint 3 concluída na branch — as três sprints prontas, aguardando o Gate 3 do proprietário.** Próximo passo: autorização para publicar **desligada** ([ATIVACAO.md](ATIVACAO.md)) |
-| Branch | `sncr/sprint-1` (Sprints 1, 2 e 3), **local, sem push** |
+| Sprint / gate | **Gate 3 aprovado; publicada DESLIGADA na 1.22 (2026-10-22).** Próximo: ligar, quando o CNPJ chegar ([ATIVACAO.md](ATIVACAO.md), passos 9 a 11) |
+| Branch | integrada em `main` (avanço direto) e publicada |
 | Commit-base | `0676059` (`main`, 1.21.1 publicada) |
-| Produção | **1.21.1** — só a transição da D1. **Nada da integração está em produção**, e nenhuma chamada à API do SNCR de produção foi feita |
+| Produção | **1.22** (`e4dc238`) — a integração inteira **no ar e desligada** (`Configuracao.ativo = False`, ambiente homologação, sem CNPJ); lista oficial importada no worker. **Nenhuma chamada à API do SNCR** foi feita |
 | Bloqueio para ativar | **CNPJ da mantenedora** ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)); depois, o teste real (D8) |
 | Decisões | [DECISOES.md](DECISOES.md) — D1 a D8 do proprietário, I1 a I16 de implementação |
 | Ativação e reversão | [ATIVACAO.md](ATIVACAO.md) — o passo a passo de publicar desligada, ligar, o teste real e voltar atrás |
@@ -90,9 +90,8 @@ número (I7), faixa irreconhecível não utilizável (I8). Anvisa
 
 ## Próxima ação exata
 
-1. **Gate 3:** o proprietário aprova as três sprints.
-2. Com autorização: **publicar desligada**, passos 1 a 8 de
-   [ATIVACAO.md](ATIVACAO.md) (versão nova, `import_portaria344` no worker).
+1. ~~Gate 3~~ — aprovado; ~~publicar desligada~~ — feito, 1.22, passos 1 a 8 de [ATIVACAO.md](ATIVACAO.md).
+2. **Ligar:** passos 9 a 11 de [ATIVACAO.md](ATIVACAO.md).
 3. **Quando o CNPJ chegar:** [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md); depois,
    o primeiro pedido real em produção, pelo proprietário (D8).
 
