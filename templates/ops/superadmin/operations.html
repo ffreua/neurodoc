@@ -241,14 +241,16 @@ tela: o campo só aceita gravar. Ligar exige a verificação em verde.
             <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}"
                   data-nd-confirm="Ligar a reserva? Quando o provedor principal falhar, as clínicas que usam o padrão da instalação passarão a ser atendidas por {{ config.ai_reserva_provider }} / {{ config.ai_reserva_model }}.">
                 {% csrf_token %}
-                <button class="btn btn-success" type="submit" name="acao" value="ligar"
+                <input type="hidden" name="acao" value="ligar">
+                <button class="btn btn-success" type="submit"
                         {% if not config.ai_reserva_check_ok %}disabled title="Verifique a reserva primeiro"{% endif %}>Ligar reserva</button>
             </form>
             {% endif %}
             <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}"
                   data-nd-confirm="Apagar a chave da reserva? A reserva será desligada.">
                 {% csrf_token %}
-                <button class="btn btn-light" type="submit" name="acao" value="apagar_chave">Apagar chave</button>
+                <input type="hidden" name="acao" value="apagar_chave">
+                <button class="btn btn-light" type="submit">Apagar chave</button>
             </form>
         </div>
         {% endif %}

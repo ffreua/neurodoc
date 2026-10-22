@@ -91,6 +91,23 @@ permitidas = [x for x in nativas if x.startswith('static/duralux/nd-inline.js')]
 confere(len(permitidas) == 1, f'so a reserva do nd-inline.js ({permitidas})')
 confere(nativas == permitidas, f'nenhuma outra caixa nativa ({[x for x in nativas if x not in permitidas]})')
 
+# 1.23.1: o "Ligar reserva" do console perguntava, e depois do OK o servidor
+# respondia "Escolha um provedor do catalogo" - o reenvio do modal usava
+# `requestSubmit()` sem argumento, que manda o formulario SEM o `name`/`value`
+# do botao clicado. Toda acao que vinha no botao chegava vazia.
+print('=== 4. o reenvio do modal leva o botao clicado ===')
+appjs = (BASE / 'static/duralux/app.js').read_text(encoding='utf-8')
+confere('event.submitter' in appjs, 'o modal guarda o botao que disparou o envio')
+confere('requestSubmit(botao)' in appjs, 'e o reenvio o devolve (requestSubmit(botao))')
+dependentes = []
+for arq in (BASE / 'templates').rglob('*.html'):
+    texto = arq.read_text(encoding='utf-8', errors='ignore')
+    for m in re.finditer(r'<form\b[^>]*data-nd-confirm[^>]*>(.*?)</form>', texto, re.S):
+        if re.search(r'<button\b[^>]*\bname="[^"]+"[^>]*\bvalue=', m.group(1)):
+            linha = texto[:m.start()].count('\n') + 1
+            dependentes.append(f'{arq.relative_to(BASE).as_posix()}:{linha}')
+confere(not dependentes, f'formulario com confirmacao nao depende do name/value do botao ({dependentes})')
+
 if falhas:
     print(f'\nFALHA: {len(falhas)} problema(s):')
     for f in falhas:

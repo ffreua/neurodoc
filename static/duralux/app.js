@@ -871,6 +871,7 @@
         var ok = document.getElementById('nd-confirm-ok');
         if (!modal || !texto || !ok) return;
         var pendente = null;
+        var submissor = null;
 
         document.addEventListener('submit', function (event) {
             var form = event.target;
@@ -878,6 +879,11 @@
             if (form.dataset.ndConfirmed === '1') return;   /* já passou pela pergunta */
             event.preventDefault();
             pendente = form;
+            /* O botão que disparou o envio carrega `name`/`value` (`acao=ligar`),
+             * e `requestSubmit()` sem argumento os perde: o servidor recebia o
+             * formulário sem a ação e caía no caminho padrão. Guardado aqui,
+             * ele volta no reenvio abaixo. */
+            submissor = event.submitter || null;
             texto.textContent = form.getAttribute('data-nd-confirm') || 'Confirmar esta ação?';
             openModal(modal);
         }, true);
@@ -885,19 +891,32 @@
         ok.addEventListener('click', function () {
             if (!pendente) return;
             var form = pendente;
+            var botao = submissor;
             pendente = null;
+            submissor = null;
             /* A marca impede o laço: o `requestSubmit` abaixo dispara `submit`
              * de novo, e sem ela a pergunta reapareceria para sempre. */
             form.dataset.ndConfirmed = '1';
             closeModal(modal);
             if (form.requestSubmit) {
-                form.requestSubmit();
+                if (botao && botao.form === form) {
+                    form.requestSubmit(botao);
+                } else {
+                    form.requestSubmit();
+                }
             } else {
+                if (botao && botao.name) {
+                    var campo = document.createElement('input');
+                    campo.type = 'hidden';
+                    campo.name = botao.name;
+                    campo.value = botao.value;
+                    form.appendChild(campo);
+                }
                 form.submit();
             }
         });
 
-        modal.addEventListener('nd:closed', function () { pendente = null; });
+        modal.addEventListener('nd:closed', function () { pendente = null; submissor = null; });
     }
 
     /* API mínima para telas que precisam abrir um modal por código — o
