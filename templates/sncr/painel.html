@@ -77,8 +77,8 @@
                             {% csrf_token %}
                             <input type="hidden" name="resultado" value="gerado">
                             <div class="row g-2 mb-2">
-                                <div class="col-6"><input type="text" class="form-control form-control-sm" name="inicio" placeholder="Primeiro número" autocomplete="off" required></div>
-                                <div class="col-6"><input type="text" class="form-control form-control-sm" name="fim" placeholder="Último número" autocomplete="off" required></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" name="inicio" placeholder="Primeiro número" aria-label="Primeiro número do bloco" autocomplete="off" required></div>
+                                <div class="col-6"><input type="text" class="form-control form-control-sm" name="fim" placeholder="Último número" aria-label="Último número do bloco" autocomplete="off" required></div>
                             </div>
                             <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>O bloco foi gerado: registrar</button>
                         </form>

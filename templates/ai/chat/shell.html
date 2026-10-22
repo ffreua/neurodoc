@@ -29,7 +29,7 @@ assunto exigia voltar. É a forma de todo aplicativo de mensagens porque
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
                 Nova conversa
             </button>
-            <input type="search" class="form-control form-control-sm mt-2" id="nd-chat-filtro"
+            <input type="search" class="form-control form-control-sm mt-2" id="nd-chat-filtro" aria-label="Filtrar conversas"
                    placeholder="Filtrar conversas" autocomplete="off">
         </div>
 
@@ -170,7 +170,7 @@ assunto exigia voltar. É a forma de todo aplicativo de mensagens porque
             <form method="post" action="{% url 'ai:chat-message-create' session.id %}" id="nd-chat-form">
                 {% csrf_token %}
                 <div class="nd-chat-input">
-                    <textarea class="form-control" id="chat-content" name="content" rows="1"
+                    <textarea class="form-control" id="chat-content" name="content" rows="1" aria-label="Sua pergunta"
                               placeholder="Escreva sua pergunta — Enter envia, Shift+Enter quebra linha"
                               data-nd-autogrow></textarea>
                     <button type="submit" class="btn btn-primary" data-nd-busy aria-label="Enviar">

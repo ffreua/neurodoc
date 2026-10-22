@@ -23,7 +23,7 @@
                     {% if email_sent %}O convite foi enviado. Você também pode copiar o link completo:{% else %}Copie o link completo e envie ao colaborador:{% endif %}
                 </p>
                 <div class="input-group mb-3">
-                    <input class="form-control fs-12" id="invitation-url" value="{{ invitation_url }}" readonly>
+                    <input class="form-control fs-12" id="invitation-url" aria-label="Link do convite" value="{{ invitation_url }}" readonly>
                     <button class="btn btn-light" type="button" id="copy-invitation">Copiar</button>
                 </div>
                 <p class="fs-12 text-muted mb-0">Expira em {{ invitation.expires_at|date:"d/m/Y H:i" }}.</p>

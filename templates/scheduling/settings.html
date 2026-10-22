@@ -65,11 +65,11 @@
                     {% csrf_token %}
                     {% include "partials/form_errors.html" with form=schedule_form %}
                     <div class="mb-3">
-                        <label class="form-label fw-semibold">
+                        <label class="form-label fw-semibold" id="weekdays-titulo">
                             {{ schedule_form.weekdays.label }}
                             <span class="text-danger" aria-hidden="true">*</span>
                         </label>
-                        <div class="d-flex flex-wrap gap-3">
+                        <div class="d-flex flex-wrap gap-3" role="group" aria-labelledby="weekdays-titulo">
                             {% for choice in schedule_form.weekdays %}
                             <div class="form-check">
                                 {{ choice.tag }}

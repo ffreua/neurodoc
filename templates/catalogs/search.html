@@ -51,7 +51,7 @@
                     <span class="input-group-text">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </span>
-                    <input class="form-control form-control-lg" id="nd-cid-q" type="search"
+                    <input class="form-control form-control-lg" id="nd-cid-q" type="search" aria-label="Buscar CID-10 por código ou nome"
                            autocomplete="off" placeholder="Ex.: G40, epilepsia, esclerose multipla"
                            value="{% if aba == 'cid' %}{{ termo }}{% endif %}"
                            data-url="{% url 'catalogs:cid-search' %}">
@@ -115,7 +115,7 @@
                     <span class="input-group-text">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </span>
-                    <input class="form-control form-control-lg" id="nd-tuss-q" type="search"
+                    <input class="form-control form-control-lg" id="nd-tuss-q" type="search" aria-label="Buscar procedimento TUSS por código ou nome"
                            autocomplete="off" placeholder="Ex.: eletroencefalograma, consulta, 10101012"
                            value="{% if aba == 'tuss' %}{{ termo }}{% endif %}"
                            data-url="{% url 'catalogs:tuss-search' %}">

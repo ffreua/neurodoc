@@ -117,8 +117,8 @@
                                   data-nd-confirm="Confirma a mudança de estado desta organização? Nenhum registro é apagado.">
                                 {% csrf_token %}
                                 <div class="col-md-3">
-                                    <label class="form-label fs-11">Estado</label>
-                                    <select class="form-select form-select-sm" name="status">
+                                    <label class="form-label fs-11" for="status-{{ row.obj.id }}">Estado</label>
+                                    <select class="form-select form-select-sm" name="status" id="status-{{ row.obj.id }}">
                                         {% for estado in statuses %}
                                         <option value="{{ estado.code }}" {% if estado.code == row.obj.status %}selected{% endif %}>
                                             {{ estado.label }}
@@ -127,8 +127,8 @@
                                     </select>
                                 </div>
                                 <div class="col-md-7">
-                                    <label class="form-label fs-11">Motivo <span class="text-danger">*</span></label>
-                                    <input class="form-control form-control-sm" name="status_note" required
+                                    <label class="form-label fs-11" for="status-note-{{ row.obj.id }}">Motivo <span class="text-danger">*</span></label>
+                                    <input class="form-control form-control-sm" name="status_note" id="status-note-{{ row.obj.id }}" required
                                            value="{{ row.obj.status_note }}"
                                            placeholder="Ex.: fatura de 08/2026 em aberto há 40 dias">
                                 </div>
@@ -155,8 +155,8 @@
                                   class="row g-2 align-items-end py-3">
                                 {% csrf_token %}
                                 <div class="col-md-2">
-                                    <label class="form-label fs-11">Plano</label>
-                                    <select class="form-select form-select-sm" name="plan">
+                                    <label class="form-label fs-11" for="plan-{{ row.obj.id }}">Plano</label>
+                                    <select class="form-select form-select-sm" name="plan" id="plan-{{ row.obj.id }}">
                                         {% for plan in plans %}
                                         <option value="{{ plan.code }}" {% if plan.code == row.obj.plan %}selected{% endif %}>
                                             {{ plan.label }} ({{ plan.patients }}/{{ plan.doctors }})
@@ -165,22 +165,22 @@
                                     </select>
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label fs-11">Pacientes (opcional)</label>
+                                    <label class="form-label fs-11" for="patients-{{ row.obj.id }}">Pacientes (opcional)</label>
                                     <input class="form-control form-control-sm" type="number" min="0"
-                                           name="patient_limit_override"
+                                           name="patient_limit_override" id="patients-{{ row.obj.id }}"
                                            value="{{ row.obj.patient_limit_override|default_if_none:'' }}"
                                            placeholder="usa o plano">
                                 </div>
                                 <div class="col-md-2">
-                                    <label class="form-label fs-11">Médicos (opcional)</label>
+                                    <label class="form-label fs-11" for="doctors-{{ row.obj.id }}">Médicos (opcional)</label>
                                     <input class="form-control form-control-sm" type="number" min="0"
-                                           name="doctor_limit_override"
+                                           name="doctor_limit_override" id="doctors-{{ row.obj.id }}"
                                            value="{{ row.obj.doctor_limit_override|default_if_none:'' }}"
                                            placeholder="usa o plano">
                                 </div>
                                 <div class="col-md-4">
-                                    <label class="form-label fs-11">Motivo <span class="text-danger">*</span></label>
-                                    <input class="form-control form-control-sm" name="plan_note" required
+                                    <label class="form-label fs-11" for="plan-note-{{ row.obj.id }}">Motivo <span class="text-danger">*</span></label>
+                                    <input class="form-control form-control-sm" name="plan_note" id="plan-note-{{ row.obj.id }}" required
                                            value="{{ row.obj.plan_note }}"
                                            placeholder="Ex.: contrato assinado em 09/2026">
                                 </div>

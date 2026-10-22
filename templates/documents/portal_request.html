@@ -48,8 +48,8 @@ abaixo: ele não é pedido (vai direto ao prontuário), tem outro formulário
         </select>
     </div>
 
-    <div class="mb-4">
-        <label class="form-label fw-semibold">Quem está preenchendo</label>
+    <div class="mb-4" role="radiogroup" aria-labelledby="requester-titulo">
+        <label class="form-label fw-semibold" id="requester-titulo">Quem está preenchendo</label>
         <div class="form-check">
             <input class="form-check-input" type="radio" name="requester" id="req-self"
                    value="self" checked>
@@ -60,6 +60,7 @@ abaixo: ele não é pedido (vai direto ao prontuário), tem outro formulário
             <label class="form-check-label" for="req-other">Familiar, cuidador ou responsável</label>
         </div>
         <input type="text" class="form-control mt-2" name="requester_name" id="requester_name"
+               aria-label="Nome de quem está preenchendo"
                placeholder="Nome de quem está preenchendo" hidden>
     </div>
 
@@ -84,15 +85,15 @@ abaixo: ele não é pedido (vai direto ao prontuário), tem outro formulário
             <div class="row g-2 mb-2 med-row" data-nd-med-grupo>
                 <div class="col-sm-5">
                     <input type="text" class="form-control" name="med_name"
-                           placeholder="Nome do medicamento"
+                           placeholder="Nome do medicamento" aria-label="Nome do medicamento"
                            data-nd-med-url="{% url 'portal:medicamento-search' slug %}"
                            data-nd-med-dose="[name=med_dose]">
                 </div>
                 <div class="col-sm-3">
-                    <input type="text" class="form-control" name="med_dose" placeholder="Dose (ex.: 50 mg)">
+                    <input type="text" class="form-control" name="med_dose" placeholder="Dose (ex.: 50 mg)" aria-label="Dose">
                 </div>
                 <div class="col-sm-4">
-                    <input type="text" class="form-control" name="med_usage" placeholder="Como usa (ex.: 1 cp à noite)">
+                    <input type="text" class="form-control" name="med_usage" placeholder="Como usa (ex.: 1 cp à noite)" aria-label="Como usa">
                 </div>
             </div>
         </div>

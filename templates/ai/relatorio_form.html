@@ -35,8 +35,8 @@ ao colega em ordens diferentes, e é isso que o seletor escolhe.
                 <form method="post" novalidate>
                     {% csrf_token %}
 
-                    <label class="form-label fw-semibold fs-13">Para quem é o relatório</label>
-                    <div class="mb-4">
+                    <label class="form-label fw-semibold fs-13" id="finalidade-titulo">Para quem é o relatório</label>
+                    <div class="mb-4" role="radiogroup" aria-labelledby="finalidade-titulo">
                         {% for f in finalidades %}
                         <div class="form-check mb-2">
                             <input class="form-check-input" type="radio" name="finalidade"

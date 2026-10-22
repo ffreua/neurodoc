@@ -252,7 +252,7 @@ seria mais código para o mesmo resultado.{% endcomment %}
                         {% csrf_token %}
                         <input type="text" name="code" class="form-control form-control-sm"
                                inputmode="numeric" autocomplete="one-time-code"
-                               placeholder="Seu código MFA" required style="max-width: 145px">
+                               placeholder="Seu código MFA" aria-label="Seu código MFA, para confirmar o reset" required style="max-width: 145px">
                         <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>
                             Resetar MFA
                         </button>
