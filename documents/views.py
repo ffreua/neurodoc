@@ -321,6 +321,9 @@ class PatientDocumentsView(ClinicalDocumentView):
             MedicalDocument.objects
             .filter(tenant_id=request.access_context.tenant_id, patient=patient)
             .select_related('encounter', 'physician__user')
+            # O selo "retificado" pergunta `replaced_by.exists()` por linha;
+            # com o prefetch a resposta vem do cache, numa consulta só.
+            .prefetch_related('replaced_by')
             .order_by('-created_at')
         )
         attachments = (

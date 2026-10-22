@@ -170,6 +170,9 @@ sai com código 1 listando as falhas quando não passa.
 | `check_mensagens_retencao` | O chat da equipe apaga a mensagem em 72 horas e cada um apaga a própria janela; o não lido refeito; o ícone do som que troca de verdade |
 | `check_ia_reserva` | A reserva de IA da instalação (1.23) responde só quando a chamada ao principal falha, só para quem usa o padrão, só antes da primeira palavra no chat; o uso é contado e auditado sem chave; a vigilância avisa uma vez por falha; e o console grava a chave cifrada e só liga verificada |
 | `check_chat_acoes_rapidas` | As quatro ações rápidas do chat com paciente só escrevem um pedido estático no campo: não enviam, preservam o rascunho, seguem o envio de sempre e não abrem nada a quem não abria o chat |
+| `check_chat_pergunta_unica` | A pergunta do chat vai ao provedor uma vez só, pelo caminho real (gravada antes da tarefa), e a busca no manual usa a pergunta de antes |
+| `check_consultas_fixas` | Documentos do paciente e agenda do mês fazem o mesmo número de consultas com 2 e com 8 linhas |
+| `check_contato_em_portugues` | As recusas do cadastro de contato saem em português e uma vez cada, pelo formulário de verdade |
 | `check_chat_manual` | O chat sem paciente responde pelo manual e pela documentação técnica (RAG por palavras), com a fonte; a conversa com paciente fica só com o prontuário |
 | `check_links_de_mensagem` | Todo link que sai em e-mail ou SMS abre, e nada é enfileirado antes do commit |
 | `check_login` | Duas portas de entrada que devolviam tela crua |

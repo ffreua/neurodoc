@@ -226,19 +226,25 @@ def build_patient_context(authorization):
     return texto
 
 
-def build_history(session, limit=HISTORY_MESSAGES):
+def build_history(session, limit=HISTORY_MESSAGES, excluir_id=None):
     """As mensagens anteriores da sessão, da mais antiga para a mais nova.
 
     Só mensagens **completas**: a que está sendo escrita agora não entra
     (ela é a pergunta), e uma que falhou no meio traria texto pela metade
     como se fosse resposta dada.
+
+    `excluir_id` é a pergunta desta volta. Ela é gravada **completa** antes
+    de a tarefa rodar (`chat_services.post_user_message`), então sem tirá-la
+    daqui ia ao provedor duas vezes — no histórico e no fim —, gastava uma
+    vaga da janela e virava a "pergunta anterior" da busca no manual, que
+    deixava de achar o seguimento ("e para desfazer?") pela pergunta de antes.
     """
     from .chat_models import ChatMessageState
 
-    anteriores = list(
-        session.messages.filter(state=ChatMessageState.COMPLETE)
-        .order_by('-sequence')[:limit]
-    )
+    consulta = session.messages.filter(state=ChatMessageState.COMPLETE)
+    if excluir_id is not None:
+        consulta = consulta.exclude(id=excluir_id)
+    anteriores = list(consulta.order_by('-sequence')[:limit])
     anteriores.reverse()
 
     total = 0
@@ -255,11 +261,12 @@ def build_history(session, limit=HISTORY_MESSAGES):
     return janela
 
 
-def build_chat_prompt(session, user_text, authorization=None):
+def build_chat_prompt(session, user_text, authorization=None, pergunta_id=None):
     """A lista de mensagens que vai ao provedor, já desidentificada.
 
     Devolve `(mensagens, contexto_bruto)`. O segundo serve à auditoria e
-    ao registro do que foi enviado — nunca à tela.
+    ao registro do que foi enviado — nunca à tela. `pergunta_id` é a
+    mensagem gravada desta volta, que sai do histórico (`build_history`).
     """
     from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
@@ -268,7 +275,7 @@ def build_chat_prompt(session, user_text, authorization=None):
     paciente = session.patient if session.patient_id else None
 
     contexto = build_patient_context(authorization) if authorization is not None else ''
-    historico = build_history(session)
+    historico = build_history(session, excluir_id=pergunta_id)
     sistema = CHAT_SYSTEM_PROMPT
     if paciente is None:
         sistema = f'{sistema}\n\n{SEM_PACIENTE}'

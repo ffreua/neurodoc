@@ -561,7 +561,11 @@ class PatientContactForm(forms.ModelForm):
     def clean(self):
         cleaned = super().clean()
         if not cleaned.get('phone') and not cleaned.get('email'):
-            raise forms.ValidationError('Informe telefone ou e-mail.')
+            # A recusa é do modelo (`PatientContact.clean`), que o `ModelForm`
+            # chama em seguida; recusar aqui também a mostrava duas vezes.
+            # O retorno antecipado mantém o que este bloco fazia antes: sem
+            # canal nenhum, as conferências de SMS e e-mail não se acumulam.
+            return cleaned
         if cleaned.get('sms_enabled') and not (cleaned.get('phone') or '').strip():
             self.add_error('sms_enabled', 'Informe o telefone antes de habilitar SMS.')
         if cleaned.get('email_enabled') and not (cleaned.get('email') or '').strip():

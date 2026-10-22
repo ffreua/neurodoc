@@ -86,7 +86,7 @@ def prepare_document_and_run(job_id):
     return {'status': 'cancelled' if atualizados else 'skipped'}
 
 
-def _build_chat_messages(session, user_text):
+def _build_chat_messages(session, user_text, pergunta_id=None):
     """Monta o que vai ao provedor nesta volta da conversa.
 
     Reconstroi a autorizacao a partir do dono da sessao e do paciente
@@ -110,7 +110,9 @@ def _build_chat_messages(session, user_text):
         )
         autorizacao = build_ai_authorization(contexto, patient_id=session.patient_id)
 
-    mensagens, _ = build_chat_prompt(session, user_text, authorization=autorizacao)
+    mensagens, _ = build_chat_prompt(
+        session, user_text, authorization=autorizacao, pergunta_id=pergunta_id,
+    )
     return mensagens
 
 
@@ -218,7 +220,7 @@ def run_chat_turn(message_id, user_message_id):
         return {'status': 'failed', 'reason': 'user message not found'}
 
     try:
-        prompt = _build_chat_messages(session, user_text)
+        prompt = _build_chat_messages(session, user_text, pergunta_id=user_message_id)
     except AIAuthorizationDenied as exc:
         aviso = f'Acesso revogado antes de a resposta comecar: {exc}'
         publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': aviso})

@@ -404,8 +404,11 @@ class PatientContact(TenantModel):
         return self.valid_until is None or self.valid_until > timezone.now()
 
     def clean(self):
+        # As três recusas daqui chegam à tela: `PatientContactForm` é
+        # `ModelForm`, e o `_post_clean` chama este `clean()` mesmo depois do
+        # do formulário. Estavam em inglês, e duas saíam **só** em inglês.
         if not self.phone and not self.email:
-            raise ValidationError('A contact needs a phone or an e-mail')
+            raise ValidationError('Informe telefone ou e-mail.')
         if self.marketing_opt_in_at and not self.marketing_opt_in_evidence:
             raise ValidationError({
                 'marketing_opt_in_evidence':
@@ -413,9 +416,13 @@ class PatientContact(TenantModel):
                     'procedência não se demonstra depois.',
             })
         if self.authorized_for_documents and not self.relationship:
-            raise ValidationError({'relationship': 'A delivery contact needs a registered relationship'})
+            raise ValidationError({
+                'relationship': 'Informe a relação com o paciente para autorizar a entrega de documentos.',
+            })
         if self.legal_authority and not self.authority_evidence:
-            raise ValidationError({'authority_evidence': 'Legal authority needs a registered evidence note'})
+            raise ValidationError({
+                'authority_evidence': 'Registre a comprovação da representação legal.',
+            })
 
     def __str__(self):
         return f'{self.name} ({self.relationship or "contact"})'

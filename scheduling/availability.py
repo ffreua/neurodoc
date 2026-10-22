@@ -551,7 +551,10 @@ def month_summary(physician_membership_id, days):
             physician_membership_id=physician_membership_id,
             starts_at__lt=day_end, ends_at__gt=day_start,
             status__in=list(OCCUPYING_STATUSES),
-        ).select_related('patient')
+        # Os contatos vêm junto pelo mesmo motivo de `appointments_on`: a
+        # célula ocupada chama `nd_confirmation_contacts`, e sem o prefetch
+        # era uma consulta por horário marcado no mês.
+        ).select_related('patient').prefetch_related('patient__contacts')
     )
     # O que já aconteceu e não ocupa mais. Carregado no mesmo lote, e
     # usado **só para exibição**: sem isto, um mês passado aparecia vazio,
