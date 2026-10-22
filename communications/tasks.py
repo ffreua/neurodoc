@@ -83,9 +83,9 @@ def deliver_installation_email(dados):
 @shared_task(
     name='communications.tasks.deliver_document',
     autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 3},
-    expires=600,
+    expires=600, bind=True,
 )
-def deliver_document_task(document_id, force_new_link=False):
+def deliver_document_task(self, document_id, force_new_link=False):
     """Entrega (ou reentrega) um documento, **no worker**.
 
     O envio automático já nascia aqui: ele vem do evento
@@ -108,15 +108,20 @@ def deliver_document_task(document_id, force_new_link=False):
     document = MedicalDocument.objects.filter(id=document_id).first()
     if document is None:
         return 0
-    return len(deliver_document(document, force_new_link=force_new_link))
+    # O id da tarefa é o mesmo em cada nova tentativa: é com ele que a
+    # repetição reconhece o que a volta anterior já mandou (ver
+    # `deliver_document`).
+    return len(deliver_document(
+        document, force_new_link=force_new_link, envio_id=self.request.id,
+    ))
 
 
 @shared_task(
     name='communications.tasks.send_confirmation',
     autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 3},
-    expires=600,
+    expires=600, bind=True,
 )
-def send_confirmation_task(appointment_id, channel, actor_id, contact_id=None):
+def send_confirmation_task(self, appointment_id, channel, actor_id, contact_id=None):
     """Envia a confirmação do horário **no worker**.
 
     Era a última entrega que saía de dentro da requisição, e isso tinha
@@ -159,7 +164,7 @@ def send_confirmation_task(appointment_id, channel, actor_id, contact_id=None):
     # que é o que vai para a trilha, continua sendo o de quem clicou.
     try:
         entrega = send_appointment_confirmation(
-            None, appointment, channel, actor_id, contact=contato,
+            None, appointment, channel, actor_id, contact=contato, envio_id=self.request.id,
         )
     except NoUsableContact:
         # A view já confere isto antes de enfileirar; chegar aqui

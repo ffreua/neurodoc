@@ -33,8 +33,8 @@ sem reprodução completa), **HIPOTÉTICO**, **NÃO PROCEDE**.
 | D1 | Desempenho | Documentos do paciente: uma consulta por documento (`replaced_by.exists()`) | 18 consultas com 2 documentos, 24 com 8 | CONFIRMADO | **Corrigido** |
 | D2 | Desempenho | Agenda do mês: contatos do paciente buscados por horário marcado | Consultas crescem com os horários desenhados | CONFIRMADO | **Corrigido** (junto com D1) |
 | B1 | Idioma | Três recusas do cadastro de contato em inglês; uma aparecia duplicada | Formulário real: "A contact needs a phone or an e-mail" ao lado de "Informe telefone ou e-mail." | CONFIRMADO | **Corrigido** |
-| C1 | Celery | Confirmação de horário (`send_confirmation_task`) com nova tentativa automática para qualquer exceção, sem idempotência: falha **depois** do envio repete o SMS | Leitura de `communications/tasks.py` e `services.py:892-902` | PROVÁVEL | Não corrigido — ver abaixo |
-| C2 | Celery | Reenvio de documento com `force_new_link=True` e nova tentativa automática: a repetição revoga o link já enviado | Leitura de `communications/services.py:296-315` | PROVÁVEL | Não corrigido — ver abaixo |
+| C1 | Celery | Confirmação de horário (`send_confirmation_task`) com nova tentativa automática para qualquer exceção, sem idempotência: falha **depois** do envio repete o SMS | Reprodução: 2 SMS com a trilha estourando depois do envio | CONFIRMADO | **Corrigido** (lote seguinte, ver abaixo) |
+| C2 | Celery | Reenvio de documento com `force_new_link=True` e nova tentativa automática: a repetição revoga o link já enviado | Reprodução: 3 mensagens, 1 link morto | CONFIRMADO | **Corrigido** (lote seguinte, ver abaixo) |
 | C3 | Celery | `retomar_tuss_incompleta` (de hora em hora) dispara uma segunda sincronização da TUSS em paralelo à que já roda; sem trava em `sync_incremental` | Leitura; a cadeia duplicada morre na `UniqueConstraint` | PROVÁVEL | Não corrigido — ver abaixo |
 | C4 | Celery | `dispatch_outbox` (5 s) e `reconcile_pending_sms` (60 s) sem `expires`: acumulam na fila com o worker parado | Leitura; efeito inofensivo (`skip_locked`) | PROVÁVEL | Não corrigido — baixo benefício |
 | I1 | IA | Prompt do relatório: "pedido do médico manda sobre tudo que vem depois" antes das regras que não admitem exceção | `ai/graphs.py:87-98` | PROVÁVEL | Não corrigido — ver abaixo |
@@ -95,13 +95,7 @@ sem reprodução completa), **HIPOTÉTICO**, **NÃO PROCEDE**.
 
 ## Por que os outros não foram corrigidos nesta sprint
 
-- **C1 e C2 (nova tentativa que repete envio):** o efeito é real só se uma
-  exceção acontecer **depois** do envio — o que nenhum roteiro reproduz hoje.
-  A correção mexe na semântica de nova tentativa da mensageria, que já teve
-  correções delicadas (auditoria de 2026-10-09). Proposta: tirar
-  `autoretry_for` das duas tarefas ou restringi-lo a falha **antes** do
-  `_send`, com um roteiro que injete a exceção depois do envio. Exige
-  decisão e lote próprio.
+- **C1 e C2:** ficaram para um lote próprio, feito em seguida — ver abaixo.
 - **C3 (TUSS duplicada):** inofensivo hoje (a duplicata morre na restrição
   de unicidade), mas gasta um dos dois lugares do worker por até 45 min por
   hora. Proposta: trava (*advisory lock*) em `sync_incremental`. Mexe em
@@ -113,6 +107,38 @@ sem reprodução completa), **HIPOTÉTICO**, **NÃO PROCEDE**.
   refatoração da grade. Fora do limite de risco desta sprint.
 - **X1 (acessibilidade):** são muitos pontos pequenos espalhados; tratar em
   lote, com conferência em leitor de tela.
+
+## Lote seguinte: C1 e C2 — a nova tentativa que repetia o envio
+
+Feito depois da Sprint 2, na branch `fix/sms-sem-repeticao`, com a decisão
+do Dr. Fernando de seguir a ordem recomendada.
+
+- **O que a reprodução mostrou, e a leitura não tinha visto:**
+  `send_appointment_confirmation` era uma transação inteira. A falha depois
+  do envio desfazia a `Delivery` — o SMS que tinha saído **sumia do
+  histórico** —, e a nova tentativa, sem como saber dele, mandava outro. No
+  reenvio de documento, a repetição revogava os links da primeira volta e
+  mandava links novos: 3 mensagens, uma com link morto.
+- **Por que não tirar a nova tentativa:** ela cobre a falha **antes** do
+  envio (o banco que pisca ao abrir o horário), e sem ela essa mensagem
+  simplesmente não sairia, sem aviso a ninguém.
+- **Mudança:** as duas tarefas passam o próprio id (`self.request.id`, que a
+  nova tentativa do Celery preserva). A entrega é gravada **antes** do
+  envio, numa transação que fecha antes dele, com a marca do pedido na
+  chave de idempotência; a repetição encontra a entrega e `_send` não envia
+  o que já não está na fila. No documento, a revogação dos links antigos só
+  acontece se nada deste pedido foi gravado. Dois cliques são dois pedidos,
+  com marcas diferentes: reenviar continua sendo reenviar. Sem migração.
+- **Antes:** confirmação 2 SMS; reenvio 3 mensagens com 1 link morto.
+  **Depois:** 1 SMS; 1 mensagem por canal, todos os links abrindo.
+- **Roteiro:** `check_sms_sem_repeticao.py` — reprovou contra o código
+  antigo (3 falhas) e passa no novo. Roda a tarefa com `apply()`, que
+  executa a nova tentativa de verdade, e confere os dois lados: a falha
+  depois do envio não repete, a falha antes dele continua sendo tentada.
+- **Resíduo conhecido:** se a falha vier entre gravar o link de um contato
+  e enviá-lo, a repetição grava outro link e envia este; o primeiro fica
+  vivo até expirar, sem nunca ter sido mandado a ninguém (só o resumo dele
+  existe no banco).
 
 ## Reversão
 

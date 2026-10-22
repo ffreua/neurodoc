@@ -1,3 +1,4 @@
+import hashlib
 import logging
 import secrets
 from urllib.parse import quote_plus
@@ -177,10 +178,11 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
     # quem não conseguir passar a entrega de "na fila" a "enviando" não
     # envia -- outro processo já está enviando, ou já enviou.
     #
-    # Fora de transação -- o caso do despachante, que deixou de abrir uma
-    # --, o `UPDATE` vale para as outras conexões na hora. Dentro de uma
-    # (a confirmação manual), o outro processo espera a trava da linha e
-    # a encontra já resolvida. Nos dois casos, um envio só.
+    # Fora de transação -- o caso do despachante, que deixou de abrir uma,
+    # e da confirmação manual, que também deixou (auditoria de 2026-10) --,
+    # o `UPDATE` vale para as outras conexões na hora. Dentro de uma, o
+    # outro processo espera a trava da linha e a encontra já resolvida.
+    # Nos dois casos, um envio só.
     if Delivery.objects.filter(
         id=delivery.id, status=DeliveryStatus.PENDING,
     ).update(status=DeliveryStatus.SENDING) != 1:
@@ -256,7 +258,7 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
     _record_attempt(delivery, DeliveryAttemptOutcome.ACCEPTED)
 
 
-def deliver_document(document, force_new_link=False):
+def deliver_document(document, force_new_link=False, envio_id=None):
     """Manda o documento aos contatos autorizados do paciente.
 
     **A transação é por entrega, e não em volta de todas.** Era em volta
@@ -276,6 +278,15 @@ def deliver_document(document, force_new_link=False):
     dois links vivos para o mesmo documento dobram a superfície e não
     servem a nada, e revogar é também a saída quando se suspeita que o
     link foi parar em mãos erradas.
+
+    **Mas a repetição do mesmo reenvio não é outro reenvio** (auditoria de
+    2026-10, C2). A tarefa tenta de novo quando algo estoura, e uma falha
+    depois da primeira mensagem fazia a segunda volta revogar o link que
+    acabara de chegar ao paciente e mandar outro: dois SMS, o primeiro com
+    link morto. Com `envio_id` (o id da tarefa, que a nova tentativa
+    preserva), a chave da entrega deixa de ser sorteada e passa a ser a
+    marca do pedido: a repetição encontra o que já saiu e não envia de novo,
+    e só revoga se nada deste pedido foi gravado ainda.
     """
     contacts = _eligible_document_contacts(document.patient)
     if not contacts:
@@ -286,13 +297,18 @@ def deliver_document(document, force_new_link=False):
         )
         return []
 
-    if force_new_link:
+    marca = marca_do_envio(envio_id) if force_new_link and envio_id is not None else None
+    ja_comecou = marca is not None and Delivery.objects.filter(
+        document=document, idempotency_key__endswith=f':{marca}',
+    ).exists()
+    if force_new_link and not ja_comecou:
         # Uma vez, antes de qualquer link novo. Ficava dentro do laço, e a
         # segunda volta revogava o link que a primeira acabara de mandar:
         # no reenvio para e-mail e SMS, uma das duas mensagens chegava com
         # link morto (auditoria de 2026-10-09, ND-1121-003). Revogar aqui
         # fecha os links de antes do reenvio, que é a função dele, e deixa
-        # vivos os deste lote.
+        # vivos os deste lote. Na repetição do mesmo pedido, a revogação
+        # já foi feita, e refazê-la mataria os links deste lote.
         with transaction.atomic():
             access.revoke_previous_tokens(document)
 
@@ -312,7 +328,10 @@ def deliver_document(document, force_new_link=False):
                 # segundos, dois reenvios dentro do mesmo segundo caíam na
                 # mesma chave: o segundo não enviava nada, não trocava o
                 # link, e a tela ainda dizia que tinha enviado.
-                idem_key = f'{idem_key}:{secrets.token_hex(4)}'
+                #
+                # Com a marca do pedido, a chave se repete só na repetição
+                # do mesmo pedido -- que é quando ela deve se repetir.
+                idem_key = f'{idem_key}:{marca or secrets.token_hex(4)}'
             # O token e gravado numa transacao curta, e a mensagem so sai
             # **depois** que ela fecha.
             #
@@ -863,14 +882,34 @@ def deliver_appointment_notice(appointment, motivo, event_version):
     return deliveries
 
 
-@transaction.atomic
-def send_appointment_confirmation(context, appointment, channel, actor_id, contact=None):
+def marca_do_envio(envio_id):
+    """Oito caracteres que identificam um pedido de envio entre as repetições dele.
+
+    `envio_id` é o id da tarefa do Celery, que a nova tentativa automática
+    preserva. O id inteiro não cabe: a chave de idempotência tem 100
+    caracteres, e as dos dois envios já passam de 90.
+    """
+    return hashlib.sha256(str(envio_id).encode()).hexdigest()[:8]
+
+
+def send_appointment_confirmation(context, appointment, channel, actor_id, contact=None, envio_id=None):
     """Envia a confirmação de um horário por SMS ou e-mail.
 
     Reenvio é permitido de propósito: a mensagem pode não chegar, e a
     secretária precisa poder mandar de novo. Cada envio é uma `Delivery`
     própria, numerada — o histórico mostra quantas vezes se tentou, em vez de
     sobrescrever a tentativa anterior.
+
+    **Repetir o pedido não é reenviar** (auditoria de 2026-10, C1). A tarefa
+    tenta de novo quando algo estoura, e o que estourava podia vir
+    **depois** do SMS — a trilha de auditoria, a gravação da entrega. A
+    função inteira era uma transação: a falha desfazia a `Delivery`, o SMS
+    que já tinha saído sumia do histórico, e a nova tentativa, sem como
+    saber dele, mandava outro. Agora a entrega é gravada antes do envio,
+    numa transação que fecha antes dele, e leva a marca do pedido
+    (`envio_id`); a repetição a encontra e não envia de novo — `_send` só
+    envia entrega que ainda está na fila. Dois cliques são dois pedidos,
+    com marcas diferentes, e continuam sendo dois envios.
     """
     from audit.services import record_audit_event
 
@@ -885,15 +924,30 @@ def send_appointment_confirmation(context, appointment, channel, actor_id, conta
 
     target = candidates[0]
     message = _confirmation_message(appointment, channel)
-    sent = Delivery.objects.filter(
+    anteriores = Delivery.objects.filter(
         appointment=appointment, contact=target, channel=channel,
         idempotency_key__startswith=f'confirmation:{appointment.id}:',
-    ).count()
-    delivery = Delivery.objects.create(
-        tenant=appointment.tenant, appointment=appointment, contact=target, channel=channel,
-        event_version=appointment.row_version,
-        idempotency_key=f'confirmation:{appointment.id}:{target.id}:{channel}:{sent + 1}',
     )
+    delivery = None
+    if envio_id is not None:
+        marca = marca_do_envio(envio_id)
+        delivery = anteriores.filter(idempotency_key__endswith=f':{marca}').first()
+    if delivery is not None:
+        sent = anteriores.filter(created_at__lt=delivery.created_at).count()
+    else:
+        sent = anteriores.count()
+        # Sem o contato na chave quando há marca: com ele, a chave de e-mail
+        # passaria dos 100 caracteres. A marca já a torna única.
+        chave = (
+            f'confirmation:{appointment.id}:{channel}:{sent + 1}:{marca}'
+            if envio_id is not None
+            else f'confirmation:{appointment.id}:{target.id}:{channel}:{sent + 1}'
+        )
+        with transaction.atomic():
+            delivery = Delivery.objects.create(
+                tenant=appointment.tenant, appointment=appointment, contact=target, channel=channel,
+                event_version=appointment.row_version, idempotency_key=chave,
+            )
     _send(
         delivery, message, subject=CONFIRMATION_EMAIL_SUBJECT,
         physician_membership=appointment.physician_membership,
