@@ -65,10 +65,12 @@ esperado: o preflight descreve a produção, não o ambiente local.
 
 `scripts/deploy.sh` envolve tudo, inclusive o `--check`, em
 `flock -n .runtime/operation.lock` e usa o Python de `.venv-ops` (o do
-sistema não tem PyYAML). `-n` quer dizer "se a trava estiver tomada, saia"
-— e sai com código 1, **sem mensagem**. A mesma trava é a do backup
-(`scripts/backup.sh`, que espera até 45 minutos por ela em vez de
-desistir), então um deploy disparado perto das 03:00 pode sair calado.
+sistema não tem PyYAML). `-n` quer dizer "se a trava estiver tomada, saia".
+A mesma trava é a do backup (`scripts/backup.sh`, que espera até 45 minutos
+por ela em vez de desistir), então um deploy disparado perto das 03:00 pode
+encontrá-la tomada. Até a 1.24 ele saía com código 1 **calado**; desde a
+1.24.1 sai com código **75** e diz "Nada foi publicado", com o comando para
+ver quem segura a trava.
 
 ## Depois do preflight, na ordem
 

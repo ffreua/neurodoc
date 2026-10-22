@@ -126,7 +126,8 @@ confere(devolvida, 'o bloco devolve a trava mesmo levantando excecao')
 
 print('=== 5. as unidades do systemd conseguem rodar ===')
 for unidade, script in [('neurodoc-backup', 'backup.sh'),
-                        ('neurodoc-signing-cleanup', 'cleanup_signing_keys.sh')]:
+                        ('neurodoc-signing-cleanup', 'cleanup_signing_keys.sh'),
+                        ('neurodoc-backup-falhou', 'avisar_falha_backup.sh')]:
     linhas = (ROOT / f'ops/{unidade}.service').read_text(encoding='utf-8').splitlines()
     exec_start = next(l for l in linhas if l.startswith('ExecStart='))
     caminho = next(l for l in linhas if l.startswith('WorkingDirectory=')).split('=', 1)[1]
@@ -146,6 +147,53 @@ confere(f'WorkingDirectory={destino}' in unidade_padrao,
         'o caminho padrao do instalador e o das unidades sao o mesmo', destino)
 confere('systemctl enable --now' in setup and 'neurodoc-backup.timer' in setup,
         'o instalador liga os timers (nao deixa o backup para depois)')
+
+print('=== 5-A. o backup que falha avisa alguem ===')
+# Ate a 1.24.1 a falha so deixava `status=1/FAILURE` no journal. O aviso
+# sai pelo worker (so ele tem a credencial de e-mail) para os
+# superadministradores, e o instalador tem de instalar a unidade junto --
+# unidade no repositorio e fora do /etc/systemd nao avisa ninguem.
+confere('OnFailure=neurodoc-backup-falhou.service' in unidade_padrao,
+        'a unidade do backup dispara o aviso quando falha')
+confere('ops/neurodoc-backup-falhou.service' in setup,
+        'o instalador instala a unidade do aviso')
+aviso_sh = (ROOT / 'scripts' / 'avisar_falha_backup.sh').read_text(encoding='utf-8')
+confere('neurodoc_v1_celery_worker' in aviso_sh and 'avisar_falha_backup' in aviso_sh,
+        'o aviso roda no contêiner do worker, que tem a credencial de e-mail')
+
+from django.core import mail as _mail
+from django.core.management import call_command as _call
+from django.test.utils import override_settings as _override
+
+from accounts.models import User as _User
+
+_super = _User.objects.filter(is_superuser=True, is_active=True).exclude(email='').count()
+_criado = None
+if not _super:
+    # A base de demonstracao nao tem superadministrador; um descartavel
+    # para o aviso ter para quem ir.
+    _criado = _User.objects.create_user(
+        email='aviso-backup@roteiro.invalid', password=None, is_superuser=True, is_staff=True,
+    )
+try:
+    with _override(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+        _mail.outbox = []
+        _call('avisar_falha_backup')
+        enviados = list(_mail.outbox)
+finally:
+    if _criado is not None:
+        _criado.delete()
+confere(len(enviados) == 1 and 'backup' in enviados[0].subject.lower(),
+        'o comando manda um e-mail sobre o backup', [m.subject for m in enviados])
+if enviados:
+    destinatarios = set(enviados[0].to)
+    esperados = set(_User.objects.filter(is_superuser=True, is_active=True)
+                    .exclude(email='').values_list('email', flat=True))
+    if _criado is not None:
+        esperados = {'aviso-backup@roteiro.invalid'}
+    confere(destinatarios == esperados, 'para os superadministradores ativos, e so para eles')
+    confere('journalctl -u neurodoc-backup.service' in enviados[0].body,
+            'e diz onde ver o motivo')
 
 print('=== 6. os scripts do timer usam o Python com as dependencias ===')
 for script in ['backup.sh', 'cleanup_signing_keys.sh', 'deploy.sh']:
@@ -180,6 +228,14 @@ confere(any(re.search(r'flock\s+-w\s', linha) for linha in linhas_sh),
 confere('NAO HOUVE BACKUP' in backup_sh,
         'backup.sh diz no journal quando a espera estoura, em vez de sair mudo')
 
+# O deploy desiste quando a trava esta tomada -- e certo, publicar nao
+# pode esperar 45 minutos com alguem olhando --, mas desistia **calado**:
+# codigo 1, nenhuma linha. Quem o rodava as 03h nao sabia se tinha
+# publicado (revisao de 2026-10-22).
+deploy_sh = (ROOT / 'scripts' / 'deploy.sh').read_text(encoding='utf-8')
+confere('-E 75' in deploy_sh and 'Nada foi publicado' in deploy_sh,
+        'deploy.sh diz que nada foi publicado quando a trava esta tomada')
+
 print('=== 7. o que a primeira restauracao de verdade ensinou ===')
 #
 # Esta secao existe porque o ciclo completo foi exercitado em 20/09/2026
@@ -190,6 +246,13 @@ import inspect as _inspect
 
 fonte_restore = _inspect.getsource(restore) if restore else ''
 fonte_deploy = _inspect.getsource(importlib.import_module('ops.deploy'))
+
+# 0. Sem User-Agent, a Cloudflare responde 403 ao pedido das faixas de IP:
+#    foi assim que um deploy morreu (commit a7d8132), e o deploy passou a
+#    usar `buscar`. A restauracao ficou com o `urlopen` cru ate 2026-10-22
+#    -- e pararia ali, no dia do desastre.
+confere('urlopen(' not in fonte_restore and 'buscar(' in fonte_restore,
+        'a restauracao pede as faixas da Cloudflare com o User-Agent da instalacao')
 
 # 1. `pg_restore --list` le so o indice e fecha o cano; o `age` que ainda
 #    escrevia morre de SIGPIPE. Tratar isso como falha fazia a conferencia

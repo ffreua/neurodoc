@@ -109,13 +109,13 @@ Depois do `--activate`, e antes de ligar qualquer canal, o comando
 documento, e marca entregas e eventos pendentes para reconciliação — ver
 abaixo.
 
-> **Defeito conhecido, não corrigido em 2026-10-22.** O `--activate` busca
-> as faixas de IP da Cloudflare com o `urllib` puro. O `ops/deploy.py`
-> parou exatamente nesse pedido no primeiro deploy — a Cloudflare devolve
-> 403 ao `User-Agent` padrão do `urllib` — e passou a se identificar
-> (`ops/deploy.py::buscar`, commit `a7d8132`); o `ops/restore.py` ficou
-> com o pedido antigo. Até a correção, espere que o `--activate` pare ali,
-> depois do preflight e antes do `stack deploy`.
+> **Defeito corrigido na 1.24.1.** O `--activate` buscava as faixas de IP
+> da Cloudflare com o `urllib` puro. O `ops/deploy.py` parou exatamente
+> nesse pedido no primeiro deploy — a Cloudflare devolve 403 ao
+> `User-Agent` padrão do `urllib` — e passou a se identificar
+> (`ops/deploy.py::buscar`, commit `a7d8132`); o `ops/restore.py` ficou com
+> o pedido antigo até a revisão de 2026-10-22 e pararia ali. Agora usa o
+> mesmo `buscar`, e `check_backup` §7 cobra.
 
 ## Primeiro drill real — 2026-09-26
 
@@ -190,7 +190,6 @@ cópia externa desde 2026-10-02. O que falta agora é só o que depende de
 fazer:
 
 - **O `--activate` num host separado**, com as chaves-mestras reais, e com
-  ele a primeira medição de RPO/RTO. H-22 segue aberto até lá. Antes, a
-  correção do defeito do `User-Agent` descrito acima.
+  ele a primeira medição de RPO/RTO. H-22 segue aberto até lá.
 - O roteiro de restauração a cada seis meses está em
   [`manutencao.md`](manutencao.md) §3.

@@ -58,6 +58,10 @@ diz a causa.
 
 ## 2. Toda semana: o backup rodou?
 
+Desde a 1.24.1, o backup que **falha** manda e-mail aos
+superadministradores (`monitoring.md`). Conferir continua valendo: o
+aviso depende do worker no ar e do e-mail saindo.
+
 ```
 ssh neurodoc-vps "ls -1 /srv/neurodoc-backups/ | tail -3"
 ```
@@ -204,8 +208,8 @@ healthy.`
 **Nunca faça commit na VPS.** O próprio deploy roda `git pull --ff-only`,
 e um commit local faz a publicação seguinte parar ali.
 
-Se o `deploy.sh` sair na hora, sem mensagem: outra operação segura a trava
-— outro deploy, ou o backup das 03:00. Espere e rode de novo.
+Se o `deploy.sh` disser "Nada foi publicado": outra operação segura a
+trava — outro deploy, ou o backup das 03:00. Espere e rode de novo.
 
 **O build roda no servidor, não no seu computador.** Não é preciso subir a
 pilha local para publicar — ela serve para rodar os roteiros de

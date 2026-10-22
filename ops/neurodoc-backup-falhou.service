@@ -1,0 +1,23 @@
+# Molde. O `scripts/setup_deploy.sh` instala este arquivo substituindo o
+# caminho e o usuario pelos que a instalacao realmente usa; os valores
+# abaixo sao os padroes (`/srv/neurodoc`, `neurodocops`).
+#
+# Nao tem timer: quem a dispara e o `OnFailure=` de `neurodoc-backup.service`.
+# Backup que falhava so deixava `status=1/FAILURE` no journal, e ninguem le
+# o journal sem motivo -- este e o motivo, por e-mail.
+#
+# `/bin/sh` antes do script pelo mesmo motivo das outras unidades: os
+# scripts sao versionados em 644.
+[Unit]
+Description=Aviso por e-mail de que o backup do NeuroDoc falhou
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=neurodocops
+Group=neurodocops
+WorkingDirectory=/srv/neurodoc
+ExecStart=/bin/sh /srv/neurodoc/scripts/avisar_falha_backup.sh
+TimeoutStartSec=5min
+NoNewPrivileges=true

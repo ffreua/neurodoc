@@ -1125,6 +1125,10 @@ SSHCFG
       sudo tee "/etc/systemd/system/${unidade}.service" >/dev/null
     sudo cp "ops/${unidade}.timer" "/etc/systemd/system/${unidade}.timer"
   done
+  # O aviso de backup que falhou: sem timer, disparado pelo `OnFailure=`
+  # da unidade do backup.
+  sudo sed "$ajustes" "ops/neurodoc-backup-falhou.service" |
+    sudo tee "/etc/systemd/system/neurodoc-backup-falhou.service" >/dev/null
   sudo systemctl daemon-reload
   sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer >>"$LOG_FILE" 2>&1
   ok "Timers instalados e ligados (backup às 03:00, limpeza a cada 5 min)"
@@ -1261,7 +1265,8 @@ instrucoes_finais() {
   echo "    • Conferir sem publicar: ${CYAN}bash scripts/deploy.sh --check${RESET}"
   echo "    • Status...............: ${CYAN}docker service ls${RESET}"
   echo "    • Log do app...........: ${CYAN}docker service logs ${STACK}_app --tail 100 -f${RESET}"
-  echo "    • Voltar atrás.........: ${CYAN}docker service rollback ${STACK}_app${RESET}"
+  echo "    • Voltar atrás.........: ${CYAN}for s in app celery_worker celery_beat; do docker service rollback ${STACK}_\$s; done${RESET}"
+  echo "      ${GREY}Os três: só o app deixaria worker e beat no código novo. --skip-build não volta versão.${RESET}"
   echo ""
   echo "  ${BOLD}Comandos que talvez tenham ficado para depois:${RESET}"
   echo "    ${GREY}# superadministrador${RESET}"

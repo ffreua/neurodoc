@@ -171,7 +171,7 @@ Resumo — o procedimento está em
 
 | Sintoma | Onde olhar |
 | --- | --- |
-| `deploy.sh` sai na hora, com código 1 e sem mensagem | Outra operação segura `.runtime/operation.lock` — outro deploy, ou **o backup das 03:00**, que usa a mesma trava. O arquivo existir não é trava: a trava é do processo, e some quando ele termina. Espere e rode de novo |
+| `deploy.sh` diz "Nada foi publicado: outra operacao segura .runtime/operation.lock" (código 75; até a 1.24, saía com código 1 e sem mensagem) | Outra operação segura `.runtime/operation.lock` — outro deploy, ou **o backup das 03:00**, que usa a mesma trava. O arquivo existir não é trava: a trava é do processo, e some quando ele termina. Espere e rode de novo |
 | `Infrastructure image changed` | Uma tag de infraestrutura foi republicada no registry. Fixe no `.env` o digest que **já roda** e trate a troca como manutenção (ver `docs/ESTADO-ATUAL.md`, o caso do Postgres em 2026-10-06) |
 | `Unknown configuration keys` | Chave no `.env` que não existe no `.env.example` |
 | `app` reinicia em laço | `docker service ps neurodoc_v1_app --no-trunc` e `docker service logs neurodoc_v1_app --tail 100` — normalmente segredo faltando ou migration |

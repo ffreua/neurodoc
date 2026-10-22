@@ -21,4 +21,19 @@ if [ -x .venv-ops/bin/python ]; then
 else
     PYTHON=python3
 fi
-exec flock -n .runtime/operation.lock "$PYTHON" -m ops.deploy "$@"
+# Sem `exec`, para poder explicar a recusa. `flock -n` saia com codigo 1
+# **calado** quando a trava estava tomada -- e quem a toma todo dia e o
+# backup (`scripts/backup.sh`, mesma trava). Quem rodava o deploy as 03h
+# via o prompt voltar sem nada e nao sabia se tinha publicado. `-E 75`
+# separa "ocupado" de qualquer falha do proprio deploy, que ja se explica.
+set +e
+flock -n -E 75 .runtime/operation.lock "$PYTHON" -m ops.deploy "$@"
+CODIGO=$?
+set -e
+if [ "$CODIGO" -eq 75 ]; then
+    echo "Nada foi publicado: outra operacao segura .runtime/operation.lock" >&2
+    echo "(o backup diario ou outro deploy). Confira com:" >&2
+    echo "  systemctl status neurodoc-backup.service; pgrep -af 'ops\.(deploy|backup)'" >&2
+    echo "e rode de novo quando ela terminar." >&2
+fi
+exit "$CODIGO"

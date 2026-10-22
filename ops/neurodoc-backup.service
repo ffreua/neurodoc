@@ -10,6 +10,9 @@
 Description=Backup criptografado do NeuroDoc
 Requires=docker.service
 After=docker.service network-online.target
+# Falhou? Avisa por e-mail (`neurodoc-backup-falhou.service`). Antes disto a
+# falha so ficava no journal, e um dia inteiro sem backup passou calado.
+OnFailure=neurodoc-backup-falhou.service
 
 [Service]
 Type=oneshot

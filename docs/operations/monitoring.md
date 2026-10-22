@@ -105,10 +105,19 @@ urgência, e aponta `/instalacao/operacao/`.
 | Todo mês | a cópia externa conferida | [`copia-externa.md`](copia-externa.md) |
 | A cada 6 meses | restaurar de verdade | [`restore.md`](restore.md) |
 
+## Backup que falhou (desde a 1.24.1)
+
+`neurodoc-backup.service` tem `OnFailure=neurodoc-backup-falhou.service`:
+quando o backup termina com erro, o systemd dispara
+`scripts/avisar_falha_backup.sh`, que roda `manage.py avisar_falha_backup`
+**no contêiner do worker** (só ele tem a credencial de e-mail) e manda aos
+superadministradores ativos o aviso, com o comando para ver o motivo.
+Antes disso a falha só ficava no `journal`. Sem worker no ar, o aviso não
+sai — e a própria unidade do aviso falha no `journal`
+(`journalctl -u neurodoc-backup-falhou.service`).
+
 ## O que ainda não existe
 
-- **Alerta de backup que falhou.** O `neurodoc-backup.service` falha no
-  `journal` e ninguém é avisado. A defesa hoje é olhar (§2 da manutenção):
-  a tarefa diária da cópia externa também não acusa o dia que faltou — ela
+- **Alerta de que a cópia externa não trouxe nada novo.** A tarefa diária
   registra `0 novo(s)` no log e sai com sucesso.
 - **Métricas de desempenho** (RNF-01, H-23): nenhuma medição sob carga.

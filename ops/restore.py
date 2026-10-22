@@ -5,12 +5,11 @@ import os
 import re
 import subprocess
 import time
-import urllib.request
 import uuid
 from pathlib import Path
 
 from ops.deploy import (
-    configuration, create_config, initialize_volumes, preflight, registry,
+    buscar, configuration, create_config, initialize_volumes, preflight, registry,
     resolve_image, run, wait_for_stack,
 )
 from ops.env import ROOT
@@ -233,8 +232,13 @@ def activate(record):
     prepare_runtime(config)
     initialize_volumes(params['APP_IMAGE'])
     cidrs = []
+    # `buscar`, e nao `urlopen` cru: sem User-Agent a Cloudflare responde
+    # 403 a este mesmo pedido, e foi assim que um deploy morreu (commit
+    # a7d8132). O deploy foi corrigido na hora; a restauracao, que so roda
+    # no dia do desastre, ficou com o pedido antigo ate a revisao de
+    # 2026-10-22 -- e pararia exatamente aqui.
     for suffix in ['ips-v4', 'ips-v6']:
-        with urllib.request.urlopen(f'https://www.cloudflare.com/{suffix}', timeout=10) as response:
+        with buscar(f'https://www.cloudflare.com/{suffix}', timeout=10) as response:
             cidrs.extend(response.read().decode().splitlines())
     params['TRAEFIK_CONFIG'] = create_config(make_traefik(config, cidrs), 'traefik')
     params['POSTGRES_INIT_CONFIG'] = create_config(ROOT / 'ops/postgres_init.sh', 'pginit')
