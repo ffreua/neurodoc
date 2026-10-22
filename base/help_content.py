@@ -333,6 +333,15 @@ ARTICLES = [
              'documentado, ela diz que não encontrou, em vez de descrever uma tela de '
              'memória.',
              '', ''),
+            ('Na conversa **com paciente**, quatro atalhos ficam acima do campo de '
+             'mensagem: **Revisar diagnóstico**, **Revisar evolução**, **Preparar '
+             'retorno** e **Explicar ao paciente**. O atalho só escreve um pedido pronto '
+             'no campo — nada é enviado sozinho. Leia, ajuste o que quiser e envie como '
+             'qualquer mensagem. Se o campo já tiver texto, o pedido entra depois dele, '
+             'sem apagar o que você escreveu. A IA vê um recorte do prontuário (os '
+             'atendimentos mais recentes, os exames e as medicações e diagnósticos do '
+             'último atendimento), e o pedido manda dizer o que faltou nesse recorte.',
+             '', ''),
             ('Cada conversa é isolada: nenhuma herda o contexto de outra. A resposta '
              'aparece sendo escrita, e você pode parar no meio.',
              'chat-conversa.png', 'Conversa aberta'),

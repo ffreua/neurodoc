@@ -152,6 +152,21 @@ assunto exigia voltar. É a forma de todo aplicativo de mensagens porque
                 diz quando não encontra. <strong>Revise antes de usar</strong> — ela não dá
                 diagnóstico nem prescreve conduta.
             </p>
+            {% if acoes_rapidas %}
+            {% comment %}Os cartões só escrevem no campo abaixo; quem envia é o
+            botão de sempre, depois de o médico ler e editar. O texto vem de
+            `ai/acoes_rapidas.py` e não carrega dado nenhum do paciente.
+            {% endcomment %}
+            <div class="nd-chat-acoes" role="group" aria-label="Ações rápidas">
+                {% for acao in acoes_rapidas %}
+                <button type="button" class="nd-chat-acao" data-nd-acao="{{ acao.id }}"
+                        data-nd-acao-texto="{{ acao.texto }}" title="{{ acao.descricao }}">
+                    <span class="nd-chat-acao-rotulo">{{ acao.rotulo }}</span>
+                    <span class="nd-chat-acao-desc">{{ acao.descricao }}</span>
+                </button>
+                {% endfor %}
+            </div>
+            {% endif %}
             <form method="post" action="{% url 'ai:chat-message-create' session.id %}" id="nd-chat-form">
                 {% csrf_token %}
                 <div class="nd-chat-input">

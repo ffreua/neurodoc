@@ -185,6 +185,41 @@
     justify-content: center;
 }
 
+/* Ações rápidas: quatro cartões numa faixa, acima do campo. Compactos de
+ * propósito — são atalho, e não podem empurrar a conversa para cima. */
+.nd-chat-acoes {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .5rem;
+    margin-bottom: .625rem;
+}
+
+.nd-chat-acao {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: .125rem;
+    min-height: 2.5rem;        /* alvo de toque, como no resto do sistema */
+    padding: .45rem .65rem;
+    text-align: left;
+    background: var(--bs-gray-100, #f8f9fa);
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    border-radius: .375rem;
+    color: var(--bs-dark, #283c50);
+    cursor: pointer;
+}
+.nd-chat-acao:hover { border-color: var(--bs-primary, #3454d1); }
+.nd-chat-acao:focus-visible {
+    outline: 2px solid var(--bs-primary, #3454d1);
+    outline-offset: 1px;
+}
+.nd-chat-acao-rotulo { font-size: .8125rem; font-weight: 600; }
+.nd-chat-acao-desc {
+    font-size: .6875rem;
+    color: var(--bs-secondary, #64748b);
+    line-height: 1.25;
+}
+
 /* No celular a lista vira uma faixa curta acima da conversa: duas colunas
  * de 19rem não cabem, e esconder a lista deixaria a pessoa sem como
  * trocar de conversa. */
@@ -196,4 +231,8 @@
     }
     .nd-chat-aside { flex: 0 0 auto; max-height: 16rem; }
     .nd-chat-messages { min-height: 22rem; max-height: 60vh; }
+    /* Em tela estreita, dois por linha e sem a descrição: o rótulo basta,
+     * e a descrição fica no `title`. */
+    .nd-chat-acoes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .nd-chat-acao-desc { display: none; }
 }

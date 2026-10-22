@@ -60,6 +60,12 @@ def _shell(request, session=None, **overrides):
         'session': session,
         'rendered_messages': [],
     }
+    if session is not None and session.patient_id:
+        # Só com paciente: os quatro pedidos falam do prontuário, e a
+        # conversa sem paciente não tem prontuário a que se referir.
+        from .acoes_rapidas import ACOES
+
+        contexto['acoes_rapidas'] = ACOES
     if session is not None:
         contexto['rendered_messages'] = [
             {'message': m,

@@ -61,6 +61,30 @@
         });
 
         campo.focus();
+
+        /* Ações rápidas: o cartão só escreve no campo, nunca envia. O
+         * médico lê, edita e manda pelo botão de sempre — é essa revisão
+         * que mantém o pedido dele, e não do sistema.
+         *
+         * Campo com texto não é sobrescrito: o pedido entra **depois** do
+         * que já estava, separado por uma linha em branco. Trocar o
+         * rascunho em silêncio perderia o que a pessoa escreveu, e um
+         * modal perguntando "substituir?" seria uma confirmação a mais
+         * para uma ação que se desfaz apagando. O mesmo cartão clicado
+         * duas vezes não duplica o pedido. */
+        document.querySelectorAll('[data-nd-acao-texto]').forEach(function (botao) {
+            botao.addEventListener('click', function () {
+                var pedido = botao.getAttribute('data-nd-acao-texto') || '';
+                if (!pedido) return;
+                var atual = campo.value;
+                if (atual.indexOf(pedido) === -1) {
+                    campo.value = atual.trim() ? atual.replace(/\s+$/, '') + '\n\n' + pedido : pedido;
+                }
+                ajustarAltura();
+                campo.focus();
+                campo.setSelectionRange(campo.value.length, campo.value.length);
+            });
+        });
     }
 
     /* --------------------------------------------- filtro das conversas */
