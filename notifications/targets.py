@@ -44,6 +44,12 @@ REGISTRY = {
     'ai_job': Target(
         'ai:job-detail', 'ai.AIJob', 'Abrir resultado',
     ),
+    # O relatório do paciente tem tela própria: é nela que o texto se edita,
+    # se aprova (virando rascunho de documento) e se descarta. A genérica não
+    # sabe desenhá-lo.
+    'ai_report': Target(
+        'ai:relatorio-detalhe', 'ai.AIJob', 'Revisar relatório',
+    ),
     'report_export': Target(
         'reporting:export-detail', 'reporting.ReportExport', 'Abrir exportação',
     ),

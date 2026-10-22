@@ -3,7 +3,7 @@ import logging
 
 from .chat_models import ChatMessage
 from .chat_services import fail_assistant_message, finalize_assistant_message
-from .models import AIJob, AIJobStatus
+from .models import AIJob, AIJobKind, AIJobStatus
 from .context import AIAuthorizationDenied
 from .providers import (
     ProviderUnavailable, descrever_falha, get_chat_model, installation_reserve_model,
@@ -26,18 +26,29 @@ def _notify_job_completion(job):
     from notifications.services import notify_user
 
     kind = 'ai_job_succeeded' if job.status == AIJobStatus.SUCCEEDED else 'ai_job_failed'
+    # **O relatório tem tela própria, e o aviso leva a ela.** Levava à tela
+    # genérica de resultado (`ai:job-detail`), que só sabe desenhar o resumo
+    # e o apoio diagnóstico: o médico pedia o relatório, saía da página,
+    # clicava no sino e via "Resumo" e "Hipóteses" em branco -- com o
+    # relatório pronto, mas inalcançável por ali (2026-10-22). Quem ficava na
+    # página não via o defeito, porque ela mesma se atualiza no lugar certo.
+    relatorio = job.kind == AIJobKind.PATIENT_REPORT
+    alvo = 'ai_report' if relatorio else 'ai_job'
     if Notification.objects.filter(
         tenant_id=job.tenant_id, user_id=job.user_id, kind=kind,
-        target_type='ai_job', target_id=job.id,
+        target_type=alvo, target_id=job.id,
     ).exists():
         return
-    if job.status == AIJobStatus.SUCCEEDED:
+    if relatorio:
+        title = ('Relatório do paciente pronto para revisão' if job.status == AIJobStatus.SUCCEEDED
+                 else 'O relatório do paciente não foi concluído')
+    elif job.status == AIJobStatus.SUCCEEDED:
         title = 'Tarefa de IA concluída'
     else:
         title = 'A tarefa de IA não foi concluída'
     notify_user(
         job.tenant, job.user_id, kind=kind, sanitized_title=title,
-        target_type='ai_job', target_id=job.id,
+        target_type=alvo, target_id=job.id,
     )
 
 

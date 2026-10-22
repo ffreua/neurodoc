@@ -51,6 +51,12 @@ class EncounterSummaryRequestView(TenantScopedView):
 class AIJobDetailView(TenantScopedView):
     def get(self, request, job_id):
         job = get_object_or_404(scope_to_tenant(AIJob.objects.all(), request.access_context), id=job_id)
+        # O relatório do paciente vai para a tela dele. Esta só desenha resumo
+        # e apoio diagnóstico, e com um relatório mostrava "Resumo" e
+        # "Hipóteses" em branco. O redirecionamento cobre os avisos que já
+        # estão no sino apontando para cá, e qualquer link antigo.
+        if job.kind == AIJobKind.PATIENT_REPORT:
+            return redirect('ai:relatorio-detalhe', job_id=job.id)
         artifacts = job.artifacts.order_by('-created_at')
         return render(request, 'ai/job_detail.html', {'job': job, 'artifacts': artifacts})
 
@@ -60,6 +66,11 @@ class ArtifactAcceptView(TenantScopedView):
         from tenancy.models import Membership
 
         artifact = get_object_or_404(scope_to_tenant(AIArtifact.objects.all(), request.access_context), id=artifact_id)
+        if artifact.job.kind == AIJobKind.PATIENT_REPORT:
+            # Aprovar o relatório é a ponte que cria o rascunho do documento
+            # com o texto editado (`ai:relatorio-aprovar`). Aceitá-lo por aqui
+            # marcaria o artefato como aprovado sem documento nenhum.
+            return redirect('ai:relatorio-detalhe', job_id=artifact.job_id)
         reviewer = Membership.objects.filter(id=request.access_context.membership_id).first()
         try:
             accept_artifact(artifact, reviewer)
@@ -73,6 +84,10 @@ class ArtifactRejectView(TenantScopedView):
         from tenancy.models import Membership
 
         artifact = get_object_or_404(scope_to_tenant(AIArtifact.objects.all(), request.access_context), id=artifact_id)
+        if artifact.job.kind == AIJobKind.PATIENT_REPORT:
+            # O relatório se descarta pela tela dele (`ai:relatorio-descartar`),
+            # que apaga o texto e deixa a trilha.
+            return redirect('ai:relatorio-detalhe', job_id=artifact.job_id)
         reviewer = Membership.objects.filter(id=request.access_context.membership_id).first()
         try:
             reject_artifact(artifact, reviewer, request.POST.get('reason', ''))
