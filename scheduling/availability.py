@@ -411,10 +411,60 @@ def week_grid(physician_membership_id, week_start, include_cancelled=False):
     procurar.
     """
     days = [week_start + timedelta(days=index) for index in range(7)]
+    # Regras, bloqueios, pausas e reservas carregados **uma vez** para os
+    # sete dias, como em `month_summary` (auditoria de 2026-10, P2). Chamar
+    # `day_grid` sem eles eram quatro consultas por dia, 28 a 35 para
+    # desenhar a semana. A grade de cada dia continua sendo a de `day_grid`;
+    # o que muda é só de onde vêm as linhas, e a ordem de cada lista é a
+    # mesma das funções `*_on` -- `day_grid` escolhe a **primeira** reserva
+    # e o **primeiro** bloqueio que tocam a célula.
+    inicio = _combine(days[0], time.min)
+    fim = _combine(days[-1], time.min) + timedelta(days=1)
+    todas_regras = list(
+        AvailabilityRule.objects.filter(
+            physician_membership_id=physician_membership_id, starts_on__lte=days[-1],
+        ).filter(_ends_on_ok(days[0])).order_by('local_start')
+    )
+    todos_bloqueios = list(
+        ScheduleBlock.objects.filter(
+            physician_membership_id=physician_membership_id,
+            start_at__lt=fim, end_at__gt=inicio,
+        ).order_by('start_at')
+    )
+    todas_pausas = list(
+        RecurringBreak.objects.filter(
+            physician_membership_id=physician_membership_id, starts_on__lte=days[-1],
+        ).filter(_ends_on_ok(days[0]))
+    )
+    reservas = Appointment.objects.filter(
+        physician_membership_id=physician_membership_id,
+        starts_at__lt=fim, ends_at__gt=inicio,
+    ).select_related('patient').prefetch_related('patient__contacts')
+    if not include_cancelled:
+        reservas = reservas.filter(status__in=list(OCCUPYING_STATUSES))
+    todas_reservas = list(reservas.order_by('starts_at'))
+
     columns = []
     times = set()
     for day in days:
-        cells = day_grid(physician_membership_id, day, include_cancelled=include_cancelled)
+        dia_inicio, dia_fim = day_bounds(day)
+        cells = day_grid(
+            physician_membership_id, day, include_cancelled=include_cancelled,
+            rules=[
+                r for r in todas_regras
+                if r.weekday == day.weekday() and r.starts_on <= day
+                and (r.ends_on is None or r.ends_on >= day)
+            ],
+            blocks=[b for b in todos_bloqueios if b.start_at < dia_fim and b.end_at > dia_inicio],
+            breaks=[
+                p for p in todas_pausas
+                if p.weekday == day.weekday() and p.starts_on <= day
+                and (p.ends_on is None or p.ends_on >= day)
+            ],
+            appointments=[
+                a for a in todas_reservas if a.starts_at < dia_fim and a.ends_at > dia_inicio
+            ],
+        )
         by_time = {}
         for cell in cells:
             key = timezone.localtime(cell['start']).strftime('%H:%M')
