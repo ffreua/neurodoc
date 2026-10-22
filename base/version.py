@@ -203,7 +203,12 @@ carimbá-la na publicação.
 #: documentos e no mês, recusas do contato em português, o pedido do médico
 #: que não manda sobre as regras do relatório e rótulos para o leitor de
 #: tela. Sem migração.
-VERSION = '1.24'
+#: A **1.24.1**: cartões da receita na altura do conteúdo (a regra vale para
+#: toda coluna que empilha cartões), campos do atendimento que rolam em vez
+#: de crescer, aviso por e-mail quando o backup falha, e três correções de
+#: operação -- a restauração com User-Agent, o deploy que diz por que não
+#: publicou e a dica de rollback nos três serviços.
+VERSION = '1.24.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
