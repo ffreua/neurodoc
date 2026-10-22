@@ -75,4 +75,25 @@ NeuroDoc — contato@neurodoc.app.br
 
 ## Registro do envio
 
-*Preenchido depois do envio.*
+**Enviado em 2026-10-22**, depois da publicação da exigência de roteamento
+(`04afb1e`) e **antes** de a reserva ser ligada, de `contato@neurodoc.app.br`,
+pelo SMTP da instalação (no worker), com cópia oculta para
+`contato@neurodoc.app.br`. O servidor aceitou os cinco:
+
+| Clínica | Responsável (*owner*) | Plano | "Na sua clínica" |
+| --- | --- | --- | --- |
+| Caldas, Rego e Urbano Serviços Médicos | jcc.urbano@gmail.com | Completo | usa a IA da instalação |
+| Caixeta Serviços Médicos (C e N Serviços Médicos LTDA) | saracaixetadesouza@gmail.com | Completo | usa a IA da instalação |
+| Luca SB | suzano.luca@gmail.com | Gratuito | plano sem IA |
+| Santos Dias Medical Care | amandaselvatici.consultorio@gmail.com | Gratuito | plano sem IA |
+| Schalch Serviços Médicos | alexandre.schalch@gmail.com | Gratuito | plano sem IA |
+
+Não receberam: a Freua Serviços Médicos (do titular, autor da mudança, que
+usa a própria chave da OpenRouter e por isso nunca é atendida pela reserva)
+e a FK Freua (do titular, plano sem IA).
+
+**Ponto aberto a acompanhar:** o texto oferece, diante de oposição, manter a
+reserva desligada para a clínica. Isso ainda **não existe por clínica** — a
+reserva é da instalação inteira. Se alguma clínica se opuser, a resposta
+imediata é desligar a reserva no console (um clique) enquanto a opção por
+clínica é construída.
