@@ -416,6 +416,32 @@ try:
         r = comum.post(url, {'acao': 'ligar'})
         print(f'  médico -> HTTP {r.status_code}')
         conferir(r.status_code == 404, 'o console da reserva respondeu a quem não é superadministrador')
+
+        # A OpenRouter repassa cada pedido a um de dezenas de provedores (em
+        # 2026-10-22, 37 para o modelo da reserva, alguns na China). O que vai
+        # para a relação de suboperadores só é verdade se o pedido da
+        # instalação levar a restrição — e a chave da clínica, não.
+        print('=== 13. OpenRouter da instalação: só retenção zero, sem treino, sem os excluídos ===')
+        from ai.providers import ROTEAMENTO_OPENROUTER_DA_INSTALACAO as ROT, _build
+
+        def roteamento(modelo):
+            return (getattr(modelo, 'extra_body', None) or {}).get('provider')
+
+        inst = _build('openrouter', 'x/y', 'sk-roteiro', '', da_instalacao=True)
+        clin = _build('openrouter', 'x/y', 'sk-roteiro', '')
+        outro = _build('openai', 'gpt-x', 'sk-roteiro', '', da_instalacao=True)
+        print(f'  instalação={roteamento(inst)}  clínica={roteamento(clin)}  outro provedor={roteamento(outro)}')
+        conferir(roteamento(inst) == ROT, 'a OpenRouter da instalação saiu sem a restrição de roteamento')
+        conferir(ROT.get('zdr') is True and ROT.get('data_collection') == 'deny',
+                 'a restrição não exige retenção zero e recusa de treino')
+        conferir({'baidu', 'alibaba', 'siliconflow', 'streamlake'} <= set(ROT.get('ignore', [])),
+                 'os provedores excluídos sumiram da restrição')
+        conferir(roteamento(clin) is None, 'a chave da clínica recebeu o roteamento da instalação')
+        conferir(roteamento(outro) is None, 'provedor que não é a OpenRouter recebeu parâmetro dela')
+        from ai.providers import installation_reserve_model
+        configurar_reserva(ativa=False)
+        conferir(roteamento(installation_reserve_model()) == ROT,
+                 'o cliente da reserva não leva a restrição de roteamento')
 finally:
     restaurar()
 

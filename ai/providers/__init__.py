@@ -41,7 +41,27 @@ def _tenant_settings(tenant_id):
     return row if row is not None and row.is_usable else None
 
 
-def _build(provider, model, api_key, base_url=''):
+#: Roteamento exigido da OpenRouter quando quem paga e responde é a
+#: **instalação** (o principal ou a reserva), nunca a chave de uma clínica.
+#:
+#: A OpenRouter não roda o modelo: repassa cada pedido a um dos provedores
+#: de infraestrutura que o servem — em 2026-10-22 eram 37 para o
+#: `deepseek/deepseek-v4.1-flash`, entre eles empresas na China. Sem isto,
+#: o texto clínico desidentificado iria a qualquer um deles, escolhido a
+#: cada pedido, e a relação de suboperadores não teria como dizer onde. Com
+#: isto, só provedor de **retenção zero** (`zdr`), que **não usa o dado para
+#: treino** (`data_collection: deny`), e nunca os da lista `ignore`.
+#: Conferido em produção no mesmo dia: o pedido continua respondendo, e o
+#: provedor excluído deixa de ser escolhido. Ver
+#: `docs/governance/suboperadores.md`.
+ROTEAMENTO_OPENROUTER_DA_INSTALACAO = {
+    'zdr': True,
+    'data_collection': 'deny',
+    'ignore': ['baidu', 'alibaba', 'siliconflow', 'streamlake'],
+}
+
+
+def _build(provider, model, api_key, base_url='', *, da_instalacao=False):
     """O cliente de chat, para qualquer provedor do catálogo.
 
     Quase todos expõem a API da OpenAI em outro endereço, o que permite um
@@ -58,10 +78,16 @@ def _build(provider, model, api_key, base_url=''):
 
     from langchain_openai import ChatOpenAI
 
+    extras = {}
+    if da_instalacao and provider == 'openrouter':
+        # A clínica que usa a própria chave da OpenRouter escolhe o roteamento
+        # no contrato dela; o da instalação é decisão do NeuroDoc.
+        extras['extra_body'] = {'provider': dict(ROTEAMENTO_OPENROUTER_DA_INSTALACAO)}
     return ChatOpenAI(
         model=model, api_key=api_key,
         base_url=resolve_base_url(provider, base_url),
         timeout=REQUEST_TIMEOUT_SECONDS,
+        **extras,
     )
 
 
@@ -154,7 +180,7 @@ def _installation_model():
             f'Nenhum modelo de IA escolhido para o provedor da instalação '
             f'({provider}). Escolha um em /instalacao/operacao/.'
         )
-    return _build(provider, model, api_key, base_url)
+    return _build(provider, model, api_key, base_url, da_instalacao=True)
 
 
 def get_chat_model(provider=None, tenant_id=None):
@@ -248,7 +274,7 @@ def installation_reserve_model():
         api_key = config.reserva_api_key()
     except SecretUnavailable as exc:
         raise ProviderUnavailable(f'A chave da reserva não abre: {exc}') from exc
-    return _build(provider, config.ai_reserva_model, api_key, base_url)
+    return _build(provider, config.ai_reserva_model, api_key, base_url, da_instalacao=True)
 
 
 def descrever_falha(exc):

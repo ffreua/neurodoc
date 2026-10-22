@@ -5,8 +5,8 @@ CONTRATANTE" (cláusula 8.2), com os campos que a cláusula 8.3 pede:
 identidade do prestador, finalidade, categorias gerais de informação,
 localização relevante e existência de transferência internacional.
 
-**Atualizada em 2026-10-19.** Conferida contra a instalação em produção
-nesse dia — não é a lista do que *poderia* ser usado, é a do que **está**
+**Atualizada em 2026-10-22** (inclusão da OpenRouter). Conferida contra a
+instalação em produção nesse dia — não é a lista do que *poderia* ser usado, é a do que **está**
 em uso. Mudança aqui é inclusão ou substituição de suboperador, e a
 cláusula 8.4 manda comunicar às clínicas **antes**.
 
@@ -17,15 +17,17 @@ cláusula 8.4 manda comunicar às clínicas **antes**.
 | **Hostinger** (e-mail da instalação) | Enviar e-mail de conta (confirmação, senha), aviso de horário e o link de entrega de documento | Nome e e-mail do destinatário, assunto neutro e um link opaco — **nunca diagnóstico nem o documento** | A confirmar com o provedor | A confirmar |
 | **SMSDEV** (SMS) | Enviar aviso de horário, lembrete e o link de entrega de documento | Telefone e mensagem neutra com o link | Brasil | Não |
 | **NVIDIA** (IA padrão da instalação) | Apoio clínico por IA, só nos planos que o contratam e só quando a clínica liga o recurso | Texto clínico **desidentificado** localmente antes de sair (nome, CPF, telefone e e-mail removidos); a resposta volta como rascunho que o médico revisa | **EUA** | **Sim** |
+| **OpenRouter, Inc.** (IA **reserva** da instalação, desde 2026-10-22) | Responder no lugar da NVIDIA **só quando a chamada a ela falha** (fora do ar, tempo esgotado, limite de uso, modelo aposentado), só para clínica que usa o padrão da instalação e só no plano que contrata IA | O mesmo texto clínico **desidentificado** que iria à NVIDIA; a resposta volta como rascunho que o médico revisa. Cada uso fica na trilha de auditoria e no artefato, com qual provedor respondeu | **EUA**. A OpenRouter repassa o pedido a um provedor de infraestrutura que serve o modelo, escolhido a cada pedido; a instalação **exige** só provedor de **retenção zero**, que **não usa o dado para treino**, e exclui os sediados na China | **Sim** |
 
-**O provedor de IA reserva da instalação (desde a 1.23).** O console
-permite configurar um segundo provedor (por exemplo, a OpenRouter) que
-responde quando a NVIDIA falha, só para as clínicas que usam o padrão da
-instalação e com o mesmo texto desidentificado. **Enquanto estiver
-desligado, ele não trata dado nenhum e não é suboperador.** Ligá-lo o torna
-suboperador: antes, esta tabela ganha a linha dele (finalidade, dados,
-local, transferência) e as clínicas são comunicadas, como manda a
-cláusula 8 do contrato de adesão.
+**Sobre a OpenRouter.** Ela não roda o modelo: é um intermediário que
+repassa o pedido a um dos provedores de infraestrutura que servem aquele
+modelo — em 2026-10-22, 37 para o `deepseek/deepseek-v4.1-flash`, alguns
+deles na China. Por isso a instalação manda, em todo pedido que **ela**
+paga, a exigência de roteamento (`zdr`, `data_collection: deny` e a lista
+de exclusão), conferida em produção no mesmo dia. A reserva **nasce
+desligada** e é ligada no console; desligá-la é um clique. Trocar o
+provedor reserva por outro é **inclusão de suboperador**: esta tabela muda
+antes, e as clínicas são comunicadas.
 
 **O que não está na tabela, e por quê.**
 
