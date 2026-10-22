@@ -51,15 +51,45 @@ def confere(condicao, descricao, detalhe=''):
         failures.append(descricao)
 
 
-medico = Membership.objects.filter(tenant__slug='demo-clinica-a', roles__contains=['doctor']).first()
+# Ordem explicita: a clinica de demonstracao tem DOIS medicos, e `first()`
+# sem `order_by` devolve o de menor UUID -- sorteado a cada semeadura. O
+# roteiro reprovava com um e passava com o outro, sem mudar uma linha
+# (achado em 2026-10-21). Fica o doctor-a, que e o caso dificil: e dele a
+# consulta de demonstracao da segunda-feira.
+medico = (
+    Membership.objects.filter(tenant__slug='demo-clinica-a', roles__contains=['doctor'])
+    .order_by('user__email').first()
+)
 if medico is None:
     print('FALTA DADO: nenhum medico na clinica de demonstracao')
     raise SystemExit(1)
 
-# Uma segunda-feira futura, para nao esbarrar em feriado nem em reserva.
+# Uma segunda-feira futura **sem nenhuma consulta nem bloqueio** deste
+# medico -- procurada, e nao suposta.
+#
+# Era "a segunda depois de hoje + 7", e a premissa ("para nao esbarrar em
+# reserva") so valia em banco velho. A semeadura (`seed_demo`) marca a
+# consulta de demonstracao exatamente na segunda depois de hoje + 7, as
+# 11h00: num banco **semeado no mesmo dia** da bateria, os vizinhos da
+# pausa apareciam ocupados e o roteiro reprovava sem defeito no produto
+# (achado em 2026-10-21, na bateria de referencia da 1.22, e lido primeiro
+# como "falha de madrugada").
+from scheduling.models import Appointment as _Appointment, ScheduleBlock as _ScheduleBlock
+
 dia = timezone.localdate() + timedelta(days=7)
-while dia.weekday() != 0:
+while True:
+    while dia.weekday() != 0:
+        dia += timedelta(days=1)
+    _tem_consulta = _Appointment.objects.filter(
+        physician_membership=medico, starts_at__date=dia,
+    ).exists()
+    _tem_bloqueio = _ScheduleBlock.objects.filter(
+        physician_membership=medico, start_at__date__lte=dia, end_at__date__gte=dia,
+    ).exists()
+    if not (_tem_consulta or _tem_bloqueio):
+        break
     dia += timedelta(days=1)
+print(f'  segunda-feira escolhida: {dia}')
 
 # ------------------------------------------------------------------
 # A grade deste medico e **fixture de outros roteiros**.

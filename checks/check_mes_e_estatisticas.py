@@ -27,7 +27,7 @@ O que este roteiro cobra:
 - a tela de estatisticas abre para a secretaria -- e e informacao de
   operacao, nao de prontuario.
 """
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.conf import settings as dj_settings
 
@@ -59,9 +59,13 @@ tenant = Tenant.objects.get(slug='demo-clinica-a')
 
 
 def vinculo_de(papel):
+    # Ordem explicita: `first()` sem `order_by` devolve o vinculo de menor
+    # UUID, sorteado a cada semeadura -- e a clinica de demonstracao tem dois
+    # medicos com grades diferentes. Sem ordem, o cenario mudava de banco
+    # para banco (achado em 2026-10-21).
     return Membership.objects.filter(
         tenant=tenant, status=MembershipStatus.ACTIVE, roles__contains=[papel],
-    ).select_related('user').first()
+    ).select_related('user').order_by('user__email').first()
 
 
 medico = vinculo_de('doctor')
@@ -320,7 +324,16 @@ try:
     from scheduling.models import AvailabilityRule, RecurringBreak, ScheduleBlock, ScheduleBlockKind
 
     def rotulos_do_mes(quando):
-        """Os rotulos de dia na pagina do mes, por dia do mes."""
+        """Os rotulos de dia na pagina do mes, **pela data** de cada celula.
+
+        Eram guardados pelo numero do dia, e a grade do mes tem seis
+        semanas: os dias 1 a 6 do mes seguinte (e os ultimos do anterior)
+        aparecem na mesma pagina, e o "3" de dezembro sobrescrevia o "3" de
+        novembro. O roteiro lia o rotulo do dia errado e reprovava sempre
+        que o dia testado caia num desses numeros -- ou seja, dependendo da
+        **data** da bateria (achado em 2026-10-21). A data vem do link de
+        cada celula, que leva `date=AAAA-MM-DD`.
+        """
         import re as _re3
 
         pagina = cliente.get(reverse('scheduling:month'), {
@@ -331,7 +344,7 @@ try:
         for bloco_dia in _re3.findall(
             r'<div class="nd-month-day.*?</div>\s*</td>', pagina, _re3.S,
         ):
-            numero = _re3.search(r'fs-13">\s*(\d+)\s*<', bloco_dia)
+            numero = _re3.search(r'[?&]date=(\d{4}-\d{2}-\d{2})', bloco_dia)
             if not numero:
                 continue
             rotulo = ''
@@ -343,7 +356,7 @@ try:
                 rotulo = 'lotado'
             elif 'livre' in bloco_dia:
                 rotulo = 'livres'
-            achados[int(numero.group(1))] = rotulo
+            achados[date.fromisoformat(numero.group(1))] = rotulo
         return achados
 
     # Um dia **que ja passou** e em que o medico atende: ali `free` e
@@ -370,11 +383,11 @@ try:
                 starts_on=dia - timedelta(days=1), reason='Cafe do roteiro',
             )
             rotulos = rotulos_do_mes(dia)
-            print(f'      dia {dia.day} (vencido, com intervalo): {rotulos.get(dia.day)!r}')
+            print(f'      dia {dia.day} (vencido, com intervalo): {rotulos.get(dia)!r}')
             conferir('dia vencido com intervalo NAO diz "fechado"',
-                     rotulos.get(dia.day) == 'fechado', False)
+                     rotulos.get(dia) == 'fechado', False)
             conferir('  e diz "encerrado", que e o que de fato houve',
-                     rotulos.get(dia.day), 'encerrado')
+                     rotulos.get(dia), 'encerrado')
 
             # E o contrario tem de continuar valendo: dia inteiro tomado
             # por excecao de data **e** fechado, e a palavra tem de sair.
@@ -384,8 +397,23 @@ try:
             # nao e fechado -- a celula ocupada vence o bloqueio. Com ele,
             # a assercao reprovaria por culpa do cenario, nao do produto.
             # Mesmo dia da semana para a regra continuar valendo.
-            alvo_bloqueio = futuro + timedelta(days=7)
-            antes = rotulos_do_mes(alvo_bloqueio).get(alvo_bloqueio.day)
+            #
+            # E **sem paciente nenhum**, procurado: a semana seguinte so era
+            # vazia em banco velho. Num banco semeado no mesmo dia, a
+            # consulta de demonstracao do `seed_demo` (a segunda depois de
+            # hoje + 7, as 11h00) caia exatamente ali, e o dia -- com razao
+            # -- nao saia "fechado" (achado em 2026-10-21).
+            alvo_bloqueio = None
+            for semanas in range(1, 9):
+                candidato = futuro + timedelta(days=7 * semanas)
+                if not Appointment.objects.filter(
+                    physician_membership=medico, starts_at__date=candidato,
+                ).exists():
+                    alvo_bloqueio = candidato
+                    break
+            if alvo_bloqueio is None:
+                raise SystemExit('FALHA: nenhum dia sem paciente nas oito semanas seguintes')
+            antes = rotulos_do_mes(alvo_bloqueio).get(alvo_bloqueio)
             print(f'      dia {alvo_bloqueio.day} antes do bloqueio: {antes!r}')
             conferir('  o dia escolhido nao estava fechado antes',
                      antes == 'fechado', False)
@@ -400,9 +428,9 @@ try:
             )
             rotulos = rotulos_do_mes(alvo_bloqueio)
             print(f'      dia {alvo_bloqueio.day} (bloqueado o dia todo): '
-                  f'{rotulos.get(alvo_bloqueio.day)!r}')
+                  f'{rotulos.get(alvo_bloqueio)!r}')
             conferir('dia inteiro bloqueado continua dizendo "fechado"',
-                     rotulos.get(alvo_bloqueio.day), 'fechado')
+                     rotulos.get(alvo_bloqueio), 'fechado')
     finally:
         if pausa_teste is not None:
             pausa_teste.delete()

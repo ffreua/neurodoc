@@ -211,6 +211,17 @@ print(f'  medico papeis={medico.roles} manage_org={ctx_medico.can(Capability.MAN
 
 criados = []
 
+# As recusas contam a partir daqui. A contagem era de **toda** a trilha da
+# clinica, e passava com recusas deixadas por rodadas anteriores: num banco
+# zerado (onde o medico da demonstracao e tambem dono, e a recusa por
+# capacidade nem e exercitada) reprovava, e em banco velho aprovava sem que
+# esta rodada tivesse registrado nada.
+from audit.models import AuditEvent
+
+_recusas_antes = AuditEvent.objects.filter(
+    tenant=clinica, action='reporting.export_denied',
+).count()
+
 
 def tentar(rotulo, contexto, membership, nome, kind):
     try:
@@ -255,15 +266,15 @@ if tentar('dono -> cadastro em CSV (nao oferecido)', ctx_dono, dono,
           'acervo_pacientes', ReportExportKind.CSV) is not None:
     falhas.append('a exportacao aceitou um formato que o relatorio nao declara')
 
-# E a recusa fica na trilha.
-from audit.models import AuditEvent
-
+# E a recusa fica na trilha -- **cada** recusa desta rodada, inclusive a
+# do formato, que antes nao era registrada.
 negados = AuditEvent.objects.filter(
     tenant=clinica, action='reporting.export_denied',
-).count()
-print(f'  recusas na trilha de auditoria={negados}')
-if negados == 0:
-    falhas.append('nenhuma recusa de exportacao foi registrada na trilha')
+).count() - _recusas_antes
+_esperadas = 1 + (0 if ctx_medico.can(Capability.MANAGE_ORGANIZATION) else 2)
+print(f'  recusas desta rodada na trilha={negados} (esperadas {_esperadas})')
+if negados != _esperadas:
+    falhas.append(f'recusas de exportacao na trilha: {negados}, esperadas {_esperadas}')
 
 print('=== 8. o arquivo sai com o tipo e a extensao do formato ===')
 prontos = [e for e in criados if e.status == ReportExportStatus.READY]

@@ -132,15 +132,36 @@ são tags, e tag é alvo móvel.
 
 ### Outras
 
-- **Três roteiros reprovam de madrugada** (achado em 2026-10-22, 02h20 de
-  Brasília, na bateria em banco zerado da 1.22): `check_exportacao` ("nenhuma
-  recusa de exportação foi registrada na trilha"), `check_intervalos_e_ficha`
-  (horários livres e a tarde depois da pausa) e `check_mes_e_estatisticas`
-  (dia inteiro bloqueado sem dizer "fechado"). Reprovam **igual na 1.21.1**,
-  no mesmo banco e horário — não são regressão; à tarde passam. É a classe de
-  defeito da lição "teste que não falha com o defeito presente": falta
-  descobrir se é o roteiro que supõe o horário ou o produto que erra perto
-  da virada do dia. Rodar a bateria de dia até isso ser investigado.
+- ~~**Três roteiros reprovam de madrugada**~~ **Investigado e corrigido em
+  2026-10-22** (sem versão nova: correção de roteiro e da trilha, pela regra
+  de `base/version.py`). O diagnóstico registrado aqui estava errado duas
+  vezes: não era madrugada (eram 23h20 de Brasília — o "02h20" era a hora
+  UTC lida como local) e **não era o horário**. Eram três defeitos dos
+  **roteiros** e um do **produto**, que só apareceram juntos porque a
+  bateria rodou num banco zerado e semeado na hora:
+  - **a escolha do médico era sorteada.** A clínica de demonstração tem dois
+    médicos, e `Membership...first()` sem `order_by` devolve o de menor
+    UUID — novo a cada semeadura. Com o doctor-a o cenário colidia; com o
+    doctor-b, não. Agora a escolha é por e-mail;
+  - **o cenário caía na consulta da semeadura.** `check_intervalos_e_ficha`
+    e `check_mes_e_estatisticas` montavam o caso na "segunda depois de hoje
+    + 7" — o mesmo dia em que o `seed_demo` marca a consulta de
+    demonstração do doctor-a, às 11h00. Em banco velho ela estava numa
+    segunda passada. Agora os dois **procuram** um dia sem consulta;
+  - **o rótulo do mês era lido pelo número do dia.** A grade tem seis
+    semanas, e o "3" de dezembro sobrescrevia o "3" de novembro: o
+    `check_mes_e_estatisticas` reprovava sempre que o dia testado caía
+    entre 1 e 6 — dependia da **data** da bateria. Agora lê pela data do
+    link de cada célula;
+  - **produto:** a recusa de exportação por formato não oferecido não ia
+    para a trilha (`reporting/services.py`). O `check_exportacao` contava
+    as recusas de toda a história da clínica e passava com as deixadas por
+    rodadas antigas; agora conta só as desta rodada.
+
+  **Lição, a de sempre com outra roupa:** roteiro que só passa em banco
+  velho mede o resíduo, não o produto; `first()` sem ordem é sorteio; e
+  "falha por horário" sem conferir o relógio do próprio contêiner é
+  palpite.
 
 - ~~**A `LICENSE` diz MIT e o contrato diz o contrário.**~~ **Resolvida em
   2026-10-19.** O repositório ficou público sob a MIT, e o contrato de

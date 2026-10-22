@@ -174,6 +174,14 @@ def request_export(access_context, membership, report_name, parameters,
         )
         raise ReportNotAllowed(report_name)
     if kind not in registro['kinds']:
+        # Formato que o relatorio nao oferece tambem e recusa da trilha: a
+        # tela nunca o apresenta, entao ele so chega por um POST montado a
+        # mao -- o caso que o comentario acima diz que alguem precisa ver.
+        record_audit_event(
+            access_context.user_id, access_context.tenant_id, 'reporting.export_denied',
+            object_type='report_export', object_id=None, outcome='denied',
+            integrity_metadata={'report': report_name, 'formato': str(kind)},
+        )
         raise ReportNotAllowed(f'{report_name}:{kind}')
     rows_fn = registro['rows_fn']
     fieldnames = registro['fieldnames']
