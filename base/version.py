@@ -184,12 +184,18 @@ carimbá-la na publicação.
 #: A **1.21.1**: transição do SNCR — a partir de 31/10/2026 a Receita de
 #: Controle Especial deixa de ser assinada digitalmente sem numeração do
 #: SNCR (sai para assinar e carimbar), com aviso na tela da receita.
-VERSION = '1.21.1'
+#: A **1.22**: a integração com o SNCR publicada **desligada** -- a receita
+#: eletrônica no modelo da Anvisa, uma folha e um número por medicamento,
+#: a numeração por médico pelo Gov.br, a lista oficial das controladas e a
+#: chave no console. Nada muda para as clínicas até ser ligada
+#: (`docs/sncr/ATIVACAO.md`). Migrações `catalogs/0009` e `sncr/0001`, só
+#: de expansão.
+VERSION = '1.22'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'toda folha diz de quem é'
+CODENAME = 'a receita da Anvisa, ainda desligada'
 
 
 def version_display():

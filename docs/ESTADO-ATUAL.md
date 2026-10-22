@@ -132,6 +132,16 @@ são tags, e tag é alvo móvel.
 
 ### Outras
 
+- **Três roteiros reprovam de madrugada** (achado em 2026-10-22, 02h20 de
+  Brasília, na bateria em banco zerado da 1.22): `check_exportacao` ("nenhuma
+  recusa de exportação foi registrada na trilha"), `check_intervalos_e_ficha`
+  (horários livres e a tarde depois da pausa) e `check_mes_e_estatisticas`
+  (dia inteiro bloqueado sem dizer "fechado"). Reprovam **igual na 1.21.1**,
+  no mesmo banco e horário — não são regressão; à tarde passam. É a classe de
+  defeito da lição "teste que não falha com o defeito presente": falta
+  descobrir se é o roteiro que supõe o horário ou o produto que erra perto
+  da virada do dia. Rodar a bateria de dia até isso ser investigado.
+
 - ~~**A `LICENSE` diz MIT e o contrato diz o contrário.**~~ **Resolvida em
   2026-10-19.** O repositório ficou público sob a MIT, e o contrato de
   adesão passou à **versão 1.1**, com o item 16.3 autorizado pela
