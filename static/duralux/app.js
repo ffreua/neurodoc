@@ -669,7 +669,18 @@
      * história longa) continua valendo com o campo vazio. */
     var GROWABLE = 'textarea.form-control, textarea.form-control-sm';
 
+    /* **No atendimento, a caixa não cresce: rola.** Pedido do médico em
+     * 2026-10-22. Ali a tela é uma sequência longa de campos, e cada
+     * história que crescia empurrava o exame, as hipóteses e o plano para
+     * baixo — quem voltava a um campo de cima tinha de procurá-lo. Com
+     * altura fixa (o `rows` do formulário) e barra de rolagem em cada um,
+     * a página mantém a forma, e o texto continua inteiro dentro do campo.
+     * O resto do sistema segue crescendo: lá os campos são poucos. A
+     * marca é a mesma de `clinical/atendimento.js`. */
+    var ROLA_EM_VEZ_DE_CRESCER = '[data-nd-atendimento]';
+
     function autoGrow(area) {
+        if (area.closest(ROLA_EM_VEZ_DE_CRESCER)) return;
         /* Campo dentro de aba fechada ou `<details>` recolhido mede zero.
          * Medir aí gravaria uma altura mínima errada e a caixa apareceria
          * com uma linha só quando a aba abrisse — então nada é feito até que

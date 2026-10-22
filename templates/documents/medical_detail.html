@@ -22,7 +22,7 @@
 {% receita_sncr document as rx %}
 <div class="row g-4">
     <div class="col-xxl-8 col-lg-7">
-        <div class="card stretch stretch-full">
+        <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">Identificação</h5>
             </div>
@@ -75,7 +75,7 @@
         como foi feita no rascunho. Mostrada para o médico conferir antes de
         assinar — o programa sugere, e a confirmação, quando houve, fica
         registrada (sncr/receita.py).{% endcomment %}
-        <div class="card stretch stretch-full mt-4">
+        <div class="card mt-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">Medicamentos e classificação</h5>
             </div>
@@ -103,7 +103,7 @@
         {% endif %}
 
         {% if is_own_document and document.status == "issued" and not rx %}
-        <div class="card stretch stretch-full mt-4">
+        <div class="card mt-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Correção (nova versão)</h5>
                 <button class="btn btn-sm btn-light-primary collapsed" type="button"
@@ -199,7 +199,7 @@
         tinha contato cadastrado; descobre pelo paciente ligando, que é tarde.
         {% endcomment %}
         {% if document.status == "issued" %}
-        <div class="card stretch stretch-full mt-4">
+        <div class="card mt-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Entrega ao paciente</h5>
                 {% if delivered_ok %}
@@ -275,7 +275,7 @@
         {% endif %}
 
         {% if is_own_document %}
-        <div class="card stretch stretch-full">
+        <div class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">Ações do médico</h5>
             </div>

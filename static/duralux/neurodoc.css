@@ -203,6 +203,25 @@ button:focus-visible,
     overflow-wrap: anywhere;
 }
 
+/* ---- Cartoes empilhados na mesma coluna ------------------------------ */
+/*
+ * `stretch-full` (do tema) e `height: calc(100% - 24px)`: serve para cards
+ * LADO A LADO ficarem da mesma altura. Com dois ou mais na MESMA coluna,
+ * 100% e a altura da coluna inteira -- cada card passa a querer a altura
+ * de todos somados, e a tela fica com palmos de branco dentro de cada um.
+ * Foi o que o medico viu na receita emitida (2026-10-22), e a tela de
+ * texto livre ja tinha caido nisso antes (`check_texto_livre`).
+ *
+ * Corrigido aqui, e nao template a template: sao 24 telas com a classe, e
+ * a proxima a empilhar cards cairia de novo. Card esticado que tem outro
+ * card como irmao volta a ter a altura do proprio conteudo; o card sozinho
+ * na coluna continua esticando, que e o uso para o qual a classe existe.
+ */
+.card.stretch.stretch-full:has(~ .card),
+.card ~ .card.stretch.stretch-full {
+    height: auto;
+}
+
 /* ---- Campos de texto ------------------------------------------------- */
 /*
  * Sem alca de redimensionamento. Arrastar o canto de um campo nao e uma
@@ -221,6 +240,14 @@ textarea.form-control-sm {
 
 /* Enquanto o JS nao rodou (ou falhou), a caixa nao pode ficar cortada. */
 .no-js textarea.form-control {
+    overflow-y: auto;
+}
+
+/* No atendimento a caixa tem altura fixa e rola por dentro (`app.js`,
+ * ROLA_EM_VEZ_DE_CRESCER): a pagina e longa, e campo que cresce empurra
+ * os de baixo para longe de quem esta escrevendo. */
+[data-nd-atendimento] textarea.form-control,
+[data-nd-atendimento] textarea.form-control-sm {
     overflow-y: auto;
 }
 
