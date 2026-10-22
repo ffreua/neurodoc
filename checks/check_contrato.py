@@ -15,6 +15,7 @@ import re
 
 from django.conf import settings as dj_settings
 from django.test import Client
+from django.utils import timezone
 
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 # O cliente de teste fala HTTP. Com a configuracao de producao carregada,
@@ -427,8 +428,16 @@ else:
 print('=== 11. o console mostra os aceites ===')
 su = User.objects.filter(is_superuser=True, is_active=True).first()
 if su is None:
-    print('  (sem superadministrador nesta instalacao; secao pulada)')
-else:
+    # A base de demonstracao nao tem superadministrador, e esta secao era
+    # **pulada** em toda bateria local: o console de contratos nunca foi
+    # exercitado aqui, e a bateria saia verde do mesmo jeito. Uma conta
+    # descartavel, com o sufixo que `limpar()` aposenta no fim.
+    su = User.objects.create_superuser(
+        email=f'su-roteiro{SUFIXO}', password=None,
+        email_verified_at=timezone.now(),
+    )
+    print(f'  (sem superadministrador; usando a conta descartavel {su.email})')
+if True:
     if not TOTPDevice.objects.filter(user=su, confirmed=True).exists():
         TOTPDevice.objects.create(user=su, name='roteiro-contrato', confirmed=True)
     console = Client()
@@ -460,6 +469,46 @@ else:
     print(f'  texto editado sem trocar a versao -> console avisa={percebeu}')
     if not percebeu:
         falhas.append('o console nao percebe texto editado sem troca de versao')
+
+    # Aceite de **versao anterior** e o normal de um contrato que evolui
+    # (clausula 17.4), e o aviso amarelo nao pode acender por ele: acendia,
+    # e na producao seis aceites corretos da 1.0 apareciam como "texto
+    # diferente do atual" depois da 1.1 (achado em 2026-10-22). O que se
+    # confere nele e a propria copia arquivada contra o hash gravado.
+    if clinica is not None:
+        aceite = ContractAcceptance.objects.filter(tenant=clinica).first()
+        original = {'version': aceite.version, 'text': aceite.text,
+                    'text_sha256': aceite.text_sha256}
+        import hashlib as _hl
+        texto_velho = 'Contrato de teste, versao anterior do roteiro.'
+        try:
+            ContractAcceptance.objects.filter(id=aceite.id).update(
+                version='0.9-roteiro', text=texto_velho,
+                text_sha256=_hl.sha256(texto_velho.encode('utf-8')).hexdigest(),
+            )
+            corpo = console.get('/instalacao/contratos/').content.decode(errors='replace')
+            alarme = 'apontam para um texto diferente' in corpo
+            anterior = 'versão anterior' in corpo and '0.9-roteiro: ' in corpo
+            print(f'  aceite de versao anterior -> alarme={alarme}  '
+                  f'listado como anterior={anterior}')
+            if alarme:
+                falhas.append('aceite de versao anterior acende o alarme de texto alterado')
+            if not anterior:
+                falhas.append('o console nao diz que o aceite e de versao anterior')
+            if 'cópia confere' not in corpo:
+                falhas.append('o aceite de versao anterior nao foi conferido pela propria copia')
+
+            # E se a copia arquivada for mexida depois do aceite, o vermelho.
+            ContractAcceptance.objects.filter(id=aceite.id).update(
+                text=texto_velho + ' (adulterado)',
+            )
+            corpo = console.get('/instalacao/contratos/').content.decode(errors='replace')
+            violada = 'cópia arquivada alterada' in corpo and 'cópia não confere' in corpo
+            print(f'  copia arquivada adulterada -> console acusa={violada}')
+            if not violada:
+                falhas.append('o console nao acusa copia arquivada adulterada')
+        finally:
+            ContractAcceptance.objects.filter(id=aceite.id).update(**original)
 
     # Sem MFA o console nao abre -- mesma porta do resto da instalacao.
     sem_mfa = User.objects.filter(

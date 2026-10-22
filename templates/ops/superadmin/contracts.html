@@ -4,17 +4,37 @@
 {% block super_section %}Contratos{% endblock %}
 {% block super_content %}
 
+{% if copias_violadas %}
+{% comment %}O pior caso, e por isso o primeiro: a cópia arquivada de um
+aceite não bate mais com o hash gravado no momento do aceite. A cópia é a
+prova do que foi aceito (cláusula 2.3); se ela mudou, o aceite deixou de
+provar.{% endcomment %}
+<div class="alert alert-danger fade show" role="alert">
+    <strong>{{ copias_violadas }} aceite(s) com a cópia arquivada alterada.</strong>
+    O texto guardado não confere mais com o hash gravado no dia do aceite — alguém
+    mexeu na cópia depois. Esse aceite não serve como prova até ser esclarecido.
+</div>
+{% endif %}
+
 {% if divergentes %}
-{% comment %}O aviso mais importante da tela, e por isso o primeiro. Um
-aceite cujo hash não confere é um aceite que aponta para um texto
-diferente do que está no ar — ou alguém editou o contrato sem trocar a
-versão, ou a versão é antiga. As duas hipóteses pedem a mesma coisa:
-olhar antes de usar este aceite como prova de alguma coisa.{% endcomment %}
+{% comment %}Mesma versão e texto diferente: alguém editou o contrato sem
+trocar a versão, e os aceites daquela versão apontam para um texto que
+ninguém leu. Aceite de versão anterior não entra aqui — é o normal de um
+contrato que evolui.{% endcomment %}
 <div class="alert alert-warning fade show" role="alert">
-    <strong>{{ divergentes }} aceite(s) apontam para um texto diferente do atual.</strong>
-    Se a versão também for diferente, é só um contrato antigo — normal. Se a versão
-    for a mesma e o texto não, alguém editou <code>tenancy/contract.py</code> sem
-    trocar <code>VERSAO</code>, e os aceites daquela versão deixaram de ser conferíveis.
+    <strong>{{ divergentes }} aceite(s) da versão {{ contrato.VERSAO }} apontam para um texto diferente do que está no ar.</strong>
+    Alguém editou <code>tenancy/contract.py</code> sem trocar <code>VERSAO</code>, e
+    esses aceites deixaram de ser conferíveis contra o texto em vigor. Texto novo é
+    versão nova (cláusula 17.6).
+</div>
+{% endif %}
+
+{% if anteriores_total %}
+<div class="alert alert-secondary fade show fs-13" role="status">
+    {{ anteriores_total }} aceite(s) de versão anterior
+    ({% for versao, n in anteriores %}{{ versao }}: {{ n }}{% if not forloop.last %}; {% endif %}{% endfor %})
+    — normal: quem aceitou uma versão anterior continua com ela (cláusula 17.4).
+    Cada um é conferido pela própria cópia arquivada{% if not copias_violadas %}, e todas conferem{% endif %}.
 </div>
 {% endif %}
 
@@ -142,9 +162,17 @@ arquivar como aceito um texto que aquela clínica não viu.{% endcomment %}
                             título: a coluna precisa caber, e quem vai conferir
                             de verdade copia do e-mail do contratante — onde ele
                             está por extenso.{% endcomment %}
-                            {% if l.texto_confere %}
+                            {% if l.copia_confere is False %}
+                            <span class="d-block fs-11 text-danger" title="{{ l.aceite.text_sha256 }}">
+                                cópia não confere
+                            </span>
+                            {% elif l.situacao == 'confere' %}
                             <span class="d-block fs-11 text-muted" title="{{ l.aceite.text_sha256 }}">
                                 texto confere
+                            </span>
+                            {% elif l.situacao == 'anterior' %}
+                            <span class="d-block fs-11 text-muted" title="{{ l.aceite.text_sha256 }}">
+                                versão anterior{% if l.copia_confere %} · cópia confere{% endif %}
                             </span>
                             {% else %}
                             <span class="d-block fs-11 text-warning" title="{{ l.aceite.text_sha256 }}">
@@ -181,7 +209,8 @@ arquivar como aceito um texto que aquela clínica não viu.{% endcomment %}
     <div class="card-body">
         <p class="fs-11 text-muted">
             Conferência deste texto: <code>{{ sha_atual }}</code>. É este valor que a coluna
-            "texto confere" compara com o que ficou gravado em cada aceite.
+            "texto confere" compara com o que ficou gravado em cada aceite desta versão;
+            os de versão anterior são conferidos pela própria cópia arquivada.
             Redação de {{ contrato.REVISAO_JURIDICA.nome }}, {{ contrato.REVISAO_JURIDICA.oab }}.
         </p>
         <div class="nd-contrato-caixa" tabindex="0" role="region"

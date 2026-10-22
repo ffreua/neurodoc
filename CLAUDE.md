@@ -242,7 +242,10 @@ plano e valor anual (2.2, "h"), quem aceitou, IP, navegador e os dois
 prazos (arrependimento de 7 dias, vencimento no aniversário). Uma via
 completa vai por e-mail ao contratante, tirada da cópia arquivada e não
 do texto corrente. `/contrato/` é público; `/instalacao/contratos/` lista
-os aceites e acusa quem aponta para um texto diferente do que está no ar.
+os aceites e separa três situações: **texto em vigor**, **versão anterior**
+(o normal de um contrato que evolui — conferida pela própria cópia
+arquivada, sem alarme) e **texto alterado sem trocar `VERSAO`** (o alerta);
+cópia arquivada que não bate com o hash do aceite acende o vermelho.
 O que o contrato fixa em matéria de LGPD, e o que ele promete e ainda não
 existe (os Anexos I a V), está em `docs/governance/lgpd.md` §9.
 
@@ -344,7 +347,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_perimetro.py` | a borda: agente de captura sem CSRF, desidentificação sem comer palavra, IP do visitante atrás do proxy |
 | `check_imutabilidade.py` | o que não pode mudar: prontuário finalizado (cópia da consulta anterior e admin), salvamento concorrente, trilha de auditoria, guarda de 20 anos, contador de tentativas do link |
 | `check_ia_plano.py` | a IA segue o plano: a capacidade vetada, a autorização do job recusando, o resumo automático que sai por `return` em vez de derrubar o evento, o chat em 404 com o link sumindo junto, e a tela de configuração que explica sem deixar gravar |
-| `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão |
+| `check_contrato.py` | contrato de adesão: cláusulas obrigatórias, aceite obrigatório no cadastro, prazos gravados, via por e-mail, isolamento e o hash que denuncia texto editado sem troca de versão; no console, o aceite de **versão anterior** sem alarme e a **cópia adulterada** acusada — com superadministrador descartável, porque a base de demonstração não tem um e a seção era pulada |
 | `check_exportacao.py` | exportação do acervo: MD e JSON com o conteúdo prometido, quem pode pedir cada um, o POST que tenta furar a matriz, o arquivo escrito pelo worker com a extensão certa, e a versão do produto |
 | `check_fuso.py` | o dia que o produto enxerga é o da clínica: varre o repositório inteiro proibindo `timezone.now().date()` e `date.today()` (que devolvem o dia em UTC), e confere que a agenda marca como hoje o dia de Brasília |
 | `check_importacao.py` | migração de cadastro: ninguém nasce autorizado a receber mensagem, o responsável homônimo não vira contato extra, a importação pode ser repetida, CPF repetido não derruba nada e ficha daqui não é sobrescrita |

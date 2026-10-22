@@ -47,6 +47,7 @@ técnicos (`base.middleware.TechnicalPanelMFAMiddleware`). Um console que
 lê a trilha de auditoria da instalação inteira atrás de senha só seria uma
 credencial roubada de distância do histórico de todas as clínicas.
 """
+import hashlib
 
 from django.conf import settings
 from django.contrib import messages
@@ -1168,7 +1169,30 @@ class ContractsView(SuperAdminView):
             'tenant', 'accepted_by',
         ).order_by('-created_at')
         for aceite in consulta[:PAGE_SIZE]:
+            # Tres situacoes, e so uma delas e problema. Comparar todo aceite
+            # com o texto em vigor contava como "divergente" cada clinica que
+            # aceitou uma versao anterior -- o que e o normal de todo contrato
+            # que evolui (clausula 17.4: quem aceitou a anterior fica com
+            # ela) -- e o aviso amarelo acendia para seis aceites corretos.
+            #
+            # - **confere**: versao em vigor, texto em vigor;
+            # - **anterior**: outra versao. O texto difere por definicao; o
+            #   que se confere e a **propria copia arquivada** contra o hash
+            #   gravado no aceite;
+            # - **alterado**: mesma versao e texto diferente -- alguem editou
+            #   `tenancy/contract.py` sem trocar `VERSAO`. Este e o alerta.
+            if aceite.version == contract.VERSAO:
+                situacao = 'confere' if aceite.text_sha256 == sha_atual else 'alterado'
+            else:
+                situacao = 'anterior'
+            copia_confere = None
+            if aceite.text:
+                copia_confere = hashlib.sha256(
+                    aceite.text.encode('utf-8'),
+                ).hexdigest() == aceite.text_sha256
             linhas.append({
+                'situacao': situacao,
+                'copia_confere': copia_confere,
                 'aceite': aceite,
                 'clinica': aceite.tenant.trade_name or aceite.tenant.legal_name,
                 'plano': plan_label(aceite.plan),
@@ -1214,7 +1238,14 @@ class ContractsView(SuperAdminView):
         # contar esses como falha de SMTP manda procurar defeito onde nao
         # ha nenhum.
         context['sem_copia'] = ContractAcceptance.objects.exclude(email_error='').count()
-        context['divergentes'] = sum(1 for l in linhas if not l['texto_confere'])
+        context['divergentes'] = sum(1 for l in linhas if l['situacao'] == 'alterado')
+        context['copias_violadas'] = sum(1 for l in linhas if l['copia_confere'] is False)
+        anteriores = {}
+        for l in linhas:
+            if l['situacao'] == 'anterior':
+                anteriores[l['aceite'].version] = anteriores.get(l['aceite'].version, 0) + 1
+        context['anteriores'] = sorted(anteriores.items())
+        context['anteriores_total'] = sum(anteriores.values())
         context['sem_copia_arquivada'] = ContractAcceptance.objects.filter(text='').count()
         return render(request, 'ops/superadmin/contracts.html', context)
 

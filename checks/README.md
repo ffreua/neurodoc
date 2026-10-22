@@ -137,7 +137,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_cobranca_checkin` | O check-in gera uma cobrança só, reaproveitada pelo atendimento |
 | `check_colaboradores` | Convite de colaborador, confirmação de conta e credenciais |
 | `check_contatos_indicadores` | Contato editável, e pré-cadastro fora dos indicadores e da cota |
-| `check_contrato` | Contrato de adesão: cláusulas, aceite gravado com o texto, prazos, via ao contratante |
+| `check_contrato` | Contrato de adesão: cláusulas, aceite gravado com o texto, prazos, via ao contratante; no console, versão anterior sem alarme e cópia adulterada acusada |
 | `check_crm_em_outra_conta` | CRM já registrado em outra conta: recusa útil, sem revelar o e-mail |
 | `check_csp` | Política de conteúdo: nonce, nada de `onclick`, `<script>` sem nonce reprovado |
 | `check_decisoes` | Decisões da auditoria pré-deploy: endereço da API de IA (SSRF) e a coleta em ensaio nos dois sentidos |
