@@ -171,9 +171,20 @@ confere('name="provedor"' in tela and 'name="modelo"' in tela,
         'com campo de provedor e de modelo')
 confere('value="verificar"' in tela, 'e com o botao de verificar')
 confere('ia_fora_da_lista' in tela, 'e o aviso de modelo aposentado')
-# A chave nao pode ser editavel aqui: o processo `app` nao a tem.
-confere('name="api_key"' not in tela and 'name="chave"' not in tela,
-        'a chave NAO e editavel no console')
+# A chave do **principal** nao pode ser editavel aqui: ela mora em secret,
+# e o processo `app` nao a tem. Desde a 1.23 o cartao da **reserva** grava
+# a chave dela -- cifrada no banco, a pedido do proprietario --, entao a
+# regra vale para o formulario do principal, que vem antes do cartao da
+# reserva na tela.
+principal_na_tela = tela.split('data-nd-ia-reserva')[0]
+confere('name="api_key"' not in principal_na_tela and 'name="chave"' not in principal_na_tela,
+        'a chave do principal NAO e editavel no console')
+import re as _re
+
+campo_reserva = _re.search(r'<input[^>]*name="chave"[^>]*>', tela)
+confere(campo_reserva is not None and 'type="password"' in campo_reserva.group(0)
+        and 'value=' not in campo_reserva.group(0),
+        'a chave da reserva so se grava: campo de senha, sem o valor de volta')
 confere(reverse('superadmin:operations-installation-ai').endswith('/operacao/provedor-de-ia/'),
         'a rota resolve', reverse('superadmin:operations-installation-ai'))
 confere(len(PROVIDER_CHOICES) >= 10, 'o catalogo inteiro e oferecido',

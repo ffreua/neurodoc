@@ -351,7 +351,14 @@ def build_graph(chat_model, kind, max_output_chars=DEFAULT_MAX_OUTPUT_CHARS):
                 schema=schema if pede_esquema else None,
             )
         except GraphTimeout as exc:
-            return {'error': str(exc)}
+            # Marcado à parte do texto do erro: o tempo esgotado é falha
+            # **de disponibilidade** do provedor, e é o que autoriza a
+            # reserva da instalação a responder (`ai/services.py`). Uma
+            # resposta que chegou e foi recusada pela validação não é —
+            # trocar de provedor não conserta a forma de uma resposta.
+            return {'error': str(exc), 'diagnostics': {
+                'etapa': 'chamada_ao_provedor', 'tempo_esgotado': True,
+            }}
         content = response.content if hasattr(response, 'content') else str(response)
         if len(content) > max_output_chars:
             return {'error': (

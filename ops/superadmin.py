@@ -540,6 +540,7 @@ class OperationsView(SuperAdminView):
             'ia_base_url': base_url,
             'ia_modelos': config.ai_available_models or [],
             'ia_fora_da_lista': config.ia_modelo_fora_da_lista,
+            'reserva_modelos': config.ai_reserva_modelos or [],
             'sncr': sncr_resumo(),
         })
 
@@ -643,6 +644,184 @@ class InstallationAIView(SuperAdminView):
             f'Padrão da instalação agora é {provedor} / {modelo}. Vale para toda clínica '
             'que não configurou a sua. A verificação foi enfileirada — recarregue em '
             'alguns segundos para ver se o provedor aceita o modelo.',
+        )
+        return redirect('superadmin:operations')
+
+
+class InstallationAIReserveView(SuperAdminView):
+    """O provedor de IA **reserva** da instalacao: gravar, verificar, ligar.
+
+    A reserva assume sozinha quando a chamada ao principal falha -- so para
+    quem usa o padrao da instalacao. Ver `base.models.InstallationSettings`,
+    que conta por que ela existe e as tres travas que a cercam.
+
+    Ao contrario do principal, a **chave** da reserva se grava aqui: o
+    pedido do proprietario foi configura-la sem editar arquivo no servidor.
+    Ela vai cifrada para o banco (`base.crypto`), como a chave de IA de
+    cada clinica, e a tela nunca a devolve -- so os ultimos caracteres.
+
+    **Ligar exige a reserva verificada.** Uma reserva ligada sem conferir e
+    a armadilha de 2026 com outro nome: aparentemente pronta, e quebrada no
+    dia em que for chamada. **Desligar e um clique**, pela mesma regra das
+    outras chaves desta tela: parar e a direcao segura.
+    """
+
+    def post(self, request):
+        from ai.providers.catalog import PROVIDERS, ProviderProbeFailed, assert_endereco_permitido
+        from audit.services import record_audit_event
+        from base.crypto import encrypt_secret, mask_secret
+        from base.models import InstallationSettings
+
+        config = InstallationSettings.carregar()
+        acao = request.POST.get('acao') or 'gravar'
+
+        def auditar(acao_trilha, metadados):
+            record_audit_event(
+                request.user, None, acao_trilha, object_type='installation',
+                object_id=config.id, outcome='success', integrity_metadata=metadados,
+            )
+
+        def verificar():
+            from ai.tasks import verificar_reserva_da_instalacao
+
+            verificar_reserva_da_instalacao.delay()
+
+        if acao == 'verificar':
+            if not config.reserva_configurada:
+                messages.error(request, 'Configure provedor, modelo e chave da reserva antes de verificar.')
+                return redirect('superadmin:operations')
+            verificar()
+            messages.success(
+                request,
+                'Verificação da reserva enfileirada. Recarregue em alguns segundos para ver o resultado.',
+            )
+            return redirect('superadmin:operations')
+
+        if acao == 'desligar':
+            if config.ai_reserva_ativa:
+                config.ai_reserva_ativa = False
+                config.updated_by = request.user
+                config.save(update_fields=['ai_reserva_ativa', 'updated_by', 'updated_at'])
+                auditar('ops.installation_ai_reserve_disabled', {})
+            messages.success(
+                request,
+                'Reserva desligada. Se o provedor principal falhar, as clínicas que usam o '
+                'padrão da instalação voltam a receber o erro — nada troca sozinho.',
+            )
+            return redirect('superadmin:operations')
+
+        if acao == 'ligar':
+            if not config.reserva_configurada:
+                messages.error(request, 'A reserva precisa de provedor, modelo e chave antes de ser ligada.')
+                return redirect('superadmin:operations')
+            if config.ai_reserva_check_ok is not True:
+                messages.error(
+                    request,
+                    'Verifique a reserva antes de ligá-la — e só ligue com a verificação em '
+                    'verde. Reserva que nunca respondeu falharia no dia em que fosse chamada.',
+                )
+                return redirect('superadmin:operations')
+            config.ai_reserva_ativa = True
+            config.updated_by = request.user
+            config.save(update_fields=['ai_reserva_ativa', 'updated_by', 'updated_at'])
+            auditar('ops.installation_ai_reserve_enabled', {
+                'provider': config.ai_reserva_provider, 'model': config.ai_reserva_model,
+            })
+            messages.success(
+                request,
+                f'Reserva ligada: se o provedor principal falhar, {config.ai_reserva_provider} / '
+                f'{config.ai_reserva_model} responde pelas clínicas que usam o padrão da instalação.',
+            )
+            return redirect('superadmin:operations')
+
+        if acao == 'apagar_chave':
+            config.ai_reserva_ativa = False
+            config.ai_reserva_chave_cifrada = ''
+            config.ai_reserva_chave_meta = {}
+            config.ai_reserva_chave_dica = ''
+            config.ai_reserva_check_ok = None
+            config.ai_reserva_checked_at = None
+            config.ai_reserva_check_detail = ''
+            config.updated_by = request.user
+            config.save(update_fields=[
+                'ai_reserva_ativa', 'ai_reserva_chave_cifrada', 'ai_reserva_chave_meta',
+                'ai_reserva_chave_dica', 'ai_reserva_check_ok', 'ai_reserva_checked_at',
+                'ai_reserva_check_detail', 'updated_by', 'updated_at',
+            ])
+            auditar('ops.installation_ai_reserve_key_removed', {})
+            messages.success(request, 'Chave da reserva apagada, e a reserva desligada.')
+            return redirect('superadmin:operations')
+
+        # gravar
+        provedor = (request.POST.get('provedor') or '').strip()
+        modelo = (request.POST.get('modelo') or '').strip()
+        base_url = (request.POST.get('base_url') or '').strip()
+        chave = (request.POST.get('chave') or '').strip()
+
+        if provedor not in PROVIDERS:
+            messages.error(request, 'Escolha um provedor do catálogo para a reserva. Nada foi alterado.')
+            return redirect('superadmin:operations')
+        if not modelo:
+            messages.error(request, 'Informe o modelo da reserva. Nada foi alterado.')
+            return redirect('superadmin:operations')
+        if provedor == 'custom' and not base_url:
+            messages.error(request, 'Provedor próprio exige o endereço da API. Nada foi alterado.')
+            return redirect('superadmin:operations')
+        if base_url:
+            try:
+                assert_endereco_permitido(base_url)
+            except ProviderProbeFailed as exc:
+                messages.error(request, f'Endereço da API recusado: {exc} Nada foi alterado.')
+                return redirect('superadmin:operations')
+        if not chave and not config.ai_reserva_chave_cifrada:
+            messages.error(request, 'Informe a chave de API da reserva. Nada foi alterado.')
+            return redirect('superadmin:operations')
+
+        antes = {
+            'provider': config.ai_reserva_provider, 'model': config.ai_reserva_model,
+            'base_url': config.ai_reserva_base_url,
+        }
+        trocou_provedor = provedor != config.ai_reserva_provider
+        config.ai_reserva_provider = provedor
+        config.ai_reserva_model = modelo
+        config.ai_reserva_base_url = base_url
+        campos = ['ai_reserva_provider', 'ai_reserva_model', 'ai_reserva_base_url']
+        if chave:
+            cifrada, meta = encrypt_secret(chave)
+            config.ai_reserva_chave_cifrada = cifrada
+            config.ai_reserva_chave_meta = meta
+            config.ai_reserva_chave_dica = mask_secret(chave)
+            campos += ['ai_reserva_chave_cifrada', 'ai_reserva_chave_meta', 'ai_reserva_chave_dica']
+        # A verificação anterior era sobre a configuração anterior; e a
+        # reserva **desliga**: o que se liga é o que foi verificado, e o que
+        # está gravado agora ainda não foi.
+        config.ai_reserva_checked_at = None
+        config.ai_reserva_check_ok = None
+        config.ai_reserva_check_detail = ''
+        estava_ativa = config.ai_reserva_ativa
+        config.ai_reserva_ativa = False
+        campos += ['ai_reserva_checked_at', 'ai_reserva_check_ok', 'ai_reserva_check_detail',
+                   'ai_reserva_ativa']
+        if trocou_provedor:
+            config.ai_reserva_modelos = []
+            campos.append('ai_reserva_modelos')
+        config.updated_by = request.user
+        config.save(update_fields=campos + ['updated_by', 'updated_at'])
+        auditar('ops.installation_ai_reserve_changed', {
+            'from': antes,
+            'to': {'provider': provedor, 'model': modelo, 'base_url': base_url},
+            # Que a chave mudou, e nunca qual é.
+            'key_changed': bool(chave),
+        })
+        verificar()
+        aviso = (
+            ' A reserva estava ligada e foi desligada — ligue de novo depois que a '
+            'verificação ficar verde.' if estava_ativa else ''
+        )
+        messages.success(
+            request,
+            f'Reserva gravada: {provedor} / {modelo}. A verificação foi enfileirada; '
+            f'recarregue em alguns segundos.{aviso}',
         )
         return redirect('superadmin:operations')
 

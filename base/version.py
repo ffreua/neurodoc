@@ -190,12 +190,17 @@ carimbá-la na publicação.
 #: chave no console. Nada muda para as clínicas até ser ligada
 #: (`docs/sncr/ATIVACAO.md`). Migrações `catalogs/0009` e `sncr/0001`, só
 #: de expansão.
-VERSION = '1.22'
+#: A **1.23**: a IA da instalação vigiada de hora em hora, com e-mail ao
+#: superadministrador quando falha, e o **provedor reserva** configurado no
+#: console (chave cifrada no banco), que responde sozinho quando a chamada
+#: ao principal falha -- só para quem usa o padrão da instalação. Nasce
+#: desligado. Migração `base/0003`, só de expansão.
+VERSION = '1.23'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a receita da Anvisa, ainda desligada'
+CODENAME = 'a IA que não para sozinha'
 
 
 def version_display():

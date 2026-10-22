@@ -217,6 +217,15 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'ai.tasks.retomar_jobs_parados',
         'schedule': 600,
     },
+    # A IA da instalação conferida de hora em hora, com e-mail ao
+    # superadministrador quando falha. A verificação existia só no botão do
+    # console, e foi assim que o modelo aposentado em 2026 ficou quarenta
+    # dias sem ninguém saber. Minuto 47 para não coincidir com as outras
+    # rodadas de hora cheia. Ver `ai.tasks.vigiar_ia_da_instalacao`.
+    'ai-vigiar-ia-da-instalacao': {
+        'task': 'ai.tasks.vigiar_ia_da_instalacao',
+        'schedule': crontab(minute=47),
+    },
     'communications-reconcile-pending-sms': {
         'task': 'communications.tasks.reconcile_pending_sms',
         'schedule': 60,

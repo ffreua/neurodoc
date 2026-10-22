@@ -46,6 +46,11 @@ CAMPOS = [
      'senha de SMTP do médico'),
     ('ai.AIProviderSettings', 'api_key_ciphertext', 'api_key_metadata',
      'chave de API do provedor de IA'),
+    # A chave do provedor reserva da instalação: a única deste rol que não
+    # é de clínica. Fora daqui, rotacionar a chave-mestra a deixaria
+    # ilegível — e a reserva falharia justamente no dia de cobrir o principal.
+    ('base.InstallationSettings', 'ai_reserva_chave_cifrada', 'ai_reserva_chave_meta',
+     'chave do provedor de IA reserva da instalação'),
 ]
 
 
@@ -98,7 +103,7 @@ class Command(BaseCommand):
                     # pela tela, e parar aqui deixaria os demais sem
                     # rotacionar — todos quebrados em vez de um.
                     problemas.append(
-                        f'{descricao} de {linha.tenant_id}: {exc}',
+                        f'{descricao} de {getattr(linha, "tenant_id", None) or "instalação"}: {exc}',
                     )
                     continue
                 if not mudou:

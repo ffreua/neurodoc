@@ -167,7 +167,10 @@ def get_chat_model(provider=None, tenant_id=None):
     configurou a própria, que é o caso de quem hospeda o sistema para si.
 
     Trocar de provedor segue sendo ato explícito, nunca substituição
-    silenciosa quando um falha (RT-04).
+    silenciosa quando um falha (RT-04) — com uma exceção cercada, a
+    **reserva da instalação**, que não mora aqui: quem a aciona é quem
+    chama o modelo, porque só ele sabe se a chamada falhou (ver
+    `reserva_utilizavel` abaixo).
     """
     if not settings.AI_ENABLED:
         raise ProviderUnavailable('AI_ENABLED=False')
@@ -186,14 +189,134 @@ def get_chat_model(provider=None, tenant_id=None):
     return _installation_model()
 
 
+# --------------------------------------------------------------------
+# A reserva da instalação
+# --------------------------------------------------------------------
+#
+# A primeira exceção deliberada ao RT-04 ("nunca trocar de provedor em
+# silêncio"), e por isso cercada: só para quem usa o padrão da instalação,
+# só quando a chamada ao principal **falha** (nunca quando a resposta veio
+# e foi recusada pela validação — trocar de provedor não conserta a forma
+# de uma resposta), só ligada no console, e nunca calada — cada uso entra
+# na trilha, no contador do console e na proveniência do artefato. Ver o
+# comentário em `base.models.InstallationSettings`.
+
+
+def usa_padrao_da_instalacao(tenant_id):
+    """A clínica não tem IA própria utilizável: quem a atende é a instalação."""
+    return _tenant_settings(tenant_id) is None
+
+
+def reserva_utilizavel(tenant_id):
+    """Esta chamada pode recuar para a reserva, se o principal falhar?
+
+    `False` para a clínica com IA própria, sempre: ela escolheu para onde o
+    prontuário vai, e recuar para a reserva da instalação seria mandá-lo a
+    um contrato que ela não escolheu — o mesmo motivo de ela nunca recuar
+    para a NVIDIA.
+    """
+    if not settings.AI_ENABLED or not usa_padrao_da_instalacao(tenant_id):
+        return False
+    from base.models import InstallationSettings
+
+    return InstallationSettings.carregar().reserva_pronta
+
+
+def installation_reserve_model():
+    """O cliente do provedor reserva, montado com a chave guardada no banco."""
+    from base.crypto import SecretUnavailable
+    from base.models import InstallationSettings
+
+    from .catalog import ProviderProbeFailed, assert_endereco_permitido
+
+    config = InstallationSettings.carregar()
+    if not config.reserva_configurada:
+        raise ProviderUnavailable('A reserva de IA da instalação não está configurada.')
+    provider = config.ai_reserva_provider
+    if provider not in PROVIDERS:
+        raise ProviderUnavailable(f'O provedor reserva ({provider!r}) não está no catálogo.')
+    base_url = config.ai_reserva_base_url
+    if base_url:
+        # Conferido de novo aqui, e não só ao gravar: a lista de endereços
+        # liberados pode ter encolhido depois, e é a rede do servidor que
+        # a chamada vai alcançar.
+        try:
+            assert_endereco_permitido(base_url)
+        except ProviderProbeFailed as exc:
+            raise ProviderUnavailable(f'Endereço da reserva recusado: {exc}') from exc
+    try:
+        api_key = config.reserva_api_key()
+    except SecretUnavailable as exc:
+        raise ProviderUnavailable(f'A chave da reserva não abre: {exc}') from exc
+    return _build(provider, config.ai_reserva_model, api_key, base_url)
+
+
+def descrever_falha(exc):
+    """O que aconteceu com o principal, sem nada que seja segredo.
+
+    Vai para a trilha de auditoria: a classe da exceção e o código HTTP, e
+    nunca a mensagem do provedor, que pode ecoar o pedido.
+    """
+    status = getattr(getattr(exc, 'response', None), 'status_code', None)
+    if status is None:
+        status = getattr(exc, 'status_code', None)
+    return {'excecao': type(exc).__name__, 'status_http': status if isinstance(status, int) else None}
+
+
+def registrar_uso_da_reserva(*, tenant_id, user_id, origem, objeto_id, falha):
+    """Conta o uso, carimba a hora e grava na trilha. Nunca levanta.
+
+    `update()` com `F()` em vez de ler e gravar a linha: dois workers
+    usando a reserva ao mesmo tempo não podem perder um ao outro na conta.
+    """
+    import logging
+
+    from django.db.models import F
+    from django.utils import timezone
+
+    from base.models import InstallationSettings
+
+    try:
+        config = InstallationSettings.carregar()
+        InstallationSettings.objects.filter(pk=config.pk).update(
+            ai_reserva_usos=F('ai_reserva_usos') + 1,
+            ai_reserva_usada_em=timezone.now(),
+        )
+        principal, modelo, _ = config.ia_da_instalacao()
+        from audit.services import record_audit_event
+
+        record_audit_event(
+            user_id, tenant_id, 'ai.reserva_usada',
+            object_type=origem, object_id=objeto_id, outcome='success',
+            integrity_metadata={
+                'principal': {'provider': principal, 'model': modelo},
+                'reserva': {
+                    'provider': config.ai_reserva_provider,
+                    'model': config.ai_reserva_model,
+                },
+                'falha': falha,
+            },
+        )
+    except Exception:  # pragma: no cover - o registro nunca derruba a resposta
+        logging.getLogger(__name__).exception('Falha ao registrar o uso da reserva de IA')
+
+
 def active_provider_label(tenant_id=None):
     """Nome do provedor em uso, para a tela dizer para onde os dados vão."""
     row = _tenant_settings(tenant_id)
-    key = row.provider if row is not None else settings.AI_PROVIDER
+    if row is not None:
+        key = row.provider
+    else:
+        # O provedor do console, e não o do `.env`: a tela diz para onde os
+        # dados vão, e o `.env` só semeou a configuração na primeira vez.
+        from base.models import InstallationSettings
+
+        key = InstallationSettings.carregar().ia_da_instalacao()[0]
     return PROVIDERS.get(key, {}).get('label', key)
 
 
 __all__ = [
     'get_chat_model', 'ProviderUnavailable', 'active_provider_label',
-    'installation_secret_name',
+    'installation_secret_name', 'reserva_utilizavel', 'installation_reserve_model',
+    'registrar_uso_da_reserva', 'descrever_falha', 'usa_padrao_da_instalacao',
 ]

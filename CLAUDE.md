@@ -372,6 +372,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_confirmacao_unica.py` | **uma pergunta por ação**: a confirmação é o modal do sistema (`app.js::initConfirm`), e o `window.confirm` do `nd-inline.js` só vale em página sem o modal — os dois respondiam ao mesmo `data-nd-confirm`, e limpar avisos perguntava três vezes; varre templates e scripts atrás de `window.confirm/alert/prompt` novo |
 | `check_estruturado.py` | a tela do prontuário estruturado: as **impressões** dentro da aba de hipóteses (o campo existia no modelo e não era desenhado — e o que vinha da consulta anterior era gravado invisível), **trazer tudo** da consulta anterior numa transação só, e **cada envio voltando para a sua aba** — com a varredura que impede uma aba nova de nascer sem dizer qual é |
 | `check_leitura_retirada.py` | a **leitura de laudo pela IA saiu por inteiro** (1.18) e o resto da IA ficou: a caixa, o botão e as rotas `ler-laudo/` e `rascunho/` sumidos, o exame com PDF registrado sem nascer job nem com `run_extraction` forjado, `create_job` recusando o tipo aposentado, e o job antigo que ainda chegar ao worker — direto, pela mensagem velha da fila ou pela retomada — **cancelado com a explicação**; e as duas varreduras que valem para toda tarefa de IA: esquema fora de `ArtifactModel` e prompt sem tipo |
+| `check_ia_reserva.py` | a **reserva de IA da instalação** (1.23): desligada não troca; ligada, o principal fora do ar (503) e o tempo esgotado passam para ela, com o artefato gravando **quem respondeu**; a resposta recusada pela validação **não** troca; a clínica com IA própria **nunca** recua; no chat, só antes da primeira palavra; o uso contado e na trilha sem chave nem conteúdo; a **vigilância** com um e-mail por falha e zerada na volta; e o console — chave cifrada que não volta à tela, ligar só verificada, desligar num clique |
 | `check_chat_manual.py` | o **chat sem paciente responde pelo manual** (1.18): o índice traz o manual e a documentação técnica e deixa de fora plano de trabalho e histórico de publicação, a busca acha o trecho certo para pergunta de uso (com o radical: "exporto" acha "Exportar"), o trecho chega ao prompt com a fonte, a pergunta de seguimento acha pela anterior, a **conversa com paciente fica só com o prontuário**, e sem trecho o prompt manda dizer que não encontrou |
 | `check_intervalos_e_ficha.py` | o **intervalo pontual** da agenda (o almoço, que não é o `buffer_minutes` nem um `ScheduleBlock`) recortando os **três** caminhos — a grade, a lista de horários livres e a validação da reserva —, as quatro recusas do formulário, a vigência que encerra em vez de apagar; a **naturalidade** nos três estados com catálogo do IBGE sugerindo e texto livre aceitando; e a **gaveta da ficha** no atendimento, sem formulário dentro |
 | `check_aviso_de_horario.py` | o paciente avisado ao **marcar, remarcar e cancelar**: o `Local` sendo o endereço e não o nome da clínica, o telefone, a falta de endereço declarada em vez de escondida, os três eventos emitidos e consumidos, a idempotência (com volume criado antes, senão passa sobre lista vazia) e o aviso saindo pelo worker |
@@ -492,6 +493,7 @@ exceção inventada "emergência comunicada ao CRM", que o art. 37 não tem.
 | Chave | O que faz |
 | --- | --- |
 | `ai_provider`, `ai_model`, `ai_base_url` | O provedor de IA **padrão**, de toda clínica que não configurou o seu. Com a verificação que pergunta ao provedor se o modelo ainda existe |
+| `ai_reserva_*` | O provedor de IA **reserva** (1.23): provedor, modelo e **chave cifrada no banco**, gravados no console. Responde sozinho quando a chamada ao principal **falha** — só para quem usa o padrão da instalação, nunca para a clínica com IA própria, e nunca quando a resposta chega e é recusada pela validação. Nasce desligado, liga só verificado, e cada uso entra na trilha (`ai.reserva_usada`) e na proveniência do artefato. Ver `ai/providers/__init__.py::reserva_utilizavel` |
 | `ai_base_url_allowlist` | Endereços de API que a instalação libera **além** do catálogo, para provedor de IA próprio (Ollama, vLLM). Vazio = só o catálogo |
 | `documents_gc_dry_run` | Ensaio da coleta semanal de arquivos apagados. `True` conta e registra sem apagar |
 
@@ -506,7 +508,12 @@ identificador de modelo é a forma mais comum de a IA falhar em produção;
 a tela **da clínica** foi construída para evitar isso, e o padrão da
 instalação ficou de fora.
 
-**A chave não se edita no console, e isso é desenho e não esquecimento.**
+**Vigiado de hora em hora desde a 1.23** (`ai.tasks.vigiar_ia_da_instalacao`):
+a verificação que só rodava no botão passou a rodar sozinha, e manda e-mail a
+todo superadministrador na passagem para a falha (e uma vez por dia enquanto
+durar). Foi a peça que faltou nos quarenta dias.
+
+**A chave do principal não se edita no console, e isso é desenho e não esquecimento.**
 Ela é credencial, mora em secret, e o processo `app` não recebe nenhuma
 (§2). Quem pode trocar o modelo não precisa poder ler a chave — e é por
 isso também que a verificação é **tarefa do worker**: a tela não tem como

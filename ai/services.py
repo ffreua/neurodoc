@@ -1,6 +1,7 @@
 import hashlib
 import json
 import logging
+import time
 import uuid
 
 from django.conf import settings
@@ -19,7 +20,10 @@ from .models import (
     TIPOS_APOSENTADOS, PATIENT_SOURCED_KINDS, AIArtifact, AIJob, AIJobKind, AIJobStatus,
     AIReviewState,
 )
-from .providers import ProviderUnavailable, get_chat_model
+from .providers import (
+    ProviderUnavailable, descrever_falha, get_chat_model, installation_reserve_model,
+    registrar_uso_da_reserva, reserva_utilizavel,
+)
 from .schemas import SCHEMA_VERSION
 from .tools import clinical as clinical_tools
 
@@ -234,6 +238,16 @@ def _provenance_of(chat_model, tenant_id):
 #: taxa passam sozinhos, e repetir e de fato o que se deve fazer.
 _ESTADOS_QUE_PASSAM = {408, 429}
 
+#: Quanto um job pode gastar falando com provedores, somando o principal e
+#: a reserva. Abaixo do `CELERY_TASK_SOFT_TIME_LIMIT` (300 s) com folga: o
+#: relatório tem 240 s de prazo próprio, e o principal que esgota esse
+#: prazo deixa pouco tempo para a reserva -- passar do limite do Celery
+#: mataria o job sem gravar falha nenhuma.
+_ORCAMENTO_DO_JOB = 270
+#: Menos que isto para a reserva e não vale tentar: ela começaria uma
+#: chamada que não teria como terminar, e a falha chegaria igual.
+_PRAZO_MINIMO_DA_RESERVA = 15
+
 
 def _falha_do_provedor(exc, job):
     """Traduz a recusa do provedor numa frase útil e num diagnóstico.
@@ -377,13 +391,18 @@ def run_job(job_id):
     job.status = AIJobStatus.RUNNING
     job.save(update_fields=['source_hash', 'status'])
 
-    try:
-        chat_model = get_chat_model(tenant_id=job.tenant_id)
-    except ProviderUnavailable as exc:
-        return _fail(job, AIJobStatus.FAILED, str(exc), 'ai.job_provider_unavailable')
-
     prompt = build_prompt(job.kind, deidentified_text, extras=prompt_extras)
-    graph = build_graph(chat_model, job.kind, max_output_chars=job.limits.get('max_output_chars', 20000))
+    max_output_chars = job.limits.get('max_output_chars', 20000)
+    limite = job.limits.get('timeout_seconds', 30)
+    inicio = time.monotonic()
+
+    def executar(modelo, prazo):
+        grafo = build_graph(modelo, job.kind, max_output_chars=max_output_chars)
+        return grafo.invoke({
+            'prompt': prompt, 'timeout_seconds': prazo,
+            'raw_response': None, 'artifact': None, 'error': None, 'diagnostics': None,
+        })
+
     # O provedor pode recusar a chamada inteira, e isso **não** é "tente
     # novamente". Em 2026-08-26 a NVIDIA aposentou o modelo que era o
     # padrão da instalação e passou a responder `410 Gone`; a exceção
@@ -397,15 +416,57 @@ def run_job(job_id):
     # configuração (modelo aposentado, chave recusada, crédito acabado) e
     # pedir para repetir é errado; o resto é instabilidade, e aí repetir
     # é o conselho certo.
+    usou_reserva = False
     try:
-        result_state = graph.invoke({
-            'prompt': prompt, 'timeout_seconds': job.limits.get('timeout_seconds', 30),
-            'raw_response': None, 'artifact': None, 'error': None, 'diagnostics': None,
-        })
-    except Exception as exc:
-        detalhe, diagnostico = _falha_do_provedor(exc, job)
-        return _fail(job, AIJobStatus.FAILED, detalhe, 'ai.job_provider_error',
-                     diagnostics=diagnostico)
+        chat_model = get_chat_model(tenant_id=job.tenant_id)
+    except ProviderUnavailable as exc:
+        chat_model, falha_principal = None, exc
+    else:
+        falha_principal = None
+        try:
+            result_state = executar(chat_model, limite)
+        except Exception as exc:
+            falha_principal = exc
+        else:
+            if (result_state.get('diagnostics') or {}).get('tempo_esgotado'):
+                falha_principal = TimeoutError(result_state.get('error') or 'tempo esgotado')
+
+    if falha_principal is not None:
+        # A reserva da instalação, quando ligada e quando esta clínica usa o
+        # padrão. Só aqui, depois de o principal **falhar na chamada** --
+        # nunca porque a resposta veio e não passou na validação.
+        prazo_reserva = min(limite, int(_ORCAMENTO_DO_JOB - (time.monotonic() - inicio)))
+        prazo_minimo = min(_PRAZO_MINIMO_DA_RESERVA, limite)
+        if reserva_utilizavel(job.tenant_id) and prazo_reserva >= prazo_minimo:
+            try:
+                chat_model = installation_reserve_model()
+                result_state = executar(chat_model, prazo_reserva)
+            except Exception as exc_reserva:
+                detalhe, diagnostico = _falha_do_provedor(exc_reserva, job)
+                diagnostico['reserva'] = True
+                diagnostico['principal'] = descrever_falha(falha_principal)
+                return _fail(
+                    job, AIJobStatus.FAILED,
+                    'O provedor de IA principal e o reserva falharam. ' + detalhe,
+                    'ai.job_provider_error', diagnostics=diagnostico,
+                )
+            usou_reserva = True
+            registrar_uso_da_reserva(
+                tenant_id=job.tenant_id, user_id=job.user_id, origem='ai_job',
+                objeto_id=job.id, falha=descrever_falha(falha_principal),
+            )
+        elif chat_model is None:
+            return _fail(job, AIJobStatus.FAILED, str(falha_principal),
+                         'ai.job_provider_unavailable')
+        elif isinstance(falha_principal, TimeoutError):
+            return _fail(
+                job, AIJobStatus.FAILED, result_state['error'], 'ai.job_failed',
+                diagnostics=result_state.get('diagnostics'),
+            )
+        else:
+            detalhe, diagnostico = _falha_do_provedor(falha_principal, job)
+            return _fail(job, AIJobStatus.FAILED, detalhe, 'ai.job_provider_error',
+                         diagnostics=diagnostico)
 
     if result_state.get('error'):
         return _fail(
@@ -424,7 +485,17 @@ def run_job(job_id):
     # configurado. Com provedor por clínica, gravar `settings.AI_PROVIDER`
     # registraria o provedor errado em toda clínica que informou o seu — e
     # a revisão do médico depende de saber de onde a sugestão veio.
-    used_provider, used_model = _provenance_of(chat_model, job.tenant_id)
+    if usou_reserva:
+        # Quem respondeu foi a reserva, e é ela que o médico precisa ver ao
+        # revisar -- proveniência é o que foi de fato usado.
+        from base.models import InstallationSettings
+
+        reserva = InstallationSettings.carregar()
+        used_provider = reserva.ai_reserva_provider
+        used_model = str(getattr(chat_model, 'model_name', None)
+                         or getattr(chat_model, 'model', None) or reserva.ai_reserva_model)
+    else:
+        used_provider, used_model = _provenance_of(chat_model, job.tenant_id)
     artifact = AIArtifact.objects.create(
         tenant_id=job.tenant_id, job=job, schema_version=SCHEMA_VERSION, provider=used_provider,
         model=used_model, prompt_version=PROMPT_VERSION, source_refs=artifact_data['source_refs'],

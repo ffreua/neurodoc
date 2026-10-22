@@ -18,6 +18,15 @@ cláusula 8.4 manda comunicar às clínicas **antes**.
 | **SMSDEV** (SMS) | Enviar aviso de horário, lembrete e o link de entrega de documento | Telefone e mensagem neutra com o link | Brasil | Não |
 | **NVIDIA** (IA padrão da instalação) | Apoio clínico por IA, só nos planos que o contratam e só quando a clínica liga o recurso | Texto clínico **desidentificado** localmente antes de sair (nome, CPF, telefone e e-mail removidos); a resposta volta como rascunho que o médico revisa | **EUA** | **Sim** |
 
+**O provedor de IA reserva da instalação (desde a 1.23).** O console
+permite configurar um segundo provedor (por exemplo, a OpenRouter) que
+responde quando a NVIDIA falha, só para as clínicas que usam o padrão da
+instalação e com o mesmo texto desidentificado. **Enquanto estiver
+desligado, ele não trata dado nenhum e não é suboperador.** Ligá-lo o torna
+suboperador: antes, esta tabela ganha a linha dele (finalidade, dados,
+local, transferência) e as clínicas são comunicadas, como manda a
+cláusula 8 do contrato de adesão.
+
 **O que não está na tabela, e por quê.**
 
 - **O servidor de e-mail ou de SMS que a própria clínica configura** e o

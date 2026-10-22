@@ -119,10 +119,139 @@ que o botão enfileira uma verificação em vez de perguntar na hora.
         </form>
 
         <p class="fs-11 text-muted mt-3 mb-0">
-            A <strong>chave</strong> de cada provedor não se edita aqui — ela é secret
+            A <strong>chave</strong> do provedor principal não se edita aqui — ela é secret
             do servidor, e só o worker a recebe. Trocar para um provedor sem chave
             gravada faz a verificação dizer qual secret falta.
+            O principal é <strong>verificado sozinho de hora em hora</strong>; se falhar,
+            todo superadministrador recebe e-mail (e de novo uma vez por dia enquanto durar).
         </p>
+    </div>
+</div>
+
+{% comment %}O provedor de IA reserva da instalação.
+
+Assume sozinho quando a chamada ao principal falha — só para quem usa o
+padrão da instalação; a clínica com IA própria nunca recua. É a primeira
+exceção deliberada à regra de nunca trocar de provedor em silêncio, e por
+isso é contada, auditada e nasce desligada. Ver
+`base.models.InstallationSettings` e `ai/providers/__init__.py`.
+
+A chave se grava aqui (cifrada no banco, como a da clínica) e nunca volta à
+tela: o campo só aceita gravar. Ligar exige a verificação em verde.
+{% endcomment %}
+<div class="card stretch stretch-full mb-4" data-nd-ia-reserva>
+    <div class="card-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+        <h5 class="card-title mb-0">Provedor de IA reserva</h5>
+        {% if config.reserva_pronta %}
+        <span class="badge bg-soft-success text-success">Ligada</span>
+        {% elif config.reserva_configurada %}
+        <span class="badge bg-soft-warning text-warning">Configurada, desligada</span>
+        {% else %}
+        <span class="badge bg-soft-secondary text-muted">Não configurada</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <p class="fs-13">
+            Responde <strong>sozinha</strong> quando a chamada ao provedor principal falha
+            (tempo esgotado, provedor fora do ar, limite de uso, modelo aposentado, chave
+            recusada) — e <strong>só</strong> para as clínicas que usam o padrão da
+            instalação. A clínica com IA própria nunca recua para cá. Resposta que chega e
+            não passa na validação não troca de provedor. No chat, a troca só acontece
+            antes da primeira palavra.
+        </p>
+        <p class="fs-12 text-muted">
+            Cada uso entra na trilha de auditoria (<code>ai.reserva_usada</code>), e o
+            resultado grava qual provedor respondeu. Ligar a reserva acrescenta um
+            suboperador de dados de saúde — atualize a relação de suboperadores e
+            comunique as clínicas (cláusula 8 do contrato).
+        </p>
+
+        {% if config.ai_reserva_usos %}
+        <div class="alert {% if config.reserva_pronta %}alert-warning{% else %}alert-secondary{% endif %} fs-13" role="status">
+            A reserva já respondeu <strong>{{ config.ai_reserva_usos }}</strong> vez(es);
+            a última em {{ config.ai_reserva_usada_em|date:"d/m/Y H:i" }}.
+            Reserva usada com frequência quer dizer principal quebrado — confira acima.
+        </div>
+        {% endif %}
+
+        {% if config.ai_reserva_checked_at %}
+        <p class="fs-12 {% if config.ai_reserva_check_ok %}text-muted{% else %}text-danger{% endif %} mb-3">
+            Última verificação da reserva em {{ config.ai_reserva_checked_at|date:"d/m/Y H:i" }}:
+            {{ config.ai_reserva_check_detail }}
+        </p>
+        {% elif config.reserva_configurada %}
+        <p class="fs-12 text-muted mb-3">Reserva ainda não verificada.</p>
+        {% endif %}
+
+        <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}"
+              class="row g-3">
+            {% csrf_token %}
+            <input type="hidden" name="acao" value="gravar">
+            <div class="col-md-3">
+                <label class="form-label fs-12" for="id_reserva_provedor">Provedor</label>
+                <select class="form-select" id="id_reserva_provedor" name="provedor">
+                    {% for valor, rotulo in ia_provedores %}
+                    <option value="{{ valor }}" {% if valor == config.ai_reserva_provider %}selected{% endif %}>{{ rotulo }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fs-12" for="id_reserva_modelo">Modelo</label>
+                <input class="form-control" id="id_reserva_modelo" name="modelo"
+                       {% if reserva_modelos %}list="ia-reserva-modelos"{% endif %}
+                       value="{{ config.ai_reserva_model }}" autocomplete="off"
+                       placeholder="ex.: meta-llama/llama-3.3-70b-instruct">
+                {% if reserva_modelos %}
+                <datalist id="ia-reserva-modelos">
+                    {% for m in reserva_modelos %}<option value="{{ m }}"></option>{% endfor %}
+                </datalist>
+                <span class="fs-11 text-muted">{{ reserva_modelos|length }} modelo(s) na última verificação.</span>
+                {% endif %}
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fs-12" for="id_reserva_chave">Chave de API</label>
+                <input class="form-control" id="id_reserva_chave" name="chave" type="password"
+                       autocomplete="new-password"
+                       placeholder="{% if config.ai_reserva_chave_dica %}gravada: {{ config.ai_reserva_chave_dica }}{% else %}cole a chave{% endif %}">
+                <span class="fs-11 text-muted">Vazio mantém a chave gravada. Ela nunca volta à tela.</span>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fs-12" for="id_reserva_base_url">Endereço da API</label>
+                <input class="form-control" id="id_reserva_base_url" name="base_url"
+                       value="{{ config.ai_reserva_base_url }}" placeholder="só para provedor próprio">
+            </div>
+            <div class="col-12">
+                <button class="btn btn-primary" type="submit">Gravar reserva</button>
+                <span class="fs-11 text-muted ms-2">Gravar desliga a reserva até a nova verificação ficar verde.</span>
+            </div>
+        </form>
+
+        {% if config.reserva_configurada %}
+        <div class="d-flex flex-wrap gap-2 mt-3">
+            <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}">
+                {% csrf_token %}
+                <button class="btn btn-light-primary" type="submit" name="acao" value="verificar">Verificar reserva</button>
+            </form>
+            {% if config.ai_reserva_ativa %}
+            <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}">
+                {% csrf_token %}
+                <button class="btn btn-warning" type="submit" name="acao" value="desligar">Desligar reserva</button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}"
+                  data-nd-confirm="Ligar a reserva? Quando o provedor principal falhar, as clínicas que usam o padrão da instalação passarão a ser atendidas por {{ config.ai_reserva_provider }} / {{ config.ai_reserva_model }}.">
+                {% csrf_token %}
+                <button class="btn btn-success" type="submit" name="acao" value="ligar"
+                        {% if not config.ai_reserva_check_ok %}disabled title="Verifique a reserva primeiro"{% endif %}>Ligar reserva</button>
+            </form>
+            {% endif %}
+            <form method="post" action="{% url 'superadmin:operations-installation-ai-reserve' %}"
+                  data-nd-confirm="Apagar a chave da reserva? A reserva será desligada.">
+                {% csrf_token %}
+                <button class="btn btn-light" type="submit" name="acao" value="apagar_chave">Apagar chave</button>
+            </form>
+        </div>
+        {% endif %}
     </div>
 </div>
 

@@ -326,6 +326,11 @@ PRD; é a referência operacional viva gerada a partir dele.
   entre inquilinos — era o cache do navegador, que a revisão de
   isolamento não tinha olhado. Traz a regra geral de prazo de cache e o
   roteiro que a cobra.
+- [A IA da instalação vigiada, e o provedor reserva](homologation/ia-reserva.md) —
+  a 1.23: a verificação do principal de hora em hora, com e-mail ao
+  superadministrador, e o provedor reserva configurado no console, que
+  responde sozinho quando a chamada ao principal falha — só para quem usa
+  o padrão da instalação.
 - [O despachante da outbox](homologation/despachante-da-outbox.md) — a
   auditoria externa de 2026-10-09: oito achados no processamento
   assíncrono, o que procedeu, o que foi corrigido (posse do lease,

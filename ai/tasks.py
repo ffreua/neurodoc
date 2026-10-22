@@ -5,7 +5,10 @@ from .chat_models import ChatMessage
 from .chat_services import fail_assistant_message, finalize_assistant_message
 from .models import AIJob, AIJobStatus
 from .context import AIAuthorizationDenied
-from .providers import ProviderUnavailable, get_chat_model
+from .providers import (
+    ProviderUnavailable, descrever_falha, get_chat_model, installation_reserve_model,
+    registrar_uso_da_reserva, reserva_utilizavel,
+)
 from .rendering import render_markdown
 from .services import JobNotRunnable, run_job
 from .streaming import publish_event
@@ -235,6 +238,21 @@ def run_chat_turn(message_id, user_message_id):
         fail_assistant_message(message, decisao.reason)
         return {'status': 'blocked_privacy', 'reason': decisao.reason}
 
+    accumulated = []
+
+    def transmitir(modelo):
+        for chunk in modelo.stream(prompt):
+            text = chunk.content if hasattr(chunk, 'content') else str(chunk)
+            if not text:
+                continue
+            accumulated.append(text)
+            publish_event(tenant_id, user_id, session.id, job_id, 'delta', {'text': text})
+
+    def falhar(exc):
+        publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': str(exc)})
+        fail_assistant_message(message, str(exc))
+        return {'status': 'failed', 'reason': str(exc)}
+
     try:
         # `tenant_id` para o chat usar o provedor **daquela** clínica: a
         # conversa carrega prontuário, e mandá-la ao provedor da instalação
@@ -242,22 +260,33 @@ def run_chat_turn(message_id, user_message_id):
         # destino que ninguém escolheu.
         chat_model = get_chat_model(tenant_id=tenant_id)
     except ProviderUnavailable as exc:
-        publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': str(exc)})
-        fail_assistant_message(message, str(exc))
-        return {'status': 'failed', 'reason': str(exc)}
+        falha_principal = exc
+    else:
+        falha_principal = None
+        try:
+            transmitir(chat_model)
+        except Exception as exc:
+            falha_principal = exc
 
-    accumulated = []
-    try:
-        for chunk in chat_model.stream(prompt):
-            text = chunk.content if hasattr(chunk, 'content') else str(chunk)
-            if not text:
-                continue
-            accumulated.append(text)
-            publish_event(tenant_id, user_id, session.id, job_id, 'delta', {'text': text})
-    except Exception as exc:
-        publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': str(exc)})
-        fail_assistant_message(message, str(exc))
-        return {'status': 'failed', 'reason': str(exc)}
+    if falha_principal is not None:
+        # A reserva da instalação entra **só antes da primeira palavra**:
+        # depois que o médico já está lendo uma resposta, recomeçá-la com
+        # outro provedor emendaria dois textos que não conversam entre si.
+        # Ver o comentário de `base.models.InstallationSettings`.
+        if accumulated or not reserva_utilizavel(tenant_id):
+            return falhar(falha_principal)
+        try:
+            transmitir(installation_reserve_model())
+        except Exception as exc_reserva:
+            if accumulated:
+                return falhar(exc_reserva)
+            return falhar(ProviderUnavailable(
+                f'O provedor de IA principal e o reserva falharam: {exc_reserva}'
+            ))
+        registrar_uso_da_reserva(
+            tenant_id=tenant_id, user_id=user_id, origem='chat_message',
+            objeto_id=message.id, falha=descrever_falha(falha_principal),
+        )
 
     full_text = ''.join(accumulated)
     rendered_html = render_markdown(full_text)
@@ -316,7 +345,7 @@ def verificar_provedor_da_instalacao():
 
     from base.models import InstallationSettings
     from .providers import installation_api_key
-    from .providers.catalog import PROVIDERS, ProviderProbeFailed, list_models, probe_model
+    from .providers.catalog import PROVIDERS
 
     config = InstallationSettings.carregar()
     provedor, modelo, base_url = config.ia_da_instalacao()
@@ -344,29 +373,195 @@ def verificar_provedor_da_instalacao():
             f'{installation_secret_name(provedor)} e republique.'
         ))
 
+    ok, detalhe, modelos = _conferir_provedor(provedor, modelo, base_url, chave)
+    return gravar(ok, detalhe, modelos)
+
+
+def _conferir_provedor(provedor, modelo, base_url, chave):
+    """As duas perguntas ao provedor: o que existe, e se o escolhido responde.
+
+    Uma função só para o principal e a reserva: são a mesma conferência
+    sobre configurações diferentes, e duas cópias divergiriam na primeira
+    correção. Devolve `(ok, detalhe, modelos)` — `modelos` é `None` quando
+    nem a lista chegou.
+    """
+    from .providers.catalog import ProviderProbeFailed, list_models, probe_model
+
     try:
         modelos = sorted(list_models(provedor, chave, base_url))
     except ProviderProbeFailed as exc:
-        return gravar(False, f'Não foi possível listar os modelos: {exc}')
+        return False, f'Não foi possível listar os modelos: {exc}', None
     except Exception as exc:  # pragma: no cover - rede
-        return gravar(False, f'Falha ao falar com o provedor: {type(exc).__name__}.')
+        return False, f'Falha ao falar com o provedor: {type(exc).__name__}.', None
 
     if not modelo:
-        return gravar(False, 'Nenhum modelo escolhido para a instalação.', modelos)
+        return False, 'Nenhum modelo escolhido.', modelos
     if modelo not in modelos:
-        return gravar(False, (
+        return False, (
             f'O modelo {modelo} não está entre os {len(modelos)} que {provedor} oferece. '
             'Escolha outro na lista — provedor aposenta modelo sem avisar.'
-        ), modelos)
+        ), modelos
 
     try:
         probe_model(provedor, chave, modelo, base_url)
     except ProviderProbeFailed as exc:
-        return gravar(False, f'O modelo está na lista, mas a chamada falhou: {exc}', modelos)
+        return False, f'O modelo está na lista, mas a chamada falhou: {exc}', modelos
     except Exception as exc:  # pragma: no cover - rede
-        return gravar(False, f'Falha ao testar o modelo: {type(exc).__name__}.', modelos)
+        return False, f'Falha ao testar o modelo: {type(exc).__name__}.', modelos
 
-    return gravar(True, f'{provedor} respondeu, e {modelo} está ativo.', modelos)
+    return True, f'{provedor} respondeu, e {modelo} está ativo.', modelos
+
+
+@shared_task(name='ai.tasks.verificar_reserva_da_instalacao', expires=600)
+def verificar_reserva_da_instalacao():
+    """A mesma conferência do principal, sobre a reserva. Nunca levanta.
+
+    Existe porque uma reserva que ninguém confere é a mesma armadilha do
+    principal em 2026 com outro nome: ligada, aparentemente pronta, e
+    quebrada justamente no dia em que for chamada.
+    """
+    from django.utils import timezone
+
+    from base.crypto import SecretUnavailable
+    from base.models import InstallationSettings
+    from .providers.catalog import PROVIDERS, ProviderProbeFailed, assert_endereco_permitido
+
+    config = InstallationSettings.carregar()
+
+    def gravar(ok, detalhe, modelos=None):
+        config.ai_reserva_checked_at = timezone.now()
+        config.ai_reserva_check_ok = ok
+        config.ai_reserva_check_detail = detalhe[:300]
+        campos = ['ai_reserva_checked_at', 'ai_reserva_check_ok', 'ai_reserva_check_detail',
+                  'updated_at']
+        if modelos is not None:
+            config.ai_reserva_modelos = modelos
+            campos.append('ai_reserva_modelos')
+        config.save(update_fields=campos)
+        return {'ok': ok, 'detalhe': detalhe[:300]}
+
+    provedor = config.ai_reserva_provider
+    if not provedor:
+        return gravar(False, 'Nenhum provedor reserva escolhido.')
+    if provedor not in PROVIDERS:
+        return gravar(False, f'O provedor {provedor!r} não está no catálogo.')
+    if not config.ai_reserva_chave_cifrada:
+        return gravar(False, 'Nenhuma chave gravada para a reserva.')
+    if config.ai_reserva_base_url:
+        try:
+            assert_endereco_permitido(config.ai_reserva_base_url)
+        except ProviderProbeFailed as exc:
+            return gravar(False, f'Endereço recusado: {exc}')
+    try:
+        chave = config.reserva_api_key()
+    except SecretUnavailable as exc:
+        return gravar(False, f'A chave gravada não abre: {exc}')
+
+    ok, detalhe, modelos = _conferir_provedor(
+        provedor, config.ai_reserva_model, config.ai_reserva_base_url, chave,
+    )
+    return gravar(ok, detalhe, modelos)
+
+
+#: Intervalo mínimo entre dois e-mails sobre a mesma falha: a vigilância
+#: roda de hora em hora, e repetir o aviso a cada hora ensina a ignorá-lo.
+ALERTA_REPETE_A_CADA_HORAS = 24
+
+
+@shared_task(name='ai.tasks.vigiar_ia_da_instalacao', expires=1800)
+def vigiar_ia_da_instalacao():
+    """De hora em hora: confere o principal e a reserva, e avisa quem opera.
+
+    É a peça que faltava em 2026. A verificação existia no console, mas só
+    rodava quando alguém clicava -- e ninguém clica num botão sobre um
+    defeito que não sabe que existe. Foram quarenta dias assim.
+
+    O aviso vai por e-mail a todo superadministrador ativo, na passagem de
+    "funcionando" para "falhou" e depois uma vez por dia enquanto durar.
+    Diz se a reserva está cobrindo, porque isso muda a urgência: com a
+    reserva ligada e verificada, as clínicas seguem atendidas.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from base.models import InstallationSettings
+
+    principal = verificar_provedor_da_instalacao()
+    reserva = None
+    config = InstallationSettings.carregar()
+    if config.reserva_configurada:
+        reserva = verificar_reserva_da_instalacao()
+        config = InstallationSettings.carregar()
+
+    if principal.get('ok'):
+        if config.ai_alerta_enviado_em is not None:
+            config.ai_alerta_enviado_em = None
+            config.save(update_fields=['ai_alerta_enviado_em', 'updated_at'])
+        return {'principal': principal, 'reserva': reserva, 'alerta': False}
+
+    agora = timezone.now()
+    ultimo = config.ai_alerta_enviado_em
+    if ultimo is not None and agora - ultimo < timedelta(hours=ALERTA_REPETE_A_CADA_HORAS):
+        return {'principal': principal, 'reserva': reserva, 'alerta': False}
+
+    enviados = _avisar_falha_da_ia(config, principal, reserva)
+    config.ai_alerta_enviado_em = agora
+    config.save(update_fields=['ai_alerta_enviado_em', 'updated_at'])
+    return {'principal': principal, 'reserva': reserva, 'alerta': True, 'destinatarios': enviados}
+
+
+def _avisar_falha_da_ia(config, principal, reserva):
+    """O e-mail ao superadministrador. Só configuração, nunca dado clínico."""
+    import logging
+
+    from django.conf import settings
+    from django.core.mail import send_mail
+
+    from accounts.models import User
+
+    destinos = list(
+        User.objects.filter(is_superuser=True, is_active=True)
+        .exclude(email='').values_list('email', flat=True)
+    )
+    if not destinos:
+        return 0
+    provedor, modelo, _ = config.ia_da_instalacao()
+    if config.reserva_pronta and reserva and reserva.get('ok'):
+        cobertura = (
+            f'A reserva ({config.ai_reserva_provider} / {config.ai_reserva_model}) está '
+            'ligada e respondeu na verificação: as clínicas que usam o padrão da '
+            'instalação seguem atendidas por ela.'
+        )
+    elif config.reserva_pronta:
+        cobertura = (
+            'A reserva está ligada, mas a verificação dela também falhou: '
+            + ((reserva or {}).get('detalhe') or 'sem detalhe.')
+            + ' As clínicas que usam o padrão da instalação estão SEM IA.'
+        )
+    else:
+        cobertura = (
+            'A reserva não está ligada: as clínicas que usam o padrão da instalação '
+            'estão SEM IA até o provedor voltar ou a configuração ser trocada.'
+        )
+    corpo = (
+        'A verificação automática do provedor de IA da instalação falhou.\n\n'
+        f'Provedor: {provedor}\nModelo: {modelo}\n'
+        f'Resultado: {principal.get("detalhe")}\n\n'
+        f'{cobertura}\n\n'
+        f'Para conferir ou trocar: {settings.PUBLIC_BASE_URL.rstrip("/")}/instalacao/operacao/\n\n'
+        'Este aviso se repete uma vez por dia enquanto a falha durar, e para '
+        'sozinho quando a verificação voltar a passar.'
+    )
+    try:
+        send_mail(
+            '[NeuroDoc] A IA da instalação está falhando', corpo,
+            settings.DEFAULT_FROM_EMAIL, destinos, fail_silently=False,
+        )
+    except Exception:  # pragma: no cover - o aviso nunca derruba a vigilância
+        logging.getLogger(__name__).exception('Falha ao enviar o aviso de IA da instalação')
+        return 0
+    return len(destinos)
 
 
 #: Um job na fila há mais que isto se perdeu no caminho até o worker.

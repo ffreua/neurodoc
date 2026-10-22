@@ -96,6 +96,59 @@ class InstallationSettings(TimestampedModel):
     ai_check_ok = models.BooleanField(null=True, blank=True)
     ai_check_detail = models.CharField(max_length=300, blank=True)
 
+    # ----------------------------------------------------------------
+    # Provedor de IA reserva da instalacao
+    # ----------------------------------------------------------------
+    #
+    # Assume **sozinho** quando a chamada ao provedor principal falha --
+    # tempo esgotado, provedor fora do ar, limite de uso, modelo aposentado,
+    # chave recusada. E a primeira excecao deliberada a regra RT-04 ("nunca
+    # trocar de provedor em silencio"), e as tres travas que a tornam
+    # aceitavel sao estas:
+    #
+    # - **so vale para quem usa o padrao da instalacao.** A clinica que
+    #   configurou a propria IA escolheu para onde o prontuario vai, e
+    #   nunca recua -- nem para a NVIDIA, nem para a reserva;
+    # - **nao e silenciosa**: cada uso conta aqui (`ai_reserva_usos`,
+    #   `ai_reserva_usada_em`), entra na trilha como `ai.reserva_usada` e o
+    #   artefato grava qual provedor respondeu de fato;
+    # - **nasce desligada** (`ai_reserva_ativa`), e ligar e ato explicito
+    #   no console, com a reserva configurada e a chave gravada.
+    #
+    # Por que existe: em 2026 a NVIDIA aposentou o modelo padrao e a IA de
+    # quem dependia dele ficou quarenta dias parada. A verificacao no
+    # console mostrou o defeito quando alguem olhou; a reserva faz o
+    # sistema continuar atendendo enquanto ninguem olha.
+    #
+    # A **chave** da reserva mora aqui, cifrada (`base.crypto`), e nao em
+    # secret do servidor como a do principal -- o pedido do proprietario
+    # foi justamente configura-la sem editar arquivo no servidor. A
+    # protecao e a mesma da chave de IA de cada clinica (que ja mora no
+    # banco assim): a tela grava, nunca mostra, e quem decifra e o worker
+    # na hora da chamada.
+    ai_reserva_ativa = models.BooleanField(default=False)
+    ai_reserva_provider = models.CharField(max_length=40, blank=True)
+    ai_reserva_model = models.CharField(max_length=100, blank=True)
+    ai_reserva_base_url = models.CharField(max_length=300, blank=True)
+    ai_reserva_chave_cifrada = models.TextField(blank=True)
+    ai_reserva_chave_meta = models.JSONField(default=dict, blank=True)
+    #: Os ultimos caracteres, para a tela mostrar **que** ha chave e qual.
+    ai_reserva_chave_dica = models.CharField(max_length=40, blank=True)
+    ai_reserva_modelos = models.JSONField(default=list, blank=True)
+    ai_reserva_checked_at = models.DateTimeField(null=True, blank=True)
+    ai_reserva_check_ok = models.BooleanField(null=True, blank=True)
+    ai_reserva_check_detail = models.CharField(max_length=300, blank=True)
+    #: Quantas vezes a reserva atendeu, e a ultima. E o que torna a troca
+    #: visivel: reserva usada todo dia quer dizer principal quebrado.
+    ai_reserva_usos = models.PositiveIntegerField(default=0)
+    ai_reserva_usada_em = models.DateTimeField(null=True, blank=True)
+
+    #: Quando o aviso de "IA principal falhando" foi mandado por e-mail ao
+    #: superadministrador. Zera quando a verificacao volta a passar; com
+    #: ele, o aviso sai na passagem de "ok" para "falhou" e se repete uma
+    #: vez por dia enquanto durar -- e nao a cada hora.
+    ai_alerta_enviado_em = models.DateTimeField(null=True, blank=True)
+
     #: Por que a coleta foi autorizada a apagar. Exigido ao desligar o
     #: ensaio, pela mesma razao do `status_note` da organizacao: "por que
     #: isto esta ligado?" um ano depois nao tem outra fonte.
@@ -172,3 +225,27 @@ class InstallationSettings(TimestampedModel):
             for linha in (self.ai_base_url_allowlist or '').splitlines()
             if linha.strip()
         }
+
+    @property
+    def reserva_configurada(self):
+        """Provedor, modelo e chave da reserva -- os tres, ou nada.
+
+        As tres juntas pela mesma razao do `is_usable` da clinica: faltando
+        qualquer uma, a troca aconteceria e falharia no provedor reserva,
+        dobrando a espera do medico para chegar ao mesmo erro.
+        """
+        return bool(
+            self.ai_reserva_provider and self.ai_reserva_model
+            and self.ai_reserva_chave_cifrada
+        )
+
+    @property
+    def reserva_pronta(self):
+        """Ligada **e** configurada: e so isto que deixa a troca acontecer."""
+        return bool(self.ai_reserva_ativa and self.reserva_configurada)
+
+    def reserva_api_key(self):
+        """A chave da reserva em claro. So o worker deve chamar isto."""
+        from base.crypto import decrypt_secret
+
+        return decrypt_secret(self.ai_reserva_chave_cifrada, self.ai_reserva_chave_meta)

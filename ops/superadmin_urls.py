@@ -46,6 +46,10 @@ urlpatterns = [
         superadmin.InstallationAIView.as_view(), name='operations-installation-ai',
     ),
     path(
+        'operacao/provedor-de-ia/reserva/',
+        superadmin.InstallationAIReserveView.as_view(), name='operations-installation-ai-reserve',
+    ),
+    path(
         'operacao/ia/',
         superadmin.AIAllowlistView.as_view(), name='operations-ai-allowlist',
     ),
