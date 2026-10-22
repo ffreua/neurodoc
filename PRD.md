@@ -4,6 +4,13 @@
 
 **Documento de origem:** NeuroDoc_prompt_mestre.md, versão 1.0. Este PRD é autossuficiente: contém as decisões, os requisitos, o planejamento e os anexos operacionais. A aplicação ainda deverá ser implementada; os comandos do guia são instruções para execução posterior. Nenhum servidor, conta de provedor ou ambiente de produção foi acessado ou alterado para elaborar este documento.
 
+> **Atualização (2026-10-22):** a aplicação foi implementada e está em
+> produção em `neurodoc.app.br` desde a 1.0 (builds de 25 a 28/09/2026),
+> com pacientes reais desde 2026-10-02; a versão corrente é a **1.24**
+> (`base/version.py`). As seções 1 a 24 seguem como especificação de
+> origem e a 25 como registro de setembro; o que mudou em produção está na
+> seção 26, e os trechos que deixaram de valer levam nota como esta.
+
 ## Sumário
 
 1. [Visão, objetivos e métricas](#1-visão-objetivos-e-métricas)
@@ -31,6 +38,7 @@
 23. [Riscos, dependências e fontes](#23-riscos-dependências-e-fontes)
 24. [Anexos operacionais completos](#24-anexos-operacionais-completos)
 25. [Evolução pós-S11 — setembro de 2026](#25-evolução-pós-s11--setembro-de-2026)
+26. [Evolução em produção — da 1.0 à 1.24 (setembro a outubro de 2026)](#26-evolução-em-produção--da-10-à-124-setembro-a-outubro-de-2026)
 
 ## 1. Visão, objetivos e métricas
 
@@ -64,11 +72,28 @@ As metas são hipóteses de produto, não resultados medidos. Registrar baseline
 
 Cada marco mantém as dependências do anterior. IA não pode adiar isolamento de arquivos, integridade clínica ou restauração. O plano free será o único disponível; nenhuma etapa inicial cobrará cartão de crédito.
 
+> **Atualização (2026-10-22):** o plano free deixou de ser o único. Desde a
+> 1.0 há quatro planos — Gratuito, Básico, Completo e Personalizado —, com
+> limites, preço anual e acesso liberado por código de convite que carrega
+> o plano (`tenancy/plans.py`); continua sem pagamento on-line nem cartão.
+> A IA é recurso do Completo e do Personalizado — ver §26.1. A P-09
+> continua bloqueando M3 quanto à divulgação de finalidade clínica da IA,
+> embora a IA esteja ligada em produção desde a resolução da P-03, em
+> 2026-10-06 — ver §26.8 e §26.17.
+
 ### 2.2 Exclusões explícitas
 
 Ficam fora da versão 1: cobrança da assinatura SaaS, gateway de pagamento, emissão fiscal, ERP/contabilidade, faturamento TISS, seguros/sinistros, internação e centro cirúrgico, PACS/DICOM completo, teleconsulta, marketplace de médicos e portal clínico completo do paciente. A página segura de recebimento de documentos faz parte do escopo.
 
 Prescrições sujeitas a regras específicas de controle não serão habilitadas por simples existência de um PDF assinado. O conector e a modalidade documental somente serão liberados após validação da regra vigente e da integração exigida. A evolução do SNCR está descrita pela [Anvisa](https://www.gov.br/anvisa/pt-br/assuntos/noticias-anvisa/2026/SNCR-o-que-muda-para-farmacias-e-drogarias-com-o-novo-sistema-de-controle-de-receitas); esta consulta não confirmou habilitação de integração para o NeuroDoc.
+
+> **Atualização (2026-10-22):** a P-07 foi resolvida em 2026-09-23 — o
+> Receituário de Controle Especial **impresso** (Portaria SVS/MS 344/98, em
+> duas vias) está no escopo e liberado; o SNGPC é obrigação de quem
+> dispensa, não do prescritor. A integração com o SNCR foi construída e
+> publicada **desligada** na 1.22, aguardando o CNPJ da mantenedora; e, pela
+> RDC 1.000/2025, a RCE eletrônica sem numeração do SNCR deixa de ser
+> assinada digitalmente em 31/10/2026 (1.21.1). Ver §26.9.
 
 ## 3. Premissas, decisões e pendências
 
@@ -98,6 +123,21 @@ Prescrições sujeitas a regras específicas de controle não serão habilitadas
 | DEC-20 | Nenhuma suíte de testes automatizados | Decisão confirmada; revisão, verificação sintática e homologação manual continuam obrigatórias |
 | DEC-53 | Captura por scanner e agente local retirados; documentos continuam entrando pelo upload manual do paciente | Reduz complexidade e risco operacional; registros históricos ficam somente leitura para preservar proveniência |
 
+> **Atualização (2026-10-22):** a tabela completa, de DEC-01 a DEC-54, é a
+> de `docs/decisions.md`; aqui faltam DEC-21 a DEC-52 e DEC-54. Duas
+> linhas acima deixaram de valer como escritas:
+>
+> - **DEC-01** — a produção publica em `ghcr.io/ffreua/neurodoc`, lido de
+>   `REGISTRY` no `.env`. `ghcr.io/pycodebr/scsi_v1` era herança de outro
+>   projeto e sobrevive só como `DEFAULT_REGISTRY` em `ops/deploy.py`, usado
+>   quando `REGISTRY` falta.
+> - **DEC-06** — o provedor de IA padrão não é mais fixo em OpenRouter/GLM:
+>   é escolhido no console da instalação (1.7) entre os dez provedores do
+>   catálogo, e hoje é a NVIDIA. Desde a 1.23 existe um provedor
+>   **reserva** (a OpenRouter), mas não é fallback implícito: nasce
+>   desligado, liga só verificado, atende só quem usa o padrão da
+>   instalação, e cada uso vai à trilha. Ver §26.8.
+
 ### 3.1 Pendências que não impedem a especificação
 
 | ID | Informação/validação pendente | Quem resolve | Momento limite |
@@ -112,6 +152,23 @@ Prescrições sujeitas a regras específicas de controle não serão habilitadas
 | P-08 | Windows/software do scanner e diretório de saída de cada consultório | Operação da clínica | Encerrada por retirada de escopo (DEC-53) |
 | P-09 | Validação de enquadramento regulatório do apoio diagnóstico, inclusive eventual SaMD | Produto + regulatório | Antes de divulgar finalidade clínica da IA |
 | P-10 | Destino externo e titular da chave de recuperação de backup | Operação + controlador | Antes do piloto assistencial |
+
+> **Atualização (2026-10-22):** estado de cada pendência segundo
+> `docs/decisions.md`, que é onde ele é mantido:
+>
+> | ID | Estado |
+> | --- | --- |
+> | P-01 | Resolvida — o design system Duralux está em `design_system/` e catalogado em `docs/design-system.md` |
+> | P-02 | Resolvida em 2026-09-25 — repositório, imagens em `ghcr.io/ffreua/neurodoc` e VPS; primeiro deploy nessa data |
+> | P-03 | Resolvida em 2026-10-06 — SMTP, SMSDEV e IA ligados e conferidos contra conta viva |
+> | P-04 | Resolvida para S01/S02 — `requirements.txt` com hashes |
+> | P-05 | Resolvida (registrada em 2026-10-08) — o certificado A1 ICP-Brasil real assina em produção |
+> | P-06 | Resolvida em 2026-09-21 — contrato de adesão redigido pela advogada (§26.11) |
+> | P-07 | Resolvida em 2026-09-23 — receita de controle especial impressa no escopo; SNCR em §26.9 |
+> | P-08 | Encerrada por retirada de escopo (DEC-53) |
+> | P-09 | **Pendente** — bloqueia M3 |
+> | P-10 | Resolvida em 2026-10-02 — backup restaurado e conferido, cópia externa puxada diariamente, chave privada fora da máquina (§26.13) |
+> | P-11 | **Aberta desde 2026-10-02** (nova) — o processo `app` tem saída para a internet pela `traefik_public`; ver §17.1 e §26.17 |
 
 ## 4. Personas e permissões
 
@@ -182,6 +239,11 @@ Salvo rotas públicas expressamente indicadas, cada requisito exige usuário aut
 
 - [ ] RF-01-A: convite inválido/expirado/usado impede criação; duas submissões simultâneas não consomem o convite duas vezes.
 - [ ] RF-01-B: plano free permite acesso sem pagamento; recuperação de senha não confirma se o e-mail existe.
+
+> **Atualização (2026-10-22):** RF-01.01 não descreve mais o produto: não
+> há plano "Em breve". Os quatro planos são contratáveis por código de
+> convite que carrega o plano, e o cadastro exige o aceite do contrato de
+> adesão — ver §26.1 e §26.11.
 
 ### RF-02 — Pacientes e catálogos
 
@@ -376,6 +438,17 @@ Monólito modular Django, PostgreSQL compartilhado, Celery separado para trabalh
 
 Não criar tabelas para “cliente”, “corretora” ou “sinistro”. Em inglês de código, usar `patient`, `tenant`, `encounter`, `document` e `appointment`. Django Admin técnico usa filtros explícitos, mas a aplicação clínica/administrativa possui telas próprias e permissões por tenant.
 
+> **Atualização (2026-10-22):** a tabela não lista todos os apps em
+> produção. Faltam `exams` (roteiro de exame em árvore e escalas),
+> `teamchat` (mensagens internas da equipe, com retenção de 72 horas —
+> §26.10) e `sncr` (numeração do SNCR para a receita eletrônica, publicada
+> desligada na 1.22 — §26.9). O `crm/` saiu em 08/09/2026 (§25.9).
+> `PatientAccessGrant`, listado em `tenancy/`, **não** foi modelado
+> (§25.25). E o código deixou de ser só em inglês: o produto, os
+> comentários novos e as mensagens de commit são em português (`CLAUDE.md`
+> §1), e os nomes novos aparecem nas duas línguas (`RecurringBreak`,
+> `sncr.Configuracao`). A lista de apps mantida é a do `CLAUDE.md` §4.
+
 ```mermaid
 flowchart TB
   B["Navegador"] --> T["Traefik e TLS"]
@@ -415,6 +488,14 @@ Os números abaixo foram encontrados nas fontes indicadas. Isso confirma disponi
 | Modelo padrão | `z-ai/glm-5.3-flash` via OpenRouter | [Página do modelo](https://openrouter.ai/z-ai/glm-5.3-flash); validar recursos e provedor final por configuração |
 
 Interpretação dos limites originais: adota-se uma série posterior a 3.13 para Python e posterior a 6.0 para Django; não se utiliza `>=` para relaxar a exigência. `requirements.in` fixa os seis pacotes centrais verificados e define faixas para os demais. O comando de resolução do guia produz `requirements.txt` com versões exatas e hashes; esse arquivo deve ser revisado, commitado e atualizado a cada alteração. O build recusa ausência de lock.
+
+> **Atualização (2026-10-22):** a linha "Modelo padrão" não vale mais. O
+> provedor e o modelo padrão da instalação deixaram o `.env` e passaram a
+> ser escolhidos no console (`/instalacao/operacao/`, 1.7), entre os dez
+> provedores do catálogo, com verificação contra o provedor — porque um
+> identificador fixo em configuração ficou quarenta dias apontando para um
+> modelo aposentado. Hoje o padrão é a NVIDIA, e a reserva (1.23), a
+> OpenRouter. Ver §26.8.
 
 ## 9. Modelagem de dados
 
@@ -763,6 +844,16 @@ flowchart TB
 
 Tools leem views/seletores de dados autorizados e desidentificados; não fornecem conexão de banco ao LLM. Cada chamada é reautorizada. Limites: máximo 8 chamadas de tools, 3 ciclos de raciocínio instrumental, contexto de entrada até 32 mil tokens e saída até 4 mil tokens por geração inicial, todos configuráveis sob orçamento. São limites de produto propostos, inferiores à capacidade máxima anunciada do modelo.
 
+> **Atualização (2026-10-22):** as funções de `ai/tools/` existem, mas
+> **não** são oferecidas ao modelo como *tools*. Desde setembro de 2026 o
+> servidor as chama antes, monta um bloco de fatos desidentificado e o
+> entrega junto da pergunta (`ai/chat_prompt.py`, "Fatos entregues, não
+> ferramentas oferecidas"): chamada de ferramenta varia conforme o
+> provedor, modelo que pode buscar às vezes responde de memória, e assim
+> se sabe exatamente o que saiu da instalação. Os limites de chamadas e
+> ciclos acima não se aplicam; valem os tetos de leitura de cada tarefa.
+> Ver §26.8.
+
 ### 14.3 Política de dados da IA
 
 Pipeline local detecta identificadores diretos, metadados, nomes em texto/OCR e padrões de documentos. Datas podem ser convertidas em intervalos relativos, localidades generalizadas e idade em faixa quando não comprometer o propósito, com registro dessas transformações. Doenças raras, variantes e genealogia exigem avaliação do risco residual; não há detector universal que garanta anonimização.
@@ -770,6 +861,28 @@ Pipeline local detecta identificadores diretos, metadados, nomes em texto/OCR e 
 Por padrão `AI_ENABLED=False` até homologação. Em produção, somente casos que satisfaçam a política aprovada podem sair da VPS. Caso falhe, status `blocked_privacy`, sem request externo, com opção de continuar o atendimento sem IA. Dados pseudonimizados reversíveis permanecem pessoais; sua utilização externa exigiria mudança expressa da política, contrato/base legal e revisão — não é autorizada por um toggle informal.
 
 No OpenRouter, pin dos provedores finais permitidos e política de retenção adequada. Configuração de retenção zero, quando suportada, não elimina a análise legal nem torna o dado anônimo; o [guia de ZDR do OpenRouter](https://openrouter.ai/docs/guides/features/zdr) é referência a validar contra o roteamento efetivo. Não usar treinamento/telemetria clínica externa por padrão. LangSmith não é habilitado para payloads clínicos.
+
+> **Atualização (2026-10-22):** o que mudou nesta seção em produção, com
+> detalhe em §26.8:
+>
+> - **A IA está ligada** desde a resolução da P-03 (2026-10-06), e é
+>   recurso de plano: só Completo e Personalizado (`clinical_ai`), cortado
+>   em `capabilities_for` e em `build_ai_authorization`. A P-09 segue
+>   pendente.
+> - **Provedor por clínica e padrão da instalação.** Cada clínica pode
+>   configurar o próprio provedor entre os dez do catálogo (§25.4); quem não
+>   configurou usa o padrão da instalação, escolhido no console desde a 1.7
+>   e vigiado de hora em hora desde a 1.23.
+> - **Provedor reserva** (1.23): responde só quando a chamada ao principal
+>   falha, só para quem usa o padrão, nunca para a clínica com IA própria.
+>   É a OpenRouter, e todo pedido pago pela instalação leva a exigência de
+>   roteamento com retenção zero, sem treino e sem provedores sediados na
+>   China (`ai/providers::ROTEAMENTO_OPENROUTER_DA_INSTALACAO`); a chave de
+>   uma clínica não a recebe, porque o roteamento dela é do contrato dela.
+> - **A leitura de laudo anexado saiu na 1.18**: em produção, cinco pedidos,
+>   três falhas e nenhum valor no prontuário. Ficaram o resumo do
+>   atendimento, o apoio ao raciocínio diagnóstico, o relatório do
+>   paciente e o chat.
 
 ### 14.4 Schema de saída clínica
 
@@ -836,6 +949,14 @@ Mudança do paciente após iniciar resumo compara source_hash no retorno: artefa
 
 P-01 permanece aberta: o arquivo visual não foi disponibilizado. A implementação não pode afirmar aderência a cores, fontes e componentes ainda não inspecionados. S01 deve catalogar tokens e S03 converter componentes necessários para templates reutilizáveis; não escolher uma identidade visual substituta.
 
+> **Atualização (2026-10-22):** a P-01 está resolvida — o tema Duralux real
+> está em `design_system/design-system.html`, catalogado em
+> `docs/design-system.md`. O produto tem um tema só, o claro. Na
+> acessibilidade, a 1.24 deu nome a todo campo de formulário escrito à
+> mão (21 de 153 não tinham), com `check_rotulos.py` reprovando campo novo
+> sem nome; a conferência com leitor de tela de verdade continua por fazer
+> (§26.15).
+
 | Área | Especificação de interação | Critério manual |
 | --- | --- | --- |
 | Menu | Itens por permissão; clínica ativa sempre visível | Usuário não confunde tenants e não descobre conteúdo proibido via contadores |
@@ -876,6 +997,27 @@ Os limites somam aproximadamente 9 GiB em situação normal; rollout web acresce
 
 Uma rede com saída não é allowlist de destinos. A primeira versão restringe URLs nos adaptadores e impede ferramentas de acessar URLs arbitrárias; controle de saída no firewall/proxy pode reforçar isso. App também tem saída pela rede pública, necessária à consulta de CEP e verificações de certificado. A separação impede conceder rede pública aos workers, mas não equivale a isolamento contra comprometimento do host.
 
+> **Atualização (2026-10-22):** a saída do `app` descrita acima é real e
+> está registrada como **P-11**, aberta desde 2026-10-02: basta uma rede
+> sem `internal` para o contêiner ganhar rota default, e `traefik_public`
+> não pode ser `internal` porque o Traefik precisa de saída para o ACME.
+> Durante um tempo a documentação do repositório afirmou o contrário, e
+> isso induziu a um diagnóstico errado. O que de fato faz valer a regra
+> "trabalho externo pelo worker" é o `app` **não receber** os secrets de
+> egresso (SMSDEV, chave de IA da instalação): uma entrega escrita dentro
+> da requisição não fica lenta, ela não funciona para quem depende da
+> chave da instalação — foi o que aconteceu com a confirmação de horário
+> até a 1.7. Fechar a P-11 é separar Traefik ↔ internet e Traefik ↔ `app`
+> em duas redes. Ver §26.7 e §26.17.
+>
+> Na borda, desde 2026-10-19 o domínio e o curinga passam pelo proxy da
+> Cloudflare (Full strict), `TRUSTED_PROXIES` traz as faixas dela, e as
+> portas 80 e 443 da VPS só aceitam conexão nova vinda dessas faixas
+> (`ops/cloudflare_firewall.sh` + `ops/neurodoc-cloudflare-fw.timer`). O
+> certificado de origem continua emitido pelo Let's Encrypt com desafio
+> **DNS-01** pela API da Cloudflare (`certresolver: cloudflare`, gerado em
+> `ops/make_runtime.py`), domínio e curinga. Ver §26.13.
+
 Todos os serviços de dados ficam no nó `neurodoc_data=true`. O script recusa múltiplos nós: volumes locais não acompanham automaticamente uma task transferida para outro servidor. Expandir exige outro projeto de persistência/backup, rede e assinatura. Esta é uma limitação documentada dos [volumes locais Docker](https://docs.docker.com/engine/storage/volumes/).
 
 ### 17.2 Volumes e chaves
@@ -909,6 +1051,14 @@ Worker e beat aguardam banco, schema, RabbitMQ e Redis, com backoff/timeout, e d
 ### 17.4 Publicação e estáticos
 
 Cada imagem usa a tag do SHA Git completo em `ghcr.io/pycodebr/scsi_v1` e o stack recebe o digest confirmado pelo registry. Uma tag já publicada é reutilizada, sem rebuild silencioso. App, worker e beat recebem o mesmo digest. `--skip-build` reutiliza o registro `last-successful.json`, inclusive RELEASE_ID, e nunca atribui o commit recém-baixado à imagem anterior.
+
+> **Atualização (2026-10-22):** o registry de produção é
+> `ghcr.io/ffreua/neurodoc`, lido de `REGISTRY` no `.env`;
+> `ghcr.io/pycodebr/scsi_v1` ficou só como valor de reserva em
+> `ops/deploy.py` (DEC-01 em `docs/decisions.md`). O build e o deploy
+> rodam na própria VPS. Ao lado do `RELEASE_ID` (o SHA), o produto ganhou
+> uma versão própria, `VERSION` em `base/version.py`, que aparece no
+> rodapé e na saída do deploy — ver §26.
 
 O deploy aplica um `ROLLOUT_ID` novo em app/worker/beat para uma única atualização coordenada, inclusive em mudança somente de configuração. Não executa outro `service update --force` ao final. App usa start-first/parallelism=1; worker e beat usam stop-first. Broker/DB/Redis e Traefik têm um exemplar: sua atualização pode interromper serviço, e mudanças de imagens de infraestrutura são recusadas pelo fluxo normal depois da primeira instalação. Exigem manutenção planejada e backup.
 
@@ -986,6 +1136,17 @@ sudo ufw status verbose
 ```
 
 Docker pode encaminhar portas publicadas fora das regras comuns do UFW; o firewall do provedor e a ausência de portas nos serviços internos são controles obrigatórios. Não expor 2375/2376, 2377, 7946, 4789, 5432, 5672, 6379, 15672 ou 8082 à internet. A topologia de um nó não exige portas Swarm públicas; futura expansão restringiria TCP 2377, TCP/UDP 7946 e UDP 4789 aos IPs privados autorizados dos nós. [Docker/Ubuntu e firewall](https://docs.docker.com/engine/install/ubuntu/).
+
+> **Atualização (2026-10-22):** o `ufw allow 80/tcp` e `443/tcp` acima
+> deixou de descrever a origem. Desde 2026-10-19 as portas 80 e 443 só
+> aceitam conexão nova vinda das faixas da Cloudflare, e a regra **não**
+> está no `ufw` — justamente pelo motivo do parágrafo acima: o Docker
+> publica por DNAT, o pacote atravessa a cadeia `FORWARD` e o `ufw` nunca
+> o vê. `ops/cloudflare_firewall.sh` escreve na cadeia `DOCKER-USER` (e na
+> `INPUT` do IPv6, onde não há DNAT), não toca na porta 22, guarda a última
+> lista boa, e desfaz tudo se o `/health/` pelo domínio não responder 200;
+> `ops/neurodoc-cloudflare-fw.timer` reaplica na subida e uma vez por dia.
+> Ver §26.13.
 
 Instalar o repositório oficial para **Ubuntu 24.04 noble/amd64**. Este bloco não deve ser usado sem ajuste em outra distribuição/arquitetura:
 
@@ -1145,6 +1306,14 @@ unset ND_GHCR_TOKEN
 
 Guardar `/home/neurodocops/.docker` com permissões restritas; usar credential helper quando disponível/homologado. Não versionar credenciais. Se a organização não conceder acesso a `ghcr.io/pycodebr/scsi_v1`, registrar P-02 e interromper a publicação; não renomear o registry unilateralmente.
 
+> **Atualização (2026-10-22):** a P-02 foi resolvida em 2026-09-25 com o
+> registry `ghcr.io/ffreua/neurodoc`, configurado em `REGISTRY` no `.env`
+> (DEC-01 em `docs/decisions.md`). O registro de cada release passou a
+> levar o nome da versão (`docs/releases/1.8-…md`), e não só o SHA; os
+> quatro arquivos nomeados por SHA são os builds da 1.0. A linha
+> "Responsável que assinou" fica "a assinar", em branco de propósito, até
+> o responsável técnico assiná-la (§26.17).
+
 Após implementação do marco e homologação correspondente, registrar SHA, evidências e responsável em `docs/releases/RELEASE_SHA.md`. O operador altera NEURODOC_RELEASE_APPROVED=True e NEURODOC_SCHEMA_CHANGE=expand. A flag é uma trava declarativa, não executa nem comprova homologação.
 
 ```bash
@@ -1203,6 +1372,13 @@ Em terminal protegido no container worker, efetuar apenas uma requisição sem c
 
 Habilitar HSTS somente após validar todos os hosts usados. A primeira configuração tem `SECURE_HSTS_SECONDS=0`; a alteração para 31536000 e eventual includeSubDomains requer revisão dos aliases e release homologada. Essa dependência não fica escondida em uma promessa de segurança pronta.
 
+> **Atualização (2026-10-22):** segundo `docs/ESTADO-ATUAL.md`, o HSTS foi
+> ligado em produção em 2026-10-02 — um ano, **com** subdomínios —, e a
+> CSP passou do modo de relatório ao de bloqueio no mesmo dia
+> (reversível com `CSP_ENFORCE=False` e republicação, ao contrário do HSTS).
+> Os padrões do código continuam `0` e `False`, que é o ponto de partida
+> seguro de uma instalação nova. Ver §26.13.
+
 ### 18.9 Deploy regular, configuração e reversão
 
 Deploy regular: repositório limpo, backup recente copiado externamente, mudanças de schema expand revisadas, release aprovada e `scripts/deploy.sh`. Configuração sem imagem: `scripts/deploy.sh --skip-build`; ele puxa o Git por exigência do fluxo, mas usa o digest/RELEASE_ID do registro anterior. Alterar estrutura YAML/helpers incompatível com a imagem antiga exige nova release; não usar skip-build nesse caso.
@@ -1241,6 +1417,14 @@ rsync -a --checksum /srv/neurodoc-backups/BACKUP_SET/ BACKUP_USER@BACKUP_HOST:BA
 ```
 
 Não usar `--delete`. O destino deve limitar a credencial da VPS a criação de conjuntos, com retenção protegida contra exclusão pelo mesmo usuário quando disponível. Verificar hashes no destino e manter registro de última cópia bem-sucedida. Agendar essa cópia após COMPLETE usando o mecanismo do destino escolhido em P-10; credenciais e API do provedor não foram inventadas aqui. Sem cópia externa concluída e restauração confirmada, não liberar o piloto assistencial.
+
+> **Atualização (2026-10-22):** a cópia externa adotada é o inverso deste
+> `rsync`: a VPS **não empurra**; um disco do controlador **puxa** os
+> conjuntos diariamente (`scripts/puxar_backups.ps1`), conferindo cada
+> arquivo por SHA-256 contra o `manifest.json`. Assim a VPS não guarda
+> credencial do destino, e quem a invadisse não alcançaria a cópia. A
+> restauração foi confirmada em 2026-10-02 (backup de 01/10, 86 tabelas),
+> o que encerrou a P-10 — ver `docs/operations/copia-externa.md` e §26.13.
 
 | Estado adicional | Tratamento |
 | --- | --- |
@@ -5065,6 +5249,14 @@ médico em 5 anos seria destruição de prova antes do prazo legal.
 Decisão: **20 anos**, com a compactação trimestral mantida — ela é
 armazenamento, não descarte. A implementação da retenção fica pendente.
 
+> **Atualização (2026-10-22):** a guarda está implementada como trava:
+> `documents/retention.py` fixa `RETENTION_YEARS = 20`, contados do
+> **último** registro do paciente, e `eliminacao_permitida` distingue anexo
+> clínico de administrativo e consulta o prazo antes de qualquer remoção
+> física. O expurgo continua manual (25.12), e a tabela de prazos em vigor
+> é a de `docs/governance/lgpd.md` §3 — que inclui as 72 horas do chat da
+> equipe (§26.10).
+
 ### 25.11 Fixtures de demonstração
 
 `seed_demo` passou a criar uma conta por papel — médico não-dono
@@ -5454,3 +5646,675 @@ teste e falhava em produção. A chave nova vai ao `app` e ao `worker`.
 - **Documentos emitidos antes de 25.6** mantêm o PDF antigo, com tarja de
   rascunho e sem número. Não foram reescritos de propósito: são arquivos
   assinados, e reescrevê-los quebra a assinatura. O caminho é a retificação.
+
+> **Atualização (2026-10-22):** nenhuma das três foi resolvida até esta
+> data. `PatientAccessGrant` continua não modelado (comentário em
+> `clinical/selectors.py`) e a delegação continua concedida por padrão
+> (`tenancy/permissions.py`); os documentos anteriores a 25.6 seguem como
+> estão, pelo mesmo motivo. A lista de pendências em vigor é a de §26.17.
+
+## 26. Evolução em produção — da 1.0 à 1.24 (setembro a outubro de 2026)
+
+O que a seção 25 fez para as sprints, esta faz para as versões publicadas.
+A 1.0 entrou em produção em `neurodoc.app.br` em quatro builds, de 25 a
+28/09/2026 (`docs/releases/<SHA>.md`), e o sistema passou a atender
+paciente de verdade em 2026-10-02 (`docs/ESTADO-ATUAL.md`). De lá até
+2026-10-22 saíram as versões 1.1 a 1.24.
+
+A organização é por **tema**, não por versão; a ordem cronológica e o
+registro de cada versão estão na tabela de 26.16. A fonte de cada
+parágrafo é, nesta ordem de autoridade, o código, o `CLAUDE.md` e a
+documentação (`docs/releases/`, `docs/homologation/`,
+`docs/ESTADO-ATUAL.md`, `docs/decisions.md`) — onde esta seção divergir do
+código, vale o código. As seções 1 a 25 continuam descrevendo o produto
+pretendido e o que foi construído até setembro; onde afirmam o que hoje é
+falso, levam uma nota **"Atualização (2026-10-22)"** apontando para cá, e
+o texto original fica, porque ele registra o que se decidiu na época.
+
+**Regra de versão** (`base/version.py`, `docs/operations/versionamento.md`).
+Funcionalidade compatível avança a casa menor; mudança incompatível, a
+maior. Correção sem funcionalidade nova não muda `VERSION` — o
+`RELEASE_ID`, que é o SHA, já identifica o build —, e só ganha terceira
+casa quando quem usa precisa distinguir quem já tem a correção. Nenhuma
+versão desta lista é 2.0: nada do que existia deixou de funcionar.
+
+### 26.1 O que a 1.0 já levava e este documento não registrava
+
+Parte da 1.0 entrou depois da última revisão das seções 1 a 24 e ficou
+fora da 25. Registra-se aqui porque várias seções anteriores a contradizem
+(ver as notas de §2 e §3):
+
+- **Planos e limites** (`tenancy/plans.py`, `tenancy/limits.py`). Quatro
+  planos — Gratuito, Básico, Completo e Personalizado —, cada um com
+  limite de pacientes ativos e de médicos, preço em centavos e cobrança
+  **anual**. O acesso é liberado por **código de convite** que carrega o
+  plano contratado (`tenancy/invitations.py`); não há pagamento on-line.
+  Aviso a partir de 80 % do limite e bloqueio no teto, em seis portas;
+  rebaixar congela e nada é apagado. Os números moram em código para que
+  mudá-los seja commit com autor e data
+  (`docs/homologation/plan-limits.md`, `plan-invitations.md`,
+  `docs/specs/2026-09-12-planos-e-limites.md`).
+- **IA como recurso de plano** (`clinical_ai`): só Completo e
+  Personalizado. O corte mora em `capabilities_for` e em
+  `ai/context.py::build_ai_authorization`, e é por plano e não por cota
+  porque a clínica que configurou a própria chave paga a própria conta
+  (`docs/homologation/ia-por-plano.md`).
+- **Contrato de adesão** (`tenancy/contract.py`) — ver 26.11.
+- **Exportação do acervo** (`reporting/acervo.py`) — ver 26.12.
+- **Atendimento em texto livre** ao lado do estruturado (`Encounter.kind`),
+  homologado em 2026-09-17 (`docs/homologation/atendimento-texto-livre.md`).
+- **Chat da equipe** (`teamchat`) — ver 26.10.
+- **Consulta recente no portal** (180 dias) — ver 26.6.
+
+### 26.2 Agenda
+
+- **Visão de mês e estatísticas** (1.3, 1.3.1). As duas contam pela mesma
+  grade, separando atendido, falta e cancelado. O passado não mente:
+  `done` para quem foi atendido, `past` para a vaga que ficou, sem mexer
+  na oferta de vaga; o dia vencido deixou de dizer "lotado"
+  (`docs/homologation/mes-e-estatisticas.md`).
+- **Intervalo pontual** (1.8, `RecurringBreak`). O almoço é modelo
+  próprio — nem `buffer_minutes`, que reserva minutos depois de cada
+  atendimento, nem `ScheduleBlock`, que é bloqueio de data —, porque pode
+  haver mais de uma pausa no dia e uma pausa pode atravessar duas regras.
+  A subtração mora só em `open_intervals`, por onde passam a grade, os
+  horários livres e a validação da reserva: em três lugares seriam três
+  chances de esquecer justamente a que deixa marcar paciente no almoço. A
+  1.8.1 e a 1.8.2 corrigiram a pausa que fechava a célula inteira e o dia
+  que passava a "fechado" ao preencher a última vaga
+  (`docs/homologation/agenda-cadastro-e-avisos.md`).
+- **Tipo e duração** (1.10, 1.13, 1.15, 1.20). O tipo de um horário
+  marcado é trocado no modal **só antes da chegada**, porque no check-in
+  o tipo define o preço da cobrança (1.10). Desde a 1.13, trocar o tipo
+  muda a duração: encolher libera a célula, esticar só onde o tempo
+  seguinte está livre. A 1.15 devolveu à duração do seu tipo as consultas
+  futuras gravadas com a de outro (migração `scheduling/0007`, sem tocar
+  no passado) e fez a remarcação gravar a duração do tipo; a 1.20 fez a
+  recusa de duração dizer como resolver
+  (`docs/homologation/tipo-de-consulta-e-crm.md`,
+  `agenda-duracao-e-horario-extra.md`).
+- **Incluir, excluir e bloquear horário** (1.13 a 1.15). "Incluir
+  horário" ao lado do dia, nas visões de mês, semana e dia. "Excluir este
+  horário" no modal do horário livre: desde a 1.14.1 o horário excluído
+  **some** da grade (`REMOVED_SLOT`) em vez de aparecer fechado, e
+  "Incluir horário" no mesmo lugar o reabre. "Bloquear este horário"
+  (1.15) é o outro caso: a célula fica, **conta** como bloqueada no mês e
+  na estatística, e se libera com um clique
+  (`docs/homologation/excluir-horario-livre.md`,
+  `check_bloquear_horario.py`).
+- **Semana em lote** (1.24). `week_grid` carrega regras, bloqueios, pausas
+  e reservas uma vez para os sete dias: de 31–33 consultas ao banco para
+  6, com a grade conferida célula por célula contra `day_grid`
+  (`check_semana_em_lote.py`).
+
+### 26.3 Prontuário
+
+- **Adendo no texto livre** (1.6). O servidor aceitava adendo depois do
+  fechamento; a tela não oferecia o bloco. Corpo e `content_hash` ficam
+  intactos depois de gravado (`check_texto_livre.py`).
+- **Impressões e "Trazer tudo"** (1.6). O campo de impressões existia no
+  modelo e nenhuma aba do estruturado o desenhava — o que vinha da
+  consulta anterior era gravado invisível. "Trazer tudo" copia a consulta
+  anterior numa transação só, e cada envio volta à aba de onde saiu
+  (`docs/homologation/estruturado-impressoes-abas.md`).
+- **Série temporal** (1.1, `clinical/series.py`). Eixo de tempo
+  proporcional à data real e escala no domínio declarado, que é o que
+  separa um gráfico honesto de um bonito; a tela mostra o número sem
+  interpretá-lo (`docs/homologation/serie-temporal.md`).
+- **Busca de paciente por CID** (1.1, `clinical/por_cid.py`). Tela própria
+  sob `READ_CLINICAL`, **fora** da lista de pacientes: aquela lista é
+  aberta aos quatro papéis, e um filtro por diagnóstico ali entregaria
+  "quem aqui tem B24" a qualquer pessoa com acesso à agenda. Vale a última
+  palavra sobre cada código, e o diagnóstico refutado não volta
+  (`docs/homologation/busca-por-cid.md`).
+- **Medicação editável** (1.17). O lápis ao lado da lixeira abre o
+  cadastro já preenchido logo abaixo da linha, só com o atendimento
+  aberto; mudar a dose deixou de exigir excluir e incluir de novo. A
+  trilha guarda os **nomes** dos campos mudados, não os valores
+  (`check_medicacao_editar.py`).
+- **Finalização sem perda** (1.12.2, 1.12.3). Finalizar não grava mais por
+  cima do último trecho salvo pelo autosave, e descartar evolução em texto
+  livre pede motivo.
+- **Resumo por IA aprovado no atendimento** (1.20) — ver 26.8.
+
+### 26.4 Cadastro do paciente
+
+- **Nome numa forma só** (1.2). `patients.naming.normalizar_nome` — caixa
+  alta, sem espaço sobrando — é **gravado** no `clean()` e no `save()` do
+  `Patient`, para que caminho novo de criação não precise lembrar. Veio
+  com a **migração de cadastro** de outro sistema (`patients/importacao.py`,
+  `import_pacientes_xml`): 2.223 fichas, ninguém nascendo autorizado a
+  receber mensagem — decisão de LGPD — e importação repetível
+  (`docs/homologation/migracao-de-cadastro.md`). A 1.2.1 e a 1.2.2
+  corrigiram a lista que quebrava a partir da segunda página e a busca que
+  devolvia a clínica inteira.
+- **Naturalidade** (1.8). Texto livre com os 5.571 municípios do IBGE
+  sugerindo: chave estrangeira para município recusaria quem nasceu fora e
+  reescreveria a ficha antiga quando um município mudasse de nome. A
+  migração não retroescreve — preencher "BR" nas fichas existentes
+  afirmaria uma naturalidade que ninguém declarou. Na mesma versão, os
+  dados do paciente abrem numa **gaveta** durante o atendimento (Alt+D),
+  sem formulário dentro.
+- **Idade ao lado do nome** (1.13), e no atendimento a idade **na data
+  dele** (`check_idade.py`).
+- **CEP na edição** (1.19.1). O preenchimento automático preserva só o
+  que foi digitado **nesta tela**; a regra antiga, "só escreve em campo
+  vazio", tomava a rua vinda do banco por escolha de quem estava na tela,
+  e o paciente que mudou de casa ficava com a rua antiga
+  (`check_cep_na_edicao.py`).
+- **Busca pelas palavras do nome** (1.20). Em qualquer ordem e sem acento,
+  com `TRANSLATE` no banco — que não tem `unaccent` —, e as três portas
+  (agenda, busca rápida, lista) respondendo igual
+  (`check_busca_por_nome.py`).
+
+### 26.5 Documentos e PDF
+
+- **Declaração de comparecimento** (1.1, `scheduling/declaracao.py`).
+  Emitida pela recepção e impressa na hora: afirma presença, que é fato
+  administrativo — atestado afirma incapacidade, que é ato médico. Não
+  carrega CID nem diagnóstico, porque vai para a mão do empregador, e nega
+  ser atestado com todas as letras
+  (`docs/homologation/declaracao-comparecimento.md`).
+- **Assinatura no pé da folha** (1.12). A assinatura, o QR e, no controle
+  especial, o quadro do comprador e do fornecedor ficam sempre no pé; se o
+  corpo enche a folha, o rodapé vai **inteiro** para a seguinte, sem se
+  partir. O roteiro mede a **posição** do texto na página, e não a
+  presença.
+- **Cabeçalho e rodapé em toda folha** (1.21). O documento de duas folhas
+  tinha o timbre numa e a assinatura na outra. Agora toda folha traz o
+  cabeçalho e "Página N de M", contado **por via**; a assinatura fica só
+  na última folha de cada via (`docs/homologation/rodape-do-documento.md`).
+- **O PDF do documento médico não é anexo comum** (1.12.2). A recepção
+  baixa e imprime o **emitido**, não abre o rascunho, e ninguém o remove
+  pela lista de anexos — ele é o documento. A falha de assinatura,
+  inclusive senha errada do certificado, vai para a trilha e deixou de ser
+  erro 500 (1.12.3).
+- A transição da receita de controle especial em 31/10/2026 está em 26.9.
+
+### 26.6 Portal do paciente
+
+- **Consulta recente** (desde a 1.0, `documents/portal_retorno.py`). O
+  portal recebe pedido de receita, relatório e exame, e os três são ato
+  médico. Duas normas do CFM sustentam a recusa: o **art. 37 do Código de
+  Ética Médica** (Res. CFM nº 2.217/2018), que veda prescrever sem exame
+  direto do paciente, salvo urgência ou emergência e impossibilidade
+  comprovada; e a **Res. CFM nº 2.314/2022, art. 6º, § 2º**, com consulta
+  presencial em intervalos não superiores a **180 dias**. O prazo não é
+  configurável — é o da norma, em dias e não em meses, que seriam mais
+  permissivos —, porque uma tela citando uma resolução de 180 dias acima
+  de um prazo que a contrariasse diria duas coisas ao paciente na mesma
+  folha. O que se escolhe é barrar ou não: a clínica decide o padrão e o
+  médico pode vencê-lo (nulo = seguir a clínica), porque é dele a
+  responsabilidade do art. 37. Confere em três portas — identificação,
+  abertura do formulário e envio (`check_portal_retorno.py`,
+  `CLAUDE.md` §7-C).
+- **Laudos enviados pelo paciente** (1.16, `documents/portal_exames.py`).
+  Só PDF, até 5 por envio e 3 MB cada, tudo ou nada; entram direto no
+  prontuário como anexo clínico, em quarentena e com antivírus, e acendem
+  um alerta vermelho para o médico até ele marcar "Ciente". A janela de
+  180 dias barra o **pedido**, não o laudo: mandar o resultado de um exame
+  não é pedir ato médico (`docs/homologation/exames-pelo-portal.md`).
+- **O primeiro envio real foi recusado** (1.16.1). O formulário estava
+  aberto antes de um login no mesmo navegador, que troca o token de CSRF.
+  O login passou a encerrar a identificação do portal, e há "Encerrar
+  identificação". Nenhum roteiro reprovou porque o cliente de teste do
+  Django dispensa o CSRF; `check_exames_do_portal.py` passou a rodar com
+  `enforce_csrf_checks=True`. Na 1.16.2, em urgência, o portal passou a
+  mandar ao serviço de urgência e emergência mais próximo, e não mais a
+  "ligar para a clínica".
+- **O pedido preso à identificação que o abriu** (1.12.2): quem
+  identificava outra pessoa em outra aba tinha o pedido gravado na ficha
+  errada.
+
+### 26.7 Comunicação
+
+- **Trabalho externo pelo worker, e o `app` sem a chave** (1.7). A
+  confirmação de horário saía de dentro da requisição, e o processo `app`
+  não recebe o secret do SMSDEV: a clínica sem chave própria não recebeu
+  um SMS sequer, registrado como "sem contato cadastrado". A entrega
+  passou ao worker, e `check_provedor_e_sms.py` varre os `views.py`
+  proibindo `send_sms`, `send_appointment_confirmation` e
+  `deliver_document`; canal indisponível deixou de se disfarçar de
+  paciente sem telefone (`docs/homologation/padrao-da-instalacao.md`).
+- **Provar, e não concluir** (1.7.1). Conferido contra conta viva,
+  apareceram a confirmação de entrega lida com a forma errada — 17
+  mensagens "sem confirmação" para sempre — e o teste de chave consultando
+  saldo no endereço de envio. Os dois eram código escrito contra esquema
+  suposto. Encerrou a P-03.
+- **Aviso de horário** (1.8, 1.8.3). E-mail ao marcar, remarcar e
+  cancelar, com o endereço e o telefone no lugar do nome da clínica. Só
+  e-mail: SMS custa crédito, é recurso de plano e dispararia em todo
+  agendamento. Ao entrar no ar, o consumidor novo encontrou 48 eventos
+  pendentes desde sempre e mandou dez e-mails de madrugada sobre consultas
+  já realizadas ou canceladas, quatro a pacientes reais. Desde a 1.8.3 o
+  aviso ignora evento com mais de 6 horas (`JANELA_DO_AVISO`), consulta
+  que já aconteceu e fato que o estado atual contradiz. Vale para todo
+  consumidor novo que escreva para gente: perguntar a idade do evento
+  antes de agir (`docs/homologation/agenda-cadastro-e-avisos.md`).
+- **Retorno programado** (1.1, `scheduling/returns.py`). O médico programa
+  no modal de finalização, em meses de calendário sem estourar o fim do
+  mês, um por atendimento; o e-mail sai 20 dias antes, numa tarefa diária
+  às 6h locais, com `notified_at` barrando o segundo; a recusa de contato
+  é respeitada e a redação é de cuidado, não de captação; a recepção
+  trabalha a fila "Retornos previstos"
+  (`docs/homologation/retorno-programado.md`).
+- **Campanha só pelo servidor da clínica** (1.9). Em todos os planos, mas
+  só pelo SMTP da própria clínica (`clinic_own_server`: configuração
+  ativa **e com host**). A reputação do servidor da instalação é de todas
+  as clínicas, e uma campanha em filtro de spam levaria junto a
+  confirmação de conta e a recuperação de senha de quem não tem nada com
+  ela. O envio que perde o servidor no meio **pausa** em vez de recuar
+  para a instalação (`docs/homologation/campanha-servidor-proprio.md`).
+- **Despachante da outbox** (1.12.1). Quem perdeu a posse do evento não
+  roda o consumidor nem grava o desfecho; o consumidor roda **fora** de
+  transação externa, para que o link do documento exista antes de o SMS
+  sair; o lembrete não sai para consulta cancelada, remarcada ou já
+  começada; job de IA parado na fila é retomado
+  (`docs/homologation/despachante-da-outbox.md`).
+- **Um envio por endereço** (1.14.2). O paciente com dois contatos de
+  mesmo e-mail ou mesmo celular recebia aviso, lembrete, aviso de retorno
+  e entrega de documento duas vezes; agora sai uma vez por endereço,
+  registrada no contato do próprio paciente
+  (`check_um_envio_por_endereco.py`).
+- **A nova tentativa que repetia o envio** (1.24, achados C1 e C2 de
+  26.15). A falha **depois** do envio desfazia a entrega da confirmação de
+  horário e a nova tentativa mandava outro SMS; no reenvio de documento, a
+  repetição revogava os links da primeira volta. A entrega passou a ser
+  gravada antes do envio, com o id do pedido na chave de idempotência; a
+  nova tentativa continua cobrindo a falha **antes** do envio, sem a qual
+  a mensagem simplesmente não sairia (`check_sms_sem_repeticao.py`).
+- **Caixa de avisos** (1.11): "Limpar todas", com confirmação, só na
+  caixa da pessoa naquela clínica — a da outra clínica e a de outra pessoa
+  ficam, e o que cada aviso apontava continua onde está.
+
+### 26.8 IA
+
+- **Fatos entregues, não ferramentas oferecidas** (antes da 1.0,
+  `ai/chat_prompt.py`). O chat e as tarefas leem o prontuário **antes**,
+  montam um bloco de fatos desidentificado e o entregam junto da pergunta;
+  as funções de `ai/tools/` não são oferecidas ao modelo como *tools*.
+  Três razões: não depender do provedor (um chat que funcionasse só com
+  parte dos dez provedores do catálogo não serviria); o modelo que *pode*
+  buscar às vezes não busca e responde de memória; e sabe-se exatamente o
+  que saiu da instalação. Ver a nota em §14.2.
+- **Relatório do paciente** (1.4, `ai/relatorio.py`). A IA redige, o
+  médico revisa e assina. A ponte cria **rascunho**, não documento
+  emitido; o marcador de desidentificação não chega ao papel; o
+  diagnóstico refutado não vira doença
+  (`docs/homologation/relatorio-com-ia.md`). Na 1.24 o pedido do médico no
+  prompt passou a mandar sobre seções, ênfase e tom — não sobre as regras
+  fixas que vêm depois (achado I1).
+- **Forma e conteúdo** (1.6.2). Uma leitura de laudo com trinta e um
+  analitos corretos foi descartada porque o campo que diz o que **não** foi
+  lido voltou `[]` em vez de `""`. `ArtifactModel` passou a normalizar a
+  forma antes da validação; as guardas de conteúdo — faixa de referência
+  vinda do laudo, nada de probabilidade numérica, nenhum marcador no
+  papel — ficaram como estavam. A recusa é explicada em português ao
+  médico, e `failure_diagnostics` guarda qual campo e que tipo, sem guardar
+  a resposta crua (`CLAUDE.md` §7-F).
+- **Leitura de laudo retirada** (1.18). Em produção houve cinco pedidos,
+  três falharam e nenhum valor chegou ao prontuário. Saíram a caixa, o
+  botão, as rotas, a tela do rascunho, as duas tarefas e seus esquemas; o
+  exame continua registrado com o PDF, e os valores entram pela tabela de
+  analitos. Os dois tipos ficam em `AIJobKind` por haver histórico, e o
+  job antigo que chegar ao worker é cancelado com a explicação
+  (`docs/homologation/leitura-de-laudo-por-ia.md`,
+  `check_leitura_retirada.py`). Ficaram o resumo do atendimento, o apoio
+  ao raciocínio diagnóstico, o relatório e o chat.
+- **O chat que conhece o sistema** (1.18, `ai/conhecimento.py`). Na
+  conversa **sem** paciente, trechos do manual (com 30 % de vantagem) e da
+  documentação técnica, escolhidos por BM25 sobre o radical e sem
+  embeddings — não depende do provedor, o corpus é pequeno e o índice se
+  monta na memória a partir do texto da imagem. Sem trecho, o prompt manda
+  dizer que não encontrou, em vez de descrever uma tela de memória. A
+  conversa com paciente fica só com o prontuário, e plano de trabalho e
+  histórico de publicação ficam fora do corpus
+  (`docs/homologation/chat-com-manual.md`). Na 1.24 a pergunta deixou de
+  ir **duas vezes** ao provedor, o que também fazia o seguimento ("e para
+  desfazer?") buscar no manual pela própria pergunta (achado A1).
+- **Resumo aprovado no atendimento** (1.20). Quadro "Resumos por IA
+  aprovados" no alto do atendimento, com data e autor; antes só o aviso do
+  sino levava a ele, e a retenção da caixa o apagava em dias. Continua
+  **fora** do registro clínico — texto e `content_hash` intactos — e a
+  secretária não o abre (`check_resumos_aprovados.py`).
+- **Provedor padrão no console** (1.7). `AI_PROVIDER` e `AI_MODEL` moravam
+  no `.env`, e de 26/08 a 06/10/2026 apontaram para um modelo aposentado,
+  com `410 Gone` em toda chamada — quarenta dias, pagos pela clínica que
+  dependia do padrão. Hoje o padrão é escolhido em `/instalacao/operacao/`
+  (`InstallationSettings`) entre os dez provedores do catálogo, com uma
+  verificação que pergunta ao provedor se o modelo existe. A verificação é
+  tarefa do worker porque a chave do principal mora em secret e o `app`
+  não a recebe. O `.env` semeia, o banco decide
+  (`docs/homologation/padrao-da-instalacao.md`,
+  `ai-installation-default.md`).
+- **Vigilância e reserva** (1.23). A verificação passou a rodar sozinha de
+  hora em hora (`ai.tasks.vigiar_ia_da_instalacao`), com e-mail a todo
+  superadministrador na passagem para a falha — a peça que faltou nos
+  quarenta dias; na primeira rodada já reprovou o modelo principal, que
+  respondia `404` sem que ninguém tivesse notado. E um **provedor
+  reserva**, configurado inteiro no console, com a chave cifrada no banco
+  e que não volta à tela. Ele responde quando a chamada ao principal
+  **falha**, só para quem usa o padrão da instalação — a clínica com IA
+  própria nunca recua —, nunca quando a resposta chega e é recusada pela
+  validação, e no chat só antes da primeira palavra. Nasce desligado,
+  liga só verificado, e cada uso vai à trilha (`ai.reserva_usada`) e à
+  proveniência do artefato. A reserva é a OpenRouter, com roteamento
+  exigido de retenção zero, sem treino e sem provedores sediados na China,
+  e consta como suboperador desde 2026-10-22
+  (`docs/homologation/ia-reserva.md`, `docs/governance/suboperadores.md`).
+- **Ações rápidas no chat** (1.24, `ai/acoes_rapidas.py`). Quatro cartões
+  na conversa com paciente — revisar diagnóstico, revisar evolução,
+  preparar retorno, explicar ao paciente — que só **escrevem** um pedido
+  pronto no campo, depois do que já estava digitado; nada é enviado sem o
+  médico apertar Enviar. Os pedidos mandam dizer o que falta em vez de
+  inventar, declarar que leu um recorte e não o prontuário inteiro, e não
+  prescrever (`check_chat_acoes_rapidas.py`).
+- **O papel conferido na execução** (1.12.3): quem perdeu o papel médico
+  entre o pedido e a execução tem o job de IA recusado.
+
+### 26.9 SNCR (Anvisa)
+
+- **Transição de 31/10/2026** (1.21.1, `documents/sncr_transicao.py`).
+  Pela RDC 1.000/2025 (Perguntas e Respostas da Anvisa, 2ª ed.), a Receita
+  de Controle Especial (RCE) e a Receita Sujeita à Retenção (RET) emitidas
+  eletronicamente precisam de numeração do SNCR a partir de 31/10/2026.
+  Como a integração não ficaria pronta até lá, a RCE passa a ser
+  **recusada na assinatura digital** a partir desse dia de Brasília (às
+  23h30 de 30/10 ainda assina), no servidor, com a recusa na trilha e sem
+  gastar número; a tela troca "Assinar e emitir" por "Emitir para assinar
+  e carimbar". A RCE impressa e assinada à mão continua válida. A receita
+  simples recebe só o aviso da retenção (antimicrobianos, agonistas de
+  GLP-1), porque o sistema não classifica o medicamento dela. É regra
+  **transitória**, que sai quando a receita eletrônica passar a sair com
+  numeração. Comunicada às clínicas em 2026-10-21
+  (`docs/governance/comunicado-2026-10-sncr.md`).
+- **Integração publicada desligada** (1.22, app `sncr`). O bloco de 1.000
+  números é **do médico** (`PhysicianProfile`, vale em todas as clínicas
+  dele), pedido com o Gov.br dele; o token vive 30 s, e por isso a troca é
+  feita na requisição — exceção deliberada à regra do worker
+  (`docs/sncr/DECISOES.md`, I5). O desfecho incerto nunca se repete
+  sozinho: o médico confere no portal da Anvisa. Cada número é uma linha
+  com `UNIQUE`. A receita eletrônica (RCE e RET) sai no modelo oficial,
+  **uma folha e um número por medicamento**, até três por emissão, numa
+  assinatura PAdES só; faltando número para uma folha, nenhuma sai e
+  nenhum é gasto. A classificação usa a lista oficial da Portaria 344
+  (RDC 1.036/2026, 16 listas, 780 substâncias), com parser estrito e a
+  confirmação do médico na dúvida. Há a contingência "Refazer como receita
+  impressa", sem gastar número, e a chave no console: ligar exige CNPJ
+  válido, digitar `LIGAR` e o motivo; desligar é um clique.
+- **Estado em 2026-10-22:** `Configuracao.ativo = False`, nenhuma chamada
+  à API do SNCR feita, a Anvisa só simulada nos roteiros. Aguarda o
+  **CNPJ da mantenedora** e, depois dele, o primeiro bloco real
+  (`docs/sncr/ESTADO_EXECUCAO.md`, `docs/sncr/ATIVACAO.md`).
+
+### 26.10 Chat da equipe
+
+`teamchat`, desde antes da 1.0 (homologado na pilha local em 2026-09-17):
+janela flutuante ao lado do sino, conversa de duas pessoas, presença e
+entrega ao vivo por Redis Streams e SSE. Conversar não é capacidade da
+matriz da seção 4 — é o que qualquer vínculo ativo faz, dentro da própria
+clínica. É um dos dois apps com a chave estrangeira composta por
+inquilino (ver §26.17).
+
+Na 1.19 o chat passou a **esquecer**: a mensagem é apagada 72 horas
+depois de enviada (`teamchat.tasks.apagar_vencidas`, de hora em hora),
+com o contador de não lidas refeito, e "Apagar conversa" limpa só a
+janela de quem clica (`ConversationMember.cleared_at`). É recado, não
+prontuário: guardado para sempre, viraria um segundo prontuário informal,
+sem assinatura, sem a guarda do registro clínico e com dado de paciente
+dentro. O que precisa ficar registrado vai na evolução do atendimento
+(`docs/homologation/mensagens-equipe.md`).
+
+### 26.11 Contrato de adesão, código aberto e o que é de cada clínica
+
+- **Contrato de adesão** (`tenancy/contract.py`). Dezoito cláusulas
+  redigidas pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476 — não
+  são texto nosso, e correção de redação passa por ela. O texto mora em
+  código para que mudá-lo seja commit com autor e data, e versão já aceita
+  nunca se edita (cláusula 17.6). O aceite é obrigatório em duas caixas —
+  "li e aceito" e a declaração de poderes para contratar — e grava versão,
+  SHA-256, **cópia integral do texto aceito**, plano e valor anual, quem
+  aceitou, IP, navegador e os dois prazos; a via por e-mail sai da cópia
+  arquivada. `/instalacao/contratos/` separa texto em vigor, versão
+  anterior e texto alterado sem trocar `VERSAO`, que é o alerta. É o
+  instrumento do art. 39 da LGPD que encerrou a P-06
+  (`docs/governance/lgpd.md` §9, `check_contrato.py`).
+- **Código aberto** (1.17, 2026-10-19). O repositório ficou público sob a
+  MIT, e o contrato passou à **versão 1.1**, com o item 16.3 — autorizado
+  pela advogada — dizendo que ele rege o serviço hospedado e não restringe
+  nem amplia o que a licença concede. Quem aceitou a 1.0 segue com ela
+  arquivada (cláusula 17.4), sem novo aceite.
+- **Nome fantasia** (1.8). Editável em Identidade da clínica; razão social
+  e CNPJ continuam vindo do convite, porque editá-los faria o contrato
+  apontar para um nome que ninguém assinou.
+- **A cadeia de cada serviço** (1.8, `CLAUDE.md` §7-G). Para e-mail,
+  médico → clínica → instalação; para SMS e IA, clínica → instalação.
+  Desligar o próprio é dizer "usem o de vocês", não "não usem nenhum" —
+  com duas assimetrias deliberadas: desligar o SMS com chave gravada é
+  recusa, e a configuração de IA pela metade cai no padrão em vez de
+  quebrar. O corte por plano vem antes de ler a chave da clínica, e e-mail
+  não é recurso de plano, porque gateá-lo tiraria do Gratuito a
+  verificação de conta, a recuperação de senha e a entrega de documento
+  (`check_servicos_do_inquilino.py`).
+
+### 26.12 Exportação do acervo
+
+`/app/reporting/acervo/` (desde a 1.0) cumpre a cláusula 13.1 do
+contrato — obter os dados em formato de uso comum — em **Markdown**, para
+ler (uma ficha por paciente; o prontuário agrupado por paciente e em
+ordem de data), e **JSON**, para levar a outro sistema com as listas
+preservadas. Tabela com uma coluna de vinte mil caracteres seria
+exportação no papel e ilegível na prática. Roda no worker, com arquivo
+privado, expiração em 24 h e trilha.
+
+A capacidade é declarada **por relatório** e conferida em
+`request_export`, não na view, porque o nome do relatório chega pelo POST.
+O cadastro exige `MANAGE_ORGANIZATION`; o acervo clínico exige também
+`READ_CLINICAL`, porque um dono que não é médico não abre prontuário na
+tela e não pode baixar todos num arquivo (`check_exportacao.py`,
+`CLAUDE.md` §7-B). A exportação vencida deixou de baixar na 1.12.3, e a
+recusa por formato não oferecido passou a ir para a trilha em 2026-10-22,
+como correção sem versão nova.
+
+### 26.13 Segurança e operação
+
+- **Fuso** (1.1.1). O contêiner roda em UTC e o produto em
+  `America/Sao_Paulo`: das 21h à meia-noite, "hoje" era amanhã em quinze
+  lugares. A regra é `timezone.localdate()`/`localtime()`, nunca o relógio
+  do processo, e `check_fuso.py` varre o repositório inteiro — o defeito
+  só aparece em três horas do dia, e um roteiro comparativo passaria nas
+  outras vinte e uma.
+- **Idioma** (1.2.3). Tudo que o usuário lê em português, cobrado por
+  varredura e não por lista: dezenove mensagens em inglês tinham chegado à
+  produção, entre elas a do bloqueio de login, encontrada pelo próprio
+  médico. A varredura procura também quem devolve `str(exc)` ao usuário e
+  a recusa de duplicidade que o Django monta com os nomes do modelo. O
+  caso que escapou mesmo assim — o `clean()` do modelo de contato,
+  chamado pelo `ModelForm` — foi corrigido na 1.24 (`check_idioma.py`,
+  `check_contato_em_portugues.py`).
+- **Política de conteúdo** (1.1, `base/csp.py`). `script-src` sem
+  `unsafe-inline`, nonce novo por resposta, nada de `onclick` nem de
+  `<script>` sem nonce. Entrou em modo de relatório, e `CSP_ENFORCE=False`
+  continua o padrão do código; segundo `docs/ESTADO-ATUAL.md`, a produção
+  está em **modo de bloqueio desde 2026-10-02**, reversível com
+  `CSP_ENFORCE=False` e republicação (`docs/homologation/csp.md`).
+- **HSTS.** Começou em `0`, como manda §18.9; ligado em produção em
+  **2026-10-02**, um ano, **com** subdomínios — e sem volta
+  (`docs/ESTADO-ATUAL.md`).
+- **Isolamento também no cache do navegador** (1.6.1). A secretária com
+  vínculo em duas clínicas trocava de organização e via o logotipo da
+  anterior por cinco minutos. O servidor sempre mandou a imagem certa; a
+  URL e o cookie não mudavam com a troca, e a resposta pedia
+  `max-age=300`. A regra que ficou: prazo fixo de cache só quando a
+  própria URL diz o que devolve. O logotipo responde `private, no-cache`
+  com `ETag` que carrega o inquilino
+  (`docs/homologation/logotipo-por-organizacao.md`).
+- **O backup abre, e existe fora da máquina** (2026-10-02). O backup de
+  01/10 foi decifrado com a chave do controlador e conferido — dump
+  Postgres válido, 86 tabelas —, prova a refazer a cada mudança de
+  `BACKUP_AGE_RECIPIENT`. No mesmo dia passou a existir a cópia externa:
+  um disco do controlador **puxa** os conjuntos diariamente, cada arquivo
+  conferido por SHA-256 contra o `manifest.json`. Puxar, e não empurrar,
+  porque assim a VPS não guarda credencial do destino, e quem a invadisse
+  não alcançaria a cópia. A chave privada foi guardada também num
+  gerenciador de senhas. Encerrou a P-10
+  (`docs/operations/copia-externa.md`).
+- **Cloudflare na frente** (2026-10-19). Proxy ligado no domínio e no
+  curinga, SSL em Full (strict), e `TRUSTED_PROXIES` com as faixas da
+  Cloudflare — sem elas o app via o IP do nó, e todos os pacientes atrás
+  do mesmo nó dividiriam o limite de tentativas do portal. As portas 80 e
+  443 da VPS passaram a recusar quem não é a Cloudflare
+  (`ops/cloudflare_firewall.sh`): a regra fica na cadeia `DOCKER-USER`,
+  porque o Docker publica por DNAT e o `ufw` nunca vê o pacote, e na
+  `INPUT` do IPv6; vale só para conexão nova vinda da interface externa,
+  não toca na porta 22, e desfaz tudo se o `/health/` pelo domínio não
+  responder 200. `ops/neurodoc-cloudflare-fw.timer` reaplica na subida e
+  uma vez por dia, porque as regras não sobrevivem ao reinício e a lista
+  de faixas muda. A Cloudflare entrou como suboperador, comunicada às
+  clínicas em 2026-10-19 (`docs/governance/comunicado-2026-10-cloudflare.md`).
+- **O Postgres fixado por digest** (2026-10-06). A tag
+  `postgres:17.11-bookworm` foi republicada no Docker Hub, e o deploy se
+  recusou a seguir com `Infrastructure image changed` — o comportamento
+  certo, porque trocar a imagem do banco não é efeito colateral de
+  publicar aplicação. O `.env` da VPS passou a fixar o digest que já
+  rodava.
+- **Verificação.** Os roteiros passaram de 50 (1.0) a 130 (1.24); a lista
+  que não envelhece é a de `manage.py rodar_roteiros --listar`. Em
+  2026-10-22, três reprovações atribuídas ao horário da bateria eram
+  defeitos dos **roteiros** — médico escolhido por `first()` sem ordem,
+  cenário caindo na consulta da semeadura, rótulo do mês lido pelo número
+  do dia — e um do produto, a recusa de exportação fora da trilha.
+  Roteiro que só passa em banco velho mede o resíduo, não o produto.
+
+### 26.14 Página pública e busca
+
+A 1.5 fez de `base/seo.py` o catálogo único de `<title>`, `description`,
+`<meta name="robots">`, `sitemap.xml` e JSON-LD. A lista é de
+**permissão**: o que não está em `PAGINAS` sai `noindex, nofollow`,
+inclusive `/verificar/<token>/`, porque rota nova deve nascer privada.
+Corrigiu um defeito de sempre: o `<title>` morava em `partials/head.html`,
+que entra por `{% include %}`, e bloco não atravessa include — toda página
+servia `<title>NeuroDoc</title>`. A canônica vem de `PUBLIC_BASE_URL`,
+nunca do `Host:` do cliente; o JSON-LD leva nonce, ou a CSP o descarta em
+silêncio; os ícones são gerados de uma geometria só e servidos na raiz
+(`docs/homologation/seo.md`).
+
+### 26.15 Auditorias
+
+- **Auditoria independente de 2026-10-09.** Uma auditoria externa examinou
+  o snapshot `fd9c039`: 150 verificações, 17 achados confirmados (4 P1, 13
+  P2), nenhum vazamento entre clínicas. Os dezessete foram conferidos no
+  código antes de qualquer mudança, e todos procediam; a prioridade foi
+  revista pelo que pode acontecer no consultório, e não pelo pior caso
+  teórico. Corrigidos em três publicações: a **1.12.1** (o despachante da
+  outbox), a **1.12.2** (lote 1: PDF do documento médico, finalização
+  sobre o autosave, reenvio, `next` do MFA preso ao domínio, pedido do
+  portal na ficha errada, envio duplicado) e a **1.12.3** (lote 2: IA pelo
+  papel clínico, remarcação de consulta cancelada, confirmação de SMS com
+  a chave de quem enviou, "ERRO" com HTTP 200 virando falha, exportação
+  vencida, prazo da retomada de IA, descarte de texto livre, falha de
+  assinatura na trilha) (`docs/homologation/auditoria-1.12.1.md`).
+- **Auditoria incremental de 2026-10** (publicada na 1.24). Três leituras
+  somente leitura — desempenho; Python, acessibilidade e templates;
+  Celery e IA. Só entrou na lista de correção o que foi **reproduzido**, e
+  só se corrigiu o que tinha risco baixo, sem migração e com reversão por
+  código. Corrigidos: A1 (pergunta do chat em dobro), D1/D2 e P2
+  (consultas que cresciam com o volume), B1 (recusas do contato em
+  inglês), C1/C2 (nova tentativa repetindo envio), C3 (duas sincronizações
+  da TUSS ao mesmo tempo, agora sob trava de sessão do PostgreSQL), I1
+  (prompt do relatório) e X1 (21 de 153 campos escritos à mão sem nome
+  para leitor de tela, agora nenhum, com `check_rotulos.py`). Abertos: C4
+  e P1, em 26.17 (`docs/homologation/auditoria-incremental-2026-10.md`).
+
+### 26.16 Versões publicadas
+
+Da tabela de versões do `README.md`. O registro de cada uma fica em
+`docs/releases/`; correção de terceira casa mora no arquivo da versão
+menor, salvo quando pediu homologação própria. Da 1.2 à 1.5 não há
+arquivo: o registro é a linha do `README.md`.
+
+| Versão | Data | Nome | Registro em `docs/releases/` |
+| --- | --- | --- | --- |
+| 1.0 | 2026-09-21; em produção de 25 a 28/09 | primeiro deploy | `1.0-PRIMEIRO-DEPLOY.md` e os quatro builds `<SHA>.md` |
+| 1.1 | 2026-09-30 | seguimento | `1.1-SEGUIMENTO.md` |
+| 1.1.1 | 2026-09-30 | seguimento | — |
+| 1.2 a 1.2.3 | 2026-10-01 | migração | — |
+| 1.3 e 1.3.1 | 2026-10-01 | o mês que passou | — |
+| 1.4 | 2026-10-01 | quem assina é o autor | — |
+| 1.5 | 2026-10-03 | encontrável | — |
+| 1.6 | 2026-10-04 | o que a tela não mostrava | `1.6-o-que-a-tela-nao-mostrava.md` |
+| 1.6.1 | 2026-10-05 | o que a tela não mostrava | `1.6.1-logotipo-por-organizacao.md` |
+| 1.6.2 | 2026-10-05 | o que a tela não mostrava | `1.6.2-leitura-de-laudo.md` |
+| 1.7 e 1.7.1 | 2026-10-06 e 07 | o padrão da instalação | `1.7-padrao-da-instalacao.md` |
+| 1.8 a 1.8.3 | 2026-10-07 | o que faltava para vender | `1.8-o-que-faltava-para-vender.md` |
+| 1.9 | 2026-10-08 | o e-mail da clínica | `1.9-o-email-da-clinica.md` |
+| 1.10 | 2026-10-08 | a recepção | `1.10-a-recepcao.md` |
+| 1.11 | 2026-10-08 | a caixa limpa | `1.11-a-caixa-limpa.md` |
+| 1.12 | 2026-10-08 | o rodapé | `1.12-o-rodape.md` |
+| 1.12.1 | 2026-10-09 | o rodapé | `1.12.1-o-despachante.md` |
+| 1.12.2 | 2026-10-09 | o rodapé | `1.12.2-auditoria-lote-1.md` |
+| 1.12.3 | 2026-10-09 | o rodapé | `1.12.3-auditoria-lote-2.md` |
+| 1.13 | 2026-10-13 | a agenda | `1.13-a-agenda.md` |
+| 1.14 a 1.14.2 | 2026-10-15 | a agenda | `1.14-excluir-horario.md` |
+| 1.15 | 2026-10-15 | a agenda | `1.15-bloquear-horario.md` |
+| 1.16 | 2026-10-18 | os exames do paciente | `1.16-os-exames-do-paciente.md` |
+| 1.16.1 | 2026-10-18 | os exames do paciente | `1.16.1-o-primeiro-envio-real.md` |
+| 1.16.2 | 2026-10-19 | os exames do paciente | `1.16.2-textos-do-portal.md` |
+| 1.17 | 2026-10-19 | os exames do paciente | `1.17-alterar-medicacao.md` |
+| 1.18 | 2026-10-19 | o chat que conhece o sistema | `1.18-o-chat-que-conhece-o-sistema.md` |
+| 1.19 | 2026-10-19 | o recado que se apaga | `1.19-o-recado-que-se-apaga.md` |
+| 1.19.1 | 2026-10-20 | o recado que se apaga | `1.19.1-cep-na-edicao.md` |
+| 1.20 | 2026-10-20 | o que se aprova, se encontra | `1.20-o-que-se-aprova-se-encontra.md` |
+| 1.21 | 2026-10-20 | toda folha diz de quem é | `1.21-toda-folha-diz-de-quem-e.md` |
+| 1.21.1 | 2026-10-21 | toda folha diz de quem é | `1.21.1-transicao-sncr.md` |
+| 1.22 | 2026-10-21 | a receita da Anvisa, ainda desligada | `1.22-receita-da-anvisa-desligada.md` |
+| 1.23 | 2026-10-22 | a IA que não para sozinha | `1.23-ia-que-nao-para-sozinha.md` |
+| 1.24 | 2026-10-22 | o pedido pronto | `1.24-o-pedido-pronto.md` |
+
+### 26.17 Pendências em 2026-10-22
+
+Tiradas de `docs/ESTADO-ATUAL.md`, `docs/decisions.md`, `CLAUDE.md` e dos
+registros de release, e conferidas no código onde ele responde.
+
+- **SNCR: aguarda o CNPJ da mantenedora** (`docs/sncr/PENDENCIA-CNPJ.md`);
+  depois dele, ligar no console e pedir o primeiro bloco real, que é o
+  teste real da integração. Até lá vale a transição de 31/10: RCE só
+  impressa e assinada à mão.
+- **P-09 — enquadramento regulatório do apoio diagnóstico**, inclusive
+  eventual SaMD. Pendente; bloqueia M3 e a divulgação de finalidade
+  clínica da IA.
+- **P-11 — o `app` tem saída para a internet.** `traefik_public` não é
+  `internal`, e não pode ser, porque o Traefik precisa de saída para o
+  ACME. Fechar é separar Traefik ↔ internet e Traefik ↔ `app` em duas
+  redes, com o risco de mexer na rede de produção. Até lá, a regra que
+  vale é a de §26.7: trabalho externo pelo worker, e o `app` sem secrets
+  de egresso.
+- **Chave estrangeira composta só em `clinical` e `teamchat`.** O
+  `UNIQUE(tenant_id, id)` existe em todo `TenantModel`; a chave que ele
+  habilita, só nesses dois. Em `patients`, `documents`, `scheduling`,
+  `finance` e `communications`, o que separa as clínicas é o filtro por
+  inquilino em cada consulta, sem a rede embaixo (`CLAUDE.md` §3).
+- **C4 e P1 da auditoria incremental.** `dispatch_outbox` e
+  `reconcile_pending_sms` sem `expires` acumulam na fila com o worker
+  parado (inofensivo por `skip_locked`); o *context processor* lê o
+  inquilino e o `ClinicProfile` duas vezes por requisição (ganho pequeno,
+  e a correção toca toda tela). Também não feitos: a conferência com
+  leitor de tela de verdade e o efeito da frase nova do relatório com o
+  provedor real.
+- **Postgres:** aplicar o rebuild de patch numa janela própria, com
+  backup conferido antes, e decidir se as demais imagens de
+  infraestrutura passam a ser fixadas por digest no `.env.example`.
+- **TUSS incompleta:** cerca de 3.200 de 5.900 procedimentos; a
+  sincronização se retoma sozinha de hora em hora.
+- **Pacientes migrados sem contato apto.** A migração não autoriza
+  ninguém a receber mensagem, por decisão de LGPD; a ficha avisa quando o
+  contato não está apto, e a base fica apta conforme os pacientes voltam.
+- **`PatientAccessGrant` e delegação** (25.25): seguem não modelados.
+- **Anexos I a V do contrato**, prometidos "quando disponibilizados",
+  seguem não publicados (`docs/governance/lgpd.md` §9). A relação de
+  suboperadores das cláusulas 8.2 e 8.3 passou a existir em
+  `docs/governance/suboperadores.md`.
+- **Assinatura dos registros de release.** Os registros da 1.6 em diante
+  trazem "Responsável que assinou: a assinar", em branco de propósito
+  (§18.6): quem assina é o responsável técnico, não quem escreve o
+  registro.
