@@ -208,7 +208,10 @@ carimbá-la na publicação.
 #: de crescer, aviso por e-mail quando o backup falha, e três correções de
 #: operação -- a restauração com User-Agent, o deploy que diz por que não
 #: publicou e a dica de rollback nos três serviços.
-VERSION = '1.24.1'
+#: A **1.24.2**: o relatório da IA aberto pelo sino chega à tela do
+#: relatório (abria a genérica, com os campos do resumo em branco), e a tela
+#: genérica deixa de aprovar relatório sem gerar o documento.
+VERSION = '1.24.2'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

@@ -178,6 +178,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_semana_em_lote` | A agenda da semana em lote desenha a mesma grade que `day_grid` dia a dia, com número fixo de consultas |
 | `check_rotulos` | Todo campo de formulário escrito à mão tem nome para o leitor de tela |
 | `check_cartoes_e_campos` | Cartões empilhados na altura do conteúdo, e campos do atendimento que rolam em vez de crescer |
+| `check_relatorio_pelo_sino` | O relatório da IA aberto pelo sino chega à tela do relatório, e a tela genérica não o aprova |
 | `check_chat_manual` | O chat sem paciente responde pelo manual e pela documentação técnica (RAG por palavras), com a fonte; a conversa com paciente fica só com o prontuário |
 | `check_links_de_mensagem` | Todo link que sai em e-mail ou SMS abre, e nada é enfileirado antes do commit |
 | `check_login` | Duas portas de entrada que devolviam tela crua |
