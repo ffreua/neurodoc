@@ -25,6 +25,7 @@ from django.conf import settings as dj_settings
 dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['testserver']
 dj_settings.SECURE_SSL_REDIRECT = False
 
+from django.db.models import Q
 from django.test import Client
 from django.urls import resolve
 from django.utils import timezone
@@ -81,6 +82,31 @@ paciente = Patient.objects.create(
 )
 # Longe no futuro e de madrugada: nao colide com nada da demonstracao.
 base = timezone.localtime().replace(hour=3, minute=0, second=0, microsecond=0) + timedelta(days=400)
+
+
+def _dia_sem_grade(dia):
+    """Se o medico nao tem regra de horario valendo naquele dia.
+
+    A secao 9 cria uma regra de celulas de 40 min so para o dia seguinte a
+    `base` e mede a grade por elas. Num dia em que a demonstracao ja tem a
+    grade semanal do medico (09h-17h, celulas de 30 min), e essa a celula
+    que a grade usa, a de 40 min nao existe, e o roteiro reprovava -- so
+    nos dias da semana em que `base + 1` caia num dia de atendimento. Foi
+    assim que ele passou num sabado (2026-10-22) e falhou numa segunda
+    (2026-10-24), sem mudanca nenhuma na agenda.
+    """
+    return not AvailabilityRule.objects.filter(
+        physician_membership=medico, weekday=dia.weekday(), starts_on__lte=dia,
+    ).filter(Q(ends_on__isnull=True) | Q(ends_on__gte=dia)).exists()
+
+
+for _ in range(7):
+    if _dia_sem_grade((base + timedelta(days=1)).date()):
+        break
+    base += timedelta(days=1)
+else:
+    raise SystemExit('o medico da demonstracao atende os sete dias da semana; '
+                     'a secao 9 precisa de um dia sem grade')
 
 
 def marcar(status, deslocamento_h, tipo=AppointmentType.FIRST_VISIT):
