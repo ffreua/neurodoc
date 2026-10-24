@@ -1,0 +1,38 @@
+{% autoescape off %}Olá!
+
+A clínica {{ clinica }} foi cadastrada no NeuroDoc, no plano {{ plano }}. Seja bem-vindo(a).
+
+A sua conta é a do Responsável pela clínica: ela administra equipe, agenda, integrações e financeiro, mas não abre prontuário.
+
+IMPORTANTE — CADASTRE UM USUÁRIO COM PERFIL MÉDICO
+É necessário cadastrar um usuário com perfil médico para ter acesso às funcionalidades do prontuário: criar e finalizar atendimentos, emitir e assinar documentos{% if tem_ia %} e usar a IA clínica{% endif %}. Enquanto a clínica não tiver médico, um aviso fica no alto de toda tela.
+
+Faça em Organização → Equipe e papéis: convide o médico pelo e-mail dele ou, se você mesmo atende, conceda-se o papel de médico. Depois cadastre e valide o CRM, e instale o certificado digital em Assinatura.
+{{ url_equipe }}
+
+PRIMEIROS PASSOS
+O passo a passo curto para começar a usar o sistema por inteiro — perfis de usuário, médico e CRM, identidade da clínica, agenda, IA, SMS e e-mail:
+{{ url_primeiros_passos }}
+
+Em resumo:
+1. Confirme o seu e-mail pelo link da outra mensagem e ative o segundo fator (MFA).
+2. Cadastre o médico e valide o CRM.
+3. Preencha a identidade da clínica: endereço, telefone, logotipo e o encarregado de dados (LGPD).
+4. Configure os horários de atendimento na agenda.
+5. Convide a secretaria e o restante da equipe — cada pessoa com a própria conta.
+
+IA, SMS E E-MAIL
+{% if tem_ia %}- IA nativa: o apoio clínico por inteligência artificial já está incluído no seu plano, com o provedor do NeuroDoc. Se preferir a sua própria conta de IA, cadastre-a em Integrações → Inteligência artificial.
+{% else %}- IA: o apoio clínico por inteligência artificial não faz parte do plano {{ plano }}.
+{% endif %}{% if tem_sms %}- SMS nativo: confirmações e lembretes de consulta saem pelo envio do NeuroDoc. Se quiser usar a sua própria conta de SMS, cadastre a chave em Integrações → SMS e e-mail.
+{% else %}- SMS: o envio de SMS não faz parte do plano {{ plano }}.
+{% endif %}- E-mail: confirmações, documentos e recuperação de senha saem pelo e-mail do NeuroDoc. Para sair com o remetente da clínica, cadastre o servidor de e-mail (SMTP) dela em Integrações → SMS e e-mail.
+- E-mail marketing (Comunicação em massa): sai apenas pelo servidor de e-mail (SMTP) próprio da clínica, e só para os pacientes que autorizaram.
+
+Manual completo: {{ url_manual }}
+Entrar no sistema: {{ url_entrar }}
+
+Dúvidas? Use o "Fale com a NeuroDoc", no rodapé do menu.
+
+Equipe NeuroDoc
+{% endautoescape %}

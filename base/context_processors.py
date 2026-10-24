@@ -73,6 +73,7 @@ def shell(request):
         'nd_recent_notifications': (),
         'nd_user_initials': _initials(user) if user is not None and user.is_authenticated else '',
         'nd_can': {},
+        'nd_sem_medico': False,
     }
     if context is None:
         return data
@@ -119,6 +120,16 @@ def shell(request):
         mine.order_by(F('read_at').asc(nulls_first=True), '-created_at')[:5]
     )
     data.update(_portal_badge(context))
+    # Clínica sem médico: o aviso fica no alto de toda tela de `/app/` até
+    # alguém receber o papel. Para todos os vínculos, e não só para o
+    # responsável — a secretária que procura o prontuário e não o encontra
+    # precisa saber por quê, mesmo sem poder resolver. Uma consulta
+    # `EXISTS` por requisição, sem cache: o aviso some na tela seguinte à
+    # do cadastro do médico, que é quando quem cadastrou vai conferir.
+    if data['nd_tenant'] is not None:
+        from tenancy.limits import has_doctor
+
+        data['nd_sem_medico'] = not has_doctor(data['nd_tenant'])
     # Numeração do SNCR: o item do menu existe só com a integração ligada
     # (`sncr.models.Configuracao.ativo`) e só para quem emite receita. Uma
     # linha só, lida para quem tem a capacidade.

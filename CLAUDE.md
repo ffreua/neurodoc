@@ -236,6 +236,17 @@ cota porque a clínica que configurou a própria chave paga a própria conta
 Acesso é liberado por **código de convite** (`tenancy/invitations.py`), que
 carrega o plano contratado — não há pagamento on-line.
 
+**A clínica nasce sem médico, e o produto diz isso** (1.25). O cadastro cria
+só o responsável, que não abre prontuário. Por isso: o **e-mail de
+boas-vindas** (`tenancy/boas_vindas.py`, chamado em
+`OrganizationSignupView.post` ao lado da via do contrato), o **aviso
+permanente** no alto de toda tela de `/app/` enquanto não houver vínculo
+ativo com o papel médico (`nd_sem_medico`, de `tenancy/limits.py::has_doctor`)
+e o artigo **Primeiros passos** (`primeiros-passos`, o primeiro de
+`base/help_content.py`), para onde os dois apontam. O texto de IA e SMS dos
+três segue o plano, lido de `plans.py`. Ver
+`docs/homologation/boas-vindas.md`.
+
 **Contrato de adesão: `tenancy/contract.py`.** Dezoito cláusulas,
 **redigidas pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476** —
 não são texto nosso, e correção de redação passa por ela. O texto mora em
@@ -371,7 +382,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_por_cid.py` | busca de paciente por diagnóstico: a fronteira (a secretária e o gestor não abrem a tela), o código por prefixo com o ponto dispensável, o diagnóstico anotado sem código, e o refutado que não volta — vale a última palavra sobre cada código |
 | `check_retorno.py` | retorno programado: meses de calendário sem estourar o fim do mês, um retorno por atendimento, a janela de 20 dias com o dia perdido recuperado, o `notified_at` que barra o segundo e-mail, a recusa do contato respeitada, a redação de cuidado e não de captação, e a fila da secretária |
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
-| `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 27 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
+| `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 28 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
 | `check_exames_do_portal.py` | o **laudo enviado pelo paciente no portal**: só PDF, até 5 por envio e 3 MB cada, onze recusas sem gravar nada, **tudo ou nada**, o formulário de um paciente que não grava na ficha de outro, o arquivo clínico em quarentena sem autor de conta, o aviso ao médico e não à secretária, o **alerta no prontuário** que some no "Ciente" (que a secretária e outra clínica não marcam), e a janela de retorno que barra o pedido e **não** o laudo; e, **com o CSRF ligado** (`Client(enforce_csrf_checks=True)` — o cliente padrão o dispensa, e foi assim que o primeiro envio real foi recusado em produção sem nenhum roteiro reprovar), o login no meio do envio, que encerra a identificação, e o "Encerrar identificação" |
 | `check_medicacao_editar.py` | **alterar a medicação** do atendimento pelo lápis: um formulário por linha com prefixo próprio (sem `id_dose` repetido, e o autocomplete preenchendo a dose **daquela** linha), só o campo mudado muda, a trilha com os **nomes** dos campos e não os valores, envio sem mudança sem rastro, e as recusas — finalizado, secretária, outra clínica, medicação de outro atendimento |
 | `check_resumos_aprovados.py` | o **resumo por IA aprovado aparece no atendimento** (1.20): aprovado e editado sim, pendente, recusado, apoio diagnóstico, de outro atendimento e de outra clínica não; nos dois tipos de atendimento; **fora do registro** — texto clínico e `content_hash` intactos —, e a secretária não abre |
@@ -409,6 +420,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_despachante.py` | a outbox depois da auditoria de 2026-10-09: quem **perdeu a posse** do evento não roda o consumidor nem grava o desfecho, a posse conferida antes de cada consumidor, o consumidor **fora** de transação externa (o token existe para outra conexão antes do SMS sair), falha com nome no log, evento sem consumidor sem gastar tentativa, a idade do aviso pelo `created_at`, o lembrete que não sai para consulta cancelada ou remarcada **e continua saindo para a confirmada**, e o job de IA parado na fila retomado |
 | `check_auditoria_lote1.py` | lote 1 da auditoria de 2026-10-09: o PDF de documento médico (a recepção **imprime o emitido** e não abre o rascunho, ninguém o remove pela lista de anexos, a coleta não o apaga, a migração pega o rascunho órfão), a finalização que não grava por cima do autosave, o reenvio com os dois links vivos, o `next` do MFA preso ao domínio, o formulário do portal preso à identificação que o abriu, e a entrega que não sai duas vezes |
 | `check_auditoria_lote2.py` | lote 2 da auditoria de 2026-10-09: a IA recusada para quem perdeu o papel médico, a cópia velha da consulta que não desfaz o cancelamento, o DLR com a chave de quem enviou, "ERRO" com HTTP 200 virando falha, exportação vencida sem download e duplicada sem virar falha, o prazo de um dia da retomada de IA que ela mesma não adia, o texto livre que pede motivo para descartar, e a falha de assinatura **na trilha** com o documento ainda pronto para assinar |
+| `check_boas_vindas.py` | a **clínica nova sabe que precisa de médico** (1.25): o e-mail de boas-vindas no cadastro, depois da via do contrato, com o aviso do perfil médico, o link de `PUBLIC_BASE_URL` (não do `Host:`) e IA/SMS **do plano**; o e-mail quebrado sem derrubar o cadastro; o **aviso permanente** no alto de `/app/` para todo vínculo enquanto não há médico ativo — link de Equipe só para o responsável —, sumindo quando alguém recebe o papel; e o artigo **Primeiros passos**, primeiro do manual, no sitemap e na página inicial sem trocar os cartões |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
 Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
@@ -565,7 +577,7 @@ do gênero, e com as duas coisas lendo a mesma lista ele não tem onde
 nascer.
 
 **A lista é de permissão.** `PAGINAS` enumera o que pode ser indexado —
-a raiz, a ajuda, os 21 artigos do manual, as perguntas, o contrato e o
+a raiz, a ajuda, os 23 artigos do manual, as perguntas, o contrato e o
 formulário de verificação em branco. **Tudo que não está lá sai
 `noindex, nofollow`**, inclusive `/verificar/<token>/`, que mostra tipo
 de documento, médico e data. Rota nova nasce privada; escrita ao
@@ -792,7 +804,7 @@ com trava de execução. **A porta de entrada é `DEPLOY.md`.**
   lições que custaram caro. É o arquivo que responde "onde estamos" a
   quem (ou ao que) chega agora.
 - `docs/CODEBASE_MAP.md` — o mapa do código gerado pela Cartographer
-  (2026-10-18, v1.15): o que cada módulo exporta, os fluxos em diagrama,
+  (2026-10-18, v1.15; atualizado em 2026-10-24, v1.24.2): o que cada módulo exporta, os fluxos em diagrama,
   as pegadinhas e a tabela "para mexer em X, abra Y". É síntese de
   leitura, não especificação — onde divergir deste arquivo ou do código,
   vale o código.

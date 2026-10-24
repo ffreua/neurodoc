@@ -336,8 +336,8 @@ PAGINAS = {
 def pagina_do_artigo(slug):
     """A página de um artigo do manual, montada do próprio artigo.
 
-    Vinte e um artigos com título e descrição copiados para cá seriam
-    vinte e uma chances de o manual mudar e a descrição ficar. O texto
+    Vinte e três artigos com título e descrição copiados para cá seriam
+    vinte e três chances de o manual mudar e a descrição ficar. O texto
     tem um dono só: `base/help_content.py`.
     """
     from .help_content import article_by_slug

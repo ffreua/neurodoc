@@ -90,12 +90,15 @@ if not leva or not leva_faq:
 print('=== 7. as capturas sao servidas ===')
 # `{% static %}` resolve para o diretorio de release; a pagina tem de
 # apontar para um arquivo que existe, e nao so citar o nome.
-artigo = ARTICLES[0]
+# O primeiro artigo **com captura**: o "Primeiros passos", que abre a lista,
+# nao tem nenhuma de proposito (descreve uma ordem de trabalho, e cada passo
+# aponta o artigo que tem a tela).
+artigo = next(a for a in ARTICLES if any(imagem for _, imagem, _ in a['steps']))
 corpo = anonimo.get(reverse('onboarding:help-article', args=[artigo['slug']])).content.decode()
 imagens = re.findall(r'<img src="([^"]+)"', corpo)
-print(f'  <img> no primeiro artigo: {len(imagens)}')
+print(f'  <img> no primeiro artigo com captura ({artigo["slug"]}): {len(imagens)}')
 if not imagens:
-    falhas.append('o primeiro artigo nao renderizou imagem nenhuma')
+    falhas.append('o primeiro artigo com captura nao renderizou imagem nenhuma')
 
 print('=== 8. o manual nao promete o que esta fora do escopo ===')
 texto = ' '.join(

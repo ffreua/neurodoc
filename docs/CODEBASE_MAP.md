@@ -1,12 +1,15 @@
 ---
-last_mapped: 2026-10-18T22:28:49Z
+last_mapped: 2026-10-24T17:08:50Z
 total_files: 901
 total_tokens: 1583504
 ---
 
 # Mapa do código
 
-> Gerado pela skill Cartographer em 2026-10-18 (versão 1.15, commit `390e3dd`).
+> Gerado pela skill Cartographer em 2026-10-18 (versão 1.15, commit `390e3dd`);
+> atualizado em 2026-10-24 (versão 1.24.2, commit `ee45d07`) só nos módulos
+> que mudaram — o app `sncr`, a reserva de IA, o laudo pelo portal, a
+> Portaria 344, a retenção do chat da equipe e a idempotência da entrega.
 > Onze leitores em paralelo, cada um com um pedaço do repositório; este
 > arquivo é a síntese. É **mapa**, não especificação: onde ele e o código
 > divergirem, vale o código, e onde divergir de `CLAUDE.md`, vale o
@@ -254,8 +257,27 @@ trilha.
 - Idempotência `kind:alvo:versão`.
 - Desidentificação local antes de qualquer envio; `privacy_policy` falha
   fechada.
-- Provedor: o da clínica se `is_usable`, senão o da instalação (console);
-  nunca há recuo silencioso entre provedores.
+- Provedor: o da clínica se `is_usable`, senão o da instalação (console,
+  `InstallationSettings.ia_da_instalacao()`).
+- **Reserva da instalação (1.23)** — a única exceção ao "nunca recuar de
+  provedor": `providers.reserva_utilizavel`, `installation_reserve_model`,
+  `registrar_uso_da_reserva` (`ai.reserva_usada` na trilha, contador `F()`).
+  Só para quem usa o padrão, só quando a **chamada falha** (resposta recusada
+  pela validação não troca), só ligada no console. No chat, só antes da
+  primeira palavra. `tasks.vigiar_ia_da_instalacao` (hora em hora) manda
+  e-mail ao superadmin na passagem para falha e a cada 24 h.
+- OpenRouter da instalação sai com `ROTEAMENTO_OPENROUTER_DA_INSTALACAO`
+  (`zdr`, `data_collection=deny`).
+- Leitura de laudo **aposentada** (1.18): `ai/documents.py` e
+  `ai/extraction.py` saíram; `models.TIPOS_APOSENTADOS`; a migration `0009`
+  cancela o que estava na fila (irreversível); `prepare_document_and_run` é
+  stub que cancela.
+- `acoes_rapidas.ACOES`: quatro cartões de texto que só preenchem o campo do
+  chat com paciente; o servidor não sabe que vieram de cartão.
+- `chat_prompt.build_chat_prompt(..., pergunta_id)` tira a pergunta da volta
+  do histórico (ia duas vezes ao provedor).
+- O relatório do paciente avisa no sino com `target_type='ai_report'` →
+  `ai:relatorio-detalhe`.
 - 4xx (exceto 408/429) = "repetir não resolve".
 - `schemas.ArtifactModel` normaliza **forma**, validadores guardam
   **conteúdo**.
@@ -276,7 +298,58 @@ trilha.
 - **`teamchat`:**
   - `services.py` é o único escritor (contador denormalizado);
   - SSE com aba líder (`localStorage`) + `BroadcastChannel`;
-  - reautoriza o vínculo a cada 10 s.
+  - reautoriza o vínculo a cada 10 s;
+  - **esquece**: `RETENCAO_HORAS=72`, `tasks.apagar_vencidas` de hora em hora (refaz o não lido e apaga conversa vazia antiga); "Apagar conversa" grava `ConversationMember.cleared_at` só para quem pediu.
+
+### sncr (novo, 1.21–1.22, desligado por padrão)
+- **Modelos** (não herdam `TenantModel`: o bloco é do **médico**,
+  `PhysicianProfile`): `Configuracao` (singleton, nasce desligada e em
+  homologação, `base_url` vem de `BASES` em código), `PedidoNumeracao`
+  (`aguardando_login` → `enviando` → `concluido|recusado|falhou|incerto|expirado`),
+  `BlocoNumeracao` (`utilizavel`), `NumeroSncr` (texto, `UNIQUE(ambiente,
+  tipo, numero)`). Tudo `PROTECT`.
+- `cliente.py` é o único que conhece a API da Anvisa: `Indisponivel` (pode
+  repetir), `Incerto` (**nunca** repetir), `Recusado`, `SessaoInvalida`.
+- `fluxo.py`: `iniciar` confere tudo antes do login Gov.br (3 pedidos/mês,
+  nenhum incerto pendente); `concluir` troca o token (vive 30 s) e pede o
+  bloco **na requisição** (exceção deliberada ao §2); o pedido pendente vive
+  na sessão Django; `tasks.marcar_pedidos_parados` (5 min) vira incerto o
+  que ficou em `enviando`.
+- `numeracao.py`: `enumerar` só aceita prefixo + dígitos de mesmo
+  comprimento (senão o bloco fica não utilizável, nenhum número é
+  inventado); `reservar*` com `skip_locked`, `consumir` só depois de assinado.
+- `receita.py` classifica pela Portaria 344 (`catalogs.controlados`), até 3
+  medicamentos, **uma folha e um número por medicamento** (I12).
+  `pdf_oficial.py` escreve sobre o PDF oficial (`SHA256_MODELO_RCE` —
+  trocar o PDF sem a constante derruba a geração).
+- Console: `operacao/sncr/` (ligar exige CNPJ, `LIGAR` e motivo; ambiente só
+  muda desligado). Menu só com `nd_sncr_ativo`.
+- `documents/sncr_transicao.py`: regra transitória — a RCE eletrônica não é
+  assinada digitalmente a partir de 31/10/2026 (dia de Brasília);
+  `MedicalDocumentToPaperView` refaz como impressa sem gastar número.
+
+### Outras mudanças desde a 1.15
+- **`documents/portal_exames.py`** (1.16): o paciente manda laudo em PDF pelo
+  portal (5 arquivos, 3 MB, 6 envios/h por IP, tudo ou nada) direto ao
+  prontuário como `Attachment` (`uploaded_by` nulo); `PortalExamUpload` fica
+  "novo" até o ciente do médico (`PortalExamAcknowledgeView`). A janela de
+  retorno barra o pedido e **não** o laudo.
+- **`catalogs/portaria344.py`** (parser estrito, sem Django) +
+  `controlados.py` (`importar`, `classificar` por palavra inteira — sugestão,
+  não decisão; adendos guardados como texto) + `import_portaria344` (worker).
+- **`catalogs/tasks.py`**: `TUSS_LOCK = 72654004`, uma sincronização por vez.
+- **`communications/services.py`**: `envio_id` (id da tarefa Celery,
+  `marca_do_envio`) torna a retentativa idempotente em `deliver_document` e
+  `send_appointment_confirmation`; sem ele, comportamento antigo.
+- **`patients/selectors.py`**: lookup `sem_acento` (`TRANSLATE`, sem
+  `unaccent`); cada palavra do nome obrigatória, em qualquer ordem.
+- **`scheduling/availability.py`**: a semana carrega tudo uma vez e fatia por
+  dia (6 consultas, contra ~33).
+- **Backup que falha avisa**: `neurodoc-backup.service` →
+  `OnFailure=neurodoc-backup-falhou.service` → `manage.py
+  avisar_falha_backup` no worker.
+- **`app.js`**: o modal de confirmação reenvia o botão clicado
+  (`requestSubmit(botao)`); textarea não cresce em `[data-nd-atendimento]`.
 
 ### reporting
 - **Registro e autorização:**
@@ -423,6 +496,12 @@ sequenceDiagram
 - **Documentação:**
   - `mkdocs build --strict` roda na build da imagem; link quebrado em `docs/` derruba o deploy;
   - divergências que os leitores acharam, **corrigidas em 2026-10-18**: a P-10 no `decisions.md` (agora "resolvida"), o DEC-21 repetido (a decisão do CEP virou DEC-54), a P-02 no `docs/operations/environment.md`, a tabela incompleta do `checks/README.md` (agora com os 108 roteiros) e o docstring de `ops/superadmin.py`, que dizia "duas escritas" quando já eram seis.
+- **Desde a 1.15:**
+  - campo cifrado novo fora de clínica precisa entrar em `CAMPOS` de `rotate_secrets_master_key` (a reserva de IA entrou);
+  - salvar a configuração da reserva de IA a **desliga**; ligar exige verificação ok;
+  - download a partir de `ops/` usa `ops.deploy.buscar` (com User-Agent) — `urlopen` cru leva 403 da Cloudflare;
+  - travas advisory na família 72654xxx (`ops/locks.py`): 001 migração, 004 TUSS;
+  - pedido do SNCR `incerto` nunca se repete sozinho — barra pedido novo até o médico conciliar.
 - **Pendências e incertezas:**
   - `ops/deploy.py` ainda tem `DEFAULT_REGISTRY = 'ghcr.io/pycodebr/scsi_v1'`, herdado de outro projeto e usado só quando `REGISTRY` falta no `.env`. Não foi alterado (é código);
   - ~~`LICENSE` diz MIT e o contrato (cláusula 16) diz o contrário~~ — resolvida em 2026-10-19: repositório público sob MIT e contrato 1.1 com o item 16.3.

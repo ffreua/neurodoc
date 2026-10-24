@@ -31,32 +31,33 @@ usuário abrir a página e ver o ícone quebrado.
 versão de quando foi escrito, e o commit que muda a tela não o toca. Aqui,
 quem muda a tela vê o texto no mesmo diff.
 
-## Os vinte e dois processos
+## Os vinte e três processos
 
 | # | Artigo | Público |
 | --- | --- | --- |
-| 1 | Entrar e escolher a clínica | Todos |
-| 2 | Cadastrar um paciente | Secretaria, médico, gestor |
-| 3 | Marcar e remarcar na agenda | Secretaria, médico, gestor |
-| 4 | Atender: escrever o prontuário | Médico |
-| 5 | O exame neurológico estruturado | Médico |
-| 6 | Emitir e assinar um documento | Médico |
-| 7 | Entregar o documento ao paciente | Médico, secretaria |
-| 8 | Portal do paciente: solicitações e envio de exames | Médico, gestor |
-| 9 | Buscar códigos CID-10 e TUSS | Todos |
-| 10 | Chat de apoio | Médico |
-| 11 | Convênios, planos e valores | Dono, gestor, médico |
-| 12 | Equipe, papéis e registro profissional | Dono |
-| 13 | Os indicadores da clínica | Dono, gestor, médico |
-| 14 | Financeiro: recebíveis, pagamentos e ajustes | Dono, gestor, secretaria, médico |
-| 15 | A grade de horários do médico | Médico, dono, gestor |
-| 16 | Identidade da clínica e o encarregado de dados | Dono |
-| 17 | E-mail e SMS da clínica | Dono, gestor |
-| 18 | Comunicação em massa | Dono, gestor |
-| 19 | Notificações | Todos |
-| 20 | Mensagens internas da equipe | Todos |
-| 21 | Exportar os dados da clínica | Dono |
-| 22 | Falar com a NeuroDoc | Todos |
+| 1 | Primeiros passos: da conta criada ao uso pleno | Responsável pela clínica |
+| 2 | Entrar e escolher a clínica | Todos |
+| 3 | Cadastrar um paciente | Secretaria, médico, gestor |
+| 4 | Marcar e remarcar na agenda | Secretaria, médico, gestor |
+| 5 | Atender: escrever o prontuário | Médico |
+| 6 | O exame neurológico estruturado | Médico |
+| 7 | Emitir e assinar um documento | Médico |
+| 8 | Entregar o documento ao paciente | Médico, secretaria |
+| 9 | Portal do paciente: solicitações e envio de exames | Médico, gestor |
+| 10 | Buscar códigos CID-10 e TUSS | Todos |
+| 11 | Chat de apoio | Médico |
+| 12 | Convênios, planos e valores | Dono, gestor, médico |
+| 13 | Equipe, papéis e registro profissional | Dono |
+| 14 | Os indicadores da clínica | Dono, gestor, médico |
+| 15 | Financeiro: recebíveis, pagamentos e ajustes | Dono, gestor, secretaria, médico |
+| 16 | A grade de horários do médico | Médico, dono, gestor |
+| 17 | Identidade da clínica e o encarregado de dados | Dono |
+| 18 | E-mail e SMS da clínica | Dono, gestor |
+| 19 | Comunicação em massa | Dono, gestor |
+| 20 | Notificações | Todos |
+| 21 | Mensagens internas da equipe | Todos |
+| 22 | Exportar os dados da clínica | Dono |
+| 23 | Falar com a NeuroDoc | Todos |
 
 Os artigos administrativos entraram em 2026-09-23, quando o manual foi confrontado
 com o menu: doze artigos cobriam o trabalho assistencial e **nenhum**

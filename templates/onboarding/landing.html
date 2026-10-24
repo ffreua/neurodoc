@@ -471,6 +471,9 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
                 </p>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary" href="{% url 'onboarding:help' %}">Abrir o manual</a>
+                    <a class="btn btn-outline-primary" href="{% url 'onboarding:help-article' primeiros_passos.slug %}">
+                        Primeiros passos
+                    </a>
                     <a class="btn btn-outline-secondary" href="{% url 'onboarding:help-faq' %}">
                         Perguntas frequentes
                     </a>
@@ -478,6 +481,20 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
             </div>
             <div class="col-lg-6">
                 <div class="row g-3">
+                    {% comment %}O cartão dos primeiros passos ocupa a linha
+                    inteira, acima dos outros: é a resposta a "acabei de
+                    cadastrar a clínica, e agora?", que é a pergunta de quem
+                    chega aqui vindo do e-mail de boas-vindas.{% endcomment %}
+                    <div class="col-12">
+                        <a class="card h-100 text-decoration-none nd-help-card border-primary"
+                           href="{% url 'onboarding:help-article' primeiros_passos.slug %}">
+                            <div class="card-body py-3">
+                                <span class="badge bg-soft-primary text-primary fs-11 mb-1">Comece aqui</span>
+                                <h6 class="fw-bold text-dark fs-13 mb-1">{{ primeiros_passos.title }}</h6>
+                                <p class="fs-11 text-muted mb-0">{{ primeiros_passos.summary }}</p>
+                            </div>
+                        </a>
+                    </div>
                     {% for item in manual_destaques %}
                     <div class="col-6">
                         <a class="card h-100 text-decoration-none nd-help-card"

@@ -12,10 +12,14 @@ from tenancy.models import InvitationPurpose
 from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
 
 from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, FAQ, RECURSOS
-from .help_content import ARTICLES as HELP_ARTICLES
+from .help_content import ARTICLES as HELP_ARTICLES, article_by_slug
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
+from tenancy.boas_vindas import enviar_boas_vindas
 from tenancy.contracts import copia_para_operacao, enviar_copia
+
+#: Os artigos do manual que a pagina de vendas mostra em cartao.
+MANUAL_DESTAQUES = ('paciente', 'agenda', 'atendimento', 'exame')
 
 
 class StartFreePlanView(View):
@@ -169,8 +173,11 @@ class LandingView(View):
             'especialidades': ESPECIALIDADES,
             'faq': FAQ,
             # Quatro artigos do manual, para a pagina mostrar que ele existe
-            # sem virar um indice dentro da pagina de vendas.
-            'manual_destaques': HELP_ARTICLES[1:5],
+            # sem virar um indice dentro da pagina de vendas. Por slug, e nao
+            # por posicao: era `[1:5]`, e o "Primeiros passos" entrando no
+            # topo da lista trocaria em silencio os cartoes desta pagina.
+            'manual_destaques': [a for a in HELP_ARTICLES if a['slug'] in MANUAL_DESTAQUES],
+            'primeiros_passos': article_by_slug('primeiros-passos'),
             'leads_email': settings.LEADS_EMAIL,
             'enviado': False,
         }
@@ -361,6 +368,11 @@ class OrganizationSignupView(View):
         # ela fica registrada em `email_error` e aparece no console.
         enviar_copia(aceite)
         copia_para_operacao(aceite)
+        # Boas-vindas com o aviso que a clínica nova precisa ler primeiro:
+        # ela nasce só com o responsável, e sem um usuário médico o
+        # prontuário não abre. Mesma regra das duas cópias acima — falhar
+        # não desfaz o cadastro.
+        enviar_boas_vindas(tenant, user)
         auth_login(request, user)
         send_email_verification(user, request)
         return render(request, 'accounts/email_verification_sent.html')

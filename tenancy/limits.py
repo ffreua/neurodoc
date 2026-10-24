@@ -175,6 +175,28 @@ def doctor_usage(tenant):
     ).count()
 
 
+def has_doctor(tenant):
+    """Se a clínica tem ao menos um vínculo ativo com o papel médico.
+
+    É a pergunta do aviso permanente do menu (`base/context_processors.py`):
+    sem médico, ninguém na clínica abre prontuário, registra atendimento,
+    assina documento ou usa a IA clínica — a matriz de `permissions.py` só
+    entrega essas capacidades ao papel. A clínica recém-criada nasce só com
+    o responsável, e sem o aviso ela descobria isso procurando um botão
+    que não aparece.
+
+    Conta o **papel**, não o CRM validado: o que falta a quem não tem
+    médico é cadastrá-lo, e isso o responsável resolve sozinho em Equipe.
+    A validação do CRM é passo seguinte, explicado no manual.
+    """
+    from .models import Membership, MembershipStatus, Role
+
+    tenant = resolve_tenant(tenant)
+    return Membership.objects.filter(
+        tenant_id=tenant.id, status=MembershipStatus.ACTIVE, roles__contains=[Role.DOCTOR],
+    ).exists()
+
+
 def patient_status(tenant):
     tenant = resolve_tenant(tenant)
     return LimitStatus('patients', patient_usage(tenant), patient_limit(tenant), plan_label(tenant.plan))

@@ -23,12 +23,137 @@ há dado de pessoa real em imagem nenhuma, e não pode haver: o manual é
 público.
 """
 
+from tenancy.plans import PUBLIC_ORDER, has_clinical_ai, has_sms, plan_label
+
+
+def _planos_com(recurso):
+    """Os nomes dos planos que têm o recurso, por extenso: "Básico, Completo e
+    Personalizado".
+
+    Lidos de `tenancy/plans.py`, e não escritos aqui: o manual diria "a IA
+    vem no Completo" no dia em que ela passasse a vir também no Básico, e
+    quem lê ajuda acredita nela mais do que na tabela de preços.
+    """
+    nomes = [plan_label(codigo) for codigo in PUBLIC_ORDER if recurso(codigo)]
+    if len(nomes) < 2:
+        return ''.join(nomes)
+    return '%s e %s' % (', '.join(nomes[:-1]), nomes[-1])
+
+
 #: Cada artigo: um processo do sistema, do começo ao fim.
 #:
 #: `passos` é uma lista de (texto, imagem, legenda). `imagem` vazia é um
 #: passo sem captura — nem todo passo merece uma, e uma imagem por
 #: parágrafo transforma o manual numa apresentação de slides.
 ARTICLES = [
+    # Primeiro da lista, de propósito: é o artigo para onde o e-mail de
+    # boas-vindas (`tenancy/boas_vindas.py`) e o aviso de clínica sem médico
+    # (`templates/base.html`) apontam, e é o "Começar pelo início" da
+    # central. Sem capturas: descreve uma ordem de trabalho, e cada passo
+    # leva ao artigo que tem a tela.
+    {
+        'slug': 'primeiros-passos',
+        'title': 'Primeiros passos: da conta criada ao uso pleno',
+        'summary': 'O que fazer, e em que ordem, logo depois de cadastrar a clínica.',
+        'audience': 'Responsável pela clínica',
+        'steps': [
+            ('A conta que cadastrou a clínica é a do **Responsável**. Confirme o '
+             'endereço de e-mail pelo link que chegou na sua caixa de entrada e, no '
+             'menu do seu nome (canto superior direito), ative o **Segundo fator '
+             '(MFA)** — um prontuário guarda dados de saúde, e senha sozinha é pouca '
+             'proteção para eles.',
+             '', ''),
+            ('**Conheça os perfis de usuário.** São quatro, e se acumulam — a mesma '
+             'pessoa pode ser responsável e médica:\n\n'
+             '- **Responsável**: administra a clínica — equipe, identidade, '
+             'integrações, convênios, valores, financeiro e exportação dos dados. '
+             '**Não abre prontuário** se não for também médico.\n'
+             '- **Médico**: o único perfil que abre o prontuário, registra '
+             'atendimentos, emite e assina documentos e usa a IA clínica. Também '
+             'agenda, cadastra pacientes e vê os indicadores.\n'
+             '- **Secretaria**: pacientes, agenda, balcão do dia e financeiro do '
+             'dia a dia. Não vê prontuário.\n'
+             '- **Gestor**: o mesmo que o responsável, menos a gestão da equipe e da '
+             'identidade da clínica. Não vê prontuário.',
+             '', ''),
+            ('**Cadastre um usuário com perfil médico — sem ele o prontuário não '
+             'funciona.** Enquanto a clínica não tiver médico, um aviso fica no alto '
+             'de toda tela. Em **Organização → Equipe e papéis**, convide o médico '
+             'pelo e-mail dele, ou, se você mesmo atende, conceda-se o papel de '
+             'médico. Cada plano tem um número máximo de médicos, mostrado na mesma '
+             'tela. Detalhes em [Equipe, papéis e registro profissional](/ajuda/equipe/).',
+             '', ''),
+            ('**Cadastre e valide o CRM.** Ter o papel de médico abre o prontuário '
+             'para leitura; para **finalizar atendimentos e assinar documentos** o '
+             'registro profissional (CRM e UF) precisa estar cadastrado **e '
+             'validado**, também em Equipe e papéis. São ações separadas: gravar '
+             'corrige um número digitado errado; validar afirma que o CRM foi '
+             'conferido junto ao conselho.',
+             '', ''),
+            ('**Instale o certificado digital** do médico em **Assinatura** (no '
+             'menu, e também no menu do nome). É ele que assina receitas, laudos e '
+             'relatórios com validade jurídica e gera o QR Code que a farmácia '
+             'confere. Sem certificado, o documento ainda pode ser impresso e '
+             'assinado à mão.',
+             '', ''),
+            ('**Preencha a identidade da clínica** em **Organização → Identidade da '
+             'clínica**: endereço, telefone, logotipo e o encarregado de dados da '
+             'LGPD. Esses dados saem no cabeçalho de todo documento e no aviso de '
+             'horário que o paciente recebe — vale conferir antes do primeiro. Ver '
+             '[Identidade da clínica](/ajuda/clinica/).',
+             '', ''),
+            ('**Monte a agenda.** Em **Agenda → Configurar horários**, defina os dias '
+             'e horas de cada médico, a duração de cada tipo de consulta e os '
+             'intervalos (o almoço, por exemplo). Sem grade, a agenda não oferece '
+             'horário. Ver [A grade de horários do médico](/ajuda/disponibilidade/). '
+             'Se a clínica atende convênio, cadastre-os em **Convênios e valores**.',
+             '', ''),
+            ('**Convide o restante da equipe** — secretaria, gestor, outros médicos '
+             '— pela mesma tela de Equipe e papéis. Cada pessoa usa a própria conta: '
+             'é o que permite a trilha de auditoria dizer quem fez o quê.',
+             '', ''),
+            ('**IA nativa.** O apoio clínico por inteligência artificial (resumo do '
+             'atendimento, apoio diagnóstico, relatório do paciente e o chat de '
+             'apoio) faz parte dos planos ' + _planos_com(has_clinical_ai) + ', e '
+             '**funciona sem configurar nada**: usa o provedor de IA do NeuroDoc. '
+             'Os dados do paciente são desidentificados antes de sair, e todo texto '
+             'gerado passa pela revisão do médico antes de entrar no prontuário. Se '
+             'preferir usar a sua própria conta de um provedor de IA, cadastre-a em '
+             '**Integrações → Inteligência artificial**; desligando, a clínica volta '
+             'ao provedor do NeuroDoc.',
+             '', ''),
+            ('**SMS nativo.** O SMS de confirmação e de lembrete de consulta faz '
+             'parte dos planos ' + _planos_com(has_sms) + ' e também **funciona sem '
+             'configurar nada**, pelo envio do NeuroDoc. Se quiser usar a sua '
+             'própria conta de SMS, cadastre a chave em **Integrações → SMS e '
+             'e-mail**. No plano sem SMS, nem a chave própria o libera.',
+             '', ''),
+            ('**E-mail.** Confirmação de horário, entrega de documento e '
+             'recuperação de senha saem pelo e-mail do NeuroDoc em todos os planos. '
+             'Para que saiam com o remetente da clínica, cadastre o servidor de '
+             'e-mail (SMTP) dela em **Integrações → SMS e e-mail**. Ver [E-mail e SMS '
+             'da clínica](/ajuda/mensageria/).',
+             '', ''),
+            ('**E-mail marketing só com SMTP próprio.** A **Comunicação em massa** '
+             'está em todos os planos, mas sai **apenas** pelo servidor de e-mail da '
+             'própria clínica — nunca pelo do NeuroDoc, para que uma campanha não '
+             'comprometa a entrega dos e-mails de todas as clínicas. E só alcança os '
+             'pacientes que autorizaram receber comunicação. Ver [Comunicação em '
+             'massa](/ajuda/campanhas/).',
+             '', ''),
+            ('**Portal do paciente.** Em Identidade da clínica você pode publicar o '
+             'portal, por onde o paciente pede receita, relatório ou exame e envia '
+             'os laudos que fez fora — sem precisar de conta. Os pedidos caem em '
+             '**Solicitações**. Ver [Portal do paciente](/ajuda/solicitacoes/).',
+             '', ''),
+            ('**Pronto para o primeiro atendimento:** cadastre o paciente, marque na '
+             'agenda e, na ficha dele, abra **Novo atendimento**. Dúvidas? Este '
+             'manual cobre cada tela; nos planos com IA, o **Chat de apoio** do '
+             'médico também responde sobre o uso do sistema; e no rodapé do menu o '
+             '**Fale com a NeuroDoc** chega até nós.',
+             '', ''),
+        ],
+    },
     {
         'slug': 'entrar',
         'title': 'Entrar e escolher a clínica',

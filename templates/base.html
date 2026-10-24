@@ -73,6 +73,31 @@ vinculo em clinica nenhuma.{% endcomment %}
             </div>
             {% endif %}
 
+            {% comment %}
+            Clínica sem médico. Sem botão de fechar, como o da suspensão:
+            o aviso descreve um estado, e some sozinho quando o estado
+            muda — fechá-lo só esconderia o motivo de o prontuário não
+            aparecer. O link vai só para quem pode resolver (o responsável).
+            {% endcomment %}
+            {% if nd_sem_medico %}
+            <div class="alert alert-soft-warning d-flex align-items-start gap-2 fs-13" role="status" data-nd-aviso="sem-medico">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                <span>
+                    <strong>Esta clínica ainda não tem um usuário com perfil médico.</strong>
+                    É necessário cadastrar um usuário com perfil médico para usufruir
+                    de todas as funcionalidades do prontuário — registrar atendimentos,
+                    emitir e assinar documentos e usar a IA clínica.
+                    {% if nd_can.manage_organization %}
+                    <a href="{% url 'tenancy:team' %}" class="fw-semibold">Cadastrar médico em Equipe e papéis</a>
+                    · <a href="{% url 'onboarding:help-article' 'primeiros-passos' %}" target="_blank" rel="noopener">Primeiros passos</a>
+                    {% else %}
+                    Peça ao responsável pela clínica para fazer o cadastro em
+                    <em>Organização → Equipe e papéis</em>.
+                    {% endif %}
+                </span>
+            </div>
+            {% endif %}
+
             {% if messages %}
             <div class="row">
                 <div class="col-12">
