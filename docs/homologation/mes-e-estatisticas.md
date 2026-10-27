@@ -128,8 +128,9 @@ Por tipo: Primeira consulta, Seguimento, Retorno, Procedimento, Outro.
 divergem no primeiro ajuste de regra de horário, e aí a tela e a agenda
 passam a discordar sobre quantas vagas existem.
 
-Horários · Ocupados · Atendidos · **Vagos** · Livres · Bloqueados, por
-médico e somados.
+Por médico, em duas unidades separadas no cabeçalho: **horários da grade**
+(Total · Livres · Vagos · Bloqueados) e **pacientes** (A atender ·
+Atendidos · Faltas). Ver a seção 5.
 
 A taxa usa o total de horários **que existiram** no mês, e não só os
 vencidos: do contrário um mês mal começado mostraria 100% de ocupação por
@@ -147,3 +148,36 @@ ter uma consulta e nenhum horário passado.
 | 4 | a tela mostra o nome, chama o vago de "Vago", e o dia encerrado não diz "lotado" |
 | 5 | marcado conta como agendado e não como atendido; concluído conta como atendido; falta e cancelamento ficam fora do movimento |
 | 6 | a secretária abre, vê contagens, **não vê nome**, e mês/ano/médico inválidos não derrubam a tela |
+| 7 | check-in conta como atendido; atendimento aberto no prontuário sem check-in também; horário que terminou sem nenhum dos dois é **falta sem check-in**; nada disso é gravado no banco; o check-in tardio desfaz a falta; a tela mostra o cartão de faltas e separa horários de pacientes |
+
+## 5. Atendido é quem fez check-in; falta é quem não fez (1.26, 2026-10-27)
+
+**O relato.** Em produção, a tabela "Ocupação da grade" mostrava 106
+ocupados e **0 atendidos**. A coluna contava a célula com status
+`Concluído` — e ninguém aperta "Concluir": a recepção faz o check-in, o
+médico escreve o prontuário, e a consulta fica em `Check-in feito` para
+sempre, contada como "ocupada". Pior, a legenda dizia "já concluído **ou
+falta registrada**": a falta entrava na coluna de atendidos. E a consulta
+que passou sem check-in seguia "agendada", nunca falta.
+
+**A regra, numa função só** (`scheduling/estatisticas.py::situacao`), usada
+pelo cartão do mês, pela tabela por tipo e pela tabela por médico:
+
+| Status gravado | Condição | Coluna |
+| --- | --- | --- |
+| Check-in feito, Em atendimento, Concluído | — | atendido |
+| Agendado, Confirmado | atendimento aberto no prontuário (ligado ao horário, ou do mesmo médico e paciente no mesmo dia, rascunho incluído) | atendido |
+| Agendado, Confirmado | horário já terminou | **falta sem check-in** |
+| Agendado, Confirmado | horário por vir | a atender |
+| Falta | — | falta registrada |
+| Cancelado | — | cancelado |
+
+**É leitura, não registro.** Nada muda no banco: a falta presumida não vira
+`Falta` (que não tem transição de saída — um check-in esquecido viraria
+registro definitivo), e o check-in feito depois tira a consulta da coluna
+sozinho. A agenda, a oferta de vaga e a taxa de "Horários usados" não
+mudam: continuam vindo da grade.
+
+**Pacientes, não células.** A consulta de 80 min ocupa duas células e é
+uma pessoa; as colunas de pacientes contam consultas, as de horários
+contam células, e o cabeçalho da tabela diz qual é qual.

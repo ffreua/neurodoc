@@ -59,7 +59,7 @@ em que as primeiras consultas caíram.
 </div>
 
 <div class="row g-3 mb-3">
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-12 col-sm-6 col-xl">
         <div class="card stretch stretch-full">
             <div class="card-body">
                 <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Atendidos no mês</span>
@@ -73,7 +73,23 @@ em que as primeiras consultas caíram.
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-12 col-sm-6 col-xl">
+        <div class="card stretch stretch-full">
+            <div class="card-body">
+                <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Faltas no mês</span>
+                <span class="d-block fs-24 fw-bold {% if totais.faltas %}text-danger{% else %}text-dark{% endif %}">{{ totais.faltas }}</span>
+                {% comment %}As duas origens, ditas: a falta que alguém registrou
+                e a que se lê da agenda — horário que terminou sem check-in e
+                sem atendimento no prontuário. Esta segunda não está gravada
+                em lugar nenhum, e o check-in feito depois a desfaz.{% endcomment %}
+                <span class="d-block fs-11 text-muted">
+                    {{ totais.faltas_registradas }} registrada{{ totais.faltas_registradas|pluralize }}
+                    · {{ totais.sem_checkin }} sem check-in
+                </span>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl">
         <div class="card stretch stretch-full">
             <div class="card-body">
                 <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Horários usados</span>
@@ -84,7 +100,7 @@ em que as primeiras consultas caíram.
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-12 col-sm-6 col-xl">
         <div class="card stretch stretch-full">
             <div class="card-body">
                 <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Vagos</span>
@@ -93,7 +109,7 @@ em que as primeiras consultas caíram.
             </div>
         </div>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
+    <div class="col-12 col-sm-6 col-xl">
         <div class="card stretch stretch-full">
             <div class="card-body">
                 <span class="d-block fs-11 text-uppercase text-muted fw-semibold">Ainda livres</span>
@@ -108,8 +124,8 @@ em que as primeiras consultas caíram.
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <h5 class="card-title mb-0">Por tipo de atendimento</h5>
         <span class="fs-11 text-muted">
-            Falta e cancelamento ficam em coluna própria — somá-los ao movimento
-            contaria quem não apareceu.
+            Atendido é quem fez check-in (ou teve atendimento aberto no prontuário).
+            Falta inclui o horário que terminou sem check-in.
         </span>
     </div>
     <div class="card-body p-0">
@@ -159,30 +175,42 @@ em que as primeiras consultas caíram.
     <div class="card-body p-0">
         <div class="table-responsive">
             <table class="table table-hover align-middle mb-0">
+                {% comment %}Duas unidades, e o cabeçalho diz qual é qual. A grade
+                conta **horários** (é capacidade: quanto sobrou, quanto venceu
+                vazio); o movimento conta **pacientes** — a consulta de 80 min
+                ocupa duas células e é uma pessoa. Até a 1.25 as duas estavam
+                misturadas, e "atendidos" contava célula com status Concluído,
+                que ninguém marca: a coluna dava zero com a agenda cheia.{% endcomment %}
                 <thead class="bg-gray-100">
+                    <tr>
+                        <th class="ps-4" scope="col" rowspan="2">Médico</th>
+                        <th class="text-center border-start" scope="colgroup" colspan="4">Horários da grade</th>
+                        <th class="text-center border-start pe-4" scope="colgroup" colspan="3">Pacientes</th>
+                    </tr>
                     <tr class="border-b">
-                        <th class="ps-4" scope="col">Médico</th>
-                        <th class="text-end" scope="col">Horários</th>
-                        <th class="text-end" scope="col">Ocupados</th>
-                        <th class="text-end" scope="col">Atendidos</th>
-                        <th class="text-end" scope="col">Vagos</th>
+                        <th class="text-end border-start" scope="col">Total</th>
                         <th class="text-end" scope="col">Livres</th>
-                        <th class="text-end pe-4" scope="col">Bloqueados</th>
+                        <th class="text-end" scope="col">Vagos</th>
+                        <th class="text-end" scope="col">Bloqueados</th>
+                        <th class="text-end border-start" scope="col">A atender</th>
+                        <th class="text-end" scope="col">Atendidos</th>
+                        <th class="text-end pe-4" scope="col">Faltas</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for linha in por_medico %}
                     <tr>
                         <td class="ps-4 fs-13 text-wrap">{{ linha.medico.user.get_full_name|default:linha.medico.user.email }}</td>
-                        <td class="text-end fs-13">{{ linha.total }}</td>
-                        <td class="text-end fs-13 text-danger">{{ linha.ocupados }}</td>
-                        <td class="text-end fs-13 text-primary">{{ linha.atendidos }}</td>
-                        <td class="text-end fs-13 text-muted">{{ linha.vagos }}</td>
+                        <td class="text-end fs-13 border-start">{{ linha.total }}</td>
                         <td class="text-end fs-13 text-success">{{ linha.livres }}</td>
-                        <td class="text-end pe-4 fs-13 text-muted">{{ linha.bloqueados }}</td>
+                        <td class="text-end fs-13 text-muted">{{ linha.vagos }}</td>
+                        <td class="text-end fs-13 text-muted">{{ linha.bloqueados }}</td>
+                        <td class="text-end fs-13 border-start">{{ linha.pacientes.agendados }}</td>
+                        <td class="text-end fs-13 fw-bold text-primary">{{ linha.pacientes.atendidos }}</td>
+                        <td class="text-end pe-4 fs-13 {% if linha.pacientes.faltas %}text-danger{% else %}text-muted{% endif %}">{{ linha.pacientes.faltas }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" class="text-center text-muted py-4 fs-13">
+                    <tr><td colspan="8" class="text-center text-muted py-4 fs-13">
                         Nenhum médico com grade publicada neste período.
                     </td></tr>
                     {% endfor %}
@@ -192,11 +220,13 @@ em que as primeiras consultas caíram.
     </div>
     <div class="card-footer">
         <span class="fs-11 text-muted">
-            <strong>Ocupados</strong> — reserva ativa no horário ·
-            <strong>Atendidos</strong> — já concluído ou falta registrada ·
-            <strong>Vagos</strong> — passou e ninguém usou ·
             <strong>Livres</strong> — ainda dá para marcar ·
-            <strong>Bloqueados</strong> — feriado, férias ou bloqueio.
+            <strong>Vagos</strong> — passou e ninguém marcou ·
+            <strong>Bloqueados</strong> — feriado, férias ou bloqueio ·
+            <strong>A atender</strong> — marcado e ainda por acontecer ·
+            <strong>Atendidos</strong> — fez check-in ou teve atendimento no prontuário ·
+            <strong>Faltas</strong> — registradas, ou horário que terminou sem check-in.
+            Uma falta sem check-in some da conta quando o check-in é feito.
         </span>
     </div>
 </div>

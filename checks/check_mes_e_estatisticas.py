@@ -437,7 +437,82 @@ try:
         if bloqueio_teste is not None:
             bloqueio_teste.delete()
 
+    print('\n7. Atendido e quem fez check-in; o horario que terminou sem ele e falta')
+    # O relato de 2026-10-27: "Ocupacao da grade" com 106 ocupados e 0
+    # atendidos. A coluna so contava celula com status Concluido, e ninguem
+    # aperta "Concluir" -- a recepcao faz o check-in e a consulta fica ali.
+    # E a consulta que passou sem check-in seguia "agendada", nunca falta.
+    from clinical.models import Encounter, EncounterStatus
+
+    antes = do_mes(tenant.id, dia.year, dia.month, [medico])
+    t0 = antes['totais']
+    p0 = next(l for l in antes['por_medico'] if l['medico'].id == medico.id)['pacientes']
+    tarde = timezone.make_aware(
+        timezone.datetime.combine(dia, timezone.datetime.min.time())
+    ) + timedelta(hours=13)
+    chegou = marcar(paciente('Roteiro Mes Chegou'), tarde, AppointmentStatus.CHECKED_IN)
+    sumiu = marcar(paciente('Roteiro Mes Sem Checkin'), tarde + timedelta(hours=1),
+                   AppointmentStatus.SCHEDULED)
+    pac_pront = paciente('Roteiro Mes So Prontuario')
+    so_prontuario = marcar(pac_pront, tarde + timedelta(hours=2), AppointmentStatus.CONFIRMED)
+    # Atendimento aberto **sem** ligacao ao horario: e o caso do medico que
+    # atende sem a recepcao marcar a chegada (o vinculo automatico so
+    # acontece depois do check-in).
+    enc = Encounter.objects.create(
+        tenant=tenant, patient=pac_pront, physician_membership=medico,
+        occurred_at=tarde + timedelta(hours=2, minutes=5), status=EncounterStatus.DRAFT,
+    )
+    criados.setdefault('atendimentos', []).append(enc.id)
+
+    depois = do_mes(tenant.id, dia.year, dia.month, [medico])
+    t1 = depois['totais']
+    p1 = next(l for l in depois['por_medico'] if l['medico'].id == medico.id)['pacientes']
+    conferir('check-in feito conta como atendido (+ o do prontuario)',
+             t1['atendidos'] - t0['atendidos'], 2)
+    conferir('o horario que terminou sem check-in e falta',
+             t1['faltas'] - t0['faltas'], 1)
+    conferir('  e e contado como sem check-in',
+             t1['sem_checkin'] - t0['sem_checkin'], 1)
+    conferir('  e as registradas nao mudam',
+             t1['faltas_registradas'] - t0['faltas_registradas'], 0)
+    conferir('nenhum dos tres fica como agendado',
+             t1['agendados'] - t0['agendados'], 0)
+    conferir('a tabela por medico conta igual (atendidos)',
+             p1['atendidos'] - p0['atendidos'], 2)
+    conferir('a tabela por medico conta igual (faltas)',
+             p1['faltas'] - p0['faltas'], 1)
+    # Contar e ler: nada e gravado. A falta presumida nao vira `NO_SHOW`
+    # no banco -- `Falta` nao tem transicao de saida, e um check-in
+    # esquecido viraria registro definitivo.
+    sumiu.refresh_from_db()
+    conferir('a contagem nao grava falta no banco', sumiu.status, AppointmentStatus.SCHEDULED)
+    so_prontuario.refresh_from_db()
+    conferir('nem muda o status de quem so teve prontuario',
+             so_prontuario.status, AppointmentStatus.CONFIRMED)
+    # O check-in feito depois desfaz a falta presumida.
+    Appointment.objects.filter(id=sumiu.id).update(status=AppointmentStatus.CHECKED_IN)
+    corrigido = do_mes(tenant.id, dia.year, dia.month, [medico])['totais']
+    conferir('check-in tardio tira da falta', corrigido['faltas'] - t0['faltas'], 0)
+    conferir('  e poe no atendido', corrigido['atendidos'] - t0['atendidos'], 3)
+
+    # Consulta futura sem check-in continua agendada, e nao falta.
+    vindoura = do_mes(tenant.id, futuro.year, futuro.month, [medico])['totais']
+    conferir('consulta futura continua agendada', vindoura['agendados'] >= 1, True)
+
+    pagina_mes = cliente.get(reverse('scheduling:estatisticas'), {
+        'ano': dia.year, 'mes': dia.month, 'physician': str(medico.id),
+    }).content.decode()
+    conferir('a tela mostra o cartao de faltas', 'Faltas no mês' in pagina_mes, True)
+    conferir('  e separa as sem check-in', 'sem check-in' in pagina_mes, True)
+    conferir('a tabela da grade separa horarios de pacientes',
+             'Horários da grade' in pagina_mes and 'Pacientes' in pagina_mes, True)
+    conferir('a legenda nao chama falta de atendido',
+             'concluído ou falta registrada' in pagina_mes, False)
+
 finally:
+    from clinical.models import Encounter as _Encounter
+
+    _Encounter.objects.filter(id__in=criados.get('atendimentos', [])).delete()
     Appointment.objects.filter(id__in=criados['agendamentos']).delete()
     n = Patient.objects.filter(id__in=criados['pacientes']).delete()[0]
     print(f'\n  limpeza: {n} objeto(s) de paciente removidos')
