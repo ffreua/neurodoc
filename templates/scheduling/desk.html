@@ -85,7 +85,7 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                             {% if appointment.patient.registration_stage == 'preliminary' %}
                             <span class="badge bg-soft-warning text-warning ms-1">pré-cadastro</span>
                             {% endif %}
-                            {% for contact in appointment.patient.contacts.all|slice:":1" %}
+                            {% for contact in appointment.patient.contacts.all|nd_contatos_vigentes|slice:":1" %}
                             <span class="d-block fs-11 text-muted">{{ contact.phone }}</span>
                             {% endfor %}
                         </td>

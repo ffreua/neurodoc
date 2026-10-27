@@ -1,3 +1,4 @@
+{% load nd %}
 {% comment %}Os dados de cadastro do paciente, numa gaveta, sem sair do
 atendimento.
 
@@ -97,7 +98,7 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
         {% endif %}
 
         <h3 class="fs-12 fw-bold text-dark mb-2">Contatos</h3>
-        {% for contato in p.contacts.all %}
+        {% for contato in p.contacts.all|nd_contatos_vigentes %}
         <div class="border rounded-3 p-2 mb-2">
             <span class="d-block fs-12 fw-semibold text-dark">
                 {{ contato.name }}{% if contato.relationship %}

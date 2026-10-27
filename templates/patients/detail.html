@@ -293,7 +293,7 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
                             </tr>
                         </thead>
                         <tbody>
-                            {% for contact in patient.contacts.all %}
+                            {% for contact in patient.contacts.all|nd_contatos_vigentes %}
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark">{{ contact.name }}</td>
                                 <td><span class="fs-12 text-muted">{{ contact.relationship|default:"—" }}</span></td>
@@ -308,8 +308,20 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
                                     {% if not contact.authorized_for_documents and not contact.legal_authority %}
                                     <span class="fs-12 text-muted">—</span>
                                     {% endif %}
-                                    <a class="btn btn-sm btn-light ms-2"
-                                       href="{% url 'patients:edit-contact' patient.id contact.id %}">Editar</a>
+                                    <div class="d-inline-flex gap-2 ms-2 align-items-center">
+                                        <a class="btn btn-sm btn-light"
+                                           href="{% url 'patients:edit-contact' patient.id contact.id %}">Editar</a>
+                                        {% comment %}Excluir é POST com a pergunta do modal do
+                                        sistema. O texto diz o que acontece com o que já foi
+                                        enviado, porque é a dúvida de quem exclui o contato que
+                                        recebeu uma receita.{% endcomment %}
+                                        <form method="post" class="d-inline"
+                                              action="{% url 'patients:delete-contact' patient.id contact.id %}"
+                                              data-nd-confirm="Excluir o contato {{ contact.name }}? Ele sai da ficha e deixa de receber mensagens e documentos. O que já foi enviado continua registrado.">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-sm btn-light-danger">Excluir</button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             {% empty %}

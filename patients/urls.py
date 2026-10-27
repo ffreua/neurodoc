@@ -26,6 +26,10 @@ urlpatterns = [
         '<uuid:patient_id>/contacts/<uuid:contact_id>/edit/',
         views.PatientContactUpdateView.as_view(), name='edit-contact',
     ),
+    path(
+        '<uuid:patient_id>/contacts/<uuid:contact_id>/excluir/',
+        views.PatientContactDeleteView.as_view(), name='delete-contact',
+    ),
     path('<uuid:patient_id>/coverage/', views.PatientCoverageCreateView.as_view(), name='add-coverage'),
     path(
         '<uuid:patient_id>/medidas/',

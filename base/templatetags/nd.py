@@ -217,6 +217,24 @@ def nd_scale_value(finding, item_code):
 
 
 @register.filter
+def nd_contatos_vigentes(contatos):
+    """Só os contatos que ainda valem — o excluído com histórico fica de fora.
+
+    Filtra em Python sobre o que já veio do banco, e não com `.filter()`:
+    as telas que mostram contatos (ficha, balcão, retornos, gaveta do
+    atendimento) os carregam com `prefetch_related`, e um `.filter()` aqui
+    seria uma consulta nova por linha da lista. Ver
+    `patients.contacts.remove_contact`.
+    """
+    from patients.contacts import contato_vigente
+
+    from django.utils import timezone
+
+    agora = timezone.now()
+    return [c for c in contatos if contato_vigente(c, agora)]
+
+
+@register.filter
 def nd_confirmation_contacts(patient):
     """Telefone e e-mail utilizáveis deste paciente, de contatos diferentes.
 

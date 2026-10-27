@@ -76,3 +76,72 @@ def create_contact(context, patient, **fields):
 def authorized_document_contacts(patient):
     """Contacts eligible to receive documents — distinct from the general list."""
     return patient.contacts.filter(authorized_for_documents=True)
+
+
+def contato_vigente(contact, agora=None):
+    """Se o contato ainda vale: sem validade, ou validade no futuro.
+
+    A mesma regra de `communications.services._still_valid`, que é quem
+    decide se uma mensagem sai. É também o que a tela usa para esconder o
+    contato excluído — ver `remove_contact`.
+    """
+    from django.utils import timezone
+
+    agora = agora or timezone.now()
+    return contact.valid_until is None or contact.valid_until > agora
+
+
+def remove_contact(contact):
+    """Exclui o contato. Devolve `'apagado'` ou `'encerrado'`.
+
+    **Apaga quando nada aponta para ele.** O contato digitado errado, que
+    nunca recebeu mensagem, sai do banco.
+
+    **Encerra quando há histórico.** A entrega de documento, o link enviado
+    e o destinatário de campanha apontam para o contato com `PROTECT`, e
+    apontam de propósito: são o registro de **para quem** uma receita foi
+    enviada. Apagá-los para conseguir apagar o contato trocaria um contato
+    indesejado por um buraco no comprovante de entrega.
+
+    Encerrar é vencer a validade (`valid_until`) agora — e não uma marca
+    nova. A escolha é pelo que já existe: todo caminho que **envia**
+    (documento, confirmação, lembrete, aviso de horário, campanha) já
+    recusa contato vencido, então o encerrado deixa de receber sem que
+    nenhum desses caminhos precise saber que exclusão existe. Uma coluna
+    nova "excluído" teria de ser lembrada em cada um, e o primeiro
+    esquecido mandaria SMS para quem a clínica tirou da ficha.
+
+    Junto, desliga as autorizações e revoga os links de documento ainda
+    abertos: quem exclui um contato está dizendo que aquela pessoa não
+    recebe mais nada daqui — inclusive o link que já está no celular dela.
+    """
+    from django.db import transaction
+    from django.utils import timezone
+
+    from communications.models import Delivery, DocumentAccessToken, MarketingRecipient
+
+    with transaction.atomic():
+        com_historico = (
+            Delivery.objects.filter(contact=contact).exists()
+            or DocumentAccessToken.objects.filter(contact=contact).exists()
+            or MarketingRecipient.objects.filter(contact=contact).exists()
+        )
+        if not com_historico:
+            contact.delete()
+            return 'apagado'
+        agora = timezone.now()
+        DocumentAccessToken.objects.filter(
+            contact=contact, revoked_at__isnull=True,
+        ).update(revoked_at=agora)
+        contact.valid_until = agora
+        contact.sms_enabled = False
+        contact.email_enabled = False
+        contact.authorized_for_documents = False
+        contact.legal_authority = False
+        campos = ['valid_until', 'sms_enabled', 'email_enabled', 'authorized_for_documents',
+                  'legal_authority', 'updated_at']
+        if contact.marketing_opt_in_at and not contact.marketing_opt_out_at:
+            contact.marketing_opt_out_at = agora
+            campos.append('marketing_opt_out_at')
+        contact.save(update_fields=campos)
+        return 'encerrado'

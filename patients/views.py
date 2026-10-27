@@ -17,8 +17,8 @@ from tenancy.permissions import Capability, CapabilityRequiredView
 from . import photo as photo_storage
 from . import selectors
 from .contacts import (
-    confirm_contact_channels, confirm_self_contact_channels, create_contact,
-    sync_self_contact_name,
+    confirm_contact_channels, confirm_self_contact_channels, contato_vigente, create_contact,
+    remove_contact, sync_self_contact_name,
 )
 from .coverage import add_coverage, set_patient_coverage
 from .forms import (
@@ -549,6 +549,11 @@ class PatientContactUpdateView(TenantScopedView):
             PatientContact, id=contact_id, patient=patient,
             tenant_id=request.access_context.tenant_id,
         )
+        # O contato excluído com histórico continua no banco, encerrado.
+        # Editá-lo pela URL antiga o traria de volta com as autorizações
+        # que a exclusão desligou.
+        if not contato_vigente(contact):
+            raise Http404
         return patient, contact
 
     def get(self, request, patient_id, contact_id):
@@ -583,6 +588,38 @@ class PatientContactUpdateView(TenantScopedView):
             integrity_metadata={'contact_id': str(contact.id), 'changed_fields': changed},
         )
         messages.success(request, 'Contato atualizado.')
+        return redirect('patients:detail', patient_id=patient.id)
+
+
+class PatientContactDeleteView(TenantScopedView):
+    """Exclui um contato da ficha. Só `POST`, com confirmação na tela.
+
+    Mesma capacidade de quem cadastra e edita (`PATIENT_ADMIN`): a ficha
+    administrativa é de quem a mantém, e excluir é o avesso de incluir.
+    Apaga ou encerra conforme haja histórico de envio — ver
+    `patients.contacts.remove_contact`. Para quem clicou, nos dois casos o
+    contato some da lista e deixa de receber mensagens.
+
+    A trilha guarda o id e o desfecho, nunca nome, telefone ou e-mail: é o
+    mesmo cuidado de `contact_updated`, que registra os nomes dos campos e
+    não os valores.
+    """
+
+    def post(self, request, patient_id, contact_id):
+        patient = selectors.get_patient_or_404(request.access_context, patient_id)
+        contact = get_object_or_404(
+            PatientContact, id=contact_id, patient=patient,
+            tenant_id=request.access_context.tenant_id,
+        )
+        if not contato_vigente(contact):
+            raise Http404
+        desfecho = remove_contact(contact)
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'patients.contact_removed',
+            object_type='patient', object_id=patient.id, outcome='success',
+            integrity_metadata={'contact_id': str(contact_id), 'desfecho': desfecho},
+        )
+        messages.success(request, 'Contato excluído.')
         return redirect('patients:detail', patient_id=patient.id)
 
 

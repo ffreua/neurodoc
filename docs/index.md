@@ -43,6 +43,10 @@ PRD; é a referência operacional viva gerada a partir dele.
   doze processos com 25 capturas das telas reais, público e ligado à página
   inicial; o roteiro impede que o manual aponte para imagem que não existe.
 
+- [Excluir contato da ficha](homologation/excluir-contato.md) — apagar o
+  contato sem histórico e encerrar o que tem, sem quebrar o comprovante de
+  entrega.
+
 - [Boas-vindas e clínica sem médico](homologation/boas-vindas.md) — o
   e-mail que a clínica recebe no cadastro, o aviso permanente enquanto ela
   não tem usuário com perfil médico e o artigo "Primeiros passos" do manual.

@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load nd %}
 {% comment %}A fila de retornos previstos.
 
 A decisão clínica "volta em seis meses" nasce no fechamento do atendimento
@@ -101,7 +102,7 @@ foi atendido não tem como dizer isso para quem abre a lista amanhã.
                                href="{% url 'patients:detail' registro.patient_id %}">
                                 {{ registro.patient.full_name }}
                             </a>
-                            {% for contact in registro.patient.contacts.all|slice:":1" %}
+                            {% for contact in registro.patient.contacts.all|nd_contatos_vigentes|slice:":1" %}
                             <span class="d-block fs-11 text-muted">{{ contact.phone }}</span>
                             {% endfor %}
                             {% if registro.note %}
