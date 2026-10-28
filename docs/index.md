@@ -43,6 +43,10 @@ PRD; é a referência operacional viva gerada a partir dele.
   doze processos com 25 capturas das telas reais, público e ligado à página
   inicial; o roteiro impede que o manual aponte para imagem que não existe.
 
+- [Modelos de documento e emissão pela Conduta](homologation/modelos-de-documento.md)
+  — pedidos de exame por categoria e conjuntos, relatório, receita e
+  solicitação de cirurgia; o documento nos Anexos e o texto na conduta.
+
 - [Excluir contato da ficha](homologation/excluir-contato.md) — apagar o
   contato sem histórico e encerrar o que tem, sem quebrar o comprovante de
   entrega.

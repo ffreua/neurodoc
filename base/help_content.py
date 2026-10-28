@@ -351,6 +351,52 @@ ARTICLES = [
         ],
     },
     {
+        'slug': 'modelos',
+        'title': 'Modelos de documento',
+        'summary': 'Emitir pelo modelo, de dentro da Conduta, com os dados do paciente.',
+        'audience': 'Médico',
+        'steps': [
+            ('**Modelos**, no menu, guarda os textos prontos: **pedidos de exame**, '
+             'separados por categoria — Laboratório (sangue e urina), Imagem, '
+             'Neurofisiologia, Líquor, Cardiologia, Sono e Outros —, **relatórios**, '
+             '**receitas** e **solicitações de cirurgia**. Os do sistema são iguais em '
+             'todas as clínicas; para mudar um deles, use **Copiar para meus modelos**.',
+             '', ''),
+            ('Os **conjuntos** — Queixa cognitiva, Neuropatia, Rastreio paraneoplásico — '
+             'pedem exames de mais de uma categoria. Na emissão, **cada categoria sai num '
+             'pedido separado**: o laboratório não recebe a ressonância, e o serviço de '
+             'imagem não recebe o hemograma.',
+             '', ''),
+            ('Para criar o seu, **Novo modelo**: uma linha por item. O código TUSS, se '
+             'houver, vai no começo da linha (`40304361 HEMOGRAMA COMPLETO`), e a busca '
+             'TUSS da própria tela o insere onde o cursor estava. Na solicitação de '
+             'cirurgia entram também os **materiais e OPME** (`4 x PARAFUSO PEDICULAR`), '
+             'o caráter, o regime, a anestesia e os dias de internação — salvos para usar '
+             'sempre. O modelo é **seu**: vale em todas as clínicas em que você atende.',
+             '', ''),
+            ('No atendimento, em **Conduta** (no texto livre, no cartão **Impressões e '
+             'conduta**), use **Documentos por modelo**: escolha o modelo e clique em '
+             '**Usar modelo**. O que estiver digitado e ainda não salvo é salvo antes de '
+             'abrir a emissão.',
+             '', ''),
+            ('A tela de emissão abre **um documento por categoria**, já preenchido, para '
+             'você mudar o que quiser. O pedido de **imagem exige a indicação clínica**; o '
+             'CID só sai impresso se você escolher uma das hipóteses do atendimento. O '
+             'convênio e a carteirinha do paciente saem no pedido quando cadastrados.',
+             '', ''),
+            ('**Emitir em papel** dá número ao documento e gera o PDF sem a tarja de '
+             'rascunho, pronto para imprimir e assinar à caneta. **Preparar para assinatura '
+             'digital** deixa cada documento pronto para assinar pela tela dele. Nos dois '
+             'casos o PDF fica nos **Anexos** do paciente.',
+             '', ''),
+            ('O texto de cada documento entra **na conduta** do atendimento — o prontuário '
+             'registra o que foi pedido. Se o atendimento já foi finalizado, entra como '
+             '**adendo**, e o corpo finalizado não muda. Editar ou excluir um modelo nunca '
+             'altera documento já emitido.',
+             '', ''),
+        ],
+    },
+    {
         'slug': 'entrega',
         'title': 'Entregar o documento ao paciente',
         'summary': 'Link protegido, segundo fator e reenvio.',

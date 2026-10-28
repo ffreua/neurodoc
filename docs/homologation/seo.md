@@ -62,13 +62,13 @@ seria justamente a que ninguém lembrou de listar. É a mesma escolha que
 | `/` | sim | 1.0 |
 | `/ajuda/` | sim | 0.8 |
 | `/ajuda/perguntas/` | sim | 0.7 |
-| `/ajuda/<slug>/` (23 artigos) | sim | 0.6 |
+| `/ajuda/<slug>/` (24 artigos) | sim | 0.6 |
 | `/contrato/` | sim | 0.4 |
 | `/verificar/` (formulário em branco) | sim | 0.3 |
 | `/verificar/<token>/` | **não** | — |
 | todo o resto | **não** | — |
 
-Vinte e oito endereços no sitemap. O roteiro abre **todos** e confere que
+Vinte e nove endereços no sitemap. O roteiro abre **todos** e confere que
 cada um responde 200, sai `index` e aponta a canônica para si mesmo.
 
 ## 3. A canônica não segue o `Host:`
@@ -222,7 +222,7 @@ tempos e tira a propriedade de quem removeu a tag.
    pacientes e verificação por token `noindex`, sem canônica e sem cartão;
 3. `robots.txt` barra as seis famílias de rota privada e libera
    `/verificar/$` **antes** de barrar a pasta;
-4. as 28 URLs do sitemap abrem, saem `index` e apontam a si mesmas;
+4. as 29 URLs do sitemap abrem, saem `index` e apontam a si mesmas;
 5. a canônica não segue um `Host:` forjado;
 6. nenhuma descrição curta ou longa demais, nenhum título longo demais;
 7. JSON-LD válido, com nonce, com preço vindo de `tenancy.plans`, com o

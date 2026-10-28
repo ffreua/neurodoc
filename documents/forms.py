@@ -18,8 +18,20 @@ class AttachmentUploadForm(forms.Form):
     encounter_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
 
 
+#: Os tipos que o formulário genérico emite. Pedido de exames e
+#: solicitação de cirurgia ficam de fora de propósito: o conteúdo deles é
+#: lista (exames, procedimentos, materiais), e este formulário só carrega
+#: texto — escolhê-los aqui geraria um documento vazio. Nascem da tela de
+#: emissão por modelo (`modelos/emissao.py`), e a retificação deles também
+#: não passa por aqui.
+TIPOS_DO_FORMULARIO = [
+    (valor, rotulo) for valor, rotulo in MedicalDocumentKind.choices
+    if valor not in (MedicalDocumentKind.EXAM_REQUEST, MedicalDocumentKind.SURGERY_REQUEST)
+]
+
+
 class MedicalDocumentForm(forms.Form):
-    kind = forms.ChoiceField(label='Tipo de documento', choices=MedicalDocumentKind.choices)
+    kind = forms.ChoiceField(label='Tipo de documento', choices=TIPOS_DO_FORMULARIO)
     prescription_format = forms.ChoiceField(
         label='Formato da receita', required=False,
         choices=PRESCRIPTION_FORMAT_CHOICES, initial=SIMPLE,

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% comment %}Um modelo, só para ler. O do sistema não se edita — copia-se.{% endcomment %}
+{% block title %}{{ modelo.nome }} — Modelos{% endblock %}
+{% block page_title %}{{ modelo.nome }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'modelos:lista' %}?tipo={{ modelo.tipo }}">Modelos</a></li>
+<li class="breadcrumb-item">{{ modelo.rotulo_do_tipo }}</li>
+{% endblock %}
+{% block page_actions %}
+{% if modelo.registro %}
+<a class="btn btn-light" href="{% url 'modelos:editar' modelo.registro.id %}">Editar</a>
+{% endif %}
+<form method="post" action="{% url 'modelos:copiar' %}" class="d-inline">
+    {% csrf_token %}
+    <input type="hidden" name="chave" value="{{ modelo.chave }}">
+    <button type="submit" class="btn btn-primary" data-nd-busy>{% if modelo.registro %}Duplicar{% else %}Copiar para meus modelos{% endif %}</button>
+</form>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">{{ modelo.rotulo_do_tipo }}</h5>
+        <span class="badge {% if modelo.do_sistema %}bg-soft-primary text-primary{% else %}bg-gray-200 text-dark{% endif %}">
+            {% if modelo.do_sistema %}Do sistema{% else %}Meu modelo{% endif %}
+        </span>
+    </div>
+    <div class="card-body">
+        {% if modelo.conjunto %}
+        <p class="fs-12 text-muted">Conjunto: na emissão, cada categoria abaixo sai num pedido separado.</p>
+        {% endif %}
+        {% for cat, itens in grupos %}
+        <h6 class="fw-bold text-dark mt-3">{{ cat.rotulo }}</h6>
+        <ol class="fs-13 mb-2">
+            {% for i in itens %}<li>{% if i.codigo %}<span class="text-muted">{{ i.codigo }}</span> {% endif %}{{ i.descricao }}</li>{% endfor %}
+        </ol>
+        {% endfor %}
+        {% if modelo.tipo == 'cirurgia' %}
+        <h6 class="fw-bold text-dark">Procedimentos</h6>
+        <ul class="fs-13">
+            {% for p in modelo.conteudo.procedimentos %}<li>{% if p.codigo %}<span class="text-muted">{{ p.codigo }}</span> {% endif %}{{ p.descricao }}{% if p.quantidade > 1 %} (x{{ p.quantidade }}){% endif %}</li>{% empty %}<li class="text-muted">Nenhum ainda.</li>{% endfor %}
+        </ul>
+        <h6 class="fw-bold text-dark">Materiais e OPME</h6>
+        <ul class="fs-13">
+            {% for m in modelo.conteudo.materiais %}<li>{{ m.quantidade }} x {{ m.descricao }}</li>{% empty %}<li class="text-muted">Nenhum.</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% if modelo.conteudo.texto %}
+        <div class="fs-13" style="white-space: pre-wrap">{{ modelo.conteudo.texto }}</div>
+        {% endif %}
+        {% if modelo.conteudo.instrucoes %}
+        <p class="fs-12 mt-2"><strong>Instruções:</strong> {{ modelo.conteudo.instrucoes }}</p>
+        {% endif %}
+        {% if modelo.conteudo.indicacao %}
+        <p class="fs-12 mt-3 mb-1"><strong>Indicação padrão:</strong> {{ modelo.conteudo.indicacao }}</p>
+        {% endif %}
+        {% if modelo.conteudo.observacoes %}
+        <p class="fs-12 mb-0"><strong>Observações:</strong> {{ modelo.conteudo.observacoes }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

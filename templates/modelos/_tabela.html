@@ -1,0 +1,50 @@
+{% comment %}Uma tabela de modelos (os do médico ou os do sistema).
+
+Excluir é POST com a pergunta do modal do sistema; copiar é POST sem
+pergunta — copiar não destrói nada, e a cópia abre no editor.{% endcomment %}
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        <thead class="bg-gray-100">
+            <tr class="border-b">
+                <th class="ps-3" scope="col">Modelo</th>
+                <th scope="col">Conteúdo</th>
+                <th class="text-end pe-3" scope="col">Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in modelos %}
+            <tr>
+                <td class="ps-3 fw-semibold text-dark">
+                    <a class="text-dark" href="{% url 'modelos:ver' m.chave %}">{{ m.nome }}</a>
+                </td>
+                <td class="fs-12 text-muted">
+                    {% if m.categorias %}{% for c in m.categorias %}{{ c.rotulo }}{% if not forloop.last %} · {% endif %}{% endfor %} — {% endif %}
+                    {% if m.quantidade_de_itens %}{{ m.quantidade_de_itens }} ite{{ m.quantidade_de_itens|pluralize:"m,ns" }}{% else %}texto{% endif %}
+                </td>
+                <td class="text-end pe-3">
+                    <div class="d-inline-flex flex-wrap justify-content-end gap-2">
+                        <a class="btn btn-sm btn-light" href="{% url 'modelos:ver' m.chave %}">Ver</a>
+                        {% if m.registro %}
+                        <a class="btn btn-sm btn-light" href="{% url 'modelos:editar' m.registro.id %}">Editar</a>
+                        {% endif %}
+                        <form method="post" action="{% url 'modelos:copiar' %}" class="d-inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="chave" value="{{ m.chave }}">
+                            <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>{% if m.registro %}Duplicar{% else %}Copiar para meus modelos{% endif %}</button>
+                        </form>
+                        {% if m.registro %}
+                        <form method="post" action="{% url 'modelos:excluir' m.registro.id %}" class="d-inline"
+                              data-nd-confirm="Excluir o modelo {{ m.nome }}? Os documentos já emitidos com ele não mudam.">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-light-danger">Excluir</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-3 fs-12">{{ vazio }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

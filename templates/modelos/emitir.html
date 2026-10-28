@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}Emitir por modelo: uma seção por documento, já preenchida, para editar.
+
+O conjunto ("Queixa cognitiva") abre um pedido por categoria; cada um tem a
+caixa "Emitir este documento", para deixar um deles para depois. A
+estrutura das seções vem do modelo no servidor (`modelos/views.py`): o
+envio só preenche os campos.
+
+Os dois botões dizem o que acontece com o papel: em papel sai com número e
+sem tarja, pronto para imprimir e assinar à caneta; para assinatura digital
+fica pronto para assinar, pela tela de cada documento.{% endcomment %}
+{% block title %}{{ modelo.nome }} — emitir{% endblock %}
+{% block page_title %}Emitir · {{ modelo.nome }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a></li>
+<li class="breadcrumb-item"><a href="{{ volta }}">Atendimento</a></li>
+<li class="breadcrumb-item">Emitir por modelo</li>
+{% endblock %}
+{% block content %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="modelo" value="{{ modelo.chave }}">
+
+    {% if erro %}
+    <div class="alert alert-danger fs-13" role="alert">{{ erro }}</div>
+    {% endif %}
+    <div class="alert alert-soft-warning fs-12" role="status">
+        Os documentos saem com os dados de <strong>{{ patient.full_name }}</strong> e com os seus,
+        no timbre da clínica. O texto de cada um entra {% if finalizado %}como <strong>adendo</strong>
+        deste atendimento (ele já foi finalizado){% else %}na <strong>conduta</strong> deste
+        atendimento{% endif %}, e o PDF vai para os Anexos do paciente.
+    </div>
+
+    {% for secao in secoes %}
+    {% with form=secao.form %}
+    <div class="card mb-3">
+        <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <h5 class="card-title mb-0">{{ secao.titulo }}</h5>
+            {% if varias %}
+            <div class="form-check mb-0">
+                {{ form.emitir }}
+                <label class="form-check-label fs-12" for="{{ form.emitir.id_for_label }}">Emitir este documento</label>
+            </div>
+            {% else %}
+            <input type="hidden" name="{{ form.emitir.html_name }}" value="on">
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% for erro in form.non_field_errors %}
+            <div class="alert alert-danger fs-13" role="alert">{{ erro }}</div>
+            {% endfor %}
+            {% for campo in form.hidden_fields %}{{ campo }}{% endfor %}
+            <div class="row g-3">
+                {% for campo in form.visible_fields %}
+                {% if campo.name != 'emitir' %}
+                {% include "partials/field.html" with field=campo col="col-lg-6" %}
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endwith %}
+    {% endfor %}
+
+    {% if modelo.tipo == 'exames' or modelo.tipo == 'cirurgia' %}
+    <div class="mb-3">{% include "modelos/_busca_tuss.html" %}</div>
+    {% endif %}
+
+    <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
+        <button type="submit" name="acao" value="papel" class="btn btn-primary" data-nd-busy>Emitir em papel</button>
+        <button type="submit" name="acao" value="assinatura" class="btn btn-light-primary" data-nd-busy>Preparar para assinatura digital</button>
+        <a class="btn btn-light" href="{{ volta }}">Voltar ao atendimento</a>
+        <span class="fs-11 text-muted">
+            Em papel: sai com número e sem tarja, para imprimir e assinar à caneta.
+            Assinatura digital: fica pronto para assinar, um documento por vez.
+        </span>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'modelos/modelos.js' %}" defer></script>
+{% endblock %}

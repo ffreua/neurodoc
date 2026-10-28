@@ -9,6 +9,7 @@ import io
 from xml.sax.saxutils import escape
 
 from django.conf import settings
+from django.utils import timezone
 from reportlab.graphics.barcode import qr
 from reportlab.graphics.shapes import Drawing
 from reportlab.lib import colors
@@ -268,8 +269,10 @@ def _patient_block(document, include_address):
         document.encounter.occurred_at if document.encounter_id
         else (document.issued_at or document.created_at)
     )
+    # Na hora de Brasília, e não na do processo (UTC): entre 21h e meia-noite
+    # o `strftime` direto imprimia o dia seguinte no documento (CLAUDE.md §1).
     rows.append(Paragraph(
-        f'<b>Data do documento:</b> {momento.strftime("%d/%m/%Y")}',
+        f'<b>Data do documento:</b> {timezone.localtime(momento).strftime("%d/%m/%Y")}',
         BODY_STYLE,
     ))
     doc_number = document.document_number or 'RASCUNHO — sem validade até a emissão'
@@ -297,7 +300,9 @@ def _signature_footer(document):
         Paragraph(f'CRM {texto_seguro(profile.crm_number)}/{texto_seguro(profile.crm_state)}', SMALL_STYLE),
     ]
     if issued:
-        assinado = document.issued_at.strftime('%d/%m/%Y às %H:%M') if document.issued_at else ''
+        # Hora de Brasília: em UTC o carimbo saía três horas adiantado.
+        assinado = (timezone.localtime(document.issued_at).strftime('%d/%m/%Y às %H:%M')
+                    if document.issued_at else '')
         left.append(Spacer(1, 0.15 * cm))
         left.append(Paragraph(
             'Assinado digitalmente (PAdES/ICP-Brasil)'

@@ -76,6 +76,12 @@ class MedicalDocumentKind(models.TextChoices):
     REPORT = 'report', 'Relatório'
     REQUEST = 'request', 'Pedido de exame'
     REFERRAL = 'referral', 'Encaminhamento'
+    #: Os dois que nascem de modelo (`modelos/emissao.py`). Conteúdo em
+    #: listas, e não em campos de texto: só a tela de emissão por modelo os
+    #: cria, e o formulário genérico de documento não os oferece
+    #: (`documents.forms.TIPOS_DO_FORMULARIO`).
+    EXAM_REQUEST = 'exam_request', 'Pedido de exames'
+    SURGERY_REQUEST = 'surgery_request', 'Solicitação de cirurgia'
 
 
 class MedicalDocumentStatus(models.TextChoices):

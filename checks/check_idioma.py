@@ -81,6 +81,10 @@ EXCECOES_NA_TELA = {
     'RascunhoJaVirouDocumento', 'MissingPhysicianProfile',
     'AIAuthorizationDenied', 'ConcurrencyLimitExceeded',
     'ProviderProbeFailed', 'CampaignBlocked',
+    # Emissão por modelo (1.28): toda mensagem dela é escrita em português
+    # em `modelos/emissao.py`, inclusive a que repassa a recusa de
+    # `create_draft`.
+    'EmissaoRecusada',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o

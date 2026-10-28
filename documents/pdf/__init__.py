@@ -1,12 +1,14 @@
 from ..document_kinds import TITLE
 from ..models import MedicalDocumentKind
-from . import prescription, referral, report, request
+from . import exam_request, prescription, referral, report, request, surgery_request
 
 _RENDERERS = {
     MedicalDocumentKind.PRESCRIPTION: prescription.render,
     MedicalDocumentKind.REPORT: report.render,
     MedicalDocumentKind.REQUEST: request.render,
     MedicalDocumentKind.REFERRAL: referral.render,
+    MedicalDocumentKind.EXAM_REQUEST: exam_request.render,
+    MedicalDocumentKind.SURGERY_REQUEST: surgery_request.render,
 }
 
 

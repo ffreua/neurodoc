@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% comment %}Modelos de documento: os do sistema e os do médico, por tipo.
+
+Abas por link (e não por JavaScript): cada aba é um endereço, o que deixa
+voltar para ela depois de salvar e abrir direto de um link. No pedido de
+exames, uma aba por categoria e uma de conjuntos — o modelo que pede mais
+de uma categoria ("Queixa cognitiva") vira um pedido por categoria na
+emissão, e por isso não cabe em nenhuma delas.{% endcomment %}
+{% block title %}Modelos — NeuroDoc{% endblock %}
+{% block page_title %}Modelos{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Modelos</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-primary" href="{% url 'modelos:novo' tipo %}{% if aba and aba != aba_conjuntos %}?aba={{ aba }}{% endif %}">Novo modelo</a>
+{% endblock %}
+{% block content %}
+
+<ul class="nav nav-pills gap-1 mb-3">
+    {% for codigo, rotulo in tipos %}
+    <li class="nav-item">
+        <a class="nav-link {% if codigo == tipo %}active{% endif %}" href="?tipo={{ codigo }}">{{ rotulo }}</a>
+    </li>
+    {% endfor %}
+</ul>
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">{{ rotulo_do_tipo }}</h5>
+        <span class="fs-11 text-muted">
+            Use pela aba Conduta do atendimento. Os do sistema são iguais em todas as clínicas:
+            para mudar um deles, copie para os seus.
+        </span>
+    </div>
+    {% if abas %}
+    <div class="card-body pb-0">
+        <ul class="nav nav-pills gap-1 fs-12">
+            {% for codigo, rotulo in abas %}
+            <li class="nav-item">
+                <a class="nav-link py-1 {% if codigo == aba %}active{% endif %}" href="?tipo={{ tipo }}&amp;aba={{ codigo }}">{{ rotulo }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% if aba == aba_conjuntos %}
+        <p class="fs-12 text-muted mt-3 mb-0">
+            Conjuntos pedem exames de mais de uma categoria. Na emissão, cada categoria
+            sai num pedido separado — imagem nunca vai junto com sangue.
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="card-body">
+        <h6 class="fw-bold text-dark">Meus modelos</h6>
+        {% include "modelos/_tabela.html" with modelos=meus vazio="Você ainda não tem modelos aqui. Crie um, ou copie um do sistema." %}
+        <h6 class="fw-bold text-dark mt-4">Do sistema</h6>
+        {% include "modelos/_tabela.html" with modelos=do_sistema vazio="Nenhum modelo do sistema nesta aba." %}
+    </div>
+</div>
+{% endblock %}

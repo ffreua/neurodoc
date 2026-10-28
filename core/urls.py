@@ -42,6 +42,7 @@ urlpatterns = [
     path('app/notifications/', include('notifications.urls')),
     path('app/mensagens/', include('teamchat.urls')),
     path('app/sncr/', include('sncr.urls')),
+    path('app/modelos/', include('modelos.urls')),
     path('app/org/', include('communications.admin_urls')),
     path('app/org/', include('ai.admin_urls')),
     path('app/org/', include('patients.admin_urls')),

@@ -102,7 +102,10 @@
         </div>
         {% endif %}
 
-        {% if is_own_document and document.status == "issued" and not rx %}
+        {% comment %}Pedido de exames e solicitação de cirurgia (os que nascem de modelo)
+        não têm retificação por aqui: o conteúdo deles é lista, e este formulário só
+        corrige texto. Para corrigir, emite-se outro pelo modelo.{% endcomment %}
+        {% if is_own_document and document.status == "issued" and not rx and document.kind != "exam_request" and document.kind != "surgery_request" %}
         <div class="card mt-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Correção (nova versão)</h5>

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}O editor do modelo do médico. Listas são uma linha por item; o
+código TUSS vai no começo da linha (ver `modelos/estrutura.py`).{% endcomment %}
+{% block title %}{% if registro %}Editar modelo{% else %}Novo modelo{% endif %} — NeuroDoc{% endblock %}
+{% block page_title %}{% if registro %}Editar modelo{% else %}Novo modelo{% endif %} · {{ rotulo_do_tipo }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'modelos:lista' %}?tipo={{ tipo }}">Modelos</a></li>
+<li class="breadcrumb-item">{% if registro %}{{ registro.nome }}{% else %}Novo{% endif %}</li>
+{% endblock %}
+{% block content %}
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card">
+        <div class="card-body">
+            {% for erro in form.non_field_errors %}
+            <div class="alert alert-danger fs-13" role="alert">{{ erro }}</div>
+            {% endfor %}
+            {% if tipo == 'exames' %}
+            <p class="fs-12 text-muted">
+                Preencha só a categoria do pedido — ou mais de uma, para um <strong>conjunto</strong>:
+                na emissão, cada categoria preenchida sai num pedido separado.
+            </p>
+            {% endif %}
+            <div class="row g-3">
+                {% include "partials/field.html" with field=form.nome col="col-lg-6" %}
+                <div class="col-lg-6"></div>
+                {% for field in form %}
+                {% if field.name != 'nome' %}
+                {% include "partials/field.html" with field=field col="col-lg-6" %}
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% if tipo == 'exames' or tipo == 'cirurgia' %}
+            <div class="mt-3">{% include "modelos/_busca_tuss.html" %}</div>
+            {% endif %}
+        </div>
+        <div class="card-footer d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-primary" data-nd-busy>Salvar modelo</button>
+            <a class="btn btn-light" href="{% url 'modelos:lista' %}?tipo={{ tipo }}">Cancelar</a>
+        </div>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'modelos/modelos.js' %}" defer></script>
+{% endblock %}

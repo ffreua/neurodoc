@@ -205,6 +205,81 @@
         });
     }, true);
 
+    /* Sair da página para emitir por modelo (`modelos/_na_conduta.html`).
+     *
+     * O mesmo cuidado do bloco acima, com duas diferenças. Vale nos **dois**
+     * tipos de atendimento — no estruturado não existe o formulário único
+     * `nd-atendimento-livre`, então o envio é montado aqui com os campos
+     * que mudaram, e o salvamento grava só os que chegam. E o motivo é mais
+     * forte: a emissão acrescenta o pedido à conduta no servidor; se o
+     * rascunho antigo ficasse no navegador, a volta ofereceria restaurá-lo,
+     * e restaurar apagaria o pedido da conduta.
+     *
+     * Atributo próprio, e não `data-nd-save-encounter-before-submit`: aquele
+     * é contado pelo roteiro do texto livre, e este é outro caminho. */
+    raiz.addEventListener('submit', function (event) {
+        var saida = event.target;
+        if (!saida.matches || !saida.matches('[data-nd-preservar-atendimento]')) {
+            return;
+        }
+        if (saida.dataset.ndEncounterSaved === '1') {
+            delete saida.dataset.ndEncounterSaved;
+            return;
+        }
+        if (!editavel || !haMudanca()) { return; }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        guardar();
+
+        var dados = new FormData();
+        var token = raiz.querySelector('[name="csrfmiddlewaretoken"]');
+        var versao = raiz.querySelector('[name="row_version"]');
+        if (token) { dados.append('csrfmiddlewaretoken', token.value); }
+        if (versao) { dados.append('row_version', versao.value); }
+        campos().forEach(function (campo) {
+            if ((campo.value || '') !== valorGravado(campo)) {
+                dados.append(campo.name, campo.value || '');
+            }
+        });
+
+        window.fetch(saida.getAttribute('data-nd-preservar-atendimento'), {
+            method: 'POST',
+            body: dados,
+            credentials: 'same-origin',
+            headers: {
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (resposta) {
+                if (!response.ok || !resposta.ok) {
+                    throw new Error(resposta.error || 'Não foi possível salvar o atendimento.');
+                }
+                return resposta;
+            });
+        }).then(function (resposta) {
+            raiz.querySelectorAll('[name="row_version"]').forEach(function (campo) {
+                campo.value = resposta.row_version;
+            });
+            campos().forEach(function (campo) {
+                doServidor[campo.name] = campo.value || '';
+            });
+            limpar();
+            saida.dataset.ndEncounterSaved = '1';
+            if (saida.requestSubmit) {
+                saida.requestSubmit();
+            } else {
+                saida.submit();
+            }
+        }).catch(function (error) {
+            mostrarFalhaAoPreservar(
+                (error && error.message ? error.message : 'Não foi possível salvar o atendimento.')
+                + ' O modelo não foi aberto; seu texto continua neste navegador.'
+            );
+        });
+    }, true);
+
     /* Os rascunhos que a faixa está oferecendo agora. Vive aqui fora
      * porque os cliques são ligados **uma vez**, no arranque, e não
      * dentro de quem mostra a faixa.
@@ -267,7 +342,12 @@
          * aberta. Numa tela com sete abas e um formulário por aba, salvar
          * "o formulário" sem essa regra salvaria o primeiro da página. */
         var foco = document.activeElement;
-        if (foco && foco.form && raiz.contains(foco.form)) { return foco.form; }
+        /* O seletor de modelos é navegação, não salvamento: Ctrl+S com o
+         * foco nele salva o formulário da aba, e não abre a emissão. */
+        if (foco && foco.form && raiz.contains(foco.form)
+                && !foco.form.hasAttribute('data-nd-preservar-atendimento')) {
+            return foco.form;
+        }
         var painel = raiz.querySelector('.tab-pane.active');
         if (painel) {
             var form = painel.querySelector('form');

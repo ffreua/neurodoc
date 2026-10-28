@@ -328,6 +328,26 @@ trilha.
   assinada digitalmente a partir de 31/10/2026 (dia de Brasília);
   `MedicalDocumentToPaperView` refaz como impressa sem gastar número.
 
+### modelos (novo, 1.28)
+- **Modelos de documento**: pedido de exames (`exam_request`, `PEX-`), solicitação
+  de cirurgia (`surgery_request`, `CIR-`), relatório e receita (tipos de sempre).
+- `estrutura.py`: categorias de exame (fixas em código, a imagem exige
+  indicação), tipos, leitura das listas "uma linha por item" com TUSS no começo
+  (`ler_exames`, `ler_procedimentos`, `ler_materiais`) e `normalizar`.
+- `padrao.py`: os modelos do **sistema**, em código, iguais para todas as clínicas.
+- `models.ModeloDocumento`: o modelo do **médico** — liga ao `User`, sem `tenant`
+  (segue o médico entre clínicas); nada aponta para ele.
+- `servicos.py`: chave única `s:<slug>` / `u:<uuid>` (só do próprio médico) /
+  `b:<tipo>` (em branco); `opcoes_para_conduta`.
+- `emissao.py`: uma seção por documento (o **conjunto** abre um pedido por
+  categoria); `emitir` cria pelo `issuance.create_draft` e emite em papel ou
+  marca para assinatura, tudo ou nada; o texto vai para `plan_text` (ou
+  `add_amendment` no finalizado), sobe `row_version`, trilha
+  `modelos.documentos_emitidos`.
+- Na Conduta: `templates/modelos/_na_conduta.html` (estruturado e texto livre),
+  com `data-nd-preservar-atendimento`, que `clinical/atendimento.js` usa para
+  gravar o texto não salvo antes de sair.
+
 ### Outras mudanças desde a 1.15
 - **`documents/portal_exames.py`** (1.16): o paciente manda laudo em PDF pelo
   portal (5 arquivos, 3 MB, 6 envios/h por IP, tudo ou nada) direto ao
@@ -515,6 +535,7 @@ sequenceDiagram
 | **Preço, limite ou plano** | `tenancy/plans.py`; obrigatórios `check_landing` e `check_planos` |
 | **Campo no prontuário** | `clinical/models.py` + migration expand-only, `forms.EncounterForm.Meta.fields` (autosave), template da aba, decidir se entra em `compute_content_hash`; `check_estruturado` / `check_texto_livre` |
 | **Item do exame neurológico** | `exams/data/neurologia.yaml` + `install_exam_template` (cria versão nova); `check_roteiro` |
+| **Novo modelo do sistema** | `modelos/padrao.py` (slug estável, imagem nunca em grupo de laboratório); `check_modelos` |
 | **Novo tipo de documento médico** | `documents/pdf/<tipo>.py`, `document_kinds.py`, `MedicalDocument.kind`; `check_docform`, `check_rodape_do_documento` |
 | **Nova mensagem ao paciente** | produtor grava `OutboxEvent`, handler em `communications/handlers.py` registrado no `apps.py`, envio por `services._send` (nunca na view; `check_provedor_e_sms` varre) |
 | **Novo consumidor de evento** | `register_handler` no `AppConfig.ready()`; idempotente por chave própria; conferir a idade do evento (`created_at`) |

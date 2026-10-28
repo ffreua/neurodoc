@@ -31,7 +31,7 @@ usuário abrir a página e ver o ícone quebrado.
 versão de quando foi escrito, e o commit que muda a tela não o toca. Aqui,
 quem muda a tela vê o texto no mesmo diff.
 
-## Os vinte e três processos
+## Os vinte e quatro processos
 
 | # | Artigo | Público |
 | --- | --- | --- |
@@ -42,22 +42,23 @@ quem muda a tela vê o texto no mesmo diff.
 | 5 | Atender: escrever o prontuário | Médico |
 | 6 | O exame neurológico estruturado | Médico |
 | 7 | Emitir e assinar um documento | Médico |
-| 8 | Entregar o documento ao paciente | Médico, secretaria |
-| 9 | Portal do paciente: solicitações e envio de exames | Médico, gestor |
-| 10 | Buscar códigos CID-10 e TUSS | Todos |
-| 11 | Chat de apoio | Médico |
-| 12 | Convênios, planos e valores | Dono, gestor, médico |
-| 13 | Equipe, papéis e registro profissional | Dono |
-| 14 | Os indicadores da clínica | Dono, gestor, médico |
-| 15 | Financeiro: recebíveis, pagamentos e ajustes | Dono, gestor, secretaria, médico |
-| 16 | A grade de horários do médico | Médico, dono, gestor |
-| 17 | Identidade da clínica e o encarregado de dados | Dono |
-| 18 | E-mail e SMS da clínica | Dono, gestor |
-| 19 | Comunicação em massa | Dono, gestor |
-| 20 | Notificações | Todos |
-| 21 | Mensagens internas da equipe | Todos |
-| 22 | Exportar os dados da clínica | Dono |
-| 23 | Falar com a NeuroDoc | Todos |
+| 8 | Modelos de documento | Médico |
+| 9 | Entregar o documento ao paciente | Médico, secretaria |
+| 10 | Portal do paciente: solicitações e envio de exames | Médico, gestor |
+| 11 | Buscar códigos CID-10 e TUSS | Todos |
+| 12 | Chat de apoio | Médico |
+| 13 | Convênios, planos e valores | Dono, gestor, médico |
+| 14 | Equipe, papéis e registro profissional | Dono |
+| 15 | Os indicadores da clínica | Dono, gestor, médico |
+| 16 | Financeiro: recebíveis, pagamentos e ajustes | Dono, gestor, secretaria, médico |
+| 17 | A grade de horários do médico | Médico, dono, gestor |
+| 18 | Identidade da clínica e o encarregado de dados | Dono |
+| 19 | E-mail e SMS da clínica | Dono, gestor |
+| 20 | Comunicação em massa | Dono, gestor |
+| 21 | Notificações | Todos |
+| 22 | Mensagens internas da equipe | Todos |
+| 23 | Exportar os dados da clínica | Dono |
+| 24 | Falar com a NeuroDoc | Todos |
 
 Os artigos administrativos entraram em 2026-09-23, quando o manual foi confrontado
 com o menu: doze artigos cobriam o trabalho assistencial e **nenhum**
@@ -165,12 +166,12 @@ texto inerte, não markup.
 | 1 | Toda captura referenciada existe? | 47 de 47 |
 | 2 | Alguma captura órfã? | Nenhuma |
 | 3 | As páginas abrem sem login? | Índice, perguntas e landing em 200 |
-| 4 | Cada artigo abre e está no índice? | 23 de 23 |
+| 4 | Cada artigo abre e está no índice? | 24 de 24 |
 | 5 | Slug inexistente? | 404, não 500 |
 | 6 | A landing leva ao manual? | Manual e perguntas |
 | 7 | As capturas são servidas? | `<img>` renderizado |
 | 8 | Promete o que está fora do escopo? | Nada |
-| 9 | Todo artigo tem público, resumo e passos? | 23 de 23 |
+| 9 | Todo artigo tem público, resumo e passos? | 24 de 24 |
 | 10 | As quatro telas administrativas estão no capturador? | Rotas atuais e modal de registro |
 
 A seção 2 é a que costuma faltar em verificação de manual: ela pega a

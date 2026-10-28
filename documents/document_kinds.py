@@ -7,6 +7,8 @@ NUMBER_PREFIX = {
     MedicalDocumentKind.REPORT: 'REL',
     MedicalDocumentKind.REQUEST: 'PED',
     MedicalDocumentKind.REFERRAL: 'ENC',
+    MedicalDocumentKind.EXAM_REQUEST: 'PEX',
+    MedicalDocumentKind.SURGERY_REQUEST: 'CIR',
 }
 
 TITLE = {
@@ -14,6 +16,8 @@ TITLE = {
     MedicalDocumentKind.REPORT: 'Relatório médico',
     MedicalDocumentKind.REQUEST: 'Pedido de exame/procedimento',
     MedicalDocumentKind.REFERRAL: 'Encaminhamento',
+    MedicalDocumentKind.EXAM_REQUEST: 'Pedido de exames',
+    MedicalDocumentKind.SURGERY_REQUEST: 'Solicitação de cirurgia',
 }
 
 REQUIRED_FIELDS = {
@@ -21,6 +25,17 @@ REQUIRED_FIELDS = {
     MedicalDocumentKind.REPORT: ('report_text',),
     MedicalDocumentKind.REQUEST: ('requested_procedure', 'justification'),
     MedicalDocumentKind.REFERRAL: ('referral_specialty', 'reason'),
+    # Os dois de modelo não têm campo de texto obrigatório: o que eles
+    # exigem é uma **lista** não vazia, conferida em `LISTA_OBRIGATORIA`.
+    MedicalDocumentKind.EXAM_REQUEST: (),
+    MedicalDocumentKind.SURGERY_REQUEST: (),
+}
+
+#: A lista que não pode chegar vazia, por tipo. `validate_content` conferia
+#: só texto (`.strip()`), e uma lista ali derrubaria a chamada.
+LISTA_OBRIGATORIA = {
+    MedicalDocumentKind.EXAM_REQUEST: ('itens', 'Inclua ao menos um exame no pedido.'),
+    MedicalDocumentKind.SURGERY_REQUEST: ('procedimentos', 'Inclua ao menos um procedimento.'),
 }
 
 OPTIONAL_FIELDS = {
@@ -38,6 +53,14 @@ OPTIONAL_FIELDS = {
     MedicalDocumentKind.REPORT: (),
     MedicalDocumentKind.REQUEST: (),
     MedicalDocumentKind.REFERRAL: (),
+    MedicalDocumentKind.EXAM_REQUEST: (
+        'categoria', 'categoria_rotulo', 'itens', 'indicacao', 'cid', 'observacoes', 'modelo',
+    ),
+    MedicalDocumentKind.SURGERY_REQUEST: (
+        'procedimentos', 'materiais', 'indicacao', 'cid', 'carater', 'regime',
+        'dias_internacao', 'anestesia', 'lateralidade', 'uti', 'reserva_sangue', 'local',
+        'observacoes', 'modelo',
+    ),
 }
 
 
@@ -51,3 +74,7 @@ def validate_content(kind, content):
         raise ValueError(
             f'Faltam campos obrigatórios: {", ".join(missing)}.'
         )
+    if kind in LISTA_OBRIGATORIA:
+        campo, mensagem = LISTA_OBRIGATORIA[kind]
+        if not content.get(campo):
+            raise ValueError(mensagem)

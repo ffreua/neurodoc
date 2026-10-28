@@ -395,7 +395,26 @@ class EncounterDetailView(TenantScopedView):
             # uma frase — uma espera de rede ali é uma frase interrompida.
             'consulta_anterior': selectors.consulta_anterior(request.access_context, encounter),
             **self._extra_tabs(request, encounter),
+            **self._modelos(request, encounter),
         })
+
+    def _modelos(self, request, encounter):
+        """O seletor de modelos da Conduta e os documentos deste atendimento.
+
+        Só para quem emite documento (`ISSUE_DOCUMENT`): o seletor leva a uma
+        tela que emite, e mostrá-lo a quem não pode emitir seria um botão
+        para um 404. Ver `modelos/emissao.py`.
+        """
+        if not request.access_context.can(Capability.ISSUE_DOCUMENT):
+            return {'modelos_na_conduta': None, 'documentos_do_atendimento': ()}
+        from modelos.servicos import opcoes_para_conduta
+
+        return {
+            'modelos_na_conduta': opcoes_para_conduta(request.user),
+            'documentos_do_atendimento': list(
+                encounter.medical_documents.order_by('created_at')
+            ),
+        }
 
     def _extra_tabs(self, request, encounter):
         """Medicações, resultados de exame e o painel de apoio da IA.

@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'base', 'accounts', 'tenancy', 'patients',
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
     'finance', 'ai', 'notifications', 'audit', 'reporting',
-    'integrations', 'events', 'exams', 'teamchat', 'sncr',
+    'integrations', 'events', 'exams', 'teamchat', 'sncr', 'modelos',
 ]
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',

@@ -1,0 +1,10 @@
+{% comment %}Busca na TUSS que insere o código na lista onde o cursor estava.
+Comportamento em `static/modelos/modelos.js`. `id_busca` distingue as caixas
+quando a página tem mais de uma.{% endcomment %}
+<div class="border rounded p-3 bg-gray-100" data-nd-tuss-busca="{% url 'catalogs:tuss-search' %}">
+    <label class="form-label fw-semibold fs-12" for="{{ id_busca|default:'nd-tuss-busca' }}">Buscar código TUSS</label>
+    <input type="search" class="form-control" id="{{ id_busca|default:'nd-tuss-busca' }}" autocomplete="off"
+           placeholder="Ex.: ressonância crânio, 41001040">
+    <div class="form-text fs-11">Clique no resultado para incluí-lo como linha na lista em que o cursor estava.</div>
+    <div class="list-group mt-2" data-nd-tuss-resultados></div>
+</div>
