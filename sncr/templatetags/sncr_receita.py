@@ -49,3 +49,27 @@ def receita_sncr(document):
         'confirmada': snapshot.get('classificacao_confirmada'),
         'lista_oficial': snapshot.get('lista_oficial'),
     }
+
+
+@register.simple_tag
+def saldos_sncr(user):
+    """Os números livres do médico logado, para o formulário da receita.
+
+    `None` com a integração desligada ou sem perfil profissional. É o que
+    poupa o médico de descobrir na assinatura que o bloco acabou: o saldo
+    está na tela em que ele escreve a receita, com o caminho para pedir.
+    """
+    from accounts.models import PhysicianProfile
+    from sncr.models import Configuracao, TipoReceita
+    from sncr.numeracao import saldo
+
+    config = Configuracao.carregar()
+    perfil = PhysicianProfile.objects.filter(user=user).first() if getattr(user, 'pk', None) else None
+    if not config.ativo or perfil is None:
+        return None
+    return {
+        'rce': saldo(perfil, TipoReceita.RCE, config.ambiente),
+        'ret': saldo(perfil, TipoReceita.RET, config.ambiente),
+        'ambiente': config.get_ambiente_display(),
+        'homologacao': config.ambiente == 'homologacao',
+    }

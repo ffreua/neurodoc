@@ -262,6 +262,54 @@ class MedicationProduct(TimestampedModel):
         dosagem = re.sub(r'\s*\+\s*', ' + ', dosagem)
         return dosagem
 
+    #: A forma farmacêutica por extenso, a partir das abreviaturas da CMED.
+    #: Base: (abreviatura, nome, gênero). Modificadores: (abreviaturas, masc.,
+    #: fem.), na ordem em que aparecem depois da base. O que não está aqui
+    #: interrompe a leitura — melhor uma forma curta e certa ("comprimido")
+    #: do que uma inventada.
+    _FORMAS_BASE = {
+        'COM': ('comprimido', 'm'), 'CAP': ('cápsula', 'f'), 'SOL': ('solução', 'f'),
+        'SUS': ('suspensão', 'f'), 'XPE': ('xarope', 'm'), 'CREM': ('creme', 'm'),
+        'POM': ('pomada', 'f'), 'GEL': ('gel', 'm'), 'PO': ('pó', 'm'), 'GRAN': ('granulado', 'm'),
+        'EMU': ('emulsão', 'f'), 'ADES': ('adesivo', 'm'), 'DRG': ('drágea', 'f'),
+        'SUP': ('supositório', 'm'), 'PAS': ('pastilha', 'f'), 'ELX': ('elixir', 'm'),
+    }
+    _FORMAS_MODIFICADOR = (
+        (('LIB', 'PROL'), 'de liberação prolongada', 'de liberação prolongada'),
+        (('LIB', 'RET'), 'de liberação retardada', 'de liberação retardada'),
+        (('LIB', 'CONT'), 'de liberação controlada', 'de liberação controlada'),
+        (('REV',), 'revestido', 'revestida'), (('DURA',), 'duro', 'dura'), (('MOLE',), 'mole', 'mole'),
+        (('GEL',), 'gelatinoso', 'gelatinosa'), (('ORODI',), 'orodispersível', 'orodispersível'),
+        (('SUBL',), 'sublingual', 'sublingual'), (('MAST',), 'mastigável', 'mastigável'),
+        (('EFEV',), 'efervescente', 'efervescente'), (('OR',), 'oral', 'oral'),
+        (('INJ',), 'injetável', 'injetável'), (('OFT',), 'oftálmico', 'oftálmica'),
+        (('NAS',), 'nasal', 'nasal'), (('DERM',), 'dermatológico', 'dermatológica'),
+        (('TRANS',), 'transdérmico', 'transdérmica'), (('TOP',), 'tópico', 'tópica'),
+    )
+
+    def forma_farmaceutica(self):
+        """"COM REV CT BL AL PLAS X 30" vira "comprimido revestido".
+
+        Para preencher a forma farmacêutica da receita eletrônica do SNCR
+        quando o médico escolhe o medicamento na busca. É sugestão no campo,
+        que ele edita; nada aqui decide a receita.
+        """
+        palavras = ' '.join((self.presentation or '').replace(' ', ' ').upper().split()).split()
+        for i, palavra in enumerate(palavras):
+            if palavra in self._FORMAS_BASE and (i == 0 or re.search(r'\d|MG|ML|G$', ' '.join(palavras[:i]))):
+                nome, genero = self._FORMAS_BASE[palavra]
+                partes, j = [nome], i + 1
+                while j < len(palavras):
+                    for abreviaturas, masculino, feminino in self._FORMAS_MODIFICADOR:
+                        if tuple(palavras[j:j + len(abreviaturas)]) == abreviaturas:
+                            partes.append(feminino if genero == 'f' else masculino)
+                            j += len(abreviaturas)
+                            break
+                    else:
+                        break
+                return ' '.join(partes)
+        return ''
+
     def __str__(self):
         return f'{self.product} ({self.substance[:40]})'
 

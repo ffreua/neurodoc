@@ -9,7 +9,7 @@ from events.models import OutboxEvent, OutboxEventStatus
 
 from sncr import receita as sncr_receita
 
-from . import document_kinds, sncr_transicao
+from . import document_kinds, rce_impressa
 from .credentials import credential_is_usable, decrypt_pfx_bytes
 from .models import MedicalDocument, MedicalDocumentKind, MedicalDocumentStatus
 from .pdf import render_medical_document_pdf
@@ -403,14 +403,14 @@ def _sign_and_issue(document, request, physician_membership):
         raise NotReadyToSign('Document is not ready to sign')
     if locked.physician_id != physician_membership.id:
         raise SigningNotAuthorized('Document belongs to a different physician')
-    # A RCE eletrônica exige numeração do SNCR desde 31/10/2026, e a
-    # integração ainda não está no ar: a recusa vem antes da sessão de
-    # assinatura, para o médico ler o motivo e não um pedido de certificado.
-    # Regra transitória — ver `sncr_transicao`.
-    if sncr_transicao.assinatura_digital_bloqueada(locked):
+    # A RCE do leiaute da clínica não tem número do SNCR e, desde
+    # 31/10/2026, não é assinada digitalmente (`rce_impressa`). A recusa vem
+    # antes da sessão de assinatura, para o médico ler o motivo e não um
+    # pedido de certificado.
+    if rce_impressa.assinatura_digital_bloqueada(locked):
         raise _falhou(
-            NotReadyToSign(sncr_transicao.RECUSA_ASSINATURA),
-            'denied', sncr_transicao.MOTIVO_AUDITORIA,
+            NotReadyToSign(rce_impressa.recusa()),
+            'denied', rce_impressa.MOTIVO_AUDITORIA,
         )
 
     session = get_active_session(request, physician_membership)

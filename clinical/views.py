@@ -1169,13 +1169,19 @@ class DiagnosticSupportRequestView(TenantScopedView):
 
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
         try:
-            job = request_diagnostic_support(request.access_context, encounter)
+            job = request_diagnostic_support(
+                request.access_context, encounter,
+                risco_confirmado=request.POST.get('risco_confirmado') == '1',
+            )
         except AIAuthorizationDenied as exc:
             return _blocked(request, encounter, _texto_do_erro(exc), anchor='tab-hipoteses')
         if job.status == 'disabled':
             messages.warning(request, 'O apoio por IA está desligado nesta instalação.')
         elif job.status == 'succeeded':
             messages.info(request, 'O caso não mudou desde a última análise; o resultado abaixo é dela.')
+        elif job.status == 'blocked_privacy':
+            messages.warning(request, 'A análise foi bloqueada pela política de privacidade. Leia o motivo '
+                                      'abaixo e decida se quer prosseguir.')
         else:
             messages.success(
                 request,

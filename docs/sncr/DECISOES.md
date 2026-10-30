@@ -9,8 +9,8 @@ perguntas completas, com alternativas e riscos, estão em
 **Decididas em 2026-10-21** pelo Dr. Fernando Freua (proprietário e
 responsável técnico), na sessão de trabalho de mesma data.
 
-**Pendência que bloqueia a numeração real:** o CNPJ da mantenedora — ver
-[PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md).
+**CNPJ da mantenedora:** resolvido em 2026-10-29 — ProntDoc Prontuários
+Médicos Ltda., 69.887.146/0001-05 ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)).
 
 ---
 
@@ -43,6 +43,15 @@ digital pararia o consultório. A trava da RET chega com a classificação
 **Quando sai.** Na ativação da receita eletrônica com numeração SNCR
 (Sprint 3). Retirar o módulo e os três pontos que o consultam, e o
 roteiro, no mesmo commit.
+
+**Como saiu (2026-10-29, 1.29).** Os avisos saíram; a **trava ficou**,
+porque ela é da norma e não da falta de integração: a RCE do leiaute da
+clínica não tem número do SNCR e não pode ser a RCE eletrônica. O módulo
+virou `documents/rce_impressa.py` (regra permanente, recusa que aponta a
+eletrônica quando ela está ligada) e o roteiro, `check_rce_impressa`. A
+prorrogação aprovada pela Anvisa no mesmo dia (transição até 03/03/2027)
+não mudou a decisão: com a eletrônica numerada funcionando, não há motivo
+para assinar RCE sem número.
 
 ## D2 — CNPJ da mantenedora
 

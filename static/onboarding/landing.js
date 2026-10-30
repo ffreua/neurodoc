@@ -43,3 +43,37 @@
         });
     });
 }());
+
+/* O aviso da novidade (`base/content.py::NOVIDADE`): aparece uma vez por
+ * visitante e, fechado, não volta. A chave fica no navegador de quem leu —
+ * conveniência de quem visita, e não registro de nada. O armazenamento pode
+ * estar bloqueado (janela anônima, cookies recusados): o aviso então
+ * aparece, e fecha do mesmo jeito, só sem lembrar. */
+(function () {
+    'use strict';
+
+    var aviso = document.querySelector('[data-nd-novidade]');
+    if (!aviso) {
+        return;
+    }
+    var chave = 'nd-novidade-' + aviso.getAttribute('data-nd-novidade');
+    try {
+        if (window.localStorage.getItem(chave)) {
+            return;
+        }
+    } catch (erro) { /* sem armazenamento: mostra */ }
+
+    function fechar() {
+        aviso.hidden = true;
+        try { window.localStorage.setItem(chave, '1'); } catch (erro) { /* segue sem lembrar */ }
+    }
+
+    aviso.querySelectorAll('[data-nd-novidade-fechar]').forEach(function (botao) {
+        botao.addEventListener('click', fechar);
+    });
+    document.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Escape' && !aviso.hidden) { fechar(); }
+    });
+    window.setTimeout(function () { aviso.hidden = false; }, 1200);
+})();
+

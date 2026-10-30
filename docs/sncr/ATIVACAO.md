@@ -32,7 +32,12 @@ expressa do proprietário.
 8. Smoke test não destrutivo: `/health/`, rodapé com a versão, console
    `/instalacao/operacao/` mostrando o cartão do SNCR **desligado**.
 
-## Ligar (depois do CNPJ)
+## Ligar (depois do CNPJ) — feito em 2026-10-29
+
+> **Executado.** Passos 9 a 11 concluídos em 2026-10-29 (1.29): ligada em
+> Produção, primeiro bloco real recebido, primeira RCE conferida no portal da
+> Anvisa, artigo da ajuda publicado. Detalhe em
+> [ESTADO_EXECUCAO.md](ESTADO_EXECUCAO.md).
 
 9. Console `/instalacao/operacao/` → cartão do SNCR:
    - **CNPJ da mantenedora** ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md));

@@ -335,18 +335,66 @@ ARTICLES = [
              'incompleto — descobrir isso com o paciente no balcão significa que ele '
              'volta ao consultório.',
              '', ''),
-            ('**Desde 31/10/2026, a receita de controle especial sai só em papel**, para '
-             'assinar e carimbar. A Anvisa passou a exigir a numeração do SNCR na receita de '
-             'controle especial **eletrônica** (RDC 1.000/2025), e a integração do NeuroDoc '
-             'com o SNCR está em implantação — até ela entrar no ar, o botão de assinar '
-             'digitalmente some dessa receita. A receita impressa e assinada à mão continua '
-             'válida. Antimicrobianos e agonistas de GLP-1 (receita sujeita à retenção) seguem '
-             'a mesma regra na versão eletrônica: a tela avisa, e a escolha é do médico.',
+            ('**A receita de controle especial impressa sai para assinar e carimbar.** A '
+             'Anvisa exige a numeração do SNCR na receita de controle especial **eletrônica** '
+             '(RDC 1.000/2025); para assinar digitalmente um controlado, use a **receita '
+             'eletrônica com numeração do SNCR** — ver o artigo dela neste manual.',
              '', ''),
             ('A captura direta por **scanner foi retirada do NeuroDoc**. Digitalize '
              'pelo aplicativo do fabricante ou pelo sistema do computador e envie '
              'o arquivo pronto em **Anexos**. O sistema não procura, pareia nem '
              'compartilha equipamentos locais ou da rede.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'receita-sncr',
+        'title': 'Receita eletrônica com numeração do SNCR',
+        'summary': 'Receita controlada no modelo da Anvisa, com o seu número.',
+        'audience': 'Médico',
+        'steps': [
+            ('**Peça o seu bloco de números.** No menu, **Numeração SNCR** → **Pedir bloco '
+             'com o Gov.br**. Uma página leva você ao Gov.br; depois do login, a Anvisa traz '
+             'você de volta e entrega **1.000 números**, que são **seus**: valem em todas as '
+             'clínicas em que você atende, e só você os usa. São até 3 pedidos por mês de cada '
+             'tipo (RCE e RET), e um bloco não pode ser devolvido — peça outro quando os '
+             'números estiverem acabando.',
+             '', ''),
+            ('**Se o pedido ficar "Resultado incerto"**, não peça de novo: a Anvisa pode ter '
+             'gerado o bloco sem a resposta chegar. Entre em **sncr.anvisa.gov.br** com o '
+             'Gov.br, veja se há bloco gerado nessa data e registre no painel — **Nenhum bloco '
+             'foi gerado**, ou o primeiro e o último número que o portal mostra.',
+             '', ''),
+            ('**Na receita.** No atendimento, em **Conduta**, o botão **Receita controlada '
+             '(SNCR)** abre o formulário já no formato eletrônico; fora do atendimento, em '
+             '**Emitir documento**, escolha **Controle especial — eletrônica** (listas C1 e C5, '
+             'e os adendos) ou **Sujeita à retenção — eletrônica** (antimicrobiano, GLP-1). A '
+             'tela mostra quantos números você tem livres de cada tipo.',
+             '', ''),
+            ('Preencha até **3 medicamentos**. Digite o nome e escolha na lista da Anvisa '
+             '(CMED): a substância, a concentração e a forma farmacêutica entram sozinhas, e '
+             'você ajusta. A quantidade vai em algarismos (o extenso entra sozinho); marque '
+             '**Uso contínuo** quando for o caso — ele sai impresso junto da quantidade, que a '
+             'norma continua exigindo (até 60 dias de tratamento; anticonvulsivante e '
+             'antiparkinsoniano, até 6 meses). O NeuroDoc '
+             'procura cada um na **lista oficial da Portaria 344**. Medicamento que pede '
+             '**Notificação de Receita** (lista B1, como o clonazepam) não sai aqui — use o '
+             'talonário. Se o medicamento depende de dose para entrar no adendo, ou não foi '
+             'encontrado, marque a confirmação: a decisão é sua e fica registrada.',
+             '', ''),
+            ('**Assine.** Cada medicamento sai **na sua folha**, com o **seu número SNCR** — o '
+             'paciente pode levar cada folha a uma farmácia. Todas as folhas vão numa '
+             'assinatura digital só, com o seu certificado ICP-Brasil, no modelo da Anvisa e '
+             'sem o cabeçalho da clínica. O número só é gasto quando a assinatura dá certo.',
+             '', ''),
+            ('**Sem número livre, ou sem certificado agora?** Use **Refazer como receita '
+             'impressa**: a prescrição é copiada para a receita impressa da clínica, para '
+             'assinar e carimbar, e nenhum número é gasto. A receita eletrônica emitida **não '
+             'é corrigida** — o número dela já foi usado —: emita uma nova.',
+             '', ''),
+            ('**O que a farmácia confere:** o número na plataforma da Anvisa '
+             '(sncr.anvisa.gov.br), onde ela registra a utilização, e a assinatura digital no '
+             'validar.iti.gov.br. O QR de cada folha abre a página de verificação do NeuroDoc.',
              '', ''),
         ],
     },

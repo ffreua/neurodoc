@@ -203,13 +203,24 @@ def concluir(request, session_id):
 
 
 def pedidos_parados():
-    """`ENVIANDO` além do prazo vira incerto: o processo morreu no meio."""
+    """`ENVIANDO` além do prazo vira incerto: o processo morreu no meio.
+
+    E o pedido que ficou **aguardando o login** além do prazo do Gov.br vira
+    expirado: o médico fechou a aba, ou o login não voltou. Ele nunca falou
+    com a Anvisa e não barrava nada, mas seguia no painel como "aguardando"
+    — o primeiro pedido real, em 2026-10-29, deixou quatro assim antes do
+    que deu certo, e o painel parecia ter quatro pedidos pendentes.
+    """
     limite = timezone.now() - PRAZO_DO_ENVIO
     for pedido in PedidoNumeracao.objects.filter(estado=EstadoPedido.ENVIANDO, enviado_em__lt=limite):
         _encerrar(
             pedido, EstadoPedido.INCERTO,
             'O pedido foi interrompido no meio. O bloco pode ter sido entregue: confira no portal do SNCR.',
         )
+    vencido = timezone.now() - PRAZO_DO_LOGIN
+    for pedido in PedidoNumeracao.objects.filter(estado=EstadoPedido.AGUARDANDO_LOGIN, created_at__lt=vencido):
+        _encerrar(pedido, EstadoPedido.EXPIRADO,
+                  'O login no Gov.br não foi concluído. Nada foi pedido à Anvisa.')
 
 
 #: O bloco de RCE e de RET tem 1.000 números (Manual v5). A faixa

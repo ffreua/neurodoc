@@ -67,6 +67,10 @@ confere(any(f.startswith('/ajuda/') for f in fontes), 'o manual (/ajuda/) está 
 confere(any(f.startswith('docs/homologation/') for f in fontes), 'a documentação técnica está no índice')
 confere(not any('releases' in f or 'superpowers' in f for f in fontes),
         'plano de trabalho e histórico de publicação ficam de fora')
+confere(not any('/comunicado-' in f for f in fontes),
+        'comunicado às clínicas fica de fora (diz o que valia no dia, não o que vale hoje)')
+confere(any(f.endswith('/ajuda/receita-sncr/') for f in fontes),
+        'o artigo da receita eletrônica do SNCR está no índice')
 
 print('=== 2. a busca acha o trecho certo para pergunta de uso ===')
 casos = [

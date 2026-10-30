@@ -6,25 +6,25 @@ arquivo resume, não substitui a inspeção.
 
 | Campo | Valor |
 | --- | --- |
-| Sprint / gate | **Gate 3 aprovado; publicada DESLIGADA na 1.22 (2026-10-22).** Próximo: ligar, quando o CNPJ chegar ([ATIVACAO.md](ATIVACAO.md), passos 9 a 11) |
-| Branch | integrada em `main` (avanço direto) e publicada |
-| Commit-base | `0676059` (`main`, 1.21.1 publicada) |
-| Produção | **1.22** (`e4dc238`) — a integração inteira **no ar e desligada** (`Configuracao.ativo = False`, ambiente homologação, sem CNPJ); lista oficial importada no worker. **Nenhuma chamada à API do SNCR** foi feita |
-| Bloqueio para ativar | **CNPJ da mantenedora** ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)); depois, o teste real (D8) |
+| Sprint / gate | **EM PRODUÇÃO desde 2026-10-29** (1.29). Teste real (D8) bem-sucedido |
+| Branch | `main` |
+| Produção | **ligada, ambiente Produção**, CNPJ 69.887.146/0001-05 (ProntDoc). Primeiro bloco real: RCE `2610.6-35.049779001` a `2610.6-35.049780000`, pedido em 2026-10-29 às 23:26 pelo Gov.br do Dr. Fernando; primeira RCE eletrônica assinada com o número `2610.6-35.049779001`, **AUTORIZADA** no portal da Anvisa |
+| Bloqueio para ativar | nenhum — CNPJ resolvido ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)) |
 | Decisões | [DECISOES.md](DECISOES.md) — D1 a D8 do proprietário, I1 a I16 de implementação |
 | Ativação e reversão | [ATIVACAO.md](ATIVACAO.md) — o passo a passo de publicar desligada, ligar, o teste real e voltar atrás |
-| Ajuda (a publicar na ativação) | [AJUDA.md](AJUDA.md) |
+| Ajuda | publicada na 1.29: `base/help_content.py`, artigo `receita-sncr` (o rascunho em [AJUDA.md](AJUDA.md) fica como histórico) |
 | Relatório da Sprint 0 | [SPRINT-0-RELATORIO.md](SPRINT-0-RELATORIO.md) |
 
 ## Onde está cada coisa
 
 | O quê | Onde |
 | --- | --- |
-| Transição de 31/10 (D1, em produção) | `documents/sncr_transicao.py`, `documents/templatetags/sncr_transicao.py`, roteiro `check_sncr_transicao` |
+| A RCE impressa não é assinada digitalmente (D1, permanente desde a 1.29; os avisos transitórios saíram) | `documents/rce_impressa.py`, `documents/templatetags/rce_impressa.py`, roteiro `check_rce_impressa` |
+| Receita no atendimento (1.29) | botão em `templates/clinical/detail.html` e `detail_livre.html`, `documents/views.py::_receita_pedida`, saldo em `sncr/templatetags/sncr_receita.py::saldos_sncr`, roteiro `check_sncr_prontuario` |
 | Lista oficial das substâncias controladas (D7) | `catalogs/portaria344.py` (parser estrito do ato), `catalogs/controlados.py` (importação e classificação), comando `import_portaria344` (roda no **worker**), migração `catalogs/0009`, cópia do ato em `catalogs/data/portaria344-rdc1036-2026.html`, roteiro `check_portaria344` |
 | App `sncr`: configuração, pedido, bloco, número | `sncr/models.py` (`Configuracao` **desligada** por padrão), migração `sncr/0001` |
 | Cliente da API (o único lugar que conhece o formato da Anvisa) | `sncr/cliente.py` — desfechos classificados; o que é suposição até o teste real (D8) está aqui |
-| Login Gov.br e pedido de bloco | `sncr/fluxo.py`, `sncr/views.py`, `sncr/urls.py` (`/app/sncr/`), tarefa `sncr/tasks.py` (pedido parado vira incerto) |
+| Login Gov.br e pedido de bloco | `sncr/fluxo.py`, `sncr/views.py` (o POST responde com `templates/sncr/entrar.html`, que abre o Gov.br por link — a CSP `form-action 'self'` recusaria o redirecionamento), `sncr/urls.py` (`/app/sncr/`), tarefa `sncr/tasks.py` (pedido parado vira incerto; login abandonado vira expirado) |
 | Reserva e consumo de números | `sncr/numeracao.py` — `reservar` (um), `reservar_varios` (um por folha, I12), `consumir`, `marcar_perdido`, `numeros_do_documento` |
 | Regra da receita eletrônica | `sncr/receita.py` — itens, quantidade por extenso, classificação, limites (3 medicamentos por emissão; art. 57 por folha) |
 | PDF no modelo da Anvisa | `sncr/pdf_oficial.py` + `sncr/modelos/rce_eletronica_anvisa.pdf` (SHA-256 conferido) — uma folha por medicamento |
@@ -88,12 +88,29 @@ número (I7), faixa irreconhecível não utilizável (I8). Anvisa
 - **Evidência:** `check_sncr_contingencia` verde (41 itens); **bateria
   completa: 121 roteiros, nenhuma falha** (2026-10-21, imagem reconstruída).
 
-## Próxima ação exata
+## Em produção (2026-10-29)
 
-1. ~~Gate 3~~ — aprovado; ~~publicar desligada~~ — feito, 1.22, passos 1 a 8 de [ATIVACAO.md](ATIVACAO.md).
-2. **Ligar:** passos 9 a 11 de [ATIVACAO.md](ATIVACAO.md).
-3. **Quando o CNPJ chegar:** [PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md); depois,
-   o primeiro pedido real em produção, pelo proprietário (D8).
+- **Teste real (D8):** o pedido pelo Gov.br funcionou na primeira tentativa
+  em produção, com a troca do `session_id` pelo servidor e o `Origin` do
+  `PUBLIC_BASE_URL` — as suposições da lacuna L7 se confirmaram. O número
+  real tem a forma `AAMM.T-UF.NNNNNNNNN` (`2610.6-35.049779001`: outubro de
+  2026, tipo 6, UF 35 = SP) e foi enumerado sem ajuste.
+- **A homologação não foi usada:** o login Gov.br de treinamento seguia
+  falhando do lado da Anvisa (o "staging" do Gov.br). Os quatro pedidos em
+  homologação/abandonados do dia ficaram "aguardando login" e passaram a
+  expirar sozinhos.
+- **Prorrogação:** em 2026-10-29 a Diretoria Colegiada da Anvisa aprovou
+  estender até 03/03/2027 a transição da RCE/RET eletrônicas sem numeração.
+  A trava da RCE impressa assinada digitalmente foi **mantida** (decisão do
+  proprietário, mesma data).
+
+## Próxima ação
+
+1. Acompanhar os primeiros blocos dos outros médicos (console: pedidos
+   incertos em vermelho).
+2. Notificações de Receita (A, B, B2) continuam fora do escopo (D5).
+3. Catálogo de antimicrobianos e GLP-1 para a RET (hoje ela aceita o que não
+   é controlado da Portaria 344 e confia no médico para o resto).
 
 ## Pendências
 

@@ -334,9 +334,24 @@ try:
         uf='SP', documento='123456', cnpj=CNPJ, estado=EstadoPedido.ENVIANDO,
         enviado_em=timezone.now() - timedelta(minutes=10),
     )
+    abandonado = PedidoNumeracao.objects.create(
+        medico=medico, solicitado_por=user, tenant=tenant_a, tipo='RET', ambiente='homologacao',
+        uf='SP', documento='123456', cnpj=CNPJ, estado=EstadoPedido.AGUARDANDO_LOGIN,
+    )
+    recente = PedidoNumeracao.objects.create(
+        medico=medico, solicitado_por=user, tenant=tenant_a, tipo='RET', ambiente='homologacao',
+        uf='SP', documento='123456', cnpj=CNPJ, estado=EstadoPedido.AGUARDANDO_LOGIN,
+    )
+    PedidoNumeracao.objects.filter(pk=abandonado.pk).update(created_at=timezone.now() - timedelta(minutes=6))
+    chamadas.clear()
     fluxo.pedidos_parados()
     parado.refresh_from_db()
+    abandonado.refresh_from_db()
+    recente.refresh_from_db()
     conferir('pedido parado em "enviando" vira incerto', parado.estado == EstadoPedido.INCERTO)
+    conferir('login abandonado há mais de 5 minutos vira expirado, sem falar com a Anvisa',
+             abandonado.estado == EstadoPedido.EXPIRADO and chamadas == [], abandonado.estado)
+    conferir('o login ainda no prazo continua aguardando', recente.estado == EstadoPedido.AGUARDANDO_LOGIN)
 
     print('=== 9. a trilha ===')
     eventos = AuditEvent.objects.filter(object_type='sncr_pedido', created_at__gte=timezone.now() - timedelta(minutes=10))

@@ -1,8 +1,0 @@
-{% comment %}Aviso transitório do SNCR (documents/sncr_transicao.py). Sai quando a
-receita eletrônica passar a sair com numeração do SNCR.{% endcomment %}
-{% if aviso %}
-<div class="alert alert-{{ aviso.nivel }} fade show fs-12" role="alert" data-nd-aviso-sncr>
-    <span class="fw-semibold d-block">{{ aviso.titulo }}</span>
-    {{ aviso.texto }}
-</div>
-{% endif %}

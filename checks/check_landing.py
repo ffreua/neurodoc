@@ -649,6 +649,24 @@ if finders.find(AUTOR['foto']) is None:
     falhas.append(f'a foto do autor nao existe: static/{AUTOR["foto"]}')
 print(f'  foto encontrada: {finders.find(AUTOR["foto"]) is not None}')
 
+print('=== o aviso da novidade ===')
+# `base/content.py::NOVIDADE`: nasce escondido (o landing.js mostra a quem
+# não o fechou), aponta um artigo do manual que abre, e cabe na tela do
+# celular — largura limitada à da página menos as margens.
+from base.content import NOVIDADE
+
+if NOVIDADE:
+    _novidade = re.search(r'<aside[^>]*data-nd-novidade="([^"]+)"[^>]*>', _pagina)
+    print(f'  aviso na página={bool(_novidade)}')
+    if not _novidade or _novidade.group(1) != NOVIDADE['chave']:
+        falhas.append('a página não traz o aviso da novidade com a chave do catálogo')
+    elif ' hidden' not in _novidade.group(0) or 'calc(100% - 32px)' not in _novidade.group(0):
+        falhas.append('o aviso da novidade não nasce escondido, ou não cabe no celular')
+    if NOVIDADE['titulo'] not in _pagina:
+        falhas.append('o título da novidade não está na página')
+    if Client().get(NOVIDADE['link']).status_code != 200:
+        falhas.append(f'o link da novidade não abre: {NOVIDADE["link"]}')
+
 print('---')
 if falhas:
     for line in falhas:

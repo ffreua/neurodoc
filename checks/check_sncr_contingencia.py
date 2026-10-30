@@ -16,8 +16,8 @@ Tenta quebrar. As perguntas são:
   mesma prescrição, o eletrônico descartado, nenhum número gasto e a
   trilha; a emitida e a impressa não se convertem; a tela oferece o botão
   e a recusa da assinatura o aponta?
-- o aviso de 31/10: desligada, "enquanto a integração..."; ligada, o
-  caminho é a eletrônica?
+- a RCE impressa depois de 31/10: a trava continua com a integração
+  ligada, e a recusa aponta a eletrônica só quando ela existe?
 """
 import secrets
 from datetime import date
@@ -33,7 +33,7 @@ from django_otp.plugins.otp_totp.models import TOTPDevice
 
 from accounts.models import PhysicianProfile, User
 from audit.models import AuditEvent
-from documents import issuance, sncr_transicao
+from documents import issuance, rce_impressa
 from documents.models import Attachment, MedicalDocument, MedicalDocumentStatus
 from patients.models import Patient
 from sncr import fluxo, numeracao, receita
@@ -280,19 +280,20 @@ try:
     conferir('a recusa por falta de número aponta a contingência',
              'Refazer como receita impressa' in open(issuance.__file__, encoding='utf-8').read())
 
-    print('=== 4. o aviso de 31/10 ===')
+    print('=== 4. a RCE impressa depois de 31/10 ===')
     vigente = date(2026, 11, 3)
     config.ativo = False
     config.save()
-    desligada = sncr_transicao.aviso(formato='special_control', hoje=vigente)
-    conferir('desligada: diz que a integração está sendo concluída', 'Enquanto a integração' in desligada['texto'])
+    desligada = rce_impressa.recusa()
+    conferir('desligada: a recusa aponta só o papel',
+             'assinar e carimbar' in desligada and 'eletrônica com numeração' not in desligada)
     config.ativo = True
     config.save()
-    ligada = sncr_transicao.aviso(formato='special_control', hoje=vigente)
-    conferir('ligada: aponta a eletrônica, e a impressa sai para carimbar',
-             'eletrônica' in ligada['texto'] and 'assinar e carimbar' in ligada['texto'] and ligada['nivel'] == 'danger')
+    ligada = rce_impressa.recusa()
+    conferir('ligada: a recusa aponta também a eletrônica do SNCR',
+             'assinar e carimbar' in ligada and 'eletrônica com numeração do SNCR' in ligada)
     conferir('ligada, a trava da RCE impressa continua (é da norma)',
-             sncr_transicao.assinatura_digital_bloqueada(novo, hoje=vigente) if novo else False)
+             rce_impressa.assinatura_digital_bloqueada(novo, hoje=vigente) if novo else False)
 finally:
     print('=== limpeza ===')
     NumeroSncr.objects.filter(documento_id__in=documentos).update(documento=None)

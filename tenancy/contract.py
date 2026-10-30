@@ -43,10 +43,20 @@ fora da folha, como num selo de conferência.
 #: autorizado pela Dra. Karina Albuquerque Freua em 2026-10-19. Pela
 #: cláusula 17.4 é correção que não reduz direito nem amplia obrigação:
 #: quem aceitou a 1.0 continua com a 1.0 arquivada, sem novo aceite.
-VERSAO = '1.1'
+#:
+#: **1.2** (2026-10-29): muda só o CONTRATADO. A plataforma passou a ser
+#: mantida pela ProntDoc Prontuários Médicos Ltda., e quem contrata deixa de
+#: ser a pessoa física do responsável. A empresa era condição da numeração
+#: do SNCR: a Anvisa pede o CNPJ da mantenedora do serviço de prescrição
+#: (Manual da API v5, §2.3.2.3; FAQ de Integração, P34), e o contrato
+#: precisava dizer quem ela é. A troca foi autorizada pela Dra. Karina
+#: Albuquerque Freua; as cláusulas não mudam uma palavra. **Os aceites
+#: anteriores continuam na versão que assinaram** (cláusula 17.6), com a
+#: cópia arquivada; a 1.2 vale para quem contratar a partir de agora.
+VERSAO = '1.2'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-10-19'
+VIGENCIA_DESDE = '2026-10-29'
 
 TITULO = 'Contrato de Adesão ao NeuroDoc'
 
@@ -55,14 +65,16 @@ SUBTITULO = (
     'de dados pessoais'
 )
 
-#: Quem contrata de um lado. Dados do responsável pela plataforma, como
-#: qualificados na minuta.
+#: Quem contrata de um lado: a empresa mantenedora (desde a 1.2). O CNPJ é
+#: o mesmo que a instalação informa à Anvisa no pedido de numeração do SNCR
+#: (`sncr.Configuracao.cnpj_mantenedora`) — aqui fixo em código porque é
+#: texto de contrato, e mudar contrato é commit com autor e data.
 CONTRATADO = {
-    'nome': 'Fernando Freua',
-    'qualificacao': 'brasileiro, médico neurologista',
-    'cpf': '311.515.098-92',
-    'endereco': 'Rua Cubatão, nº 86, conjunto 409',
-    'papel': 'responsável pela plataforma de software denominada NeuroDoc',
+    'nome': 'ProntDoc Prontuários Médicos Ltda.',
+    'qualificacao': 'pessoa jurídica de direito privado',
+    'cnpj': '69.887.146/0001-05',
+    'endereco': 'Avenida Paulista, nº 2073, sala 2220, São Paulo/SP',
+    'papel': 'mantenedora da plataforma de software denominada NeuroDoc',
 }
 
 #: Quem contrata do outro. Não há dados fixos: a CONTRATANTE é quem estiver
@@ -760,9 +772,9 @@ def texto_simples():
         '',
         'De um lado,',
         '',
-        f'{CONTRATADO["nome"].upper()}, {CONTRATADO["qualificacao"]}, inscrito no '
-        f'CPF sob nº {CONTRATADO["cpf"]}, com endereço profissional na '
-        f'{CONTRATADO["endereco"]}, {CONTRATADO["papel"]}, doravante denominado '
+        f'{CONTRATADO["nome"].upper()}, {CONTRATADO["qualificacao"]}, inscrita no '
+        f'CNPJ sob nº {CONTRATADO["cnpj"]}, com sede na '
+        f'{CONTRATADO["endereco"]}, {CONTRATADO["papel"]}, doravante denominada '
         f'simplesmente "NEURODOC" ou "CONTRATADO";',
         '',
         'e, de outro lado,',
@@ -803,10 +815,9 @@ def texto_simples():
         'IDENTIFICAÇÃO DO CONTRATADO',
         '',
         CONTRATADO['nome'],
-        'Médico Neurologista',
-        f'CPF nº {CONTRATADO["cpf"]}',
-        f'Endereço profissional: {CONTRATADO["endereco"]}',
-        'Responsável pela plataforma NeuroDoc',
+        f'CNPJ nº {CONTRATADO["cnpj"]}',
+        f'Sede: {CONTRATADO["endereco"]}',
+        'Mantenedora da plataforma NeuroDoc',
         '',
         'REVISÃO JURÍDICA',
         '',

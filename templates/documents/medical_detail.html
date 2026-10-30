@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd sncr_transicao sncr_receita %}
+{% load nd rce_impressa sncr_receita %}
 {% block title %}{{ document.get_kind_display }} — NeuroDoc{% endblock %}
 {% block page_title %}{{ document.get_kind_display }}{% endblock %}
 {% block breadcrumb %}
@@ -283,10 +283,6 @@
                 <h5 class="card-title mb-0">Ações do médico</h5>
             </div>
             <div class="card-body d-flex flex-column gap-2">
-                {% if document.status == "draft" or document.status == "ready_to_sign" %}
-                {% aviso_sncr document as aviso %}
-                {% include "documents/_aviso_sncr.html" with aviso=aviso %}
-                {% endif %}
                 {% if document.status == "draft" %}
                 <form method="post" action="{% url 'documents:medical-review' document.id %}">
                     {% csrf_token %}
@@ -301,8 +297,13 @@
                 {% rce_assinatura_bloqueada document as rce_bloqueada %}
                 {% if rce_bloqueada %}
                 {% comment %}Sem o botão de assinar: o servidor recusaria
-                (issuance._sign_and_issue). A emissão em papel, logo abaixo,
-                é o caminho válido.{% endcomment %}
+                (issuance._sign_and_issue, documents/rce_impressa.py). A emissão
+                em papel, logo abaixo, é o caminho válido; a frase diz por que o
+                botão não está aqui.{% endcomment %}
+                <p class="fs-12 text-muted mb-0" data-nd-rce-impressa>
+                    A Receita de Controle Especial impressa sai para assinar e carimbar.
+                    {% if nd_sncr_ativo %}Para assinar digitalmente, crie a receita no formato eletrônico com numeração do SNCR.{% endif %}
+                </p>
                 {% elif active_session %}
                 <form method="post" action="{% url 'documents:medical-sign' document.id %}">
                     {% csrf_token %}

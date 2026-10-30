@@ -376,10 +376,11 @@ def run_job(job_id):
 
     deidentified_text = deidentification.deidentify_text(raw_context, patient)
 
-    # A confirmacao do medico mora no proprio pedido e so o relatorio a
-    # escreve: `request_patient_report` so a grava depois de a tela ter
-    # mostrado qual marcador foi encontrado. Nenhuma outra tarefa tem
-    # como chegar aqui com ela.
+    # A confirmacao do medico mora no proprio pedido, e so o relatorio e o
+    # apoio diagnostico a escrevem: `request_patient_report` e
+    # `request_diagnostic_support` so a gravam depois de a tela ter mostrado
+    # qual marcador foi encontrado. O resumo automatico nao tem como chegar
+    # aqui com ela.
     decision = privacy_policy.evaluate_privacy_policy(
         encounter, deidentified_text,
         risco_confirmado=bool((job.target_ref or {}).get('risco_confirmado')),
@@ -510,12 +511,34 @@ def run_job(job_id):
     return artifact
 
 
-def request_diagnostic_support(access_context, encounter, purpose='Apoio ao raciocínio diagnóstico'):
-    """Pede a análise do caso para apoio às hipóteses (RF-11.05)."""
+def request_diagnostic_support(access_context, encounter, purpose='Apoio ao raciocínio diagnóstico',
+                               risco_confirmado=False):
+    """Pede a análise do caso para apoio às hipóteses (RF-11.05).
+
+    `risco_confirmado` é a mesma porta do relatório (`request_patient_report`),
+    aberta em 2026-10-29: o apoio diagnóstico de um caso de neurogenética
+    era bloqueado **sempre** — a consanguinidade respondida (inclusive "Não")
+    vai ao contexto, e a palavra é marcador da política de privacidade. O
+    médico que recusava a trava não tinha o que fazer; agora ele lê na tela
+    qual marcador foi encontrado e decide, com a decisão na trilha. O padrão
+    continua fechado: só a tela, depois do bloqueio, manda `True`.
+    """
     job = create_job(
         access_context, AIJobKind.DIAGNOSTIC_SUPPORT, purpose,
         patient_id=encounter.patient_id, encounter_id=encounter.id,
     )
+    if risco_confirmado and job.status == AIJobStatus.BLOCKED_PRIVACY:
+        # O mesmo pedido (a chave é a versão do atendimento): reabre a linha
+        # bloqueada em vez de criar outra, com a confirmação gravada nela.
+        record_audit_event(
+            access_context.user_id, access_context.tenant_id, 'ai.privacy_risk_confirmed',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'tarefa': AIJobKind.DIAGNOSTIC_SUPPORT, 'motivo': job.status_detail[:200]},
+        )
+        job.target_ref = dict(job.target_ref or {}, risco_confirmado=True)
+        job.status = AIJobStatus.QUEUED if settings.AI_ENABLED else AIJobStatus.DISABLED
+        job.status_detail = ''
+        job.save(update_fields=['target_ref', 'status', 'status_detail', 'updated_at'])
     if job.status == AIJobStatus.QUEUED:
         from .tasks import run_ai_job
 

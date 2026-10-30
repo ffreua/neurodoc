@@ -211,12 +211,12 @@ carimbá-la na publicação.
 #: A **1.24.2**: o relatório da IA aberto pelo sino chega à tela do
 #: relatório (abria a genérica, com os campos do resumo em branco), e a tela
 #: genérica deixa de aprovar relatório sem gerar o documento.
-VERSION = '1.28'
+VERSION = '1.29'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o pedido pronto'
+CODENAME = 'a receita da Anvisa'
 
 
 def version_display():

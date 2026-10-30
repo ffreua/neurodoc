@@ -30,7 +30,7 @@ A distinção mais importante, e a que muda todas as respostas seguintes:
 | --- | --- | --- |
 | **Controlador** | Cada clínica | É ela que decide atender o paciente, o que registrar e por quanto tempo. O prontuário é dela, e é o CRM do médico que responde por ele. |
 | **Operador** | O NeuroDoc (quem mantém a instalação) | Trata os dados **em nome** da clínica, conforme o que o sistema faz, sem decidir finalidade. |
-| **Controlador independente** | O NeuroDoc, mas só nos dados da relação comercial | Cadastro contratual, faturamento, autenticação, segurança da plataforma, registro de aceite, defesa de direitos. Aqui quem decide a finalidade é ele, e a responsabilidade é dele. Distinção que veio do contrato (cláusula 5.3) — ver §9. |
+| **Controlador independente** | O NeuroDoc — desde 2026-10-29, a ProntDoc Prontuários Médicos Ltda. (CNPJ 69.887.146/0001-05), mantenedora —, mas só nos dados da relação comercial | Cadastro contratual, faturamento, autenticação, segurança da plataforma, registro de aceite, defesa de direitos. Aqui quem decide a finalidade é ele, e a responsabilidade é dele. Distinção que veio do contrato (cláusula 5.3) — ver §9. |
 | **Suboperadores** | VPS, SMTP, SMS, IA (quando ligada), Cloudflare | Cada um recebe uma fatia, e cada um exige previsão contratual. Ver §4. |
 
 Consequências práticas que decorrem disso:
@@ -152,7 +152,7 @@ perguntar.
 | Exigência | Onde está tratada |
 | --- | --- |
 | Papéis de controlador e operador | Cláusula 5 do contrato (§9), incluindo o NeuroDoc como controlador independente dos dados da relação comercial |
-| Instrumento do art. 39 | Contrato de adesão (versão 1.1 desde 2026-10-19; a 1.0 segue arquivada com cada aceite), redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, aceito por toda clínica na adesão (§9) |
+| Instrumento do art. 39 | Contrato de adesão (versão 1.2 desde 2026-10-29, com a **ProntDoc Prontuários Médicos Ltda.**, CNPJ 69.887.146/0001-05, como CONTRATADO; a 1.0 e a 1.1, com a pessoa física do responsável, seguem arquivadas com cada aceite), redigido pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476, aceito por toda clínica na adesão (§9) |
 | Bases legais do tratamento | Matriz do §2, sob a redação contratual da cláusula 5 e a responsabilidade de cada controlador |
 | Suboperadores | Cláusula 8: autorização, dever de informar, direito de oposição e rescisão sem ônus |
 | Transferência internacional | Cláusula 10: mecanismo admitido pela LGPD e pela ANPD, cláusulas-padrão quando aplicáveis. A IA segue desligada por padrão |
@@ -227,7 +227,8 @@ que entra.
 | | |
 | --- | --- |
 | **Redação** | Dra. Karina Albuquerque Freua, OAB/SP nº 450.476 |
-| **Versão** | 1.0, vigente desde 2026-09-21 |
+| **Versão** | 1.2, vigente desde 2026-10-29 (1.0 de 2026-09-21; 1.1 de 2026-10-19) |
+| **CONTRATADO** | ProntDoc Prontuários Médicos Ltda., CNPJ 69.887.146/0001-05, Avenida Paulista, nº 2073, sala 2220, São Paulo/SP — desde a 1.2; até a 1.1, a pessoa física do responsável |
 | **Onde mora** | `tenancy/contract.py` — 18 cláusulas |
 | **Onde se lê** | `/contrato/`, público, sem login; e dentro da tela de cadastro |
 | **Onde se confere** | `/instalacao/contratos/` |

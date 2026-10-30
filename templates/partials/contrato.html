@@ -26,10 +26,10 @@ mostra o carimbo é a tela em volta.{% endcomment %}
     <section class="nd-contrato-partes">
         <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Qualificação das partes</h3>
         <p class="mb-2"><strong>De um lado,</strong> {{ contrato.CONTRATADO.nome|upper }},
-        {{ contrato.CONTRATADO.qualificacao }}, inscrito no CPF sob nº
-        {{ contrato.CONTRATADO.cpf }}, com endereço profissional na
+        {{ contrato.CONTRATADO.qualificacao }}, inscrita no CNPJ sob nº
+        {{ contrato.CONTRATADO.cnpj }}, com sede na
         {{ contrato.CONTRATADO.endereco }}, {{ contrato.CONTRATADO.papel }},
-        doravante denominado simplesmente &ldquo;NEURODOC&rdquo; ou
+        doravante denominada simplesmente &ldquo;NEURODOC&rdquo; ou
         &ldquo;CONTRATADO&rdquo;;</p>
         <p class="mb-2"><strong>e, de outro lado,</strong> {{ contrato.CONTRATANTE }}
         Doravante denominado simplesmente &ldquo;CONTRATANTE&rdquo;.</p>
@@ -99,10 +99,9 @@ mostra o carimbo é a tela em volta.{% endcomment %}
             <h3 class="fs-12 fw-bold text-dark text-uppercase mb-2">Identificação do contratado</h3>
             <p class="fs-12 mb-0">
                 <strong>{{ contrato.CONTRATADO.nome }}</strong><br>
-                Médico Neurologista<br>
-                CPF nº {{ contrato.CONTRATADO.cpf }}<br>
-                {{ contrato.CONTRATADO.endereco }}<br>
-                Responsável pela plataforma NeuroDoc
+                CNPJ nº {{ contrato.CONTRATADO.cnpj }}<br>
+                Sede: {{ contrato.CONTRATADO.endereco }}<br>
+                Mantenedora da plataforma NeuroDoc
             </p>
         </div>
         <div>

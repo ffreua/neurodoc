@@ -38,11 +38,13 @@ from datetime import date
 
 from django.conf import settings
 
+from tenancy.contract import CONTRATADO
+
 #: Data da última revisão do conteúdo público, para o `lastmod` do
 #: sitemap. À mão de propósito: `localdate()` faria toda página parecer
 #: atualizada em toda publicação, o rastreador aprenderia que o sinal não
 #: significa nada e passaria a ignorá-lo. Mexer no texto é mexer aqui.
-ATUALIZADO = date(2026, 10, 19)
+ATUALIZADO = date(2026, 10, 29)
 
 #: O que o produto responde quando perguntam "isso é o quê". Entra na
 #: descrição da raiz, no JSON-LD e no cartão de compartilhamento.
@@ -111,6 +113,9 @@ def organizacao():
                  'width': 512, 'height': 512},
         'description': RESUMO,
         'founder': {'@id': _id('fernando-freua')},
+        # A empresa que mantém o produto, como qualificada no contrato.
+        'legalName': CONTRATADO['nome'],
+        'taxID': CONTRATADO['cnpj'],
         'areaServed': {'@type': 'Country', 'name': 'Brasil'},
     }
 

@@ -1,4 +1,5 @@
 from django import forms
+from django.urls import reverse_lazy
 
 from base.widgets import HTML5DateInput
 
@@ -35,8 +36,9 @@ class MedicalDocumentForm(forms.Form):
     prescription_format = forms.ChoiceField(
         label='Formato da receita', required=False,
         choices=PRESCRIPTION_FORMAT_CHOICES, initial=SIMPLE,
-        help_text='O controle especial (Portaria 344/98) sai em duas vias — uma fica '
-                  'retida na farmácia — e exige o endereço completo do paciente.',
+        help_text='O controle especial impresso sai em duas vias, para assinar e carimbar, e exige '
+                  'o endereço completo do paciente. Para assinar digitalmente um controlado, use o '
+                  'formato eletrônico com numeração do SNCR, quando ele aparecer na lista.',
     )
     prescription_text = forms.CharField(
         label='Prescrição', required=False, widget=forms.Textarea(attrs={'rows': 5}),
@@ -96,25 +98,43 @@ class MedicalDocumentForm(forms.Form):
             'forma': 'Ex.: comprimido revestido', 'quantidade': 'Ex.: 60 comprimidos',
             'posologia': 'Ex.: 1 comprimido pela manhã',
         }
+        # O nome do medicamento busca na CMED, como a receita impressa: ao
+        # escolher, preenche a substância (DCB, que é o que a lista oficial
+        # classifica), a concentração e a forma **da mesma linha** — os
+        # destinos são seletores procurados dentro do `data-nd-med-grupo` do
+        # medicamento, e não ids, para a linha 2 não escrever na linha 1.
+        busca = {
+            'data-nd-med-url': reverse_lazy('catalogs:medicamento-search'),
+            'data-nd-med-nome': 'substancia', 'data-nd-med-dose': '[name$="_concentracao"]',
+            'data-nd-med-forma': '[name$="_forma"]', 'data-nd-med-sem-aviso': '1',
+        }
         for n in range(1, receita.LIMITE_MEDICAMENTOS + 1):
             for campo in receita.CAMPOS_DO_ITEM:
+                attrs = {'placeholder': exemplos[campo]}
+                if campo == 'nome':
+                    attrs.update(busca)
                 self.fields[f'item{n}_{campo}'] = forms.CharField(
                     label=receita.ROTULOS_DO_ITEM[campo], required=False,
                     max_length=receita.TAMANHO_MAXIMO[campo],
-                    widget=(forms.Textarea(attrs={'rows': 2, 'placeholder': exemplos[campo]}) if campo == 'posologia'
-                            else forms.TextInput(attrs={'placeholder': exemplos[campo]})),
+                    widget=(forms.Textarea(attrs={'rows': 2, **attrs}) if campo == 'posologia'
+                            else forms.TextInput(attrs=attrs)),
                 )
+            self.fields[f'item{n}_uso_continuo'] = forms.BooleanField(
+                label='Uso contínuo', required=False,
+                help_text='Sai na receita junto da quantidade, que a norma continua exigindo.',
+            )
         if Configuracao.carregar().ativo:
             self.fields['prescription_format'].choices = (
                 list(PRESCRIPTION_FORMAT_CHOICES) + list(receita.FORMAT_CHOICES)
             )
 
     def itens_do_sncr(self):
-        """Os campos de cada item, agrupados para o template desenhar por linha."""
+        """Os campos de cada item, por nome, para o template desenhar a linha."""
         from sncr import receita
 
         return [
-            (n, [self[f'item{n}_{campo}'] for campo in receita.CAMPOS_DO_ITEM])
+            dict({'numero': n, 'uso_continuo': self[f'item{n}_uso_continuo']},
+                 **{campo: self[f'item{n}_{campo}'] for campo in receita.CAMPOS_DO_ITEM})
             for n in range(1, receita.LIMITE_MEDICAMENTOS + 1)
         ]
 

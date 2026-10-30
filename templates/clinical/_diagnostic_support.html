@@ -36,7 +36,27 @@ que faz a lista ser discutível em vez de aceita.
         </div>
     </div>
 
-    {% if support_job.status_detail %}
+    {% if support_job.status == 'blocked_privacy' %}
+    {% comment %}A trava de privacidade (ai/privacy_policy.py) segue fechada por
+    padrão; o médico lê o marcador e decide, e a decisão vai para a trilha
+    (`ai.privacy_risk_confirmed`). O texto do caso sai desidentificado de qualquer
+    forma — nome, documentos e contatos não vão ao provedor.{% endcomment %}
+    <div class="p-3" data-nd-ia-privacidade>
+        <div class="alert alert-warning fade show fs-12 mb-2" role="alert">{{ support_job.status_detail }}</div>
+        <p class="fs-12 text-muted mb-2">
+            A trava existe para que uma combinação de dados raros não permita reconhecer o paciente fora
+            daqui. O caso já vai sem nome, documentos nem contatos. Se o dado é necessário para o raciocínio
+            — consanguinidade numa suspeita genética, por exemplo —, a decisão é sua e fica registrada com o
+            seu nome.
+        </p>
+        <form method="post" action="{% url 'clinical:request-diagnostic-support' encounter.id %}"
+              data-nd-confirm="Enviar o caso à IA mesmo com o marcador de privacidade encontrado? A decisão fica registrada com o seu nome.">
+            {% csrf_token %}
+            <input type="hidden" name="risco_confirmado" value="1">
+            <button type="submit" class="btn btn-sm btn-warning" data-nd-busy>Entendo o risco, analisar assim mesmo</button>
+        </form>
+    </div>
+    {% elif support_job.status_detail %}
     <div class="p-3">
         <div class="alert alert-warning fade show fs-12 mb-0" role="alert">{{ support_job.status_detail }}</div>
     </div>

@@ -9,6 +9,7 @@ sidebar.
 from django.db.models import F
 from django.urls import Resolver404, resolve
 
+from tenancy.contract import CONTRATADO
 from tenancy.permissions import Capability
 
 from .version import VERSION
@@ -60,6 +61,10 @@ def shell(request):
         # mesma, e quem abre um chamado de suporte tem o numero a vista sem
         # precisar procurar.
         'nd_versao': VERSION,
+        # Quem mantém a plataforma, no rodapé público: razão social e CNPJ
+        # lidos do contrato de adesão, que é onde a empresa é qualificada —
+        # um segundo texto escrito à mão divergiria dele no primeiro ajuste.
+        'nd_mantenedora': CONTRATADO,
         'nd_section': _section(request),
         'nd_view': _view_name(request),
         'nd_portal_requests': 0,

@@ -211,7 +211,7 @@ if '/contrato/' not in anonimo.get('/').content.decode(errors='replace'):
 # so no comentario do modulo.
 assinatura = (contract.REVISAO_JURIDICA['nome'] in corpo
               and contract.REVISAO_JURIDICA['oab'] in corpo)
-qualificacao = contract.CONTRATADO['cpf'] in corpo
+qualificacao = contract.CONTRATADO['cnpj'] in corpo
 print(f'  advogada na pagina={assinatura}  qualificacao do contratado={qualificacao}')
 if not assinatura or not qualificacao:
     falhas.append('a pagina publica nao identifica a advogada ou o contratado')

@@ -74,6 +74,9 @@
         var anterior = campo.parentNode.querySelector('.nd-med-aviso');
         if (anterior) { anterior.remove(); }
         if (!item.controle_especial) { return; }
+        /* Na receita eletrônica do SNCR o formato já é o de controlado, e
+         * quem classifica é a lista oficial, não a tarja. */
+        if (campo.dataset.ndMedSemAviso) { return; }
         var formato = destinoFormato ? document.getElementById(destinoFormato) : null;
         /* Já está em controle especial: não há o que avisar. */
         if (formato && formato.value === 'special_control') { return; }
@@ -156,9 +159,16 @@
             } else if (alvoDose) {
                 /* Portal: nome num campo, concentração no outro. A
                  * apresentação integral da CMED inclui blister, material e
-                 * tamanho da caixa, que não são a dose pedida aqui. */
-                campo.value = item.produto || item.substancia;
+                 * tamanho da caixa, que não são a dose pedida aqui.
+                 *
+                 * Receita eletrônica do SNCR (`data-nd-med-nome="substancia"`):
+                 * a substância (DCB), que é o que a lista oficial classifica,
+                 * e a forma farmacêutica por extenso no campo dela. */
+                campo.value = campo.dataset.ndMedNome === 'substancia'
+                    ? (item.substancia || item.produto) : (item.produto || item.substancia);
                 alvoDose.value = item.dosagem || item.apresentacao;
+                var alvoForma = destino(campo.dataset.ndMedForma);
+                if (alvoForma && item.forma) { alvoForma.value = item.forma; }
             } else {
                 campo.value = item.rotulo;
             }

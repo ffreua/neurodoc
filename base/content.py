@@ -89,6 +89,27 @@ CODIGO_ABERTO = {
     'pix': 'fernando.freua@gmail.com',
 }
 
+#: O aviso que a página mostra uma vez a cada visitante (fechado, não volta:
+#: `static/onboarding/landing.js` guarda a `chave` no navegador). Uma novidade
+#: de cada vez, e só o que **já funciona** em produção — a regra do topo deste
+#: módulo vale também aqui. Trocar a `chave` faz o aviso aparecer de novo
+#: para quem fechou o anterior; `None` tira o aviso da página.
+#:
+#: 2026-10-29: o primeiro bloco real do SNCR foi pedido em produção e a
+#: primeira RCE eletrônica numerada foi assinada e conferida no portal da
+#: Anvisa (`docs/sncr/ESTADO_EXECUCAO.md`).
+NOVIDADE = {
+    'chave': 'sncr-2026-10',
+    'selo': 'Novidade',
+    'titulo': 'Receita controlada com a numeração da Anvisa',
+    'texto': 'O NeuroDoc está integrado ao SNCR e segue as novas regras da Anvisa '
+             '(RDC 1.000/2025): o médico pede o próprio bloco de números com o Gov.br '
+             'e emite a Receita de Controle Especial e a Receita Sujeita à Retenção '
+             'eletrônicas no modelo oficial, com assinatura ICP-Brasil.',
+    'link': '/ajuda/receita-sncr/',
+    'link_rotulo': 'Como funciona',
+}
+
 #: Cada item: o que a clínica ganha, não o que o código faz.
 RECURSOS = [
     {

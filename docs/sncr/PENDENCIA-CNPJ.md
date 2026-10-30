@@ -1,8 +1,8 @@
 # PENDÊNCIA — CNPJ da mantenedora do NeuroDoc
 
-**Estado: ABERTA desde 2026-10-21.** O proprietário (Dr. Fernando Freua)
-está constituindo a empresa e informa o CNPJ em alguns dias (decisão D2,
-[DECISOES.md](DECISOES.md)).
+**Estado: RESOLVIDA em 2026-10-29.** ProntDoc Prontuários Médicos Ltda.,
+CNPJ **69.887.146/0001-05**, Avenida Paulista, nº 2073, sala 2220, São
+Paulo/SP (decisão D2, [DECISOES.md](DECISOES.md)). Aberta desde 2026-10-21.
 
 > **Para quem retoma o trabalho:** enquanto este arquivo disser
 > "ABERTA", **não existe CNPJ** para pôr no pedido de numeração do SNCR.
@@ -29,26 +29,28 @@ e Respostas — Integração, P34). Sem ele, o pedido de bloco não é feito.
 Marcar cada item ao concluir, e trocar o estado lá em cima para
 **RESOLVIDA**, com a data.
 
-- [ ] Gravar o CNPJ na configuração da instalação de produção: console
+- [x] Gravar o CNPJ na configuração da instalação de produção: console
       `/instalacao/operacao/`, cartão "Receita eletrônica com numeração do
       SNCR", campo **CNPJ da mantenedora** (pronto desde a Sprint 3; valida
       os dígitos e vai à trilha). Ele aparece também no rodapé de cada
       folha da receita eletrônica ("Identificação da plataforma").
-- [ ] **Contrato de adesão** (`tenancy/contract.py::CONTRATADO`): hoje o
-      contratado é pessoa física. Passar a empresa a mantenedora exige
+- [x] **Contrato de adesão** (`tenancy/contract.py::CONTRATADO`): versão
+      **1.2**, de 2026-10-29, com a ProntDoc. Até a 1.1 o contratado era
+      pessoa física. Passar a empresa a mantenedora exige
       **versão nova** do contrato (cláusula 17.6), redigida pela Dra.
       Karina Albuquerque Freua.
-- [ ] **Relação de suboperadores e LGPD** (`docs/governance/suboperadores.md`,
+- [x] **Relação de suboperadores e LGPD** (`docs/governance/suboperadores.md`,
       `docs/governance/lgpd.md`): o controlador/operador passa a ser a
-      empresa.
-- [ ] **Página de vendas e rodapé** (`base/content.py`,
+      empresa — `lgpd.md` §1, §6 e §9 (a relação de suboperadores lista
+      prestadores, e não o operador, e não muda).
+- [x] **Página de vendas e rodapé** (`base/content.py`,
       `templates/onboarding/landing.html`): identificação da empresa.
-- [ ] **JSON-LD** (`base/seo.py`): a organização que publica o produto.
-- [ ] **README** (seção de licença e do serviço hospedado).
-- [ ] O teste real (D8, que substituiu a prova em homologação da D3): o
+- [x] **JSON-LD** (`base/seo.py`): a organização que publica o produto.
+- [x] **README** (seção de licença e do serviço hospedado).
+- [x] O teste real (D8, que substituiu a prova em homologação da D3): o
       primeiro bloco de RCE pedido pelo proprietário **em produção**,
       seguindo [ATIVACAO.md](ATIVACAO.md).
-- [ ] Atualizar `docs/sncr/ESTADO_EXECUCAO.md` e este arquivo.
+- [x] Atualizar `docs/sncr/ESTADO_EXECUCAO.md` e este arquivo.
 
 ## Onde procurar
 

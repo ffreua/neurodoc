@@ -265,6 +265,7 @@ def search_medications(term, limit=MAX_MEDICAMENTOS):
             'id': str(linha.id),
             'rotulo': rotulo,
             'dosagem': linha.dosagem_resumida(),
+            'forma': linha.forma_farmaceutica(),
             'substancia': linha.substance[:200],
             'produto': linha.product,
             'apresentacao': linha.presentation,

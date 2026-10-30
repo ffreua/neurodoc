@@ -74,10 +74,22 @@ ROTULOS_DO_ITEM = {
 #: altura real; isto barra antes, com a mensagem do campo.
 TAMANHO_MAXIMO = {'nome': 120, 'concentracao': 60, 'forma': 60, 'quantidade': 60, 'posologia': 300}
 
-#: Os nomes dos campos no formulário: `item1_nome`, `item2_posologia`...
+#: Os nomes dos campos no formulário: `item1_nome`, `item2_posologia`...,
+#: e a marca de uso contínuo de cada item (`item1_uso_continuo`).
 CAMPOS_DO_FORMULARIO = tuple(
-    f'item{n}_{campo}' for n in range(1, LIMITE_MEDICAMENTOS + 1) for campo in CAMPOS_DO_ITEM
+    f'item{n}_{campo}' for n in range(1, LIMITE_MEDICAMENTOS + 1)
+    for campo in CAMPOS_DO_ITEM + ('uso_continuo',)
 )
+
+#: O que o uso contínuo acrescenta à quantidade impressa. **Acrescenta, e não
+#: substitui:** a Portaria 344 (art. 52, § 1º) exige a quantidade em
+#: algarismos e por extenso também na receita de uso contínuo, com o limite
+#: de 60 dias de tratamento (6 meses para anticonvulsivante e
+#: antiparkinsoniano); na RET, a RDC 471/2021 pede a indicação de uso
+#: contínuo com a quantidade para cada 30 dias. Uma receita só com "uso
+#: contínuo", sem número, seria recusada no balcão — decisão de
+#: 2026-10-29, explicada ao proprietário quando ele pediu a opção.
+MARCA_USO_CONTINUO = 'uso contínuo'
 
 #: Receituários da lista oficial que a RCE atende sem pergunta.
 _RCE = 'rce'
@@ -270,6 +282,7 @@ def itens_do_formulario(campos):
         valores = {c: ' '.join(str(campos.get(f'item{n}_{c}') or '').split()) for c in CAMPOS_DO_ITEM}
         if not any(valores.values()):
             continue
+        continuo = campos.get(f'item{n}_uso_continuo') in (True, 'on', 'true', '1')
         faltando = [ROTULOS_DO_ITEM[c].lower() for c, v in valores.items() if not v]
         if faltando:
             raise ReceitaInvalida(f'Medicamento {n}: falta {", ".join(faltando)}.')
@@ -279,6 +292,7 @@ def itens_do_formulario(campos):
                     f'Medicamento {n}: {ROTULOS_DO_ITEM[campo].lower()} com mais de '
                     f'{TAMANHO_MAXIMO[campo]} caracteres não cabe no modelo da Anvisa.'
                 )
+        valores['uso_continuo'] = continuo
         itens.append(valores)
     return itens
 
@@ -393,6 +407,8 @@ def preparar(campos, patient, confirmada=False):
         raise ReceitaInvalida(f'No máximo {LIMITE_MEDICAMENTOS} medicamentos por receita.')
     for item in itens:
         item['quantidade'] = quantidade_com_extenso(item['quantidade'])
+        if item.get('uso_continuo') and MARCA_USO_CONTINUO not in item['quantidade'].lower():
+            item['quantidade'] = f'{item["quantidade"]} — {MARCA_USO_CONTINUO}'
     classificacao = [classificar_item(item['nome']) for item in itens]
     if formato == SNCR_RCE:
         _validar_rce(itens, classificacao, confirmada)

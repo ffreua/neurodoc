@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load static sncr_transicao %}
+{% load static sncr_receita %}
 {% block title %}Novo documento médico — NeuroDoc{% endblock %}
 {% block page_title %}Novo documento médico{% endblock %}
 {% block breadcrumb %}
@@ -90,14 +90,6 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                     visíveis, que é o comportamento de antes — a tela continua
                     utilizável, só menos guiada.{% endcomment %}
                     <div class="row g-3 mt-1" data-nd-doc-kind="prescription">
-                        {% comment %}Aviso transitório do SNCR: os dois, porque o
-                        formato ainda não foi escolhido quando a tela abre.{% endcomment %}
-                        <div class="col-12">
-                            {% aviso_sncr formato="special_control" as aviso_rce %}
-                            {% include "documents/_aviso_sncr.html" with aviso=aviso_rce %}
-                            {% aviso_sncr formato="simple" as aviso_ret %}
-                            {% include "documents/_aviso_sncr.html" with aviso=aviso_ret %}
-                        </div>
                         {% include "partials/field.html" with field=form.prescription_format col="col-md-6" %}
 
                         {% comment %}Receita eletrônica do SNCR (docs/sncr/): itens
@@ -117,21 +109,31 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                                 só para todas as folhas. Escreva o nome da substância (DCB); a quantidade
                                 em algarismos — o número por extenso é acrescentado sozinho.
                             </div>
-                            {% for numero, campos in form.itens_do_sncr %}
-                            <fieldset class="border rounded-3 p-3 mb-3">
+                            {% saldos_sncr request.user as saldos %}
+                            {% if saldos %}
+                            <div class="d-flex flex-wrap align-items-center gap-2 fs-12 mb-3" data-nd-sncr-saldo>
+                                <span class="text-muted">Seus números livres{% if saldos.homologacao %} ({{ saldos.ambiente }}){% endif %}:</span>
+                                <span class="badge bg-soft-{% if saldos.rce %}success text-success{% else %}danger text-danger{% endif %}">RCE {{ saldos.rce }}</span>
+                                <span class="badge bg-soft-{% if saldos.ret %}success text-success{% else %}danger text-danger{% endif %}">RET {{ saldos.ret }}</span>
+                                <a href="{% url 'sncr:painel' %}" class="ms-1">{% if saldos.rce and saldos.ret %}Numeração SNCR{% else %}Pedir bloco com o Gov.br{% endif %}</a>
+                            </div>
+                            {% endif %}
+                            {% comment %}Uma linha por medicamento, com larguras que cabem o
+                            exemplo de cada campo: em quatro colunas iguais a forma e a
+                            quantidade ficavam com o texto cortado e o rótulo quebrado.
+                            `data-nd-med-grupo` limita a busca da CMED a esta linha.{% endcomment %}
+                            {% for item in form.itens_do_sncr %}
+                            <fieldset class="border rounded-3 p-3 mb-3" data-nd-med-grupo>
                                 <legend class="fs-13 fw-semibold float-none w-auto px-2 mb-0">
-                                    Medicamento {{ numero }}{% if numero > 1 %} <span class="text-muted fw-normal">(opcional)</span>{% endif %}
+                                    Medicamento {{ item.numero }}{% if item.numero > 1 %} <span class="text-muted fw-normal">(opcional)</span>{% endif %}
                                 </legend>
                                 <div class="row g-2">
-                                    {% for campo in campos %}
-                                    {% if forloop.first %}
-                                    {% include "partials/field.html" with field=campo col="col-md-6" %}
-                                    {% elif forloop.last %}
-                                    {% include "partials/field.html" with field=campo col="col-12" %}
-                                    {% else %}
-                                    {% include "partials/field.html" with field=campo col="col-md-2" %}
-                                    {% endif %}
-                                    {% endfor %}
+                                    {% include "partials/field.html" with field=item.nome col="col-md-6" %}
+                                    {% include "partials/field.html" with field=item.concentracao col="col-md-3" %}
+                                    {% include "partials/field.html" with field=item.forma col="col-md-3" %}
+                                    {% include "partials/field.html" with field=item.quantidade col="col-md-6" %}
+                                    {% include "partials/field.html" with field=item.uso_continuo col="col-md-6 d-flex align-items-end" %}
+                                    {% include "partials/field.html" with field=item.posologia col="col-12" %}
                                 </div>
                             </fieldset>
                             {% endfor %}

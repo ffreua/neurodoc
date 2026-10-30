@@ -339,6 +339,21 @@ class PatientDocumentsView(ClinicalDocumentView):
         })
 
 
+def _receita_pedida(request):
+    """O formulário já aberto na receita, quando o link pede (`?receita=sncr_rce`).
+
+    É o botão "Receita eletrônica (SNCR)" da Conduta: o médico chega com o
+    tipo e o formato escolhidos, em vez de achar a opção no fim de um menu.
+    Só formato que o seletor oferece agora — com o SNCR desligado, o pedido
+    de um formato eletrônico cai na receita simples, sem erro.
+    """
+    formato = request.GET.get('receita', '')
+    if not formato:
+        return None
+    validos = {valor for valor, _ in MedicalDocumentForm().fields['prescription_format'].choices}
+    return {'kind': 'prescription', 'prescription_format': formato if formato in validos else 'simple'}
+
+
 class MedicalDocumentCreateView(ClinicalDocumentView):
     def get(self, request, encounter_id):
         encounter = _encounter_or_404(request, encounter_id)
@@ -347,7 +362,7 @@ class MedicalDocumentCreateView(ClinicalDocumentView):
         # dizia "Início › Documentos › Novo" — sem paciente e sem
         # atendimento, como se o documento não pertencesse a ninguém.
         return render(request, 'documents/medical_form.html', {
-            'form': MedicalDocumentForm(), 'encounter': encounter,
+            'form': MedicalDocumentForm(initial=_receita_pedida(request)), 'encounter': encounter,
         })
 
     def post(self, request, encounter_id):
@@ -398,7 +413,8 @@ class PatientDocumentCreateView(ClinicalDocumentView):
     def get(self, request, patient_id):
         paciente = self._patient_or_404(request, patient_id)
         return render(request, 'documents/medical_form.html', {
-            'form': MedicalDocumentForm(), 'patient': paciente, 'sem_atendimento': True,
+            'form': MedicalDocumentForm(initial=_receita_pedida(request)), 'patient': paciente,
+            'sem_atendimento': True,
         })
 
     def post(self, request, patient_id):

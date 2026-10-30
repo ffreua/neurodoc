@@ -47,6 +47,13 @@ logger = logging.getLogger(__name__)
 #: sempre, e na frente: é escrito para quem usa a tela.
 PASTAS_DE_DOCUMENTACAO = ('docs/homologation', 'docs/governance')
 
+#: Arquivos dessas pastas que ficam fora, pelo mesmo motivo das notas de
+#: versão: o **comunicado às clínicas** diz o que valia no dia em que foi
+#: enviado. O de 2026-10 sobre o SNCR dizia "a RCE sai só em papel enquanto a
+#: integração é concluída" — e, com a integração no ar, o chat o citava como
+#: regra atual. O manual é que descreve o sistema de hoje.
+ARQUIVOS_FORA_DO_CORPUS = ('comunicado-',)
+
 #: Quantos trechos acompanham a pergunta, e o teto de caracteres deles.
 #: Quatro trechos cobrem uma resposta que cruza dois assuntos sem empurrar
 #: o histórico da conversa para fora da janela do modelo.
@@ -141,6 +148,8 @@ def _da_documentacao():
     trechos = []
     for pasta in PASTAS_DE_DOCUMENTACAO:
         for arquivo in sorted((raiz / pasta).glob('*.md')):
+            if arquivo.name.startswith(ARQUIVOS_FORA_DO_CORPUS):
+                continue
             try:
                 conteudo = arquivo.read_text(encoding='utf-8')
             except OSError:
