@@ -217,6 +217,10 @@
             if (declaracaoLink) {
                 declaracaoLink.href = '/app/scheduling/' + id + '/declaracao/';
             }
+            var guiaTiss = document.getElementById('slot-guia-tiss');
+            if (guiaTiss) {
+                guiaTiss.href = guiaTiss.getAttribute('data-nd-tiss-base') + '?appointment=' + id;
+            }
             if (smsForm) smsForm.action = '/app/scheduling/' + id + '/confirmar-por/sms/';
             if (emailForm) emailForm.action = '/app/scheduling/' + id + '/confirmar-por/email/';
             if (contactHint) {

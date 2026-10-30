@@ -9,6 +9,16 @@
 {% endblock %}
 {% block page_actions %}
 <a class="btn btn-light" href="{% url 'patients:update' patient.id %}">Editar cadastro</a>
+{% comment %}Faturamento TISS (1.30): na ficha administrativa, que a
+recepção já abre. A guia não carrega prontuário, e a capacidade não é
+`read_clinical` — é `tiss_prepare`, que só existe com o plano e a clínica
+liberada; `nd_tiss_ativo` é a chave da instalação.{% endcomment %}
+{% if nd_can.tiss_view and nd_tiss_ativo %}
+<a class="btn btn-light" href="{% url 'tiss:guias' %}?paciente={{ patient.id }}">Guias TISS</a>
+{% if nd_can.tiss_prepare %}
+<a class="btn btn-light-primary" href="{% url 'tiss:guia-nova' %}?paciente={{ patient.id }}">Gerar guia TISS</a>
+{% endif %}
+{% endif %}
 {% if nd_can.read_clinical %}
 <a class="btn btn-light-primary" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>
 {% endif %}

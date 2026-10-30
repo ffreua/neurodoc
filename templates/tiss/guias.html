@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Guias TISS — NeuroDoc{% endblock %}
+{% block page_title %}Guias TISS{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tiss:inicio' %}">Faturamento TISS</a></li>
+<li class="breadcrumb-item">Guias</li>
+{% endblock %}
+{% block content %}
+<div class="card mb-3">
+    <div class="card-body">
+        {% if paciente %}
+        <p class="fs-13 mb-2">Guias de <strong>{{ paciente.full_name }}</strong> ·
+            <a href="{% url 'tiss:guia-nova' %}?paciente={{ paciente.id }}">Gerar guia</a> ·
+            <a href="{% url 'tiss:guias' %}">ver todas</a></p>
+        {% endif %}
+        <form method="get" class="row g-2 align-items-end">
+            {% if paciente %}<input type="hidden" name="paciente" value="{{ paciente.id }}">{% endif %}
+            <div class="col-md-5">
+                <label class="form-label fs-12" for="f-q">Paciente, nº da guia ou carteira</label>
+                <input class="form-control form-control-sm" id="f-q" name="q" value="{{ filtro.q }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fs-12" for="f-estado">Situação</label>
+                <select class="form-select form-select-sm" id="f-estado" name="estado">
+                    <option value="">Todas</option>
+                    {% for v, r in estados %}<option value="{{ v }}" {% if v == filtro.estado %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label fs-12" for="f-tipo">Tipo</label>
+                <select class="form-select form-select-sm" id="f-tipo" name="tipo">
+                    <option value="">Todos</option>
+                    {% for v, r in tipos %}<option value="{{ v }}" {% if v == filtro.tipo %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-sm btn-primary w-100" type="submit">Filtrar</button></div>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">{{ pagina.paginator.count }} guia{{ pagina.paginator.count|pluralize }}</h5>
+        <span class="fs-12 text-muted">Soma desta página: R$ {{ total_pagina|floatformat:2 }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100"><tr>
+                    <th class="ps-4" scope="col">Nº</th><th scope="col">Tipo</th><th scope="col">Paciente</th>
+                    <th scope="col">Operadora</th><th scope="col">Emissão</th><th scope="col">Valor</th>
+                    <th scope="col">Situação</th>
+                </tr></thead>
+                <tbody>
+                    {% for g in pagina %}
+                    <tr>
+                        <td class="ps-4"><a href="{% url 'tiss:guia' g.id %}" class="fw-semibold">{{ g.numero_prestador }}</a></td>
+                        <td class="fs-12">{{ g.get_tipo_display }}</td>
+                        <td class="fs-12">{{ g.paciente.full_name }}</td>
+                        <td class="fs-12">{{ g.credenciamento.operadora.name|default:"—" }}</td>
+                        <td class="fs-12">{{ g.data_emissao|date:"d/m/Y" }}</td>
+                        <td class="fs-12">R$ {{ g.total|default:0|floatformat:2 }}</td>
+                        <td class="fs-12">{{ g.get_estado_display }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="ps-4 py-4 text-muted fs-13">Nenhuma guia. Gere pela ficha do paciente ou pelo horário na agenda.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagina.has_previous or pagina.has_next %}
+    <div class="card-footer">
+        <nav aria-label="Paginação">
+            <ul class="pagination mb-0 justify-content-center justify-content-sm-end">
+                <li class="page-item {% if not pagina.has_previous %}disabled{% endif %}">
+                    {% if pagina.has_previous %}
+                    <a class="page-link" href="?q={{ filtro.q|urlencode }}&amp;estado={{ filtro.estado }}&amp;tipo={{ filtro.tipo }}{% if paciente %}&amp;paciente={{ paciente.id }}{% endif %}&amp;pagina={{ pagina.previous_page_number }}">Anterior</a>
+                    {% else %}<span class="page-link">Anterior</span>{% endif %}
+                </li>
+                <li class="page-item disabled"><span class="page-link">{{ pagina.number }} / {{ pagina.paginator.num_pages }}</span></li>
+                <li class="page-item {% if not pagina.has_next %}disabled{% endif %}">
+                    {% if pagina.has_next %}
+                    <a class="page-link" href="?q={{ filtro.q|urlencode }}&amp;estado={{ filtro.estado }}&amp;tipo={{ filtro.tipo }}{% if paciente %}&amp;paciente={{ paciente.id }}{% endif %}&amp;pagina={{ pagina.next_page_number }}">Próxima</a>
+                    {% else %}<span class="page-link">Próxima</span>{% endif %}
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

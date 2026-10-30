@@ -58,11 +58,42 @@ Desligar: o mesmo cartão, um clique. Nada é apagado.
   levado a configurar ao entrar na área TISS — é o comportamento da tela
   de reconfirmação existente, e o A9 recomenda o segundo fator.
 
-## Sprint 2 — próxima
+## Sprint 2 — guias (30/10/2026, ainda na versão 1.30)
 
-Guia de Consulta e SP/SADT: botão na ficha administrativa do paciente,
-formulário progressivo com o que já existe (cobertura, credenciamento,
-profissional), itens com busca TUSS e vigência na data do serviço, preço do
-honorário com origem visível, pendências legíveis, snapshot no fechamento,
-impressão nos modelos oficiais (A4 p.469 e p.520) e o vínculo com o
-recebível — sem criar cobrança nova para consulta já cobrada.
+| Entrega | Situação | Onde | Roteiro |
+| --- | --- | --- | --- |
+| Guia de Consulta e de SP/SADT, com numeração da clínica sob trava | implementado | `tiss/models.py` (`Guia`, `ItemGuia`, `Sequencia`), `tiss/migrations/0002` | `check_tiss_guias` |
+| Preenchimento a partir do que existe: convênio do horário, carteira, credenciamento único da operadora, médico do horário como executante/solicitante, tipo de consulta | implementado | `tiss/guias.py::criar_guia` | `check_tiss_guias` |
+| **Vínculo com a cobrança do check-in** — nenhum recebível novo; um recebível em no máximo um item (serviço e banco); cancelar solta | implementado | `ItemGuia.recebivel`, `tiss_item_recebivel_uniq` | `check_tiss_guias` |
+| Procedimentos com busca TUSS e **vigência na data do serviço**; preço do contrato com a origem; valor diferente só com motivo; fator e arredondamento uma vez | implementado | `tiss/guias.py` (`conferir_codigo`, `preco_contratado`, `gravar_item`) | `check_tiss_guias` |
+| Pendências legíveis, por quem resolve (recepção, médico, gestor), e domínios conferidos contra o XSD da versão do credenciamento | implementado | `tiss/guias.py::pendencias`, `tiss/forms_guia.py` | `check_tiss_guias` |
+| Fechar congela (snapshot); revisão substitui sem reescrever; cancelar com motivo | implementado | `guias.fechar`, `abrir_revisao`, `cancelar` | `check_tiss_guias` |
+| Indicação clínica só pelo médico, com autoria; a tela da guia sem prontuário | implementado | `guias.registrar_indicacao`, `views_guia.IndicacaoView` | `check_tiss_guias` |
+| Impressão nos modelos oficiais (Consulta p.469, SP/SADT p.520), numeração dos campos, continuação em folhas, tarja no rascunho | implementado | `tiss/impressao.py` | `check_tiss_guias` |
+| Atalhos: ficha do paciente (Gerar guia, Guias), modal da agenda, atendimento (os dois tipos) | implementado | templates | `check_tiss_guias` |
+| Matriz de campos por versão | documentado | `docs/tiss/CAMPOS.md` | — |
+
+**Verificação:** bateria completa na imagem com a Sprint 2, 143 roteiros,
+nenhuma falha (30/10/2026). Não publicada.
+
+**Decisões desta sprint:**
+
+- **Sem campo de CID**: nenhuma versão das duas guias o tem.
+- **Item só do que foi realizado**: guia sem horário nasce sem item; a de
+  Consulta de um horário **com check-in** nasce com a consulta cobrada.
+- **Procedimentos solicitados (campos 24–28 do papel) = os realizados**:
+  o NeuroDoc não guarda pedido de exame como lista estruturada para a
+  guia, e a clínica que solicita e executa lista os mesmos; a quantidade
+  autorizada fica em branco.
+- **Exame sem cobrança no financeiro ainda**: a SP/SADT de um exame não
+  cria recebível; a origem do recebível de exame é a reserva de recurso
+  (Sprint 4).
+
+## Sprint 3 — próxima
+
+XML de cada versão a partir do snapshot da guia fechada, validado pelos
+bytes contra o XSD da versão; hash TISS (A3 p.48-49) com vetores de
+teste; lotes de até 100 guias do mesmo tipo e credenciamento (ou o limite
+menor da operadora); fila com filtros; ciclos (1–último dia, 15–14,
+manual); geração no worker, artefato imutável com SHA-256; protocolo e
+resultado registrados à mão.

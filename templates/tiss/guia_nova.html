@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Nova guia TISS — NeuroDoc{% endblock %}
+{% block page_title %}Nova guia TISS{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tiss:guias' %}">Guias TISS</a></li>
+<li class="breadcrumb-item">Nova</li>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">{{ paciente.full_name }}</h5></div>
+    <div class="card-body">
+        <p class="fs-13 text-muted">
+            A guia nasce com o que o NeuroDoc já sabe — convênio, credenciamento, profissionais e datas.
+            Escolhendo o atendimento de origem, a guia de Consulta já traz a consulta cobrada no
+            check-in. O que faltar aparece como pendência na próxima tela.
+        </p>
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="paciente" value="{{ paciente.id }}">
+            {% for erro in form.non_field_errors %}<div class="alert alert-light-danger fs-13">{{ erro }}</div>{% endfor %}
+            <div class="row g-3">
+                {% for campo in form %}
+                <div class="col-md-6">
+                    <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo }}
+                    {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary" data-nd-busy>Gerar guia</button>
+                <a class="btn btn-light" href="{% url 'patients:detail' paciente.id %}">Voltar à ficha</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

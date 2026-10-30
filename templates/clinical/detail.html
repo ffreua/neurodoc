@@ -9,6 +9,12 @@
 <li class="breadcrumb-item">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</li>
 {% endblock %}
 {% block page_actions %}
+{% if nd_can.tiss_prepare and nd_tiss_ativo %}
+{% comment %}Atalho para a guia TISS deste atendimento (1.30), para quem
+já fatura. A guia não leva nada do prontuário além da indicação clínica,
+que o médico escreve na própria guia.{% endcomment %}
+<a class="btn btn-light" href="{% url 'tiss:guia-nova' %}?paciente={{ encounter.patient_id }}{% if encounter.appointment_id %}&amp;appointment={{ encounter.appointment_id }}{% endif %}">Guia TISS</a>
+{% endif %}
 {% comment %}O resumo abre em janela própria: é para levar o caso para fora da
 tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
 <a class="btn btn-light" href="{% url 'clinical:summary' encounter.id %}"

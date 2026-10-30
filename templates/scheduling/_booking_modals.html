@@ -236,6 +236,12 @@ clicado diz qual horário e qual paciente.
                     imprime direto.{% endcomment %}
                     <a class="btn btn-light btn-sm" id="slot-declaracao" target="_blank"
                        rel="noopener">Declaração de comparecimento</a>
+                    {% if nd_can.tiss_prepare and nd_tiss_ativo %}
+                    {% comment %}Guia TISS do horário (1.30): o JS põe o id no
+                    endereço. A guia de Consulta já nasce com a cobrança do
+                    check-in, se houver.{% endcomment %}
+                    <a class="btn btn-light btn-sm" id="slot-guia-tiss" data-nd-tiss-base="{% url 'tiss:guia-nova' %}">Gerar guia TISS</a>
+                    {% endif %}
                 </div>
 
                 {% comment %}Confirmação por SMS e por e-mail.

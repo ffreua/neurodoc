@@ -310,3 +310,246 @@ class ProfissionalTiss(TenantModel):
     @property
     def uf_ibge(self):
         return UF_IBGE[self.uf]
+
+
+# ---------------------------------------------------------------- Sprint 2
+#
+# A guia, os itens e a numeração. A estrutura segue a união das versões
+# (3.04.00 a 4.03.00) que a ANS publica para Consulta e SP/SADT: campo que
+# só existe numa versão (nome do beneficiário e CNS na 3.x, regime de
+# atendimento na 4.x) é guardado e só sai no XML da versão que o tem
+# (Sprint 3). Árvore campo a campo de cada XSD em `docs/tiss/CAMPOS.md`.
+#
+# **Não há campo de CID**, de propósito: nenhuma versão das duas guias o
+# tem (o diagnóstico com tabela e código é da guia de internação). O único
+# campo clínico é a indicação clínica da SP/SADT, que só o médico preenche
+# (`indicacao_por`), e que fica na guia porque vai à operadora.
+
+
+class TipoGuia(models.TextChoices):
+    CONSULTA = 'consulta', 'Guia de Consulta'
+    SP_SADT = 'sp_sadt', 'Guia de SP/SADT'
+
+
+class EstadoGuia(models.TextChoices):
+    RASCUNHO = 'rascunho', 'Em preenchimento'
+    FECHADA = 'fechada', 'Fechada'
+    CANCELADA = 'cancelada', 'Cancelada'
+    #: Fechada e depois corrigida: a revisão (`Guia.revisa`) a substitui. O
+    #: conteúdo e o snapshot continuam como foram fechados.
+    SUBSTITUIDA = 'substituida', 'Substituída por revisão'
+
+
+class TipoContratadoSolicitante(models.TextChoices):
+    PROPRIO = 'proprio', 'O próprio prestador da guia'
+    CODIGO = 'codigo', 'Outro — código na operadora'
+    CNPJ = 'cnpj', 'Outro — CNPJ'
+    CPF = 'cpf', 'Outro — CPF'
+
+
+class Sequencia(TenantModel):
+    """O próximo número de guia da clínica, reservado sob trava.
+
+    Nunca `MAX(numero) + 1`: duas recepcionistas gerando guia no mesmo
+    segundo leriam o mesmo máximo. A linha é travada com `select_for_update`
+    e incrementada na mesma transação que cria a guia — se a criação falha,
+    o número volta junto.
+    """
+
+    nome = models.CharField(max_length=20)
+    proximo = models.PositiveBigIntegerField(default=1)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant', 'nome'], name='tiss_sequencia_nome_uniq'),
+        ]
+
+
+class Guia(TenantModel):
+    """Uma guia de Consulta ou de SP/SADT.
+
+    Nasce em preenchimento, com o que o NeuroDoc já sabe (cobertura,
+    credenciamento, profissional, data). **Fechar congela**: o `snapshot`
+    guarda o que foi faturado — carteira, contrato, preços, versão —, e
+    mudar o cadastro depois não reescreve guia fechada. Corrigir uma guia
+    fechada é cancelar com motivo e abrir outra que a `revisa`.
+    """
+
+    tipo = models.CharField(max_length=10, choices=TipoGuia.choices)
+    estado = models.CharField(max_length=12, choices=EstadoGuia.choices, default=EstadoGuia.RASCUNHO)
+    paciente = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='+')
+    cobertura = models.ForeignKey(
+        'patients.PatientCoverage', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+    )
+    credenciamento = models.ForeignKey(
+        Credenciamento, on_delete=models.PROTECT, null=True, blank=True, related_name='guias',
+    )
+    #: `numeroGuiaPrestador`: o número que a clínica dá à guia. Reservado na
+    #: criação (`Sequencia`), único na clínica.
+    numero_prestador = models.CharField('nº da guia no prestador', max_length=20)
+    numero_operadora = models.CharField('nº da guia atribuído pela operadora', max_length=20, blank=True)
+    guia_principal = models.CharField('nº da guia principal', max_length=20, blank=True)
+    data_emissao = models.DateField('data de emissão')
+
+    # autorização
+    data_autorizacao = models.DateField('data da autorização', null=True, blank=True)
+    senha = models.CharField('senha', max_length=20, blank=True)
+    validade_senha = models.DateField('validade da senha', null=True, blank=True)
+    cod_validacao = models.CharField('código de validação (token)', max_length=10, blank=True)
+    ausencia_cod_validacao = models.CharField('motivo da ausência do código', max_length=2, blank=True)
+
+    # beneficiário
+    carteira = models.CharField('nº da carteira', max_length=20, blank=True)
+    validade_carteira = models.DateField('validade da carteira', null=True, blank=True)
+    atendimento_rn = models.BooleanField('atendimento a recém-nascido', default=False)
+
+    # solicitante (SP/SADT)
+    contratado_solicitante_tipo = models.CharField(
+        'contratado solicitante', max_length=10,
+        choices=TipoContratadoSolicitante.choices, default=TipoContratadoSolicitante.PROPRIO,
+    )
+    contratado_solicitante_codigo = models.CharField('código / CNPJ / CPF do solicitante', max_length=14, blank=True)
+    contratado_solicitante_nome = models.CharField('nome do contratado solicitante', max_length=70, blank=True)
+    solicitante = models.ForeignKey(
+        ProfissionalTiss, on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+        verbose_name='profissional solicitante',
+    )
+    data_solicitacao = models.DateField('data da solicitação', null=True, blank=True)
+    carater_atendimento = models.CharField('caráter do atendimento', max_length=1, default='1')
+    indicacao_clinica = models.CharField('indicação clínica', max_length=500, blank=True)
+    indicacao_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    indicacao_em = models.DateTimeField(null=True, blank=True)
+    cobertura_especial = models.CharField('indicador de cobertura especial', max_length=2, blank=True)
+
+    # executante e atendimento
+    executante = models.ForeignKey(
+        ProfissionalTiss, on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+        verbose_name='profissional executante',
+    )
+    tipo_atendimento = models.CharField('tipo de atendimento', max_length=2, blank=True)
+    indicacao_acidente = models.CharField('indicação de acidente', max_length=1, default='9')
+    tipo_consulta = models.CharField('tipo de consulta', max_length=1, blank=True)
+    motivo_encerramento = models.CharField('motivo de encerramento', max_length=2, blank=True)
+    regime_atendimento = models.CharField('regime de atendimento', max_length=2, default='01')
+    saude_ocupacional = models.CharField('saúde ocupacional', max_length=2, blank=True)
+    observacao = models.CharField('observação / justificativa', max_length=500, blank=True)
+
+    # origem administrativa: de que horário/atendimento a guia nasceu. Só a
+    # ligação — o conteúdo do prontuário não entra na guia.
+    appointment = models.ForeignKey(
+        'scheduling.Appointment', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+    )
+    encounter = models.ForeignKey(
+        'clinical.Encounter', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+    )
+
+    # fechamento, cancelamento, revisão
+    versao = models.CharField('versão do padrão no fechamento', max_length=10, blank=True)
+    snapshot = models.JSONField(default=dict, blank=True)
+    fechada_em = models.DateTimeField(null=True, blank=True)
+    fechada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    cancelada_em = models.DateTimeField(null=True, blank=True)
+    cancelada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    motivo_cancelamento = models.CharField(max_length=255, blank=True)
+    revisa = models.ForeignKey(
+        'self', on_delete=models.PROTECT, null=True, blank=True, related_name='revisoes',
+    )
+    criada_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+
+    class Meta(TenantModel.Meta):
+        verbose_name = 'guia TISS'
+        verbose_name_plural = 'guias TISS'
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant', 'numero_prestador'], name='tiss_guia_numero_uniq'),
+            models.CheckConstraint(
+                condition=~models.Q(estado='fechada') | models.Q(fechada_em__isnull=False),
+                name='tiss_guia_fechada_tem_data',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'paciente', '-data_emissao'], name='tiss_guia_paciente_idx'),
+            models.Index(fields=['tenant', 'estado', 'data_emissao'], name='tiss_guia_estado_idx'),
+        ]
+
+    def __str__(self):
+        return f'{self.get_tipo_display()} {self.numero_prestador}'
+
+    @property
+    def editavel(self):
+        return self.estado == EstadoGuia.RASCUNHO
+
+    @property
+    def versao_efetiva(self):
+        """A versão do fechamento; antes dele, a do credenciamento."""
+        if self.versao:
+            return self.versao
+        return self.credenciamento.versao if self.credenciamento_id else versoes.VERSAO_ATUAL
+
+
+class ItemGuia(TenantModel):
+    """Um procedimento **realizado** — confirmado por quem fatura.
+
+    Agendamento, pedido de exame e check-in não provam execução: nenhum item
+    nasce sozinho de um pedido. A guia de Consulta tem exatamente um item; a
+    SP/SADT, quantos forem realizados.
+
+    O código e a descrição são guardados como texto, com a release TUSS de
+    onde vieram: o espelho troca de release, e a guia continua dizendo o que
+    foi cobrado. O preço guarda a origem (`preco_origem`); alterá-lo à mão
+    exige motivo (`preco_motivo`).
+    """
+
+    guia = models.ForeignKey(Guia, on_delete=models.CASCADE, related_name='itens')
+    sequencial = models.PositiveSmallIntegerField()
+    data_execucao = models.DateField('data da execução')
+    hora_inicial = models.TimeField('hora inicial', null=True, blank=True)
+    hora_final = models.TimeField('hora final', null=True, blank=True)
+    tabela = models.CharField('tabela', max_length=2, default='22')
+    codigo = models.CharField('código do procedimento', max_length=10)
+    descricao = models.CharField('descrição', max_length=150)
+    release_tuss = models.CharField(max_length=40, blank=True)
+    quantidade = models.PositiveSmallIntegerField('quantidade', default=1)
+    via_acesso = models.CharField('via de acesso', max_length=1, blank=True)
+    tecnica = models.CharField('técnica utilizada', max_length=1, blank=True)
+    #: `reducaoAcrescimo` (st_decimal3-2): 1,00 é o preço cheio; 0,70 reduz
+    #: 30%; 1,30 acresce 30%. Aplicado uma vez, no total.
+    fator = models.DecimalField('fator de redução/acréscimo', max_digits=3, decimal_places=2, default=1)
+    valor_unitario = models.DecimalField('valor unitário', max_digits=10, decimal_places=2)
+    valor_total = models.DecimalField('valor total', max_digits=10, decimal_places=2)
+    preco_origem = models.CharField(max_length=255, blank=True)
+    preco_motivo = models.CharField('motivo da alteração do preço', max_length=255, blank=True)
+    #: A cobrança que este item fatura, quando ela já existe (a consulta
+    #: cobrada no check-in). Um recebível, no máximo um item: a guia vincula
+    #: a cobrança existente e **nunca** cria outra para o mesmo serviço.
+    recebivel = models.ForeignKey(
+        'finance.Receivable', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+    )
+
+    class Meta(TenantModel.Meta):
+        verbose_name = 'procedimento da guia'
+        verbose_name_plural = 'procedimentos da guia'
+        ordering = ['sequencial']
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['guia', 'sequencial'], name='tiss_item_sequencial_uniq'),
+            models.UniqueConstraint(
+                fields=['tenant', 'recebivel'], condition=models.Q(recebivel__isnull=False),
+                name='tiss_item_recebivel_uniq',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade__gte=1, quantidade__lte=999), name='tiss_item_quantidade',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(fator__gt=0), name='tiss_item_fator_positivo',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.codigo} — {self.descricao[:40]}'

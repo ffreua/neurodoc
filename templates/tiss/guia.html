@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Guia {{ guia.numero_prestador }} — NeuroDoc{% endblock %}
+{% block page_title %}{{ guia.get_tipo_display }} nº {{ guia.numero_prestador }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tiss:guias' %}">Guias TISS</a></li>
+<li class="breadcrumb-item">{{ guia.numero_prestador }}</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'tiss:guia-imprimir' guia.id %}" target="_blank" rel="noopener">Imprimir</a>
+{% if pode_fechar_cap %}
+    {% if guia.estado == 'rascunho' %}
+    <form method="post" action="{% url 'tiss:guia-transicao' guia.id 'fechar' %}" class="d-inline"
+          data-nd-confirm="Fechar a guia? Depois de fechada, ela só muda por revisão.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary" data-nd-busy {% if not pode_fechar %}disabled title="Resolva as pendências antes."{% endif %}>Fechar guia</button>
+    </form>
+    {% elif guia.estado == 'fechada' %}
+    <form method="post" action="{% url 'tiss:guia-transicao' guia.id 'revisar' %}" class="d-inline"
+          data-nd-confirm="Abrir uma revisão desta guia? A original fica como foi fechada até a revisão ser fechada.">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-light-primary" data-nd-busy>Corrigir (abrir revisão)</button>
+    </form>
+    {% endif %}
+{% endif %}
+{% endblock %}
+{% block content %}
+
+{% comment %}A guia mostra o que vai à operadora e nada do prontuário: nome,
+carteira, profissionais, procedimentos e valores. A indicação clínica é o
+único campo clínico, e só o médico o escreve.{% endcomment %}
+
+<div class="d-flex flex-wrap gap-2 align-items-center mb-3 fs-12">
+    <span class="badge {% if guia.estado == 'fechada' %}bg-soft-success text-success{% elif guia.estado == 'rascunho' %}bg-soft-primary text-primary{% else %}bg-gray-200 text-dark{% endif %}">{{ guia.get_estado_display }}</span>
+    <span>Paciente: <strong>{{ guia.paciente.full_name }}</strong></span>
+    <span class="text-muted">· emitida em {{ guia.data_emissao|date:"d/m/Y" }}</span>
+    <span class="text-muted">· versão do padrão {{ guia.versao_efetiva }}</span>
+    {% if guia.revisa_id %}<span class="text-muted">· revisa a guia <a href="{% url 'tiss:guia' guia.revisa_id %}">{{ guia.revisa.numero_prestador }}</a></span>{% endif %}
+    {% for r in revisoes %}<span class="text-muted">· revisão: <a href="{% url 'tiss:guia' r.id %}">{{ r.numero_prestador }}</a> ({{ r.get_estado_display|lower }})</span>{% endfor %}
+    {% if guia.appointment_id %}<span class="text-muted">· origem: atendimento de {{ guia.appointment.starts_at|date:"d/m/Y H:i" }}</span>{% endif %}
+</div>
+
+{% if guia.estado == 'cancelada' %}
+<div class="alert alert-light-danger fs-13">Cancelada em {{ guia.cancelada_em|date:"d/m/Y H:i" }}: {{ guia.motivo_cancelamento }}</div>
+{% endif %}
+
+{% if guia.editavel %}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="card-title mb-0">Pendências</h5></div>
+    <div class="card-body fs-13">
+        {% if pendencias %}
+        <ul class="mb-0">
+            {% for p in pendencias %}
+            <li class="{% if p.impede %}text-danger{% else %}text-muted{% endif %}">
+                {{ p.mensagem }}
+                {% if p.quem == 'medico' %}<span class="badge bg-soft-info text-info">médico</span>{% elif p.quem == 'gestor' %}<span class="badge bg-soft-warning text-warning">gestor</span>{% endif %}
+                {% if not p.impede %}<span class="fs-11">(aviso — não impede fechar)</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <span class="text-success">Nada pendente: a guia pode ser fechada.</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<form method="post" novalidate>
+    {% csrf_token %}
+    <div class="card mb-3">
+        <div class="card-header"><h5 class="card-title mb-0">Dados da guia</h5></div>
+        <div class="card-body">
+            {% for erro in form.non_field_errors %}<div class="alert alert-light-danger fs-13">{{ erro }}</div>{% endfor %}
+            <fieldset {% if not pode_preparar %}disabled{% endif %}>
+            <div class="row g-3">
+                {% for campo in form %}
+                <div class="{% if campo.name == 'observacao' %}col-12{% else %}col-md-4{% endif %}">
+                    {% if campo.widget_type == 'checkbox' %}
+                    <div class="form-check mt-4">{{ campo }}<label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label></div>
+                    {% else %}
+                    <label class="form-label fs-12" for="{{ campo.id_for_label }}">{{ campo.label|capfirst }}</label>
+                    {{ campo }}
+                    {% endif %}
+                    {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            </fieldset>
+            {% if pode_preparar %}
+            <button type="submit" class="btn btn-primary mt-3" data-nd-busy>Gravar dados da guia</button>
+            {% endif %}
+        </div>
+    </div>
+</form>
+
+{% if guia.tipo == 'sp_sadt' %}
+<div class="card mb-3">
+    <div class="card-header"><h5 class="card-title mb-0">Indicação clínica</h5></div>
+    <div class="card-body">
+        {% if pode_indicar %}
+        <form method="post" action="{% url 'tiss:guia-indicacao' guia.id %}">
+            {% csrf_token %}
+            <label class="form-label fs-12" for="{{ indicacao_form.indicacao_clinica.id_for_label }}">{{ indicacao_form.indicacao_clinica.label }}</label>
+            {{ indicacao_form.indicacao_clinica }}
+            <div class="form-text fs-11">{{ indicacao_form.indicacao_clinica.help_text }}</div>
+            <button type="submit" class="btn btn-sm btn-primary mt-2" data-nd-busy>Gravar indicação</button>
+        </form>
+        {% else %}
+        <p class="fs-13 mb-0">{{ guia.indicacao_clinica|default:"Em branco — o médico preenche." }}</p>
+        {% endif %}
+        {% if guia.indicacao_por %}<p class="fs-11 text-muted mb-0 mt-2">Por {{ guia.indicacao_por.get_full_name|default:guia.indicacao_por.email }} em {{ guia.indicacao_em|date:"d/m/Y H:i" }}.</p>{% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between">
+        <h5 class="card-title mb-0">Procedimentos realizados</h5>
+        <span class="fs-13">Total: <strong>R$ {{ total|floatformat:2 }}</strong></span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table align-middle mb-0">
+                <thead class="bg-gray-100"><tr>
+                    <th class="ps-4" scope="col">#</th><th scope="col">Data</th><th scope="col">Código</th>
+                    <th scope="col">Descrição</th><th scope="col">Qtd.</th><th scope="col">Unitário</th>
+                    <th scope="col">Total</th><th scope="col">Origem do preço</th><th class="pe-4" scope="col"></th>
+                </tr></thead>
+                <tbody>
+                    {% for i in itens %}
+                    <tr>
+                        <td class="ps-4">{{ i.sequencial }}</td>
+                        <td class="fs-12">{{ i.data_execucao|date:"d/m/Y" }}</td>
+                        <td class="fs-12">{{ i.tabela }} · {{ i.codigo|default:"—" }}</td>
+                        <td class="fs-12">{{ i.descricao|default:"—" }}</td>
+                        <td class="fs-12">{{ i.quantidade }}</td>
+                        <td class="fs-12">R$ {{ i.valor_unitario|floatformat:2 }}{% if i.fator != 1 %} × {{ i.fator }}{% endif %}</td>
+                        <td class="fs-12">R$ {{ i.valor_total|floatformat:2 }}</td>
+                        <td class="fs-11 text-muted">{{ i.preco_origem }}{% if i.preco_motivo %} — {{ i.preco_motivo }}{% endif %}{% if i.recebivel_id %}<span class="d-block">Vinculado à cobrança do check-in</span>{% endif %}</td>
+                        <td class="pe-4">
+                            {% if pode_preparar %}
+                            <form method="post" action="{% url 'tiss:guia-item' guia.id i.id %}" data-nd-confirm="Remover este procedimento da guia?">
+                                {% csrf_token %}<input type="hidden" name="acao" value="remover">
+                                <button type="submit" class="btn btn-sm btn-light-danger">Remover</button>
+                            </form>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="ps-4 py-3 text-muted fs-13">Nenhum procedimento. Inclua só o que foi realizado.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pode_preparar %}
+    <div class="card-footer">
+        <form method="post" action="{% url 'tiss:guia-item-novo' guia.id %}" novalidate>
+            {% csrf_token %}
+            <h6 class="fs-13">{% if guia.tipo == 'consulta' and itens %}A guia de Consulta tem um procedimento só: se ele está sem código, informar aqui o completa; para trocar, remova o atual.{% else %}Incluir procedimento realizado{% endif %}</h6>
+            {% for erro in item_form.non_field_errors %}<div class="alert alert-light-danger fs-13">{{ erro }}</div>{% endfor %}
+            <div class="row g-2">
+                {% for campo in item_form %}
+                <div class="{% if campo.name == 'descricao' or campo.name == 'preco_motivo' %}col-md-6{% else %}col-md-2{% endif %} position-relative">
+                    <label class="form-label fs-11" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo }}
+                    {% if campo.name == 'codigo' %}<div class="list-group position-absolute shadow-sm w-100" id="tiss-tuss-resultados" style="z-index:1060;max-height:14rem;overflow-y:auto" hidden></div>{% endif %}
+                    {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-sm btn-primary mt-2" data-nd-busy>Incluir procedimento</button>
+        </form>
+    </div>
+    {% endif %}
+</div>
+
+{% if pode_fechar_cap and guia.estado == 'rascunho' or pode_fechar_cap and guia.estado == 'fechada' %}
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">Cancelar a guia</h5></div>
+    <div class="card-body">
+        <form method="post" action="{% url 'tiss:guia-transicao' guia.id 'cancelar' %}" class="row g-2 align-items-end"
+              data-nd-confirm="Cancelar esta guia? Ela continua no histórico, e a cobrança vinculada fica livre para outra guia.">
+            {% csrf_token %}
+            <div class="col-md-9">
+                <label class="form-label fs-12" for="motivo-cancelar">Motivo</label>
+                <input class="form-control form-control-sm" id="motivo-cancelar" name="motivo" maxlength="255" placeholder="Ex.: guia emitida para o convênio errado">
+            </div>
+            <div class="col-md-3"><button type="submit" class="btn btn-sm btn-light-danger w-100" data-nd-busy>Cancelar guia</button></div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'tiss/guia.js' %}"></script>
+{% endblock %}
