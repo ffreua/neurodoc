@@ -80,13 +80,17 @@ NeuroDoc — contato@neurodoc.app.br
 pelo SMTP da instalação (no worker), com cópia oculta para
 `contato@neurodoc.app.br`. O servidor aceitou os cinco:
 
-| Clínica | Responsável (*owner*) | Plano | "Na sua clínica" |
-| --- | --- | --- | --- |
-| Caldas, Rego e Urbano Serviços Médicos | jcc.urbano@gmail.com | Completo | usa a IA da instalação |
-| Caixeta Serviços Médicos (C e N Serviços Médicos LTDA) | saracaixetadesouza@gmail.com | Completo | usa a IA da instalação |
-| Luca SB | suzano.luca@gmail.com | Gratuito | plano sem IA |
-| Santos Dias Medical Care | amandaselvatici.consultorio@gmail.com | Gratuito | plano sem IA |
-| Schalch Serviços Médicos | alexandre.schalch@gmail.com | Gratuito | plano sem IA |
+> Os endereços dos responsáveis saíram deste arquivo em 2026-10-30: o
+> repositório é público, e e-mail de pessoa é dado pessoal. O registro com
+> os endereços fica na cópia oculta guardada em `contato@neurodoc.app.br`.
+
+| Clínica | Plano | "Na sua clínica" |
+| --- | --- | --- |
+| Caldas, Rego e Urbano Serviços Médicos | Completo | usa a IA da instalação |
+| Caixeta Serviços Médicos (C e N Serviços Médicos LTDA) | Completo | usa a IA da instalação |
+| Luca SB | Gratuito | plano sem IA |
+| Santos Dias Medical Care | Gratuito | plano sem IA |
+| Schalch Serviços Médicos | Gratuito | plano sem IA |
 
 Não receberam: a Freua Serviços Médicos (do titular, autor da mudança, que
 usa a própria chave da OpenRouter e por isso nunca é atendida pela reserva)
