@@ -122,6 +122,12 @@ class Cliente:
             raise SessaoInvalida('O login no Gov.br expirou antes do pedido. Peça de novo.', 401)
         if 400 <= status < 500:
             raise Recusado(f'O SNCR recusou o pedido: {_mensagem(resposta)}', status)
+        if status == 204:
+            # OpenAPI 1.2.1: "Nenhuma numeração de receita disponível." A Anvisa
+            # respondeu e disse que não entregou nada — não há bloco a perder,
+            # então é recusa, não incerteza (incerto barraria pedido novo à toa).
+            raise Recusado('O SNCR respondeu que não há numeração disponível para este pedido. '
+                           'Nenhum bloco foi entregue.', status)
         if status >= 500:
             raise Incerto(
                 f'O SNCR respondeu com erro ({status}) depois de receber o pedido. O bloco pode ter '

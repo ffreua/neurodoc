@@ -34,15 +34,20 @@ def enumerar(inicio, fim, quantidade=None):
 
     Aceita só a forma "mesmo prefixo + dígitos de mesmo comprimento"
     (inclusive prefixo vazio). Qualquer outra coisa — prefixos diferentes,
-    comprimentos diferentes, fim antes do início, quantidade que não bate
-    — devolve `None` e o bloco fica não utilizável.
+    comprimentos diferentes, fim antes do início, faixa maior que a
+    quantidade declarada — devolve `None` e o bloco fica não utilizável.
     """
     a, b = _FAIXA.match(inicio or ''), _FAIXA.match(fim or '')
     if not a or not b or a['prefixo'] != b['prefixo'] or len(a['numero']) != len(b['numero']):
         return None
     primeiro, ultimo, largura = int(a['numero']), int(b['numero']), len(a['numero'])
     total = ultimo - primeiro + 1
-    if total < 1 or total > 10_000 or (quantidade is not None and quantidade != total):
+    # A faixa pode ter **menos** números que a `quantidade` declarada — o
+    # próprio exemplo da OpenAPI 1.2.1 traz 0000001 a 0000999 com quantidade
+    # 1000. Os números de início a fim foram todos entregues, então usá-los é
+    # seguro; o que nunca se faz é passar da quantidade, que seria número que
+    # a Anvisa não disse ter entregado.
+    if total < 1 or total > 10_000 or (quantidade is not None and total > quantidade):
         return None
     return [f'{a["prefixo"]}{n:0{largura}d}' for n in range(primeiro, ultimo + 1)]
 

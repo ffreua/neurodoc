@@ -53,6 +53,21 @@ class PainelView(SncrView):
 
 
 class PedirView(SncrView):
+    """Cria o pedido e leva o médico ao Gov.br — por uma página, não por redirect.
+
+    O POST não pode responder com o redirecionamento para a Anvisa: a CSP
+    aplicada em produção tem `form-action 'self'`, e o navegador confere
+    essa diretiva em **cada** salto da navegação que nasceu do envio do
+    formulário — a API do SNCR, o Keycloak da Anvisa e o Gov.br. O envio
+    seria recusado no primeiro salto, sem chegar ao login, e nenhum roteiro
+    veria isso: o cliente de teste do Django não aplica CSP. Abrir uma
+    exceção para três domínios de terceiros em `form-action` amarraria a
+    política ao caminho interno do login da Anvisa, que muda sem aviso.
+
+    A página intermediária começa uma navegação nova (um link), que a CSP
+    não restringe.
+    """
+
     def post(self, request, tipo):
         if tipo not in TipoReceita.values:
             raise Http404
@@ -60,11 +75,13 @@ class PedirView(SncrView):
         if medico is None:
             raise Http404
         try:
-            _pedido, endereco = fluxo.iniciar(request, medico, tipo, request.access_context.tenant_id)
+            pedido, endereco = fluxo.iniciar(request, medico, tipo, request.access_context.tenant_id)
         except fluxo.PedidoRecusado as exc:
             messages.error(request, str(exc))
             return redirect('sncr:painel')
-        return redirect(endereco)
+        return render(request, 'sncr/entrar.html', {
+            'pedido': pedido, 'endereco': endereco, 'config': Configuracao.carregar(),
+        })
 
 
 class RetornoView(SncrView):

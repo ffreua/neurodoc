@@ -24,7 +24,9 @@ perguntas são:
   tela de outro médico?
 - o token não vai para a trilha?
 """
+import html
 import json
+import re
 import threading
 from datetime import timedelta
 from unittest import mock
@@ -122,12 +124,18 @@ def com_anvisa(handler):
     )
 
 
+def endereco_do_govbr(resposta):
+    """O `href` do botão "Entrar com o Gov.br" da página intermediária."""
+    achado = re.search(r'<a href="([^"]+)"[^>]*data-nd-sncr-govbr', resposta.content.decode())
+    return html.unescape(achado.group(1)) if achado else ''
+
+
 def pedir(tipo, handler, session_id='sess-1'):
     """Clique em pedir e retorno do Gov.br. Devolve o pedido mais recente."""
     c = entrar()
     with com_anvisa(handler):
         r = c.post(f'/app/sncr/pedir/{tipo}/')
-        if r.status_code == 302 and 'auth/login' in r['Location']:
+        if r.status_code == 200 and b'data-nd-sncr-govbr' in r.content:
             c.get('/app/sncr/retorno/', {'session_id': session_id})
     return PedidoNumeracao.objects.filter(medico=medico, tipo=tipo).order_by('-created_at').first(), r, c
 
@@ -159,7 +167,13 @@ try:
     print('=== 2. o pedido que dá certo ===')
     chamadas.clear()
     p, r, c = pedir('RCE', anvisa())
-    destino = r['Location']
+    # O POST não redireciona para fora (a CSP `form-action 'self'` recusaria
+    # o salto no navegador): responde com a página que abre o Gov.br por link.
+    conferir('o POST responde com a página do Gov.br, sem redirecionar para fora',
+             r.status_code == 200 and b'data-nd-sncr-govbr' in r.content, r.status_code)
+    destino = endereco_do_govbr(r)
+    conferir('a página abre o link por script com nonce',
+             b'<script nonce=' in r.content and b'location.assign' in r.content)
     conferir('vai ao login do SNCR de homologação',
              destino.startswith('https://api-gateway.hmg.apps.anvisa.gov.br/api-sncr/api/v1/auth/login'))
     conferir('com o retorno em /app/sncr/retorno/', 'app%2Fsncr%2Fretorno' in destino, destino[-80:])
@@ -276,7 +290,24 @@ try:
     p2, _r, _c = pedir('RET', anvisa(post=(200, {'inicio': '5000', 'fim': '5999', 'quantidade': 1000})))
     conferir('bloco que repete números fica não utilizável', p2.estado == EstadoPedido.CONCLUIDO
              and not p2.bloco.utilizavel and 'repete' in p2.bloco.motivo_bloqueio)
-    conferir('quantidade que não bate não gera números', numeracao.enumerar('100', '199', 50) is None)
+    conferir('faixa maior que a quantidade não gera números', numeracao.enumerar('100', '199', 50) is None)
+    # O formato do exemplo da OpenAPI 1.2.1 (resposta 201), com a faixa de
+    # 999 números e quantidade 1000: os números de início a fim valem.
+    ex = numeracao.enumerar('2602.6-53.0000001', '2602.6-53.0000999', 1000)
+    conferir('formato da OpenAPI: prefixo com ponto e hífen, zeros à esquerda',
+             ex is not None and len(ex) == 999 and ex[0] == '2602.6-53.0000001' and ex[-1] == '2602.6-53.0000999',
+             (len(ex) if ex else None))
+    limpar_ret()
+    p, _r, _c = pedir('RET', anvisa(post=(201, {'inicio': '2602.6-53.0000001', 'fim': '2602.6-53.0001000',
+                                               'quantidade': 1000, 'mensagem': 'Numeração gerada com sucesso.'})))
+    conferir('201 com o formato da OpenAPI: 1.000 números utilizáveis',
+             p.estado == EstadoPedido.CONCLUIDO and p.bloco.utilizavel and p.bloco.numeros.count() == 1000,
+             (p.estado, p.mensagem))
+    limpar_ret()
+    p, _r, _c = pedir('RET', anvisa(post=(204, '')))
+    conferir('204 ("nenhuma numeração disponível") é recusa, não incerto',
+             p.estado == EstadoPedido.RECUSADO and not NumeroSncr.objects.filter(medico=medico, tipo='RET').exists(),
+             (p.estado, p.mensagem))
 
     print('=== 8. limite do mês, login expirado, pedido parado ===')
     limpar_ret()

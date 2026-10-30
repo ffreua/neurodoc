@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Entrar com o Gov.br — NeuroDoc{% endblock %}
+{% block page_title %}Numeração SNCR{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'sncr:painel' %}">Numeração SNCR</a></li>
+<li class="breadcrumb-item">Entrar com o Gov.br</li>
+{% endblock %}
+{% block content %}
+{% comment %}Página intermediária do pedido de bloco (sncr/views.py::PedirView): o
+POST não redireciona à Anvisa porque a CSP (`form-action 'self'`) recusaria
+o salto. Daqui sai uma navegação nova, por link.{% endcomment %}
+<div class="row">
+    <div class="col-xxl-6 col-lg-8">
+        <div class="card" data-nd-sncr-entrar>
+            <div class="card-body">
+                <h5 class="mb-2">Pedido de {{ pedido.get_tipo_display }} ({{ pedido.tipo }})</h5>
+                <p class="fs-13 text-muted mb-3">
+                    Você vai sair do NeuroDoc e entrar com o seu Gov.br no SNCR da Anvisa
+                    ({{ config.get_ambiente_display }}). Ao terminar o login, a Anvisa traz você de volta
+                    para cá e o NeuroDoc pede o bloco na hora. O login vale por 5 minutos.
+                </p>
+                <a href="{{ endereco }}" class="btn btn-primary" data-nd-sncr-govbr>Entrar com o Gov.br</a>
+                <a href="{% url 'sncr:painel' %}" class="btn btn-light ms-2">Voltar</a>
+                <p class="fs-12 text-muted mt-3 mb-0">Se a página do Gov.br não abrir sozinha em alguns segundos, clique no botão.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ nd_csp_nonce }}">
+(function () {
+    var link = document.querySelector('[data-nd-sncr-govbr]');
+    if (link) { window.setTimeout(function () { window.location.assign(link.href); }, 600); }
+})();
+</script>
+{% endblock %}
