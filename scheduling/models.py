@@ -244,6 +244,18 @@ ALLOWED_TRANSITIONS = {
 }
 
 
+class BillingMode(models.TextChoices):
+    """Os mesmos valores de `finance.PaymentCategory`, de propósito.
+
+    `patients.PaymentCategory` diz `plan` onde o financeiro diz `insurance`;
+    nenhum dos dois é renomeado (há snapshot e relatório lendo a string).
+    O agendamento fala a língua do financeiro, que é quem a consome.
+    """
+
+    PRIVATE = 'private', 'Particular'
+    INSURANCE = 'insurance', 'Convênio'
+
+
 class Appointment(TenantModel):
     patient = models.ForeignKey('patients.Patient', on_delete=models.PROTECT, related_name='appointments')
     physician_membership = models.ForeignKey(
@@ -260,9 +272,32 @@ class Appointment(TenantModel):
         'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
     cancellation_reason = models.CharField(max_length=255, blank=True)
+    #: Como **este** atendimento é cobrado (1.30). Vazio é "não informado",
+    #: que é o estado de todo agendamento anterior — e nele a cobrança segue
+    #: a regra antiga (`finance.receivables._price_for`). A ficha do
+    #: paciente sugere; o agendamento decide: o mesmo paciente pode vir por
+    #: convênio num dia e particular no outro, e a cobertura vigente na
+    #: ficha não pode transformar a consulta particular em cobrança de
+    #: convênio. Ver `docs/tiss/REVISAO_SPRINT1.md` §4.2.
+    billing_mode = models.CharField(
+        'forma de cobrança', max_length=12, choices=BillingMode.choices, blank=True, default='',
+    )
+    #: A cobertura usada, quando é convênio. PROTECT: cobertura não se apaga
+    #: no NeuroDoc, e a guia futura precisa dela.
+    coverage = models.ForeignKey(
+        'patients.PatientCoverage', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='+',
+    )
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(billing_mode='insurance', coverage__isnull=False)
+                    | (~models.Q(billing_mode='insurance') & models.Q(coverage__isnull=True))
+                ),
+                name='scheduling_appointment_billing_coverage',
+            ),
             ExclusionConstraint(
                 name='scheduling_appointment_no_overlap',
                 expressions=[
@@ -280,6 +315,13 @@ class Appointment(TenantModel):
     def clean(self):
         if self.starts_at >= self.ends_at:
             raise ValidationError({'ends_at': 'O fim do atendimento deve ser depois do início.'})
+        if self.billing_mode == BillingMode.INSURANCE:
+            if self.coverage_id is None:
+                raise ValidationError({'coverage': 'Escolha o convênio do paciente.'})
+            if self.coverage.patient_id != self.patient_id:
+                raise ValidationError({'coverage': 'Este convênio é de outro paciente.'})
+        elif self.coverage_id is not None:
+            raise ValidationError({'coverage': 'Convênio só se informa quando a cobrança é por convênio.'})
 
     def __str__(self):
         return f'{self.patient_id} @ {self.starts_at}'

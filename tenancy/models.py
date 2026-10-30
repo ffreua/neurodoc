@@ -82,6 +82,15 @@ class Tenant(TimestampedModel):
     #: quem combinou já não lembra e o e-mail se perdeu.
     plan_note = models.CharField(max_length=255, blank=True)
 
+    #: O faturamento TISS chegou a esta clínica (1.30). É a chave da
+    #: **liberação gradual**, separada do plano: o plano diz que ela tem
+    #: direito; isto diz que o módulo já foi aberto para ela — a clínica
+    #: piloto primeiro. Nasce `False` em toda clínica, inclusive nas que já
+    #: estão no Completo. Ver `docs/tiss/REVISAO_SPRINT1.md` §4.1.
+    tiss_liberado = models.BooleanField(default=False)
+    #: Por que foi liberado (ou recolhido). Mesmo motivo do `plan_note`.
+    tiss_nota = models.CharField(max_length=255, blank=True)
+
     # ------------------------------------------------- estado comercial
     #
     # Mesma razão do `plan_note`: um estado sem motivo escrito é

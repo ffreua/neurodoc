@@ -65,7 +65,7 @@ INSTALLED_APPS = [
     'base', 'accounts', 'tenancy', 'patients',
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
     'finance', 'ai', 'notifications', 'audit', 'reporting',
-    'integrations', 'events', 'exams', 'teamchat', 'sncr', 'modelos',
+    'integrations', 'events', 'exams', 'teamchat', 'sncr', 'modelos', 'tiss',
 ]
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',
@@ -176,6 +176,13 @@ CELERY_BEAT_SCHEDULE = {
     'sync-tuss': {
         'task': 'catalogs.tasks.sync_tuss',
         'schedule': crontab(hour=4, minute=0, day_of_week=0),
+    },
+    # Operadoras ativas da ANS (1.30), para o cadastro de convênio:
+    # segunda-feira, 05h. A ANS atualiza a lista quando uma operadora
+    # entra ou sai do mercado -- semanal sobra.
+    'importar-operadoras-ans': {
+        'task': 'catalogs.tasks.importar_operadoras_ans',
+        'schedule': crontab(hour=5, minute=0, day_of_week=1),
     },
     # Retomada do que ficou pela metade: de hora em hora.
     #

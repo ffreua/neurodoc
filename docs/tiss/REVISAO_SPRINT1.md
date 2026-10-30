@@ -268,3 +268,39 @@ inferência.
 | P5 | Quais operadoras e versões a clínica do caso principal usa hoje (para saber se só 4.03.00 basta) |
 | P6 | Secretária pode **fechar** guia? Médico pode **exportar**? (§4.8) |
 | P7 | Aprovar o desenho do §4 — em especial a agenda de recurso aditiva (§4.5) e a terceira origem do recebível (§4.4) |
+
+## 7. Decisões do responsável (30/10/2026)
+
+| # | Decisão |
+| --- | --- |
+| P1 | Anexos recebidos. As capturas do GuiasTiss têm nomes e carteiras reais: **não entram no repositório** nem viram fixture. O `modelo_guia_tiss.xml` é sintético e vira caso negativo (abaixo) |
+| P2 | A revisão independente pedida era esta; dada por feita pelo responsável |
+| P4 | Requisitos do A9 **só na área TISS**, que pode ser modular. O resto do NeuroDoc não muda |
+| P5 | **Todas as versões**: as operadoras usam versões diferentes (na captura, Unimed Belém em 4.00.00 e Hapvida em 3.04.00). E deve ser possível cadastrar **todas** as operadoras |
+| P6, P7 | Seguir a recomendação: agenda de exame separada, terceira origem do recebível, a matriz do §4.8 com a secretária fechando e exportando e o médico exportando |
+
+**Como "todas as versões" fica compatível com o §2:** cada uma das sete
+(3.04.00, 3.05.00, 4.00.00, 4.00.01, 4.01.00, 4.02.00, 4.03.00) ganha
+adaptador próprio, validado contra **o próprio XSD**. As 4.x saem para
+cobrança normalmente. As 3.x não constam de nenhum `dm_versao` vigente; para
+elas, o XML de cobrança só sai quando o credenciamento registra que **aquela
+operadora aceita a versão** (quem declarou, quando, e o motivo, na trilha).
+Sem isso, a geração fica marcada como inspeção. O sistema não afirma uma
+aceitação que só a operadora pode dar.
+
+**Diferença de domínio entre versões, medida nos XSDs:** `dm_tipoAtendimento`
+tem o código `05` (exame ambulatorial) até a 4.00.01 e não o tem a partir da
+4.01.00, que acrescenta o `23`; a 3.x tem vinte códigos. É por diferenças
+assim que trocar só a string da versão não é suporte multiversão.
+
+**Validação do anexo, reproduzida** (`lxml` contra `tissV4_01_00.xsd`, sem
+rede e sem DTD):
+
+- como veio: reprovado — namespace `padraotiss` em vez de `padroes/tiss`;
+- com o namespace corrigido só em memória: reprovado em `versaoPadrao`
+  (é `Padrao`), `nomeBeneficiario` (saiu na 4.00.00), `nomeContratado` e
+  `profissionalSolicitante` fora de ordem, `codigoprestadorNaOperadora`
+  (executante sem `contratadoExecutante`), `tipoAtendimento` `05` (fora do
+  domínio da 4.01.00), `dadosAtendimento` incompleto, `sequencialProcedimento`
+  (é `sequencialItem`) e `valorTotalGuia` (é `valorTotal`);
+- o hash `d41d8cd98f00b204e9800998ecf8427e` é o MD5 da cadeia vazia.

@@ -318,3 +318,36 @@ def search_municipalities(term, uf='', limit=MAX_MUNICIPIOS):
         {'nome': m.name, 'uf': m.uf, 'label': m.label, 'ibge': m.ibge_code}
         for m in (comecam + resto)[:limit]
     ]
+
+
+#: Quantas operadoras a busca devolve. Vinte cabem na lista sem rolar.
+MAX_OPERADORAS = 20
+
+
+def search_operadoras(term, limit=MAX_OPERADORAS):
+    """Operadoras ativas da ANS pelo nome, nome fantasia ou registro ANS.
+
+    Cada palavra digitada é obrigatória, em qualquer ordem e sem acento —
+    "unimed belem" acha "UNIMED DE BELÉM COOPERATIVA DE TRABALHO MÉDICO".
+    Registro ANS digitado (só números) procura dentro do registro: "5711"
+    acha 005711, como quem lê o número sem os zeros.
+    Catálogo vazio devolve `[]`: o cadastro de convênio continua aceitando
+    digitação, como antes.
+    """
+    from .importers import normalize_for_search
+    from .models import OperadoraAns
+
+    termo = (term or '').strip()
+    if len(termo) < 2:
+        return []
+    qs = OperadoraAns.objects.filter(ativa=True)
+    if termo.isdigit():
+        qs = qs.filter(registro_ans__contains=termo)
+    else:
+        for palavra in normalize_for_search(termo).split():
+            qs = qs.filter(search_text__contains=palavra)
+    return [
+        {'registro_ans': o.registro_ans, 'nome': o.nome_para_exibir,
+         'razao_social': o.razao_social, 'cnpj': o.cnpj, 'uf': o.uf, 'modalidade': o.modalidade}
+        for o in qs.order_by('razao_social')[:limit]
+    ]

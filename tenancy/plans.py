@@ -124,6 +124,7 @@ PLANS = {
         'max_doctors': 1,
         'clinical_ai': False,
         'sms': False,
+        'tiss': False,
         # `price_monthly` em centavos. Zero é grátis; `None` é "não há
         # preço de tabela", que é coisa diferente e só o Personalizado tem.
         'price_monthly': 0,
@@ -146,6 +147,7 @@ PLANS = {
         'max_doctors': 2,
         'clinical_ai': False,
         'sms': True,
+        'tiss': False,
         'price_monthly': 8700,
         # A tabela era 30% mais cara: R$ 113,10. O desconto que isso
         # representa -- 23% -- e calculado, nunca escrito aqui.
@@ -168,6 +170,7 @@ PLANS = {
         'max_doctors': 5,
         'clinical_ai': True,
         'sms': True,
+        'tiss': True,
         'price_monthly': 14700,
         # Tabela 40% mais cara: R$ 205,80, que representa 28% de desconto.
         'acrescimo_tabela': 40,
@@ -189,6 +192,7 @@ PLANS = {
         'max_doctors': None,
         'clinical_ai': True,
         'sms': True,
+        'tiss': True,
         # Aqui `None` não é grátis: é "não há preço de tabela". A tela
         # precisa dizer isso, e não estampar um zero.
         'price_monthly': None,
@@ -284,6 +288,20 @@ def has_sms(code):
     disponivel"; errar para o outro gasta credito sem contrato.
     """
     return plan_config(code).get('sms', False)
+
+
+def has_tiss(code):
+    """O plano inclui o faturamento TISS (guias de convênio e lotes em XML).
+
+    Completo e Personalizado. É uma das **três** chaves do módulo, e a única
+    comercial: as outras são `Tenant.tiss_liberado` (a clínica entra quando
+    a liberação gradual chega a ela) e `InstallationSettings.tiss_ativo` (o
+    freio da instalação inteira). Ver `docs/tiss/REVISAO_SPRINT1.md` §4.1.
+
+    Ausente vale `False`, e plano desconhecido cai no Gratuito
+    (`plan_config`): na dúvida, o módulo não abre.
+    """
+    return plan_config(code).get('tiss', False)
 
 
 def pricing(code):

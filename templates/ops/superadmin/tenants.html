@@ -100,6 +100,10 @@
                                         data-bs-toggle="collapse" data-bs-target="#estado-{{ row.obj.id }}">
                                     Estado
                                 </button>
+                                <button class="btn btn-sm {% if row.obj.tiss_liberado %}btn-light-success{% else %}btn-light{% endif %}" type="button"
+                                        data-bs-toggle="collapse" data-bs-target="#tiss-{{ row.obj.id }}">
+                                    TISS{% if row.obj.tiss_liberado %} liberado{% endif %}
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -146,6 +150,42 @@
                                         o prontuário tem guarda de vinte anos.
                                     </p>
                                 </div>
+                            </form>
+                        </td>
+                    </tr>
+                    {% comment %}Liberação gradual do TISS (1.30): a clínica piloto
+                    primeiro. Liberar exige plano que inclua o módulo e motivo;
+                    recolher é um clique e não apaga guia nem arquivo.{% endcomment %}
+                    <tr class="collapse" id="tiss-{{ row.obj.id }}">
+                        <td colspan="7" class="ps-4 bg-gray-100">
+                            <form method="post" action="{% url 'superadmin:tenant-tiss' row.obj.id %}"
+                                  class="row g-2 align-items-end py-3">
+                                {% csrf_token %}
+                                {% if row.obj.tiss_liberado %}
+                                <input type="hidden" name="acao" value="recolher">
+                                <div class="col-md-10 fs-12">
+                                    Faturamento TISS liberado{% if row.obj.tiss_nota %} — {{ row.obj.tiss_nota }}{% endif %}.
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-sm btn-light-danger w-100" type="submit" data-nd-busy>Recolher</button>
+                                </div>
+                                {% else %}
+                                <input type="hidden" name="acao" value="liberar">
+                                <div class="col-md-10">
+                                    <label class="form-label fs-11" for="tiss-nota-{{ row.obj.id }}">Motivo <span class="text-danger">*</span></label>
+                                    <input class="form-control form-control-sm" name="tiss_nota" id="tiss-nota-{{ row.obj.id }}"
+                                           maxlength="255" placeholder="Ex.: clínica piloto do faturamento de convênio">
+                                </div>
+                                <div class="col-md-2">
+                                    <button class="btn btn-sm btn-primary w-100" type="submit" data-nd-busy>Liberar TISS</button>
+                                </div>
+                                <div class="col-12">
+                                    <p class="fs-11 text-muted mb-0 mt-1">
+                                        Só abre com o plano Completo ou Personalizado e com o TISS ligado em
+                                        <em>Operação</em>.
+                                    </p>
+                                </div>
+                                {% endif %}
                             </form>
                         </td>
                     </tr>

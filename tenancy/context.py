@@ -84,7 +84,7 @@ def build_access_context(request):
     if not _hostname_matches_tenant(request, membership.tenant_id):
         return None
     from .permissions import capabilities_for
-    from .plans import has_clinical_ai
+    from .plans import has_clinical_ai, has_tiss
 
     return AccessContext(
         user_id=user.id,
@@ -98,5 +98,12 @@ def build_access_context(request):
             # `active_membership_for` ja traz o tenant por `select_related`:
             # ler o plano aqui nao acrescenta consulta a requisicao.
             ai_contracted=has_clinical_ai(membership.tenant.plan),
+            # Plano e liberação moram no tenant, já carregado: sem consulta
+            # a mais. A terceira chave (a da instalação) é conferida nas
+            # telas e tarefas do `tiss`, e não aqui — senão toda tela de
+            # `/app/` pagaria uma consulta por um módulo que ela não usa.
+            tiss_contracted=(
+                has_tiss(membership.tenant.plan) and membership.tenant.tiss_liberado
+            ),
         ),
     )

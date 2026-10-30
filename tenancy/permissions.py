@@ -89,6 +89,27 @@ class Capability:
     #: escopo dela.
     MANAGERIAL_DASHBOARD = 'managerial_dashboard'
 
+    #: Faturamento TISS (1.30): ver guias, lotes e arquivos gerados.
+    #: Nenhuma das capacidades TISS implica `READ_CLINICAL` — a guia leva o
+    #: mínimo de faturamento, e CID ou indicação clínica, quando a guia
+    #: pede, vêm preenchidos pelo médico. Ver `docs/tiss/REVISAO_SPRINT1.md`.
+    TISS_VIEW = 'tiss_view'
+
+    #: Criar e editar guia em rascunho, lançar os procedimentos realizados.
+    TISS_PREPARE = 'tiss_prepare'
+
+    #: Validar e fechar a guia — o fechamento congela o conteúdo — e montar
+    #: o lote.
+    TISS_CLOSE = 'tiss_close'
+
+    #: Gerar e baixar o XML, registrar protocolo e resultado do envio.
+    TISS_EXPORT = 'tiss_export'
+
+    #: Prestador, credenciamento por operadora, versão do padrão e ciclo de
+    #: fechamento. É o que muda **todas** as guias seguintes, por isso fica
+    #: com quem já administra convênios (`MANAGE_HEALTH_PLANS`).
+    TISS_CONFIGURE = 'tiss_configure'
+
 
 #: Capacidades administrativas por papel.
 #:
@@ -122,6 +143,29 @@ _ADMINISTRATIVE = {
     }),
 }
 
+#: O faturamento TISS por papel, decidido em 30/10/2026: a secretária
+#: prepara, fecha e exporta — é quem fatura no consultório —, mas não
+#: configura; o médico faz tudo menos configurar. Só vale quando a clínica
+#: contratou e foi liberada (`tiss_contracted`).
+_TISS = {
+    Role.OWNER: frozenset({
+        Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
+        Capability.TISS_EXPORT, Capability.TISS_CONFIGURE,
+    }),
+    Role.MANAGER: frozenset({
+        Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
+        Capability.TISS_EXPORT, Capability.TISS_CONFIGURE,
+    }),
+    Role.SECRETARY: frozenset({
+        Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
+        Capability.TISS_EXPORT,
+    }),
+    Role.DOCTOR: frozenset({
+        Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
+        Capability.TISS_EXPORT,
+    }),
+}
+
 #: O que só o papel médico abre. Ler é o papel; escrever e assinar exigem
 #: também a habilitação profissional verificada — é a diferença entre
 #: "consta como médico no vínculo" e "pode assinar uma receita".
@@ -129,7 +173,7 @@ _CLINICAL_READ = frozenset({Capability.READ_CLINICAL, Capability.CLINICAL_AI})
 _CLINICAL_WRITE = frozenset({Capability.WRITE_CLINICAL, Capability.ISSUE_DOCUMENT})
 
 
-def capabilities_for(roles, *, clinically_enabled, ai_contracted):
+def capabilities_for(roles, *, clinically_enabled, ai_contracted, tiss_contracted=False):
     """As capacidades de um vínculo.
 
     `roles` acumulam: quem é `owner` **e** `doctor` soma as duas colunas —
@@ -155,11 +199,20 @@ def capabilities_for(roles, *, clinically_enabled, ai_contracted):
 
     Cuidado com o nome: **não é** `settings.AI_ENABLED`. Aquele é o
     interruptor da instalação inteira; este é o contrato de uma clínica.
+
+    `tiss_contracted` é o plano com TISS **e** a clínica liberada
+    (`tenancy.context.tiss_contratado`). Ao contrário de `ai_contracted`, tem
+    padrão — e o padrão é `False`: o argumento só **concede**, então quem
+    não o passa (a IA, os avisos) fica sem as capacidades TISS, que é a
+    direção segura. O padrão perigoso que o parágrafo acima recusa é o que
+    concede por omissão.
     """
     roles = set(roles or [])
     granted = set()
     for role in roles:
         granted |= _ADMINISTRATIVE.get(role, frozenset())
+        if tiss_contracted:
+            granted |= _TISS.get(role, frozenset())
     if Role.DOCTOR in roles:
         granted |= _CLINICAL_READ
         if clinically_enabled:

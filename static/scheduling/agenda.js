@@ -178,6 +178,11 @@
         var typeForm = document.getElementById('slot-type-form');
         var typeSelect = document.getElementById('slot-type-select');
         var typeOpen = document.getElementById('slot-type-open');
+        var billingPanel = document.getElementById('slot-billing-panel');
+        var billingForm = document.getElementById('slot-billing-form');
+        var billingSelect = document.getElementById('slot-billing-select');
+        var billingOpen = document.getElementById('slot-billing-open');
+        var billingId = null;
 
         var STATUS_TONE = {
             scheduled: 'bg-soft-primary text-primary',
@@ -243,10 +248,16 @@
             if (typeOpen) typeOpen.hidden = !tipoEditavel;
             slotType.disabled = !tipoEditavel;
             slotType.style.cursor = tipoEditavel ? 'pointer' : 'default';
+            /* A forma de cobrança segue a mesma regra do tipo: decide o
+             * preço no check-in, e o servidor recusa depois dele. */
+            if (billingOpen) billingOpen.hidden = !tipoEditavel;
+            billingId = id;
+            if (billingForm) billingForm.action = '/app/scheduling/' + id + '/cobranca/';
 
             changePanel.hidden = true;
             cancelPanel.hidden = true;
             if (typePanel) typePanel.hidden = true;
+            if (billingPanel) billingPanel.hidden = true;
             changeChosen.textContent = '';
             changePatientId.value = '';
             changeSearch.value = '';
@@ -257,20 +268,62 @@
             if (!typePanel || slotType.disabled) return;
             changePanel.hidden = true;
             cancelPanel.hidden = true;
+            if (billingPanel) billingPanel.hidden = true;
             typePanel.hidden = !typePanel.hidden;
             if (!typePanel.hidden) typeSelect.focus();
         }
         slotType.addEventListener('click', toggleTypePanel);
         if (typeOpen) typeOpen.addEventListener('click', toggleTypePanel);
 
+        /* As opções vêm do servidor ao abrir: são as coberturas do paciente,
+         * que a célula da grade não carrega. Montadas com textContent — o
+         * nome do convênio é texto digitado por alguém. */
+        function option(value, label) {
+            var opt = document.createElement('option');
+            opt.value = value;
+            opt.textContent = label;
+            return opt;
+        }
+        if (billingOpen) billingOpen.addEventListener('click', function () {
+            if (typePanel) typePanel.hidden = true;
+            changePanel.hidden = true;
+            cancelPanel.hidden = true;
+            billingPanel.hidden = !billingPanel.hidden;
+            if (billingPanel.hidden || !billingId) return;
+            billingSelect.innerHTML = '';
+            billingSelect.appendChild(option('', 'Carregando…'));
+            fetch('/app/scheduling/' + billingId + '/cobranca/', {
+                credentials: 'same-origin', headers: { 'Accept': 'application/json' }
+            })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    billingSelect.innerHTML = '';
+                    billingSelect.appendChild(option('', 'Não informado (segue a ficha)'));
+                    billingSelect.appendChild(option('private', 'Particular'));
+                    (data.opcoes || []).forEach(function (c) {
+                        var rotulo = 'Convênio: ' + c.rotulo + (c.vigente ? '' : ' (fora da vigência neste dia)');
+                        billingSelect.appendChild(option('coverage:' + c.id, rotulo));
+                    });
+                    billingSelect.value = data.modo === 'insurance'
+                        ? 'coverage:' + data.cobertura : (data.modo || '');
+                    billingSelect.focus();
+                })
+                .catch(function () {
+                    billingSelect.innerHTML = '';
+                    billingSelect.appendChild(option('', 'Não foi possível carregar os convênios.'));
+                });
+        });
+
         document.getElementById('slot-change-open').addEventListener('click', function () {
             if (typePanel) typePanel.hidden = true;
+            if (billingPanel) billingPanel.hidden = true;
             cancelPanel.hidden = true;
             changePanel.hidden = !changePanel.hidden;
             if (!changePanel.hidden) changeSearch.focus();
         });
         document.getElementById('slot-cancel-open').addEventListener('click', function () {
             if (typePanel) typePanel.hidden = true;
+            if (billingPanel) billingPanel.hidden = true;
             changePanel.hidden = true;
             cancelPanel.hidden = !cancelPanel.hidden;
             if (!cancelPanel.hidden) document.getElementById('cancel-reason').focus();

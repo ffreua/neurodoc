@@ -446,6 +446,80 @@ def change_appointment_type(context, appointment, new_type, actor_id):
     return appointment
 
 
+def billing_options(appointment):
+    """As coberturas do paciente para o painel "Forma de cobrança" do modal.
+
+    Só o que a recepção já vê na ficha (convênio, plano, carteira mascarada
+    e vigência) — nada clínico. Vigência medida no dia do atendimento.
+    """
+    dia = timezone.localtime(appointment.starts_at).date()
+    opcoes = []
+    for cobertura in (appointment.patient.coverages
+                      .select_related('plan__insurer').order_by('-starts_on', '-created_at')):
+        vigente = not ((cobertura.starts_on and cobertura.starts_on > dia)
+                       or (cobertura.ends_on and cobertura.ends_on < dia))
+        carteira = cobertura.member_number or ''
+        opcoes.append({
+            'id': str(cobertura.id),
+            'rotulo': f'{cobertura.plan.insurer.name} — {cobertura.plan.name}'
+                      + (f' · carteira final {carteira[-4:]}' if carteira else ''),
+            'vigente': vigente,
+            'ativa_na_ficha': cobertura.id == appointment.patient.active_coverage_id,
+        })
+    return opcoes
+
+
+@transaction.atomic
+def set_billing_mode(context, appointment, mode, coverage_id, actor_id):
+    """Particular ou convênio, **neste** atendimento (1.30).
+
+    Só antes do check-in, pela mesma razão do tipo de consulta: a cobrança
+    nasce na chegada, com o preço da forma escolhida (`finance.receivables
+    ._price_for`). Depois disso, quem corrige é o financeiro, com ajuste e
+    motivo — trocar aqui deixaria a cobrança dizendo uma coisa e o
+    agendamento outra.
+
+    `mode` vazio volta ao "não informado", em que vale a regra antiga
+    (cobertura vigente na ficha = convênio). Não mexe em `row_version`: a
+    forma de cobrança não muda o horário, e mudar a versão invalidaria os
+    lembretes já agendados (`scheduling.events`).
+    """
+    from patients.models import PatientCoverage
+
+    from .models import BillingMode
+
+    appointment = _relida(appointment)
+    if appointment.status not in (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED):
+        raise SchedulingError(
+            'A forma de cobrança só muda antes da chegada. Depois do check-in, '
+            'corrija pelo financeiro.'
+        )
+    mode = mode or ''
+    if mode not in ('', *BillingMode.values):
+        raise SchedulingError('Forma de cobrança inválida.')
+    cobertura = None
+    if mode == BillingMode.INSURANCE:
+        cobertura = PatientCoverage.objects.filter(
+            id=coverage_id, tenant_id=context.tenant_id, patient_id=appointment.patient_id,
+        ).first() if coverage_id else None
+        if cobertura is None:
+            raise SchedulingError('Escolha um convênio deste paciente.')
+    anterior = {'mode': appointment.billing_mode, 'coverage': str(appointment.coverage_id or '')}
+    appointment.billing_mode = mode
+    appointment.coverage = cobertura
+    appointment.full_clean()
+    appointment.save(update_fields=['billing_mode', 'coverage', 'updated_at'])
+    record_audit_event(
+        actor_id, context.tenant_id, 'scheduling.appointment_billing_changed',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={
+            'from': anterior,
+            'to': {'mode': mode, 'coverage': str(cobertura.id) if cobertura else ''},
+        },
+    )
+    return appointment
+
+
 @transaction.atomic
 def include_extra_hours(context, physician_membership, day, start_time, cells, reason=''):
     """Abre horário extra num dia, a partir da própria agenda.

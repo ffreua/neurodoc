@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }} — Faturamento TISS — NeuroDoc{% endblock %}
+{% block page_title %}{{ titulo }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tiss:inicio' %}">Faturamento TISS</a></li>
+<li class="breadcrumb-item">{{ titulo }}</li>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="card-title mb-0">{% if objeto %}Editar {{ titulo|lower }}{% else %}Novo {{ titulo|lower }}{% endif %}</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-light-danger fs-13" role="alert">
+                {% for erro in form.non_field_errors %}<span class="d-block">{{ erro }}</span>{% endfor %}
+            </div>
+            {% endif %}
+            <div class="row g-3">
+                {% for campo in form %}
+                <div class="{% if campo.name == 'instrucoes' or campo.name == 'aceite_motivo' or campo.name == 'nome' %}col-12{% else %}col-md-6{% endif %}">
+                    {% if campo.widget_type == 'checkbox' %}
+                    <div class="form-check mt-4">
+                        {{ campo }}
+                        <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    </div>
+                    {% else %}
+                    <label class="form-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+                    {{ campo }}
+                    {% endif %}
+                    {% if campo.help_text %}<div class="form-text fs-11">{{ campo.help_text }}</div>{% endif %}
+                    {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="d-flex gap-2 mt-4">
+                <button type="submit" class="btn btn-primary" data-nd-busy>Gravar</button>
+                <a class="btn btn-light" href="{% url 'tiss:inicio' %}">Voltar</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

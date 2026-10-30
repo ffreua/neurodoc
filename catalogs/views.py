@@ -124,3 +124,15 @@ class MunicipalitySearchAPI(CatalogView):
         return JsonResponse({'results': selectors.search_municipalities(
             request.GET.get('q', ''), uf=request.GET.get('uf', ''),
         )})
+
+
+class OperadoraSearchAPI(CatalogView):
+    """Autocomplete de operadora da ANS para o cadastro de convênio (1.30).
+
+    Dado público da ANS, sem nada da clínica: não exige capacidade além do
+    vínculo, como as outras buscas de catálogo. Quem grava o convênio é a
+    tela de convênios, que exige `MANAGE_HEALTH_PLANS`.
+    """
+
+    def get(self, request):
+        return JsonResponse({'results': selectors.search_operadoras(request.GET.get('q', ''))})

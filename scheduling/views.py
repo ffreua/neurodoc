@@ -1012,6 +1012,61 @@ class ChangeAppointmentTypeView(TenantScopedView):
         return _agenda_redirect(request, doctor, day)
 
 
+class AppointmentBillingView(TenantScopedView):
+    """Particular ou convênio neste horário (1.30), a partir do modal da agenda.
+
+    `GET` devolve as coberturas do paciente em JSON para o painel — só
+    leitura, nada muda. `POST` grava. A recusa vem de
+    `services.set_billing_mode`: só antes da chegada, só cobertura do
+    próprio paciente.
+    """
+
+    def _appointment(self, request, appointment_id):
+        from .models import Appointment
+
+        return get_object_or_404(
+            scope_to_tenant(Appointment.objects.select_related('patient'), request.access_context),
+            id=appointment_id,
+        )
+
+    def get(self, request, appointment_id):
+        appointment = self._appointment(request, appointment_id)
+        return JsonResponse({
+            'modo': appointment.billing_mode,
+            'cobertura': str(appointment.coverage_id or ''),
+            'editavel': appointment.status in ('scheduled', 'confirmed'),
+            'opcoes': services.billing_options(appointment),
+        })
+
+    def post(self, request, appointment_id):
+        appointment = self._appointment(request, appointment_id)
+        day = timezone.localtime(appointment.starts_at).date()
+        doctor = appointment.physician_membership
+        escolha = request.POST.get('billing', '')
+        cobertura = None
+        if escolha.startswith('coverage:'):
+            import uuid
+
+            modo = 'insurance'
+            try:
+                cobertura = uuid.UUID(escolha.split(':', 1)[1])
+            except ValueError:
+                messages.error(request, 'Convênio não encontrado para este paciente.')
+                return _agenda_redirect(request, doctor, day)
+        else:
+            modo = escolha
+        try:
+            services.set_billing_mode(
+                request.access_context, appointment, modo, cobertura, request.user.id,
+            )
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        rotulo = {'private': 'particular', 'insurance': 'convênio'}.get(modo, 'não informada')
+        messages.success(request, f'Forma de cobrança deste horário: {rotulo}.')
+        return _agenda_redirect(request, doctor, day)
+
+
 class RescheduleAppointmentView(TenantScopedView):
     """Remarcar olhando o mês, não digitando data e hora.
 

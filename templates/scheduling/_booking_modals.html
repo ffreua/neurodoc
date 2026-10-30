@@ -274,6 +274,9 @@ clicado diz qual horário e qual paciente.
                     <button type="button" class="btn btn-light btn-sm" id="slot-type-open">
                         Alterar o tipo de consulta
                     </button>
+                    <button type="button" class="btn btn-light btn-sm" id="slot-billing-open">
+                        Particular ou convênio
+                    </button>
                     <button type="button" class="btn btn-light btn-sm" id="slot-change-open">
                         Trocar o paciente deste horário
                     </button>
@@ -301,6 +304,25 @@ clicado diz qual horário e qual paciente.
                             longo só é aceito se o tempo seguinte estiver livre.
                         </div>
                         <button type="submit" class="btn btn-primary btn-sm mt-2" data-nd-busy>Salvar tipo</button>
+                    </form>
+                </div>
+
+                {% comment %}Forma de cobrança deste atendimento (1.30). A ficha
+                sugere, o agendamento decide: o mesmo paciente vem por convênio
+                num dia e particular no outro. As opções chegam por JSON ao
+                abrir o painel (`scheduling:billing`). "Não informado" mantém a
+                regra antiga, e é o estado de todo horário marcado antes.{% endcomment %}
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3" id="slot-billing-panel" hidden>
+                    <form method="post" id="slot-billing-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <label class="form-label fw-semibold" for="slot-billing-select">Forma de cobrança</label>
+                        <select class="form-select form-select-sm" name="billing" id="slot-billing-select"></select>
+                        <div class="form-text fs-11" id="slot-billing-hint">
+                            Vale até o check-in: é na chegada que a cobrança nasce, com o preço da
+                            forma escolhida. "Não informado" segue a ficha do paciente.
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-sm mt-2" data-nd-busy>Salvar forma de cobrança</button>
                     </form>
                 </div>
 

@@ -68,6 +68,13 @@ class ProcedureCode(TimestampedModel):
     #: 14 mil linhas: a varredura sequencial custa menos que a dependência.
     search_text = models.TextField(blank=True, default='')
     active = models.BooleanField(default=True)
+    #: Vigência do termo, como a ANS publica por código (Tab 22: início,
+    #: fim). Nulas nas releases anteriores à 1.30, que descartavam as datas.
+    #: É o que permite à guia TISS validar o código **na data do serviço**
+    #: (Componente Organizacional, §207) — `active` diz só se valia no dia
+    #: da sincronização.
+    starts_on = models.DateField(null=True, blank=True)
+    ends_on = models.DateField(null=True, blank=True)
 
     class Meta:
         constraints = [
@@ -412,3 +419,44 @@ class ControlledSubstance(TimestampedModel):
 
     def __str__(self):
         return f'{self.name} ({self.controlled_list.code})'
+
+
+class OperadoraAns(TimestampedModel):
+    """Operadoras de plano de saúde registradas na ANS (1.30).
+
+    Referência global, como TUSS e municípios: não pertence a inquilino
+    nenhum. Vem dos dados abertos da ANS (`Relatorio_cadop.csv`, operadoras
+    **ativas**), carregada por `import_operadoras_ans` no worker (§2).
+
+    Serve ao cadastro de convênio: a clínica escolhe a operadora da lista e
+    o registro ANS chega com os seis dígitos certos — zero à esquerda
+    incluso (Bradesco Saúde é 005711), que é justamente o que se perde
+    digitando e o que o XML TISS exige (`st_registroANS`).
+
+    **O convênio da clínica continua sendo dela** (`patients.Insurer`): o
+    catálogo sugere, não substitui. Operadora que sai da lista da ANS fica
+    marcada `ativa=False` em vez de apagada, porque o convênio de uma
+    clínica pode continuar apontando para ela em guias antigas.
+    """
+
+    registro_ans = models.CharField(max_length=6, unique=True)
+    cnpj = models.CharField(max_length=14, blank=True)
+    razao_social = models.CharField(max_length=255)
+    nome_fantasia = models.CharField(max_length=255, blank=True)
+    modalidade = models.CharField(max_length=80, blank=True)
+    uf = models.CharField(max_length=2, blank=True)
+    cidade = models.CharField(max_length=120, blank=True)
+    search_text = models.TextField(blank=True, default='')
+    ativa = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = 'operadora (ANS)'
+        verbose_name_plural = 'operadoras (ANS)'
+        ordering = ['razao_social']
+
+    def __str__(self):
+        return f'{self.nome_fantasia or self.razao_social} ({self.registro_ans})'
+
+    @property
+    def nome_para_exibir(self):
+        return self.nome_fantasia or self.razao_social

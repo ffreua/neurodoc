@@ -542,6 +542,7 @@ class OperationsView(SuperAdminView):
             'ia_fora_da_lista': config.ia_modelo_fora_da_lista,
             'reserva_modelos': config.ai_reserva_modelos or [],
             'sncr': sncr_resumo(),
+            'tiss': tiss_resumo(),
         })
 
 
@@ -973,6 +974,125 @@ class SncrInstallationView(SuperAdminView):
         )
         messages.success(request, aviso)
         return redirect('superadmin:operations')
+
+
+#: Palavra que se digita para ligar o faturamento TISS na instalação.
+CONFIRMACAO_LIGAR_TISS = 'LIGAR'
+
+
+def tiss_resumo():
+    """O que a tela de Operação mostra do TISS: a chave e quantas clínicas o têm.
+
+    "Liberadas" e "efetivas" são contadas à parte de propósito: uma clínica
+    liberada que foi rebaixada para o Básico continua liberada, mas não tem
+    o módulo — a diferença entre os dois números é exatamente isso.
+    """
+    from tenancy.models import Tenant
+    from tenancy.plans import PLANS
+    from tiss import versoes
+    from tiss.models import Configuracao
+
+    com_tiss = [codigo for codigo, plano in PLANS.items() if plano.get('tiss')]
+    liberadas = Tenant.objects.filter(tiss_liberado=True)
+    return {
+        'config': Configuracao.carregar(),
+        'confirmacao': CONFIRMACAO_LIGAR_TISS,
+        'liberadas': liberadas.count(),
+        'efetivas': liberadas.filter(plan__in=com_tiss).count(),
+        'versoes': len(versoes.VERSOES),
+    }
+
+
+class TissInstallationView(SuperAdminView):
+    """A chave do TISS na instalação inteira.
+
+    **Assimétrica, como a do SNCR.** Desligar é um clique: é o freio de
+    emergência, e as telas e tarefas do módulo fecham em todas as clínicas
+    sem deploy. Ligar exige digitar a palavra e escrever o motivo.
+    """
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from tiss.models import Configuracao
+
+        config = Configuracao.carregar()
+        acao = request.POST.get('acao')
+        motivo = ''
+        if acao == 'desligar':
+            config.ativo = False
+            evento, aviso = 'ops.tiss_disabled', 'Faturamento TISS desligado em todas as clínicas.'
+        elif acao == 'ligar':
+            if (request.POST.get('confirmacao') or '').strip() != CONFIRMACAO_LIGAR_TISS:
+                messages.error(
+                    request,
+                    f'Para ligar, digite {CONFIRMACAO_LIGAR_TISS} no campo de confirmação. Nada foi alterado.',
+                )
+                return redirect('superadmin:operations')
+            motivo = (request.POST.get('motivo') or '').strip()
+            if not motivo:
+                messages.error(request, 'Escreva o motivo. Nada foi alterado.')
+                return redirect('superadmin:operations')
+            config.ativo = True
+            evento, aviso = 'ops.tiss_enabled', (
+                'Faturamento TISS ligado. Ele só abre nas clínicas liberadas cujo plano o inclui.'
+            )
+        else:
+            raise Http404
+        config.save()
+        metadados = {'ativo': config.ativo}
+        if motivo:
+            metadados['motivo'] = motivo[:255]
+        record_audit_event(
+            request.user, None, evento, object_type='tiss_configuracao', object_id=config.id,
+            outcome='success', integrity_metadata=metadados,
+        )
+        messages.success(request, aviso)
+        return redirect('superadmin:operations')
+
+
+class TenantTissView(SuperAdminView):
+    """Libera ou recolhe o TISS de uma clínica — a liberação gradual.
+
+    Liberar exige motivo e plano que inclua o TISS: liberar uma clínica no
+    Básico não abriria nada, e o número "liberadas" passaria a mentir.
+    Recolher é um clique e não apaga nada: guias e arquivos continuam no
+    banco, só param de abrir.
+    """
+
+    def post(self, request, tenant_id):
+        from audit.services import record_audit_event
+        from tenancy.models import Tenant
+        from tenancy.plans import has_tiss
+
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        acao = request.POST.get('acao')
+        if acao == 'liberar':
+            motivo = (request.POST.get('tiss_nota') or '').strip()
+            if not has_tiss(tenant.plan):
+                messages.error(
+                    request,
+                    'O plano desta clínica não inclui o TISS (só Completo e Personalizado). '
+                    'Nada foi alterado.',
+                )
+                return redirect('superadmin:tenants')
+            if not motivo:
+                messages.error(request, 'Escreva o motivo da liberação. Nada foi alterado.')
+                return redirect('superadmin:tenants')
+            tenant.tiss_liberado, tenant.tiss_nota = True, motivo[:255]
+            evento, aviso = 'tenancy.tiss_released', f'TISS liberado para {tenant.legal_name}.'
+        elif acao == 'recolher':
+            tenant.tiss_liberado = False
+            evento, aviso = 'tenancy.tiss_withdrawn', f'TISS recolhido de {tenant.legal_name}.'
+        else:
+            raise Http404
+        tenant.save(update_fields=['tiss_liberado', 'tiss_nota', 'updated_at'])
+        record_audit_event(
+            request.user, tenant, evento, object_type='tenant', object_id=tenant.id,
+            outcome='success',
+            integrity_metadata={'tiss_liberado': tenant.tiss_liberado, 'nota': tenant.tiss_nota},
+        )
+        messages.success(request, aviso)
+        return redirect('superadmin:tenants')
 
 
 class GarbageCollectionView(SuperAdminView):

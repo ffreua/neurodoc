@@ -101,6 +101,10 @@ urlpatterns = [
         views.ChangeAppointmentTypeView.as_view(), name='change-type',
     ),
     path(
+        '<uuid:appointment_id>/cobranca/',
+        views.AppointmentBillingView.as_view(), name='billing',
+    ),
+    path(
         '<uuid:appointment_id>/confirmar-por/<str:channel>/',
         views.SendConfirmationView.as_view(), name='send-confirmation',
     ),

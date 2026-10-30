@@ -142,6 +142,13 @@ def shell(request):
         from sncr.models import Configuracao
 
         data['nd_sncr_ativo'] = Configuracao.objects.filter(ativo=True).exists()
+    # Faturamento TISS: mesma regra. A chave da instalação só é lida para
+    # quem já tem a capacidade — que só existe com plano e liberação da
+    # clínica (`tenancy.context`). As demais clínicas não pagam a consulta.
+    if context.can(Capability.TISS_VIEW):
+        from tiss.models import Configuracao as ConfiguracaoTiss
+
+        data['nd_tiss_ativo'] = ConfiguracaoTiss.objects.filter(ativo=True).exists()
     return data
 
 

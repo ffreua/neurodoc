@@ -13,7 +13,23 @@ DUE_DAYS = 30
 
 
 def _active_coverage(patient, at):
-    for coverage in patient.coverages.all():
+    """A cobertura vigente na data — a marcada na ficha primeiro.
+
+    Antes da 1.30 era "a primeira que o banco devolver": `coverages.all()`
+    sem ordem, e com duas coberturas vigentes o preço dependia da ordem
+    física das linhas. A regra continua a mesma (há cobertura vigente, é
+    convênio), só que determinística: a ativa da ficha, depois a de início
+    mais recente.
+    """
+    candidatas = sorted(
+        patient.coverages.all(),
+        key=lambda c: (
+            c.id != patient.active_coverage_id,
+            -(c.starts_on.toordinal() if c.starts_on else 0),
+            -c.created_at.timestamp(),
+        ),
+    )
+    for coverage in candidatas:
         if coverage.starts_on and coverage.starts_on > at:
             continue
         if coverage.ends_on and coverage.ends_on < at:
@@ -22,8 +38,25 @@ def _active_coverage(patient, at):
     return None
 
 
-def _price_for(tenant, patient, physician, occurred_date, appointment_type=None):
-    coverage = _active_coverage(patient, occurred_date)
+def _price_for(tenant, patient, physician, occurred_date, appointment_type=None, appointment=None):
+    """A regra de honorário do atendimento.
+
+    **A escolha do agendamento vence** (1.30, `Appointment.billing_mode`):
+    particular é particular mesmo com convênio vigente na ficha, e convênio
+    usa a cobertura escolhida. Sem escolha registrada — todo agendamento
+    anterior à 1.30, o encaixe sem agenda — vale a regra de sempre: havendo
+    cobertura vigente, é convênio. Cobrança já criada não é recalculada; o
+    `fee_snapshot` dela é a verdade.
+    """
+    from scheduling.models import BillingMode
+
+    escolha = appointment.billing_mode if appointment is not None else ''
+    if escolha == BillingMode.PRIVATE:
+        coverage = None
+    elif escolha == BillingMode.INSURANCE:
+        coverage = appointment.coverage
+    else:
+        coverage = _active_coverage(patient, occurred_date)
     payment_category = PaymentCategory.INSURANCE if coverage else PaymentCategory.PRIVATE
     fee_schedule = resolve_price(
         tenant, physician, payment_category, occurred_date,
@@ -122,7 +155,7 @@ def create_receivable_for_appointment(appointment, actor_id, charge_kind=ChargeK
     try:
         fee_schedule = _price_for(
             appointment.tenant, appointment.patient, appointment.physician_membership,
-            occurred_date, appointment.type,
+            occurred_date, appointment.type, appointment=appointment,
         )
     except NoApplicableFeeSchedule:
         record_audit_event(
@@ -188,6 +221,7 @@ def create_receivable_for_encounter(encounter, actor_id, charge_kind=ChargeKind.
         fee_schedule = _price_for(
             encounter.tenant, encounter.patient, encounter.physician_membership,
             occurred_date, tipo_de_atendimento,
+            appointment=encounter.appointment if encounter.appointment_id else None,
         )
     except NoApplicableFeeSchedule:
         record_audit_event(

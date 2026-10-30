@@ -360,6 +360,64 @@ tela: o campo só aceita gravar. Ligar exige a verificação em verde.
         </div>
     </div>
 
+    {# ---------------------------------------------- faturamento TISS #}
+    {% comment %}A chave da instalação (1.30). É uma das três: o plano tem de
+    incluir o TISS (Completo, Personalizado) e a clínica tem de ter sido
+    liberada em Organizações. Desligada aqui, o módulo fecha para todas, sem
+    deploy. Ver docs/tiss/REVISAO_SPRINT1.md.{% endcomment %}
+    <div class="col-12">
+        <div class="card stretch stretch-full" data-nd-tiss-console>
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Faturamento TISS (guias de convênio)</h5>
+                {% if tiss.config.ativo %}
+                <span class="badge bg-soft-success text-success">Ligado</span>
+                {% else %}
+                <span class="badge bg-soft-primary text-primary">Desligado</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    O módulo só abre numa clínica com as <strong>três</strong> chaves: esta, o plano
+                    (Completo ou Personalizado) e a liberação da clínica em <em>Organizações</em>.
+                    Desligar aqui fecha as telas e as tarefas do TISS em todas as clínicas; nada é
+                    apagado.
+                </p>
+                <div class="row g-3 fs-12 mb-3">
+                    <div class="col-sm-4"><span class="d-block text-muted">Clínicas liberadas</span><strong>{{ tiss.liberadas }}</strong></div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Liberadas com plano que inclui TISS</span><strong>{{ tiss.efetivas }}</strong></div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Versões do padrão</span><strong>{{ tiss.versoes }}</strong></div>
+                </div>
+                {% if tiss.config.ativo %}
+                <form method="post" action="{% url 'superadmin:operations-tiss' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="desligar">
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Desligar agora</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'superadmin:operations-tiss' %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="ligar">
+                    <div class="col-md-6">
+                        <label class="form-label fs-12" for="tiss-motivo">Por que ligar?</label>
+                        <input type="text" class="form-control form-control-sm" id="tiss-motivo"
+                               name="motivo" maxlength="255" placeholder="Ex.: piloto com a clínica X">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fs-12" for="tiss-confirmacao">
+                            Digite <code>{{ tiss.confirmacao }}</code>
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="tiss-confirmacao"
+                               name="confirmacao" autocomplete="off">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-danger btn-sm w-100" data-nd-busy>Ligar o TISS</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
     {# ------------------------------------------------ coleta de lixo #}
     <div class="col-lg-6">
         <div class="card stretch stretch-full">

@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ans:mensagemTISS xmlns:ans="http://www.ans.gov.br/padraotiss/schemas"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="http://www.ans.gov.br/padraotiss/schemas tissMensagemV4_01_00.xsd">
+    <ans:cabecalho>
+        <ans:identificacaoTransacao>
+            <ans:tipoTransacao>ENVIO_LOTE_GUIAS</ans:tipoTransacao>
+            <ans:sequencialTransacao>000000001</ans:sequencialTransacao>
+            <ans:dataRegistroTransacao>2026-10-30</ans:dataRegistroTransacao>
+            <ans:horaRegistroTransacao>12:00:00</ans:horaRegistroTransacao>
+        </ans:identificacaoTransacao>
+        <ans:origem>
+            <ans:identificacaoPrestador>
+                <ans:codigoPrestadorNaOperadora>12345678</ans:codigoPrestadorNaOperadora>
+            </ans:identificacaoPrestador>
+        </ans:origem>
+        <ans:destino>
+            <ans:registroANS>456789</ans:registroANS>
+        </ans:destino>
+        <ans:versaoPadrao>4.01.00</ans:versaoPadrao>
+    </ans:cabecalho>
+    <ans:prestadorParaOperadora>
+        <ans:loteGuias>
+            <ans:numeroLote>00001</ans:numeroLote>
+            <ans:guiasTISS>
+                <ans:guiaSP-SADT>
+                    <ans:cabecalhoGuia>
+                        <ans:registroANS>456789</ans:registroANS>
+                        <ans:numeroGuiaPrestador>987654321</ans:numeroGuiaPrestador>
+                    </ans:cabecalhoGuia>
+                    <ans:dadosBeneficiario>
+                        <ans:numeroCarteira>0000000000000000</ans:numeroCarteira>
+                        <ans:nomeBeneficiario>PACIENTE EXEMPLO</ans:nomeBeneficiario>
+                    </ans:dadosBeneficiario>
+                    <ans:dadosSolicitante>
+                        <ans:contratadoSolicitante>
+                            <ans:codigoPrestadorNaOperadora>12345678</ans:codigoPrestadorNaOperadora>
+                            <ans:nomeContratado>CLINICA EXEMPLO</ans:nomeContratado>
+                        </ans:contratadoSolicitante>
+                        <ans:profissionalSolicitante>
+                            <ans:nomeProfissional>MEDICO SOLICITANTE</ans:nomeProfissional>
+                            <ans:conselhoProfissional>CRM</ans:conselhoProfissional>
+                            <ans:numeroConselho>123456</ans:numeroConselho>
+                            <ans:UF>SP</ans:UF>
+                        </ans:profissionalSolicitante>
+                    </ans:dadosSolicitante>
+                    <ans:dadosSolicitacao>
+                        <ans:dataSolicitacao>2026-10-30</ans:dataSolicitacao>
+                        <ans:caraterAtendimento>1</ans:caraterAtendimento>
+                    </ans:dadosSolicitacao>
+                    <ans:dadosExecutante>
+                        <ans:codigoprestadorNaOperadora>12345678</ans:codigoprestadorNaOperadora>
+                        <ans:nomeContratado>CLINICA EXEMPLO</ans:nomeContratado>
+                    </ans:dadosExecutante>
+                    <ans:dadosAtendimento>
+                        <ans:tipoAtendimento>05</ans:tipoAtendimento>
+                        <ans:indicacaoAcidente>9</ans:indicacaoAcidente>
+                    </ans:dadosAtendimento>
+                    <ans:procedimentosExecutados>
+                        <ans:procedimentoExecutado>
+                            <ans:sequencialProcedimento>1</ans:sequencialProcedimento>
+                            <ans:dataExecucao>2026-10-30</ans:dataExecucao>
+                            <ans:horaInicio>10:00:00</ans:horaInicio>
+                            <ans:horaFim>10:15:00</ans:horaFim>
+                            <ans:procedimento>
+                                <ans:codigoTabela>22</ans:codigoTabela>
+                                <ans:codigoProcedimento>40101010</ans:codigoProcedimento>
+                                <ans:descricaoProcedimento>CONSULTA MEDICA</ans:descricaoProcedimento>
+                            </ans:procedimento>
+                            <ans:quantidadeExecutada>1</ans:quantidadeExecutada>
+                            <ans:valorUnitario>100.00</ans:valorUnitario>
+                            <ans:valorTotal>100.00</ans:valorTotal>
+                        </ans:procedimentoExecutado>
+                    </ans:procedimentosExecutados>
+                    <ans:valorTotalGuia>
+                        <ans:valorProcedimentos>100.00</ans:valorProcedimentos>
+                        <ans:valorDiarias>0.00</ans:valorDiarias>
+                        <ans:valorTaxasAlugueis>0.00</ans:valorTaxasAlugueis>
+                        <ans:valorMateriais>0.00</ans:valorMateriais>
+                        <ans:valorMedicamentos>0.00</ans:valorMedicamentos>
+                        <ans:valorOPME>0.00</ans:valorOPME>
+                        <ans:valorGasesMedicinais>0.00</ans:valorGasesMedicinais>
+                        <ans:valorTotalGeral>100.00</ans:valorTotalGeral>
+                    </ans:valorTotalGuia>
+                </ans:guiaSP-SADT>
+            </ans:guiasTISS>
+        </ans:loteGuias>
+    </ans:prestadorParaOperadora>
+    <ans:epilogo>
+        <ans:hash>d41d8cd98f00b204e9800998ecf8427e</ans:hash>
+    </ans:epilogo>
+</ans:mensagemTISS>

@@ -110,6 +110,21 @@ class TussUnavailable(Exception):
     """
 
 
+def _data_iso(texto):
+    """`AAAA-MM-DD` da ANS para `date`; `-`, vazio ou lixo viram `None`.
+
+    `None` e não exceção: a data ausente é o caso comum (vigência aberta), e
+    uma data mal formada numa linha não deve derrubar a página inteira.
+    """
+    from datetime import date
+
+    texto = (texto or '').strip()
+    try:
+        return date.fromisoformat(texto)
+    except ValueError:
+        return None
+
+
 @dataclass(frozen=True)
 class TussEntry:
     code: str
@@ -118,9 +133,32 @@ class TussEntry:
     ends_on: str = ''
 
     @property
+    def starts_on_date(self):
+        return _data_iso(self.starts_on)
+
+    @property
+    def ends_on_date(self):
+        return _data_iso(self.ends_on)
+
+    def in_force_on(self, dia):
+        """Vigente no dia — inclusive o último dia de vigência.
+
+        A regra antiga era "tem data de fim, então encerrou": 50001043 e
+        50000802, que a ANS mantém até 31/12/2026, apareciam como encerrados
+        em outubro. A ANS publica o **fim** da vigência, não a data em que
+        decidiu encerrar; até lá o código vale (Componente Organizacional,
+        p.58 §207: vale o termo vigente na data do atendimento).
+        """
+        inicio, fim = self.starts_on_date, self.ends_on_date
+        if inicio and inicio > dia:
+            return False
+        return not fim or fim >= dia
+
+    @property
     def in_force(self):
-        """A ANS devolve `-` para vigência aberta, e a data quando encerrou."""
-        return not self.ends_on or self.ends_on.strip() in {'', '-'}
+        from django.utils import timezone
+
+        return self.in_force_on(timezone.localdate())
 
 
 def _parse_page(payload):
@@ -288,42 +326,21 @@ def sync_incremental(table=DEFAULT_TABLE, orcamento_segundos=None):
     dois lugares divergiria; aqui ele vive num.
 
     E, enquanto está em rascunho, **a busca não a vê**: `active_release`
-    devolve a release ativa, que continua sendo a anterior. Meia tabela de
-    procedimentos é pior que nenhuma — ela parece inteira.
+    devolve a release ativa, que continua sendo a anterior — desde a 1.30
+    isso é verdade, porque o rascunho é sempre uma release **separada**
+    (`_rascunho_da_rodada`). Meia tabela de procedimentos é pior que
+    nenhuma — ela parece inteira.
 
     Devolve `{'completo', 'paginas', 'total', 'versao'}`.
     """
-    from django.db import transaction
-    from django.utils import timezone
-
     from catalogs.importers import normalize_for_search
-    from catalogs.models import (
-        CatalogRelease, CatalogReleaseStatus, CatalogSystem, ProcedureCode,
-    )
+    from catalogs.models import ProcedureCode
 
     orcamento = orcamento_segundos or ORCAMENTO_PADRAO_SEGUNDOS
     http = requests.Session()
 
-    # A versão não carrega a data de hoje: uma sincronização que atravessa
-    # a meia-noite começaria uma release nova e recomeçaria do zero.
-    versao = f'ANS-{table}'
-    release, _ = CatalogRelease.objects.get_or_create(
-        system=CatalogSystem.TUSS, version=versao,
-        defaults={
-            'status': CatalogReleaseStatus.DRAFT,
-            'license_note': (
-                'Tabela TUSS da ANS, obtida do serviço público de consulta OCL '
-                f'({BASE_URL}). Sincronizada automaticamente, em etapas.'
-            ),
-        },
-    )
-    if release.status == CatalogReleaseStatus.ACTIVE:
-        # Já está completa e publicada. Uma nova rodada recomeça o rascunho
-        # do zero, para que a tabela seja refeita e não remendada: código
-        # que a ANS retirou precisa sair, e remendo não remove.
-        release.status = CatalogReleaseStatus.DRAFT
-        release.save(update_fields=['status', 'updated_at'])
-        ProcedureCode.objects.filter(release=release).delete()
+    release = _rascunho_da_rodada(table)
+    versao = release.version
 
     ja_tem = ProcedureCode.objects.filter(release=release).count()
     vistos = set(
@@ -348,31 +365,152 @@ def sync_incremental(table=DEFAULT_TABLE, orcamento_segundos=None):
             # avança: a tabela acabou.
             completo = True
             break
-        ProcedureCode.objects.bulk_create([
-            ProcedureCode(
-                release=release, code=e.code, description=e.description,
-                search_text=normalize_for_search(f'{e.code} {e.description}'),
-                active=e.in_force,
-            )
-            for e in novos
-        ], batch_size=1000)
+        ProcedureCode.objects.bulk_create(
+            [_codigo(release, e, normalize_for_search) for e in novos],
+            batch_size=1000,
+        )
         vistos.update(e.code for e in novos)
         pagina += 1
         time.sleep(PAGE_PAUSE_SECONDS)
 
     total = ProcedureCode.objects.filter(release=release).count()
     if completo and total:
-        with transaction.atomic():
-            CatalogRelease.objects.filter(
-                system=CatalogSystem.TUSS, status=CatalogReleaseStatus.ACTIVE,
-            ).exclude(id=release.id).update(status=CatalogReleaseStatus.SUPERSEDED)
-            release.status = CatalogReleaseStatus.ACTIVE
-            release.imported_at = timezone.now()
-            release.save(update_fields=['status', 'imported_at', 'updated_at'])
+        versao = _publicar_rascunho(release)
     return {
         'completo': completo, 'paginas': paginas_feitas,
         'total': total, 'versao': versao,
     }
+
+
+def _codigo(release, entrada, normalize_for_search):
+    from catalogs.models import ProcedureCode
+
+    return ProcedureCode(
+        release=release, code=entrada.code, description=entrada.description,
+        search_text=normalize_for_search(f'{entrada.code} {entrada.description}'),
+        active=entrada.in_force,
+        starts_on=entrada.starts_on_date, ends_on=entrada.ends_on_date,
+    )
+
+
+def _rascunho_da_rodada(table):
+    """O rascunho em andamento desta tabela, ou um novo — **nunca a ativa**.
+
+    Até a 1.29 a versão tinha nome fixo (`ANS-tuss-22`), e a rodada semanal
+    voltava a **única** release ativa para rascunho e apagava os ~5.900
+    códigos antes de baixá-los de novo. Com a ANS a ~80 s por página, a
+    busca de procedimentos ficava vazia por horas todo domingo — o
+    comentário dizia que ela "continuava respondendo pela release anterior",
+    e não havia release anterior. E com um honorário apontando para um
+    código (`FeeSchedule.procedure`, PROTECT), o `delete()` estourava depois
+    de o status já ter sido gravado, e a tabela parava de envelhecer.
+
+    Agora cada ciclo constrói ao lado: nome com data e hora, a ativa
+    intocada até `_publicar_rascunho` trocar as duas numa transação. Retomar
+    continua igual — o rascunho é o progresso.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+
+    from catalogs.models import CatalogRelease, CatalogReleaseStatus, CatalogSystem
+
+    prefixo = f'ANS-{table}-'
+    # O nome antigo, sem data, entra no filtro: se a rodada da 1.29 ficou
+    # pela metade em rascunho, `retomar_tuss_incompleta` a veria de hora em
+    # hora e esta função, sem reconhecê-la, abriria outra ao lado — e
+    # aquela nunca seria concluída nem deixaria de ser retomada.
+    rascunho = (
+        CatalogRelease.objects
+        .filter(system=CatalogSystem.TUSS, status=CatalogReleaseStatus.DRAFT)
+        .filter(Q(version__startswith=prefixo) | Q(version=f'ANS-{table}'))
+        .order_by('created_at').first()
+    )
+    if rascunho:
+        return rascunho
+    # `create`, e nunca `get_or_create`: com o nome só de data e hora, duas
+    # rodadas no mesmo minuto recebiam de volta a release **ativa** como se
+    # fosse o rascunho — e, com o conteúdo igual, `_publicar_rascunho` a
+    # apagava (pego por `check_tuss_vigencia`). O sufixo aleatório garante
+    # nome novo; a ativa nunca passa por aqui.
+    import uuid
+
+    return CatalogRelease.objects.create(
+        system=CatalogSystem.TUSS,
+        version=f'{prefixo}{timezone.localtime():%Y%m%d%H%M}-{uuid.uuid4().hex[:4]}',
+        status=CatalogReleaseStatus.DRAFT,
+        license_note=(
+            'Tabela TUSS da ANS, obtida do serviço público de consulta OCL '
+            f'({BASE_URL}). Sincronizada automaticamente, em etapas.'
+        ),
+    )
+
+
+def assinatura_do_conteudo(release):
+    """SHA-256 do que a busca e a guia enxergam: código, termo, vigência e se vale hoje.
+
+    `active` entra de propósito: um código que vence em 31/12 não muda de
+    texto no dia 1º, mas muda de situação — e é isso que tem de gerar
+    release nova, senão ele continuaria marcado vigente para sempre.
+    """
+    import hashlib
+
+    from catalogs.models import ProcedureCode
+
+    h = hashlib.sha256()
+    linhas = (
+        ProcedureCode.objects.filter(release=release)
+        .order_by('code')
+        .values_list('code', 'description', 'starts_on', 'ends_on', 'active')
+    )
+    for codigo, descricao, inicio, fim, ativo in linhas.iterator():
+        h.update(f'{codigo}|{descricao}|{inicio or ""}|{fim or ""}|{int(ativo)}\n'.encode())
+    return h.hexdigest()
+
+
+def _publicar_rascunho(release):
+    """Troca a ativa pelo rascunho completo, ou descarta o rascunho se nada mudou.
+
+    Descartar o rascunho igual é o que impede o banco de ganhar 6 mil linhas
+    por semana: a TUSS muda por resolução normativa, poucas vezes por ano.
+    Ninguém aponta para um rascunho (a busca só vê a ativa), então apagá-lo
+    não esbarra em `PROTECT`.
+
+    A substituída **não é apagada**: honorário e guia antigos continuam
+    apontando para o código e a descrição daquele momento.
+
+    Devolve a versão que ficou ativa.
+    """
+    from django.db import transaction
+    from django.utils import timezone
+
+    from catalogs.models import (
+        CatalogRelease, CatalogReleaseStatus, CatalogSystem, ProcedureCode,
+    )
+
+    if release.status != CatalogReleaseStatus.DRAFT:
+        # Só rascunho se publica ou se descarta. A ativa chegando aqui é
+        # defeito de quem chamou, e apagá-la esvaziaria a busca.
+        return release.version
+    assinatura = assinatura_do_conteudo(release)
+    with transaction.atomic():
+        ativa = (
+            CatalogRelease.objects.select_for_update()
+            .filter(system=CatalogSystem.TUSS, status=CatalogReleaseStatus.ACTIVE)
+            .order_by('-imported_at').first()
+        )
+        if ativa and ativa.content_sha256 == assinatura:
+            ProcedureCode.objects.filter(release=release).delete()
+            release.delete()
+            CatalogRelease.objects.filter(id=ativa.id).update(imported_at=timezone.now())
+            return ativa.version
+        CatalogRelease.objects.filter(
+            system=CatalogSystem.TUSS, status=CatalogReleaseStatus.ACTIVE,
+        ).exclude(id=release.id).update(status=CatalogReleaseStatus.SUPERSEDED)
+        release.status = CatalogReleaseStatus.ACTIVE
+        release.imported_at = timezone.now()
+        release.content_sha256 = assinatura
+        release.save(update_fields=['status', 'imported_at', 'content_sha256', 'updated_at'])
+    return release.version
 
 
 def sync(table=DEFAULT_TABLE, actor=None):
@@ -415,18 +553,15 @@ def sync(table=DEFAULT_TABLE, actor=None):
         # vez de duplicar. Sem isto, duas execucoes deixariam a release com
         # o dobro das linhas e a contagem da tela mentiria.
         ProcedureCode.objects.filter(release=release).delete()
-        ProcedureCode.objects.bulk_create([
-            ProcedureCode(
-                release=release, code=e.code, description=e.description,
-                search_text=normalize_for_search(f'{e.code} {e.description}'),
-                active=e.in_force,
-            )
-            for e in entradas
-        ], batch_size=1000)
+        ProcedureCode.objects.bulk_create(
+            [_codigo(release, e, normalize_for_search) for e in entradas],
+            batch_size=1000,
+        )
 
         anterior.exclude(id=release.id).update(status=CatalogReleaseStatus.SUPERSEDED)
         release.status = CatalogReleaseStatus.ACTIVE
         release.imported_at = timezone.now()
-        release.save(update_fields=['status', 'imported_at', 'updated_at'])
+        release.content_sha256 = assinatura_do_conteudo(release)
+        release.save(update_fields=['status', 'imported_at', 'content_sha256', 'updated_at'])
 
     return release

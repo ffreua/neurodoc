@@ -145,3 +145,27 @@ def retomar_tuss_incompleta():
     logger.info('retomar_tuss: %s em rascunho; retomando', rascunho.version)
     sync_tuss_task.delay()
     return {'retomada': True, 'versao': rascunho.version}
+
+
+@shared_task(name='catalogs.tasks.importar_operadoras_ans', expires=3600)
+def importar_operadoras_ans():
+    """Atualiza a lista de operadoras ativas da ANS (1.30), toda semana.
+
+    No worker, que é quem tem a saída para a internet de que o trabalho
+    externo precisa (§2). Falha é registrada e engolida: a lista anterior
+    continua valendo, e o cadastro de convênio sempre aceita digitação.
+    """
+    import httpx
+
+    from catalogs.management.commands import import_operadoras_ans as imp
+
+    try:
+        resposta = httpx.get(imp.URL, timeout=imp.TIMEOUT_SECONDS, follow_redirects=True)
+        resposta.raise_for_status()
+        linhas, _ = imp.ler(resposta.content)
+        resultado = imp.gravar(linhas)
+    except Exception as exc:                                    # noqa: BLE001
+        logger.warning('operadoras_ans: %s: %s', type(exc).__name__, exc)
+        return {'ok': False, 'error': type(exc).__name__}
+    logger.info('operadoras_ans: %s ativas, %s inativadas', resultado['ativas'], resultado['inativadas'])
+    return {'ok': True, **resultado}

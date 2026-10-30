@@ -211,7 +211,12 @@ carimbá-la na publicação.
 #: A **1.24.2**: o relatório da IA aberto pelo sino chega à tela do
 #: relatório (abria a genérica, com os campos do resumo em branco), e a tela
 #: genérica deixa de aprovar relatório sem gerar o documento.
-VERSION = '1.29'
+#: A **1.30**: a fundação do TISS -- forma de cobrança por atendimento,
+#: catálogo das operadoras da ANS no cadastro de convênio, o espelho TUSS
+#: que não esvazia a busca e guarda a vigência, e o módulo TISS (três
+#: chaves, configuração, sete versões do padrão) desligado. Migrações só
+#: de expansão.
+VERSION = '1.30'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

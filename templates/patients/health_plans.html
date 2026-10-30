@@ -222,6 +222,18 @@ nada no console do navegador.{% endcomment %}
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fechar"></button>
                 </div>
                 <div class="modal-body">
+                    {% comment %}Lista da ANS (1.30): escolher a operadora preenche
+                    o nome e o registro ANS com os seis dígitos certos — zero à
+                    esquerda incluso, que é o que se perde digitando e o que a
+                    guia TISS exige. Sugere, não impede: dá para digitar à mão.
+                    {% endcomment %}
+                    <div class="mb-3">
+                        <label class="form-label" for="ans-busca">Buscar na lista de operadoras da ANS</label>
+                        <input type="text" class="form-control" id="ans-busca" autocomplete="off"
+                               placeholder="Nome ou registro ANS — ex.: hapvida, unimed belem, 005711">
+                        <div class="list-group mt-1 shadow-sm" id="ans-resultados"
+                             style="max-height:14rem;overflow-y:auto" hidden></div>
+                    </div>
                     <div class="row g-3">
                         {% include "partials/field.html" with field=insurer_form.name col="col-12" %}
                         {% include "partials/field.html" with field=insurer_form.ans_registration col="col-md-6" %}
@@ -310,6 +322,53 @@ nada no console do navegador.{% endcomment %}
     /* Cadastro recusado reabre o modal com os erros. Sem isto a pagina
      * volta com o modal fechado e o unico sinal do que faltou fica
      * escondido atras de um botao que a pessoa acabou de fechar. */
+    /* Busca na lista de operadoras da ANS. Monta as linhas com
+     * textContent: o nome vem de um arquivo externo. */
+    (function () {
+        var busca = document.getElementById('ans-busca');
+        var caixa = document.getElementById('ans-resultados');
+        var form = document.getElementById('insurer-form');
+        if (!busca || !caixa || !form) return;
+        var timer = null;
+        function fechar() { caixa.hidden = true; caixa.innerHTML = ''; }
+        busca.addEventListener('input', function () {
+            window.clearTimeout(timer);
+            var termo = busca.value.trim();
+            if (termo.length < 2) { fechar(); return; }
+            timer = window.setTimeout(function () {
+                fetch('/app/codigos/operadoras/buscar/?q=' + encodeURIComponent(termo),
+                      {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        caixa.innerHTML = '';
+                        var linhas = data.results || [];
+                        if (!linhas.length) {
+                            var vazio = document.createElement('div');
+                            vazio.className = 'list-group-item fs-12 text-muted';
+                            vazio.textContent = 'Nenhuma operadora ativa encontrada. Dá para digitar abaixo.';
+                            caixa.appendChild(vazio);
+                        }
+                        linhas.forEach(function (op) {
+                            var item = document.createElement('button');
+                            item.type = 'button';
+                            item.className = 'list-group-item list-group-item-action fs-12';
+                            item.textContent = op.nome + ' — registro ANS ' + op.registro_ans +
+                                (op.uf ? ' · ' + op.uf : '');
+                            item.addEventListener('click', function () {
+                                form.querySelector('[name="name"]').value = op.nome;
+                                form.querySelector('[name="ans_registration"]').value = op.registro_ans;
+                                busca.value = '';
+                                fechar();
+                            });
+                            caixa.appendChild(item);
+                        });
+                        caixa.hidden = false;
+                    })
+                    .catch(fechar);
+            }, 250);
+        });
+    })();
+
     {% if insurer_form.errors %}open('insurer-modal');{% endif %}
     {% if plan_form.errors %}open('plan-modal');{% endif %}
 })();
