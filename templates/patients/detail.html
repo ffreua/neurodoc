@@ -13,6 +13,9 @@
 recepção já abre. A guia não carrega prontuário, e a capacidade não é
 `read_clinical` — é `tiss_prepare`, que só existe com o plano e a clínica
 liberada; `nd_tiss_ativo` é a chave da instalação.{% endcomment %}
+{% if nd_can.exames_agendar %}
+<a class="btn btn-light" href="{% url 'agenda_exames:agenda' %}?paciente={{ patient.id }}">Agendar exame</a>
+{% endif %}
 {% if nd_can.tiss_view and nd_tiss_ativo %}
 <a class="btn btn-light" href="{% url 'tiss:guias' %}?paciente={{ patient.id }}">Guias TISS</a>
 {% if nd_can.tiss_prepare %}

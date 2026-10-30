@@ -110,6 +110,17 @@ class Capability:
     #: com quem já administra convênios (`MANAGE_HEALTH_PLANS`).
     TISS_CONFIGURE = 'tiss_configure'
 
+    #: Agenda de exames por recurso (1.30, Sprint 4 do TISS): EEG, ENMG,
+    #: polissonografia. Marcar, remarcar, registrar a realização. Vem no
+    #: mesmo contrato do TISS (`tiss_contracted`), mas **não** depende da
+    #: chave da instalação do TISS: desligar o faturamento numa emergência
+    #: não pode esconder os exames já marcados da recepção.
+    EXAMES_AGENDAR = 'exames_agendar'
+
+    #: Criar e configurar as agendas de exame: horários, bloqueios,
+    #: duração, procedimento TUSS padrão. Quem configura a clínica.
+    EXAMES_CONFIGURAR = 'exames_configurar'
+
 
 #: Capacidades administrativas por papel.
 #:
@@ -151,18 +162,20 @@ _TISS = {
     Role.OWNER: frozenset({
         Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
         Capability.TISS_EXPORT, Capability.TISS_CONFIGURE,
+        Capability.EXAMES_AGENDAR, Capability.EXAMES_CONFIGURAR,
     }),
     Role.MANAGER: frozenset({
         Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
         Capability.TISS_EXPORT, Capability.TISS_CONFIGURE,
+        Capability.EXAMES_AGENDAR, Capability.EXAMES_CONFIGURAR,
     }),
     Role.SECRETARY: frozenset({
         Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
-        Capability.TISS_EXPORT,
+        Capability.TISS_EXPORT, Capability.EXAMES_AGENDAR,
     }),
     Role.DOCTOR: frozenset({
         Capability.TISS_VIEW, Capability.TISS_PREPARE, Capability.TISS_CLOSE,
-        Capability.TISS_EXPORT,
+        Capability.TISS_EXPORT, Capability.EXAMES_AGENDAR,
     }),
 }
 

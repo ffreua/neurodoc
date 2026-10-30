@@ -667,3 +667,84 @@ def registrar_indicacao(context, user, guia, texto):
     guia.indicacao_clinica = texto
     guia.indicacao_por = user if texto else None
     guia.indicacao_em = timezone.now() if texto else None
+
+
+#: "Exame ambulatorial" no tipo de atendimento: 05 até a 4.00.01, 23 depois
+#: (medido em `dm_tipoAtendimento` de cada XSD).
+def _tipo_exame(versao):
+    return '05' if versao in ('3.04.00', '3.05.00', '4.00.00', '4.00.01') else '23'
+
+
+@transaction.atomic
+def criar_guia_do_exame(context, user, reserva):
+    """A SP/SADT do exame realizado numa agenda de recurso (Sprint 4).
+
+    Só exame **realizado**: marcar e chegar não provam execução. A cobrança
+    que a realização criou entra vinculada ao item — nenhuma nova —, e o
+    mesmo exame não ganha segunda guia enquanto a primeira não for
+    cancelada.
+    """
+    from agenda_exames.models import EstadoReserva, Reserva
+    from finance.models import ChargeKind, Receivable, ReceivableStatus
+
+    reserva = Reserva.objects.select_for_update(of=('self',)).select_related(
+        'recurso', 'executante', 'solicitante').get(id=reserva.id)
+    if reserva.tenant_id != context.tenant_id:
+        raise GuiaRecusada('Exame de outra clínica.')
+    if reserva.estado != EstadoReserva.REALIZADA:
+        raise GuiaRecusada('A guia é do exame realizado. Registre a realização antes.')
+    if Guia.objects.filter(reserva_exame=reserva).exclude(
+            estado__in=[EstadoGuia.CANCELADA, EstadoGuia.SUBSTITUIDA]).exists():
+        raise GuiaRecusada('Este exame já tem guia. Abra a guia existente.')
+    if reserva.cobranca == 'particular':
+        raise GuiaRecusada('O exame foi marcado como particular. Troque a forma de cobrança antes.')
+    inicio = timezone.localtime(reserva.inicio)
+    fim = timezone.localtime(reserva.fim)
+    dia = inicio.date()
+    cobertura = reserva.cobertura
+    if cobertura is None:
+        from finance.receivables import _active_coverage
+
+        cobertura = _active_coverage(reserva.paciente, dia)
+    credenciamento = _credenciamento_para(context.tenant_id, cobertura, dia)
+    versao = credenciamento.versao if credenciamento else versoes.VERSAO_ATUAL
+    guia = Guia(
+        tenant_id=context.tenant_id, tipo=TipoGuia.SP_SADT, paciente=reserva.paciente, cobertura=cobertura,
+        credenciamento=credenciamento, numero_prestador=_proximo_numero(context.tenant_id),
+        data_emissao=timezone.localdate(), carteira=(cobertura.member_number if cobertura else '')[:20],
+        validade_carteira=cobertura.ends_on if cobertura else None,
+        executante=reserva.executante, solicitante=reserva.solicitante or reserva.executante,
+        data_solicitacao=dia, tipo_atendimento=_tipo_exame(versao), reserva_exame=reserva, criada_por=user,
+    )
+    guia.full_clean(exclude=['tenant'])
+    guia.save()
+
+    if reserva.codigo_tuss:
+        recebivel = Receivable.objects.filter(
+            tenant_id=context.tenant_id, reserva_exame=reserva, charge_kind=ChargeKind.PROCEDURE,
+        ).exclude(status=ReceivableStatus.CANCELLED).first()
+        if recebivel is not None and ItemGuia.objects.filter(recebivel=recebivel).exists():
+            recebivel = None
+        try:
+            descricao, release, _ = conferir_codigo('22', reserva.codigo_tuss, dia)
+        except GuiaRecusada:
+            descricao, release = reserva.descricao, ''
+        valor, origem = preco_contratado(guia, reserva.codigo_tuss, dia, guia.executante)
+        if valor is None and recebivel is not None:
+            valor, origem = recebivel.charged_amount, 'Valor da cobrança do exame'
+        if valor is not None:
+            # Polissonografia que acaba no dia seguinte: a hora final é a do
+            # fim, e a data de execução, a do início (o XSD tem uma data só).
+            ItemGuia.objects.create(
+                tenant_id=context.tenant_id, guia=guia, sequencial=1, data_execucao=dia,
+                hora_inicial=inicio.time().replace(microsecond=0), hora_final=fim.time().replace(microsecond=0),
+                codigo=reserva.codigo_tuss, descricao=(descricao or reserva.descricao)[:150], release_tuss=release,
+                quantidade=1, valor_unitario=valor, valor_total=total_do_item(1, valor, 1),
+                preco_origem=origem[:255], recebivel=recebivel,
+            )
+    record_audit_event(
+        user, context.tenant_id, 'tiss.guia_criada', object_type='guia_tiss', object_id=guia.id,
+        outcome='success', integrity_metadata={'tipo': TipoGuia.SP_SADT, 'numero': guia.numero_prestador,
+                                               'origem': 'agenda_exames'},
+    )
+    return guia

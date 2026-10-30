@@ -105,7 +105,9 @@ texto = ' '.join(
     passo + ' ' + legenda
     for a in ARTICLES for passo, _, legenda in a['steps']
 ) + ' '.join(f'{q["pergunta"]} {q["resposta"]}' for q in FAQ_USO)
-proibidos = ['teleconsulta', 'TISS', 'DICOM', 'PACS', 'cartão de crédito', 'boleto']
+# 'TISS' saiu da lista na 1.30: o faturamento de convênio passou a existir
+# (guias, lotes e XML), e o manual o descreve para quem o tem contratado.
+proibidos = ['teleconsulta', 'DICOM', 'PACS', 'cartão de crédito', 'boleto']
 achados = [p for p in proibidos if p.lower() in texto.lower()]
 print(f'  artigos={len(ARTICLES)}  perguntas={len(FAQ_USO)}')
 print(f'  promessas fora de escopo: {achados or "nenhuma"}')

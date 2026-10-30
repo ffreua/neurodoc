@@ -293,3 +293,21 @@ class ImprimirView(TissView):
         resposta['Cache-Control'] = 'private, no-store'
         resposta['X-Content-Type-Options'] = 'nosniff'
         return resposta
+
+
+class GuiaDoExameView(TissView):
+    """POST: a SP/SADT do exame realizado na agenda de recurso."""
+
+    required_capability = Capability.TISS_PREPARE
+
+    def post(self, request, reserva_id):
+        from agenda_exames.models import Reserva
+
+        reserva = get_object_or_404(Reserva, id=reserva_id, tenant_id=request.access_context.tenant_id)
+        try:
+            guia = guias.criar_guia_do_exame(request.access_context, request.user, reserva)
+        except guias.GuiaRecusada as exc:
+            messages.error(request, str(exc))
+            return redirect('agenda_exames:reserva', pk=reserva.id)
+        messages.success(request, f'Guia SP/SADT nº {guia.numero_prestador} criada. Confira as pendências.')
+        return redirect('tiss:guia', pk=guia.id)

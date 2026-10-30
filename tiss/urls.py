@@ -14,6 +14,7 @@ urlpatterns = [
     path('profissionais/<uuid:pk>/', views.ProfissionalView.as_view(), name='profissional'),
     path('guias/', views_guia.GuiaListaView.as_view(), name='guias'),
     path('guias/nova/', views_guia.GuiaNovaView.as_view(), name='guia-nova'),
+    path('guias/do-exame/<uuid:reserva_id>/', views_guia.GuiaDoExameView.as_view(), name='guia-do-exame'),
     path('guias/<uuid:pk>/', views_guia.GuiaView.as_view(), name='guia'),
     path('guias/<uuid:pk>/itens/', views_guia.ItemView.as_view(), name='guia-item-novo'),
     path('guias/<uuid:pk>/itens/<uuid:item_id>/', views_guia.ItemView.as_view(), name='guia-item'),

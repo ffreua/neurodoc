@@ -64,6 +64,14 @@ class Delivery(TenantModel):
         'scheduling.ScheduledReturn', on_delete=models.PROTECT, null=True, blank=True,
         related_name='deliveries',
     )
+    #: O quarto alvo (1.30): o lembrete do exame marcado numa agenda de
+    #: recurso. Coluna própria pelo mesmo motivo do retorno previsto: o
+    #: exame não é um `Appointment`, e apontar para um falso o poria na
+    #: grade de um médico.
+    reserva_exame = models.ForeignKey(
+        'agenda_exames.Reserva', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='deliveries',
+    )
     contact = models.ForeignKey('patients.PatientContact', on_delete=models.PROTECT, related_name='deliveries')
     channel = models.CharField(max_length=20, choices=DeliveryChannel.choices)
     event_version = models.PositiveBigIntegerField()
@@ -84,9 +92,14 @@ class Delivery(TenantModel):
             # restrição.
             models.CheckConstraint(
                 condition=(
-                    Q(document__isnull=False, appointment__isnull=True, scheduled_return__isnull=True)
-                    | Q(document__isnull=True, appointment__isnull=False, scheduled_return__isnull=True)
-                    | Q(document__isnull=True, appointment__isnull=True, scheduled_return__isnull=False)
+                    Q(document__isnull=False, appointment__isnull=True, scheduled_return__isnull=True,
+                      reserva_exame__isnull=True)
+                    | Q(document__isnull=True, appointment__isnull=False, scheduled_return__isnull=True,
+                        reserva_exame__isnull=True)
+                    | Q(document__isnull=True, appointment__isnull=True, scheduled_return__isnull=False,
+                        reserva_exame__isnull=True)
+                    | Q(document__isnull=True, appointment__isnull=True, scheduled_return__isnull=True,
+                        reserva_exame__isnull=False)
                 ),
                 name='communications_delivery_single_target',
             ),

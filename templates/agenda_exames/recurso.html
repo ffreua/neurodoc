@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{% if recurso %}{{ recurso.nome }}{% else %}Nova agenda{% endif %} — NeuroDoc{% endblock %}
+{% block page_title %}{% if recurso %}{{ recurso.nome }}{% else %}Nova agenda de exame{% endif %}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agenda_exames:recursos' %}">Agendas de exame</a></li>
+<li class="breadcrumb-item">{% if recurso %}{{ recurso.nome }}{% else %}Nova{% endif %}</li>
+{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">A agenda</h5></div>
+            <div class="card-body">
+                <form method="post" novalidate class="row g-3">
+                    {% csrf_token %}<input type="hidden" name="acao" value="gravar">
+                    {% for campo in form %}
+                    <div class="{% if campo.name == 'nome' or campo.name == 'descricao_tuss' %}col-12{% else %}col-md-6{% endif %}">
+                        {% if campo.widget_type == 'checkbox' %}
+                        <div class="form-check mt-4">{{ campo }} <label class="form-check-label" for="{{ campo.id_for_label }}">{{ campo.label }}</label></div>
+                        {% else %}
+                        <label class="form-label fs-12" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+                        {% endif %}
+                        {% if campo.help_text %}<div class="form-text fs-11">{{ campo.help_text }}</div>{% endif %}
+                        {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}
+                    </div>
+                    {% endfor %}
+                    <div class="col-12"><button type="submit" class="btn btn-primary" data-nd-busy>Gravar</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% if recurso %}
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Horários de atendimento</h5></div>
+            <div class="card-body">
+                <ul class="list-unstyled fs-13">
+                    {% for j in janelas %}
+                    <li class="d-flex justify-content-between align-items-center mb-1">
+                        <span>{{ j.get_dia_semana_display }}, {{ j.inicio|time:"H:i" }} às {{ j.fim|time:"H:i" }}{% if j.atravessa_meia_noite %} do dia seguinte{% endif %}</span>
+                        <form method="post" data-nd-confirm="Remover este horário? Os exames já marcados continuam.">
+                            {% csrf_token %}<input type="hidden" name="acao" value="remover_janela"><input type="hidden" name="janela" value="{{ j.id }}">
+                            <button type="submit" class="btn btn-sm btn-light-danger">Remover</button>
+                        </form>
+                    </li>
+                    {% empty %}<li class="text-muted">Nenhum horário ainda: sem horário, a agenda não oferece vaga.</li>{% endfor %}
+                </ul>
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}<input type="hidden" name="acao" value="janela">
+                    {% for campo in janela_form %}
+                    <div class="col-md-4"><label class="form-label fs-12" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+                        {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}</div>
+                    {% endfor %}
+                    {% for erro in janela_form.non_field_errors %}<div class="col-12 text-danger fs-12">{{ erro }}</div>{% endfor %}
+                    <div class="col-12 form-text fs-11">Fim antes do início é atravessar a meia-noite: polissonografia de 20:00 até 07:00.</div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary" data-nd-busy>Incluir horário</button></div>
+                </form>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Bloqueios</h5></div>
+            <div class="card-body">
+                <ul class="list-unstyled fs-13">
+                    {% for b in bloqueios %}
+                    <li class="d-flex justify-content-between align-items-center mb-1">
+                        <span>{{ b.inicio|date:"d/m/Y H:i" }} a {{ b.fim|date:"d/m/Y H:i" }} — {{ b.motivo }}</span>
+                        <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="remover_bloqueio"><input type="hidden" name="bloqueio" value="{{ b.id }}">
+                            <button type="submit" class="btn btn-sm btn-light-danger">Remover</button></form>
+                    </li>
+                    {% empty %}<li class="text-muted">Nenhum bloqueio futuro.</li>{% endfor %}
+                </ul>
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}<input type="hidden" name="acao" value="bloqueio">
+                    {% for erro in bloqueio_form.non_field_errors %}<div class="col-12 text-danger fs-12">{{ erro }}</div>{% endfor %}
+                    {% for campo in bloqueio_form %}
+                    <div class="{% if campo.name == 'motivo' %}col-12{% else %}col-md-6{% endif %}"><label class="form-label fs-12" for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+                        {% for erro in campo.errors %}<div class="text-danger fs-12">{{ erro }}</div>{% endfor %}</div>
+                    {% endfor %}
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary" data-nd-busy>Bloquear</button></div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

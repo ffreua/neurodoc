@@ -23,7 +23,7 @@ há dado de pessoa real em imagem nenhuma, e não pode haver: o manual é
 público.
 """
 
-from tenancy.plans import PUBLIC_ORDER, has_clinical_ai, has_sms, plan_label
+from tenancy.plans import PUBLIC_ORDER, has_clinical_ai, has_sms, has_tiss, plan_label
 
 
 def _planos_com(recurso):
@@ -611,6 +611,86 @@ ARTICLES = [
             ('Valor não se apaga: uma regra sai de vigor recebendo data final. O '
              'recebimento guarda um retrato do que valia, e a regra explica de onde '
              'aquele retrato veio.',
+             '', ''),
+        ],
+    },
+    # Faturamento TISS e agenda de exames (1.30). Nos planos que os incluem,
+    # depois de a clínica ser liberada pela equipe do NeuroDoc.
+    {
+        'slug': 'faturamento-tiss',
+        'title': 'Faturamento de convênio (TISS): guias e lotes',
+        'summary': 'Guia de Consulta e SP/SADT, o arquivo XML do lote e o envio à operadora.',
+        'audience': 'Recepção e gestor',
+        'steps': [
+            ('**Quem tem.** O faturamento TISS vem nos planos ' + _planos_com(has_tiss) + ', e a clínica precisa ser '
+             'liberada pela equipe do NeuroDoc. Aparece no menu como **Faturamento TISS**. Por '
+             'segurança (padrão da ANS), a área pede o segundo fator de novo depois de dez '
+             'minutos sem uso.',
+             '', ''),
+            ('**Configure uma vez (responsável ou gestor).** Em **Faturamento TISS**: o '
+             '**prestador** (quem fatura: a empresa da clínica, ou o médico como pessoa '
+             'física), o **credenciamento** de cada operadora (o código que ela deu ao '
+             'prestador, a **versão do padrão** que ela aceita, o ciclo de fechamento e o '
+             'portal) e os **profissionais** que pedem e executam — inclusive o médico de fora '
+             'que pediu o exame. A operadora precisa estar em **Convênios e planos** com o '
+             'registro ANS; dá para buscá-la na lista oficial da ANS.',
+             '', ''),
+            ('**Gere a guia.** Na ficha do paciente, no horário da agenda ou no atendimento, '
+             '**Gerar guia TISS**; para exame da agenda de exames, **Gerar guia TISS** no '
+             'próprio exame realizado. A guia já vem com convênio, carteira, credenciamento e '
+             'profissionais; na de Consulta de quem fez check-in, a consulta cobrada entra '
+             'vinculada à cobrança — nenhuma cobrança nova é criada.',
+             '', ''),
+            ('**Resolva as pendências.** O que falta aparece no alto da guia, dizendo quem '
+             'resolve: a recepção (senha, tipo de atendimento), o médico (a indicação clínica, '
+             'que só ele escreve) ou o gestor (cadastro). Os procedimentos vêm da busca TUSS, '
+             'conferidos na data do atendimento, com o preço do contrato; valor diferente pede '
+             'o motivo. **Fechar** congela a guia; para corrigir, **abra uma revisão**.',
+             '', ''),
+            ('**Monte o lote.** Em **Faturar guias**, filtre pela operadora e pelo período (o '
+             'ciclo do credenciamento está a um clique), marque as guias e confira o **plano**: '
+             'um lote por operadora, tipo de guia e versão, até 100 guias cada, e as guias que '
+             'não entram com o motivo. Confirmado, o arquivo XML é gerado e conferido contra o '
+             'padrão oficial da versão. Baixar de novo devolve o mesmo arquivo.',
+             '', ''),
+            ('**Envie e registre.** O envio é feito por você, no portal da operadora. Depois, '
+             'no lote, registre a **data e o protocolo**, e, quando vier, o **retorno** (aceito, '
+             'em parte, recusado). Guia glosada é **liberada** com o motivo para ir num lote '
+             'novo; lote recusado inteiro pode ser cancelado. **Nada disso baixa pagamento**: o '
+             'recebimento continua sendo lançado no **Financeiro**.',
+             '', ''),
+        ],
+    },
+    {
+        'slug': 'agenda-exames',
+        'title': 'Agenda de exames: EEG, ENMG e polissonografia',
+        'summary': 'Uma agenda por equipamento, com a polissonografia atravessando a noite.',
+        'audience': 'Recepção e gestor',
+        'steps': [
+            ('**O que é.** Cada exame com equipamento próprio tem a sua agenda — o EEG, a ENMG, '
+             'a polissonografia —, separada da agenda dos médicos. Ela **não conta vaga de '
+             'médico** do plano e não ocupa a agenda de ninguém. Vem com o faturamento TISS, '
+             'nos planos ' + _planos_com(has_tiss) + '.',
+             '', ''),
+            ('**Configure (responsável ou gestor).** Em **Agenda de exames** → **Configurar '
+             'agendas** → **Nova agenda**: o nome, a duração padrão (a polissonografia costuma '
+             'ter 600 minutos), o intervalo entre exames e o código TUSS do procedimento. Depois, '
+             'os **horários de atendimento** por dia da semana — fim antes do início é '
+             'atravessar a meia-noite (20:00 até 07:00) — e os **bloqueios** (manutenção, '
+             'férias do técnico).',
+             '', ''),
+            ('**Marque.** Na ficha do paciente, **Agendar exame**, ou direto na **Agenda de '
+             'exames**: escolha a agenda e o dia, e clique num horário livre. Informe quem pediu '
+             'o exame e, se já souber, a forma de cobrança (particular ou convênio). Fora do '
+             'horário, só como **encaixe**, com o motivo. A polissonografia das 21h às 7h '
+             'aparece nos dois dias da tela, e o mesmo equipamento nunca recebe dois exames no '
+             'mesmo horário.',
+             '', ''),
+            ('**No dia.** **Confirmar**, **Paciente chegou** e, ao final, **Exame realizado**, '
+             'com quem executou. É a realização que cria a **cobrança no Financeiro** (com o '
+             'valor da tabela de honorários para o procedimento) e permite gerar a **guia '
+             'TISS**. Faltou, cancelou ou remarcou: o horário volta a ficar livre. O paciente '
+             'recebe um lembrete na véspera, se tiver contato autorizado.',
              '', ''),
         ],
     },

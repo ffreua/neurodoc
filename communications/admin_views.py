@@ -314,7 +314,7 @@ class DeliveryLogView(ManagerRequiredView):
             Delivery.objects.filter(tenant_id=request.access_context.tenant_id)
             .select_related(
                 'contact__patient', 'appointment__physician_membership__user',
-                'scheduled_return',
+                'scheduled_return', 'reserva_exame',
             )
             .order_by('-created_at')[:100]
         )

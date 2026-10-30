@@ -12,9 +12,8 @@
 {% endblock %}
 {% block content %}
 
-{% comment %}1.30: configuração, guias, lotes e XML. As agendas de exame
-(EEG, ENMG, polissonografia) chegam na próxima versão; esta tela diz isso em
-vez de esconder.{% endcomment %}
+{% comment %}1.30: configuração, guias, lotes, XML e a ponte para a agenda
+de exames.{% endcomment %}
 <div class="alert alert-primary fs-13" role="alert">
     <span class="fw-semibold d-block">Como funciona.</span>
     Configure aqui quem fatura (prestador), com que operadora e em que versão do padrão
@@ -22,7 +21,8 @@ vez de esconder.{% endcomment %}
     nascem na ficha do paciente, no horário da agenda ou no atendimento; fechadas, vão para
     <a href="{% url 'tiss:fila' %}">Faturar guias</a>, onde viram lotes com o arquivo XML conferido
     contra o XSD oficial da versão. O envio é feito por você no portal da operadora, e o protocolo é
-    registrado no lote. As agendas de exame chegam na próxima versão. Por segurança (padrão TISS da
+    registrado no lote. Os exames de EEG, ENMG e polissonografia têm a
+    <a href="{% url 'agenda_exames:agenda' %}">Agenda de exames</a>, de onde o exame realizado gera a guia. Por segurança (padrão TISS da
     ANS), esta área pede o segundo fator de novo depois de dez minutos sem uso.
 </div>
 

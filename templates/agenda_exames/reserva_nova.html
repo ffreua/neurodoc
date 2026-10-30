@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Marcar exame — NeuroDoc{% endblock %}
+{% block page_title %}Marcar {{ recurso.nome }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agenda_exames:agenda' %}?recurso={{ recurso.id }}">Agenda de exames</a></li>
+<li class="breadcrumb-item">Marcar</li>
+{% endblock %}
+{% block content %}
+{% if not paciente %}
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">Para quem é o exame?</h5></div>
+    <div class="card-body">
+        <label class="form-label fs-12" for="exame-busca">Nome do paciente ou nº do prontuário</label>
+        <input class="form-control" id="exame-busca" data-exame-busca autocomplete="off">
+        <div class="list-group mt-2" data-exame-resultados aria-live="polite"></div>
+        <p class="fs-12 text-muted mt-2 mb-0">Paciente novo? <a href="{% url 'patients:create' %}">Cadastre primeiro</a>.</p>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">{{ paciente.full_name }}</h5></div>
+    <div class="card-body">
+        {% if form.non_field_errors %}<div class="alert alert-danger fs-13">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+        <form method="post" novalidate class="row g-3">
+            {% csrf_token %}
+            {{ form.paciente }}
+            {% for field in form %}{% if not field.is_hidden %}
+            <div class="{% if field.name == 'observacao' %}col-12{% elif field.name == 'encaixe' %}col-12 form-check ms-2{% else %}col-md-4{% endif %}">
+                {% if field.name == 'encaixe' %}{{ field }} <label class="form-check-label fs-13" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {% else %}<label class="form-label fs-12" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}
+                {% for e in field.errors %}<div class="text-danger fs-12">{{ e }}</div>{% endfor %}
+            </div>
+            {% endif %}{% endfor %}
+            <div class="col-12">
+                <p class="fs-12 text-muted">Sem convênio cadastrado? Inclua na <a href="{% url 'patients:detail' paciente.id %}">ficha do paciente</a>.
+                    A forma de cobrança pode ser decidida até a realização do exame.</p>
+                <button type="submit" class="btn btn-primary" data-nd-busy>Marcar exame</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'agenda_exames/paciente.js' %}"></script>{% endblock %}

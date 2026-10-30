@@ -478,6 +478,57 @@ def deliver_appointment_reminder(appointment, event_version):
     return deliveries
 
 
+#: Lembrete do exame marcado numa agenda de recurso (1.30). Mesmo teto e
+#: mesma redação do lembrete de consulta: "exame" no lugar de "consulta".
+LEMBRETE_EXAME_TEMPLATE = (
+    '{clinic}: lembrete de exame em {when}. Nao responda; '
+    'duvidas, ligue para a clinica.'
+)
+
+
+def deliver_exam_reminder(reserva, event_version):
+    """Lembra o paciente do exame marcado — as regras do lembrete de consulta.
+
+    O estado de agora manda: cancelado, faltou, realizado ou já começado
+    não recebe lembrete; remarcado recebe só o da versão nova
+    (`agenda_exames.lembretes`). Um envio por endereço, como no de
+    consulta.
+    """
+    from agenda_exames.models import EstadoReserva
+
+    if reserva.estado not in (EstadoReserva.AGENDADA, EstadoReserva.CONFIRMADA):
+        return []
+    if reserva.inicio <= timezone.now():
+        return []
+    if event_version != reserva.versao_lembrete:
+        return []
+    contacts = _eligible_reminder_contacts(reserva.paciente)
+    when = timezone.localtime(reserva.inicio).strftime('%d/%m às %H:%M')
+    if not contacts:
+        _notify_no_contact(reserva.paciente, f'lembrete do exame de {when}')
+        return []
+    clinic = (reserva.tenant.trade_name or reserva.tenant.legal_name or 'Clinica')[:24]
+    message = _encurtar_para_sms(LEMBRETE_EXAME_TEMPLATE, clinic, '', when, '')
+    deliveries = []
+    vistos = set()
+    for contact in _proprio_primeiro(contacts):
+        for channel in _channels_for(contact):
+            if _repetido(vistos, contact, channel):
+                continue
+            idem_key = f'exame:{reserva.id}:{event_version}:{contact.id}:{channel}'
+            delivery, created = Delivery.objects.get_or_create(
+                tenant=reserva.tenant, idempotency_key=idem_key,
+                defaults={
+                    'reserva_exame': reserva, 'contact': contact, 'channel': channel,
+                    'event_version': event_version,
+                },
+            )
+            if created or delivery.status == DeliveryStatus.PENDING:
+                _send(delivery, message)
+            deliveries.append(delivery)
+    return deliveries
+
+
 # --------------------------------------------------------------------------
 # Lembrete de retorno previsto
 # --------------------------------------------------------------------------

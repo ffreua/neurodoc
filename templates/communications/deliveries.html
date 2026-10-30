@@ -53,6 +53,8 @@ tela um arquivo de mensagens do paciente, que é outra coisa.{% endcomment %}
                                 Agenda — {{ delivery.appointment.starts_at|date:"d/m H:i" }}
                                 {% elif delivery.document %}
                                 Documento
+                                {% elif delivery.reserva_exame %}
+                                Exame — {{ delivery.reserva_exame.inicio|date:"d/m H:i" }}
                                 {% elif delivery.scheduled_return %}
                                 Retorno previsto — {{ delivery.scheduled_return.due_on|date:"d/m/Y" }}
                                 {% else %}—{% endif %}

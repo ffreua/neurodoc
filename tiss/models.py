@@ -444,6 +444,10 @@ class Guia(TenantModel):
     encounter = models.ForeignKey(
         'clinical.Encounter', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
     )
+    #: O exame da agenda de recurso de onde a SP/SADT nasceu (Sprint 4).
+    reserva_exame = models.ForeignKey(
+        'agenda_exames.Reserva', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
+    )
 
     # fechamento, cancelamento, revisão
     versao = models.CharField('versão do padrão no fechamento', max_length=10, blank=True)

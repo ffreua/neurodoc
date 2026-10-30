@@ -131,10 +131,47 @@ produção**.
 - **Outras despesas não são suportadas**: os totais saem só com
   procedimentos e total geral, que é o que o XSD exige.
 
-## Sprint 4 — próxima
+## Sprint 4 — agendas de exame e fechamento (30/10/2026, ainda na versão 1.30)
 
-Agendas de exame por recurso (EEG, ENMG, polissonografia), com a
-polissonografia atravessando a meia-noite; o recebível do exame (terceira
-origem do financeiro); regressão completa, documentação para recepção e
-gestor, plano de ativação e o roteiro de homologação com a clínica-piloto,
-inclusive o primeiro arquivo enviado a uma operadora real.
+| Entrega | Situação | Onde | Roteiro |
+| --- | --- | --- | --- |
+| Agendas por recurso (EEG, ENMG, PSG) como **entidades novas** — nenhum médico fictício, nenhuma vaga de médico consumida | implementado | app `agenda_exames` | `check_agenda_exames` |
+| Janela semanal que atravessa a meia-noite; reserva como intervalo de instantes, nos dois dias da tela; teto de 24 h | implementado | `agenda_exames/services.py` | `check_agenda_exames` |
+| Sobreposição no mesmo equipamento recusada pelo banco (exclusão por recurso), inclusive com duas conexões simultâneas | implementado | `agenda_exames_reserva_sem_sobreposicao` | `check_agenda_exames` |
+| Encaixe com motivo, bloqueios, remarcação, confirmação, chegada, falta, cancelamento | implementado | `agenda_exames/services.py` | `check_agenda_exames` |
+| **Terceira origem da cobrança**: o exame realizado cria **uma** cobrança (serviço e banco), pelo honorário do procedimento; sem honorário, nenhuma é inventada | implementado | `finance/receivables.py::create_receivable_for_exam`, `finance/0008` | `check_agenda_exames` |
+| Lembrete do exame, 24 h antes, pela mesma entrega da consulta (um envio por endereço, versão velha calada) | implementado | `agenda_exames/lembretes.py`, `communications/services.py::deliver_exam_reminder`, `communications/0010` | `check_agenda_exames` |
+| Guia SP/SADT do exame realizado, com a cobrança vinculada e as horas da PSG (21:00 → 07:00), até o lote válido no XSD | implementado | `tiss/guias.py::criar_guia_do_exame`, `tiss/0004` | `check_agenda_exames` |
+| Manual da recepção e do gestor: dois artigos | publicado no manual | `base/help_content.py` (`faturamento-tiss`, `agenda-exames`) | `check_ajuda`, `check_seo` |
+| Ativação, reversão, vigilância e o roteiro de homologação com a clínica-piloto | documentado | `docs/tiss/OPERACAO.md` | — |
+
+**Verificação:** bateria completa com a Sprint 4, 145 roteiros, nenhuma
+falha (30/10/2026). Não publicada.
+
+**Decisões desta sprint:**
+
+- **A agenda de exames vem no contrato do TISS, sem a chave da
+  instalação.** Plano Completo ou Personalizado e clínica liberada dão
+  `EXAMES_AGENDAR` (os quatro papéis) e `EXAMES_CONFIGURAR` (dono e
+  gestor). Desligar o faturamento na instalação **não** esconde os exames
+  marcados; recolher o TISS de uma clínica recolhe também a agenda.
+- **A agenda de exames não pede o segundo fator a cada dez minutos**: o
+  requisito 83 do A9 é da área de faturamento, e a agenda é da recepção o
+  dia inteiro.
+- **O executante não bloqueia a agenda médica.** Quem acompanha a
+  polissonografia é técnico; o médico lauda depois. Reservar o médico por
+  suposição tiraria consultas que ninguém pediu para tirar.
+- **Um lembrete só, na véspera** — o preparo do exame é explicado ao
+  marcar, e duas horas antes é tarde para ele.
+- **A data de execução da PSG é a do início**, e a hora final a do fim (o
+  XSD tem uma data só por procedimento).
+
+## O que ainda não foi feito
+
+- **Nenhuma operadora homologada.** O primeiro arquivo num portal real é o
+  passo 3 do roteiro em `OPERACAO.md`; até lá, o hash do epílogo segue a
+  leitura literal do manual, com três detalhes em aberto.
+- **Outras despesas** (taxas, materiais, medicamentos) na SP/SADT.
+- **Transmissão automática** a operadoras (webservice): fora do escopo do
+  pedido; o envio é pelo portal, registrado à mão.
+- **A 1.30 não foi publicada.**

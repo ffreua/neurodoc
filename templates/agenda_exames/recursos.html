@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Agendas de exame — NeuroDoc{% endblock %}
+{% block page_title %}Agendas de exame{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agenda_exames:agenda' %}">Agenda de exames</a></li>
+<li class="breadcrumb-item">Configurar</li>
+{% endblock %}
+{% block page_actions %}<a class="btn btn-primary" href="{% url 'agenda_exames:recurso-novo' %}">Nova agenda</a>{% endblock %}
+{% block content %}
+<div class="alert alert-primary fs-13" role="status">
+    Cada agenda é um equipamento ou sala (EEG, ENMG, polissonografia), com horário próprio. Ela não é
+    um médico: não consome vaga de médico do plano e não ocupa a agenda de ninguém. Quem executou o
+    exame é registrado na realização.
+</div>
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100"><tr><th class="ps-4" scope="col">Agenda</th><th scope="col">Tipo</th>
+                    <th scope="col">Duração</th><th scope="col">Horários</th><th scope="col">Situação</th></tr></thead>
+                <tbody>
+                    {% for r in recursos %}
+                    <tr>
+                        <td class="ps-4"><a class="fw-semibold" href="{% url 'agenda_exames:recurso' r.id %}">{{ r.nome }}</a></td>
+                        <td class="fs-12">{{ r.get_tipo_display }}</td>
+                        <td class="fs-12">{{ r.duracao_padrao }} min</td>
+                        <td class="fs-12">{% for j in r.janelas.all %}{{ j.get_dia_semana_display|slice:":3" }} {{ j.inicio|time:"H:i" }}–{{ j.fim|time:"H:i" }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="text-warning">sem horário</span>{% endfor %}</td>
+                        <td class="fs-12">{% if r.ativo %}Ativa{% else %}Desativada{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="ps-4 py-4 text-muted fs-13">Nenhuma agenda de exame ainda.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

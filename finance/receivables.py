@@ -270,3 +270,69 @@ def cancel_receivable(receivable, actor_id, reason):
         object_type='receivable', object_id=receivable.id, outcome='success',
     )
     return receivable
+
+
+def create_receivable_for_exam(reserva, actor_id):
+    """A cobrança do exame realizado numa agenda de recurso (1.30).
+
+    Idempotente por reserva, pelo banco (`finance_receivable_reserva_uniq`):
+    registrar a realização duas vezes — dois cliques, a tela de duas
+    recepcionistas — devolve a mesma cobrança. A forma de cobrança é a da
+    reserva; sem escolha, a regra de sempre (cobertura vigente é convênio).
+    O preço vem da tabela de honorários com o **procedimento** do exame e o
+    médico executante, quando ele tem vínculo com a clínica. Sem regra
+    aplicável, nenhuma cobrança é inventada: a trilha registra a falta, e
+    a tela da reserva diz o que cadastrar.
+    """
+    from catalogs.models import CatalogReleaseStatus, CatalogSystem, ProcedureCode
+
+    existente = Receivable.objects.filter(
+        tenant_id=reserva.tenant_id, reserva_exame=reserva, charge_kind=ChargeKind.PROCEDURE,
+    ).first()
+    if existente is not None:
+        return existente
+    dia = timezone.localtime(reserva.inicio).date()
+    if reserva.cobranca == 'particular':
+        coverage = None
+    elif reserva.cobranca == 'convenio':
+        coverage = reserva.cobertura
+    else:
+        coverage = _active_coverage(reserva.paciente, dia)
+    procedimento = None
+    if reserva.codigo_tuss:
+        procedimento = ProcedureCode.objects.filter(
+            code=reserva.codigo_tuss, release__system=CatalogSystem.TUSS,
+            release__status=CatalogReleaseStatus.ACTIVE,
+        ).first()
+    medico = reserva.executante.membership if reserva.executante_id and reserva.executante.membership_id else None
+    categoria = PaymentCategory.INSURANCE if coverage else PaymentCategory.PRIVATE
+    try:
+        regra = resolve_price(
+            reserva.tenant, medico, categoria, dia,
+            plan=coverage.plan if coverage else None, procedure=procedimento,
+        )
+    except NoApplicableFeeSchedule:
+        record_audit_event(
+            actor_id, reserva.tenant_id, 'finance.receivable_pricing_missing',
+            object_type='reserva_exame', object_id=reserva.id, outcome='failure',
+            integrity_metadata={'categoria': categoria, 'codigo': reserva.codigo_tuss},
+        )
+        return None
+    try:
+        with transaction.atomic():
+            receivable = Receivable.objects.create(
+                tenant=reserva.tenant, patient=reserva.paciente, reserva_exame=reserva,
+                charge_kind=ChargeKind.PROCEDURE, fee_snapshot=snapshot_from_fee_schedule(regra),
+                expected_amount=regra.gross_amount, charged_amount=regra.gross_amount,
+                due_date=timezone.localdate() + timedelta(days=DUE_DAYS), competence_date=dia,
+                status=ReceivableStatus.PENDING,
+            )
+    except IntegrityError:
+        return Receivable.objects.get(tenant_id=reserva.tenant_id, reserva_exame=reserva,
+                                      charge_kind=ChargeKind.PROCEDURE)
+    record_audit_event(
+        actor_id, reserva.tenant_id, 'finance.receivable_created',
+        object_type='receivable', object_id=receivable.id, outcome='success',
+        integrity_metadata={'origin_type': 'reserva_exame', 'origin_id': str(reserva.id)},
+    )
+    return receivable

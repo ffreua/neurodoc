@@ -80,6 +80,14 @@ class Receivable(TenantModel):
         'scheduling.Appointment', on_delete=models.PROTECT, null=True, blank=True,
         related_name='receivables',
     )
+    #: A terceira origem (1.30): o exame realizado numa agenda de recurso
+    #: (EEG, ENMG, polissonografia), que não tem médico de agenda nem
+    #: atendimento no prontuário. Nenhuma consulta fictícia é criada para a
+    #: cobrança ter de onde nascer.
+    reserva_exame = models.ForeignKey(
+        'agenda_exames.Reserva', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='cobrancas',
+    )
     charge_kind = models.CharField(max_length=20, choices=ChargeKind.choices, default=ChargeKind.CONSULTATION)
     fee_snapshot = models.JSONField(default=dict)
     expected_amount = models.DecimalField(max_digits=12, decimal_places=2)
@@ -106,8 +114,14 @@ class Receivable(TenantModel):
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
             models.CheckConstraint(
-                condition=models.Q(encounter__isnull=False) | models.Q(appointment__isnull=False),
+                condition=(models.Q(encounter__isnull=False) | models.Q(appointment__isnull=False)
+                           | models.Q(reserva_exame__isnull=False)),
                 name='finance_receivable_has_origin',
+            ),
+            models.UniqueConstraint(
+                fields=['tenant', 'reserva_exame', 'charge_kind'],
+                condition=models.Q(reserva_exame__isnull=False),
+                name='finance_receivable_reserva_uniq',
             ),
             models.UniqueConstraint(
                 fields=['tenant', 'encounter', 'charge_kind'],
@@ -128,7 +142,7 @@ class Receivable(TenantModel):
         ]
 
     def __str__(self):
-        origin = self.encounter_id or self.appointment_id
+        origin = self.encounter_id or self.appointment_id or self.reserva_exame_id
         return f'{origin}:{self.charge_kind} ({self.status})'
 
 

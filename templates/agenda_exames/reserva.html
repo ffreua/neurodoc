@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}{{ reserva.recurso.nome }} — NeuroDoc{% endblock %}
+{% block page_title %}{{ reserva.recurso.nome }} · {{ reserva.paciente.full_name }}{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'agenda_exames:agenda' %}?recurso={{ reserva.recurso_id }}&amp;dia={{ reserva.inicio|date:'Y-m-d' }}">Agenda de exames</a></li>
+<li class="breadcrumb-item">Exame</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'patients:detail' reserva.paciente_id %}">Ficha do paciente</a>
+{% if pode_guia and reserva.estado == 'realizada' and reserva.cobranca != 'particular' %}
+<form method="post" action="{% url 'tiss:guia-do-exame' reserva.id %}" class="d-inline">
+    {% csrf_token %}<button type="submit" class="btn btn-primary" data-nd-busy>Gerar guia TISS</button>
+</form>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">{{ reserva.get_estado_display }}</h5></div>
+            <div class="card-body fs-13">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Horário</dt><dd class="col-sm-8">{{ reserva.inicio|date:"l, d/m/Y H:i" }} até {{ reserva.fim|date:"d/m/Y H:i" }}
+                        {% if reserva.encaixe %}<span class="badge bg-soft-warning text-warning">encaixe: {{ reserva.motivo_encaixe }}</span>{% endif %}</dd>
+                    <dt class="col-sm-4">Procedimento</dt><dd class="col-sm-8">{{ reserva.codigo_tuss|default:"—" }} {{ reserva.descricao }}</dd>
+                    <dt class="col-sm-4">Quem pediu</dt><dd class="col-sm-8">{{ reserva.solicitante|default:"—" }}</dd>
+                    <dt class="col-sm-4">Cobrança</dt><dd class="col-sm-8">{{ reserva.get_cobranca_display|default:"a decidir" }}{% if reserva.cobertura %} — {{ reserva.cobertura.plan.insurer.name }}, {{ reserva.cobertura.plan.name }}{% endif %}</dd>
+                    {% if reserva.observacao %}<dt class="col-sm-4">Observação</dt><dd class="col-sm-8">{{ reserva.observacao }}</dd>{% endif %}
+                    {% if reserva.estado == 'realizada' %}<dt class="col-sm-4">Executado por</dt><dd class="col-sm-8">{{ reserva.executante }}, {{ reserva.realizada_em|date:"d/m/Y H:i" }}</dd>{% endif %}
+                    {% if reserva.estado == 'cancelada' %}<dt class="col-sm-4">Motivo</dt><dd class="col-sm-8">{{ reserva.motivo_cancelamento }}</dd>{% endif %}
+                    {% if cobranca_financeira %}<dt class="col-sm-4">No financeiro</dt><dd class="col-sm-8"><a href="{% url 'finance:receivable-detail' cobranca_financeira.id %}">R$ {{ cobranca_financeira.charged_amount }} ({{ cobranca_financeira.get_status_display|lower }})</a></dd>{% endif %}
+                    {% for g in guias %}<dt class="col-sm-4">Guia TISS</dt><dd class="col-sm-8"><a href="{% url 'tiss:guia' g.id %}">nº {{ g.numero_prestador }}</a> ({{ g.get_estado_display|lower }})</dd>{% endfor %}
+                </dl>
+            </div>
+        </div>
+
+        {% if reserva.estado == 'agendada' or reserva.estado == 'confirmada' or reserva.estado == 'chegou' %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Registrar a realização</h5></div>
+            <div class="card-body">
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}<input type="hidden" name="acao" value="realizar">
+                    <div class="col-md-8"><label class="form-label fs-12" for="r-exe">Quem executou</label>
+                        <select class="form-select form-select-sm" id="r-exe" name="executante" required>
+                            <option value="">—</option>
+                            {% for p in profissionais %}<option value="{{ p.id }}" {% if p.id == reserva.recurso.executante_padrao_id %}selected{% endif %}>{{ p }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-md-4"><button type="submit" class="btn btn-sm btn-primary w-100" data-nd-busy>Exame realizado</button></div>
+                </form>
+                <p class="fs-12 text-muted mt-2 mb-0">É a realização que cria a cobrança no financeiro e permite gerar a guia.
+                    Quem executa vem do cadastro de profissionais do Faturamento TISS.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-lg-5">
+        {% if reserva.estado == 'agendada' or reserva.estado == 'confirmada' or reserva.estado == 'chegou' %}
+        <div class="card mb-4"><div class="card-body d-flex flex-wrap gap-2">
+            {% if reserva.estado == 'agendada' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="confirmada"><button class="btn btn-sm btn-light-primary" type="submit" data-nd-busy>Confirmar</button></form>
+            {% endif %}
+            {% if reserva.estado != 'chegou' %}
+            <form method="post">{% csrf_token %}<input type="hidden" name="acao" value="chegou"><button class="btn btn-sm btn-light-primary" type="submit" data-nd-busy>Paciente chegou</button></form>
+            {% if pode_faltar %}<form method="post" data-nd-confirm="Registrar falta?">{% csrf_token %}<input type="hidden" name="acao" value="faltou"><button class="btn btn-sm btn-light" type="submit" data-nd-busy>Faltou</button></form>{% endif %}
+            {% endif %}
+        </div></div>
+
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Forma de cobrança</h5></div>
+            <div class="card-body">
+                <form method="post" class="row g-2">
+                    {% csrf_token %}<input type="hidden" name="acao" value="cobranca">
+                    <div class="col-12"><label class="form-label fs-12" for="r-cob">Forma</label>
+                        <select class="form-select form-select-sm" id="r-cob" name="cobranca">
+                            {% for v, r in formas %}<option value="{{ v }}" {% if v == reserva.cobranca %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-12"><label class="form-label fs-12" for="r-cov">Convênio</label>
+                        <select class="form-select form-select-sm" id="r-cov" name="cobertura">
+                            <option value="">—</option>
+                            {% for c in coberturas %}<option value="{{ c.id }}" {% if c.id == reserva.cobertura_id %}selected{% endif %}>{{ c.plan.insurer.name }} — {{ c.plan.name }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary" data-nd-busy>Gravar</button></div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if reserva.estado == 'agendada' or reserva.estado == 'confirmada' %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Remarcar</h5></div>
+            <div class="card-body">
+                <form method="post" class="row g-2">
+                    {% csrf_token %}<input type="hidden" name="acao" value="remarcar">
+                    {% for field in remarcar_form %}
+                    <div class="{% if field.name == 'encaixe' %}col-12 form-check ms-2{% else %}col-6{% endif %}">
+                        {% if field.name == 'encaixe' %}{{ field }} <label class="form-check-label fs-12" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        {% else %}<label class="form-label fs-12" for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% endif %}
+                    </div>
+                    {% endfor %}
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-primary" data-nd-busy>Remarcar</button></div>
+                </form>
+            </div>
+        </div>
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="post" class="row g-2" data-nd-confirm="Cancelar este exame?">
+                    {% csrf_token %}<input type="hidden" name="acao" value="cancelada">
+                    <div class="col-12"><label class="form-label fs-12" for="r-mot">Motivo do cancelamento</label>
+                        <input class="form-control form-control-sm" id="r-mot" name="motivo" required maxlength="255"></div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Cancelar exame</button></div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
