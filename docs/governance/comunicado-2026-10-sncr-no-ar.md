@@ -54,4 +54,22 @@ NeuroDoc — contato@neurodoc.app.br
 
 ## Registro do envio
 
-*(preenchido depois do envio)*
+**Enviado em 2026-10-30**, depois da publicação da 1.29 (`66ed88d`), de
+`contato@neurodoc.app.br`, pelo SMTP da instalação (no worker), um e-mail
+ao responsável (*owner*) de cada clínica, com a saudação ao nome da clínica
+e cópia oculta para `contato@neurodoc.app.br` — que guarda o registro com
+os endereços. **Os endereços não ficam aqui:** este repositório é público,
+e o e-mail do responsável é dado pessoal. As seis mensagens foram aceitas
+pela fila de envio:
+
+- CALDAS, REGO E URBANO SERVICOS MEDICOS LTDA
+- Caixeta Serviços Médicos
+- Luca SB ltda
+- Clínica Neurologie (primeiro comunicado que recebe: entrou depois dos de 21 e 22/10)
+- Santos Dias Medical Care
+- Schalch Serviços Médicos Ltda
+
+Não receberam as clínicas do titular, autor da mudança: a Freua Serviços
+Médicos e o Consultório FK. O Consultório FK, cujo nome não diz "Freua",
+apareceu na primeira listagem; o filtro passou a excluir também pelo e-mail
+do responsável antes do envio.
