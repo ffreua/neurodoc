@@ -202,3 +202,225 @@
     border-left: 3px solid var(--bs-primary, #3454d1);
     padding-left: 1rem;
 }
+
+/* ----------------------------------------------------- efeitos (1.30) --
+ *
+ * Movimento só onde ele ajuda a ler: a entrada das seções conforme a
+ * rolagem, o cartão que levanta sob o cursor, o fundo do hero que respira
+ * devagar. Tudo cede a `prefers-reduced-motion`: quem pediu menos
+ * movimento ao sistema operacional recebe a página parada, inteira.
+ *
+ * As cores continuam as do tema (`--bs-primary` e cinzas): o efeito é
+ * novo, a paleta não.
+ */
+.nd-hero-animado {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+}
+
+.nd-hero-animado::before,
+.nd-hero-animado::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: .35;
+    pointer-events: none;
+}
+
+.nd-hero-animado::before {
+    width: 32rem;
+    height: 32rem;
+    top: -12rem;
+    right: -8rem;
+    background: radial-gradient(circle, rgba(52, 84, 209, .45), transparent 70%);
+    animation: nd-respira 14s ease-in-out infinite alternate;
+}
+
+.nd-hero-animado::after {
+    width: 26rem;
+    height: 26rem;
+    bottom: -14rem;
+    left: -10rem;
+    background: radial-gradient(circle, rgba(23, 198, 102, .35), transparent 70%);
+    animation: nd-respira 18s ease-in-out infinite alternate-reverse;
+}
+
+@keyframes nd-respira {
+    from { transform: translate3d(0, 0, 0) scale(1); }
+    to { transform: translate3d(-2rem, 1.5rem, 0) scale(1.12); }
+}
+
+/* Entrada pela rolagem. A classe `nd-reveal-pendente` só é posta pelo
+ * landing.js, e só no que está **abaixo** da dobra: sem JavaScript nada
+ * fica escondido, e o que já está na tela não pisca. */
+.nd-reveal-pendente {
+    opacity: 0;
+    transform: translateY(18px);
+}
+
+.nd-reveal-visivel {
+    opacity: 1;
+    transform: none;
+    transition: opacity .6s ease, transform .6s cubic-bezier(.2, .7, .2, 1);
+}
+
+.nd-lift {
+    transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.nd-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 18px 40px rgba(40, 60, 80, .12);
+}
+
+.nd-section-compacta { padding: 3.5rem 0; }
+
+.nd-novo-icone {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 3rem;
+    height: 3rem;
+    padding: 0 .6rem;
+    border-radius: .75rem;
+    font-weight: 700;
+    font-size: .85rem;
+    letter-spacing: .02em;
+    color: var(--bs-primary, #3454d1);
+    background: var(--bs-primary-bg-subtle, #eef2ff);
+}
+
+.nd-novo-card { border: 1px solid var(--bs-gray-200, #e9ecef); }
+.nd-novo-card:hover { border-color: var(--bs-primary, #3454d1); }
+
+/* ---------------------------------------------- seletor de pagamento --
+ *
+ * Um controle segmentado. Os números das três formas estão no HTML; o CSS
+ * mostra a escolhida pelo `data-periodo` da seção. Sem JavaScript o
+ * atributo fica no padrão (anual), e a tabela comparativa mostra as três.
+ */
+.nd-periodo {
+    display: inline-flex;
+    gap: .25rem;
+    padding: .3rem;
+    border-radius: 999px;
+    background: var(--bs-gray-100, #f8f9fa);
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.nd-periodo-btn {
+    border: 0;
+    border-radius: 999px;
+    padding: .55rem 1.1rem;
+    min-height: 40px;
+    font-size: .85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--bs-secondary, #64748b);
+    background: transparent;
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+}
+
+.nd-periodo-btn[aria-pressed="true"] {
+    color: #fff;
+    background: var(--bs-primary, #3454d1);
+    box-shadow: 0 6px 16px rgba(52, 84, 209, .28);
+}
+
+.nd-periodo-off {
+    display: inline-block;
+    margin-left: .35rem;
+    padding: .05rem .4rem;
+    border-radius: 999px;
+    font-size: .7rem;
+    color: var(--bs-success, #17c666);
+    background: rgba(23, 198, 102, .12);
+}
+
+.nd-periodo-btn[aria-pressed="true"] .nd-periodo-off {
+    color: #fff;
+    background: rgba(255, 255, 255, .2);
+}
+
+.nd-periodo-cheio { color: var(--bs-secondary, #64748b); background: transparent; }
+
+.nd-planos [data-p] { display: none; }
+.nd-planos[data-periodo="anual"] [data-p="anual"],
+.nd-planos[data-periodo="semestral"] [data-p="semestral"],
+.nd-planos[data-periodo="trimestral"] [data-p="trimestral"] {
+    display: block;
+    animation: nd-troca .3s ease;
+}
+
+@keyframes nd-troca {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+}
+
+.nd-preco {
+    display: block;
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.05;
+    color: var(--bs-dark, #283c50);
+    letter-spacing: -.02em;
+}
+
+.nd-preco small {
+    font-size: .9rem;
+    font-weight: 600;
+    color: var(--bs-secondary, #64748b);
+    margin-left: .15rem;
+}
+
+.nd-comparativo table { min-width: 640px; }
+.nd-linha-destaque td { background: var(--bs-primary-bg-subtle, #eef2ff); }
+
+/* A barra de cima ganha sombra quando a página rola: diz que há conteúdo
+ * por baixo dela. */
+.nd-public-nav.nd-rolou { box-shadow: 0 6px 18px rgba(40, 60, 80, .08); }
+
+/* ------------------------------------------------------------ celular */
+@media (max-width: 575.98px) {
+    .nd-section { padding: 3rem 0; }
+    .nd-hero { padding: 3rem 0 2.5rem; }
+    .nd-preco { font-size: 1.75rem; }
+    .nd-periodo { display: flex; width: 100%; }
+    .nd-periodo-btn { flex: 1 1 auto; padding: .55rem .6rem; }
+    .nd-hero-animado::before { width: 20rem; height: 20rem; }
+    .nd-hero-animado::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nd-hero-animado::before,
+    .nd-hero-animado::after { animation: none; }
+    .nd-reveal-pendente { opacity: 1; transform: none; }
+    .nd-reveal-visivel,
+    .nd-lift,
+    .nd-periodo-btn { transition: none; }
+    .nd-lift:hover { transform: none; }
+    .nd-planos [data-p] { animation: none !important; }
+}
+
+/* As linhas de recurso do cartão: o rótulo pode quebrar, o valor não —
+ * "não / incluído" em duas linhas lia como duas informações. */
+.nd-plan-limits > div { gap: .5rem; }
+
+/* Quatro cartões lado a lado deixam ~260px de coluna: o bloco de recursos
+ * desce um ponto para os rótulos caberem numa linha. */
+@media (min-width: 1200px) {
+    .nd-plan-limits .fs-13 { font-size: .74rem !important; }
+}
+
+/* No celular o seletor só tem o nome e o desconto: "preço cheio" ao lado
+ * de "Trimestral" passava da largura e rolava dentro do controle. */
+@media (max-width: 575.98px) {
+    .nd-periodo-cheio { display: none; }
+    .nd-periodo-btn { font-size: .8rem; }
+    .nd-periodo-off { margin-left: .2rem; }
+}

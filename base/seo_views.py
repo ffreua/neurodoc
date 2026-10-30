@@ -120,6 +120,9 @@ class RobotsView(View):
             'Disallow: /comecar-gratis/',
             '',
             'Sitemap: ' + seo.absoluta('/sitemap.xml'),
+            # Não é diretiva do padrão: é o aviso, para quem lê o arquivo,
+            # de onde está o resumo para modelos de linguagem.
+            '# llms.txt: ' + seo.absoluta('/llms.txt'),
             '',
         ]
         return HttpResponse('\n'.join(linhas), content_type='text/plain; charset=utf-8',
@@ -151,6 +154,76 @@ class SitemapView(View):
         partes.append('</urlset>')
         return HttpResponse('\n'.join(partes) + '\n',
                             content_type='application/xml; charset=utf-8',
+                            headers={'Cache-Control': CACHE})
+
+
+class LlmsView(View):
+    """`/llms.txt` (e `/llm.txt`): o produto explicado a um modelo de linguagem.
+
+    A proposta de llmstxt.org: um Markdown curto, na raiz, que um assistente
+    lê antes de responder "o que é o NeuroDoc" ou "quanto custa". Montado
+    das mesmas fontes da página — `base/seo.py`, `tenancy/plans.py`,
+    `base/help_content.py` —, e nunca escrito à parte: um texto para robô
+    que envelhece separado da vitrine responde preço antigo com toda a
+    confiança, e é exatamente o número que o visitante vai conferir.
+
+    Só o que é público: a vitrine, o manual e o contrato. Nada de `/app/`.
+    """
+
+    def get(self, request):
+        from base.help_content import ARTICLES
+        from tenancy.plans import PUBLIC_ORDER, PLANS, pricing
+
+        def linha_do_plano(code):
+            plano, preco = PLANS[code], pricing(code)
+            medicos = plano['max_doctors']
+            limites = (
+                f"até {plano['max_patients']:,} pacientes ativos e {medicos} médico{'s' if medicos != 1 else ''}"
+                .replace(',', '.')
+                if plano['max_patients'] else 'pacientes e médicos sem limite fixo'
+            )
+            if preco['free']:
+                valor = 'Grátis, sem prazo e sem cartão'
+            elif not preco['quoted']:
+                valor = 'Valores combinados caso a caso'
+            else:
+                valor = 'Pagamento ' + '; '.join(
+                    f"{p['label'].lower()}: {p['mensal']}/mês ({p['pagamento']} {p['por']}, "
+                    f"{p['ano']} em 12 meses{', ' + str(p['desconto']) + '% de desconto' if p['desconto'] else ', preço cheio'})"
+                    for p in preco['periodos']
+                )
+            return f"- **{plano['label']}** — {limites}. {valor}."
+
+        base = seo.absoluta('')
+        partes = [
+            '# NeuroDoc',
+            '',
+            '> ' + seo.RESUMO,
+            '',
+            'Prontuário eletrônico e gestão de consultório em português, feito por um '
+            'neurologista para neurologia e neurocirurgia e utilizável por qualquer '
+            'especialidade. Funciona no navegador; os dados ficam no Brasil, sob a LGPD.',
+            '',
+            '## Planos e preços',
+            '',
+            'Contrato de 12 meses. Nos planos pagos, o pagamento pode ser anual '
+            '(desconto de lançamento), semestral (5% de desconto) ou trimestral (preço cheio).',
+            '',
+            *[linha_do_plano(code) for code in PUBLIC_ORDER],
+            '',
+            '## Páginas',
+            '',
+            f'- [Página do produto]({base}/): recursos, planos e perguntas frequentes',
+            f'- [Manual de uso]({base}/ajuda/): os processos do sistema, passo a passo',
+            f'- [Contrato de adesão]({base}/contrato/): o texto em vigor',
+            f'- [Verificar documento]({base}/verificar/): conferir receita ou laudo assinado pelo QR',
+            '',
+            '## Manual',
+            '',
+            *[f"- [{a['title']}]({base}/ajuda/{a['slug']}/): {a['summary']}" for a in ARTICLES],
+            '',
+        ]
+        return HttpResponse('\n'.join(partes), content_type='text/plain; charset=utf-8',
                             headers={'Cache-Control': CACHE})
 
 

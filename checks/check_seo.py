@@ -59,7 +59,7 @@ from base import seo
 from base.content import ESPECIALIDADES, FAQ
 from base.help_content import ARTICLES
 from tenancy.models import Membership, MembershipStatus, Tenant
-from tenancy.plans import MESES_NO_ANO, PLANS, PUBLIC_ORDER
+from tenancy.plans import PERIODICIDADES, PLANS, PUBLIC_ORDER, preco_na_periodicidade
 
 falhas = []
 
@@ -243,8 +243,13 @@ for code in PUBLIC_ORDER:
     centavos = PLANS[code].get('price_monthly')
     if centavos is None:
         continue
-    reais, resto = divmod(centavos * MESES_NO_ANO, 100)
-    esperados.append('%d.%02d' % (reais, resto))
+    if centavos == 0:
+        esperados.append('0.00')
+        continue
+    # Uma oferta por periodicidade, com o valor de cada pagamento (1.30).
+    for periodicidade in PERIODICIDADES:
+        reais, resto = divmod(preco_na_periodicidade(code, periodicidade)['pagamento'], 100)
+        esperados.append('%d.%02d' % (reais, resto))
 conferir('o preco de cada oferta vem de tenancy.plans',
          [o['price'] for o in produto.get('offers', [])], esperados)
 conferir('o Personalizado nao vira oferta sem preco',

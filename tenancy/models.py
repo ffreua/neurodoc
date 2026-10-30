@@ -369,6 +369,10 @@ class Invitation(TimestampedModel):
     #: `plan_note` da organização no aceite, que é onde a pergunta é feita
     #: depois — o convite some da vista assim que é consumido.
     plan_note = models.CharField(max_length=255, blank=True)
+    #: De quanto em quanto tempo a clínica paga (`tenancy.plans.Periodicidade`).
+    #: É a "condição comercial expressamente registrada" do contrato: vai
+    #: do convite para o aceite, e o aceite grava o valor dela.
+    periodicidade = models.CharField(max_length=12, default='anual')
 
     expires_at = models.DateTimeField()
     consumed_at = models.DateTimeField(null=True, blank=True)
@@ -512,6 +516,13 @@ class ContractAcceptance(TenantModel):
     #: Nulo quando nao ha preco de tabela -- o Personalizado, combinado
     #: caso a caso. Zero e o Gratuito, que e um preco e nao uma ausencia.
     price_annual_cents = models.PositiveIntegerField(null=True, blank=True)
+    #: Periodicidade e valor de cada pagamento, gravados no aceite (1.30).
+    #: Vazio nos aceites anteriores, que eram todos anuais.
+    periodicidade = models.CharField(
+        max_length=12, blank=True,
+        choices=[('anual', 'Anual'), ('semestral', 'Semestral'), ('trimestral', 'Trimestral')],
+    )
+    price_payment_cents = models.PositiveIntegerField(null=True, blank=True)
 
     #: A conta que aceitou, enquanto ela existir.
     #:

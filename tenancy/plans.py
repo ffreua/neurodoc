@@ -20,67 +20,63 @@ que ele existe.
 
 from django.db import models
 
-#: Meses numa assinatura. Existe como constante porque o preco anual e o
-#: mensal precisam **derivar um do outro**: dois numeros escritos a mao
-#: divergem na primeira mudanca de preco, e a pagina passa a prometer uma
-#: conta que nao fecha.
+#: Meses no ano. O total de um ano **deriva** do mensal de cada
+#: periodicidade: dois números escritos à mão divergem na primeira mudança
+#: de preço, e a página passa a prometer uma conta que não fecha.
 MESES_NO_ANO = 12
 
-#: Quanto o preco de tabela e MAIOR que o cobrado, em pontos percentuais,
-#: por plano (`acrescimo_tabela` no dicionario de cada um). Ausente ou zero
-#: desliga a promocao daquele plano: some o riscado e some o selo.
-#:
-#: O que esta escrito em `price_monthly` e o que a clinica **paga**. O
-#: preco de tabela -- o valor riscado -- e derivado daqui, e nao um segundo
-#: numero guardado a mao.
-#:
-#: A direcao importa e foi escolhida: deriva-se o **caro a partir do
-#: barato**, porque o barato e o que sera cobrado de fato e o unico que
-#: aparece na fatura. O contrario faria o valor da fatura depender de
-#: arredondamento.
-#:
-#: **Por plano, e nao um numero so** (2026-10-02). Era uma constante global
-#: `DESCONTO_PROMOCIONAL = 20`, e o Basico e o Completo passaram a ter
-#: margens diferentes. Um unico percentual forcaria inventar um preco de
-#: tabela para um dos dois.
-#:
-#: ## Acrescimo nao e desconto, e a tela nao pode confundir os dois
-#:
-#: "A tabela era 30% mais cara" e "30% de desconto" sao contas diferentes:
-#: R$ 87,00 + 30% da R$ 113,10, e sobre R$ 113,10 o desconto e de 23,08% --
-#: nao de 30%. Anunciar "30% de desconto" ao lado desses dois numeros seria
-#: propaganda enganosa aritmetica, conferivel por quem le com o celular na
-#: mao.
-#:
-#: Por isso `pricing()` devolve em `discount` o desconto **de verdade**,
-#: calculado dos dois precos e **arredondado para baixo**: anunciado 23%,
-#: entregue 23,08%. O cliente nunca recebe menos do que a pagina prometeu.
-#: Arredondar para o mais proximo daria 29% para o Completo quando o real e
-#: 28,57% -- meio ponto a favor da casa, que e exatamente o que nao se faz
-#: num numero que o leitor consegue conferir.
 
+class Periodicidade(models.TextChoices):
+    """De quanto em quanto tempo a clínica paga — dentro do contrato de 12 meses.
 
-def preco_de_tabela(centavos, acrescimo):
-    """O preco "de", a partir do "por" e do acrescimo em pontos percentuais.
-
-    Em centavos e com arredondamento explicito (meio para cima), porque o
-    resultado vai impresso numa pagina publica: `float` aqui produziria
-    `R$ 197,49999...` num dia qualquer, dependendo do preco.
+    O contrato de adesão fixa a vigência em 12 meses e o valor "anual e
+    devido integralmente na contratação, **salvo condição comercial
+    expressamente registrada**" (`tenancy/contract.py`, versão 1.2). Pagar
+    por semestre ou por trimestre é essa condição: ela vai no convite e fica
+    gravada no aceite (`ContractAcceptance.periodicidade`). Um contrato de
+    seis ou três meses seria outra coisa — mudaria a cláusula de vigência,
+    e redação de contrato passa pela advogada.
     """
-    if not centavos or not acrescimo:
+
+    ANUAL = 'anual', 'Anual'
+    SEMESTRAL = 'semestral', 'Semestral'
+    TRIMESTRAL = 'trimestral', 'Trimestral'
+
+
+#: Decidido em 2026-10-30: o preço cheio é o mensal do plano; o anual tem
+#: 20% de desconto **de lançamento**, o semestral 5%, e o trimestral paga o
+#: preço cheio. O desconto existe **só** na periodicidade em que está
+#: escrito — a página não pode dar a entender 20% para quem paga por
+#: trimestre.
+#:
+#: `meses` é quantos meses cada pagamento cobre; `lancamento` marca o
+#: desconto que é promoção (e que um dia acaba), para a tela dizê-lo.
+PERIODICIDADES = {
+    Periodicidade.ANUAL: {'meses': 12, 'desconto': 20, 'lancamento': True,
+                          'por': 'por ano', 'pagamento': 'pagamento único anual'},
+    Periodicidade.SEMESTRAL: {'meses': 6, 'desconto': 5, 'lancamento': False,
+                              'por': 'por semestre', 'pagamento': '2 pagamentos semestrais'},
+    Periodicidade.TRIMESTRAL: {'meses': 3, 'desconto': 0, 'lancamento': False,
+                               'por': 'por trimestre', 'pagamento': '4 pagamentos trimestrais'},
+}
+
+#: A primeira que a vitrine mostra, e a do convite que não disser outra.
+PERIODICIDADE_PADRAO = Periodicidade.ANUAL
+
+
+def com_desconto(centavos, desconto):
+    """O mensal com o desconto, em centavos, arredondado meio para cima.
+
+    Em centavos e com arredondamento explícito, porque vai impresso numa
+    página pública e num contrato: `float` aqui produziria `R$ 80,74999...`
+    num dia qualquer. O total de cada pagamento e o do ano saem **deste**
+    mensal multiplicado pelos meses — nunca de um segundo arredondamento —,
+    para "R$ 80,75 por mês" e "R$ 484,50 por semestre" fecharem a conta que
+    o leitor faz com o celular na mão.
+    """
+    if not centavos or not desconto:
         return centavos
-    return (int(centavos) * (100 + int(acrescimo)) + 50) // 100
-
-
-def desconto_real(centavos, tabela):
-    """O desconto que os dois precos de fato representam, para baixo.
-
-    Para baixo de proposito: ver o bloco acima. O numero anunciado nunca
-    pode ser maior que o entregue.
-    """
-    if not tabela or tabela <= centavos:
-        return 0
-    return int((tabela - centavos) * 100 // tabela)
+    return (int(centavos) * (100 - int(desconto)) + 50) // 100
 
 
 def brl(centavos):
@@ -148,10 +144,9 @@ PLANS = {
         'clinical_ai': False,
         'sms': True,
         'tiss': False,
-        'price_monthly': 8700,
-        # A tabela era 30% mais cara: R$ 113,10. O desconto que isso
-        # representa -- 23% -- e calculado, nunca escrito aqui.
-        'acrescimo_tabela': 30,
+        # Preço cheio, por mês (2026-10-30). O desconto de cada
+        # periodicidade sai de `PERIODICIDADES`, nunca escrito aqui.
+        'price_monthly': 8500,
         'summary': 'Para o consultório que cresceu: dois médicos, convênios e '
                    'dinheiro entrando por mais de uma porta.',
         'features': [
@@ -171,15 +166,16 @@ PLANS = {
         'clinical_ai': True,
         'sms': True,
         'tiss': True,
-        'price_monthly': 14700,
-        # Tabela 40% mais cara: R$ 205,80, que representa 28% de desconto.
-        'acrescimo_tabela': 40,
+        'price_monthly': 17500,
         'summary': 'Para a clínica consolidada, com equipe multiprofissional e '
                    'agenda cheia nos cinco dias.',
         'features': [
             'Tudo do Básico',
             'Cinco médicos, secretaria e gestão, cada papel com o seu acesso',
             'IA como copiloto do registro, sempre com revisão médica',
+            'Faturamento de convênio TISS: guias de Consulta e SP/SADT e lotes XML, '
+            'em todas as versões do padrão da ANS',
+            'Agenda de exames por equipamento: EEG, ENMG e polissonografia',
             'Indicadores de produtividade e faturamento, com exportação',
         ],
         'highlight': True,
@@ -199,6 +195,7 @@ PLANS = {
         'summary': 'Para serviço de neurologia de grande porte, clínica cirúrgica '
                    'e hospital-dia — onde o padrão não serve.',
         'features': [
+            'Tudo do Completo, inclusive o faturamento TISS e a agenda de exames',
             'Pacientes e médicos sem teto: o limite é o que for combinado',
             'Condições comerciais e de implantação desenhadas com a sua equipe',
             'Conversa direta com quem desenvolve, não com um canal de suporte',
@@ -304,59 +301,70 @@ def has_tiss(code):
     return plan_config(code).get('tiss', False)
 
 
+def preco_na_periodicidade(code, periodicidade=PERIODICIDADE_PADRAO):
+    """O que o plano custa numa periodicidade, em centavos. `None` se não há preço.
+
+    `mensal` é o equivalente por mês, `pagamento` o valor de cada cobrança
+    (12, 6 ou 3 meses), `ano` o total de doze meses. Grátis devolve zeros.
+    """
+    cheio = plan_config(code).get('price_monthly')
+    if cheio is None:
+        return None
+    regra = PERIODICIDADES[Periodicidade(periodicidade)]
+    mensal = com_desconto(cheio, regra['desconto'])
+    return {
+        'cheio': cheio, 'mensal': mensal, 'pagamento': mensal * regra['meses'],
+        'ano': mensal * MESES_NO_ANO, 'economia_ano': (cheio - mensal) * MESES_NO_ANO,
+        'meses': regra['meses'], 'desconto': regra['desconto'],
+    }
+
+
 def pricing(code):
-    """O preço de um plano, já formatado, nos três jeitos que a tela usa.
+    """O preço de um plano, já formatado, para a vitrine.
 
-    O anual **deriva** do mensal (`MESES_NO_ANO`), e não é um segundo
-    número escrito à mão: dois números independentes divergem na primeira
-    mudança de preço, e a página passa a prometer uma conta que não fecha.
+    Três estados, e a tela precisa distinguir os três: grátis (`0`), com
+    preço (as três periodicidades, em `periodos`) e sem preço (`None` — o
+    Personalizado, combinado caso a caso).
 
-    Três estados, e a tela precisa distinguir os três:
+    Em cada periodicidade: o mensal equivalente, o valor de cada pagamento
+    e **sempre** o total de um ano, que é o número que permite comparar as
+    três. Tudo derivado do preço cheio por `preco_na_periodicidade`.
 
-    - grátis (`0`): não há cobrança;
-    - com preço de tabela: mensal, anual e a equivalência;
-    - sem preço de tabela (`None`): o Personalizado, combinado caso a caso.
-
-    Quando há promoção (`acrescimo_tabela` do plano), o mesmo dicionário traz o
-    preço **de tabela** — `list_monthly`, `list_annual` — e a economia no
-    ano. Todos derivados do que se cobra, e não guardados ao lado dele:
-    dois preços escritos à mão divergem na primeira mudança, e o valor
-    riscado é justamente o que ninguém confere depois.
+    `monthly` e `annual` (os da periodicidade padrão, a anual) continuam
+    existindo para quem precisa de um número só: o menu do formulário, o
+    JSON-LD.
     """
     centavos = plan_config(code).get('price_monthly')
     if centavos is None:
         return {
-            'free': False, 'quoted': False, 'promo': False,
+            'free': False, 'quoted': False, 'promo': False, 'periodos': [],
             'monthly': '', 'annual': '', 'note': 'Valores de acordo com o que for fechado.',
         }
     if centavos == 0:
         return {
-            'free': True, 'quoted': True, 'promo': False,
+            'free': True, 'quoted': True, 'promo': False, 'periodos': [],
             'monthly': 'Grátis', 'annual': '',
             'note': 'Sem cobrança e sem prazo. É por onde dá para conhecer o sistema '
                     'antes de contratar.',
         }
-    anual = centavos * MESES_NO_ANO
-    tabela_mensal = preco_de_tabela(centavos, plan_config(code).get('acrescimo_tabela'))
-    # O anual de tabela sai do mensal de tabela pelo mesmo caminho que o
-    # anual cobrado sai do mensal cobrado. Dividir o anual cobrado
-    # diretamente daria o mesmo numero quase sempre e um centavo de
-    # diferenca quando nao desse -- e essa diferenca apareceria como "o
-    # riscado nao bate com 12x o riscado" na unica tela que a mostra.
-    tabela_anual = tabela_mensal * MESES_NO_ANO
+    periodos = []
+    for codigo, regra in PERIODICIDADES.items():
+        v = preco_na_periodicidade(code, codigo)
+        periodos.append({
+            'code': str(codigo), 'label': codigo.label, 'desconto': v['desconto'],
+            'lancamento': regra['lancamento'], 'por': regra['por'],
+            'pagamento_rotulo': regra['pagamento'],
+            'mensal': brl(v['mensal']), 'pagamento': brl(v['pagamento']), 'ano': brl(v['ano']),
+            'cheio': brl(v['cheio']), 'cheio_ano': brl(v['cheio'] * MESES_NO_ANO),
+            'economia_ano': brl(v['economia_ano']),
+            'mensal_centavos': v['mensal'], 'ano_centavos': v['ano'],
+        })
+    padrao = next(p for p in periodos if p['code'] == PERIODICIDADE_PADRAO)
     return {
-        'free': False, 'quoted': True,
-        'promo': tabela_mensal > centavos,
-        'monthly': brl(centavos),
-        'annual': brl(anual),
-        # O desconto de VERDADE, dos dois precos, para baixo -- e nao o
-        # acrescimo. Ver o bloco no topo do modulo: os dois numeros sao
-        # diferentes, e e este que o leitor consegue conferir na tela.
-        'discount': desconto_real(centavos, tabela_mensal),
-        'list_monthly': brl(tabela_mensal),
-        'list_annual': brl(tabela_anual),
-        'saving_annual': brl(tabela_anual - anual),
-        'note': 'Pagamento anual.',
+        'free': False, 'quoted': True, 'promo': any(p['desconto'] for p in periodos),
+        'periodos': periodos, 'full_monthly': brl(centavos),
+        'monthly': padrao['mensal'], 'annual': padrao['ano'], 'discount': padrao['desconto'],
+        'note': 'Contrato de 12 meses, pago por ano, semestre ou trimestre.',
     }
 
 
@@ -383,7 +391,7 @@ def plan_choices():
         if preco['free']:
             rotulo += ' — grátis'
         elif preco['quoted']:
-            rotulo += f' — {preco["monthly"]}/mês, pago anualmente'
+            rotulo += f' — a partir de {preco["monthly"]}/mês no anual'
         else:
             rotulo += ' — valores a combinar'
         opcoes.append((str(code), rotulo))

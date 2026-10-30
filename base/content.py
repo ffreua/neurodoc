@@ -98,17 +98,46 @@ CODIGO_ABERTO = {
 #: 2026-10-29: o primeiro bloco real do SNCR foi pedido em produção e a
 #: primeira RCE eletrônica numerada foi assinada e conferida no portal da
 #: Anvisa (`docs/sncr/ESTADO_EXECUCAO.md`).
+#:
+#: 2026-10-30 (1.30): o faturamento TISS e a agenda de exames. A chave nova
+#: faz o aviso aparecer também para quem fechou o do SNCR.
 NOVIDADE = {
-    'chave': 'sncr-2026-10',
+    'chave': 'tiss-2026-10',
     'selo': 'Novidade',
-    'titulo': 'Receita controlada com a numeração da Anvisa',
-    'texto': 'O NeuroDoc está integrado ao SNCR e segue as novas regras da Anvisa '
-             '(RDC 1.000/2025): o médico pede o próprio bloco de números com o Gov.br '
-             'e emite a Receita de Controle Especial e a Receita Sujeita à Retenção '
-             'eletrônicas no modelo oficial, com assinatura ICP-Brasil.',
-    'link': '/ajuda/receita-sncr/',
+    'titulo': 'Faturamento de convênio TISS e agenda de exames',
+    'texto': 'Guias de Consulta e SP/SADT preenchidas com o que o sistema já sabe, '
+             'lotes em XML nas versões que cada operadora aceita, e uma agenda própria '
+             'para EEG, ENMG e polissonografia — no plano Completo.',
+    'link': '/ajuda/faturamento-tiss/',
     'link_rotulo': 'Como funciona',
 }
+
+#: Os três cartões de "Novo no NeuroDoc", logo abaixo do hero. Cada um leva
+#: ao artigo do manual que mostra a função — a regra do topo deste módulo:
+#: só o que existe, e conferível.
+NOVIDADES = [
+    {
+        'icone': 'TISS',
+        'titulo': 'Faturamento de convênio TISS',
+        'texto': 'Guias de Consulta e SP/SADT preenchidas com o que o sistema já sabe, '
+                 'e lotes em XML na versão que cada operadora aceita. No plano Completo.',
+        'link': '/ajuda/faturamento-tiss/', 'rotulo': 'Como funciona',
+    },
+    {
+        'icone': 'EEG',
+        'titulo': 'Agenda de exames',
+        'texto': 'EEG, ENMG e polissonografia com agenda por equipamento, inclusive a '
+                 'noite inteira, sem ocupar vaga de médico. No plano Completo.',
+        'link': '/ajuda/agenda-exames/', 'rotulo': 'Ver a agenda',
+    },
+    {
+        'icone': '℞',
+        'titulo': 'Receita digital com numeração da Anvisa',
+        'texto': 'Receita de Controle Especial e de Retenção eletrônicas no modelo do '
+                 'SNCR, com o bloco de números do médico e assinatura ICP-Brasil.',
+        'link': '/ajuda/receita-sncr/', 'rotulo': 'Como emitir',
+    },
+]
 
 #: Cada item: o que a clínica ganha, não o que o código faz.
 RECURSOS = [
@@ -173,6 +202,30 @@ RECURSOS = [
                  'antes de sair, e o envio é recusado quando não satisfaz a política '
                  'de privacidade — a clínica pode usar o próprio provedor e a '
                  'própria chave.',
+    },
+    {
+        'titulo': 'Receita controlada com a numeração da Anvisa',
+        'texto': 'Integrado ao SNCR (RDC 1.000/2025): o médico pede o próprio bloco de '
+                 'números com o Gov.br e emite a Receita de Controle Especial e a de '
+                 'Retenção eletrônicas no modelo oficial, uma folha por medicamento, com '
+                 'assinatura ICP-Brasil e a lista da Portaria 344 conferida na hora.',
+    },
+    {
+        # "No Completo" no texto, pela mesma razão da IA: quem lê a lista de
+        # recursos fora da vitrine não pode descobrir o plano depois de pagar.
+        'titulo': 'Faturamento de convênio no padrão TISS',
+        'texto': 'No plano Completo: a guia de Consulta e a de SP/SADT nascem com o '
+                 'convênio, a carteira e os profissionais que o sistema já conhece, e '
+                 'a consulta cobrada no check-in entra sem cobrança duplicada. O lote '
+                 'sai em XML na versão que cada operadora aceita — da 3.04 à 4.03 —, '
+                 'conferido contra o padrão oficial da ANS antes de você enviar.',
+    },
+    {
+        'titulo': 'Agenda de exames: EEG, ENMG e polissonografia',
+        'texto': 'No plano Completo: uma agenda por equipamento, separada da dos '
+                 'médicos e sem ocupar vaga de médico. A polissonografia que atravessa '
+                 'a noite é um exame só, o equipamento nunca recebe dois pacientes no '
+                 'mesmo horário, e o exame realizado vira cobrança e guia.',
     },
     {
         'titulo': 'Guarda de vinte anos, e a trilha de quem viu o quê',
@@ -262,6 +315,38 @@ ESPECIALIDADES = {
              'mais para a neurologia; todo o resto foi feito para consultório '
              'médico, qualquer que seja a especialidade.',
 }
+
+def _resposta_pagamento():
+    """A regra de pagamento, com os números de `tenancy/plans.py`.
+
+    Montada, e não escrita: a resposta cita percentuais e valores, e uma
+    cópia à mão diria "20%" no dia em que o anual passasse a 15%.
+    """
+    from tenancy.plans import PERIODICIDADES, PLANS, PlanCode, preco_na_periodicidade
+
+    def valores(code):
+        partes = []
+        for periodicidade in PERIODICIDADES:
+            v = preco_na_periodicidade(code, periodicidade)
+            mensal, ano = v['mensal'], v['ano']
+            partes.append('%s R$ %d,%02d/mês (R$ %s no ano)' % (
+                periodicidade.label.lower(), mensal // 100, mensal % 100,
+                f'{ano // 100:,}'.replace(',', '.') + ',%02d' % (ano % 100)))
+        return '; '.join(partes)
+
+    anual = PERIODICIDADES['anual']['desconto']
+    semestral = PERIODICIDADES['semestral']['desconto']
+    return (
+        'O contrato é de 12 meses, e você escolhe como pagar: de uma vez por ano, '
+        f'com {anual}% de desconto de lançamento; por semestre, com {semestral}% de '
+        'desconto; ou por trimestre, pelo preço cheio. Os descontos valem só para a '
+        'forma de pagamento em que estão escritos. '
+        f'No Básico: {valores(PlanCode.BASIC)}. No Completo: {valores(PlanCode.COMPLETE)}. '
+        'O Gratuito não tem cobrança, e o Personalizado é combinado. Não há pagamento '
+        'on-line: o acesso é liberado por um código de convite com o plano e a forma de '
+        'pagamento combinados, que ficam registrados no aceite do contrato.'
+    )
+
 
 #: Perguntas que um médico faz antes de confiar o prontuário a alguém. As
 #: respostas dizem o que o sistema faz — inclusive quando a resposta é
@@ -353,10 +438,21 @@ FAQ = [
                     'sistema apenas deixa de aceitar cadastro novo.',
     },
     {
+        'pergunta': 'Como funciona o pagamento dos planos?',
+        'resposta': _resposta_pagamento(),
+    },
+    {
+        'pergunta': 'O NeuroDoc envia o lote TISS direto para a operadora?',
+        'resposta': 'Ainda não. O NeuroDoc preenche as guias, monta os lotes e gera o '
+                    'arquivo XML conferido contra o padrão oficial da ANS, na versão que '
+                    'a operadora aceita; você envia o arquivo pelo portal da operadora e '
+                    'registra o protocolo no lote. O faturamento TISS e a agenda de '
+                    'exames fazem parte do plano Completo.',
+    },
+    {
         'pergunta': 'O que ainda não existe?',
-        'resposta': 'Pagamento on-line, faturamento TISS, teleconsulta e integração com '
-                    'PACS/DICOM não fazem parte desta versão. Receita de substância '
-                    'sujeita a controle especial sai em papel, com as duas vias exigidas, '
-                    'e não por transmissão eletrônica a órgão regulador.',
+        'resposta': 'Pagamento on-line, teleconsulta, integração com PACS/DICOM e o '
+                    'envio automático do lote TISS ao webservice das operadoras não '
+                    'fazem parte desta versão.',
     },
 ]

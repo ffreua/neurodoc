@@ -51,6 +51,12 @@ revoga-se e emite-se outro — que é mais barato que a alternativa.
                     {% endfor %}
                 </select>
             </div>
+            <div class="col-lg-2 col-md-6">
+                <label class="form-label" for="periodicidade">Pagamento</label>
+                <select class="form-select" id="periodicidade" name="periodicidade">
+                    {% for p in periodicidades %}<option value="{{ p.code }}">{{ p.label }}{% if p.desconto %} (−{{ p.desconto }}%){% endif %}</option>{% endfor %}
+                </select>
+            </div>
             <div class="col-lg-2 col-md-3">
                 <label class="form-label" for="patient_limit_override">Pacientes</label>
                 <input class="form-control" id="patient_limit_override" type="number" min="0"
@@ -113,7 +119,7 @@ revoga-se e emite-se outro — que é mais barato que a alternativa.
                     {% for row in pending %}
                     <tr>
                         <td class="ps-4">
-                            <span class="badge bg-soft-primary text-primary">{{ row.plan_label }}</span>
+                            <span class="badge bg-soft-primary text-primary">{{ row.plan_label }}</span> <span class="fs-11 text-muted">pagamento {{ row.obj.periodicidade }}</span>
                             {% if row.obj.plan_note %}
                             <span class="fs-11 text-muted d-block">{{ row.obj.plan_note }}</span>
                             {% endif %}

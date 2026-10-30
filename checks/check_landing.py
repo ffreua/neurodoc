@@ -217,7 +217,8 @@ if not bloqueou:
     falhas.append('o limite por IP nao barrou o excesso')
 
 print('=== 9. a pagina nao promete o que nao existe ===')
-proibidos = ['teleconsulta', 'TISS', 'DICOM', 'PACS']
+# 'TISS' saiu na 1.30: o faturamento de convenio existe e e anunciado no Completo.
+proibidos = ['teleconsulta', 'DICOM', 'PACS']
 achados = [p for p in proibidos if p.lower() in ' '.join(
     r['titulo'] + ' ' + r['texto'] for r in RECURSOS).lower()]
 print(f'  recursos anunciados={len(RECURSOS)}  promessas fora de escopo={achados or "nenhuma"}')
@@ -230,99 +231,68 @@ print(f'  perguntas no FAQ={len(FAQ)}')
 if len(FAQ) < 5:
     falhas.append('o FAQ ficou curto demais para servir')
 
-print('=== 9b. o preco da pagina fecha com a conta ===')
-# A pagina mostra o anual e diz a quanto equivale por mes. Sao dois
-# numeros que precisam concordar -- e a forma de eles divergirem e alguem
-# escrever o anual a mao depois de mudar o mensal.
+print('=== 9b. o preco da pagina fecha com a conta, em cada forma de pagamento ===')
+# Cada forma de pagamento mostra tres numeros -- o mensal equivalente, o de
+# cada pagamento e o total de 12 meses -- e os tres precisam fechar entre si
+# e com o preco cheio do catalogo. A forma de eles divergirem e alguem
+# escrever um deles a mao depois de mudar o outro.
 from tenancy.plans import (
-    MESES_NO_ANO, PLANS, PUBLIC_ORDER, brl, desconto_real, pricing,
-    plan_choices, preco_de_tabela,
+    MESES_NO_ANO, PERIODICIDADES, PLANS, PUBLIC_ORDER, PlanCode, brl, com_desconto, plan_choices,
+    preco_na_periodicidade, pricing,
 )
 
 corpo_landing = Client().get('/').content.decode()
 for code in PUBLIC_ORDER:
     preco = pricing(code)
-    centavos = PLANS[code].get('price_monthly')
+    cheio = PLANS[code].get('price_monthly')
     if not preco['quoted'] or preco['free']:
         continue
-    esperado_anual = brl(centavos * MESES_NO_ANO)
-    confere = preco['annual'] == esperado_anual
-    na_pagina = preco['annual'] in corpo_landing and preco['monthly'] in corpo_landing
-    print(f'  {str(code):10} {preco["monthly"]}/mes -> {preco["annual"]}/ano  '
-          f'conta_fecha={confere}  na_pagina={na_pagina}')
-    if not confere:
-        falhas.append(f'{code}: o anual anunciado nao e o mensal vezes {MESES_NO_ANO}')
-    if not na_pagina:
-        falhas.append(f'{code}: o preco nao aparece na pagina de vendas')
+    for per in preco['periodos']:
+        regra = PERIODICIDADES[per['code']]
+        mensal = com_desconto(cheio, regra['desconto'])
+        fecha = (per['mensal'] == brl(mensal)
+                 and per['ano'] == brl(mensal * MESES_NO_ANO)
+                 and per['pagamento'] == brl(mensal * regra['meses'])
+                 and per['economia_ano'] == brl((cheio - mensal) * MESES_NO_ANO))
+        na_pagina = all(v in corpo_landing for v in (per['mensal'], per['ano'], per['pagamento']))
+        print(f'  {str(code):9} {per["code"]:10} {per["mensal"]}/mes  {per["pagamento"]} {per["por"]}  '
+              f'{per["ano"]} no ano  -{per["desconto"]}%  fecha={fecha}  na_pagina={na_pagina}')
+        if not fecha:
+            falhas.append(f'{code} {per["code"]}: mensal, pagamento e total do ano nao fecham')
+        if not na_pagina:
+            falhas.append(f'{code} {per["code"]}: algum valor nao aparece na pagina de vendas')
+        if per['desconto'] and per['cheio'] not in corpo_landing:
+            falhas.append(f'{code}: o preco cheio riscado nao aparece')
 
-print('=== 9b-bis. o desconto anunciado e o desconto de verdade ===')
-# Anunciar um percentual que nao fecha com os dois precos ao lado dele e
-# propaganda enganosa, nao erro de arredondamento: quem le tem os dois
-# numeros na tela e consegue fazer a conta. Este bloco faz a conta antes
-# do cliente.
-#
-# **O catalogo guarda acrescimo, e a tela anuncia desconto**, que sao
-# numeros diferentes: +30% sobre R$ 87,00 da R$ 113,10, e sobre R$ 113,10
-# o desconto e 23,08%, nao 30%. A assercao central e a ultima daqui: o
-# percentual anunciado nunca pode ser MAIOR que o entregue.
-promovidos = [c for c in PUBLIC_ORDER if pricing(c).get('promo')]
-print(f'  planos em promocao: {[str(c) for c in promovidos] or "nenhum"}')
-if promovidos:
-    for code in promovidos:
-        preco = pricing(code)
-        centavos = PLANS[code]['price_monthly']
-        acrescimo = PLANS[code].get('acrescimo_tabela')
-        tabela_mensal = preco_de_tabela(centavos, acrescimo)
-        anunciado = preco['discount']
-        # A conta pela qual o leitor julga o anuncio: tirar o percentual
-        # anunciado do preco de tabela nao pode dar MENOS do que se cobra,
-        # senao a pagina prometeu um desconto que nao entrega.
-        pelo_anunciado = tabela_mensal * (100 - anunciado) / 100
-        honesto = centavos <= pelo_anunciado
-        # E nao pode ser folgado a ponto de virar outro numero: o anunciado
-        # e o real truncado, entao a distancia e sempre menor que 1 ponto.
-        justo = anunciado == desconto_real(centavos, tabela_mensal)
-        anual_coerente = preco['list_annual'] == brl(tabela_mensal * MESES_NO_ANO)
-        economia_certa = preco['saving_annual'] == brl(
-            tabela_mensal * MESES_NO_ANO - centavos * MESES_NO_ANO)
-        riscado_na_pagina = (preco['list_annual'] in corpo_landing
-                             and preco['list_monthly'] in corpo_landing)
-        # O percentual precisa estar NA PAGINA, e no cartao do plano: a
-        # frase acima dos cartoes nao cita mais um numero so, justamente
-        # porque os planos divergem.
-        pct_na_pagina = f'{anunciado}% de desconto' in corpo_landing
-        print(f'  {str(code):10} de {preco["list_monthly"]}/mes por {preco["monthly"]}/mes  '
-              f'(+{acrescimo}% de tabela) anuncia -{anunciado}%  honesto={honesto} '
-              f'justo={justo} anual={anual_coerente} economia={economia_certa} '
-              f'riscado={riscado_na_pagina} pct_na_pagina={pct_na_pagina}')
-        if not honesto:
-            falhas.append(
-                f'{code}: anuncia {anunciado}% sobre {brl(tabela_mensal)}, que daria '
-                f'{brl(round(pelo_anunciado))}, e a pagina cobra {preco["monthly"]}')
-        if not justo:
-            falhas.append(
-                f'{code}: anuncia {anunciado}% quando o desconto real truncado e '
-                f'{desconto_real(centavos, tabela_mensal)}%')
-        if not anual_coerente:
-            falhas.append(f'{code}: o anual riscado nao e o mensal riscado vezes {MESES_NO_ANO}')
-        if not economia_certa:
-            falhas.append(f'{code}: a economia anunciada nao e a diferenca dos dois anuais')
-        if not riscado_na_pagina:
-            falhas.append(f'{code}: o preco de tabela nao aparece na pagina')
-        if not pct_na_pagina:
-            falhas.append(f'{code}: a pagina nao diz de quanto e o desconto deste plano')
-        # O riscado precisa ser MAIOR que o cobrado. Um acrescimo negativo
-        # passaria em toda a aritmetica acima e anunciaria um aumento.
-        if tabela_mensal <= centavos:
-            falhas.append(f'{code}: o preco "de" nao e maior que o "por"')
-    # A frase acima dos cartoes nao pode voltar a cravar um percentual
-    # unico: com planos divergentes, ela discordaria dos cartoes.
-    if 'de desconto</strong> sobre o preço' in corpo_landing:
-        falhas.append('a frase acima dos cartoes voltou a anunciar um percentual unico')
-else:
-    print('  promocao desligada -- a pagina nao deve mostrar valor riscado')
-    if '<s>' in corpo_landing:
-        falhas.append('a promocao esta desligada e a pagina ainda risca um preco')
+print('=== 9b-bis. os numeros combinados em 2026-10-30, e o desconto so onde vale ===')
+# Os valores do pedido, cravados: um ajuste futuro de preco e uma decisao,
+# e este roteiro tem de ser atualizado junto -- com autor e data no commit.
+esperado = {
+    PlanCode.BASIC: {'anual': (6800, 81600), 'semestral': (8075, 96900), 'trimestral': (8500, 102000)},
+    PlanCode.COMPLETE: {'anual': (14000, 168000), 'semestral': (16625, 199500), 'trimestral': (17500, 210000)},
+}
+for code, formas in esperado.items():
+    for periodicidade, (mensal, ano) in formas.items():
+        v = preco_na_periodicidade(code, periodicidade)
+        ok = (v['mensal'], v['ano']) == (mensal, ano)
+        print(f'  {str(code):9} {periodicidade:10} {brl(v["mensal"])}/mes, {brl(v["ano"])} no ano  ok={ok}')
+        if not ok:
+            falhas.append(f'{code} {periodicidade}: esperado {brl(mensal)}/mes e {brl(ano)} no ano')
+descontos = {str(c): r['desconto'] for c, r in PERIODICIDADES.items()}
+if descontos != {'anual': 20, 'semestral': 5, 'trimestral': 0}:
+    falhas.append(f'descontos por forma de pagamento mudaram: {descontos}')
+if [str(c) for c, r in PERIODICIDADES.items() if r['lancamento']] != ['anual']:
+    falhas.append('o desconto de lancamento deveria ser so o do anual')
+# O seletor diz o desconto AO LADO da forma em que ele vale. A frase de
+# lancamento acima dos cartoes cita o anual por extenso.
+if 'de desconto no pagamento anual' not in corpo_landing:
+    falhas.append('a pagina nao diz que os 20% sao do pagamento anual')
+if 'preço cheio' not in corpo_landing:
+    falhas.append('a pagina nao diz que o trimestral e o preco cheio')
+if 'Total em 12 meses' not in corpo_landing:
+    falhas.append('o cartao nao mostra o total de 12 meses')
+if 'Compare as formas de pagamento' not in corpo_landing:
+    falhas.append('a tabela comparativa sumiu: sem JavaScript, ela e o unico lugar das tres formas')
 
 # Gratuito e Personalizado sao os dois casos que nao sao "um preco".
 gratuito = pricing('free')
@@ -336,10 +306,10 @@ if 'Sob medida' not in corpo_landing:
     falhas.append('a pagina nao diz que o Personalizado tem valores a combinar')
 
 # A regra de cobranca precisa estar escrita onde o preco e lido.
-for trecho in ['uma vez por ano', 'plano Gratuito']:
+for trecho in ['Contrato de 12 meses', 'plano Gratuito', 'TISS (convênios)', 'Agenda de exames']:
     if trecho not in corpo_landing:
         falhas.append(f'a pagina nao explica: {trecho!r}')
-print(f'  explica cobranca anual={"uma vez por ano" in corpo_landing}  '
+print(f'  explica o contrato de 12 meses={"Contrato de 12 meses" in corpo_landing}  '
       f'convida ao gratuito={"plano Gratuito" in corpo_landing}')
 
 print('=== 9c. o menu de plano do formulario ===')
@@ -588,7 +558,7 @@ print('IA e SMS: a pagina diz o que cada plano tem, inclusive o que NAO tem')
 # anuncia acrescentando linha. Quem compara quatro cartoes lado a lado
 # precisa ver o ausente na mesma posicao do presente -- senao conclui que
 # tem, e descobre depois de contratar.
-from tenancy.plans import PlanCode, has_clinical_ai, has_sms
+from tenancy.plans import PlanCode, has_clinical_ai, has_sms, has_tiss
 
 _pagina = _c.get('/').content.decode(errors='replace')
 for _rotulo, _quantos in [('não incluída', 1), ('não incluído', 1)]:
@@ -606,13 +576,17 @@ _sem_ia = sum(1 for _p in [PlanCode.FREE, PlanCode.BASIC, PlanCode.COMPLETE, Pla
               if not has_clinical_ai(_p))
 _sem_sms = sum(1 for _p in [PlanCode.FREE, PlanCode.BASIC, PlanCode.COMPLETE, PlanCode.CUSTOM]
                if not has_sms(_p))
-print(f'  catalogo: {_sem_ia} plano(s) sem IA, {_sem_sms} sem SMS')
-if _pagina.count('não incluída') != _sem_ia:
-    falhas.append(f'a pagina marca IA ausente em {_pagina.count("não incluída")} planos, '
-                  f'e o catalogo tem {_sem_ia}')
-if _pagina.count('não incluído') != _sem_sms:
-    falhas.append(f'a pagina marca SMS ausente em {_pagina.count("não incluído")} planos, '
-                  f'e o catalogo tem {_sem_sms}')
+# Desde a 1.30 o cartao tem mais duas linhas do mesmo tipo: o faturamento
+# TISS ("incluido") e a agenda de exames ("incluida"), as duas do plano.
+_sem_tiss = sum(1 for _p in [PlanCode.FREE, PlanCode.BASIC, PlanCode.COMPLETE, PlanCode.CUSTOM]
+                if not has_tiss(_p))
+print(f'  catalogo: {_sem_ia} plano(s) sem IA, {_sem_sms} sem SMS, {_sem_tiss} sem TISS')
+if _pagina.count('não incluída') != _sem_ia + _sem_tiss:
+    falhas.append(f'a pagina marca IA/agenda ausentes {_pagina.count("não incluída")} vezes, '
+                  f'e o catalogo pede {_sem_ia + _sem_tiss}')
+if _pagina.count('não incluído') != _sem_sms + _sem_tiss:
+    falhas.append(f'a pagina marca SMS/TISS ausentes {_pagina.count("não incluído")} vezes, '
+                  f'e o catalogo pede {_sem_sms + _sem_tiss}')
 
 # O bloco explicativo: os dois custam por uso, e a clinica precisa saber
 # que pode apontar para o contrato proprio.

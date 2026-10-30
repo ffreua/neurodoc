@@ -81,7 +81,7 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     aceite = registrar_aceite(
         tenant, user, plan=invitation.plan,
         ip=contract_ip, user_agent=contract_user_agent,
-        poderes_declarados=contract_powers,
+        poderes_declarados=contract_powers, periodicidade=invitation.periodicidade,
     )
     # A clínica nasce pronta para atender: sem isto, o primeiro exame
     # neurológico abre num aviso pedindo um comando de terminal.

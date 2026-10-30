@@ -56,22 +56,29 @@ def _somar_um_ano(momento):
         return momento.replace(year=momento.year + 1, month=2, day=28)
 
 
-def preco_anual_centavos(plan):
-    """O que o plano custa no ano, em centavos. `None` quando é combinado.
+def preco_anual_centavos(plan, periodicidade=None):
+    """O que o plano custa em doze meses, na periodicidade. `None` quando é combinado.
 
-    Sai de `tenancy/plans.py`, que é a fonte única, e o anual deriva do
-    mensal pelo mesmo caminho de `pricing()` — um segundo cálculo aqui
-    divergiria do da vitrine na primeira mudança de preço, e o contrato
-    registraria um valor que a página nunca mostrou.
+    Sai de `tenancy/plans.py::preco_na_periodicidade`, a mesma conta da
+    vitrine — um segundo cálculo aqui divergiria dela na primeira mudança
+    de preço, e o contrato registraria um valor que a página nunca mostrou.
     """
-    from .plans import MESES_NO_ANO, plan_config
+    from .plans import PERIODICIDADE_PADRAO, preco_na_periodicidade
 
-    mensal = plan_config(plan).get('price_monthly')
-    return None if mensal is None else mensal * MESES_NO_ANO
+    valor = preco_na_periodicidade(plan, periodicidade or PERIODICIDADE_PADRAO)
+    return None if valor is None else valor['ano']
+
+
+def preco_do_pagamento_centavos(plan, periodicidade=None):
+    """O valor de cada pagamento (ano, semestre ou trimestre). `None` se combinado."""
+    from .plans import PERIODICIDADE_PADRAO, preco_na_periodicidade
+
+    valor = preco_na_periodicidade(plan, periodicidade or PERIODICIDADE_PADRAO)
+    return None if valor is None else valor['pagamento']
 
 
 def registrar_aceite(tenant, user, plan, ip=None, user_agent='', versao=None,
-                     quando=None, poderes_declarados=False):
+                     quando=None, poderes_declarados=False, periodicidade=None):
     """Grava o aceite. Chamado de dentro da transação que cria a clínica.
 
     Guarda o texto inteiro, e não só o hash: a cláusula 2.3 exige que uma
@@ -85,7 +92,11 @@ def registrar_aceite(tenant, user, plan, ip=None, user_agent='', versao=None,
         text_sha256=sha_do_texto(),
         text=contract.texto_simples(),
         plan=plan,
-        price_annual_cents=preco_anual_centavos(plan),
+        price_annual_cents=preco_anual_centavos(plan, periodicidade),
+        # A condição comercial da cláusula de pagamento: de quanto em quanto
+        # tempo, e quanto em cada vez. Só tem sentido em plano com preço.
+        periodicidade=(periodicidade or 'anual') if preco_anual_centavos(plan) else '',
+        price_payment_cents=preco_do_pagamento_centavos(plan, periodicidade),
         representation_declared=bool(poderes_declarados),
         accepted_by=user,
         # Nome montado do primeiro e do ultimo, e nao de `get_full_name()`:
@@ -124,8 +135,11 @@ def _corpo(aceite):
         f'Plano contratado:   {plan_label(aceite.plan)}',
         # O preco do dia, e nao o de hoje: e a "condicao comercial" que a
         # clausula 2.2, "h" manda registrar, e ela nao acompanha reajuste.
-        f'Valor anual:        {brl(aceite.price_annual_cents)}'
+        f'Valor em 12 meses:  {brl(aceite.price_annual_cents)}'
         if aceite.price_annual_cents else 'Valor anual:        sem cobrança ou combinado à parte',
+        *([f'Pagamento:          {aceite.get_periodicidade_display()} — '
+           f'{brl(aceite.price_payment_cents)} por vez']
+          if aceite.price_payment_cents and aceite.periodicidade else []),
         # Sem o nome entre parenteses quando ele nao existe: a conta recem
         # criada ainda nao tem nome, e a linha saia com o mesmo e-mail duas
         # vezes.

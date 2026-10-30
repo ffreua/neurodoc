@@ -29,10 +29,11 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
             <span class="brand-name">NeuroDoc</span>
         </a>
         <div class="d-flex align-items-center gap-3">
+            <a class="fs-13 fw-semibold d-none d-lg-inline" href="{% url 'onboarding:landing' %}#novidades">Novidades</a>
             <a class="fs-13 fw-semibold d-none d-md-inline" href="{% url 'onboarding:landing' %}#planos">Planos</a>
             <a class="fs-13 fw-semibold d-none d-md-inline" href="{% url 'onboarding:help' %}">Ajuda</a>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">Entrar</a>
-            <a class="btn btn-sm btn-primary" href="#contato">Falar com a gente</a>
+            <a class="btn btn-sm btn-primary d-none d-sm-inline-block" href="{% url 'onboarding:landing' %}#contato">Falar com a gente</a>
         </div>
     </div>
 </nav>

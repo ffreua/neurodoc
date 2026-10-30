@@ -204,17 +204,27 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
 
 - Preço em centavos, nunca em `float` — `158.00 * 12` em ponto flutuante
   dá `1895.9999999999998`.
-- O **anual deriva do mensal** (`MESES_NO_ANO`); o **preço de tabela
-  ("de") deriva do preço cobrado** (`DESCONTO_PROMOCIONAL`). Nenhum
-  desses números é escrito a mão duas vezes.
+- `price_monthly` é o **preço cheio** (Básico R$ 85, Completo R$ 175,
+  desde 2026-10-30). As **formas de pagamento** (`Periodicidade`,
+  `PERIODICIDADES`) derivam dele: **anual com 20% de lançamento**,
+  **semestral com 5%**, **trimestral pelo preço cheio** — o desconto só vale
+  na forma em que está escrito. `preco_na_periodicidade` devolve o mensal,
+  cada pagamento e o total de 12 meses, em centavos, do mesmo mensal
+  arredondado. Nenhum desses números é escrito à mão duas vezes.
 - Três estados de preço, e a tela distingue os três: grátis (`0`), com
   preço de tabela, e **sem** preço de tabela (`None` — o Personalizado,
   que não é grátis, é combinado).
 - `pricing(code)` devolve tudo já formatado; `public_plans()` monta a
   vitrine na ordem de `PUBLIC_ORDER`; `plan_choices()` alimenta o menu do
   formulário de contato — acrescentar um plano aparece nos três.
-- **A cobrança é anual.** O valor mensal exibido é a referência do que o
-  plano custa por mês dentro do pagamento anual.
+- **O contrato é de 12 meses; o pagamento, anual, semestral ou
+  trimestral.** A periodicidade é a "condição comercial expressamente
+  registrada" da cláusula de pagamento (contrato 1.2): vai no **convite**
+  (`Invitation.periodicidade`, escolhida no console) e fica gravada no
+  **aceite** com o total de 12 meses e o valor de cada pagamento
+  (`ContractAcceptance.periodicidade`, `price_payment_cents`). Contrato
+  **mais curto** que 12 meses mudaria a cláusula de vigência — passa pela
+  advogada. `check_periodicidade.py` cobre.
 
 **Limites: `tenancy/limits.py`.** Conta paciente **ativo** (arquivar
 libera vaga) e médico com o papel. `patient_limit_override` /
@@ -344,7 +354,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 
 | Roteiro | Cobre |
 | --- | --- |
-| `check_landing.py` | página de vendas: limites vêm do catálogo, preço fecha a conta, lead não se perde com SMTP fora, campo-armadilha, relay aberto, limite por IP |
+| `check_landing.py` | página de vendas: limites vêm do catálogo, preço fecha a conta **em cada forma de pagamento** (mensal, cada pagamento e total de 12 meses), os valores de 2026-10-30 cravados, lead não se perde com SMTP fora, campo-armadilha, relay aberto, limite por IP |
 | `check_planos.py` | limites do plano nas seis portas, override, rebaixamento |
 | `check_isolation.py` | vazamento entre inquilinos |
 | `check_roles.py`, `check_matrix.py` | matriz de permissão |
@@ -434,13 +444,14 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_tiss_versoes.py` | **sete versões, sete pacotes** (1.30): manifesto SHA-256 e o XSD adulterado recusado, o namespace oficial, o **anexo do pedido reprovado** pelos motivos certos, XXE e DTD recusados, o domínio lido do XSD de cada versão (`05` até a 4.00.01, `23` depois), CNPJ alfanumérico, e as regras do credenciamento (registro ANS de seis dígitos, letra no CNPJ só na 4.03.00, versão histórica só com aceite) |
 | `check_tiss_guias.py` | **a guia TISS** (1.30, Sprint 2): a consulta do check-in vinculada **sem recebível novo** e nunca em duas guias (serviço e banco), o preenchimento, as pendências, o código TUSS **na data do serviço**, o preço do contrato e o manual com motivo, `05` × `23` pela versão, fechar congela e a impressão segue o snapshot, revisão e cancelamento, indicação só do médico, a página sem prontuário, outra clínica em 404, GET sem efeito e a SP/SADT em duas folhas |
 | `check_agenda_exames.py` | **agendas de exame** (1.30, Sprint 4): a polissonografia das 21h às 7h numa linha só e nos dois dias, a sobreposição recusada pelo serviço, pelo banco e com **duas conexões ao mesmo tempo**, encaixe, bloqueio, passado e 24 h, convênio alheio e vencido, o lembrete (versão velha calada, uma entrega por endereço), a realização com **uma** cobrança e nada inventado sem honorário, a guia do exame até o lote válido no XSD, as telas e fronteiras, o TISS desligado sem esconder a agenda, e **nenhuma vaga de médico** consumida |
+| `check_periodicidade.py` | **formas de pagamento** (1.30): 20% só no anual, 5% no semestral, preço cheio no trimestral, as contas em centavos fechando (2 semestres e 4 trimestres = o ano), periodicidade desconhecida recusada no convite, o aceite gravando a forma, o total de 12 meses e o valor de cada pagamento daquela forma, a via por e-mail dizendo os dois, e o Gratuito sem valor |
 | `check_tiss_lotes.py` | **lotes e XML** (1.30, Sprint 3): Consulta e SP/SADT nas **sete versões** contra o XSD de cada uma (nome do beneficiário só na 3.x, regime só na 4.x, CNPJ com letra só na 4.03.00, 8,2 até a 4.01.00), o anexo, namespace trocado, campo apagado e XXE recusados, o **hash** com vetor em ISO-8859-1 e recalculado do arquivo, o **plano** (100+1, limite da operadora, operadora, tipo, versão histórica, guia em versão antiga), a seleção que mudou não cria nada, o banco recusando guia em dois lotes e lote de 101, arquivo 0600 com os **mesmos bytes** ao gerar e baixar de novo, 23h30 local, falha registrada e repetida com o mesmo número, a tarefa e a retomada, envio/retorno/cancelamento/reapresentação, **nada vira pagamento**, ciclos 15–14 e bissexto, telas e fronteiras, e **duas conexões confirmando o mesmo plano ao mesmo tempo** |
 | `check_operadoras_ans.py` | o **catálogo de operadoras da ANS** (1.30): zero à esquerda, acento, colunas faltando, lista curta que não grava, a que sai fica inativa e não apagada, a busca por palavras e pelo registro sem os zeros, e a rota |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
 
-Ao mexer em preço ou plano, `check_landing.py` e `check_planos.py` são
-obrigatórios — o primeiro confere que o anual é o mensal × 12 e que o
-número anunciado é o do catálogo.
+Ao mexer em preço ou plano, `check_landing.py`, `check_planos.py` e
+`check_periodicidade.py` são obrigatórios — o primeiro confere que cada
+forma de pagamento fecha a conta e que o número anunciado é o do catálogo.
 
 ## 7-A. Versão do produto
 

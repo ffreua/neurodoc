@@ -11,7 +11,7 @@ from tenancy.invitations import peek_invitation
 from tenancy.models import InvitationPurpose
 from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
 
-from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, FAQ, NOVIDADE, RECURSOS
+from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, FAQ, NOVIDADE, NOVIDADES, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES, article_by_slug
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
@@ -143,7 +143,7 @@ class LandingView(View):
     """
 
     def _context(self, **overrides):
-        from tenancy.plans import public_plans
+        from tenancy.plans import PERIODICIDADE_PADRAO, PERIODICIDADES, public_plans
 
         planos = public_plans()
         context = {
@@ -163,6 +163,16 @@ class LandingView(View):
             # do próprio cartão, onde o leitor o vê ao lado dos dois preços
             # a que ele se refere.
             'ha_promocao': any(p['price'].get('promo') for p in planos),
+            # As formas de pagamento do seletor, com o desconto de cada uma
+            # ao lado do nome — lidas de `tenancy.plans`, como os preços.
+            'periodicidades': [
+                {'code': str(c), 'label': c.label, 'desconto': r['desconto']}
+                for c, r in PERIODICIDADES.items()
+            ],
+            'periodo_padrao': str(PERIODICIDADE_PADRAO),
+            'desconto_lancamento': next(
+                (r['desconto'] for r in PERIODICIDADES.values() if r['lancamento']), 0),
+            'novidades': NOVIDADES,
             'autor': AUTOR,
             'novidade': NOVIDADE,
             'codigo_aberto': CODIGO_ABERTO,

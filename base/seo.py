@@ -44,14 +44,13 @@ from tenancy.contract import CONTRATADO
 #: sitemap. À mão de propósito: `localdate()` faria toda página parecer
 #: atualizada em toda publicação, o rastreador aprenderia que o sinal não
 #: significa nada e passaria a ignorá-lo. Mexer no texto é mexer aqui.
-ATUALIZADO = date(2026, 10, 29)
+ATUALIZADO = date(2026, 10, 30)
 
 #: O que o produto responde quando perguntam "isso é o quê". Entra na
 #: descrição da raiz, no JSON-LD e no cartão de compartilhamento.
 RESUMO = (
-    'Prontuário eletrônico com exame neurológico estruturado, escalas, '
-    'receita assinada, agenda e IA revisada pelo médico. '
-    'Atende qualquer especialidade.'
+    'Prontuário eletrônico com exame neurológico estruturado, receita digital '
+    'da Anvisa, faturamento TISS e agenda de exames. Serve a qualquer especialidade.'
 )
 
 #: `max-snippet:-1` e `max-image-preview:large` pedem ao Google o trecho e
@@ -152,29 +151,48 @@ def produto():
     número fosse escrito aqui. O Personalizado fica de fora das ofertas —
     `price` sem valor não é oferta, é ruído.
     """
-    from tenancy.plans import MESES_NO_ANO, PLANS, PUBLIC_ORDER
+    from tenancy.plans import PERIODICIDADES, PLANS, PUBLIC_ORDER, preco_na_periodicidade
 
     from .content import RECURSOS
+
+    def _reais(centavos):
+        # Aritmetica inteira, como no resto do produto: `8500 * 12 / 100`
+        # em ponto flutuante e por onde o centavo some.
+        reais, resto = divmod(centavos, 100)
+        return '%d.%02d' % (reais, resto)
 
     ofertas = []
     for code in PUBLIC_ORDER:
         plano = PLANS[code]
-        centavos = plano.get('price_monthly')
-        if centavos is None:
+        if plano.get('price_monthly') is None:
             continue
-        reais, resto = divmod(centavos * MESES_NO_ANO, 100)
-        ofertas.append({
-            '@type': 'Offer',
-            'name': 'Plano ' + plano['label'],
-            # Aritmetica inteira, como no resto do produto: o preco anual
-            # e doze vezes o mensal em centavos, e `8700 * 12 / 100` em
-            # ponto flutuante e por onde o centavo some.
-            'price': '%d.%02d' % (reais, resto),
-            'priceCurrency': 'BRL',
-            'category': 'Assinatura anual',
-            'url': absoluta('/') + '#planos',
-            'availability': 'https://schema.org/InStock',
-        })
+        if plano['price_monthly'] == 0:
+            ofertas.append({
+                '@type': 'Offer', 'name': 'Plano ' + plano['label'], 'price': '0.00',
+                'priceCurrency': 'BRL', 'url': absoluta('/') + '#planos',
+                'availability': 'https://schema.org/InStock',
+            })
+            continue
+        # Uma oferta por periodicidade, com o valor de cada pagamento e a
+        # duração dele: e o que a pagina mostra no seletor de cada cartao.
+        for periodicidade, regra in PERIODICIDADES.items():
+            valor = preco_na_periodicidade(code, periodicidade)
+            ofertas.append({
+                '@type': 'Offer',
+                'name': f'Plano {plano["label"]} — pagamento {periodicidade.label.lower()}',
+                'price': _reais(valor['pagamento']),
+                'priceCurrency': 'BRL',
+                'category': f'Contrato de 12 meses, pagamento {periodicidade.label.lower()}',
+                'priceSpecification': {
+                    '@type': 'UnitPriceSpecification',
+                    'price': _reais(valor['pagamento']),
+                    'priceCurrency': 'BRL',
+                    'billingDuration': f'P{regra["meses"]}M',
+                    'unitText': regra['por'],
+                },
+                'url': absoluta('/') + '#planos',
+                'availability': 'https://schema.org/InStock',
+            })
     return {
         '@type': 'SoftwareApplication',
         '@id': _id('produto'),
@@ -285,7 +303,7 @@ def dados_do_contrato():
 PAGINAS = {
     'onboarding:landing': Pagina(
         caminho='/',
-        titulo='Prontuário Eletrônico Inteligente para Neurologia | NeuroDoc',
+        titulo='Prontuário para Neurologia com TISS e Receita Digital | NeuroDoc',
         descricao=RESUMO,
         prioridade='1.0', frequencia='weekly',
         dados=dados_da_raiz,

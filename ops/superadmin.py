@@ -1268,6 +1268,8 @@ class InvitationsView(SuperAdminView):
         from tenancy.plans import PLANS, PUBLIC_ORDER
 
         agora = timezone.now()
+        from tenancy.plans import PERIODICIDADES
+
         pendentes = (
             Invitation.objects
             .filter(purpose=InvitationPurpose.PLATFORM, consumed_at__isnull=True,
@@ -1304,6 +1306,10 @@ class InvitationsView(SuperAdminView):
                 for code in PUBLIC_ORDER
             ],
             'emitido': emitido,
+            'periodicidades': [
+                {'code': str(c), 'label': c.label, 'desconto': r['desconto']}
+                for c, r in PERIODICIDADES.items()
+            ],
         })
         return render(request, 'ops/superadmin/invitations.html', context)
 
@@ -1339,10 +1345,16 @@ class InvitationsView(SuperAdminView):
             messages.error(request, 'O prazo deve ficar entre 1 e 90 dias.')
             return redirect('superadmin:invitations')
 
+        from tenancy.plans import Periodicidade
+
+        periodicidade = request.POST.get('periodicidade') or 'anual'
+        if periodicidade not in Periodicidade.values:
+            messages.error(request, 'Escolha a periodicidade do pagamento.')
+            return redirect('superadmin:invitations')
         invitation, raw_token = issue_invitation(
             InvitationPurpose.PLATFORM, issued_by=request.user,
             email_binding=(request.POST.get('email_binding') or '').strip(),
-            ttl_days=dias, plan=plano,
+            ttl_days=dias, plan=plano, periodicidade=periodicidade,
             patient_limit_override=pacientes, doctor_limit_override=medicos,
             plan_note=(request.POST.get('plan_note') or '').strip(),
         )
@@ -1351,6 +1363,7 @@ class InvitationsView(SuperAdminView):
             object_type='invitation', object_id=invitation.id, outcome='success',
             integrity_metadata={
                 'plan': invitation.plan,
+                'periodicidade': invitation.periodicidade,
                 'patient_limit_override': invitation.patient_limit_override,
                 'doctor_limit_override': invitation.doctor_limit_override,
                 'email_binding': invitation.email_binding,

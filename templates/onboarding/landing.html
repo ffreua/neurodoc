@@ -21,7 +21,7 @@ batesse o limite.
 {% endcomment %}
 
 <!-- ------------------------------------------------------------- hero -->
-<section class="nd-hero">
+<section class="nd-hero nd-hero-animado">
     <div class="container">
         {% comment %}`g-lg-5` e nao `g-5`: a calha de 3rem vira margem negativa
         de 24px de cada lado da `row`, e a folga do `container` e de 12px —
@@ -30,7 +30,10 @@ batesse o limite.
         calha horizontal ali nao separa nada.{% endcomment %}
         <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
-                <span class="badge bg-soft-primary text-primary mb-3">Neurologia, neurocirurgia — e qualquer especialidade</span>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                    <span class="badge bg-soft-primary text-primary">Neurologia, neurocirurgia — e qualquer especialidade</span>
+                    <a class="badge bg-soft-success text-success text-decoration-none" href="#novidades">Novo: faturamento TISS e agenda de exames</a>
+                </div>
                 {% comment %}O H1 diz "prontuario eletronico" por extenso de proposito: e o
                 termo pelo qual se procura este produto, e era a unica palavra que
                 faltava numa frase que ja estava certa. Um H1 que nao contem o nome
@@ -38,9 +41,10 @@ batesse o limite.
                 {% endcomment %}
                 <h1 class="nd-hero-title">O prontuário eletrônico que entende o exame neurológico.</h1>
                 <p class="nd-hero-lead">
-                    Agenda, prontuário estruturado, roteiro de exame em árvore, escalas
-                    funcionais, documentos assinados digitalmente e entrega ao paciente.
-                    Feito por um neurologista para o consultório de neurologia.
+                    Agenda, prontuário estruturado, roteiro de exame em árvore, escalas,
+                    receita digital com a numeração da Anvisa, faturamento de convênio no
+                    padrão TISS e documentos assinados. Feito por um neurologista para o
+                    consultório de neurologia.
                 </p>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary btn-lg" href="#planos">Ver os planos</a>
@@ -51,20 +55,48 @@ batesse o limite.
                 </p>
             </div>
             <div class="col-lg-6">
-                <div class="card nd-hero-card">
+                <div class="card nd-hero-card nd-lift">
                     <div class="card-body">
                         <h6 class="fw-bold text-dark mb-3">O que o sistema faz hoje</h6>
                         <ul class="nd-tick list-unstyled mb-0">
                             <li>Roteiro de exame neurológico com 387 itens e 14 escalas pontuadas</li>
-                            <li>Receita simples e de controle especial, em duas vias</li>
                             <li>Assinatura digital PAdES com QR de verificação pública</li>
                             <li>Agenda por médico, com confirmação por e-mail e SMS</li>
                             <li>Portal onde o paciente pede receita sem criar conta</li>
+                            <li>Receita controlada eletrônica com a numeração da Anvisa (SNCR)</li>
+                            <li>Guias TISS e lotes XML para os convênios, e agenda de exames</li>
                             <li>Apoio de IA que o médico revisa antes de aceitar</li>
                         </ul>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</section>
+
+<!-- --------------------------------------------------------- novidades -->
+{% comment %}O que entrou por último, em três cartões que levam ao manual.
+Logo depois do hero porque é o que traz quem já conhecia a página de volta,
+e porque "tem TISS?" é a primeira pergunta de quem atende convênio.{% endcomment %}
+<section class="nd-section nd-section-compacta" id="novidades">
+    <div class="container">
+        <div class="text-center mb-4 nd-reveal">
+            <span class="fs-11 fw-bold text-uppercase text-primary">Novo no NeuroDoc</span>
+            <h2 class="fw-bold text-dark mt-1">Do consultório ao faturamento, no mesmo lugar</h2>
+        </div>
+        <div class="row g-4">
+            {% for item in novidades %}
+            <div class="col-lg-4 nd-reveal">
+                <a class="card h-100 text-decoration-none nd-lift nd-novo-card" href="{{ item.link }}">
+                    <div class="card-body">
+                        <span class="nd-novo-icone" aria-hidden="true">{{ item.icone }}</span>
+                        <h3 class="fs-16 fw-bold text-dark mt-3">{{ item.titulo }}</h3>
+                        <p class="fs-13 text-muted mb-2">{{ item.texto }}</p>
+                        <span class="fs-12 fw-semibold text-primary">{{ item.rotulo }} →</span>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
         </div>
     </div>
 </section>
@@ -123,8 +155,8 @@ só não precisa estar na página, onde lia como defesa.{% endcomment %}
         </div>
         <div class="row g-4">
             {% for item in recursos %}
-            <div class="col-lg-4 col-md-6">
-                <div class="card h-100">
+            <div class="col-lg-4 col-md-6 nd-reveal">
+                <div class="card h-100 nd-lift">
                     <div class="card-body">
                         <h6 class="fw-bold text-dark">{{ item.titulo }}</h6>
                         <p class="fs-13 text-muted mb-0">{{ item.texto }}</p>
@@ -207,96 +239,85 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
 </section>
 
 <!-- ------------------------------------------------------------ planos -->
-<section class="nd-section bg-white" id="planos">
+<section class="nd-section bg-white nd-planos" id="planos" data-periodo="{{ periodo_padrao }}">
     <div class="container">
-        <div class="text-center mb-5">
-            <h2 class="fw-bold text-dark">Planos</h2>
-            <p class="text-muted fs-14 mb-0">
-                Escolha um e fale com a gente. Ainda não há pagamento on-line —
-                o acesso é liberado por um código de convite.
-            </p>
-            {% comment %}A regra de cobrança fica **acima** dos cartões, e não
-            numa nota de rodapé: "pago anualmente" muda o que a pessoa está
-            lendo em cada preço abaixo, e ler isso depois é ler de novo.
-            {% endcomment %}
-            <p class="fs-13 text-muted mt-3 mb-0">
-                Os planos pagos são cobrados <strong>uma vez por ano</strong>. Não há
-                mensalidade avulsa — o valor mensal abaixo é a referência do que o
-                plano custa por mês dentro do pagamento anual. Antes de contratar,
-                dá para usar o <strong>plano Gratuito</strong> sem prazo e sem cartão.
-            </p>
-            {% comment %}A promoção é anunciada por extenso aqui, e não só pelo
-            selo no cartão: "de/por" sozinho não diz sobre o quê o desconto
-            incide, e essa é a primeira pergunta de quem vai pagar um ano
-            adiantado.
-
-            **Sem percentual nesta frase.** Ela dizia "já estão com 20% de
-            desconto", de um número único da view. Desde 2026-10-02 cada plano
-            tem o seu — 23% no Básico, 28% no Completo —, e um número só aqui
-            seria a única frase da página a discordar dos cartões logo abaixo.
-            Quem precisa do percentual o encontra no selo de cada cartão, ao
-            lado dos dois preços a que ele se refere.{% endcomment %}
-            {% if ha_promocao %}
-            <p class="fs-13 text-muted mt-2 mb-0">
-                Os valores abaixo são de <strong>lançamento</strong>: já estão com
-                desconto sobre o preço de tabela, que é o valor riscado em cada
-                cartão. O percentual de cada plano está no cartão dele.
-            </p>
+        <div class="text-center mb-4 nd-reveal">
+            {% if desconto_lancamento %}
+            <span class="badge bg-soft-success text-success fs-12 mb-3">Lançamento: {{ desconto_lancamento }}% de desconto no pagamento anual</span>
             {% endif %}
+            <h2 class="fw-bold text-dark">Planos</h2>
+            {% comment %}A regra de cobrança fica **acima** dos cartões, e não numa
+            nota de rodapé: a forma de pagamento muda o número que a pessoa está
+            lendo em cada cartão, e ler isso depois é ler de novo.
+
+            Cada desconto aparece **ao lado da forma de pagamento em que vale**,
+            no próprio seletor: "20% de desconto" solto na página daria a
+            entender o desconto a quem paga por trimestre.{% endcomment %}
+            <p class="text-muted fs-14 mb-1 mx-auto" style="max-width: 44rem;">
+                Contrato de 12 meses. Escolha como prefere pagar: o valor por mês, o de cada
+                pagamento e o <strong>total do ano</strong> mudam juntos.
+            </p>
+            <p class="fs-12 text-muted mb-4">
+                Não há pagamento on-line: o acesso é liberado por um código de convite com o plano
+                e a forma de pagamento combinados. O plano <strong>Gratuito</strong> não tem prazo nem cartão.
+            </p>
+            <div class="nd-periodo" role="group" aria-label="Forma de pagamento">
+                {% for p in periodicidades %}
+                <button type="button" class="nd-periodo-btn" data-nd-periodo="{{ p.code }}"
+                        aria-pressed="{% if p.code == periodo_padrao %}true{% else %}false{% endif %}">
+                    {{ p.label }}
+                    {% if p.desconto %}<span class="nd-periodo-off">−{{ p.desconto }}%</span>{% else %}<span class="nd-periodo-off nd-periodo-cheio">preço cheio</span>{% endif %}
+                </button>
+                {% endfor %}
+            </div>
         </div>
         <div class="row g-4">
             {% for plan in plans %}
-            <div class="col-lg-3 col-md-6">
-                <div class="card h-100 {% if plan.highlight %}border border-primary nd-plan-highlight{% endif %}">
+            <div class="col-xl-3 col-md-6 nd-reveal">
+                <div class="card h-100 nd-plano nd-lift {% if plan.highlight %}border border-primary nd-plan-highlight{% endif %}">
                     {% if plan.highlight %}
                     <div class="card-header bg-primary text-white text-center py-2">
-                        <span class="fs-11 fw-bold text-uppercase">Mais completo</span>
+                        <span class="fs-11 fw-bold text-uppercase">Mais completo · com TISS</span>
                     </div>
                     {% endif %}
                     <div class="card-body d-flex flex-column">
-                        <h5 class="fw-bold text-dark">{{ plan.label }}</h5>
+                        <h3 class="fs-18 fw-bold text-dark">{{ plan.label }}</h3>
                         <p class="fs-12 text-muted">{{ plan.summary }}</p>
 
-                        {% comment %}Três estados, e não dois: grátis, com preço de
-                        tabela, e sem preço de tabela. Tratar o Personalizado como
-                        "R$ 0,00" seria a simplificação errada — ele não é grátis, é
-                        combinado.
+                        {% comment %}Três estados, e não dois: grátis, com preço e sem
+                        preço. Tratar o Personalizado como "R$ 0,00" seria a
+                        simplificação errada — ele não é grátis, é combinado.
 
-                        O valor riscado e o percentual vêm de `tenancy.plans`, como
-                        o resto: um "de R$ ..." escrito aqui sobreviveria à próxima
-                        mudança de preço, e passaria a anunciar um desconto que não
-                        é mais o que a clínica recebe.{% endcomment %}
+                        Os números das três formas de pagamento estão todos na
+                        página; o seletor só mostra a escolhida (`data-p`, pelo CSS).
+                        Sem JavaScript, fica a anual, e a tabela abaixo dos cartões
+                        mostra as três.{% endcomment %}
                         <div class="nd-plan-price mb-3">
                             {% if plan.price.free %}
-                            <span class="d-block fs-24 fw-bold text-dark lh-1">Grátis</span>
-                            <span class="d-block fs-11 text-muted mt-1">sem prazo, sem cartão</span>
+                            <span class="nd-preco">Grátis</span>
+                            <span class="d-block fs-12 text-muted mt-1">sem prazo e sem cartão</span>
                             {% elif plan.price.quoted %}
-                            {% if plan.price.promo %}
-                            <span class="badge bg-soft-success text-success fs-10 mb-2">
-                                Promoção de lançamento — {{ plan.price.discount }}% de desconto
-                            </span>
-                            <span class="d-block fs-12 text-muted lh-1 mb-1">
-                                de <s>{{ plan.price.list_annual }}</s> por ano
-                            </span>
-                            {% endif %}
-                            <span class="d-block fs-24 fw-bold text-dark lh-1">{{ plan.price.annual }}</span>
-                            <span class="d-block fs-11 text-muted mt-1">
-                                por ano — equivale a <strong>{{ plan.price.monthly }}/mês</strong>{% if plan.price.promo %},
-                                no lugar de <s>{{ plan.price.list_monthly }}/mês</s>{% endif %}
-                            </span>
-                            {% comment %}Sem "no primeiro ano" nem "por ano": o prazo
-                            da promoção não está definido, e inventar um aqui seria a
-                            página prometer um prazo que ninguém combinou. O valor
-                            cobrado já é anual, então a economia sem qualificador não
-                            é ambígua.{% endcomment %}
-                            {% if plan.price.promo %}
-                            <span class="d-block fs-11 fw-bold text-success mt-1">
-                                Você economiza {{ plan.price.saving_annual }}
-                            </span>
-                            {% endif %}
+                            {% for per in plan.price.periodos %}
+                            <div data-p="{{ per.code }}">
+                                {% if per.desconto %}
+                                <span class="badge bg-soft-success text-success fs-10 mb-2">
+                                    {% if per.lancamento %}Lançamento · {% endif %}{{ per.desconto }}% de desconto
+                                </span>
+                                <span class="d-block fs-12 text-muted lh-1 mb-1">de <s>{{ per.cheio }}</s> por mês</span>
+                                {% else %}
+                                <span class="badge bg-soft-secondary text-secondary fs-10 mb-2">Preço cheio</span>
+                                {% endif %}
+                                <span class="nd-preco">{{ per.mensal }}<small>/mês</small></span>
+                                <span class="d-block fs-13 text-dark mt-2">Total em 12 meses: <strong class="text-nowrap">{{ per.ano }}</strong></span>
+                                <span class="d-block fs-12 text-muted">{{ per.pagamento_rotulo|capfirst }} de <span class="text-nowrap">{{ per.pagamento }}</span></span>
+                                {% if per.desconto %}
+                                <span class="d-block fs-12 fw-bold text-success mt-1">Economia de <span class="text-nowrap">{{ per.economia_ano }}</span> no ano</span>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
                             {% else %}
-                            <span class="d-block fs-20 fw-bold text-dark lh-1">Sob medida</span>
-                            <span class="d-block fs-11 text-muted mt-1">valores conforme o que for fechado</span>
+                            <span class="nd-preco fs-24">Sob medida</span>
+                            <span class="d-block fs-12 text-muted mt-1">valores conforme o que for fechado</span>
                             {% endif %}
                         </div>
 
@@ -313,38 +334,30 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                                     {% if plan.max_doctors %}{{ plan.max_doctors }}{% else %}ilimitado{% endif %}
                                 </span>
                             </div>
-                            {% comment %}IA e SMS ficam **aqui**, junto dos limites, e
-                            não só na lista de itens abaixo.
-
-                            Os dois custam por uso a quem hospeda o sistema, e são a
-                            única diferença entre planos que a lista de itens não
-                            conseguia mostrar: ela só acrescenta linhas, e "não tem"
-                            não se anuncia acrescentando linha. Quem compara quatro
-                            cartões lado a lado precisa ver o **ausente** na mesma
-                            posição em que vê o presente — senão conclui que tem, e
-                            descobre depois de contratar.{% endcomment %}
+                            {% comment %}Os recursos que mudam de plano para plano ficam
+                            **aqui**, na mesma posição em todos os cartões, e não só na
+                            lista de itens: a lista só acrescenta linhas, e "não tem" não
+                            se anuncia acrescentando linha. Quem compara quatro cartões
+                            precisa ver o ausente onde vê o presente.{% endcomment %}
                             <div class="d-flex justify-content-between fs-13">
                                 <span class="text-muted">IA clínica</span>
-                                {% if plan.clinical_ai %}
-                                <span class="fw-bold text-success">incluída</span>
-                                {% else %}
-                                <span class="fw-bold text-muted">não incluída</span>
-                                {% endif %}
+                                {% if plan.clinical_ai %}<span class="fw-bold text-success text-nowrap">incluída</span>{% else %}<span class="fw-bold text-muted text-nowrap">não incluída</span>{% endif %}
+                            </div>
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">TISS (convênios)</span>
+                                {% if plan.tiss %}<span class="fw-bold text-success text-nowrap">incluído</span>{% else %}<span class="fw-bold text-muted text-nowrap">não incluído</span>{% endif %}
+                            </div>
+                            <div class="d-flex justify-content-between fs-13">
+                                <span class="text-muted">Agenda de exames</span>
+                                {% if plan.tiss %}<span class="fw-bold text-success text-nowrap">incluída</span>{% else %}<span class="fw-bold text-muted text-nowrap">não incluída</span>{% endif %}
                             </div>
                             <div class="d-flex justify-content-between fs-13">
                                 <span class="text-muted">SMS</span>
-                                {% if plan.sms %}
-                                <span class="fw-bold text-success">incluído</span>
-                                {% else %}
-                                <span class="fw-bold text-muted">não incluído</span>
-                                {% endif %}
+                                {% if plan.sms %}<span class="fw-bold text-success text-nowrap">incluído</span>{% else %}<span class="fw-bold text-muted text-nowrap">não incluído</span>{% endif %}
                             </div>
-                            {% comment %}E-mail em todos os cartões, e igual em todos:
-                            é o que responde a quem lê "SMS não incluído" no
-                            Gratuito e pergunta como o paciente fica sabendo.{% endcomment %}
                             <div class="d-flex justify-content-between fs-13">
                                 <span class="text-muted">E-mail</span>
-                                <span class="fw-bold text-success">NeuroDoc ou o seu</span>
+                                <span class="fw-bold text-success text-end">NeuroDoc ou o seu</span>
                             </div>
                         </div>
 
@@ -352,18 +365,10 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                             {% for feature in plan.features %}<li>{{ feature }}</li>{% endfor %}
                         </ul>
 
-                        {% comment %}Dois caminhos, e a diferença não é de estilo.
-
-                        No Gratuito o botão **posta** e o visitante cai na criação
-                        da clínica com o convite já emitido: não há negócio a
-                        conversar, e cada passo entre a vontade de testar e o teste
-                        é gente que desiste sem nunca aparecer como contato.
-
-                        Nos pagos ele rola até o formulário e marca o plano —
-                        ali a conversa comercial é o ponto, não o obstáculo.
-
-                        O campo-armadilha é o mesmo do formulário de contato:
-                        invisível, e robô que preenche tudo se entrega nele.{% endcomment %}
+                        {% comment %}No Gratuito o botão **posta** e o visitante cai na
+                        criação da clínica com o convite já emitido; nos pagos ele rola
+                        até o formulário e marca o plano. O campo-armadilha é o mesmo
+                        do formulário de contato.{% endcomment %}
                         {% if plan.price.free %}
                         <form method="post" action="{% url 'onboarding:start-free' %}" class="mt-auto">
                             {% csrf_token %}
@@ -390,6 +395,38 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
             </div>
             {% endfor %}
         </div>
+
+        {% comment %}As três formas de pagamento lado a lado, sempre visíveis e
+        sem depender de JavaScript: é a resposta inteira a "quanto custa", e o
+        número que se confere com o celular na mão antes de fechar.{% endcomment %}
+        <div class="row justify-content-center mt-5 nd-reveal">
+            <div class="col-lg-10">
+                <h3 class="fs-16 fw-bold text-dark text-center mb-3">Compare as formas de pagamento</h3>
+                <div class="table-responsive nd-comparativo">
+                    <table class="table align-middle mb-0">
+                        <caption class="fs-11 text-muted">Valores dos planos pagos, contrato de 12 meses.</caption>
+                        <thead class="bg-gray-100"><tr>
+                            <th class="ps-3" scope="col">Plano</th><th scope="col">Pagamento</th>
+                            <th scope="col">Por mês</th><th scope="col">Cada pagamento</th>
+                            <th scope="col">Total em 12 meses</th><th scope="col">Desconto</th>
+                        </tr></thead>
+                        <tbody>
+                            {% for plan in plans %}{% for per in plan.price.periodos %}
+                            <tr {% if per.code == periodo_padrao %}class="nd-linha-destaque"{% endif %}>
+                                <th class="ps-3 fs-13 {% if not forloop.first %}text-muted fw-normal{% endif %}" scope="row">{{ plan.label }}</th>
+                                <td class="fs-13">{{ per.label }}</td>
+                                <td class="fs-13 fw-bold text-dark">{{ per.mensal }}</td>
+                                <td class="fs-13">{{ per.pagamento }} {{ per.por }}</td>
+                                <td class="fs-13 fw-bold text-dark">{{ per.ano }}</td>
+                                <td class="fs-13">{% if per.desconto %}<span class="text-success fw-bold">{{ per.desconto }}%</span>{% if per.lancamento %} <span class="fs-11 text-muted">lançamento</span>{% endif %}{% else %}—{% endif %}</td>
+                            </tr>
+                            {% endfor %}{% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
         {% comment %}IA e SMS explicados por extenso, e não só pelo "incluída"
         do cartão.
 
