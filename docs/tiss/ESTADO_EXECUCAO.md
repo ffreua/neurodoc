@@ -21,6 +21,10 @@ operadora** e **liberado em produção** são coisas diferentes.
 | Anexo do pedido como caso negativo | validado por XSD (reprovado, como deve) | `tiss/exemplos/anexo_reprovado_4_01_00.xml` | `check_tiss_versoes` |
 | Catálogo das operadoras ativas da ANS no cadastro de convênio | implementado | `catalogs.OperadoraAns`, `import_operadoras_ans`, tarefa semanal | `check_operadoras_ans` |
 
+**Verificação:** bateria completa na imagem da 1.30, 142 roteiros, nenhuma
+falha (30/10/2026). **Não publicada**: vai para produção junto da Sprint 2,
+por decisão do responsável.
+
 **O que ainda não existe:** guia, item, lote, XML gerado, hash TISS,
 impressão, agenda de recurso (EEG/ENMG/PSG) e o vínculo guia ↔ recebível.
 São as Sprints 2 a 4.
