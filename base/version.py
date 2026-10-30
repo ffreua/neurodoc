@@ -221,7 +221,7 @@ VERSION = '1.30'
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a receita da Anvisa'
+CODENAME = 'a fundação do TISS'
 
 
 def version_display():
