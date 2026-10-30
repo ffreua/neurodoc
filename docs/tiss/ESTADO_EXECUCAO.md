@@ -89,11 +89,52 @@ nenhuma falha (30/10/2026). Não publicada.
   cria recebível; a origem do recebível de exame é a reserva de recurso
   (Sprint 4).
 
-## Sprint 3 — próxima
+## Sprint 3 — lotes e XML (30/10/2026, ainda na versão 1.30)
 
-XML de cada versão a partir do snapshot da guia fechada, validado pelos
-bytes contra o XSD da versão; hash TISS (A3 p.48-49) com vetores de
-teste; lotes de até 100 guias do mesmo tipo e credenciamento (ou o limite
-menor da operadora); fila com filtros; ciclos (1–último dia, 15–14,
-manual); geração no worker, artefato imutável com SHA-256; protocolo e
-resultado registrados à mão.
+| Entrega | Situação | Onde | Roteiro |
+| --- | --- | --- | --- |
+| Mensagem `ENVIO_LOTE_GUIAS` de Consulta e SP/SADT nas **sete versões**, a partir do snapshot da guia fechada, com as diferenças medidas nos XSDs (nome do beneficiário e `nomeContratado` só na 3.x; regime, saúde ocupacional e cobertura especial só na 4.x; 8,2 até a 4.01.00) | **validado por XSD** (as 14 combinações) | `tiss/xml.py` | `check_tiss_lotes` |
+| Hash do epílogo: MD5 do conteúdo em ISO-8859-1, sem o epílogo, minúsculas, arquivo sem indentação | implementado; **não confirmado por operadora** (o texto da ANS não decide três detalhes; ver o topo de `tiss/xml.py`) | `tiss/xml.py::hash_tiss` | `check_tiss_lotes` |
+| Fila do que faturar, com filtros, ciclo do credenciamento e paginação | implementado | `tiss/views_lote.py::FilaView` | `check_tiss_lotes` |
+| Plano antes de criar: credenciamento × tipo × versão, até 100 (ou o limite), as recusadas com o motivo; a seleção que mudou não cria nada | implementado | `tiss/lotes.py::planejar`, `criar_lotes` | `check_tiss_lotes` |
+| Guia em no máximo um lote ativo (serviço e banco), lote de 1 a 100 (banco), numeração sob trava | implementado | `LoteGuia`, `tiss_lote_guia_ativa_uniq`, `tiss_lote_quantidade` | `check_tiss_lotes` (com duas conexões simultâneas) |
+| Arquivo gerado no worker, relendo as três chaves e quem pediu; 0600; SHA-256; mesmos bytes ao repetir; retomada do lote parado | implementado | `tiss/lotes.py::gerar_arquivo`, `tiss/tasks.py` | `check_tiss_lotes`; ponta a ponta com o worker real em 30/10/2026 |
+| Envio, protocolo, retorno, cancelamento e reapresentação registrados à mão; nada toca no financeiro | implementado | `tiss/lotes.py`, `templates/tiss/lote.html` | `check_tiss_lotes` |
+| Guia em lote ativo não se cancela por fora | implementado | `tiss/guias.py::cancelar` | `check_tiss_lotes` |
+
+**Verificação:** bateria completa com a Sprint 3, 144 roteiros, nenhuma
+falha (30/10/2026); e um lote de ponta a ponta pelo RabbitMQ e o worker
+real, pronto em ~1 s e válido no XSD. Não publicada.
+
+**Classificação, como o prompt pede:** as sete versões estão
+**implementadas e validadas por XSD** e **validadas por regras** (as
+pendências da guia e as recusas do XML). **Nenhuma está aceita em
+homologação de operadora**: isso depende de enviar um arquivo a um portal
+real, com autorização e dado apropriado. Nenhuma está **liberada em
+produção**.
+
+**Decisões desta sprint:**
+
+- **O ciclo da guia é o do último procedimento** (`Guia.data_referencia`,
+  gravada no fechamento). A guia nunca é partida entre dois períodos; a
+  fila avisa quando ela tem procedimento antes do período filtrado.
+- **Guia fechada numa versão e credenciamento trocado depois** não entra
+  em lote: precisa de revisão, para os campos serem conferidos de novo na
+  versão nova. Guia fechada antes da Sprint 3 (sem os campos no snapshot)
+  também; nenhuma existe em produção, porque a 1.30 não foi publicada.
+- **A equipe da SP/SADT** (`equipeSadt`) só sai quando o executante tem CPF
+  no cadastro; sem CPF, ela fica de fora (é opcional no XSD) e o executante
+  segue identificado pelo contratado.
+- **Lote enviado só é cancelado depois da recusa registrada.** Guia
+  glosada num lote aceito em parte é **liberada** com o motivo
+  (reapresentação), e o lote enviado fica como foi.
+- **Outras despesas não são suportadas**: os totais saem só com
+  procedimentos e total geral, que é o que o XSD exige.
+
+## Sprint 4 — próxima
+
+Agendas de exame por recurso (EEG, ENMG, polissonografia), com a
+polissonografia atravessando a meia-noite; o recebível do exame (terceira
+origem do financeiro); regressão completa, documentação para recepção e
+gestor, plano de ativação e o roteiro de homologação com a clínica-piloto,
+inclusive o primeiro arquivo enviado a uma operadora real.

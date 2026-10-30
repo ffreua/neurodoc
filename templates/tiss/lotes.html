@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Lotes TISS — NeuroDoc{% endblock %}
+{% block page_title %}Lotes TISS{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tiss:inicio' %}">Faturamento TISS</a></li>
+<li class="breadcrumb-item">Lotes</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-primary" href="{% url 'tiss:fila' %}">Faturar guias</a>
+{% endblock %}
+{% block content %}
+<div class="card mb-3">
+    <div class="card-body">
+        <form method="get" class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label fs-12" for="f-estado">Arquivo</label>
+                <select class="form-select form-select-sm" id="f-estado" name="estado">
+                    <option value="">Todos</option>
+                    {% for v, r in estados %}<option value="{{ v }}" {% if v == filtro.estado %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fs-12" for="f-situacao">Envio</label>
+                <select class="form-select form-select-sm" id="f-situacao" name="situacao">
+                    <option value="">Todos</option>
+                    <option value="nao_enviado" {% if filtro.situacao == 'nao_enviado' %}selected{% endif %}>Pronto e ainda não enviado</option>
+                    <option value="sem_retorno" {% if filtro.situacao == 'sem_retorno' %}selected{% endif %}>Enviado, sem retorno registrado</option>
+                </select>
+            </div>
+            <div class="col-md-2"><button class="btn btn-sm btn-primary w-100" type="submit">Filtrar</button></div>
+        </form>
+    </div>
+</div>
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">{{ pagina.paginator.count }} lote{{ pagina.paginator.count|pluralize }}</h5></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100"><tr>
+                    <th class="ps-4" scope="col">Lote</th><th scope="col">Operadora</th><th scope="col">Tipo</th><th scope="col">Versão</th>
+                    <th scope="col">Guias</th><th scope="col">Valor</th><th scope="col">Arquivo</th><th scope="col">Envio</th><th scope="col">Retorno</th>
+                </tr></thead>
+                <tbody>
+                    {% for l in pagina %}
+                    <tr>
+                        <td class="ps-4"><a class="fw-semibold" href="{% url 'tiss:lote' l.id %}">{{ l.numero }}</a>
+                            <span class="d-block fs-11 text-muted">{{ l.created_at|date:"d/m/Y H:i" }}</span></td>
+                        <td class="fs-12">{{ l.credenciamento.operadora.name }}</td>
+                        <td class="fs-12">{{ l.get_tipo_display }}</td>
+                        <td class="fs-12">{{ l.versao }}</td>
+                        <td class="fs-12">{{ l.quantidade }}</td>
+                        <td class="fs-12">R$ {{ l.total|floatformat:2 }}</td>
+                        <td class="fs-12">{{ l.get_estado_display }}</td>
+                        <td class="fs-12">{% if l.enviado_em %}{{ l.enviado_em|date:"d/m/Y" }}{% if l.protocolo %} · prot. {{ l.protocolo }}{% endif %}{% else %}—{% endif %}</td>
+                        <td class="fs-12">{{ l.get_resultado_display|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="ps-4 py-4 text-muted fs-13">Nenhum lote ainda. Monte o primeiro em Faturar guias.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if pagina.has_previous or pagina.has_next %}
+    <div class="card-footer">
+        <nav aria-label="Paginação">
+            <ul class="pagination mb-0 justify-content-center justify-content-sm-end">
+                <li class="page-item {% if not pagina.has_previous %}disabled{% endif %}">
+                    {% if pagina.has_previous %}<a class="page-link" href="?estado={{ filtro.estado }}&amp;situacao={{ filtro.situacao }}&amp;pagina={{ pagina.previous_page_number }}">Anterior</a>{% else %}<span class="page-link">Anterior</span>{% endif %}
+                </li>
+                <li class="page-item disabled"><span class="page-link">{{ pagina.number }} de {{ pagina.paginator.num_pages }}</span></li>
+                <li class="page-item {% if not pagina.has_next %}disabled{% endif %}">
+                    {% if pagina.has_next %}<a class="page-link" href="?estado={{ filtro.estado }}&amp;situacao={{ filtro.situacao }}&amp;pagina={{ pagina.next_page_number }}">Próxima</a>{% else %}<span class="page-link">Próxima</span>{% endif %}
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

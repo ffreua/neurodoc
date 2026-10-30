@@ -24,8 +24,22 @@
     </form>
     {% endif %}
 {% endif %}
+{% if guia.estado == 'fechada' and pode_exportar and not lote_ativo %}
+    <form method="post" action="{% url 'tiss:plano' %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="ver">
+        <input type="hidden" name="guia" value="{{ guia.id }}">
+        <button type="submit" class="btn btn-light-primary" data-nd-busy>Gerar XML desta guia</button>
+    </form>
+{% endif %}
 {% endblock %}
 {% block content %}
+{% if lote_ativo %}
+<div class="alert alert-primary fs-13" role="status">
+    Esta guia está no <a href="{% url 'tiss:lote' lote_ativo.id %}" class="fw-semibold">lote {{ lote_ativo.numero }}</a>
+    ({{ lote_ativo.get_estado_display|lower }}{% if lote_ativo.enviado_em %}, enviado em {{ lote_ativo.enviado_em|date:"d/m/Y" }}{% endif %}).
+</div>
+{% endif %}
 
 {% comment %}A guia mostra o que vai à operadora e nada do prontuário: nome,
 carteira, profissionais, procedimentos e valores. A indicação clínica é o

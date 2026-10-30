@@ -211,7 +211,7 @@ def create_draft(tenant, patient, encounter, physician_membership, actor_id, kin
 @transaction.atomic
 def create_correction(original, actor_id, content_fields, reason=''):
     if original.status != MedicalDocumentStatus.ISSUED:
-        raise NotReadyToSign('Only an issued document can be corrected')
+        raise NotReadyToSign('Só documento emitido pode ser corrigido.')
     if sncr_receita.eh_eletronica(original):
         # O número do SNCR da original já foi usado e não se cancela (FAQ
         # P35–36); a "correção" seria outra receita, com outro número, e a
@@ -246,7 +246,7 @@ def create_correction(original, actor_id, content_fields, reason=''):
 
 def mark_reviewed(document, actor_id):
     if document.status != MedicalDocumentStatus.DRAFT:
-        raise NotReadyToSign('Document is not in draft status')
+        raise NotReadyToSign('Este documento não está mais em rascunho.')
     document.status = MedicalDocumentStatus.READY_TO_SIGN
     document.save(update_fields=['status'])
     record_audit_event(
@@ -258,7 +258,7 @@ def mark_reviewed(document, actor_id):
 
 def discard_document(document, actor_id):
     if document.status not in (MedicalDocumentStatus.DRAFT, MedicalDocumentStatus.READY_TO_SIGN, MedicalDocumentStatus.FAILED):
-        raise NotReadyToSign('Only a non-issued document can be discarded')
+        raise NotReadyToSign('Documento já emitido não pode ser descartado.')
     if document.pdf_attachment_id:
         soft_delete_attachment(document.pdf_attachment, actor_id, 'medical document discarded')
     record_audit_event(
@@ -400,9 +400,9 @@ def _falhou(exc, outcome, motivo):
 def _sign_and_issue(document, request, physician_membership):
     locked = MedicalDocument.objects.select_for_update().get(id=document.id)
     if locked.status != MedicalDocumentStatus.READY_TO_SIGN:
-        raise NotReadyToSign('Document is not ready to sign')
+        raise NotReadyToSign('O documento ainda não está pronto para assinar. Revise o rascunho antes.')
     if locked.physician_id != physician_membership.id:
-        raise SigningNotAuthorized('Document belongs to a different physician')
+        raise SigningNotAuthorized('Este documento é de outro médico.')
     # A RCE do leiaute da clínica não tem número do SNCR e, desde
     # 31/10/2026, não é assinada digitalmente (`rce_impressa`). A recusa vem
     # antes da sessão de assinatura, para o médico ler o motivo e não um
@@ -415,9 +415,9 @@ def _sign_and_issue(document, request, physician_membership):
 
     session = get_active_session(request, physician_membership)
     if session is None:
-        raise SigningNotAuthorized('No active signing session bound to this web session')
+        raise SigningNotAuthorized('A sessão de assinatura não está aberta neste navegador. Desbloqueie o certificado de novo.')
     if not credential_is_usable(session.credential):
-        raise SigningNotAuthorized('Credential is revoked, expired, or not yet valid')
+        raise SigningNotAuthorized('O certificado está revogado, vencido ou ainda não vale. Cadastre um certificado válido.')
 
     try:
         password = unlock_password(session)

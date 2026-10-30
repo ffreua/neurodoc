@@ -85,6 +85,15 @@ EXCECOES_NA_TELA = {
     # em `modelos/emissao.py`, inclusive a que repassa a recusa de
     # `create_draft`.
     'EmissaoRecusada',
+    # Faturamento TISS (1.30): as recusas da guia e do lote são escritas em
+    # português em `tiss/guias.py` e `tiss/lotes.py`.
+    'GuiaRecusada', 'LoteRecusado',
+    # Achadas quando a seção 5 passou a ler `except modulo.Excecao` (1.30):
+    # já chegavam à tela, e o texto delas nunca tinha sido conferido.
+    'CarryForwardBlocked', 'AccessLocked', 'AccessDenied', 'TooManyAttempts',
+    'EnvioRecusado', 'NotReadyToSign', 'SigningNotAuthorized',
+    'CredentialTitleMismatch', 'InvalidPfxFile', 'PhotoRejected',
+    'PedidoRecusado', 'LogoRejected',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o
@@ -225,13 +234,23 @@ def _mostra_excecao(handler):
     return False
 
 
+def _nome(no):
+    # `except guias.GuiaRecusada` chega como atributo, e nao como nome: ate
+    # a 1.30 a varredura so via `ast.Name`, e as recusas do TISS --
+    # escritas assim -- passavam sem ninguem conferir o idioma delas.
+    if isinstance(no, ast.Name):
+        return no.id
+    if isinstance(no, ast.Attribute):
+        return no.attr
+    return None
+
+
 def _nomes_do_handler(handler):
     alvo = handler.type
-    if isinstance(alvo, ast.Name):
-        return [alvo.id]
     if isinstance(alvo, ast.Tuple):
-        return [e.id for e in alvo.elts if isinstance(e, ast.Name)]
-    return []
+        return [n for n in (_nome(e) for e in alvo.elts) if n]
+    n = _nome(alvo)
+    return [n] if n else []
 
 
 #: Excecoes de biblioteca, cujo texto nao escrevemos. Ficam de fora porque

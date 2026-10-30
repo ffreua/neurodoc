@@ -497,9 +497,33 @@ def _snapshot(guia):
         if pr is None:
             return None
         return {'nome': pr.nome, 'conselho': pr.conselho, 'numero': pr.numero_conselho,
-                'uf': pr.uf, 'cbo': pr.cbo}
+                'uf': pr.uf, 'cbo': pr.cbo, 'cpf': pr.cpf}
+
+    def dia(d):
+        return d.isoformat() if d else None
+
+    # O que o XML escreve sai daqui, e não da linha da guia: o arquivo gerado
+    # um ano depois tem de ser o mesmo que seria gerado no dia do fechamento.
+    campos_da_guia = {
+        'numero_prestador': guia.numero_prestador, 'numero_operadora': guia.numero_operadora,
+        'guia_principal': guia.guia_principal, 'data_emissao': dia(guia.data_emissao),
+        'data_autorizacao': dia(guia.data_autorizacao), 'senha': guia.senha,
+        'validade_senha': dia(guia.validade_senha), 'cod_validacao': guia.cod_validacao,
+        'ausencia_cod_validacao': guia.ausencia_cod_validacao,
+        'contratado_solicitante_tipo': guia.contratado_solicitante_tipo,
+        'contratado_solicitante_codigo': guia.contratado_solicitante_codigo,
+        'contratado_solicitante_nome': guia.contratado_solicitante_nome,
+        'data_solicitacao': dia(guia.data_solicitacao), 'carater_atendimento': guia.carater_atendimento,
+        'indicacao_clinica': guia.indicacao_clinica, 'cobertura_especial': guia.cobertura_especial,
+        'tipo_atendimento': guia.tipo_atendimento, 'indicacao_acidente': guia.indicacao_acidente,
+        'tipo_consulta': guia.tipo_consulta, 'motivo_encerramento': guia.motivo_encerramento,
+        'regime_atendimento': guia.regime_atendimento, 'saude_ocupacional': guia.saude_ocupacional,
+        'observacao': guia.observacao,
+    }
 
     return {
+        'tipo': guia.tipo,
+        'guia': campos_da_guia,
         'versao': cred.versao,
         'operadora': {'nome': cred.operadora.name, 'registro_ans': cred.operadora.ans_registration},
         'prestador': {
@@ -540,6 +564,7 @@ def fechar(context, user, guia):
         raise GuiaRecusada('Ainda há pendências: ' + '; '.join(x.mensagem for x in impedem))
     guia.snapshot = _snapshot(guia)
     guia.versao = guia.credenciamento.versao
+    guia.data_referencia = max(i.data_execucao for i in guia.itens.all())
     guia.estado = EstadoGuia.FECHADA
     guia.fechada_em = timezone.now()
     guia.fechada_por = user
@@ -568,6 +593,16 @@ def cancelar(context, user, guia, motivo):
         raise GuiaRecusada('Escreva o motivo do cancelamento.')
     if guia.estado not in (EstadoGuia.RASCUNHO, EstadoGuia.FECHADA):
         raise GuiaRecusada('Esta guia já está cancelada ou substituída.')
+    from .models import LoteGuia
+
+    no_lote = LoteGuia.objects.filter(guia=guia, ativo=True).select_related('lote').first()
+    if no_lote is not None:
+        # O arquivo do lote leva esta guia: cancelá-la por fora faria o lote
+        # cobrar uma guia que o NeuroDoc diz cancelada.
+        raise GuiaRecusada(
+            f'Esta guia está no lote {no_lote.lote.numero}. Cancele o lote (ou, se já enviado, '
+            'libere a guia para reapresentação) antes de cancelá-la.'
+        )
     guia.estado = EstadoGuia.CANCELADA
     guia.cancelada_em, guia.cancelada_por, guia.motivo_cancelamento = timezone.now(), user, motivo[:255]
     guia.save()

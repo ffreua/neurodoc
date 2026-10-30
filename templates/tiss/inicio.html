@@ -6,20 +6,24 @@
 <li class="breadcrumb-item">Faturamento TISS</li>
 {% endblock %}
 {% block page_actions %}
-<a class="btn btn-primary" href="{% url 'tiss:guias' %}">Guias</a>
+<a class="btn btn-light" href="{% url 'tiss:guias' %}">Guias</a>
+<a class="btn btn-light" href="{% url 'tiss:lotes' %}">Lotes</a>
+<a class="btn btn-primary" href="{% url 'tiss:fila' %}">Faturar guias</a>
 {% endblock %}
 {% block content %}
 
-{% comment %}Sprint 1 (1.30): a configuração. As guias, os lotes e o XML
-chegam nas próximas versões; esta tela diz isso em vez de esconder.
-{% endcomment %}
+{% comment %}1.30: configuração, guias, lotes e XML. As agendas de exame
+(EEG, ENMG, polissonografia) chegam na próxima versão; esta tela diz isso em
+vez de esconder.{% endcomment %}
 <div class="alert alert-primary fs-13" role="alert">
-    <span class="fw-semibold d-block">Em implantação.</span>
+    <span class="fw-semibold d-block">Como funciona.</span>
     Configure aqui quem fatura (prestador), com que operadora e em que versão do padrão
     (credenciamento) e quem solicita e executa (profissionais). As guias de Consulta e SP/SADT
-    são geradas pela ficha do paciente, pelo horário na agenda ou pelo atendimento, e impressas
-    no modelo oficial. Os lotes e o arquivo XML vêm na próxima versão. Por segurança (padrão
-    TISS da ANS), esta área pede o segundo fator de novo depois de dez minutos sem uso.
+    nascem na ficha do paciente, no horário da agenda ou no atendimento; fechadas, vão para
+    <a href="{% url 'tiss:fila' %}">Faturar guias</a>, onde viram lotes com o arquivo XML conferido
+    contra o XSD oficial da versão. O envio é feito por você no portal da operadora, e o protocolo é
+    registrado no lote. As agendas de exame chegam na próxima versão. Por segurança (padrão TISS da
+    ANS), esta área pede o segundo fator de novo depois de dez minutos sem uso.
 </div>
 
 

@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import views, views_guia
+from . import views, views_guia, views_lote
 
 app_name = 'tiss'
 
@@ -20,4 +20,9 @@ urlpatterns = [
     path('guias/<uuid:pk>/indicacao/', views_guia.IndicacaoView.as_view(), name='guia-indicacao'),
     path('guias/<uuid:pk>/imprimir/', views_guia.ImprimirView.as_view(), name='guia-imprimir'),
     path('guias/<uuid:pk>/<str:acao>/', views_guia.TransicaoView.as_view(), name='guia-transicao'),
+    path('faturar/', views_lote.FilaView.as_view(), name='fila'),
+    path('faturar/plano/', views_lote.PlanoView.as_view(), name='plano'),
+    path('lotes/', views_lote.LoteListaView.as_view(), name='lotes'),
+    path('lotes/<uuid:pk>/', views_lote.LoteView.as_view(), name='lote'),
+    path('lotes/<uuid:pk>/arquivo/', views_lote.LoteArquivoView.as_view(), name='lote-arquivo'),
 ]

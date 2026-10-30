@@ -38,9 +38,14 @@ def _load_pkcs12(pfx_bytes, password):
             pfx_bytes, password.encode(),
         )
     except Exception as exc:
-        raise InvalidPfxFile(str(exc)) from exc
+        # O texto da biblioteca de criptografia é em inglês e não diz nada
+        # ao médico; o detalhe técnico fica no `__cause__`, para o log.
+        raise InvalidPfxFile(
+            'Não foi possível abrir o certificado. Confira a senha e se o arquivo é o A1 '
+            '(.pfx ou .p12) exportado com a chave privada.'
+        ) from exc
     if private_key is None or certificate is None:
-        raise InvalidPfxFile('PKCS#12 archive is missing a private key or certificate')
+        raise InvalidPfxFile('O arquivo não traz a chave privada e o certificado juntos. Exporte o A1 com a chave privada.')
     return private_key, certificate
 
 
@@ -49,7 +54,7 @@ def _check_title_holder(certificate, professional_name):
     if _normalize(professional_name) not in _normalize(subject_cn) and \
             not any(_normalize(part) in _normalize(subject_cn) for part in professional_name.split()):
         raise CredentialTitleMismatch(
-            f'Certificate subject ({subject_cn}) does not appear to match physician name ({professional_name})',
+            f'O titular do certificado ({subject_cn}) não parece ser o médico cadastrado ({professional_name}).',
         )
 
 

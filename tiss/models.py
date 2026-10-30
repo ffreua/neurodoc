@@ -463,6 +463,11 @@ class Guia(TenantModel):
     criada_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )
+    #: A data que põe a guia num ciclo de faturamento: a do **último**
+    #: procedimento realizado, gravada no fechamento. A guia só está completa
+    #: quando o último procedimento acontece, e nunca é partida entre dois
+    #: ciclos — item de outro período fica na guia, com aviso na fila.
+    data_referencia = models.DateField('data de referência', null=True, blank=True)
 
     class Meta(TenantModel.Meta):
         verbose_name = 'guia TISS'
@@ -477,6 +482,7 @@ class Guia(TenantModel):
         indexes = [
             models.Index(fields=['tenant', 'paciente', '-data_emissao'], name='tiss_guia_paciente_idx'),
             models.Index(fields=['tenant', 'estado', 'data_emissao'], name='tiss_guia_estado_idx'),
+            models.Index(fields=['tenant', 'estado', 'data_referencia'], name='tiss_guia_referencia_idx'),
         ]
 
     def __str__(self):
@@ -553,3 +559,130 @@ class ItemGuia(TenantModel):
 
     def __str__(self):
         return f'{self.codigo} — {self.descricao[:40]}'
+
+
+# ---------------------------------------------------------------- Sprint 3
+#
+# O lote e o arquivo. Um lote é **uma mensagem** `ENVIO_LOTE_GUIAS`: um
+# prestador, uma operadora, um tipo de guia, uma versão, até 100 guias
+# (A3 §209; `maxOccurs="100"` em todas as versões) ou o limite menor do
+# credenciamento. Gerar o arquivo não é enviar, enviar não é protocolar, e
+# nada disso é receber: nenhuma etapa do lote toca no financeiro.
+
+
+class EstadoLote(models.TextChoices):
+    GERANDO = 'gerando', 'Gerando o arquivo'
+    PRONTO = 'pronto', 'Arquivo pronto'
+    FALHA = 'falha', 'Falha na geração'
+    CANCELADO = 'cancelado', 'Cancelado'
+
+
+class ResultadoLote(models.TextChoices):
+    ACEITO = 'aceito', 'Aceito pela operadora'
+    PARCIAL = 'parcial', 'Aceito em parte'
+    RECUSADO = 'recusado', 'Recusado pela operadora'
+
+
+class Lote(TenantModel):
+    """Uma mensagem de lote de guias, do pedido ao protocolo.
+
+    **O conteúdo é decidido na criação, o arquivo é escrito depois.** O
+    número, a data e a hora da transação são reservados quando o lote nasce
+    (`transacao_em`), e as guias, congeladas desde o fechamento, não mudam:
+    gerar de novo depois de uma falha produz **os mesmos bytes**. Por isso a
+    tarefa pode ser repetida sem emitir lote novo, e baixar de novo devolve
+    o mesmo arquivo — nunca uma numeração nova.
+
+    O arquivo só existe para a tela quando o estado é `pronto`: escrito,
+    conferido contra o XSD da versão e gravado com o SHA-256.
+    """
+
+    numero = models.CharField('nº do lote', max_length=12)
+    credenciamento = models.ForeignKey(Credenciamento, on_delete=models.PROTECT, related_name='lotes')
+    tipo = models.CharField(max_length=10, choices=TipoGuia.choices)
+    versao = models.CharField('versão do padrão', max_length=10)
+    estado = models.CharField(max_length=10, choices=EstadoLote.choices, default=EstadoLote.GERANDO)
+    periodo_inicio = models.DateField('início do período', null=True, blank=True)
+    periodo_fim = models.DateField('fim do período', null=True, blank=True)
+    transacao_em = models.DateTimeField('data e hora da transação')
+    quantidade = models.PositiveSmallIntegerField(default=0)
+    total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    solicitado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='+',
+    )
+
+    # o arquivo
+    arquivo = models.CharField(max_length=255, blank=True)
+    sha256 = models.CharField(max_length=64, blank=True)
+    tamanho = models.PositiveIntegerField(null=True, blank=True)
+    hash_tiss = models.CharField('hash do epílogo (MD5 TISS)', max_length=32, blank=True)
+    gerador = models.CharField(max_length=40, blank=True)
+    gerado_em = models.DateTimeField(null=True, blank=True)
+    tentativas = models.PositiveSmallIntegerField(default=0)
+    erros = models.JSONField(default=list, blank=True)
+
+    # envio e retorno, registrados à mão
+    enviado_em = models.DateField('data do envio', null=True, blank=True)
+    protocolo = models.CharField('nº do protocolo', max_length=30, blank=True)
+    envio_registrado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    envio_registrado_em = models.DateTimeField(null=True, blank=True)
+    resultado = models.CharField(max_length=10, choices=ResultadoLote.choices, blank=True)
+    resultado_obs = models.CharField('observação do retorno', max_length=500, blank=True)
+    resultado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    resultado_em = models.DateTimeField(null=True, blank=True)
+
+    cancelado_em = models.DateTimeField(null=True, blank=True)
+    cancelado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    motivo_cancelamento = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        verbose_name = 'lote TISS'
+        verbose_name_plural = 'lotes TISS'
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant', 'numero'], name='tiss_lote_numero_uniq'),
+            models.CheckConstraint(
+                condition=~models.Q(estado='pronto') | (~models.Q(sha256='') & ~models.Q(arquivo='')),
+                name='tiss_lote_pronto_tem_arquivo',
+            ),
+            models.CheckConstraint(
+                condition=models.Q(quantidade__gte=1, quantidade__lte=100), name='tiss_lote_quantidade',
+            ),
+        ]
+        indexes = [models.Index(fields=['tenant', 'estado', '-created_at'], name='tiss_lote_estado_idx')]
+
+    def __str__(self):
+        return f'Lote {self.numero}'
+
+    @property
+    def enviado(self):
+        return self.enviado_em is not None
+
+
+class LoteGuia(TenantModel):
+    """A guia dentro de um lote. `ativo` = o lote ainda a fatura.
+
+    Uma guia, no máximo um lote ativo — e quem garante é o banco
+    (`tiss_lote_guia_ativa_uniq`): dois operadores montando lote com a
+    mesma guia no mesmo segundo, um dos dois recebe a recusa. Cancelar o
+    lote, ou liberar a guia para reapresentação, apaga o `ativo`; o vínculo
+    antigo fica como histórico.
+    """
+
+    lote = models.ForeignKey(Lote, on_delete=models.PROTECT, related_name='participacoes')
+    guia = models.ForeignKey(Guia, on_delete=models.PROTECT, related_name='participacoes')
+    ativo = models.BooleanField(default=True)
+    liberada_motivo = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['lote', 'guia'], name='tiss_lote_guia_uniq'),
+            models.UniqueConstraint(
+                fields=['tenant', 'guia'], condition=models.Q(ativo=True), name='tiss_lote_guia_ativa_uniq',
+            ),
+        ]

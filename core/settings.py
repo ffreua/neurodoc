@@ -162,10 +162,17 @@ CELERY_TASK_ROUTES = {
     'ai.tasks.*': {'queue': 'ai'},
     'documents.tasks.*': {'queue': 'documents'},
     'reporting.tasks.*': {'queue': 'documents'},
+    'tiss.tasks.*': {'queue': 'documents'},
 }
 CELERY_BEAT_SCHEDULE = {
     # SNCR: pedido de numeração parado em "enviando" (o app caiu no meio
     # da chamada) vira incerto. Não fala com a Anvisa; só banco.
+    # TISS (1.30): lote em "gerando" cuja mensagem se perdeu é reenviado.
+    # A geração é idempotente; só banco e disco, sem rede.
+    'tiss-lotes-parados': {
+        'task': 'tiss.tasks.retomar_lotes_parados',
+        'schedule': 300.0,
+    },
     'sncr-pedidos-parados': {
         'task': 'sncr.tasks.marcar_pedidos_parados',
         'schedule': 300.0,

@@ -22,7 +22,7 @@ from audit.services import record_audit_event
 from patients.models import Patient
 from tenancy.permissions import Capability
 
-from . import guias, terminologia
+from . import guias, lotes, terminologia
 from .forms_guia import GuiaForm, IndicacaoForm, ItemForm, NovaGuiaForm
 from .models import EstadoGuia, Guia, ItemGuia, TipoGuia
 from .views import TissView
@@ -165,6 +165,8 @@ class GuiaView(TissView):
             'pode_indicar': ctx.can(Capability.READ_CLINICAL) and guia.editavel,
             'total': sum((i.valor_total for i in guia.itens.all()), 0),
             'revisoes': Guia.objects.filter(revisa=guia).order_by('-created_at'),
+            'lote_ativo': lotes.lote_ativo_da_guia(guia),
+            'pode_exportar': ctx.can(Capability.TISS_EXPORT),
             'rotulo': terminologia.rotulo,
         }
 
