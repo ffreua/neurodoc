@@ -348,6 +348,22 @@ def _resposta_pagamento():
     )
 
 
+def _resposta_residentes():
+    """A promoção de início de carreira, com os números de `tenancy/plans.py`."""
+    from tenancy.plans import PROMOCAO_INICIO_DE_CARREIRA as promo, preco_inicio_de_carreira
+
+    precos = '; '.join(
+        f'{p["label"]} por {p["mensal"]}/mês ({p["ano"]} no ano)'
+        for p in map(preco_inicio_de_carreira, promo['planos'])
+    )
+    return (
+        f'Sim, e é permanente: {promo["publico"]} têm {promo["desconto"]}% de desconto '
+        f'sobre o preço cheio dos planos Básico e Completo, no pagamento anual — {precos}. '
+        'O desconto substitui o de lançamento do anual, não se soma a ele. Para '
+        f'comprovar, basta a {promo["comprovacao"]}.'
+    )
+
+
 #: Perguntas que um médico faz antes de confiar o prontuário a alguém. As
 #: respostas dizem o que o sistema faz — inclusive quando a resposta é
 #: desconfortável, como a do item sobre o que ainda não existe.
@@ -440,6 +456,10 @@ FAQ = [
     {
         'pergunta': 'Como funciona o pagamento dos planos?',
         'resposta': _resposta_pagamento(),
+    },
+    {
+        'pergunta': 'Há desconto para residentes e recém-formados?',
+        'resposta': _resposta_residentes(),
     },
     {
         'pergunta': 'O NeuroDoc envia o lote TISS direto para a operadora?',

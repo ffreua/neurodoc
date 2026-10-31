@@ -211,6 +211,13 @@ vínculo com clínica nenhuma), `/admin/` e `/technical-docs/` (MFA).
   na forma em que está escrito. `preco_na_periodicidade` devolve o mensal,
   cada pagamento e o total de 12 meses, em centavos, do mesmo mensal
   arredondado. Nenhum desses números é escrito à mão duas vezes.
+- **Promoção permanente de início de carreira** (2026-10-31,
+  `PROMOCAO_INICIO_DE_CARREIRA`): residentes de neurologia e neurologistas
+  com até 2 anos de formados pagam **50% do preço cheio** no Básico e no
+  Completo, **só no anual** e **no lugar** dos 20% de lançamento (não
+  somados). Preço por `preco_inicio_de_carreira`; a página mostra no bloco
+  `#residentes`, no cartão e no FAQ. O convite e o aceite ainda **não**
+  registram a promoção — gravam a periodicidade com o preço de tabela.
 - Três estados de preço, e a tela distingue os três: grátis (`0`), com
   preço de tabela, e **sem** preço de tabela (`None` — o Personalizado,
   que não é grátis, é combinado).

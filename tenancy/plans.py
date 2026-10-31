@@ -210,6 +210,52 @@ PLANS = {
 #: no meio do arquivo não deveria mudar a vitrine sem querer.
 PUBLIC_ORDER = [PlanCode.FREE, PlanCode.BASIC, PlanCode.COMPLETE, PlanCode.CUSTOM]
 
+#: Promoção **permanente** para quem está começando (decidida em 2026-10-31):
+#: residentes de neurologia e neurologistas com até 2 anos de formados pagam
+#: metade do preço cheio nos planos Básico e Completo, no pagamento anual.
+#:
+#: Os 50% são sobre o **preço cheio** e **no lugar** dos 20% de lançamento —
+#: não somados a eles. Somar daria 60% num desconto que a página anuncia
+#: como 50%, e a conta que o leitor faz não fecharia com a da tela.
+#:
+#: Só no anual, e por isso o seletor de forma de pagamento não a mostra nas
+#: outras: a mesma regra de `PERIODICIDADES`, desconto só onde está escrito.
+#: `permanente` existe para a tela não chamá-la de lançamento — esta não
+#: acaba, e dizer o contrário espantaria quem ainda vai entrar na residência.
+PROMOCAO_INICIO_DE_CARREIRA = {
+    'desconto': 50,
+    'planos': (PlanCode.BASIC, PlanCode.COMPLETE),
+    'periodicidade': Periodicidade.ANUAL,
+    'permanente': True,
+    'titulo': 'Residentes e recém-formados pagam metade',
+    'publico': 'residentes de neurologia e neurologistas com até 2 anos de formados',
+    'comprovacao': 'declaração do programa de residência ou certificado de conclusão '
+                   'da residência, apresentado ao contratar',
+}
+
+
+def preco_inicio_de_carreira(code):
+    """O preço do plano na promoção de início de carreira, já formatado.
+
+    `None` para plano fora da promoção. Derivado do preço cheio por
+    `com_desconto`, como o das periodicidades — nenhum número escrito à mão.
+    """
+    promo = PROMOCAO_INICIO_DE_CARREIRA
+    if code not in promo['planos']:
+        return None
+    cheio = plan_config(code).get('price_monthly')
+    if not cheio:
+        return None
+    mensal = com_desconto(cheio, promo['desconto'])
+    return {
+        'code': str(code), 'label': PLANS[code]['label'], 'desconto': promo['desconto'],
+        'mensal': brl(mensal), 'ano': brl(mensal * MESES_NO_ANO),
+        'cheio': brl(cheio), 'cheio_ano': brl(cheio * MESES_NO_ANO),
+        'economia_ano': brl((cheio - mensal) * MESES_NO_ANO),
+        'mensal_centavos': mensal, 'ano_centavos': mensal * MESES_NO_ANO,
+    }
+
+
 #: Plano de quem chega sem convite que diga outra coisa.
 DEFAULT_PLAN = PlanCode.FREE
 

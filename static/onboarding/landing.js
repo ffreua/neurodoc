@@ -21,7 +21,7 @@
         return;
     }
 
-    document.querySelectorAll('[data-nd-plan]').forEach(function (botao) {
+    document.querySelectorAll('[data-nd-plan], [data-nd-mensagem]').forEach(function (botao) {
         botao.addEventListener('click', function () {
             var escolhido = botao.getAttribute('data-nd-plan') || '';
             /* Só seleciona o que o menu de fato oferece: um valor que não
@@ -30,8 +30,16 @@
             var existe = Array.prototype.some.call(campo.options, function (opcao) {
                 return opcao.value === escolhido;
             });
-            if (existe) {
+            if (escolhido && existe) {
                 campo.value = escolhido;
+            }
+            /* O botão da promoção de residentes escreve o pedido na
+             * mensagem — só se ela estiver vazia: o que a pessoa já
+             * escreveu é dela, e não se apaga por um clique. */
+            var texto = botao.getAttribute('data-nd-mensagem');
+            var mensagem = document.getElementById('id_message');
+            if (texto && mensagem && !mensagem.value.trim()) {
+                mensagem.value = texto;
             }
             var nome = document.getElementById('id_name');
             if (nome) {

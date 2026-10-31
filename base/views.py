@@ -143,9 +143,14 @@ class LandingView(View):
     """
 
     def _context(self, **overrides):
-        from tenancy.plans import PERIODICIDADE_PADRAO, PERIODICIDADES, public_plans
+        from tenancy.plans import (
+            PERIODICIDADE_PADRAO, PERIODICIDADES, PROMOCAO_INICIO_DE_CARREIRA,
+            preco_inicio_de_carreira, public_plans,
+        )
 
         planos = public_plans()
+        for plano in planos:
+            plano['carreira'] = preco_inicio_de_carreira(plano['code'])
         context = {
             'form': InvitationCodeForm(),
             'lead_form': LeadForm(),
@@ -172,6 +177,12 @@ class LandingView(View):
             'periodo_padrao': str(PERIODICIDADE_PADRAO),
             'desconto_lancamento': next(
                 (r['desconto'] for r in PERIODICIDADES.values() if r['lancamento']), 0),
+            # A promoção de início de carreira (residentes e recém-formados),
+            # com o preço de cada plano lido de `tenancy.plans` como os demais.
+            'promo_carreira': PROMOCAO_INICIO_DE_CARREIRA,
+            'promo_carreira_precos': [
+                preco_inicio_de_carreira(c) for c in PROMOCAO_INICIO_DE_CARREIRA['planos']
+            ],
             'novidades': NOVIDADES,
             'autor': AUTOR,
             'novidade': NOVIDADE,

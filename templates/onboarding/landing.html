@@ -33,6 +33,7 @@ batesse o limite.
                 <div class="d-flex flex-wrap gap-2 mb-3">
                     <span class="badge bg-soft-primary text-primary">Neurologia, neurocirurgia — e qualquer especialidade</span>
                     <a class="badge bg-soft-success text-success text-decoration-none" href="#novidades">Novo: faturamento TISS e agenda de exames</a>
+                    <a class="badge bg-soft-warning text-warning text-decoration-none" href="#residentes">Residentes e recém-formados: {{ promo_carreira.desconto }}% de desconto</a>
                 </div>
                 {% comment %}O H1 diz "prontuario eletronico" por extenso de proposito: e o
                 termo pelo qual se procura este produto, e era a unica palavra que
@@ -313,6 +314,9 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                                 {% if per.desconto %}
                                 <span class="d-block fs-12 fw-bold text-success mt-1">Economia de <span class="text-nowrap">{{ per.economia_ano }}</span> no ano</span>
                                 {% endif %}
+                                {% if plan.carreira and per.code == promo_carreira.periodicidade %}
+                                <a class="d-block fs-12 fw-semibold text-warning mt-2 text-decoration-none" href="#residentes">Residente ou recém-formado: <span class="text-nowrap">{{ plan.carreira.mensal }}/mês</span></a>
+                                {% endif %}
                             </div>
                             {% endfor %}
                             {% else %}
@@ -394,6 +398,53 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                 </div>
             </div>
             {% endfor %}
+        </div>
+
+        {% comment %}A promoção de início de carreira (`tenancy/plans.py::
+        PROMOCAO_INICIO_DE_CARREIRA`). Logo abaixo dos cartões, e não no
+        seletor de forma de pagamento: ela não é uma forma de pagamento, é uma
+        condição de quem contrata — e vale só no anual, o que o texto diz.
+        Os números vêm do catálogo, como os dos cartões.{% endcomment %}
+        <div class="row justify-content-center mt-5 nd-reveal" id="residentes">
+            <div class="col-lg-10">
+                <div class="card border border-warning nd-promo-carreira">
+                    <div class="card-body p-4">
+                        <div class="row g-4 align-items-center">
+                            <div class="col-md-6">
+                                <span class="badge bg-soft-warning text-warning fs-11 mb-2">Promoção permanente</span>
+                                <h3 class="fs-18 fw-bold text-dark mb-2">{{ promo_carreira.titulo }}</h3>
+                                <p class="fs-13 text-muted mb-2">
+                                    {{ promo_carreira.publico|capfirst }} têm
+                                    <strong class="text-dark">{{ promo_carreira.desconto }}% de desconto</strong>
+                                    sobre o preço cheio dos planos Básico e Completo, no pagamento anual.
+                                    Não é lançamento: vale para sempre, para quem estiver nessa fase ao contratar.
+                                </p>
+                                <p class="fs-12 text-muted mb-0">
+                                    Comprovação: {{ promo_carreira.comprovacao }}. O desconto substitui o de
+                                    lançamento do anual — não se soma a ele.
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row g-3">
+                                    {% for p in promo_carreira_precos %}
+                                    <div class="col-sm-6">
+                                        <div class="border rounded p-3 h-100 bg-white">
+                                            <span class="d-block fs-13 fw-bold text-dark">{{ p.label }}</span>
+                                            <span class="d-block fs-12 text-muted">de <s>{{ p.cheio }}</s> por mês</span>
+                                            <span class="nd-preco text-nowrap" style="font-size: 1.6rem;">{{ p.mensal }}<small>/mês</small></span>
+                                            <span class="d-block fs-12 text-dark mt-1">Total em 12 meses: <strong class="text-nowrap">{{ p.ano }}</strong></span>
+                                            <span class="d-block fs-12 fw-bold text-success">Economia de <span class="text-nowrap">{{ p.economia_ano }}</span> no ano</span>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <a class="btn btn-warning btn-sm mt-3" href="#contato"
+                                   data-nd-mensagem="Sou residente de neurologia ou neurologista com até 2 anos de formado e gostaria do desconto de início de carreira.">Quero o desconto de residente</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         {% comment %}As três formas de pagamento lado a lado, sempre visíveis e

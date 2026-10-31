@@ -312,6 +312,37 @@ for trecho in ['Contrato de 12 meses', 'plano Gratuito', 'TISS (convênios)', 'A
 print(f'  explica o contrato de 12 meses={"Contrato de 12 meses" in corpo_landing}  '
       f'convida ao gratuito={"plano Gratuito" in corpo_landing}')
 
+print('=== 9b-ter. a promocao de inicio de carreira (2026-10-31) ===')
+# Residentes e recem-formados: 50% sobre o preco CHEIO, no anual, so no
+# Basico e no Completo -- e no lugar dos 20% de lancamento, nao somados.
+from tenancy.plans import PROMOCAO_INICIO_DE_CARREIRA, preco_inicio_de_carreira
+
+promo = PROMOCAO_INICIO_DE_CARREIRA
+if promo['desconto'] != 50 or str(promo['periodicidade']) != 'anual':
+    falhas.append(f'a promocao mudou: {promo["desconto"]}% no {promo["periodicidade"]}')
+if sorted(map(str, promo['planos'])) != ['basic', 'complete']:
+    falhas.append(f'planos da promocao mudaram: {promo["planos"]}')
+cravado = {PlanCode.BASIC: (4250, 51000), PlanCode.COMPLETE: (8750, 105000)}
+for code, (mensal, ano) in cravado.items():
+    v = preco_inicio_de_carreira(code)
+    ok = v and (v['mensal_centavos'], v['ano_centavos']) == (mensal, ano)
+    na_pagina = v and all(x in corpo_landing for x in (v['mensal'], v['ano'], v['economia_ano']))
+    print(f'  {str(code):9} {v and v["mensal"]}/mes  {v and v["ano"]} no ano  ok={ok}  na_pagina={na_pagina}')
+    if not ok:
+        falhas.append(f'{code}: promocao esperada {brl(mensal)}/mes e {brl(ano)} no ano')
+    if not na_pagina:
+        falhas.append(f'{code}: o preco da promocao nao aparece na pagina')
+for code in ('free', 'custom'):
+    if preco_inicio_de_carreira(code) is not None:
+        falhas.append(f'{code} nao deveria ter preco de promocao')
+for trecho in ['id="residentes"', 'Promoção permanente', 'até 2 anos de formados',
+               'não se soma', 'Há desconto para residentes']:
+    if trecho not in corpo_landing:
+        falhas.append(f'a pagina nao mostra a promocao: {trecho!r}')
+# A promocao nao pode aparecer como forma de pagamento no seletor.
+if 'data-nd-periodo="residente' in corpo_landing:
+    falhas.append('a promocao virou forma de pagamento no seletor')
+
 print('=== 9c. o menu de plano do formulario ===')
 # Todo plano publico tem de aparecer no menu: acrescentar um plano e
 # esquecer o menu deixaria o lead sem como pedir o que acabou de ler.
