@@ -9,18 +9,26 @@
 {% endblock %}
 {% block page_actions %}
 <a class="btn btn-light" href="{% url 'patients:update' patient.id %}">Editar cadastro</a>
-{% comment %}Faturamento TISS (1.30): na ficha administrativa, que a
-recepção já abre. A guia não carrega prontuário, e a capacidade não é
-`read_clinical` — é `tiss_prepare`, que só existe com o plano e a clínica
-liberada; `nd_tiss_ativo` é a chave da instalação.{% endcomment %}
-{% if nd_can.exames_agendar %}
-<a class="btn btn-light" href="{% url 'agenda_exames:agenda' %}?paciente={{ patient.id }}">Agendar exame</a>
-{% endif %}
-{% if nd_can.tiss_view and nd_tiss_ativo %}
-<a class="btn btn-light" href="{% url 'tiss:guias' %}?paciente={{ patient.id }}">Guias TISS</a>
-{% if nd_can.tiss_prepare %}
-<a class="btn btn-light-primary" href="{% url 'tiss:guia-nova' %}?paciente={{ patient.id }}">Gerar guia TISS</a>
-{% endif %}
+{% comment %}Convênio (1.30): agenda de exames e TISS num menu só. Eram três
+botões soltos no topo da ficha e, com os outros cinco, o nome do paciente
+quebrava em três linhas. O menu só nasce se houver ao menos um item; a
+regra de cada item continua a mesma — `tiss_prepare` não é `read_clinical`,
+e `nd_tiss_ativo` é a chave da instalação.{% endcomment %}
+{% if nd_can.exames_agendar or nd_can.tiss_view and nd_tiss_ativo %}
+<div class="dropdown">
+    <button type="button" class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">Convênio</button>
+    <ul class="dropdown-menu dropdown-menu-end">
+        {% if nd_can.exames_agendar %}
+        <li><a class="dropdown-item" href="{% url 'agenda_exames:agenda' %}?paciente={{ patient.id }}">Agendar exame</a></li>
+        {% endif %}
+        {% if nd_can.tiss_view and nd_tiss_ativo %}
+        {% if nd_can.tiss_prepare %}
+        <li><a class="dropdown-item" href="{% url 'tiss:guia-nova' %}?paciente={{ patient.id }}">Gerar guia TISS</a></li>
+        {% endif %}
+        <li><a class="dropdown-item" href="{% url 'tiss:guias' %}?paciente={{ patient.id }}">Guias TISS do paciente</a></li>
+        {% endif %}
+    </ul>
+</div>
 {% endif %}
 {% if nd_can.read_clinical %}
 <a class="btn btn-light-primary" href="{% url 'clinical:timeline' patient.id %}">Prontuário</a>

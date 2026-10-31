@@ -635,8 +635,8 @@ ARTICLES = [
              'que pediu o exame. A operadora precisa estar em **Convênios e planos** com o '
              'registro ANS; dá para buscá-la na lista oficial da ANS.',
              'tiss-inicio.png', 'Prestador, credenciamento e profissionais'),
-            ('**Gere a guia.** Na ficha do paciente, no horário da agenda ou no atendimento, '
-             '**Gerar guia TISS**; para exame da agenda de exames, **Gerar guia TISS** no '
+            ('**Gere a guia.** Na ficha do paciente, menu **Convênio → Gerar guia TISS**; no '
+             'horário da agenda ou no atendimento, **Gerar guia TISS**; para exame da agenda de exames, **Gerar guia TISS** no '
              'próprio exame realizado. A guia já vem com convênio, carteira, credenciamento e '
              'profissionais; na de Consulta de quem fez check-in, a consulta cobrada entra '
              'vinculada à cobrança — nenhuma cobrança nova é criada.',
@@ -679,7 +679,7 @@ ARTICLES = [
              'atravessar a meia-noite (20:00 até 07:00) — e os **bloqueios** (manutenção, '
              'férias do técnico).',
              '', ''),
-            ('**Marque.** Na ficha do paciente, **Agendar exame**, ou direto na **Agenda de '
+            ('**Marque.** Na ficha do paciente, menu **Convênio → Agendar exame**, ou direto na **Agenda de '
              'exames**: escolha a agenda e o dia, e clique num horário livre. Informe quem pediu '
              'o exame e, se já souber, a forma de cobrança (particular ou convênio). Fora do '
              'horário, só como **encaixe**, com o motivo. A polissonografia das 21h às 7h '
