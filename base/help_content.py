@@ -214,7 +214,7 @@ ARTICLES = [
         'steps': [
             ('A agenda mostra a semana por médico. Cada médico tem a própria grade '
              'de horários, com duração de consulta própria — configurada em '
-             '**Agenda → Horários**.',
+             '**Agenda → Configurar horários**.',
              'agenda-semana.png', 'Agenda da semana'),
             ('Clique num horário livre para marcar. Você escolhe o paciente (por '
              'nome ou número de prontuário) e o tipo de atendimento. Se o paciente '
@@ -359,7 +359,7 @@ ARTICLES = [
              'clínicas em que você atende, e só você os usa. São até 3 pedidos por mês de cada '
              'tipo (RCE e RET), e um bloco não pode ser devolvido — peça outro quando os '
              'números estiverem acabando.',
-             '', ''),
+             'sncr-painel.png', 'Seu bloco de números'),
             ('**Se o pedido ficar "Resultado incerto"**, não peça de novo: a Anvisa pode ter '
              'gerado o bloco sem a resposta chegar. Entre em **sncr.anvisa.gov.br** com o '
              'Gov.br, veja se há bloco gerado nessa data e registre no painel — **Nenhum bloco '
@@ -370,7 +370,7 @@ ARTICLES = [
              '**Emitir documento**, escolha **Controle especial — eletrônica** (listas C1 e C5, '
              'e os adendos) ou **Sujeita à retenção — eletrônica** (antimicrobiano, GLP-1). A '
              'tela mostra quantos números você tem livres de cada tipo.',
-             '', ''),
+             'sncr-conduta.png', 'O botão na Conduta'),
             ('Preencha até **3 medicamentos**. Digite o nome e escolha na lista da Anvisa '
              '(CMED): a substância, a concentração e a forma farmacêutica entram sozinhas, e '
              'você ajusta. A quantidade vai em algarismos (o extenso entra sozinho); marque '
@@ -381,7 +381,7 @@ ARTICLES = [
              '**Notificação de Receita** (lista B1, como o clonazepam) não sai aqui — use o '
              'talonário. Se o medicamento depende de dose para entrar no adendo, ou não foi '
              'encontrado, marque a confirmação: a decisão é sua e fica registrada.',
-             '', ''),
+             'sncr-receita.png', 'Receita eletrônica, com o saldo de números'),
             ('**Assine.** Cada medicamento sai **na sua folha**, com o **seu número SNCR** — o '
              'paciente pode levar cada folha a uma farmácia. Todas as folhas vão numa '
              'assinatura digital só, com o seu certificado ICP-Brasil, no modelo da Anvisa e '
@@ -409,7 +409,7 @@ ARTICLES = [
              'Neurofisiologia, Líquor, Cardiologia, Sono e Outros —, **relatórios**, '
              '**receitas** e **solicitações de cirurgia**. Os do sistema são iguais em '
              'todas as clínicas; para mudar um deles, use **Copiar para meus modelos**.',
-             '', ''),
+             'modelos-lista.png', 'Modelos do sistema e os seus'),
             ('Os **conjuntos** — Queixa cognitiva, Neuropatia, Rastreio paraneoplásico — '
              'pedem exames de mais de uma categoria. Na emissão, **cada categoria sai num '
              'pedido separado**: o laboratório não recebe a ressonância, e o serviço de '
@@ -426,12 +426,12 @@ ARTICLES = [
              'conduta**), use **Documentos por modelo**: escolha o modelo e clique em '
              '**Usar modelo**. O que estiver digitado e ainda não salvo é salvo antes de '
              'abrir a emissão.',
-             '', ''),
+             'modelos-conduta.png', 'Documentos por modelo, na Conduta'),
             ('A tela de emissão abre **um documento por categoria**, já preenchido, para '
              'você mudar o que quiser. O pedido de **imagem exige a indicação clínica**; o '
              'CID só sai impresso se você escolher uma das hipóteses do atendimento. O '
              'convênio e a carteirinha do paciente saem no pedido quando cadastrados.',
-             '', ''),
+             'modelos-emitir.png', 'Um documento por categoria'),
             ('**Emitir em papel** dá número ao documento e gera o PDF sem a tarja de '
              'rascunho, pronto para imprimir e assinar à caneta. **Preparar para assinatura '
              'digital** deixa cada documento pronto para assinar pela tela dele. Nos dois '
@@ -634,7 +634,7 @@ ARTICLES = [
              'portal) e os **profissionais** que pedem e executam — inclusive o médico de fora '
              'que pediu o exame. A operadora precisa estar em **Convênios e planos** com o '
              'registro ANS; dá para buscá-la na lista oficial da ANS.',
-             '', ''),
+             'tiss-inicio.png', 'Prestador, credenciamento e profissionais'),
             ('**Gere a guia.** Na ficha do paciente, no horário da agenda ou no atendimento, '
              '**Gerar guia TISS**; para exame da agenda de exames, **Gerar guia TISS** no '
              'próprio exame realizado. A guia já vem com convênio, carteira, credenciamento e '
@@ -646,13 +646,13 @@ ARTICLES = [
              'que só ele escreve) ou o gestor (cadastro). Os procedimentos vêm da busca TUSS, '
              'conferidos na data do atendimento, com o preço do contrato; valor diferente pede '
              'o motivo. **Fechar** congela a guia; para corrigir, **abra uma revisão**.',
-             '', ''),
+             'tiss-guia.png', 'Guia com as pendências no alto'),
             ('**Monte o lote.** Em **Faturar guias**, filtre pela operadora e pelo período (o '
              'ciclo do credenciamento está a um clique), marque as guias e confira o **plano**: '
              'um lote por operadora, tipo de guia e versão, até 100 guias cada, e as guias que '
              'não entram com o motivo. Confirmado, o arquivo XML é gerado e conferido contra o '
              'padrão oficial da versão. Baixar de novo devolve o mesmo arquivo.',
-             '', ''),
+             'tiss-plano.png', 'O plano dos lotes, antes de gerar'),
             ('**Envie e registre.** O envio é feito por você, no portal da operadora. Depois, '
              'no lote, registre a **data e o protocolo**, e, quando vier, o **retorno** (aceito, '
              'em parte, recusado). Guia glosada é **liberada** com o motivo para ir num lote '
@@ -685,13 +685,13 @@ ARTICLES = [
              'horário, só como **encaixe**, com o motivo. A polissonografia das 21h às 7h '
              'aparece nos dois dias da tela, e o mesmo equipamento nunca recebe dois exames no '
              'mesmo horário.',
-             '', ''),
+             'exames-agenda.png', 'Polissonografia das 21h às 7h'),
             ('**No dia.** **Confirmar**, **Paciente chegou** e, ao final, **Exame realizado**, '
              'com quem executou. É a realização que cria a **cobrança no Financeiro** (com o '
              'valor da tabela de honorários para o procedimento) e permite gerar a **guia '
              'TISS**. Faltou, cancelou ou remarcou: o horário volta a ficar livre. O paciente '
              'recebe um lembrete na véspera, se tiver contato autorizado.',
-             '', ''),
+             'exames-reserva.png', 'Exame realizado, com cobrança e guia'),
         ],
     },
     {

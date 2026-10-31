@@ -1,6 +1,6 @@
 """Tira as capturas do manual, sempre do mesmo jeito.
 
-As 47 imagens de `static/help/` sao telas reais do produto. Ate aqui elas
+As imagens de `static/help/` sao telas reais do produto. Ate a 1.30 parte delas
 saiam de uma sessao de navegador conduzida a mao -- e o documento de
 homologacao registra que o Chrome foi morto tres vezes por falta de
 memoria no meio do trabalho. Uma sequencia longa de capturas numa maquina
@@ -27,8 +27,12 @@ pacientes sinteticos. O manual e publico, e isso e condicao, nao detalhe.
 """
 
 import hashlib
+import hmac
+import json
 import os
+import struct
 import sys
+import time
 
 BASE = os.environ.get('NEURODOC_URL', 'http://app:8000')
 SAIDA = os.environ.get('NEURODOC_SAIDA', '/saida')
@@ -46,6 +50,38 @@ CLINICA = 'Clinica Demo A'
 #: modulo, ou `None` -- algumas telas nascem vazias no banco de
 #: demonstracao e a captura de uma tela vazia nao ensina nada.
 TELAS = [
+    # As 21 que ate a 1.30 eram tiradas a mao, e as dos quatro artigos novos.
+    # `{nome}` vem dos ids que `ops/preparar_ajuda.py` imprime.
+    ('paciente-lista.png', '/app/patients/', None),
+    ('paciente-cadastro.png', '/app/patients/new/', None),
+    ('paciente-foto.png', '/app/patients/new/', 'foco_foto'),
+    ('paciente-ficha.png', '/app/patients/{carlos}/', None),
+    ('agenda-semana.png', '/app/scheduling/?date={segunda}', None),
+    ('agenda-marcar.png', '/app/scheduling/?date={segunda}', 'abre_marcar'),
+    ('atendimento-abas.png', '/app/clinical/{atendimento}/', None),
+    ('exame-roteiro.png', '/app/clinical/{atendimento}/', 'aba_exame'),
+    ('exame-escalas.png', '/app/clinical/{atendimento}/', 'foco_escalas'),
+    ('documento-novo.png', '/app/documents/encounters/{atendimento}/medical/new/', None),
+    ('documento-assinatura.png', '/app/documents/signing/credentials/', None),
+    ('documento-verificar.png', '/verificar/{token}/', None),
+    ('entrega-documento.png', '/app/documents/medical/{documento}/', 'foco_entrega'),
+    ('solicitacoes-portal.png', '/solicitacoes/{slug}/', None),
+    ('solicitacoes-fila.png', '/app/documents/solicitacoes/', None),
+    ('codigos-cid.png', '/app/codigos/', 'busca_cid'),
+    ('codigos-tuss.png', '/app/codigos/?aba=tuss', 'busca_tuss'),
+    ('chat-nova.png', '/app/ai/chat/', 'abre_nova_conversa'),
+    ('chat-conversa.png', '/app/ai/chat/{chat}/', None),
+    ('sncr-painel.png', '/app/sncr/', None),
+    ('sncr-conduta.png', '/app/clinical/{atendimento}/', 'foco_sncr_conduta'),
+    ('sncr-receita.png', '/app/documents/encounters/{atendimento}/medical/new/?receita=sncr_rce', 'foco_medicamento'),
+    ('modelos-lista.png', '/app/modelos/', None),
+    ('modelos-conduta.png', '/app/clinical/{atendimento}/', 'foco_modelos_conduta'),
+    ('modelos-emitir.png', '/app/modelos/atendimento/{atendimento}/?modelo=s:queixa-cognitiva', None),
+    ('tiss-inicio.png', '/app/tiss/', None),
+    ('tiss-guia.png', '/app/tiss/guias/{guia_rascunho}/', None),
+    ('tiss-plano.png', '/app/tiss/faturar/', 'monta_plano'),
+    ('exames-agenda.png', '/app/exames/?recurso={psg}&dia={noite}', None),
+    ('exames-reserva.png', '/app/exames/reservas/{reserva_enmg}/', None),
     ('indicadores-painel.png', '/app/reporting/', None),
     ('indicadores-plano.png', '/app/reporting/', 'foco_plano'),
     ('financeiro-recebiveis.png', '/app/finance/', None),
@@ -74,6 +110,38 @@ TELAS = [
 ]
 
 LARGURA, ALTURA = 1280, 860
+
+#: Os ids que `ops/preparar_ajuda.py` imprimiu (linha `IDS {...}`). Sem
+#: eles, as telas de um objeto especifico -- a guia, o exame, o documento --
+#: nao tem endereco.
+IDS = json.loads(os.environ.get('NEURODOC_IDS') or '{}')
+
+
+def totp(chave_hex):
+    """O codigo de seis digitos do autenticador, para a reconfirmacao.
+
+    A area TISS pede o segundo fator de novo, como manda o requisito da ANS,
+    e a captura precisa responder sozinha. A chave e a da demonstracao local,
+    nunca de conta real; RFC 6238 com SHA-1 e passo de 30 s, o mesmo do
+    `django_otp`.
+    """
+    contador = struct.pack('>Q', int(time.time()) // 30)
+    resumo = hmac.new(bytes.fromhex(chave_hex), contador, 'sha1').digest()
+    deslocamento = resumo[-1] & 0x0F
+    numero = struct.unpack('>I', resumo[deslocamento:deslocamento + 4])[0] & 0x7FFFFFFF
+    return f'{numero % 1000000:06d}'
+
+
+def responder_mfa(page):
+    """Se a tela pediu o segundo fator, responde e volta para onde ia."""
+    if '/accounts/mfa' not in page.url:
+        return
+    if not IDS.get('totp'):
+        raise RuntimeError('a tela pediu o segundo fator e NEURODOC_IDS nao trouxe a chave TOTP')
+    campo = page.locator('input[name="token"], input[name="code"], input[name="otp_token"]').first
+    campo.fill(totp(IDS['totp']))
+    page.locator('button[type="submit"]').first.click()
+    assentar(page)
 
 
 # ------------------------------------------------------------- preparos
@@ -188,6 +256,93 @@ def exporta_e_espera(page):
     return _cartao(page, 'Últimas exportações')
 
 
+def foco_foto(page):
+    return _cartao(page, 'Fotografia do paciente')
+
+
+def abre_marcar(page):
+    """Clica no primeiro horario livre da semana: o modal de marcar."""
+    page.locator('.nd-slot-free').first.click()
+    page.locator('.modal.show').first.wait_for(state='visible', timeout=5000)
+    page.wait_for_timeout(500)
+
+
+def _aba(page, alvo):
+    page.locator(f'button[data-bs-target="#{alvo}"]').first.click()
+    page.locator(f'#{alvo}').wait_for(state='visible', timeout=5000)
+    page.wait_for_timeout(400)
+
+
+def aba_exame(page):
+    _aba(page, 'tab-exame')
+
+
+def foco_escalas(page):
+    """Com a escala de Glasgow aberta: o cartao vazio nao mostra o que o
+    artigo descreve (pontuacao automatica e faixa)."""
+    _aba(page, 'tab-exame')
+    seletor = page.locator('#scale-picker')
+    opcoes = [o for o in seletor.locator('option').all() if 'Glasgow' in (o.inner_text() or '')]
+    if opcoes:
+        seletor.select_option(value=opcoes[0].get_attribute('value'))
+        page.wait_for_timeout(800)
+    _centrar(page, seletor)
+
+
+def foco_entrega(page):
+    return _cartao(page, 'Entrega ao paciente')
+
+
+def busca_cid(page):
+    page.fill('#nd-cid-q', 'epilepsia')
+    page.wait_for_timeout(1500)
+
+
+def busca_tuss(page):
+    page.fill('#nd-tuss-q', 'ressonancia cranio')
+    page.wait_for_timeout(1500)
+
+
+def abre_nova_conversa(page):
+    page.locator('button, a').filter(has_text='Nova conversa').first.click()
+    page.locator('.modal.show').first.wait_for(state='visible', timeout=5000)
+    page.wait_for_timeout(500)
+
+
+def foco_sncr_conduta(page):
+    """So o campo da conduta e os botoes: o bloco dos modelos, logo abaixo,
+    e a captura do outro artigo -- centrar os dois dava a mesma imagem."""
+    _aba(page, 'tab-conduta')
+    painel = page.locator('#tab-conduta')
+    _centrar(page, painel.locator('text=Receita controlada (SNCR)').first)
+    caixa = painel.bounding_box()
+    botao = painel.locator('text=Receita controlada (SNCR)').first.bounding_box()
+    return {'clip': {'x': caixa['x'], 'y': caixa['y'], 'width': caixa['width'],
+                     'height': botao['y'] + botao['height'] + 24 - caixa['y']}}
+
+
+def foco_modelos_conduta(page):
+    _aba(page, 'tab-conduta')
+    bloco = page.locator('#nd-modelos')
+    _centrar(page, bloco)
+    return bloco
+
+
+def foco_medicamento(page):
+    """A receita do SNCR ja com o saldo de numeros e o primeiro medicamento."""
+    campo = page.locator('input[name="item1_nome"]')
+    _centrar(page, campo)
+
+
+def monta_plano(page):
+    """Marca as guias da fila e pede o plano dos lotes — a tela que mostra
+    quantos lotes vao sair antes de qualquer arquivo existir."""
+    for caixa in page.locator('input[name="guia"]').all():
+        caixa.check()
+    page.locator('button[type="submit"]').filter(has_text='Montar lote com as marcadas').click()
+    assentar(page)
+
+
 def _fechar_chat(page):
     """Fecha a janela de mensagens antes de cada captura.
 
@@ -252,27 +407,49 @@ def entrar(page, email, senha):
     problema porque todas as telas responderam 200.
     """
     page.goto(f'{BASE}/accounts/login/', wait_until='domcontentloaded')
+    assentar(page, 500)
+    _gravar(page, 'entrar-login.png')
     page.fill('input[name="username"], input[name="email"]', email)
     page.fill('input[name="password"]', senha)
     page.click('button[type="submit"]')
     assentar(page)
+    responder_mfa(page)
     escolha = page.locator('form button[type="submit"]').filter(has_text=CLINICA)
     if escolha.count():
+        _gravar(page, 'entrar-organizacao.png')
         escolha.first.click()
         assentar(page)
     # Conferir depois de entrar: o nome da clinica fica no cabecalho, e um
     # seletor que nao apareceu nao prova que se caiu na clinica certa.
     if CLINICA not in page.content():
-        raise RuntimeError(f'entrei, mas nao em "{CLINICA}" -- {page.url}')
+        raise RuntimeError(f'entrei, mas nao em "{CLINICA}" -- {page.url}: '
+                           + page.locator('body').inner_text()[:400].replace(chr(10), ' / '))
+
+
+FEITAS = {}
+
+
+def _gravar(page, arquivo, alvo=None):
+    destino = os.path.join(SAIDA, arquivo)
+    if isinstance(alvo, dict):              # um recorte da pagina
+        page.screenshot(path=destino, **alvo)
+    else:
+        (alvo if alvo is not None else page).screenshot(path=destino)
+    with open(destino, 'rb') as fh:
+        FEITAS[arquivo] = hashlib.sha256(fh.read()).hexdigest()
+    print(f'  {arquivo}')
 
 
 def main():
     from playwright.sync_api import sync_playwright
 
     os.makedirs(SAIDA, exist_ok=True)
-    feitas, falhas = {}, []
+    feitas, falhas = FEITAS, []
     with sync_playwright() as p:
-        navegador = p.chromium.launch(args=['--no-sandbox'])
+        # pt-BR no proprio navegador, e nao so no contexto: o campo de data segue
+        # o idioma do processo, e sem isto saia "mm/dd/yyyy" nas capturas -- o
+        # que nenhum usuario no Brasil ve.
+        navegador = p.chromium.launch(args=['--no-sandbox', '--lang=pt-BR'], env={**os.environ, 'LANG': 'pt_BR.UTF-8'})
         contexto = navegador.new_context(
             viewport={'width': LARGURA, 'height': ALTURA},
             device_scale_factor=2,        # nitidez em tela de alta densidade
@@ -285,8 +462,17 @@ def main():
             return 1
 
         for arquivo, caminho, preparo in TELAS:
+            try:
+                caminho = caminho.format(**IDS)
+            except KeyError as exc:
+                falhas.append(f'{arquivo}: falta o id {exc} (rodou ops/preparar_ajuda.py?)')
+                continue
             resposta = page.goto(BASE + caminho, wait_until='domcontentloaded')
             assentar(page, 700)
+            if '/accounts/mfa' in page.url:
+                responder_mfa(page)
+                resposta = page.goto(BASE + caminho, wait_until='domcontentloaded')
+                assentar(page, 700)
             _fechar_chat(page)
             if resposta is None or not resposta.ok:
                 status = resposta.status if resposta is not None else 'sem resposta'
@@ -313,11 +499,7 @@ def main():
                                   f'({exc.__class__.__name__}: {str(exc)[:80]})')
                     continue
             page.wait_for_timeout(400)
-            destino = os.path.join(SAIDA, arquivo)
-            (alvo if alvo is not None else page).screenshot(path=destino)
-            with open(destino, 'rb') as fh:
-                feitas[arquivo] = hashlib.sha256(fh.read()).hexdigest()
-            print(f'  {arquivo:34} {caminho}')
+            _gravar(page, arquivo, alvo)
         navegador.close()
 
     # Duas capturas identicas significam preparo que nao surtiu efeito --

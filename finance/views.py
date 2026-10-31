@@ -252,6 +252,12 @@ class DeleteFinancialHistoryView(FinancialHistoryManagerView):
             f'Histórico apagado: {counts["receivables"]} cobrança(s), '
             f'{counts["payments"]} pagamento(s) e {counts["adjustments"]} ajuste(s).',
         )
+        if counts['mantidas_tiss']:
+            messages.warning(
+                request,
+                f'{counts["mantidas_tiss"]} cobrança(s) foram mantidas, com seus pagamentos e ajustes, '
+                'porque estão em guias TISS: a guia é o registro do que foi faturado ao convênio.',
+            )
         return redirect('finance:overview')
 
 

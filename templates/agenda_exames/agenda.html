@@ -57,8 +57,8 @@
                                     {% if r.da_vespera %}<span class="d-block text-muted">começou na véspera</span>{% endif %}
                                     {% if r.ate_amanha %}<span class="d-block text-muted">termina no dia seguinte</span>{% endif %}
                                     {% if r.encaixe %}<span class="badge bg-soft-warning text-warning">encaixe</span>{% endif %}</td>
-                                <td class="fs-12">{{ r.paciente.full_name }}</td>
-                                <td class="fs-12">{{ r.descricao|default:r.codigo_tuss|default:"—" }}</td>
+                                <td class="fs-12 text-wrap">{{ r.paciente.full_name }}</td>
+                                <td class="fs-12 text-wrap">{{ r.descricao|default:r.codigo_tuss|default:"—" }}</td>
                                 <td class="fs-12">{{ r.get_estado_display }}</td>
                             </tr>
                             {% empty %}

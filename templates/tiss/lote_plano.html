@@ -28,8 +28,28 @@
             {% if grupo.tipo == 'consulta' %}Consulta{% else %}SP/SADT{% endif %} · versão {{ grupo.versao }} ·
             prestador {{ grupo.credenciamento.prestador.nome }}</span>
     </div>
-    <div class="card-body fs-12">
-        {% for g in grupo.guias %}{{ g.numero_prestador }}{% if not forloop.last %}, {% endif %}{% endfor %}
+    {% comment %}Número, paciente, data e valor de cada guia: só os números, soltos
+    ("3, 2"), não deixavam conferir o que ia no lote — que é o propósito desta
+    tela. Do retrato da guia fechada, que é o que vai no arquivo.{% endcomment %}
+    <div class="card-body p-0">
+        <div class="table-responsive">
+        <table class="table mb-0">
+            <thead class="bg-gray-100"><tr>
+                <th class="ps-4" scope="col">Guia</th><th scope="col">Paciente</th>
+                <th scope="col">Atendimento</th><th class="text-end pe-4" scope="col">Valor</th>
+            </tr></thead>
+            <tbody>
+                {% for g in grupo.guias %}
+                <tr>
+                    <td class="ps-4 fs-12"><a href="{% url 'tiss:guia' g.id %}">nº {{ g.numero_prestador }}</a></td>
+                    <td class="fs-12">{{ g.snapshot.beneficiario.nome|default:g.paciente.full_name }}</td>
+                    <td class="fs-12">{{ g.data_referencia|date:"d/m/Y"|default:"—" }}</td>
+                    <td class="fs-12 text-end pe-4">R$ {{ g.snapshot.total|floatformat:2 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
     </div>
 </div>
 {% endfor %}

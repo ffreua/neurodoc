@@ -319,6 +319,12 @@ O `import_cmed` fecha a lista: ele **não** vem da semeadura, e sem ele
 - Segredos ficam em `.secrets/<NOME>` (um arquivo por segredo, lidos por
   `ops/env.py::secret`). `.env` não versionado; `.env.example` é o molde.
 
+**Capturas do manual:** `bash scripts/capturar_ajuda.sh` (pilha local de pé)
+roda `ops/preparar_ajuda.py` — a demonstração no estado que o manual descreve,
+com operadora e bloco SNCR **fictícios**, só com `RELEASE_ID=dev` — e tira as
+57 telas num Chromium dentro do Docker. Nenhuma captura é tirada à mão
+(`check_ajuda` §11).
+
 Comandos úteis: `seed_demo`, `issue_platform_invitation`, `import_municipios`,
 `create_superadmin`, `install_exam_template`, `import_catalog`,
 `sync_tuss`, `import_cmed`, `testar_email`, `prepare_recovery`,

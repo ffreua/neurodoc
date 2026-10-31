@@ -28,6 +28,7 @@ class Command(BaseCommand):
         from catalogs.importers import activate_release, import_catalog
         from catalogs.models import CatalogRelease
         from exams.provisioning import ensure_default_template
+        from patients.contacts import SELF_RELATIONSHIP
         from patients.models import (
             HealthPlan, HealthPlanKind, Insurer, ObservationKind, Patient, PatientCoverage,
             SexAtRegistration,
@@ -169,7 +170,7 @@ class Command(BaseCommand):
             counts['observations'] += 2
         if not adult.contacts.exists():
             adult.contacts.create(
-                tenant=tenant_a, name='Carlos Adulto da Silva', relationship='self',
+                tenant=tenant_a, name='CARLOS ADULTO DA SILVA', relationship=SELF_RELATIONSHIP,
                 phone='+5511999990001', authorized_for_documents=True,
             )
             counts['contacts'] += 1

@@ -143,6 +143,18 @@ for arquivo, esperado in criticas.items():
     if obtido != esperado:
         falhas.append(f'capturador de {arquivo}: esperado {esperado}, obtido {obtido}')
 
+print('=== 11. toda captura do manual sai do roteiro, e nenhuma da mao ===')
+# Ate a 1.30, 21 das 46 imagens eram tiradas a mao, e foram elas que
+# envelheceram: um mes depois mostravam o icone do tema escuro (removido), o
+# menu "Captura local" (retirado) e um paciente "Teste Permissao Secretaria".
+# Com todas no roteiro, refazer o manual e um comando; esta secao impede a
+# proxima de nascer fora dele. As duas da entrada sao tiradas em `entrar()`.
+pelo_roteiro = set(capturadas) | {'entrar-login.png', 'entrar-organizacao.png'}
+a_mao = sorted(x for x in referenciadas if x not in pelo_roteiro)
+print(f'  fora do roteiro: {a_mao or "nenhuma"}')
+if a_mao:
+    falhas.append(f'capturas que o roteiro nao refaz (seriam tiradas a mao): {a_mao}')
+
 print('---')
 if falhas:
     for line in falhas:

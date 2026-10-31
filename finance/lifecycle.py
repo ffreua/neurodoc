@@ -130,17 +130,36 @@ def restore_all_financial_history(tenant, membership):
     return count
 
 
+def _faturadas_em_guia(tenant):
+    """As cobranças que entraram numa guia TISS (1.30).
+
+    Ficam de fora da limpeza, com os pagamentos e ajustes delas. O vínculo
+    `ItemGuia.recebivel` é o que impede a mesma consulta de ser faturada em
+    duas guias; apagar a cobrança exigiria desfazê-lo numa guia já fechada,
+    talvez já enviada à operadora. Antes disto a limpeza esbarrava na chave
+    protegida e respondia erro 500 — a exclusão não acontecia, e a tela não
+    dizia por quê.
+    """
+    from tiss.models import ItemGuia
+
+    return set(
+        ItemGuia.objects.filter(tenant=tenant, recebivel__isnull=False).values_list('recebivel_id', flat=True)
+    )
+
+
 @transaction.atomic
 def delete_all_financial_history(tenant, membership):
     _assert_manager(membership, tenant.id)
-    receivables = Receivable.objects.select_for_update().filter(tenant=tenant)
+    mantidas = _faturadas_em_guia(tenant)
+    receivables = Receivable.objects.select_for_update().filter(tenant=tenant).exclude(id__in=mantidas)
     receivable_ids = list(receivables.values_list('id', flat=True))
-    adjustments = FinancialAdjustment.objects.filter(tenant=tenant)
-    payments = Payment.objects.filter(tenant=tenant)
+    adjustments = FinancialAdjustment.objects.filter(tenant=tenant).exclude(receivable_id__in=mantidas)
+    payments = Payment.objects.filter(tenant=tenant).exclude(receivable_id__in=mantidas)
     counts = {
         'adjustments': adjustments.count(),
         'payments': payments.count(),
         'receivables': len(receivable_ids),
+        'mantidas_tiss': len(mantidas),
     }
     adjustments.delete()
     payments.delete()

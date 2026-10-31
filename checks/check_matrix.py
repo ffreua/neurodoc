@@ -130,10 +130,19 @@ for label, url, expected in CASES:
 # protegido -- baixar ja respondia 404, e o nome aparecia na linha.
 print()
 print('=== o nome do anexo clinico nao escapa na listagem ===')
+# Fora o PDF de documento médico emitido: esse a recepção vê pelo nome de
+# propósito, para imprimir a receita (`check_auditoria_lote1`). Sem esta
+# exclusão, o `.first()` sem ordem pegava ora o laudo, ora o PDF de um
+# relatório, e a seção acusava a regra certa como vazamento.
+from django.db.models import Q
+from documents.models import MedicalDocument
+
+pdfs_de_documento = MedicalDocument.objects.filter(tenant__slug=TENANT).values_list('pdf_attachment_id', flat=True)
+pdfs_assinados = MedicalDocument.objects.filter(tenant__slug=TENANT).values_list('signed_pdf_attachment_id', flat=True)
 qualquer_clinico = Attachment.objects.filter(
     tenant__slug=TENANT, classification=AttachmentClassification.CLINICAL,
     deleted_at=None,
-).first()
+).exclude(Q(id__in=pdfs_de_documento) | Q(id__in=pdfs_assinados)).order_by('created_at').first()
 if qualquer_clinico is None:
     print('  (sem anexo clinico na demonstracao; secao pulada)')
 else:

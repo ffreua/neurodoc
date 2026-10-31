@@ -27,9 +27,21 @@ IMAGEM=mcr.microsoft.com/playwright/python:v1.47.0-jammy
 REDE=$(docker compose ps -q app | xargs docker inspect \
     -f '{{range $k, $v := .NetworkSettings.Networks}}{{$k}}{{end}}')
 
+# O banco de demonstracao no estado que o manual descreve (TISS, agenda de
+# exames, bloco SNCR ficticio, documento com entregas, chat) -- e os ids das
+# telas de um objeto so, que o roteiro de captura recebe pela variavel.
+IDS=$(docker compose exec -T app python manage.py shell < ops/preparar_ajuda.py 2>/dev/null \
+    | sed -n 's/^IDS //p')
+[ -n "$IDS" ] || { echo "preparar_ajuda.py nao terminou; nada foi capturado" >&2; exit 1; }
+
+# No Git Bash do Windows, sem isto o "/ops" do volume vira um caminho do
+# Windows e o contentor nao acha o roteiro. Inofensivo no Linux.
+export MSYS_NO_PATHCONV=1
+
 exec docker run --rm --network "$REDE" \
     -v "$RAIZ/ops:/ops:ro" \
     -v "$RAIZ/static/help:/saida" \
     -e NEURODOC_URL=http://app:8000 \
+    -e NEURODOC_IDS="$IDS" \
     "$IMAGEM" \
     sh -c 'pip3 install -q playwright==1.47.0 >/dev/null 2>&1; python3 /ops/capturar_ajuda.py'

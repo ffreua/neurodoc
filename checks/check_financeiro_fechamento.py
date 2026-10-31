@@ -284,6 +284,10 @@ with transaction.atomic():
                 Payment.objects.filter(tenant=outro_tenant).count(),
                 FinancialAdjustment.objects.filter(tenant=outro_tenant).count(),
             )
+        from tiss.models import ItemGuia
+        faturadas_tiss = set(
+            ItemGuia.objects.filter(tenant=tenant, recebivel__isnull=False).values_list('recebivel_id', flat=True)
+        )
         tela_limpeza = navegador_dono.get('/app/finance/history/')
         corpo_limpeza = tela_limpeza.content.decode('utf-8', 'replace')
         conferir('Apagar definitivamente' in corpo_limpeza, 'dono vê a opção destrutiva')
@@ -304,12 +308,23 @@ with transaction.atomic():
             {'confirmation': 'APAGAR', 'understand': 'on'},
         )
         conferir(apagado.status_code == 302, 'confirmação dupla executa a exclusão')
-        conferir(not Receivable.objects.filter(tenant=tenant).exists(), 'todas as cobranças são apagadas')
-        conferir(not Payment.objects.filter(tenant=tenant).exists(), 'todos os pagamentos são apagados')
+        # A cobrança que entrou numa guia TISS fica, com o que é dela (1.30):
+        # antes, a limpeza esbarrava na chave protegida e dava erro 500.
         conferir(
-            not FinancialAdjustment.objects.filter(tenant=tenant).exists(),
-            'todos os ajustes são apagados',
+            set(Receivable.objects.filter(tenant=tenant).values_list('id', flat=True)) == faturadas_tiss,
+            'apaga as cobranças e mantém só as que estão em guia TISS',
         )
+        conferir(
+            not Payment.objects.filter(tenant=tenant).exclude(receivable_id__in=faturadas_tiss).exists(),
+            'todos os pagamentos fora de guia TISS são apagados',
+        )
+        conferir(
+            not FinancialAdjustment.objects.filter(tenant=tenant).exclude(receivable_id__in=faturadas_tiss).exists(),
+            'todos os ajustes fora de guia TISS são apagados',
+        )
+        aviso = navegador_dono.get(apagado['Location']).content.decode('utf-8', 'replace')
+        conferir(('foram mantidas' in aviso) == bool(faturadas_tiss),
+                 'a tela diz quando cobranças em guia TISS foram mantidas, e só então')
         conferir(Patient.objects.filter(id=paciente.id).exists(), 'a exclusão preserva o paciente')
         conferir(Encounter.objects.filter(id=encontro.id).exists(), 'a exclusão preserva o prontuário')
         if outro_tenant:

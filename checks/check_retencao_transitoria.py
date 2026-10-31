@@ -30,7 +30,13 @@ def conferir(rotulo, condicao):
 
 
 tenant = Tenant.objects.get(slug='demo-clinica-a')
-agendamento = Appointment.objects.filter(tenant=tenant).select_related('patient').first()
+# De paciente com contato: a entrega exige um, e o `.first()` sem filtro
+# caía às vezes num paciente sem contato nenhum (a demonstração do manual
+# acrescenta pacientes assim) e o roteiro quebrava antes de testar.
+agendamento = (
+    Appointment.objects.filter(tenant=tenant, patient__contacts__isnull=False)
+    .select_related('patient').order_by('created_at').first()
+)
 contato = PatientContact.objects.filter(
     tenant=tenant, patient=agendamento.patient,
 ).first()
