@@ -340,6 +340,36 @@ from tenancy.forms import PhysicianProfileForm
 conferir('o registro profissional diz a recusa com as proprias palavras',
          'validate_unique' in PhysicianProfileForm.__dict__, True)
 
+print('\n7. A opcao vazia das listas de escolha')
+# O Django 6.1 passou a escrever "- Select an option -" na primeira opcao de
+# toda lista de escolha montada de modelo, e o catalogo pt_BR dele nao a
+# traduz. Nenhuma varredura de texto a via: a frase nao esta no nosso codigo.
+# Por isso o roteiro RENDERIZA os tres caminhos que a produzem -- lista de
+# modelo relacionado, campo com `choices` e o `ModelChoiceField` solto --
+# e procura a frase no HTML.
+from django import forms as dj_forms
+from django.db.models.utils import get_blank_choice_label
+
+from patients.models import Insurer, PatientCoverage
+from tiss.forms import CredenciamentoForm
+
+conferir('a opcao vazia esta em portugues', str(get_blank_choice_label()), '— Selecione —')
+
+
+class _Solto(dj_forms.Form):
+    operadora = dj_forms.ModelChoiceField(queryset=Insurer.objects.none(), required=False)
+
+
+class _DoModelo(dj_forms.ModelForm):
+    class Meta:
+        model = PatientCoverage
+        fields = ['plan']
+
+
+html = str(_Solto()) + str(_DoModelo()) + str(CredenciamentoForm(tenant_id=None))
+conferir('nenhuma lista de escolha mostra "Select an option"', 'Select an option' in html, False)
+conferir('a lista de modelo traz a opcao vazia em portugues', '— Selecione —' in html, True)
+
 if falhas:
     for item in falhas:
         print('FALHA:', item)
