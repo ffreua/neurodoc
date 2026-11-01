@@ -216,12 +216,15 @@ carimbá-la na publicação.
 #: que não esvazia a busca e guarda a vigência, e o módulo TISS (três
 #: chaves, configuração, sete versões do padrão) desligado. Migrações só
 #: de expansão.
-VERSION = '1.30'
+#: A **1.31**: a lista de espera da agenda -- montada e ordenada pela
+#: recepção e pelo médico, puxada no modal de marcar. Migração só de
+#: expansão.
+VERSION = '1.31'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a fundação do TISS'
+CODENAME = 'a lista de espera'
 
 
 def version_display():

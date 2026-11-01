@@ -209,7 +209,7 @@ ARTICLES = [
     {
         'slug': 'agenda',
         'title': 'Marcar e remarcar na agenda',
-        'summary': 'Grade por médico, reserva de horário e confirmação com o paciente.',
+        'summary': 'Grade por médico, reserva de horário, lista de espera e confirmação com o paciente.',
         'audience': 'Secretaria, médico, gestor',
         'steps': [
             ('A agenda mostra a semana por médico. Cada médico tem a própria grade '
@@ -228,6 +228,19 @@ ARTICLES = [
             ('Na linha do horário marcado há os botões de **confirmar por e-mail ou '
              'SMS**. A mensagem vai para os contatos do paciente que têm aquele '
              'canal cadastrado.',
+             '', ''),
+            ('Quem pediu horário e ainda não tem vai para a **Agenda → Lista de '
+             'espera**. Secretária e médico incluem o paciente (cadastrado ou em '
+             'pré-cadastro), escolhem o médico — ou **qualquer médico** — e o tipo '
+             'pretendido, e organizam a **ordem**: as setas sobem e descem um lugar, '
+             'e **Levar** põe o nome direto na posição escolhida. A observação é da '
+             'recepção ("só pela manhã"), não é prontuário.',
+             'agenda-espera.png', 'Lista de espera'),
+            ('Para **puxar** alguém da lista, clique num horário livre: o modal de '
+             'marcar mostra **Puxar da lista de espera**, na ordem da lista, com as '
+             'esperas daquele médico e as de qualquer médico. Ao marcar, o paciente '
+             'sai da lista sozinho e os de baixo sobem. Na lista, **Marcar na agenda** '
+             'abre a grade com o paciente já escolhido.',
              '', ''),
         ],
     },

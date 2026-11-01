@@ -16,6 +16,14 @@ urlpatterns = [
     # Estatísticas do mês. Sob a agenda, e com a capacidade dela: são
     # contagens de operação do consultório, não indicadores de gestão.
     path('estatisticas/', views.MonthStatisticsView.as_view(), name='estatisticas'),
+    # Lista de espera (1.31): montada e ordenada pela recepção e pelo médico,
+    # puxada no modal de marcar.
+    path('espera/', views.EsperaListView.as_view(), name='espera'),
+    path('espera/incluir/', views.EsperaIncluirView.as_view(), name='espera-incluir'),
+    path('espera/opcoes/', views.EsperaOpcoesView.as_view(), name='espera-opcoes'),
+    path('espera/<uuid:espera_id>/mover/', views.EsperaMoverView.as_view(), name='espera-mover'),
+    path('espera/<uuid:espera_id>/editar/', views.EsperaEditarView.as_view(), name='espera-editar'),
+    path('espera/<uuid:espera_id>/retirar/', views.EsperaRetirarView.as_view(), name='espera-retirar'),
     path(
         'retornos/<uuid:return_id>/baixa/',
         views.ReturnResolveView.as_view(), name='resolve-return',

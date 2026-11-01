@@ -94,6 +94,9 @@ EXCECOES_NA_TELA = {
     'EnvioRecusado', 'NotReadyToSign', 'SigningNotAuthorized',
     'CredentialTitleMismatch', 'InvalidPfxFile', 'PhotoRejected',
     'PedidoRecusado', 'LogoRejected',
+    # Lista de espera (1.31): as recusas são escritas em português em
+    # `scheduling/espera.py` e na view que puxa a espera para um horário.
+    'EsperaError',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o

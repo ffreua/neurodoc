@@ -58,6 +58,7 @@ TELAS = [
     ('paciente-ficha.png', '/app/patients/{carlos}/', None),
     ('agenda-semana.png', '/app/scheduling/?date={segunda}', None),
     ('agenda-marcar.png', '/app/scheduling/?date={segunda}', 'abre_marcar'),
+    ('agenda-espera.png', '/app/scheduling/espera/', None),
     ('atendimento-abas.png', '/app/clinical/{atendimento}/', None),
     ('exame-roteiro.png', '/app/clinical/{atendimento}/', 'aba_exame'),
     ('exame-escalas.png', '/app/clinical/{atendimento}/', 'foco_escalas'),

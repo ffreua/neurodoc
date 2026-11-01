@@ -71,3 +71,4 @@ quando pedem homologação própria, como a 1.6.1 e a 1.6.2.
 | 1.25 | [`1.25-boas-vindas.md`](1.25-boas-vindas.md) |
 | 1.26 | [`1.26-atendidos-e-faltas.md`](1.26-atendidos-e-faltas.md) |
 | 1.27 | [`1.27-excluir-contato.md`](1.27-excluir-contato.md) |
+| 1.31 | [`1.31-lista-de-espera.md`](1.31-lista-de-espera.md) |

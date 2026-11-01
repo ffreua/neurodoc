@@ -492,3 +492,102 @@ class ScheduledReturn(TenantModel):
 
     def __str__(self):
         return f'retorno de {self.patient_id} em {self.due_on}'
+
+
+class EsperaStatus(models.TextChoices):
+    """Onde está cada nome da lista de espera.
+
+    Três estados, e o que importa é que dois deles **tiram da lista**: quem
+    foi agendado e quem saiu (desistiu, resolveu em outro lugar, não atende
+    mais). Uma lista que só cresce deixa de ser lida.
+    """
+
+    AGUARDANDO = 'aguardando', 'Aguardando'
+    AGENDADO = 'agendado', 'Agendado'
+    RETIRADO = 'retirado', 'Retirado da lista'
+
+
+class PacienteEmEspera(TenantModel):
+    """Um paciente esperando horário — a lista de espera da agenda.
+
+    É o caderno da recepção: quem ligou pedindo horário quando não havia,
+    quem quer ser avisado se abrir uma vaga antes. A secretária (e o
+    médico) monta a lista, decide a **ordem** e, ao marcar um horário na
+    grade, **puxa** o paciente dela — a consulta nasce pelo caminho de
+    sempre (`services.reserve_from_grid`), e esta linha só registra que a
+    espera acabou e em qual consulta.
+
+    **Não é `ScheduledReturn`.** O retorno previsto é decisão clínica com
+    data, nascida no fechamento do atendimento e ordenada pelo vencimento;
+    a espera é pedido administrativo, sem data, ordenado por quem a
+    trabalha. Juntar as duas faria a ordem manual brigar com a do
+    vencimento.
+
+    **Não é prontuário.** A observação é da recepção ("só pela manhã",
+    "prefere SMS") — e a tela diz isso, pela mesma razão do modal da agenda:
+    a lista é aberta por quem não lê prontuário.
+    """
+
+    patient = models.ForeignKey(
+        'patients.Patient', on_delete=models.PROTECT, related_name='esperas',
+    )
+    #: Com qual médico. Nulo é "qualquer médico" — o paciente que quer a
+    #: primeira vaga da clínica, seja de quem for. Aparece na lista de todos.
+    physician_membership = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='esperas',
+    )
+    #: O tipo pretendido, para o modal já vir com ele ao puxar. Vazio é
+    #: "a decidir na hora".
+    appointment_type = models.CharField(
+        max_length=40, choices=AppointmentType.choices, blank=True,
+    )
+    #: A ordem da lista, de 1 em diante, **entre as que aguardam** e na
+    #: clínica inteira (o filtro por médico mostra um recorte na mesma
+    #: ordem). Sem `UNIQUE`: renumerar a lista inteira numa transação
+    #: violaria a restrição no meio do caminho; quem garante a sequência é a
+    #: trava por clínica em `espera.py`, e o desempate pelo `created_at`
+    #: mantém a ordem determinística mesmo se ela um dia falhar.
+    posicao = models.PositiveIntegerField(default=0)
+    status = models.CharField(
+        max_length=20, choices=EsperaStatus.choices, default=EsperaStatus.AGUARDANDO,
+    )
+    observacao = models.CharField(max_length=255, blank=True)
+    #: Preenchido quando o paciente é puxado para um horário. `SET_NULL`:
+    #: a consulta não se apaga, mas se um dia sair, a espera continua
+    #: registrada como encerrada.
+    appointment = models.ForeignKey(
+        'scheduling.Appointment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='esperas_atendidas',
+    )
+    criado_por = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='+',
+    )
+    resolvido_em = models.DateTimeField(null=True, blank=True)
+    resolvido_por = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True,
+        related_name='+',
+    )
+    #: Por que saiu da lista sem horário. Sem isso, quem abre o histórico
+    #: não distingue "desistiu" de "foi engano".
+    motivo_saida = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            # Um paciente aguarda uma vez só. Duas linhas do mesmo nome
+            # fariam a recepção ligar duas vezes e, puxada uma, a outra
+            # ficaria esperando um horário que o paciente já tem.
+            models.UniqueConstraint(
+                fields=['tenant', 'patient'],
+                condition=models.Q(status='aguardando'),
+                name='scheduling_espera_uma_por_paciente',
+            ),
+        ]
+        indexes = [
+            models.Index(fields=['tenant', 'status', 'posicao'], name='scheduling_espera_fila_idx'),
+        ]
+        ordering = ['posicao', 'created_at']
+
+    def __str__(self):
+        return f'espera de {self.patient_id} ({self.status})'

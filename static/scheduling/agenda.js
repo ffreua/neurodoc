@@ -15,7 +15,9 @@
 
     var bookModal = document.getElementById('book-modal');
     var slotModal = document.getElementById('slot-modal');
-    if (!bookModal && !slotModal) return;
+    /* Sem retorno antecipado quando não há modal: a lista de espera (1.31)
+     * carrega este arquivo pela busca de paciente, no fim dele. Cada bloco
+     * abaixo confere o próprio elemento antes de usá-lo. */
 
     /* ------------------------------------------------- marcar num livre */
 
@@ -79,6 +81,124 @@
             }, 0);
         }
 
+        /* ------------------------------------ puxar da lista de espera */
+
+        /* As opções vêm do servidor a cada abertura: a lista muda durante o
+         * dia, e o modal tem de mostrar a de agora. Falhou a busca, a caixa
+         * some e o modal continua servindo como sempre. */
+        var esperaBox = document.getElementById('book-espera-box');
+        var esperaSelect = document.getElementById('book-espera');
+        var esperaId = document.getElementById('book-espera-id');
+        var esperaUrl = bookForm ? bookForm.getAttribute('data-nd-espera-url') : '';
+        var esperaOpcoes = {};
+        var esperaPedida = lerEsperaPedida();
+
+        function limparEspera() {
+            if (!esperaId) return;
+            esperaId.value = '';
+            if (esperaSelect) esperaSelect.value = '';
+        }
+
+        function escolherEspera(id) {
+            var item = esperaOpcoes[id];
+            if (!item) { limparEspera(); return; }
+            esperaSelect.value = id;
+            esperaId.value = id;
+            bookPatientId.value = item.patient_id;
+            bookSearch.value = item.full_name;
+            bookNewName.value = '';
+            bookChosen.textContent = 'Da lista de espera (' + item.posicao + 'º): ' + item.full_name;
+            bookChosen.className = 'form-text fs-11 text-success';
+            if (item.appointment_type) {
+                bookType.value = item.appointment_type;
+                describeDuration();
+            }
+        }
+
+        function carregarEspera(depois) {
+            if (!esperaBox || !esperaUrl) return;
+            limparEspera();
+            esperaBox.hidden = true;
+            fetch(esperaUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    var rows = data.results || [];
+                    esperaOpcoes = {};
+                    while (esperaSelect.options.length > 1) esperaSelect.remove(1);
+                    rows.forEach(function (item) {
+                        esperaOpcoes[item.id] = item;
+                        var texto = item.posicao + 'º — ' + item.full_name;
+                        if (item.appointment_type_label) texto += ' · ' + item.appointment_type_label;
+                        if (item.qualquer_medico) texto += ' · qualquer médico';
+                        if (item.observacao) texto += ' — ' + item.observacao;
+                        var opcao = document.createElement('option');
+                        opcao.value = item.id;
+                        opcao.textContent = texto;
+                        esperaSelect.appendChild(opcao);
+                    });
+                    esperaBox.hidden = !rows.length;
+                    if (esperaPedida && esperaOpcoes[esperaPedida]) escolherEspera(esperaPedida);
+                    if (depois) depois(rows);
+                })
+                .catch(function () { esperaBox.hidden = true; });
+        }
+
+        if (esperaSelect) {
+            esperaSelect.addEventListener('change', function () {
+                if (esperaSelect.value) {
+                    escolherEspera(esperaSelect.value);
+                } else {
+                    limparEspera();
+                    bookPatientId.value = '';
+                    bookSearch.value = '';
+                    bookChosen.textContent = '';
+                    bookChosen.className = 'form-text fs-11';
+                }
+            });
+            /* Buscar outro paciente ou começar um pré-cadastro desfaz a escolha
+             * da lista: o horário iria para a pessoa digitada, e a espera
+             * ficaria encerrada no nome de outra. */
+            bookSearch.addEventListener('input', limparEspera);
+            bookNewName.addEventListener('input', limparEspera);
+        }
+
+        /* "Marcar na agenda", vindo da lista: a espera pedida fica guardada
+         * na aba para sobreviver à troca de semana; o aviso no alto diz para
+         * quem se está procurando horário. */
+        function lerEsperaPedida() {
+            var daUrl = new URLSearchParams(window.location.search).get('espera');
+            try {
+                if (daUrl) window.sessionStorage.setItem('nd-espera-puxar', daUrl);
+                return daUrl || window.sessionStorage.getItem('nd-espera-puxar') || '';
+            } catch (e) {
+                return daUrl || '';
+            }
+        }
+
+        function esquecerEsperaPedida() {
+            esperaPedida = '';
+            try { window.sessionStorage.removeItem('nd-espera-puxar'); } catch (e) { /* sem armazenamento */ }
+        }
+
+        var aviso = document.getElementById('espera-aviso');
+        if (aviso && esperaPedida && esperaUrl) {
+            fetch(esperaUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                .then(function (response) { return response.json(); })
+                .then(function (data) {
+                    var item = (data.results || []).filter(function (r) { return r.id === esperaPedida; })[0];
+                    /* Já agendada, retirada ou de outro médico: nada a avisar,
+                     * e a aba esquece o pedido. */
+                    if (!item) { esquecerEsperaPedida(); return; }
+                    document.getElementById('espera-aviso-nome').textContent = item.full_name;
+                    aviso.hidden = false;
+                })
+                .catch(function () { /* sem aviso */ });
+            document.getElementById('espera-aviso-fechar').addEventListener('click', function () {
+                esquecerEsperaPedida();
+                aviso.hidden = true;
+            });
+        }
+
         /* O formulário é `novalidate`, então o navegador não barra o campo
          * vazio: sem isto o envio sai, o servidor recusa e o aviso aparece
          * como mensagem da página — com o modal já fechado, longe do campo
@@ -119,6 +239,7 @@
             document.getElementById('book-note').value = '';
             bookChosen.textContent = '';
             bookChosen.className = 'form-text fs-11';
+            carregarEspera();
             /* O erro da abertura anterior não pode sobreviver a esta: já foi
              * corrigido ou abandonado, e reaparecer num horário novo faria
              * parecer que o campo continua errado. */
@@ -428,6 +549,13 @@
         document.getElementById('book-results'),
         document.getElementById('book-patient-id'),
         document.getElementById('book-chosen')
+    );
+    /* A busca do formulário de incluir na lista de espera. */
+    wirePatientSearch(
+        document.getElementById('espera-search'),
+        document.getElementById('espera-results'),
+        document.getElementById('espera-patient-id'),
+        document.getElementById('espera-chosen')
     );
     wirePatientSearch(
         document.getElementById('change-search'),

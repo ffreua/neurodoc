@@ -773,6 +773,11 @@ class QuickBookingView(TenantScopedView):
         starts_at = form.cleaned_data['starts_at']
         day = timezone.localtime(starts_at).date()
 
+        # Puxado da lista de espera: caminho próprio, para o de sempre (logo
+        # abaixo) continuar exatamente como era.
+        if form.cleaned_data.get('espera_id'):
+            return self._puxar_da_espera(request, doctor, form, starts_at, day)
+
         if form.cleaned_data.get('patient_id'):
             patient = scope_to_tenant(
                 Patient.objects.all(), request.access_context,
@@ -828,10 +833,67 @@ class QuickBookingView(TenantScopedView):
         stage = ''
         if patient.registration_stage == 'preliminary':
             stage = ' Pré-cadastro: a ficha completa é pedida no check-in.'
+        # Marcado pela busca, e não puxado da espera: a espera não se
+        # encerra sozinha (o horário pode ser outro assunto), mas a
+        # secretária fica sabendo que o nome continua lá.
+        from .espera import esperando
+        aviso_espera = ''
+        if esperando(request.access_context.tenant_id, patient.id):
+            aviso_espera = (' Este paciente continua na lista de espera — '
+                            'retire-o de lá se este horário resolve.')
         messages.success(
             request,
             f'{patient.full_name} marcado para {local.strftime("%d/%m/%Y às %H:%M")} '
-            f'({appointment.get_type_display()}).{stage}',
+            f'({appointment.get_type_display()}).{stage}{aviso_espera}',
+        )
+        return _agenda_redirect(request, doctor, day)
+
+    def _puxar_da_espera(self, request, doctor, form, starts_at, day):
+        """Marca o paciente da lista de espera e encerra a espera, numa transação.
+
+        A espera é relida e travada **dentro** da mesma transação da
+        consulta: se o horário for recusado, ela continua aguardando; se
+        outra pessoa puxou o mesmo nome um instante antes, esta é recusada
+        sem marcar um segundo horário.
+        """
+        from django.db import transaction
+
+        from . import espera
+
+        ctx = request.access_context
+        ator = _own_membership(request)
+        try:
+            with transaction.atomic():
+                entrada = espera.para_puxar(ctx, form.cleaned_data['espera_id'], doctor)
+                escolhido = form.cleaned_data.get('patient_id')
+                if escolhido and escolhido != entrada.patient_id:
+                    raise espera.EsperaError(
+                        'O paciente escolhido não é o da lista de espera. Abra o horário de novo.'
+                    )
+                patient = entrada.patient
+                appointment = services.reserve_from_grid(
+                    ctx, patient, doctor, starts_at,
+                    form.cleaned_data['appointment_type'],
+                    is_overbook=form.cleaned_data.get('is_overbook') or False,
+                    override_reason=form.cleaned_data.get('override_reason', ''),
+                    override_by=ator,
+                )
+                espera.marcar_agendada(ctx, entrada, appointment, ator=ator)
+        except (espera.EsperaError, services.SchedulingError) as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+        except IntegrityError:
+            messages.error(
+                request,
+                'Este horário acabou de ser ocupado por outra reserva. Escolha outro.',
+            )
+            return _agenda_redirect(request, doctor, day)
+
+        local = timezone.localtime(appointment.starts_at)
+        messages.success(
+            request,
+            f'{patient.full_name} marcado para {local.strftime("%d/%m/%Y às %H:%M")} '
+            f'({appointment.get_type_display()}) e retirado da lista de espera.',
         )
         return _agenda_redirect(request, doctor, day)
 
@@ -1578,6 +1640,266 @@ class ReturnResolveView(TenantScopedView):
         })
         destino = reverse('scheduling:returns')
         return redirect(f'{destino}?{filtro}' if filtro else destino)
+
+# --------------------------------------------------------------------------
+# Lista de espera (1.31)
+# --------------------------------------------------------------------------
+
+def _uuid_ou_none(valor):
+    import uuid
+
+    try:
+        return uuid.UUID(str(valor)) if valor else None
+    except ValueError:
+        return None
+
+
+def _filtro_medico(doctors, source, chave='physician'):
+    """O médico do filtro, conferido contra os da clínica (lixo vira "todos").
+
+    Nos POSTs o filtro vem em `filtro`, e não em `physician`: no formulário
+    de incluir e no de editar, `physician` é o médico **da espera**.
+    """
+    medico = source.get(chave) or ''
+    return medico if medico in {str(d.id) for d in doctors} else ''
+
+
+def _espera_redirect(request):
+    """Volta à lista com o filtro que estava, remontado de campos conhecidos.
+
+    Não copia uma URL do POST — mesma razão da fila de retornos: devolver ao
+    cliente um endereço que ele mesmo escreveu é redirecionamento aberto.
+    """
+    filtro = urlencode({
+        chave: valor for chave, valor in (
+            ('physician', _filtro_medico(_doctors(request), request.POST, 'filtro')),
+            ('encerradas', '1' if request.POST.get('encerradas') == '1' else ''),
+        ) if valor
+    })
+    destino = reverse('scheduling:espera')
+    return redirect(f'{destino}?{filtro}' if filtro else destino)
+
+
+def _medico_da_espera(request, valor):
+    """O médico escolhido no formulário, ou `None` (= qualquer médico)."""
+    if not valor:
+        return None
+    for doctor in _doctors(request):
+        if doctor.id == valor:
+            return doctor
+    raise Http404
+
+
+def _espera_ou_404(request, espera_id):
+    from .models import PacienteEmEspera
+
+    return get_object_or_404(
+        scope_to_tenant(PacienteEmEspera.objects.select_related('patient'), request.access_context),
+        id=espera_id,
+    )
+
+
+class EsperaListView(TenantScopedView):
+    """A lista de espera: quem pediu horário e ainda não tem, na ordem da recepção.
+
+    **Capacidade de agenda**, como a fila de retornos: secretária, médico,
+    dono e gestor montam e reordenam. A tela mostra nome, contato, médico e
+    a observação da recepção — o que a grade já mostra, e nada do
+    prontuário.
+
+    O selo "tem horário em…" é a ponte com a agenda: quem foi marcado pela
+    busca (e não puxado daqui) aparece avisando, para a secretária retirar
+    o nome em vez de ligar à toa.
+    """
+
+    def get(self, request):
+        from .espera import lista
+        from .forms import EsperaForm
+        from .models import OCCUPYING_STATUSES, Appointment
+
+        ctx = request.access_context
+        doctors = _doctors(request)
+        medico = _filtro_medico(doctors, request.GET)
+        encerradas = request.GET.get('encerradas') == '1'
+        registros = lista(ctx.tenant_id, physician_membership_id=medico or None,
+                          incluir_encerradas=encerradas)
+        aguardando = [r for r in registros if r.status == 'aguardando']
+        # O próximo horário de quem aguarda, numa consulta só.
+        proximos = {}
+        if aguardando:
+            for appt in (
+                Appointment.objects
+                .filter(tenant_id=ctx.tenant_id, patient_id__in=[r.patient_id for r in aguardando],
+                        status__in=OCCUPYING_STATUSES, starts_at__gte=timezone.now())
+                .order_by('starts_at')
+                .only('patient_id', 'starts_at')
+            ):
+                proximos.setdefault(appt.patient_id, appt.starts_at)
+        hoje = timezone.localdate()
+        for registro in registros:
+            registro.proximo_horario = proximos.get(registro.patient_id)
+            registro.dias_na_lista = (hoje - timezone.localtime(registro.created_at).date()).days
+        return render(request, 'scheduling/espera.html', {
+            'registros': registros,
+            'total_aguardando': len(aguardando),
+            'doctors': doctors,
+            'physician_id': medico,
+            'encerradas': encerradas,
+            'form': EsperaForm(),
+            'type_choices': AppointmentType.choices,
+        })
+
+
+class EsperaIncluirView(TenantScopedView):
+    def post(self, request):
+        from django.db import transaction
+
+        from . import espera
+        from .forms import EsperaForm
+
+        ctx = request.access_context
+        form = EsperaForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _first_error(form))
+            return _espera_redirect(request)
+        try:
+            medico = _medico_da_espera(request, form.cleaned_data.get('physician'))
+        except Http404:
+            messages.error(request, 'Médico não encontrado nesta organização.')
+            return _espera_redirect(request)
+        try:
+            # O pré-cadastro e a inclusão juntos: recusada a inclusão, não
+            # sobra paciente criado à toa.
+            with transaction.atomic():
+                if form.cleaned_data.get('patient_id'):
+                    patient = scope_to_tenant(Patient.objects.all(), ctx).filter(
+                        id=form.cleaned_data['patient_id']).first()
+                    if patient is None:
+                        raise espera.EsperaError('Paciente não encontrado nesta organização.')
+                else:
+                    patient = services.quick_register_patient(
+                        ctx, form.cleaned_data['new_name'],
+                        form.cleaned_data.get('new_phone', ''),
+                        email=form.cleaned_data.get('new_email', ''),
+                        accepts_messages=form.cleaned_data.get('contact_accepts_messages', True),
+                    )
+                entrada = espera.incluir(
+                    ctx, patient, physician_membership=medico,
+                    appointment_type=form.cleaned_data.get('appointment_type') or '',
+                    observacao=form.cleaned_data.get('observacao', ''),
+                    ator=_own_membership(request),
+                )
+        except PlanLimitReached as limite:
+            messages.error(request, limite.message())
+            return _espera_redirect(request)
+        except espera.EsperaError as exc:
+            messages.error(request, str(exc))
+            return _espera_redirect(request)
+        messages.success(
+            request, f'{patient.full_name} entrou na lista de espera, em {entrada.posicao}º lugar.',
+        )
+        return _espera_redirect(request)
+
+
+class EsperaMoverView(TenantScopedView):
+    """Subir, descer ou levar a uma posição. Só POST."""
+
+    def post(self, request, espera_id):
+        from . import espera
+
+        ctx = request.access_context
+        entrada = _espera_ou_404(request, espera_id)
+        medico = _filtro_medico(_doctors(request), request.POST, 'filtro')
+        try:
+            direcao = request.POST.get('direcao') or ''
+            if direcao:
+                espera.mover_vizinho(ctx, entrada, direcao,
+                                     physician_membership_id=_uuid_ou_none(medico))
+            else:
+                try:
+                    posicao = int(request.POST.get('posicao') or '')
+                except ValueError:
+                    raise espera.EsperaError('Informe a posição com um número.')
+                destino = espera.mover_para(ctx, entrada, posicao)
+                messages.success(request, f'{entrada.patient.full_name} agora em {destino}º lugar.')
+        except espera.EsperaError as exc:
+            messages.error(request, str(exc))
+        return _espera_redirect(request)
+
+
+class EsperaEditarView(TenantScopedView):
+    def post(self, request, espera_id):
+        from . import espera
+        from .forms import EsperaEditarForm
+
+        ctx = request.access_context
+        entrada = _espera_ou_404(request, espera_id)
+        form = EsperaEditarForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, _first_error(form))
+            return _espera_redirect(request)
+        try:
+            medico = _medico_da_espera(request, form.cleaned_data.get('physician'))
+            espera.editar(
+                ctx, entrada, physician_membership=medico,
+                appointment_type=form.cleaned_data.get('appointment_type') or '',
+                observacao=form.cleaned_data.get('observacao', ''),
+            )
+        except Http404:
+            messages.error(request, 'Médico não encontrado nesta organização.')
+            return _espera_redirect(request)
+        except espera.EsperaError as exc:
+            messages.error(request, str(exc))
+            return _espera_redirect(request)
+        messages.success(request, f'Espera de {entrada.patient.full_name} atualizada.')
+        return _espera_redirect(request)
+
+
+class EsperaRetirarView(TenantScopedView):
+    def post(self, request, espera_id):
+        from . import espera
+
+        entrada = _espera_ou_404(request, espera_id)
+        try:
+            espera.retirar(request.access_context, entrada,
+                           motivo=request.POST.get('motivo', ''), ator=_own_membership(request))
+        except espera.EsperaError as exc:
+            messages.error(request, str(exc))
+            return _espera_redirect(request)
+        messages.success(request, f'{entrada.patient.full_name} saiu da lista de espera.')
+        return _espera_redirect(request)
+
+
+class EsperaOpcoesView(TenantScopedView):
+    """As esperas que o modal de marcar oferece, em JSON, na ordem da lista.
+
+    Buscadas ao abrir o modal, e não desenhadas com a grade: a lista muda
+    durante o dia (outra pessoa reordena, puxa um nome), e o modal precisa
+    mostrar a de agora. E a grade da semana tem número de consultas medido
+    (`check_semana_em_lote`) — esta não entra na conta dela.
+    """
+
+    def get(self, request):
+        from .espera import opcoes_do_modal
+
+        medico = _uuid_ou_none(request.GET.get('physician'))
+        if medico is None:
+            raise Http404
+        doctor = _doctor_or_404(request, medico)
+        tipos = dict(AppointmentType.choices)
+        return JsonResponse({'results': [
+            {
+                'id': str(e.id), 'posicao': e.posicao,
+                'patient_id': str(e.patient_id), 'full_name': e.patient.full_name,
+                'record_number': e.patient.record_number,
+                'appointment_type': e.appointment_type,
+                'appointment_type_label': tipos.get(e.appointment_type, ''),
+                'observacao': e.observacao,
+                'qualquer_medico': e.physician_membership_id is None,
+            }
+            for e in opcoes_do_modal(request.access_context.tenant_id, doctor.id)
+        ]})
+
 
 # Compatibilidade com as rotas antigas da agenda.
 DayView = AgendaDayView

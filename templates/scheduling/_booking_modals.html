@@ -11,10 +11,11 @@ clicado diz qual horário e qual paciente.
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <form method="post" action="{% url 'scheduling:quick-book' doctor.id %}" novalidate
-                  id="book-form">
+                  id="book-form" data-nd-espera-url="{% url 'scheduling:espera-opcoes' %}?physician={{ doctor.id }}">
                 {% csrf_token %}
                 <input type="hidden" name="starts_at" id="book-starts-at">
                 <input type="hidden" name="patient_id" id="book-patient-id">
+                <input type="hidden" name="espera_id" id="book-espera-id">
                 <input type="hidden" name="date" id="book-date">
                 <input type="hidden" name="return_to" value="{{ request.path }}">
                 <div class="modal-header">
@@ -48,6 +49,19 @@ clicado diz qual horário e qual paciente.
                         </div>
                         {% endif %}
                         <div class="form-text fs-11" id="book-duration-hint"></div>
+                    </div>
+
+                    {% comment %}Lista de espera (1.31): buscada ao abrir o modal
+                    (`agenda.js`), e só aparece quando há alguém esperando por
+                    este médico ou por qualquer um. O `<select>` não tem `name`:
+                    quem vai no POST é o `espera_id` escondido, e a espera se
+                    encerra na mesma transação da consulta.{% endcomment %}
+                    <div class="mb-3" id="book-espera-box" hidden>
+                        <label class="form-label fw-semibold" for="book-espera">Puxar da lista de espera</label>
+                        <select class="form-select" id="book-espera">
+                            <option value="">Ninguém da lista</option>
+                        </select>
+                        <div class="form-text fs-11">Ao marcar, o paciente sai da lista de espera.</div>
                     </div>
 
                     {% comment %}Paciente já cadastrado vem primeiro: é o caso

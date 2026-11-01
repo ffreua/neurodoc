@@ -342,6 +342,22 @@ if not ChatSession.objects.filter(tenant=clinica, patient=carlos).exists():
     )
 print('documento emitido com duas entregas, um pedido no portal e uma conversa de chat')
 
+# ------------------------------------------------------- lista de espera
+# Dois pacientes fictícios esperando: um com a médica da demonstração, outro
+# com qualquer médico. Aparecem na tela da lista e no modal de marcar.
+from scheduling import espera as lista_espera
+
+lista_espera.lista(clinica.id)  # garante o import antes de qualquer gravação
+luiza = Patient.objects.get(tenant=clinica, full_name='LUIZA FERNANDES FICTÍCIA')
+for paciente, medico_espera, tipo, obs in (
+    (helena, dona, 'follow_up', 'Só pela manhã; avisar por SMS'),
+    (luiza, None, 'first_visit', 'Aceita qualquer médico, primeira vaga'),
+):
+    if not lista_espera.esperando(clinica.id, paciente.id):
+        lista_espera.incluir(ctx_sec, paciente, physician_membership=medico_espera,
+                             appointment_type=tipo, observacao=obs, ator=secretaria)
+print('lista de espera:', len(lista_espera.lista(clinica.id)), 'aguardando')
+
 # Ids que o roteiro de captura usa para chegar às telas sem procurar na lista.
 import json
 import os

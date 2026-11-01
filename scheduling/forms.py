@@ -370,6 +370,9 @@ class QuickBookingForm(forms.Form):
         initial=AppointmentType.FIRST_VISIT,
     )
     patient_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
+    #: O paciente puxado da lista de espera (1.31). Com ele, o paciente é o
+    #: da espera — e a espera se encerra na mesma transação da consulta.
+    espera_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
     patient_search = forms.CharField(
         label='Paciente já cadastrado', required=False, max_length=200,
         widget=forms.TextInput(attrs={
@@ -420,7 +423,7 @@ class QuickBookingForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        has_existing = bool(cleaned.get('patient_id'))
+        has_existing = bool(cleaned.get('patient_id') or cleaned.get('espera_id'))
         name = (cleaned.get('new_name') or '').strip()
         if not has_existing and not name:
             self.add_error(
@@ -538,3 +541,49 @@ class AvailabilityRuleForm(forms.ModelForm):
             'starts_on': HTML5DateInput(),
             'ends_on': HTML5DateInput(),
         }
+
+
+class EsperaForm(forms.Form):
+    """Incluir na lista de espera: paciente cadastrado ou pré-cadastro.
+
+    As mesmas duas portas do modal de marcar, e pela mesma razão: quem pede
+    para entrar na espera costuma ser alguém que ligou e ainda não tem
+    ficha. O pré-cadastro passa por `services.quick_register_patient` — com
+    o limite do plano, como os outros caminhos que criam paciente.
+    """
+
+    patient_id = forms.UUIDField(required=False, widget=forms.HiddenInput)
+    new_name = forms.CharField(label='Nome do paciente', required=False, max_length=255)
+    new_phone = forms.CharField(label='Telefone', required=False, max_length=16)
+    new_email = forms.EmailField(label='E-mail', required=False, max_length=254)
+    contact_accepts_messages = forms.BooleanField(
+        label='Pode receber confirmação e lembrete', required=False, initial=True,
+    )
+    physician = forms.UUIDField(label='Médico', required=False)
+    appointment_type = forms.ChoiceField(
+        label='Tipo pretendido', required=False,
+        choices=[('', 'A decidir')] + list(AppointmentType.choices),
+    )
+    observacao = forms.CharField(label='Observação para a recepção', required=False, max_length=255)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('patient_id'):
+            return cleaned
+        if not (cleaned.get('new_name') or '').strip():
+            self.add_error(
+                'new_name',
+                'Escolha um paciente já cadastrado ou informe o nome para o pré-cadastro.',
+            )
+        elif not ((cleaned.get('new_phone') or '').strip() or (cleaned.get('new_email') or '').strip()):
+            self.add_error('new_phone', 'Informe telefone ou e-mail — é por onde o paciente será chamado.')
+        return cleaned
+
+
+class EsperaEditarForm(forms.Form):
+    physician = forms.UUIDField(label='Médico', required=False)
+    appointment_type = forms.ChoiceField(
+        label='Tipo pretendido', required=False,
+        choices=[('', 'A decidir')] + list(AppointmentType.choices),
+    )
+    observacao = forms.CharField(label='Observação para a recepção', required=False, max_length=255)

@@ -44,3 +44,13 @@ atender. Trocar de médico ou de visão preserva a data, e vice-versa.
         </div>
     </div>
 </div>
+{% comment %}Aviso de quem veio da lista de espera ("Marcar na agenda"):
+`agenda.js` o mostra quando o endereço (ou a aba, ao navegar) traz uma espera
+deste médico, e abre o modal com ela já escolhida.{% endcomment %}
+{% if doctor %}
+<div class="alert alert-warning d-flex flex-wrap align-items-center justify-content-between gap-2 py-2"
+     id="espera-aviso" role="status" hidden>
+    <span class="fs-13">Escolha um horário livre para <strong id="espera-aviso-nome"></strong>, da lista de espera.</span>
+    <button type="button" class="btn btn-sm btn-light" id="espera-aviso-fechar">Não marcar agora</button>
+</div>
+{% endif %}

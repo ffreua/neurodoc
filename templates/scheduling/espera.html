@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% load nd static %}
+{% comment %}A lista de espera (1.31).
+
+O caderno da recepção: quem pediu horário quando não havia. A secretária e
+o médico montam e **ordenam** a lista; ao marcar na grade, o modal oferece
+os nomes daqui, e quem é puxado sai sozinho.
+
+**A ordem é manual, e é a decisão.** Ao contrário da fila de retornos, que
+se ordena pelo vencimento, aqui quem decide quem é chamado primeiro é a
+recepção — urgência, disponibilidade do paciente, pedido do médico. Por
+isso as setas e o "levar à posição", e por isso a posição é da clínica
+inteira: o filtro por médico mostra um recorte na mesma ordem.
+
+Nada de prontuário: a observação é da recepção, e a tela é aberta por quem
+não lê prontuário.
+{% endcomment %}
+{% block title %}Lista de espera{% endblock %}
+{% block page_title %}Lista de espera{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">Lista de espera</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'scheduling:returns' %}">Retornos previstos</a>
+<a class="btn btn-light-primary" href="{% url 'scheduling:week' %}">Ver a grade</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}------------------------------------------------ incluir{% endcomment %}
+<div class="card mb-3">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Incluir na lista</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{% url 'scheduling:espera-incluir' %}" novalidate id="espera-form">
+            {% csrf_token %}
+            <input type="hidden" name="patient_id" id="espera-patient-id">
+            <input type="hidden" name="filtro" value="{{ physician_id }}">
+            <div class="row g-3">
+                <div class="col-lg-5">
+                    <label class="form-label fw-semibold" for="espera-search">Paciente já cadastrado</label>
+                    <input type="text" class="form-control" id="espera-search" autocomplete="off"
+                           placeholder="Digite o nome para buscar">
+                    <div class="position-relative">
+                        <div class="list-group position-absolute shadow-sm w-100" id="espera-results"
+                             style="z-index:1060;max-height:14rem;overflow-y:auto" hidden></div>
+                    </div>
+                    <div class="form-text fs-11" id="espera-chosen"></div>
+                    <details class="mt-2">
+                        <summary class="fs-12 text-muted">Ainda não tem cadastro? Faça o pré-cadastro</summary>
+                        <div class="row g-2 mt-1">
+                            <div class="col-12">
+                                <label class="form-label fs-12 fw-semibold" for="espera-new-name">Nome do paciente</label>
+                                <input type="text" class="form-control form-control-sm" id="espera-new-name" name="new_name"
+                                       maxlength="255" placeholder="Nome completo, como ele falou">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-12 fw-semibold" for="espera-new-phone">Telefone</label>
+                                <input type="text" class="form-control form-control-sm" id="espera-new-phone" name="new_phone"
+                                       maxlength="16" inputmode="tel" placeholder="(11) 98888-7777">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-12 fw-semibold" for="espera-new-email">E-mail</label>
+                                <input type="email" class="form-control form-control-sm" id="espera-new-email" name="new_email"
+                                       maxlength="254" inputmode="email" autocomplete="off" placeholder="paciente@email.com">
+                            </div>
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" value="1"
+                                           id="espera-accepts" name="contact_accepts_messages" checked>
+                                    <label class="form-check-label fs-12" for="espera-accepts">
+                                        Pode receber confirmação e lembrete do horário que for marcado
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fw-semibold" for="espera-physician">Médico</label>
+                    <select class="form-select" id="espera-physician" name="physician">
+                        <option value="">Qualquer médico</option>
+                        {% for option in doctors %}
+                        <option value="{{ option.id }}" {% if physician_id == option.id|stringformat:"s" %}selected{% endif %}>
+                            {{ option.user.get_full_name|default:option.user.email }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <label class="form-label fw-semibold" for="espera-type">Tipo pretendido</label>
+                    <select class="form-select" id="espera-type" name="appointment_type">
+                        <option value="">A decidir</option>
+                        {% for value, label in type_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-lg-9">
+                    <label class="form-label fw-semibold" for="espera-observacao">Observação para a recepção</label>
+                    <input type="text" class="form-control" id="espera-observacao" name="observacao" maxlength="255"
+                           placeholder="Ex.: só pela manhã; prefere ser chamado por SMS">
+                    <div class="form-text fs-11">Não é prontuário: escreva o que ajuda a chamar o paciente.</div>
+                </div>
+                <div class="col-lg-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100" data-nd-busy>Incluir no fim da lista</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% comment %}------------------------------------------------ filtro{% endcomment %}
+<div class="card mb-3">
+    <div class="card-body py-3">
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+            <form method="get" class="d-flex flex-wrap align-items-center gap-2">
+                <label class="fs-11 text-muted mb-0" for="physician-picker">Médico</label>
+                <select class="form-select form-select-sm" id="physician-picker" name="physician"
+                        style="min-width:15rem" data-nd-autosubmit>
+                    <option value="">Todos</option>
+                    {% for option in doctors %}
+                    <option value="{{ option.id }}" {% if physician_id == option.id|stringformat:"s" %}selected{% endif %}>
+                        {{ option.user.get_full_name|default:option.user.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+                {% if encerradas %}<input type="hidden" name="encerradas" value="1">{% endif %}
+                <noscript><button type="submit" class="btn btn-sm btn-light-primary">Filtrar</button></noscript>
+            </form>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge bg-soft-primary text-primary">{{ total_aguardando }} aguardando</span>
+                <div class="btn-group btn-group-sm" role="group" aria-label="O que a lista mostra">
+                    <a class="btn {% if not encerradas %}btn-primary{% else %}btn-light{% endif %}"
+                       href="?physician={{ physician_id }}">Aguardando</a>
+                    <a class="btn {% if encerradas %}btn-primary{% else %}btn-light{% endif %}"
+                       href="?physician={{ physician_id }}&amp;encerradas=1">Com histórico</a>
+                </div>
+            </div>
+        </div>
+        {% if physician_id %}
+        <p class="fs-11 text-muted mb-0 mt-2">
+            Mostrando as esperas deste médico e as de qualquer médico, na ordem da lista da clínica.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+{% comment %}------------------------------------------------ a lista{% endcomment %}
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Posição</th>
+                        <th scope="col">Paciente</th>
+                        <th scope="col">Médico</th>
+                        <th scope="col">Tipo</th>
+                        <th scope="col">Na lista desde</th>
+                        <th class="text-end pe-4" scope="col">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for registro in registros %}
+                    <tr id="espera-{{ registro.id }}">
+                        <td class="ps-4 text-nowrap">
+                            {% if registro.status == 'aguardando' %}
+                            <div class="d-flex align-items-center gap-1">
+                                <span class="fs-16 fw-bold text-dark me-1">{{ registro.posicao }}º</span>
+                                <form method="post" action="{% url 'scheduling:espera-mover' registro.id %}" class="d-inline-flex gap-1">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="filtro" value="{{ physician_id }}">
+                                    <button type="submit" name="direcao" value="subir" class="btn btn-sm btn-light px-2"
+                                            aria-label="Subir {{ registro.patient.full_name }} um lugar" title="Subir"
+                                            {% if forloop.first %}disabled{% endif %}>▲</button>
+                                    <button type="submit" name="direcao" value="descer" class="btn btn-sm btn-light px-2"
+                                            aria-label="Descer {{ registro.patient.full_name }} um lugar" title="Descer">▼</button>
+                                </form>
+                            </div>
+                            <form method="post" action="{% url 'scheduling:espera-mover' registro.id %}"
+                                  class="d-flex align-items-center gap-1 mt-1">
+                                {% csrf_token %}
+                                <input type="hidden" name="filtro" value="{{ physician_id }}">
+                                <input type="number" min="1" name="posicao" class="form-control form-control-sm"
+                                       style="width:4.5rem" aria-label="Nova posição de {{ registro.patient.full_name }}"
+                                       placeholder="nº">
+                                <button type="submit" class="btn btn-sm btn-light">Levar</button>
+                            </form>
+                            {% else %}
+                            <span class="badge {% if registro.status == 'agendado' %}bg-soft-success text-success{% else %}bg-soft-secondary text-secondary{% endif %}">
+                                {{ registro.get_status_display }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="text-wrap">
+                            <a class="fw-semibold text-dark fs-13" href="{% url 'patients:detail' registro.patient_id %}">
+                                {{ registro.patient.full_name }}
+                            </a>
+                            {% if registro.patient.registration_stage == 'preliminary' %}
+                            <span class="badge bg-soft-warning text-warning fs-10">Pré-cadastro</span>
+                            {% endif %}
+                            {% for contact in registro.patient.contacts.all|nd_contatos_vigentes|slice:":1" %}
+                            <span class="d-block fs-11 text-muted">{{ contact.phone|default:contact.email }}</span>
+                            {% endfor %}
+                            {% if registro.observacao %}
+                            <span class="d-block fs-11 text-muted fst-italic">{{ registro.observacao }}</span>
+                            {% endif %}
+                            {% if registro.status == 'aguardando' and registro.proximo_horario %}
+                            <span class="badge bg-soft-info text-info fs-10 mt-1">Já tem horário em {{ registro.proximo_horario|date:"d/m H:i" }}</span>
+                            {% endif %}
+                            {% if registro.status == 'agendado' and registro.appointment %}
+                            <span class="d-block fs-11 text-success">Marcado para {{ registro.appointment.starts_at|date:"d/m/Y H:i" }}</span>
+                            {% elif registro.status == 'retirado' and registro.motivo_saida %}
+                            <span class="d-block fs-11 text-muted">Motivo: {{ registro.motivo_saida }}</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="fs-12 text-muted">{% if registro.physician_membership %}{{ registro.physician_membership.user.get_full_name }}{% else %}Qualquer médico{% endif %}</span></td>
+                        <td><span class="fs-12">{{ registro.get_appointment_type_display|default:"A decidir" }}</span></td>
+                        <td>
+                            <span class="fs-12 text-muted">{{ registro.created_at|date:"d/m/Y" }}</span>
+                            <span class="d-block fs-11 text-muted">{% if registro.dias_na_lista %}há {{ registro.dias_na_lista }} dia{{ registro.dias_na_lista|pluralize }}{% else %}hoje{% endif %}</span>
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if registro.status == 'aguardando' %}
+                            <div class="d-flex flex-wrap gap-1 justify-content-end">
+                                <a class="btn btn-sm btn-primary"
+                                   href="{% url 'scheduling:week' %}?{% if registro.physician_membership_id %}physician={{ registro.physician_membership_id }}&amp;{% endif %}espera={{ registro.id }}">Marcar na agenda</a>
+                            </div>
+                            <details class="mt-1 text-start">
+                                <summary class="fs-12 text-muted text-end">Editar ou retirar</summary>
+                                <form method="post" action="{% url 'scheduling:espera-editar' registro.id %}" class="border rounded-3 p-2 mt-1 bg-gray-100">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="filtro" value="{{ physician_id }}">
+                                    <label class="form-label fs-11 mb-0" for="ed-med-{{ registro.id }}">Médico</label>
+                                    <select class="form-select form-select-sm mb-1" id="ed-med-{{ registro.id }}" name="physician">
+                                        <option value="">Qualquer médico</option>
+                                        {% for option in doctors %}
+                                        <option value="{{ option.id }}" {% if registro.physician_membership_id == option.id %}selected{% endif %}>
+                                            {{ option.user.get_full_name|default:option.user.email }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                    <label class="form-label fs-11 mb-0" for="ed-tipo-{{ registro.id }}">Tipo pretendido</label>
+                                    <select class="form-select form-select-sm mb-1" id="ed-tipo-{{ registro.id }}" name="appointment_type">
+                                        <option value="">A decidir</option>
+                                        {% for value, label in type_choices %}
+                                        <option value="{{ value }}" {% if registro.appointment_type == value %}selected{% endif %}>{{ label }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label class="form-label fs-11 mb-0" for="ed-obs-{{ registro.id }}">Observação</label>
+                                    <input type="text" class="form-control form-control-sm mb-2" id="ed-obs-{{ registro.id }}"
+                                           name="observacao" maxlength="255" value="{{ registro.observacao }}">
+                                    <button type="submit" class="btn btn-sm btn-light-primary w-100" data-nd-busy>Salvar</button>
+                                </form>
+                                <form method="post" action="{% url 'scheduling:espera-retirar' registro.id %}" class="border rounded-3 p-2 mt-1"
+                                      data-nd-confirm="Retirar {{ registro.patient.full_name }} da lista de espera? Os de baixo sobem uma posição.">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="filtro" value="{{ physician_id }}">
+                                    <label class="form-label fs-11 mb-0" for="ret-{{ registro.id }}">Motivo (opcional)</label>
+                                    <input type="text" class="form-control form-control-sm mb-2" id="ret-{{ registro.id }}"
+                                           name="motivo" maxlength="255" placeholder="Ex.: desistiu; marcou em outro lugar">
+                                    <button type="submit" class="btn btn-sm btn-light-danger w-100" data-nd-busy>Retirar da lista</button>
+                                </form>
+                            </details>
+                            {% else %}
+                            <span class="fs-11 text-muted">{{ registro.resolvido_em|date:"d/m/Y H:i" }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted py-5 fs-13">
+                        Ninguém na lista de espera{% if physician_id %} deste médico{% endif %}.
+                        Inclua acima quem pediu horário e ainda não tem.
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'scheduling/agenda.js' %}"></script>
+{% endblock %}
