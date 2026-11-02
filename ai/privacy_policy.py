@@ -1,16 +1,23 @@
 import dataclasses
 
-from clinical.models import ConsanguinityState
+#: `v2` desde 2026-11-02: a consanguinidade deixou de travar (e de ir).
+POLICY_VERSION = 'v2'
 
-POLICY_VERSION = 'v1'
-
-# Illustrative, conservative markers -- a genuine clinical/privacy risk
-# taxonomy is P-06 territory (base legal, RIPD, anonymization policy) and
-# remains unresolved. Until it is, any of these markers fails the request
-# closed rather than guess at what is "safe enough" to send externally.
+# Marcadores de **risco de reidentificação**: doença rara e o que liga uma
+# pessoa a uma família identificável (genealogia, herança genética). A
+# desidentificação tira nome, CPF, telefone e e-mail; o que ela não tira é a
+# combinação rara que aponta para uma família só — e é isso que trava.
+#
+# A **consanguinidade saiu daqui** em 2026-11-02 (decisão do responsável).
+# Ela é dado de saúde, sensível como todo o prontuário, mas sozinha — e
+# quase sempre negada ("nega consanguinidade") — não identifica ninguém; e
+# travar por ela fechava a IA para 44% dos pacientes migrados do iClin. Em
+# vez de travar, ela **não vai** ao provedor: `ai/deidentification.py`
+# (`omitir_consanguinidade`) tira o trecho de todo texto enviado, e o campo
+# estruturado deixou de entrar no contexto (`ai/services.py`). A lista
+# deixou de ser "provisória até a P-06": a P-06 foi encerrada em 2026-09-21.
 RARE_DISEASE_MARKERS = (
-    'doenca rara', 'doença rara', 'genealogia', 'consanguinidade',
-    'consanguineo', 'consanguíneo', 'heranca genetica', 'herança genética',
+    'doenca rara', 'doença rara', 'genealogia', 'heranca genetica', 'herança genética',
 )
 
 
@@ -44,12 +51,9 @@ def evaluate_privacy_policy(encounter, combined_text, risco_confirmado=False):
     """
     if risco_confirmado:
         return PolicyDecision(True)
-    if encounter is not None and encounter.consanguinity_state == ConsanguinityState.CONFIRMED \
-            and encounter.consanguinity_details:
-        return PolicyDecision(
-            False, 'Consanguinidade confirmada e documentada exige revisão humana antes de qualquer '
-                   'envio externo (risco de reidentificação por combinação de dados raros).',
-        )
+    # `encounter` fica na assinatura por quem chama: a regra que o usava (a
+    # consanguinidade confirmada no campo estruturado) saiu em 2026-11-02,
+    # junto com o próprio dado, que não vai mais ao provedor.
     haystack = (combined_text or '').lower()
     for marker in RARE_DISEASE_MARKERS:
         if marker in haystack:

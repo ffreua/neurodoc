@@ -257,18 +257,18 @@ def _patient_block(document, include_address):
         rows.append(Paragraph(f'<b>CPF:</b> {texto_seguro(format_cpf(patient.cpf))}', BODY_STYLE))
     if include_address:
         rows.append(Paragraph(f'<b>Endereço:</b> {texto_seguro(patient_address(patient))}', BODY_STYLE))
-    # A data do atendimento quando há um; senão, a da emissão, e por fim a
-    # da criação do rascunho.
+    # A data do documento é a da **emissão** — e, no rascunho, a da criação.
+    # É a data que a farmácia, o INSS e a operadora leem, e a que a receita
+    # do SNCR já usava (`sncr/pdf_oficial.py`). Até 2026-11-02 vinha
+    # primeiro a do atendimento: o documento emitido dias depois da consulta
+    # — pela Conduta de um atendimento já finalizado, ou o pedido do portal —
+    # saía datado do dia da consulta; em produção, 9 documentos assim, de 3 a
+    # 15 dias antes. Os já emitidos ficam como foram: o PDF assinado não se
+    # reescreve.
     #
-    # `document.encounter` passou a ser opcional: a renovação de receita
-    # pedida por telefone não tem consulta. Antes esta linha era
-    # `document.encounter.occurred_at` direto, e um documento sem
-    # atendimento estourava `AttributeError` no meio de gerar o PDF — com o
-    # rascunho já criado no banco e nenhum arquivo.
-    momento = (
-        document.encounter.occurred_at if document.encounter_id
-        else (document.issued_at or document.created_at)
-    )
+    # `issued_at` é gravado **antes** de o PDF final ser gerado, nos dois
+    # caminhos de emissão (`issuance.issue_on_paper` e `_sign_and_issue`).
+    momento = document.issued_at or document.created_at
     # Na hora de Brasília, e não na do processo (UTC): entre 21h e meia-noite
     # o `strftime` direto imprimia o dia seguinte no documento (CLAUDE.md §1).
     rows.append(Paragraph(

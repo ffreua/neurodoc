@@ -34,6 +34,7 @@ import hashlib
 
 from django.utils import timezone
 
+from .deidentification import MARCADOR_CONSANGUINIDADE
 from .tools import clinical as clinical_tools
 
 #: O que a desidentificação deixa no texto, e que não pode sobreviver até o
@@ -41,6 +42,9 @@ from .tools import clinical as clinical_tools
 #: ponta da mesma convenção, e as duas mudam juntas.
 MARCADORES_DE_DESIDENTIFICACAO = (
     '[PACIENTE]', '[NOME_MAE]', '[CPF]', '[TELEFONE]', '[EMAIL]',
+    # A consanguinidade omitida (2026-11-02, `omitir_consanguinidade`): o
+    # modelo que a repetir no texto mandaria a marca ao papel.
+    MARCADOR_CONSANGUINIDADE,
 )
 
 #: Teto de atendimentos que entram no relatório. É o mesmo de
@@ -48,6 +52,14 @@ MARCADORES_DE_DESIDENTIFICACAO = (
 #: constantes para o mesmo limite divergem na primeira vez que alguém mexe
 #: numa delas.
 TETO_DE_ATENDIMENTOS = clinical_tools.MAX_ENCOUNTERS
+
+#: Teto de caracteres de **todos** os atendimentos juntos (revisão de
+#: 2026-11-02). Cada campo já vem encurtado
+#: (`clinical_tools.MAX_CHARS_POR_CAMPO`); este corta pelos mais antigos
+#: quando a soma passa, e o recorte diz quantos entraram. Vinte anotações
+#: longas do iClin passavam de 200 mil caracteres e estouravam a janela do
+#: modelo.
+TETO_DE_CARACTERES = 60_000
 
 
 @dataclasses.dataclass(frozen=True)
@@ -229,7 +241,22 @@ def montar_contexto(authorization, patient, teto=TETO_DE_ATENDIMENTOS):
     if patient.sex_at_registration:
         demografia['sexo'] = patient.get_sex_at_registration_display()
 
-    atendimentos = clinical_tools.get_patient_timeline(authorization, limit=teto)
+    lidos = clinical_tools.get_patient_timeline(
+        authorization, limit=teto, max_chars_por_campo=clinical_tools.MAX_CHARS_POR_CAMPO,
+    )
+    # Do mais recente para o mais antigo, até o teto: perder a consulta de
+    # anos atrás custa menos que perder a de ontem.
+    atendimentos, usados = [], 0
+    for a in lidos:
+        tamanho = sum(len(a.get(c) or '') for c in clinical_tools._CAMPOS_NARRATIVOS)
+        if atendimentos and usados + tamanho > TETO_DE_CARACTERES:
+            break
+        atendimentos.append(a)
+        usados += tamanho
+    encurtados = sum(
+        1 for a in atendimentos
+        if any((a.get(c) or '').endswith(clinical_tools.MARCA_DE_CORTE) for c in clinical_tools._CAMPOS_NARRATIVOS)
+    )
     vigentes, refutados = clinical_tools.get_patient_diagnoses(authorization)
     medicacoes = clinical_tools.get_patient_medications(authorization)
     exames = clinical_tools.get_exam_results(authorization)
@@ -246,6 +273,8 @@ def montar_contexto(authorization, patient, teto=TETO_DE_ATENDIMENTOS):
         'ate': datas[-1] if datas else '',
         'exames_lidos': len(exames),
         'diagnosticos_vigentes': len(vigentes),
+        #: Atendimentos com algum texto encurtado para caber (o começo fica).
+        'textos_encurtados': encurtados,
     }
 
     contexto = {

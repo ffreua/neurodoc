@@ -10,6 +10,24 @@ MAX_MEDICATIONS = 60
 MAX_EXAM_RESULTS = 40
 MAX_LAB_VALUES = 120
 
+#: Teto de caracteres de **cada campo narrativo** de um atendimento quando
+#: ele vai à IA (revisão de 2026-11-02). Sem teto, as anotações do iClin —
+#: de 4 a 13 mil caracteres cada — faziam o relatório (20 atendimentos)
+#: passar de 200 mil caracteres, estourar a janela do modelo e voltar como
+#: "erro de configuração". O começo do texto é o que fica: é onde a
+#: anotação diz a queixa e a evolução.
+MAX_CHARS_POR_CAMPO = 2500
+MARCA_DE_CORTE = ' [... texto encurtado para a IA]'
+
+_CAMPOS_NARRATIVOS = ('chief_complaint', 'hpi', 'plan_text', 'neurological_exam_text', 'free_text', 'impressions')
+
+
+def encurtar(texto, teto):
+    """O começo do texto, cortado num espaço, com a marca de que foi cortado."""
+    if not texto or teto is None or len(texto) <= teto:
+        return texto
+    return texto[:teto].rsplit(' ', 1)[0] + MARCA_DE_CORTE
+
 
 class ToolScopeError(Exception):
     pass
@@ -33,7 +51,7 @@ def _encounter_in_scope(authorization, encounter_id):
     return encounter
 
 
-def get_patient_timeline(authorization, limit=MAX_ENCOUNTERS):
+def get_patient_timeline(authorization, limit=MAX_ENCOUNTERS, max_chars_por_campo=None):
     """Revalidates scope on every call -- an authorization without a
     patient in scope can never enumerate any patient's encounters, no
     matter what the caller (or a compromised prompt) asks for.
@@ -50,16 +68,17 @@ def get_patient_timeline(authorization, limit=MAX_ENCOUNTERS):
     encounters = Encounter.objects.filter(
         tenant_id=authorization.tenant_id, patient_id=authorization.patient_id,
     ).order_by('-occurred_at')[:limit]
-    return [
-        {
+    linhas = []
+    for e in encounters:
+        linha = {
             'encounter_id': str(e.id), 'occurred_at': e.occurred_at.isoformat(), 'status': e.status,
             'kind': e.kind,
-            'chief_complaint': e.chief_complaint, 'hpi': e.hpi, 'plan_text': e.plan_text,
-            'neurological_exam_text': e.neurological_exam_text,
-            'free_text': e.free_text, 'impressions': e.impressions,
         }
-        for e in encounters
-    ]
+        for campo in _CAMPOS_NARRATIVOS:
+            # Sem `max_chars_por_campo`, o texto inteiro, como sempre foi.
+            linha[campo] = encurtar(getattr(e, campo), max_chars_por_campo)
+        linhas.append(linha)
+    return linhas
 
 
 def get_examination_findings(authorization, encounter_id, limit=MAX_FINDINGS):

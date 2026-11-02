@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.32.1 "o cadastro seguro" (2026-11-02) · **Produção:**
+**Versão:** 1.32.2 "o cadastro seguro" (2026-11-02) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -101,10 +101,10 @@ O código inteiro foi relido depois das versões 1.29 a 1.32, com instalação
 zerada, rastreador de telas e a bateria completa. Os doze achados críticos
 foram corrigidos na 1.32.1; os não críticos estão em
 `docs/homologation/revisao-2026-11-02.md`, ordenados pelo que mais pesa no
-uso de hoje. O primeiro da lista: **a trava de privacidade da IA fecha o
-chat e o resumo para 972 dos 2.217 pacientes migrados do iClin**, porque a
-anamnese diz "nega consanguinidade" (946 das 1.003 ocorrências são
-negação). Esperando a decisão do responsável.
+uso de hoje. Os três primeiros foram decididos e feitos na 1.32.2: a
+consanguinidade não vai mais à IA nem a trava (ela fechava o chat e o resumo
+para 972 dos 2.217 pacientes migrados do iClin), a data do documento é a da
+emissão, e o prontuário cabe no pedido de IA. O resto espera decisão.
 
 ### Os pacientes migrados não recebem documento
 

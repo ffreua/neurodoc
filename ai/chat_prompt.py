@@ -65,6 +65,10 @@ from .deidentification import deidentify_text
 #: junto com o histórico e a pergunta, e um contexto que estoura a janela
 #: do modelo falha de um jeito que parece erro do sistema.
 MAX_CONTEXT_CHARS = 12000
+#: Cada campo de texto de um atendimento, no chat (2026-11-02): com oito
+#: atendimentos no recorte, um teto menor que o dos pedidos de análise
+#: deixa caber mais de um atendimento nos 12 mil caracteres.
+MAX_CHARS_POR_CAMPO_NO_CHAT = 1200
 
 #: Quantas mensagens anteriores acompanham a pergunta. Seis pares é o que
 #: sustenta "e no segundo caso?" sem transformar toda volta num reenvio da
@@ -155,7 +159,9 @@ def build_patient_context(authorization):
     partes = []
 
     try:
-        atendimentos = clinical.get_patient_timeline(authorization, limit=8)
+        atendimentos = clinical.get_patient_timeline(
+            authorization, limit=8, max_chars_por_campo=MAX_CHARS_POR_CAMPO_NO_CHAT,
+        )
     except Exception:                                   # noqa: BLE001
         atendimentos = []
     if atendimentos:
@@ -183,7 +189,10 @@ def build_patient_context(authorization):
             if plano:
                 texto += f' | Conduta: {plano}'
             linhas.append(texto)
-        partes.append(_bloco('Atendimentos (mais recentes primeiro)', linhas))
+        # Guardado para o fim — ver o comentário no corte, abaixo.
+        bloco_atendimentos = _bloco('Atendimentos (mais recentes primeiro)', linhas)
+    else:
+        bloco_atendimentos = ''
 
     try:
         exames = clinical.get_exam_results(authorization, limit=15)
@@ -216,12 +225,17 @@ def build_patient_context(authorization):
                 ]
                 partes.append(_bloco(rotulo, linhas))
 
+    # Os atendimentos vão **por último**, e o corte é no fim: o que sobra
+    # para fora é o atendimento mais antigo — perder o de dois anos atrás
+    # custa menos que perder o de ontem. Até 2026-11-02 eles vinham
+    # primeiro, e o corte caía justamente na medicação, nos diagnósticos e
+    # nos exames: com as anotações longas do iClin, "o que ele usa hoje?"
+    # respondia que não havia isso no prontuário.
+    partes.append(bloco_atendimentos)
     texto = ''.join(partes).strip()
     if not texto:
         return ''
     if len(texto) > MAX_CONTEXT_CHARS:
-        # Corta no fim, onde está o mais antigo: perder o atendimento de
-        # dois anos atrás custa menos que perder o de ontem.
         texto = texto[:MAX_CONTEXT_CHARS].rsplit('\n', 1)[0] + '\n- [...] (prontuário truncado)'
     return texto
 

@@ -10,7 +10,7 @@ total_tokens: 2195784
 > atualizado em 2026-10-24 (versão 1.24.2, commit `ee45d07`) só nos módulos
 > que mudaram — o app `sncr`, a reserva de IA, o laudo pelo portal, a
 > Portaria 344, a retenção do chat da equipe e a idempotência da entrega;
-> e de novo em 2026-11-02 (versão 1.32.1, revisão do código), também só no
+> e de novo em 2026-11-02 (versões 1.32.1 e 1.32.2, revisão do código), também só no
 > que mudou: os apps `tiss` e `agenda_exames`, o SNCR em produção, a lista
 > de espera e a forma de cobrança, as finanças do exame, a migração do
 > iClin, o e-mail descartável, as operadoras da ANS, os preços, o CPF e o
@@ -567,7 +567,20 @@ roteiros `check_tiss_{liberacao,versoes,guias,lotes}`; docs em `docs/tiss/`.
   e segundo fator são da **conta**; a tela de uma clínica não os altera para
   quem atende em outra. Caminho: `manage.py verify_physician`.
 
-### documents — rascunho do portal e autoria (1.32.1)
+### ai — o que vai ao provedor (1.32.2)
+- `deidentification.omitir_consanguinidade`, chamada dentro de `deidentify_text`: todo trecho que fala
+  de consanguinidade sai do texto enviado (três tipos de pedido e chat), e o campo estruturado não entra
+  no apoio diagnóstico. A palavra saiu de `privacy_policy.RARE_DISEASE_MARKERS` (política `v2`); o pedido
+  bloqueado pela `v1` é refeito ao pedir de novo (`services.create_job`). A marca
+  `[consanguinidade omitida]` está em `relatorio.MARCADORES_DE_DESIDENTIFICACAO`.
+- `tools/clinical.get_patient_timeline(..., max_chars_por_campo=)`: teto por campo narrativo
+  (`MAX_CHARS_POR_CAMPO` = 2.500; 1.200 no chat), com `MARCA_DE_CORTE`; sem o parâmetro, texto inteiro.
+  O relatório tem `TETO_DE_CARACTERES` (60 mil) e `recorte.textos_encurtados`; o chat monta medicação,
+  diagnósticos e exames **antes** dos atendimentos.
+
+### documents — rascunho do portal, autoria e data (1.32.1–1.32.2)
+- `pdf/common.py`: "Data do documento" é `issued_at` (ou `created_at` no rascunho), nunca a data do
+  atendimento — `issued_at` é gravado antes do PDF final nos dois caminhos de emissão.
 - `request_views.py::_draft`: o rascunho do pedido do portal só pende de
   atendimento **de hoje** escrito no NeuroDoc; senão nasce sem atendimento e
   o PDF sai com a data da emissão. Pegadinha: o PDF imprime a data do

@@ -229,11 +229,11 @@ try:
              != relatorio.referencia_do_pedido('inss', 'x|confirmado'), True)
 
     print(CHR + '5. A trava de privacidade segue fechada por padrao')
-    texto_de_risco = 'historia de consanguinidade na familia'
+    texto_de_risco = 'historia de doenca rara na familia'
     conferir('marcador de risco bloqueia',
              evaluate_privacy_policy(None, texto_de_risco).allowed, False)
     conferir('e o motivo diz qual marcador foi encontrado',
-             'consanguinidade' in evaluate_privacy_policy(None, texto_de_risco).reason, True)
+             'doenca rara' in evaluate_privacy_policy(None, texto_de_risco).reason, True)
     conferir('a confirmacao do medico atravessa',
              evaluate_privacy_policy(None, texto_de_risco, risco_confirmado=True).allowed, True)
     conferir('texto sem marcador passa normalmente',

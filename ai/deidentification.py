@@ -5,6 +5,40 @@ _PHONE_PATTERN = re.compile(r'\b(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}-?\d{4}\b')
 _EMAIL_PATTERN = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
 _MIN_NAME_PART_LEN = 3
 
+#: A frase (ou o trecho entre vírgulas) que fala de consanguinidade.
+#:
+#: **A consanguinidade não vai à IA** (decisão do responsável, 2026-11-02).
+#: Ela é dado de saúde — sensível pela LGPD (art. 5º, II) como todo o
+#: prontuário, que já sai desidentificado —, e o que a fazia especial era o
+#: risco de **reidentificação** por combinação rara (doença rara +
+#: genealogia + consanguinidade numa família pequena). Até aqui o tratamento
+#: era travar o pedido inteiro ao achar a palavra; com o histórico do iClin,
+#: cuja anamnese diz "nega consanguinidade", a IA ficou fechada para 972 dos
+#: 2.217 pacientes migrados — 946 das 1.003 ocorrências eram negação. Agora
+#: o trecho sai do texto e a IA trabalha sem esse dado; o médico continua
+#: vendo tudo no prontuário.
+#:
+#: O trecho não atravessa aspas nem barra invertida: o texto pode ser um JSON
+#: (`ai/services.py` desidentifica o contexto serializado), e o corte tem de
+#: ficar dentro de um valor. À esquerda ele também para em dois-pontos, para
+#: "AF: pais consanguíneos" manter o "AF:". `consang[uü]` pega a grafia com
+#: trema, comum em texto antigo.
+_CONSANGUINIDADE = re.compile(r'[^.;,:\n"\\]*consang[uü][^.;,\n"\\]*', re.IGNORECASE)
+MARCADOR_CONSANGUINIDADE = '[consanguinidade omitida]'
+
+
+def omitir_consanguinidade(text):
+    """Tira do texto todo trecho que menciona consanguinidade."""
+    if not text:
+        return text
+
+    def trocar(m):
+        trecho = m.group(0)
+        recuo = trecho[:len(trecho) - len(trecho.lstrip())]
+        return f'{recuo}{MARCADOR_CONSANGUINIDADE}'
+
+    return _CONSANGUINIDADE.sub(trocar, text)
+
 #: Partes de nome que nao identificam ninguem sozinhas, e que aparecem em
 #: texto clinico com outro sentido. Sem esta lista, um paciente chamado
 #: "Maria das Gracas" faz "todas as noites" virar "to[PACIENTE] as
@@ -71,6 +105,10 @@ def deidentify_text(text, patient):
     result = _CPF_PATTERN.sub('[CPF]', result)
     result = _PHONE_PATTERN.sub('[TELEFONE]', result)
     result = _EMAIL_PATTERN.sub('[EMAIL]', result)
+    # Aqui, e não em cada chamador: todo texto que vai a um provedor de IA
+    # passa por esta função — os três tipos de pedido e o chat (contexto,
+    # histórico e pergunta).
+    result = omitir_consanguinidade(result)
     return result
 
 

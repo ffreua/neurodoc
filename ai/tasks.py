@@ -132,32 +132,16 @@ def _avaliar_privacidade(session, mensagens):
 
     O texto avaliado e o das mensagens ja montadas -- instrucao, prontuario
     desidentificado, historico e a pergunta --, porque e exatamente isso
-    que sairia da clinica.
-
-    O atendimento passado a politica e o que **documenta consanguinidade**,
-    quando existe: a regra do `ai/services.py` olha o atendimento do job, e
-    a conversa nao tem um. Pegar o mais recente qualquer deixaria a porta
-    aberta por sorte de ordenacao; pegar justamente o que dispara a regra e
-    o unico jeito de a decisao ser a mesma nos dois caminhos.
+    que sairia da clinica. Ate 2026-11-02 a politica recebia tambem o
+    atendimento que documentava consanguinidade confirmada; a regra saiu
+    junto com o dado, que nao vai mais ao provedor (`ai/privacy_policy.py`).
     """
-    from clinical.models import ConsanguinityState, Encounter
-
     from . import privacy_policy
 
-    encounter = None
-    if session.patient_id:
-        encounter = (
-            Encounter.objects
-            .filter(tenant_id=session.tenant_id, patient_id=session.patient_id,
-                    consanguinity_state=ConsanguinityState.CONFIRMED)
-            .exclude(consanguinity_details='')
-            .order_by('-occurred_at')
-            .first()
-        )
     texto = '\n'.join(
         m.content if hasattr(m, 'content') else str(m) for m in mensagens
     )
-    return privacy_policy.evaluate_privacy_policy(encounter, texto)
+    return privacy_policy.evaluate_privacy_policy(None, texto)
 
 
 def _membership_id_of(session):

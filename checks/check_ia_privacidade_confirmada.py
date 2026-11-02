@@ -47,7 +47,7 @@ user = User.objects.get(email='doctor-a@demo.neurodoc.local')
 secretaria = User.objects.get(email='secretary-a@demo.neurodoc.local')
 vinculo = Membership.objects.get(tenant=tenant, user=user)
 criados = {'pacientes': [], 'atendimentos': []}
-MOTIVO = 'Marcador de risco de reidentificação detectado: "consanguinidade".'
+MOTIVO = 'Marcador de risco de reidentificação detectado: "doença rara".'
 
 
 def cliente(u=user):
@@ -73,8 +73,12 @@ def url_pedido(enc):
 
 try:
     print('=== 1. a política continua fechada por padrão ===')
-    texto = '{"consanguinidade": "Não"}'
+    texto = '{"historia_familiar": "irmã com doença rara"}'
     conferir('o marcador bloqueia sem confirmação', not privacy_policy.evaluate_privacy_policy(None, texto).allowed)
+    # Desde 2026-11-02 a consanguinidade não é marcador: ela não vai ao
+    # provedor (`ai/deidentification.omitir_consanguinidade`).
+    conferir('consanguinidade não trava mais',
+             privacy_policy.evaluate_privacy_policy(None, '{"consanguinidade": "Não"}').allowed)
     conferir('e passa com ela', privacy_policy.evaluate_privacy_policy(None, texto, risco_confirmado=True).allowed)
 
     pac = Patient.objects.create(
@@ -96,7 +100,7 @@ try:
     # O worker não roda aqui: o bloqueio é gravado como ele gravaria.
     AIJob.objects.filter(pk=job.pk).update(status=AIJobStatus.BLOCKED_PRIVACY, status_detail=MOTIVO)
     html = c.get(f'/app/clinical/{enc.id}/').content.decode()
-    conferir('a tela mostra o motivo', 'consanguinidade' in html and 'data-nd-ia-privacidade' in html)
+    conferir('a tela mostra o motivo', 'doença rara' in html and 'data-nd-ia-privacidade' in html)
     conferir('e o botão de prosseguir, com confirmação',
              'Entendo o risco, analisar assim mesmo' in html and 'name="risco_confirmado"' in html
              and 'data-nd-confirm="Enviar o caso à IA' in html)

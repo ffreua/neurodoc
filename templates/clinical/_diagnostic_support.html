@@ -45,9 +45,9 @@ que faz a lista ser discutível em vez de aceita.
         <div class="alert alert-warning fade show fs-12 mb-2" role="alert">{{ support_job.status_detail }}</div>
         <p class="fs-12 text-muted mb-2">
             A trava existe para que uma combinação de dados raros não permita reconhecer o paciente fora
-            daqui. O caso já vai sem nome, documentos nem contatos. Se o dado é necessário para o raciocínio
-            — consanguinidade numa suspeita genética, por exemplo —, a decisão é sua e fica registrada com o
-            seu nome.
+            daqui. O caso já vai sem nome, documentos nem contatos (e sem a consanguinidade, que nunca é
+            enviada). Se o dado é necessário para o raciocínio — uma doença rara numa suspeita genética, por
+            exemplo —, a decisão é sua e fica registrada com o seu nome.
         </p>
         <form method="post" action="{% url 'clinical:request-diagnostic-support' encounter.id %}"
               data-nd-confirm="Enviar o caso à IA mesmo com o marcador de privacidade encontrado? A decisão fica registrada com o seu nome.">

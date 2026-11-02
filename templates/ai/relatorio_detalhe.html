@@ -140,6 +140,7 @@ decisão e não um susto.{% endcomment %}
                     <p class="mb-0 fs-12">
                         {{ recorte.atendimentos_lidos }} de {{ recorte.atendimentos_totais }} atendimentos{% if recorte.desde %}, de {{ recorte.desde }} a {{ recorte.ate }}{% endif %}.
                         {% if not recorte.completo %}<strong>O que é anterior a isso não entrou.</strong>{% endif %}
+                        {% if recorte.textos_encurtados %}Em {{ recorte.textos_encurtados }} deles o texto era longo e entrou só o começo.{% endif %}
                     </p>
                 </div>
                 {% endif %}

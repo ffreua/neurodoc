@@ -36,6 +36,8 @@ verdade**; só a chamada de rede final foi substituída.
   e e-mail por marcadores — tudo em processo local (regex), sem chamar
   serviço externo algum. Testado com um texto contendo todos esses dados
   reais de um paciente sintético: nenhum sobreviveu à desidentificação.
+> **Atualização de 2026-11-02:** a consanguinidade **deixou de travar e deixou de ir** ao provedor de IA — o trecho sai de todo texto enviado (`ai/deidentification.omitir_consanguinidade`) e o campo estruturado não entra no contexto. Doença rara, genealogia e herança genética continuam travando. Motivo e números em `docs/homologation/revisao-2026-11-02.md`.
+
 - [x] **Fail-closed por risco residual**: consanguinidade **confirmada** e
   documentada bloqueia o job (`blocked_privacy`) **antes** de qualquer
   tentativa de requisição externa — nenhuma chamada ao provedor chega a
@@ -107,6 +109,8 @@ existirem após um único `run_once()`, e ambos os efeitos (recebível +
   `langchain-openai`/`langchain-anthropic`, nunca um substituto, e
   `ProviderUnavailable` é levantado sempre que `AI_ENABLED=False` ou a
   chave não está configurada.
+> **Atualização de 2026-11-02:** a consanguinidade **deixou de travar e deixou de ir** ao provedor de IA — o trecho sai de todo texto enviado (`ai/deidentification.omitir_consanguinidade`) e o campo estruturado não entra no contexto. Doença rara, genealogia e herança genética continuam travando. Motivo e números em `docs/homologation/revisao-2026-11-02.md`.
+
 - A política de privacidade (`ai/privacy_policy.py`) usa uma lista
   ilustrativa e conservadora de marcadores de risco (consanguinidade
   confirmada, termos de doença rara/genealogia em texto livre) — uma

@@ -80,6 +80,8 @@ médico.
 
 ### 3-C. A trava de privacidade passou a ter uma porta
 
+> **Atualização de 2026-11-02:** a consanguinidade **deixou de travar e deixou de ir** ao provedor de IA — o trecho sai de todo texto enviado (`ai/deidentification.omitir_consanguinidade`) e o campo estruturado não entra no contexto. Doença rara, genealogia e herança genética continuam travando. Motivo e números em `docs/homologation/revisao-2026-11-02.md`.
+
 `ai/privacy_policy.py` recusa o job quando encontra marcador de doença rara
 ou consanguinidade confirmada. É uma trava *fail-closed* deliberada, e ela
 nasceu para o que sai dali como **análise** — resumo, apoio diagnóstico —,

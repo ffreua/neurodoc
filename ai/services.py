@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.services import record_audit_event
-from clinical.models import ConsanguinityState, Encounter
+from clinical.models import Encounter
 from patients.models import Patient
 from tenancy.context import AccessContext
 
@@ -105,14 +105,23 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
     # Pedido repetido sobre a mesma fonte reaproveita a linha, mas um job que
     # falhou tem de poder ser tentado de novo: sem isso o médico ficaria preso
     # a uma falha de rede com o botão inerte e sem explicação.
-    if job.status in (AIJobStatus.FAILED, AIJobStatus.STALE, AIJobStatus.CANCELLED, AIJobStatus.DISABLED):
+    # O bloqueio de privacidade decidido por uma **versão anterior** da
+    # política também: a regra mudou (a consanguinidade deixou de travar em
+    # 2026-11-02), e o pedido de um atendimento que não muda mais — o
+    # finalizado — ficaria preso para sempre ao veredito antigo.
+    bloqueio_vencido = (
+        job.status == AIJobStatus.BLOCKED_PRIVACY and job.policy_version != privacy_policy.POLICY_VERSION
+    )
+    if bloqueio_vencido or job.status in (
+            AIJobStatus.FAILED, AIJobStatus.STALE, AIJobStatus.CANCELLED, AIJobStatus.DISABLED):
         job.status = AIJobStatus.QUEUED if settings.AI_ENABLED else AIJobStatus.DISABLED
         job.status_detail = ''
         job.cancel_requested_at = None
+        job.policy_version = privacy_policy.POLICY_VERSION
         # `updated_at` junto: é por ele que `retomar_jobs_parados` mede
         # há quanto tempo o job espera, e `auto_now` não anda quando o
         # campo fica de fora de `update_fields`.
-        job.save(update_fields=['status', 'status_detail', 'cancel_requested_at', 'updated_at'])
+        job.save(update_fields=['status', 'status_detail', 'cancel_requested_at', 'policy_version', 'updated_at'])
     record_audit_event(
         authorization.user_id, access_context.tenant_id, 'ai.job_created',
         object_type='ai_job', object_id=job.id, outcome='success',
@@ -123,7 +132,9 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
 def _gather_context(authorization, encounter):
     if encounter is None:
         return {}, []
-    timeline = clinical_tools.get_patient_timeline(authorization, limit=5)
+    timeline = clinical_tools.get_patient_timeline(
+        authorization, limit=5, max_chars_por_campo=clinical_tools.MAX_CHARS_POR_CAMPO,
+    )
     findings = clinical_tools.get_examination_findings(authorization, encounter.id)
     diagnoses = clinical_tools.get_diagnoses(authorization, encounter.id)
     context = {'timeline': timeline, 'examination_findings': findings, 'diagnoses': diagnoses}
@@ -158,29 +169,26 @@ def _gather_diagnostic_context(authorization, encounter):
         current['consulta_texto_livre'] = encounter.free_text
     if encounter.impressions.strip():
         current['impressoes_do_medico'] = encounter.impressions
-    # A consanguinidade entra só quando foi de fato informada. O rótulo do
-    # campo é ele próprio um marcador de risco na política de privacidade
-    # (fail-closed, P-06 em aberto): mandá-lo mesmo quando ninguém respondeu
-    # bloquearia o apoio diagnóstico em todo atendimento, para sempre. Quando
-    # há resposta, ela vai e o bloqueio acontece — que é o comportamento
-    # desejado.
+    # A consanguinidade **não entra** (2026-11-02): o campo estruturado e o
+    # detalhe ficam no prontuário e não vão ao provedor — ver
+    # `ai/privacy_policy.py`. Até ali, a resposta ia e o próprio rótulo
+    # travava o pedido ("consanguinidade" era marcador), inclusive quando a
+    # resposta era "Ausente".
     # Hábitos e vícios só entram quando foram preenchidos. Sem resposta, o
     # rótulo sozinho não informa nada e ainda ocupa o contexto; com
     # resposta, ele muda conduta — álcool, sono e outras substâncias
     # explicam crise e interagem com anticonvulsivante.
     if encounter.habits_history:
         current['habitos_e_vicios'] = encounter.habits_history
-    if encounter.consanguinity_state != ConsanguinityState.NOT_INFORMED:
-        current['consanguinidade'] = encounter.get_consanguinity_state_display()
-        if encounter.consanguinity_details:
-            current['consanguinidade_detalhes'] = encounter.consanguinity_details
     context = {
         'atendimento_atual': current,
         'medicacoes_em_uso': clinical_tools.get_medications(authorization, encounter.id),
         'exame_neurologico': clinical_tools.get_examination_findings(authorization, encounter.id),
         'resultados_de_exames': clinical_tools.get_exam_results(authorization),
         'hipoteses_ja_registradas': clinical_tools.get_diagnoses(authorization, encounter.id),
-        'consultas_anteriores': clinical_tools.get_patient_timeline(authorization, limit=5),
+        'consultas_anteriores': clinical_tools.get_patient_timeline(
+            authorization, limit=5, max_chars_por_campo=clinical_tools.MAX_CHARS_POR_CAMPO,
+        ),
     }
     source_refs = [
         {'type': 'encounter', 'id': str(encounter.id), 'version_or_hash': str(encounter.row_version)},
