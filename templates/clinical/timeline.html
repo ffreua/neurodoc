@@ -98,7 +98,9 @@ padrao tem de ser o que registra mais.{% endcomment %}
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</td>
                                 <td>
-                                    {% if encounter.finalized_at %}
+                                    {% if encounter.migrado %}
+                                    <span class="badge bg-soft-secondary text-secondary" title="{{ encounter.finalization_justification }}">migrado do iClin</span>
+                                    {% elif encounter.finalized_at %}
                                     <span class="fs-12 text-dark">{{ encounter.finalized_at|date:"d/m/Y H:i" }}</span>
                                     {% else %}
                                     <span class="fs-12 text-muted">em aberto</span>

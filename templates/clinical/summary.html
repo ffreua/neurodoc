@@ -359,7 +359,10 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
     <div class="foot">
         <p>
             Resumo do prontuário gerado em {{ printed_at|date:"d/m/Y H:i" }} por {{ printed_by }}.
-            {% if encounter.status == 'finalized' %}
+            {% if encounter.migrado %}
+            Histórico migrado do sistema anterior (iClin) — {{ encounter.finalization_justification }}
+            Hash de integridade {{ encounter.content_hash|slice:":16" }}…
+            {% elif encounter.status == 'finalized' %}
             Registro finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }};
             hash de integridade {{ encounter.content_hash|slice:":16" }}…
             {% else %}

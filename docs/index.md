@@ -229,6 +229,9 @@ PRD; é a referência operacional viva gerada a partir dele.
 
 ## Migração do cadastro de pacientes
 
+- [Migração do histórico de atendimentos](homologation/migracao-de-atendimentos.md) —
+  as anotações do iClin como atendimentos de texto livre já finalizados, sem
+  cobrança nem resumo de IA, com o corte em 02/10/2026 e o ensaio em produção.
 - [Migração do cadastro](homologation/migracao-de-cadastro.md) — o nome do
   paciente passou a ter uma forma só (caixa alta, **gravada**, com a
   alternativa reversível apresentada e recusada), e as 2.223 fichas do

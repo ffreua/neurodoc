@@ -46,8 +46,16 @@
         <div class="alert alert-success fade show fs-12 mt-3 mb-0 d-flex align-items-start gap-2" role="alert">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
             <span>
+                {% comment %}O atendimento migrado não foi fechado aqui: dizer "finalizado
+                por" afirmaria um fechamento que não aconteceu. A data dele é a da
+                consulta no sistema anterior; a da migração fica na justificativa.{% endcomment %}
+                {% if encounter.migrado %}
+                Histórico migrado do sistema anterior (iClin) — {{ encounter.finalization_justification }}
+                Imutável. Correções entram como adendo.
+                {% else %}
                 Registro finalizado em {{ encounter.finalized_at|date:"d/m/Y H:i" }} por
                 {{ encounter.finalized_by.user.get_full_name }} — imutável. Correções entram como adendo.
+                {% endif %}
             </span>
         </div>
         {% endif %}

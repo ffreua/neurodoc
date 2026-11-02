@@ -102,11 +102,30 @@ class Encounter(TenantModel):
         'tenancy.Membership', on_delete=models.PROTECT, null=True, blank=True, related_name='+',
     )
     content_hash = models.CharField(max_length=64, blank=True)
+    #: De onde veio este atendimento, quando não nasceu aqui: `iclin:<nº da
+    #: anotação>` para o histórico migrado (`clinical/importacao.py`).
+    #:
+    #: É o que torna a migração repetível — a segunda rodada encontra a
+    #: anotação já gravada e passa adiante, em vez de duplicar sete mil
+    #: consultas — e é o que a tela lê para dizer "migrado do iClin" em vez
+    #: de "finalizado por", que afirmaria um fechamento que não aconteceu
+    #: aqui. Vazio em todo atendimento escrito no NeuroDoc.
+    legacy_id = models.CharField(max_length=60, blank=True)
 
     class Meta(TenantModel.Meta):
         indexes = [
             models.Index(fields=['tenant', 'patient', 'occurred_at'], name='clinical_encounter_lookup_idx'),
         ]
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(
+                fields=['tenant', 'legacy_id'], condition=~models.Q(legacy_id=''),
+                name='clinical_encounter_tenant_legacy_id_uniq',
+            ),
+        ]
+
+    @property
+    def migrado(self):
+        return bool(self.legacy_id)
 
     def clean(self):
         if self.status == EncounterStatus.FINALIZED and not self.finalized_at:

@@ -222,7 +222,9 @@ sem caçar em cartões laterais.{% endcomment %}
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark text-nowrap">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</td>
                                 <td class="text-nowrap">
-                                    {% if encounter.finalized_at %}
+                                    {% if encounter.migrado %}
+                                    <span class="badge bg-soft-secondary text-secondary" title="{{ encounter.finalization_justification }}">migrado do iClin</span>
+                                    {% elif encounter.finalized_at %}
                                     <span class="fs-12 text-dark">{{ encounter.finalized_at|date:"d/m/Y H:i" }}</span>
                                     {% else %}
                                     <span class="fs-12 text-muted">em aberto</span>
