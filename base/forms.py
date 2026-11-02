@@ -3,7 +3,7 @@ import re
 from django import forms
 from django.contrib.auth.password_validation import validate_password
 
-from base.validators import validate_cnpj
+from base.validators import validate_cnpj, validate_cpf
 from tenancy.models import Tenant
 from tenancy.plans import plan_choices
 
@@ -24,9 +24,22 @@ class OrganizationSignupForm(forms.Form):
     #: de recuperação indo para o endereço que ela também acabou de
     #: digitar. Conferir duas vezes custa um campo.
     password_confirm = forms.CharField(label='Confirme a senha', widget=forms.PasswordInput)
-    legal_name = forms.CharField(label='Razão social', max_length=255)
+    legal_name = forms.CharField(
+        label='Razão social ou nome completo', max_length=255,
+        help_text='A razão social da clínica, ou o seu nome completo se você atende como pessoa física.',
+    )
     trade_name = forms.CharField(label='Nome fantasia', max_length=255, required=False)
-    cnpj = forms.CharField(label='CNPJ', max_length=18)
+    #: CNPJ da clínica **ou** CPF do médico autônomo (2026-11), num campo só.
+    #:
+    #: Um campo, e não uma escolha "pessoa física / jurídica" seguida de dois
+    #: campos: o número de dígitos já diz o que é (onze ou quatorze, com ou
+    #: sem máscara), e uma escolha a mais seria uma pergunta que a pessoa
+    #: pode responder diferente do que digita. A conferência é a dos dígitos
+    #: verificadores da Receita, nos dois casos.
+    documento = forms.CharField(
+        label='CNPJ ou CPF', max_length=18,
+        help_text='CNPJ da clínica ou, se você atende como pessoa física, o seu CPF.',
+    )
 
     #: A versão do contrato que estava na tela quando a pessoa leu.
     #:
@@ -82,7 +95,11 @@ class OrganizationSignupForm(forms.Form):
         return contract.VERSAO
 
     def clean_email(self):
-        return self.cleaned_data['email'].strip().lower()
+        from catalogs.descartaveis import validar_email_de_cadastro
+
+        email = self.cleaned_data['email'].strip().lower()
+        validar_email_de_cadastro(email)
+        return email
 
     def clean_password(self):
         password = self.cleaned_data['password']
@@ -108,12 +125,22 @@ class OrganizationSignupForm(forms.Form):
             self.add_error('password_confirm', 'As duas senhas não são iguais.')
         return dados
 
-    def clean_cnpj(self):
-        digits = re.sub(r'\D', '', self.cleaned_data['cnpj'] or '')
-        validate_cnpj(digits)
-        if Tenant.objects.filter(cnpj=digits).exists():
-            raise forms.ValidationError('Este CNPJ já está cadastrado em outra clínica.')
-        return digits
+    def clean_documento(self):
+        digits = re.sub(r'\D', '', self.cleaned_data['documento'] or '')
+        if len(digits) == 11:
+            validate_cpf(digits)
+            if Tenant.objects.filter(cpf=digits).exists():
+                raise forms.ValidationError('Este CPF já está cadastrado em outra organização.')
+            return digits
+        if len(digits) == 14:
+            validate_cnpj(digits)
+            if Tenant.objects.filter(cnpj=digits).exists():
+                raise forms.ValidationError('Este CNPJ já está cadastrado em outra clínica.')
+            return digits
+        raise forms.ValidationError(
+            'Informe o CNPJ da clínica (14 dígitos) ou, se você atende como pessoa física, '
+            'o seu CPF (11 dígitos).'
+        )
 
 
 class LeadForm(forms.Form):

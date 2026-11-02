@@ -109,7 +109,7 @@ arquivar como aceito um texto que aquela clínica não viu.{% endcomment %}
                         </td>
                         <td class="fs-12">
                             {{ l.clinica }}
-                            <span class="d-block fs-11 text-muted">CNPJ {{ l.aceite.tenant.cnpj }}</span>
+                            <span class="d-block fs-11 text-muted">{{ l.aceite.tenant.documento_rotulo }} {{ l.aceite.tenant.documento_formatado }}</span>
                         </td>
                         <td class="fs-12">
                             {% comment %}O nome só aparece se existir. A conta

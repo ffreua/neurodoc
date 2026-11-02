@@ -234,7 +234,7 @@ dados = {
     'password_confirm': 'S3nhaF0rteDeVerdade!2026',
     'legal_name': 'Clinica do Roteiro de Contrato Ltda',
     'trade_name': 'Roteiro Contrato',
-    'cnpj': CNPJ_A,
+    'documento': CNPJ_A,
     'contract_version': contract.VERSAO,
     'declare_powers': 'on',
 }
@@ -397,7 +397,7 @@ Client().post(f'/signup/{outro_token}/', {
     'password_confirm': 'S3nhaF0rteDeVerdade!2026',
     'legal_name': 'Clinica Vizinha do Roteiro Ltda',
     'trade_name': 'Vizinha do Roteiro',
-    'cnpj': CNPJ_B,
+    'documento': CNPJ_B,
     'contract_version': contract.VERSAO,
     'accept_contract': 'on',
     'declare_powers': 'on',

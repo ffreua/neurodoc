@@ -8,6 +8,15 @@ from .invitations import consume_invitation
 from .models import InvitationPurpose, Membership, MembershipStatus, Role, Tenant
 
 
+class EmailDescartavel(Exception):
+    """O e-mail da conta nova é de serviço descartável (`catalogs.descartaveis`).
+
+    Os formulários já recusam com a mensagem da tela; esta é a barreira que
+    vale para quem chamar o serviço por outro caminho — o mesmo desenho de
+    `PlanLimitReached`, conferido na tela e de novo onde a conta nasce.
+    """
+
+
 class EmailAlreadyRegistered(Exception):
     pass
 
@@ -29,7 +38,7 @@ class InvalidInvitation(Exception):
 
 
 @transaction.atomic
-def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_name='',
+def accept_platform_invitation(token, email, password, legal_name, documento, trade_name='',
                                contract_ip=None, contract_user_agent='',
                                contract_powers=False):
     """Consumes a platform invitation and creates org+owner atomically.
@@ -38,6 +47,10 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     invalid CNPJ, ...), the invitation consumption rolls back with it, so a
     failed signup never burns a one-time invite.
 
+    `documento` é o CNPJ da clínica ou o CPF do médico que atende como
+    pessoa física (2026-11), reconhecido pelo número de dígitos — onze é
+    CPF, o resto vai para o CNPJ e é validado como tal por `full_clean`.
+
     O aceite do contrato entra **aqui dentro**, e nao numa chamada
     seguinte na view: uma clinica criada e um aceite que falhou depois
     seria uma organizacao usando o sistema sem contrato registrado, e
@@ -45,6 +58,8 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     """
     from accounts.models import User
     from exams.provisioning import ensure_default_template
+
+    from catalogs.descartaveis import e_descartavel
 
     from .contracts import registrar_aceite
 
@@ -55,11 +70,16 @@ def accept_platform_invitation(token, email, password, legal_name, cnpj, trade_n
     email = email.strip().lower()
     if User.objects.filter(email=email).exists():
         raise EmailAlreadyRegistered(email)
+    if e_descartavel(email):
+        raise EmailDescartavel(email)
     user = User.objects.create_user(email=email, password=password)
+    digitos = re.sub(r'\D', '', documento or '')
+    pessoa_fisica = len(digitos) == 11
     tenant = Tenant(
         legal_name=legal_name,
         trade_name=trade_name,
-        cnpj=re.sub(r'\D', '', cnpj),
+        cnpj='' if pessoa_fisica else digitos,
+        cpf=digitos if pessoa_fisica else '',
         slug=_unique_slug(trade_name or legal_name),
         # O plano vem do convite, e não escrito aqui. Com `'free'` fixo,
         # quem vendesse o Completo teria de corrigir o plano à mão depois
@@ -156,6 +176,10 @@ def accept_collaborator_invitation_new_user(token, email, password):
         raise InvitationEmailMismatch(token)
     if User.objects.filter(email=email).exists():
         raise EmailAlreadyRegistered(email)
+    from catalogs.descartaveis import e_descartavel
+
+    if e_descartavel(email):
+        raise EmailDescartavel(email)
     _assert_doctor_vacancy(invitation)
     user = User.objects.create_user(email=email, password=password)
     membership = Membership.objects.create(

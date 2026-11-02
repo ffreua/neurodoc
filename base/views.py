@@ -9,7 +9,9 @@ from accounts.services import send_email_verification
 from audit.services import record_audit_event
 from tenancy.invitations import peek_invitation
 from tenancy.models import InvitationPurpose
-from tenancy.services import EmailAlreadyRegistered, InvalidInvitation, accept_platform_invitation
+from tenancy.services import (
+    EmailAlreadyRegistered, EmailDescartavel, InvalidInvitation, accept_platform_invitation,
+)
 
 from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, FAQ, NOVIDADE, NOVIDADES, RECURSOS
 from .help_content import ARTICLES as HELP_ARTICLES, article_by_slug
@@ -347,6 +349,9 @@ class OrganizationSignupView(View):
             return render(request, 'onboarding/invitation_invalid.html', status=400)
         form = OrganizationSignupForm(request.POST)
         if not form.is_valid():
+            from tenancy.views import registrar_email_descartavel
+
+            registrar_email_descartavel(request, form, 'cadastro de clínica')
             return render(request, 'onboarding/signup.html', self._contexto(
                 self._invitation_or_none(token), form,
             ))
@@ -357,7 +362,7 @@ class OrganizationSignupView(View):
                 password=form.cleaned_data['password'],
                 legal_name=form.cleaned_data['legal_name'],
                 trade_name=form.cleaned_data['trade_name'],
-                cnpj=form.cleaned_data['cnpj'],
+                documento=form.cleaned_data['documento'],
                 # Quem aceitou, de onde e com qual navegador. É a prova do
                 # aceite eletrônico, e ela só existe se for colhida no
                 # instante — depois não há onde buscar.
@@ -370,6 +375,13 @@ class OrganizationSignupView(View):
             return render(request, 'onboarding/signup.html', self._contexto(None, form))
         except EmailAlreadyRegistered:
             form.add_error('email', 'Este e-mail já possui conta. Faça login para vincular uma organização.')
+            return render(request, 'onboarding/signup.html', self._contexto(
+                self._invitation_or_none(token), form,
+            ))
+        except EmailDescartavel:
+            from catalogs.descartaveis import MENSAGEM_RECUSA
+
+            form.add_error('email', MENSAGEM_RECUSA)
             return render(request, 'onboarding/signup.html', self._contexto(
                 self._invitation_or_none(token), form,
             ))

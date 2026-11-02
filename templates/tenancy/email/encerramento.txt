@@ -1,0 +1,16 @@
+{% autoescape off %}Olá,
+
+A organização {{ clinica }} ({{ razao_social }}, {{ documento }}) foi encerrada no NeuroDoc em {{ data }}. O acesso ao sistema está desativado para esta organização.
+
+JUSTIFICATIVA DO ENCERRAMENTO
+{{ motivo }}
+
+OS REGISTROS NÃO FORAM APAGADOS
+O prontuário tem guarda legal de vinte anos e continua armazenado com a mesma proteção de sempre: encerrar o contrato fecha o acesso, não destrói o arquivo.
+
+Pela cláusula 13.1 do Contrato de Adesão, a contratante tem direito, por 90 (noventa) dias a partir do encerramento, a obter os dados sob sua gestão em formato de uso comum. Para pedir a exportação, ou se você entende que o encerramento foi um engano, escreva para contato@neurodoc.app.br informando o nome e o {{ documento }} da organização.
+
+Contrato de Adesão: {{ url_contrato }}
+
+Equipe NeuroDoc
+{% endautoescape %}

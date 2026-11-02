@@ -169,3 +169,16 @@ def importar_operadoras_ans():
         return {'ok': False, 'error': type(exc).__name__}
     logger.info('operadoras_ans: %s ativas, %s inativadas', resultado['ativas'], resultado['inativadas'])
     return {'ok': True, **resultado}
+
+
+@shared_task(name='catalogs.tasks.sincronizar_dominios_descartaveis', expires=3600)
+def sincronizar_dominios_descartaveis():
+    """A lista de e-mail descartável, toda semana (2026-11).
+
+    No worker, que tem a saída para a internet (§2). A conferência, a troca
+    numa transação e o aviso por e-mail quando falha moram em
+    `catalogs.descartaveis.sincronizar`, que nunca levanta.
+    """
+    from catalogs import descartaveis
+
+    return descartaveis.sincronizar()

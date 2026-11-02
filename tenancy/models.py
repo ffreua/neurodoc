@@ -6,7 +6,7 @@ from django.db import models
 from django.db.models.functions import Lower
 
 from base.models import TenantModel, TimestampedModel
-from base.validators import is_valid_cnpj
+from base.validators import is_valid_cnpj, is_valid_cpf
 
 from .plans import PLANS, PlanCode
 
@@ -56,7 +56,26 @@ INACTIVE_STATUSES = frozenset({TenantStatus.SUSPENDED, TenantStatus.CLOSED})
 class Tenant(TimestampedModel):
     legal_name = models.CharField(max_length=255)
     trade_name = models.CharField(max_length=255, blank=True)
-    cnpj = models.CharField(max_length=14, unique=True)
+
+    # ---------------------------------------------- quem é, perante a Receita
+    #
+    # **CNPJ ou CPF, nunca os dois** (2026-11). Até ali só a clínica pessoa
+    # jurídica se cadastrava; o médico que atende como autônomo, sem empresa,
+    # ficava de fora ou inventava um CNPJ — e foi com CNPJ inventado que as
+    # clínicas falsas de 2026-11-02 entraram. O contrato de adesão já previa
+    # os dois ("A pessoa física ou jurídica ... CPF ou CNPJ", `contract.py`),
+    # então nada muda no texto da advogada.
+    #
+    # Duas colunas, e não uma "documento" com o tipo ao lado: a coluna que
+    # existia se chama `cnpj` e é lida em uma dúzia de lugares (a via do
+    # contrato, a declaração de comparecimento, o console), e cada um deles
+    # precisa decidir o que mostrar no caso da pessoa física — um campo que
+    # mudasse de sentido conforme outro mostraria o CPF de alguém onde se
+    # esperava o CNPJ de uma empresa. A declaração, por exemplo, imprime o
+    # CNPJ e **não** imprime o CPF do médico. O banco garante que há
+    # exatamente um dos dois e que nenhum se repete (`Meta.constraints`).
+    cnpj = models.CharField(max_length=14, blank=True)
+    cpf = models.CharField(max_length=11, blank=True)
     slug = models.SlugField(max_length=63, unique=True)
     status = models.CharField(max_length=40, choices=TenantStatus.choices, default=TenantStatus.ACTIVE)
 
@@ -106,6 +125,48 @@ class Tenant(TimestampedModel):
     timezone = models.CharField(max_length=64, default='America/Sao_Paulo')
     settings = models.JSONField(default=dict, blank=True)
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['cnpj'], condition=~models.Q(cnpj=''), name='tenant_cnpj_unico',
+                violation_error_message='Este CNPJ já está cadastrado em outra clínica.',
+            ),
+            models.UniqueConstraint(
+                fields=['cpf'], condition=~models.Q(cpf=''), name='tenant_cpf_unico',
+                violation_error_message='Este CPF já está cadastrado em outra organização.',
+            ),
+            models.CheckConstraint(
+                condition=(
+                    (~models.Q(cnpj='') & models.Q(cpf=''))
+                    | (models.Q(cnpj='') & ~models.Q(cpf=''))
+                ),
+                name='tenant_cnpj_ou_cpf',
+                violation_error_message='Informe o CNPJ ou o CPF da organização — um dos dois, e só um.',
+            ),
+        ]
+
+    @property
+    def pessoa_fisica(self):
+        return bool(self.cpf) and not self.cnpj
+
+    @property
+    def documento_rotulo(self):
+        return 'CPF' if self.pessoa_fisica else 'CNPJ'
+
+    @property
+    def documento(self):
+        return self.cpf if self.pessoa_fisica else self.cnpj
+
+    @property
+    def documento_formatado(self):
+        """`12.345.678/0001-95` ou `123.456.789-09` — só para ler."""
+        d = self.documento or ''
+        if len(d) == 14:
+            return f'{d[:2]}.{d[2:5]}.{d[5:8]}/{d[8:12]}-{d[12:]}'
+        if len(d) == 11:
+            return f'{d[:3]}.{d[3:6]}.{d[6:9]}-{d[9:]}'
+        return d
+
     @property
     def is_active(self):
         return self.status == TenantStatus.ACTIVE
@@ -124,7 +185,12 @@ class Tenant(TimestampedModel):
             raise ValidationError({'slug': 'Endereço inválido: use apenas letras minúsculas, números e hífen.'})
         if self.slug in RESERVED_SLUGS:
             raise ValidationError({'slug': 'Este endereço é reservado pelo sistema. Escolha outro.'})
-        if not is_valid_cnpj(self.cnpj or ''):
+        if self.cnpj and self.cpf:
+            raise ValidationError('Informe o CNPJ ou o CPF, não os dois.')
+        if self.cpf:
+            if not is_valid_cpf(self.cpf):
+                raise ValidationError({'cpf': 'CPF inválido. Confira os onze dígitos.'})
+        elif not is_valid_cnpj(self.cnpj or ''):
             raise ValidationError({'cnpj': 'CNPJ inválido. Confira os quatorze dígitos.'})
         if self.plan not in PLANS:
             raise ValidationError({'plan': f'Plano desconhecido: {self.plan}'})

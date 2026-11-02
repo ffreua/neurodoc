@@ -184,6 +184,14 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'catalogs.tasks.sync_tuss',
         'schedule': crontab(hour=4, minute=0, day_of_week=0),
     },
+    # Domínios de e-mail descartável (2026-11): domingo, 03h30, antes da
+    # TUSS para não disputar o worker com ela. A fonte atualiza todo dia;
+    # semanal basta para o cadastro, e a falha avisa por e-mail. Ver
+    # `catalogs/descartaveis.py`.
+    'sincronizar-dominios-descartaveis': {
+        'task': 'catalogs.tasks.sincronizar_dominios_descartaveis',
+        'schedule': crontab(hour=3, minute=30, day_of_week=0),
+    },
     # Operadoras ativas da ANS (1.30), para o cadastro de convênio:
     # segunda-feira, 05h. A ANS atualiza a lista quando uma operadora
     # entra ou sai do mercado -- semanal sobra.

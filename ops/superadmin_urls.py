@@ -66,6 +66,10 @@ urlpatterns = [
         superadmin.TissInstallationView.as_view(), name='operations-tiss',
     ),
     path(
+        'operacao/emails-descartaveis/',
+        superadmin.DescartaveisView.as_view(), name='operations-descartaveis',
+    ),
+    path(
         'operacao/coleta/',
         superadmin.GarbageCollectionView.as_view(), name='operations-gc',
     ),

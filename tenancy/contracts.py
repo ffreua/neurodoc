@@ -131,7 +131,7 @@ def _corpo(aceite):
         'Guarde-o: ele registra o que foi aceito, por quem e quando.',
         '',
         f'Clínica:            {aceite.tenant.trade_name or aceite.tenant.legal_name}',
-        f'CNPJ:               {aceite.tenant.cnpj}',
+        f'{aceite.tenant.documento_rotulo + ":":<20}{aceite.tenant.documento_formatado}',
         f'Plano contratado:   {plan_label(aceite.plan)}',
         # O preco do dia, e nao o de hoje: e a "condicao comercial" que a
         # clausula 2.2, "h" manda registrar, e ela nao acompanha reajuste.
@@ -213,7 +213,8 @@ def copia_para_operacao(aceite):
             settings.LEADS_EMAIL,
             f'[NeuroDoc] Nova adesão: {aceite.tenant.trade_name or aceite.tenant.legal_name}',
             '\n'.join([
-                f'Clínica:  {aceite.tenant.legal_name} (CNPJ {aceite.tenant.cnpj})',
+                f'Clínica:  {aceite.tenant.legal_name} '
+                f'({aceite.tenant.documento_rotulo} {aceite.tenant.documento_formatado})',
                 f'Plano:    {plan_label(aceite.plan)}',
                 f'Aceite:   {aceite.accepted_email} em '
                 f'{timezone.localtime(aceite.created_at).strftime("%d/%m/%Y %H:%M")}',

@@ -575,7 +575,7 @@ _r = _cs.post(_destino, {
     'email': 'check-confirmacao@example.invalid',
     'password': 'S3nhaForte!2026', 'password_confirm': 'S3nhaDiferente!2026',
     'legal_name': 'Clinica do Roteiro de Senha', 'trade_name': 'Roteiro',
-    'cnpj': _cnpj_para_teste('998877665544'),
+    'documento': _cnpj_para_teste('998877665544'),
 })
 _criou = _Tenant.objects.count() - _antes_org
 _avisou = 'As duas senhas' in _r.content.decode(errors='replace')

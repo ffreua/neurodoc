@@ -15,7 +15,7 @@
                 <thead class="bg-gray-100">
                     <tr class="border-b">
                         <th class="ps-4" scope="col">Organização</th>
-                        <th scope="col">CNPJ</th>
+                        <th scope="col">CNPJ / CPF</th>
                         <th scope="col">Endereço</th>
                         <th scope="col">Plano</th>
                         <th scope="col">Pacientes</th>
@@ -37,7 +37,10 @@
                             <span class="fs-11 text-muted d-block">{{ row.obj.plan_note }}</span>
                             {% endif %}
                         </td>
-                        <td class="fs-12 text-muted">{{ row.obj.cnpj|default:"—" }}</td>
+                        <td class="fs-12 text-muted">
+                            {{ row.obj.documento_formatado|default:"—" }}
+                            {% if row.obj.pessoa_fisica %}<span class="badge bg-gray-200 text-dark ms-1">pessoa física</span>{% endif %}
+                        </td>
                         <td class="fs-12"><code>/{{ row.obj.slug }}</code></td>
                         <td class="fs-12">
                             <span class="badge bg-soft-primary text-primary">{{ row.patients.plan_label }}</span>
@@ -146,7 +149,9 @@
                                         <strong>Suspensa:</strong> todos continuam entrando, lendo,
                                         imprimindo e exportando; criar e alterar fica bloqueado.
                                         <strong>Encerrada:</strong> ninguém entra, e a tela explica a
-                                        quem pedir a exportação. Em nenhum dos dois o dado é apagado —
+                                        quem pedir a exportação. <strong>Ao encerrar, o motivo é enviado por
+                                        e-mail ao(s) responsável(is) da clínica como justificativa</strong> —
+                                        escreva-o para ser lido por eles. Em nenhum dos dois o dado é apagado —
                                         o prontuário tem guarda de vinte anos.
                                     </p>
                                 </div>

@@ -33,7 +33,24 @@ class CollaboratorInvitationForm(forms.Form):
     )
 
     def clean_email(self):
-        return self.cleaned_data['email'].strip().lower()
+        """Recusa o e-mail descartável já no convite, salvo de conta que existe.
+
+        No convite, e não só no aceite: quem convida é quem pode trocar o
+        endereço, e o convidado que descobrisse a recusa depois de clicar no
+        link não teria o que fazer. A conta que já existe passa — a regra é da
+        porta de entrada (`catalogs/descartaveis.py`), e quem já usa o
+        sistema não é barrado por uma lista de terceiros.
+        """
+        from accounts.models import User
+        from catalogs.descartaveis import MENSAGEM_RECUSA, e_descartavel
+
+        email = self.cleaned_data['email'].strip().lower()
+        if e_descartavel(email) and not User.objects.filter(email__iexact=email).exists():
+            raise forms.ValidationError(
+                MENSAGEM_RECUSA.replace('Use outro e-mail válido', 'Peça outro e-mail válido à pessoa convidada'),
+                code='email_descartavel',
+            )
+        return email
 
 
 class MembershipRolesForm(forms.Form):
@@ -302,7 +319,11 @@ class AcceptInvitationAccountForm(forms.Form):
     password2 = forms.CharField(label='Confirme a senha', widget=forms.PasswordInput)
 
     def clean_email(self):
-        return self.cleaned_data['email'].strip().lower()
+        from catalogs.descartaveis import validar_email_de_cadastro
+
+        email = self.cleaned_data['email'].strip().lower()
+        validar_email_de_cadastro(email)
+        return email
 
     def clean(self):
         cleaned = super().clean()

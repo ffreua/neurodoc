@@ -5,8 +5,8 @@ from .models import Invitation, Membership, Tenant, TenantDomain
 
 @admin.register(Tenant)
 class TenantAdmin(admin.ModelAdmin):
-    list_display = ['legal_name', 'cnpj', 'slug', 'status', 'plan']
-    search_fields = ['legal_name', 'trade_name', 'cnpj', 'slug']
+    list_display = ['legal_name', 'cnpj', 'cpf', 'slug', 'status', 'plan']
+    search_fields = ['legal_name', 'trade_name', 'cnpj', 'cpf', 'slug']
     exclude = ['settings']
 
 

@@ -460,3 +460,73 @@ class OperadoraAns(TimestampedModel):
     @property
     def nome_para_exibir(self):
         return self.nome_fantasia or self.razao_social
+
+
+class DominioDescartavel(models.Model):
+    """Um domínio de e-mail temporário ou descartável (2026-11).
+
+    Vem da lista pública `Validemailchecker/disposable-email-domains`
+    (licença MIT), baixada toda semana pelo worker
+    (`catalogs.descartaveis`). Serve a uma pergunta só: o endereço que está
+    criando conta agora é de um serviço que entrega caixa de correio
+    descartável? As três clínicas falsas de 2026-11-02 foram criadas assim
+    (mailinator, guerrillamail).
+
+    **Chave primária é o próprio domínio**, e a tabela não herda de
+    `TimestampedModel` de propósito: são mais de 220 mil linhas, e um
+    `uuid`, duas datas e um contador de versão em cada uma quadruplicariam
+    a tabela e o índice sem responder nada que alguém pergunte. Quando a
+    lista mudou fica em `ListaDominiosDescartaveis`, numa linha só.
+    """
+
+    dominio = models.CharField(max_length=253, primary_key=True)
+
+    class Meta:
+        verbose_name = 'domínio de e-mail descartável'
+        verbose_name_plural = 'domínios de e-mail descartáveis'
+
+    def __str__(self):
+        return self.dominio
+
+
+class ListaDominiosDescartaveis(TimestampedModel):
+    """O estado da lista de domínios descartáveis — uma linha só.
+
+    Guarda o que o console precisa mostrar sem contar 220 mil linhas a cada
+    abertura (o total), quando a lista foi atualizada e **por que a última
+    tentativa falhou**: é a falha silenciosa que este registro existe para
+    impedir. Uma lista que parou de atualizar em março continua bloqueando o
+    que bloqueava em março, e ninguém percebe até um serviço novo passar.
+
+    `liberados` é a exceção escrita no console. A lista pública tem falsos
+    positivos — em 2026-11 ela trazia `bol.com.br` (o e-mail gratuito do
+    UOL) e domínios de clínicas e escritórios brasileiros reais. Os
+    provedores grandes estão liberados em código
+    (`descartaveis.SEMPRE_LIBERADOS`); o resto, o caso do médico cujo
+    domínio corporativo entrou na lista por engano, se resolve aqui, sem
+    deploy, no dia em que ele escreve dizendo que não conseguiu se cadastrar.
+    """
+
+    singleton = models.BooleanField(default=True, unique=True, editable=False)
+    total = models.PositiveIntegerField(default=0)
+    atualizada_em = models.DateTimeField(null=True, blank=True)
+    ultima_tentativa_em = models.DateTimeField(null=True, blank=True)
+    #: Vazio quando a última tentativa deu certo.
+    ultimo_erro = models.TextField(blank=True)
+    #: Domínios liberados no console, um por linha.
+    liberados = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = 'lista de domínios descartáveis'
+        verbose_name_plural = 'lista de domínios descartáveis'
+
+    @classmethod
+    def carregar(cls):
+        return cls.objects.get_or_create(singleton=True)[0]
+
+    def dominios_liberados(self):
+        return {
+            linha.strip().lower().rstrip('.')
+            for linha in (self.liberados or '').splitlines()
+            if linha.strip() and not linha.strip().startswith('#')
+        }

@@ -92,7 +92,7 @@ def cadastrar(chave, plano, email):
         'password_confirm': 'S3nhaF0rteDeVerdade!2026',
         'legal_name': f'Clinica Boas-Vindas {chave} Ltda',
         'trade_name': f'Boas-Vindas & {chave}',
-        'cnpj': CNPJS[chave],
+        'documento': CNPJS[chave],
         'contract_version': contract.VERSAO,
         'accept_contract': 'on',
         'declare_powers': 'on',
@@ -166,7 +166,7 @@ mail.outbox = []
 Client(HTTP_HOST='forjado.invalid').post(f'/signup/{token}/', {
     'email': f'forjado{SUFIXO}', 'password': 'S3nhaF0rteDeVerdade!2026',
     'password_confirm': 'S3nhaF0rteDeVerdade!2026', 'legal_name': 'Forjada Ltda',
-    'trade_name': 'Forjada', 'cnpj': CNPJS['forjado'], 'contract_version': contract.VERSAO,
+    'trade_name': 'Forjada', 'documento': CNPJS['forjado'], 'contract_version': contract.VERSAO,
     'accept_contract': 'on', 'declare_powers': 'on',
 })
 boas = [m for m in mail.outbox if m.subject.startswith('Boas-vindas')]

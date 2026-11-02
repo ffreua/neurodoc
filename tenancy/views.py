@@ -19,11 +19,33 @@ from .limits import PlanLimitReached
 from .models import InvitationPurpose
 from .services import (
     EmailAlreadyRegistered,
+    EmailDescartavel,
     InvalidInvitation,
     InvitationEmailMismatch,
     accept_collaborator_invitation_for_user,
     accept_collaborator_invitation_new_user,
 )
+
+
+def registrar_email_descartavel(request, form, porta):
+    """A recusa de e-mail descartável vai para a trilha — com o domínio, sem o endereço.
+
+    É o que mostra no console que alguém está tentando: as três clínicas
+    falsas de 2026-11 só foram notadas depois de criadas. O domínio basta
+    para isso e não identifica ninguém; o endereço inteiro não entra.
+    """
+    from audit.services import record_audit_event
+    from base.net import client_ip
+    from catalogs.descartaveis import dominio_do_email
+
+    if not form.has_error('email', 'email_descartavel'):
+        return
+    record_audit_event(
+        None, None, 'accounts.email_descartavel_recusado',
+        object_type='cadastro', outcome='denied',
+        origin_ip=None if client_ip(request) == 'desconhecido' else client_ip(request),
+        integrity_metadata={'dominio': dominio_do_email(form.data.get('email')), 'porta': porta},
+    )
 
 
 class AcceptCollaboratorInvitationView(View):
@@ -80,6 +102,7 @@ class AcceptCollaboratorInvitationView(View):
             return redirect('accounts:tenant-picker')
         form = AcceptInvitationAccountForm(request.POST)
         if not form.is_valid():
+            registrar_email_descartavel(request, form, 'aceite de convite da equipe')
             return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})
         try:
             user, _membership = accept_collaborator_invitation_new_user(
@@ -92,6 +115,11 @@ class AcceptCollaboratorInvitationView(View):
             return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})
         except EmailAlreadyRegistered:
             form.add_error('email', 'Este e-mail já possui conta. Faça login para aceitar o convite.')
+            return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})
+        except EmailDescartavel:
+            from catalogs.descartaveis import MENSAGEM_RECUSA
+
+            form.add_error('email', MENSAGEM_RECUSA)
             return render(request, 'tenancy/accept_invitation_signup.html', {'invitation': invitation, 'form': form})
         except PlanLimitReached as limite:
             return render(request, 'tenancy/invitation_limit_reached.html',

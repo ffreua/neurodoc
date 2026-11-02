@@ -219,12 +219,16 @@ carimbá-la na publicação.
 #: A **1.31**: a lista de espera da agenda -- montada e ordenada pela
 #: recepção e pelo médico, puxada no modal de marcar. Migração só de
 #: expansão.
-VERSION = '1.31'
+#: A **1.32**: o cadastro seguro -- e-mail descartável recusado no
+#: cadastro (lista semanal com aviso quando falha), organização de pessoa
+#: física com CPF, e o e-mail com a justificativa ao encerrar a clínica.
+#: Migrações só de expansão.
+VERSION = '1.32'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a lista de espera'
+CODENAME = 'o cadastro seguro'
 
 
 def version_display():

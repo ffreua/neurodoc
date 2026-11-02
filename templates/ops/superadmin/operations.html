@@ -418,6 +418,67 @@ tela: o campo só aceita gravar. Ligar exige a verificação em verde.
         </div>
     </div>
 
+    {# ------------------------------------------ e-mail descartável #}
+    {% comment %}A lista que recusa e-mail temporário no cadastro (2026-11).
+    Atualiza sozinha aos domingos; a falha chega por e-mail e aparece aqui.
+    Os liberados são o conserto do falso positivo, sem deploy.{% endcomment %}
+    <div class="col-12">
+        <div class="card stretch stretch-full" data-nd-descartaveis-console>
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">E-mail descartável no cadastro</h5>
+                {% if descartaveis.estado and descartaveis.estado.ultimo_erro %}
+                <span class="badge bg-soft-danger text-danger">Última atualização falhou</span>
+                {% elif descartaveis.estado and descartaveis.estado.total %}
+                <span class="badge bg-soft-success text-success">Em uso</span>
+                {% else %}
+                <span class="badge bg-soft-warning text-warning">Lista vazia</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    O cadastro de clínica e o aceite de convite recusam endereço de serviço de e-mail
+                    temporário ou descartável. A lista vem de <code>{{ descartaveis.fonte }}</code> e é
+                    atualizada pelo worker todo <strong>domingo às 3h30</strong>; se a atualização falhar
+                    ou a fonte mudar, a lista anterior continua valendo e os superadministradores recebem
+                    e-mail. Contas que já existem não são afetadas.
+                </p>
+                <div class="row g-3 fs-12 mb-3">
+                    <div class="col-sm-4"><span class="d-block text-muted">Domínios na lista</span>
+                        <strong>{{ descartaveis.estado.total|default:0 }}</strong></div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Atualizada em</span>
+                        <strong>{% if descartaveis.estado.atualizada_em %}{{ descartaveis.estado.atualizada_em|date:"d/m/Y H:i" }}{% else %}nunca{% endif %}</strong></div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Última tentativa</span>
+                        <strong>{% if descartaveis.estado.ultima_tentativa_em %}{{ descartaveis.estado.ultima_tentativa_em|date:"d/m/Y H:i" }}{% else %}—{% endif %}</strong></div>
+                </div>
+                {% if descartaveis.estado.ultimo_erro %}
+                <div class="alert alert-light-danger fade show fs-12" role="alert">
+                    <strong>Motivo da falha:</strong> {{ descartaveis.estado.ultimo_erro }}
+                </div>
+                {% endif %}
+                <form method="post" action="{% url 'superadmin:operations-descartaveis' %}" class="mb-4">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="atualizar">
+                    <button type="submit" class="btn btn-light-primary btn-sm" data-nd-busy>Atualizar agora</button>
+                </form>
+                <form method="post" action="{% url 'superadmin:operations-descartaveis' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="liberados">
+                    <label class="form-label fs-12" for="descartaveis-liberados">
+                        Domínios liberados (um por linha)
+                    </label>
+                    <textarea class="form-control form-control-sm mb-2" id="descartaveis-liberados" name="liberados"
+                              rows="4" placeholder="clinicaexemplo.com.br">{{ descartaveis.estado.liberados|default:"" }}</textarea>
+                    <span class="form-text fs-11 d-block mb-2">
+                        Para o domínio que a lista pública traz por engano — o e-mail corporativo de uma
+                        clínica, por exemplo. Vale na hora, sem deploy. Já liberados em código:
+                        {{ descartaveis.sempre_liberados|join:", " }}.
+                    </span>
+                    <button type="submit" class="btn btn-primary btn-sm" data-nd-busy>Gravar liberados</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
     {# ------------------------------------------------ coleta de lixo #}
     <div class="col-lg-6">
         <div class="card stretch stretch-full">

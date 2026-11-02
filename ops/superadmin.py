@@ -487,6 +487,32 @@ class TenantStatusView(SuperAdminView):
             },
         )
         rotulo = dict(TenantStatus.choices)[estado]
+        if estado == TenantStatus.CLOSED:
+            # O responsável sabe no dia, e por escrito: o motivo vai como
+            # justificativa (`tenancy/encerramento.py`). Fora da transação do
+            # estado — a falha de e-mail não desfaz o encerramento.
+            from tenancy.encerramento import avisar_encerramento
+
+            enviados = avisar_encerramento(tenant)
+            record_audit_event(
+                request.user, tenant, 'tenancy.encerramento_avisado',
+                object_type='tenant', object_id=tenant.id,
+                outcome='success' if enviados else 'failure',
+                integrity_metadata={'emails': enviados},
+            )
+            if enviados:
+                messages.success(
+                    request,
+                    f'{tenant.legal_name}: {rotulo}. A justificativa foi enviada por e-mail a '
+                    f'{enviados} responsável(is).',
+                )
+            else:
+                messages.warning(
+                    request,
+                    f'{tenant.legal_name}: {rotulo}. Nenhum e-mail de encerramento saiu: a '
+                    'organização não tem responsável ativo com e-mail, ou o envio falhou.',
+                )
+            return redirect('superadmin:tenants')
         messages.success(request, f'{tenant.legal_name}: {rotulo}.')
         return redirect('superadmin:tenants')
 
@@ -543,6 +569,7 @@ class OperationsView(SuperAdminView):
             'reserva_modelos': config.ai_reserva_modelos or [],
             'sncr': sncr_resumo(),
             'tiss': tiss_resumo(),
+            'descartaveis': descartaveis_resumo(),
         })
 
 
@@ -978,6 +1005,83 @@ class SncrInstallationView(SuperAdminView):
 
 #: Palavra que se digita para ligar o faturamento TISS na instalação.
 CONFIRMACAO_LIGAR_TISS = 'LIGAR'
+
+
+def descartaveis_resumo():
+    """A lista de e-mail descartável: o estado, sem contar 220 mil linhas."""
+    from catalogs import descartaveis
+    from catalogs.models import ListaDominiosDescartaveis
+
+    estado = ListaDominiosDescartaveis.objects.filter(singleton=True).first()
+    return {
+        'estado': estado,
+        'fonte': descartaveis.FONTE,
+        'url': descartaveis.URL,
+        'sempre_liberados': sorted(descartaveis.SEMPRE_LIBERADOS),
+    }
+
+
+class DescartaveisView(SuperAdminView):
+    """A lista de e-mail descartável: atualizar agora e os domínios liberados.
+
+    Atualizar é **tarefa do worker**, e não chamada daqui: o processo `app`
+    não é quem baixa da internet (CLAUDE.md §2), e a tela não espera os
+    segundos do download. Liberar um domínio é o conserto do falso positivo
+    — o médico cujo domínio corporativo entrou na lista por engano — e entra
+    na trilha com a lista inteira, que não é dado pessoal.
+    """
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from catalogs import descartaveis
+        from catalogs.models import ListaDominiosDescartaveis
+        from catalogs.tasks import sincronizar_dominios_descartaveis
+
+        acao = request.POST.get('acao')
+        if acao == 'atualizar':
+            sincronizar_dominios_descartaveis.delay()
+            record_audit_event(
+                request.user, None, 'ops.descartaveis_atualizacao_pedida',
+                object_type='lista_descartaveis', outcome='success',
+            )
+            messages.success(
+                request,
+                'Atualização pedida ao worker. Leva alguns segundos; recarregue a página para ver o resultado.',
+            )
+            return redirect('superadmin:operations')
+        if acao != 'liberados':
+            raise Http404
+
+        invalidos, dominios = [], []
+        for linha in (request.POST.get('liberados') or '').splitlines():
+            linha = linha.strip().lower().rstrip('.')
+            if not linha:
+                continue
+            if linha.startswith('@'):
+                linha = linha[1:]
+            if descartaveis._DOMINIO_RE.fullmatch(linha):
+                if linha not in dominios:
+                    dominios.append(linha)
+            else:
+                invalidos.append(linha)
+        if invalidos:
+            messages.error(
+                request,
+                'Não são domínios: ' + ', '.join(invalidos[:5]) + '. Use um domínio por linha, '
+                'como clinicaexemplo.com.br. Nada foi alterado.',
+            )
+            return redirect('superadmin:operations')
+        estado = ListaDominiosDescartaveis.carregar()
+        antes = sorted(estado.dominios_liberados())
+        estado.liberados = '\n'.join(dominios)
+        estado.save(update_fields=['liberados', 'updated_at'])
+        record_audit_event(
+            request.user, None, 'ops.descartaveis_liberados_alterados',
+            object_type='lista_descartaveis', object_id=estado.id, outcome='success',
+            integrity_metadata={'antes': antes, 'depois': dominios},
+        )
+        messages.success(request, f'Domínios liberados gravados ({len(dominios)}).')
+        return redirect('superadmin:operations')
 
 
 def tiss_resumo():
