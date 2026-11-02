@@ -46,6 +46,16 @@ aconteceu aqui; a lista de atendimentos mostra o selo "migrado do iClin".
   dia de um atendimento já escrito no NeuroDoc; 2 de paciente sem ficha.
 - 230 pacientes passam a ter consulta nos últimos 180 dias (portal liberado).
 
+## Gravação em produção (2026-11-02, 00:35)
+
+Backup cifrado tirado imediatamente antes (00:34, sucesso). Gravados
+**7.661** atendimentos (22/08/2013 a 01/10/2026), todos finalizados, com o
+hash conferido linha a linha depois; **zero** eventos na outbox e **zero**
+cobranças ligadas a eles; alerta escrito em **431** fichas. Com o histórico
+e as consultas feitas no NeuroDoc desde outubro, **267** pacientes têm
+consulta nos últimos 180 dias. O arquivo foi apagado da VPS e do contêiner
+ao fim.
+
 ## Como rodar
 
 ```bash
