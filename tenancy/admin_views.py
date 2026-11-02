@@ -246,6 +246,30 @@ class MembershipPasswordResetView(OrgAdminView):
         return redirect('tenancy:team')
 
 
+def _atende_em_outra_organizacao(membership):
+    """A pessoa tem vínculo ativo em outra organização?
+
+    Registro profissional (`PhysicianProfile`) e segundo fator são **da
+    conta**, não do vínculo: o que uma clínica muda neles vale em todas as
+    outras da mesma pessoa. Validar o CRM libera assinar e emitir em toda
+    parte, e redefinir o segundo fator derruba as sessões de todas. Até
+    2026-11-02 qualquer responsável fazia isso — inclusive o de uma clínica
+    aberta pelo próprio médico para validar o CRM que outra recusou.
+    Enquanto a validação não for por vínculo, a tela de uma clínica só mexe
+    nisso para quem atende só nela; o resto passa por quem opera a
+    instalação (`manage.py verify_physician`).
+    """
+    return Membership.objects.filter(
+        user_id=membership.user_id, status=MembershipStatus.ACTIVE,
+    ).exclude(tenant_id=membership.tenant_id).exists()
+
+
+MENSAGEM_OUTRA_ORGANIZACAO = (
+    'Esta pessoa também atende em outra organização, e {o_que} é da conta dela — '
+    'a mudança valeria lá também. Peça ao suporte do NeuroDoc.'
+)
+
+
 class MembershipMFAResetView(OrgAdminView):
     def post(self, request, membership_id):
         membership = get_object_or_404(
@@ -254,6 +278,9 @@ class MembershipMFAResetView(OrgAdminView):
         )
         if membership.id == self.membership.id:
             messages.error(request, 'O responsável não pode resetar o próprio MFA por esta tela.')
+            return redirect('tenancy:team')
+        if _atende_em_outra_organizacao(membership):
+            messages.error(request, MENSAGEM_OUTRA_ORGANIZACAO.format(o_que='o segundo fator'))
             return redirect('tenancy:team')
         code = request.POST.get('code', '').strip()
         if not (mfa.verify_totp_token(request.user, code) or mfa.consume_recovery_code(request.user, code)):
@@ -443,6 +470,9 @@ class PhysicianProfileView(OrgAdminView):
                 'Registro profissional só se aplica a quem tem o papel de médico.',
             )
             return redirect('tenancy:team')
+        if _atende_em_outra_organizacao(membership):
+            messages.error(request, MENSAGEM_OUTRA_ORGANIZACAO.format(o_que='o registro profissional'))
+            return redirect('tenancy:team')
 
         profile = PhysicianProfile.objects.filter(user_id=membership.user_id).first()
         # O CRM de antes é lido agora, antes de validar.
@@ -516,6 +546,9 @@ class PhysicianVerificationView(OrgAdminView):
         membership = get_object_or_404(
             Membership, id=membership_id, tenant_id=self.tenant_id,
         )
+        if _atende_em_outra_organizacao(membership):
+            messages.error(request, MENSAGEM_OUTRA_ORGANIZACAO.format(o_que='a validação do CRM'))
+            return redirect('tenancy:team')
         profile = PhysicianProfile.objects.filter(user_id=membership.user_id).first()
         if profile is None:
             messages.error(

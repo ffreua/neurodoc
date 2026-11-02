@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login as auth_login
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views import View
@@ -382,6 +384,17 @@ class OrganizationSignupView(View):
             from catalogs.descartaveis import MENSAGEM_RECUSA
 
             form.add_error('email', MENSAGEM_RECUSA)
+            return render(request, 'onboarding/signup.html', self._contexto(
+                self._invitation_or_none(token), form,
+            ))
+        except (ValidationError, IntegrityError):
+            # O formulário já conferiu documento e e-mail; o que chega aqui
+            # é a corrida (dois envios com o mesmo CNPJ/CPF ao mesmo tempo)
+            # ou uma recusa do modelo que o formulário não antecipa. A
+            # transação do serviço já foi desfeita e o convite não foi
+            # gasto — antes, isto era erro 500.
+            form.add_error(None, 'Não foi possível concluir o cadastro com estes dados. Confira o '
+                                 'CNPJ ou CPF e o e-mail e tente de novo; se persistir, fale conosco.')
             return render(request, 'onboarding/signup.html', self._contexto(
                 self._invitation_or_none(token), form,
             ))

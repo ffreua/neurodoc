@@ -197,6 +197,19 @@ try:
             d.refresh_from_db()
             conferir('e o POST não grava', d.billing_mode == 'insurance')
 
+        print('=== 7. Trocar o paciente desfaz a escolha (revisão de 2026-11-02) ===')
+        # O convênio escolhido é do paciente anterior: mantê-lo fazia o
+        # `full_clean` recusar e a troca dar erro 500.
+        d.refresh_from_db()
+        resp = cli.post(f'/app/scheduling/{d.id}/trocar-paciente/', {'patient_id': str(paciente2.id), 'patient_search': 'x',
+                                                                     'reason': 'ligou trocando'})
+        d.refresh_from_db()
+        conferir('troca com convênio escolhido não dá erro', resp.status_code == 302 and d.patient_id == paciente2.id)
+        conferir('a forma de cobrança volta à regra de sempre', d.billing_mode == '' and d.coverage_id is None)
+        conferir('a trilha diz que a escolha foi desfeita', AuditEvent.objects.filter(
+            action='scheduling.appointment_patient_changed', object_id=d.id,
+            integrity_metadata__forma_de_cobranca_desfeita=True).exists())
+
         raise Desfazer
 except Desfazer:
     pass

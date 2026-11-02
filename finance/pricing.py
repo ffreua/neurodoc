@@ -125,6 +125,45 @@ def resolve_price(tenant, physician, payment_category, at, plan=None, procedure=
     return match
 
 
+def resolve_price_do_procedimento(tenant, physician, payment_category, at, codigo, plan=None):
+    """A regra de honorário de um **procedimento** — o exame da agenda de
+    exames —, e só dela.
+
+    `resolve_price` desce até as regras sem procedimento, e é isso que ela
+    deve fazer para a consulta. Para o exame, essas regras **são as da
+    consulta**: um EEG sem honorário próprio saía cobrado (e repassado)
+    pelo preço da consulta particular do executante, e a guia SP/SADT ia à
+    operadora com esse valor (revisão de 2026-11-02). Aqui o procedimento
+    é obrigatório.
+
+    O casamento é pelo **código** TUSS, e não pelo id do `ProcedureCode`:
+    a sincronização semanal troca a release ativa, os ids mudam, e uma
+    regra cadastrada antes deixaria de casar para sempre — que é como
+    `tiss.guias.preco_contratado` já faz.
+    """
+    if not codigo:
+        raise NoApplicableFeeSchedule('Exame sem código TUSS: não há regra de procedimento a aplicar.')
+    combinacoes = [
+        {'physician': physician, 'plan': plan},
+        {'physician': None, 'plan': plan},
+        {'physician': physician, 'plan': None},
+        {'physician': None, 'plan': None},
+    ]
+    vistas = set()
+    for c in combinacoes:
+        chave = (getattr(c['physician'], 'id', None), getattr(c['plan'], 'id', None))
+        if chave in vistas:
+            continue
+        vistas.add(chave)
+        regra = FeeSchedule.objects.filter(
+            tenant=tenant, payment_category=payment_category, effective_from__lte=at,
+            procedure__code=codigo, appointment_type=None, **c,
+        ).filter(Q(effective_to__isnull=True) | Q(effective_to__gte=at)).order_by('-effective_from').first()
+        if regra:
+            return regra
+    raise NoApplicableFeeSchedule(f'Nenhuma regra de honorário do procedimento {codigo} em {at}.')
+
+
 def snapshot_from_fee_schedule(fee_schedule):
     return {
         'fee_schedule_id': str(fee_schedule.id),

@@ -1,7 +1,7 @@
 ---
-last_mapped: 2026-10-24T17:08:50Z
-total_files: 901
-total_tokens: 1583504
+last_mapped: 2026-11-02T19:55:51Z
+total_files: 1149
+total_tokens: 2195784
 ---
 
 # Mapa do código
@@ -9,7 +9,12 @@ total_tokens: 1583504
 > Gerado pela skill Cartographer em 2026-10-18 (versão 1.15, commit `390e3dd`);
 > atualizado em 2026-10-24 (versão 1.24.2, commit `ee45d07`) só nos módulos
 > que mudaram — o app `sncr`, a reserva de IA, o laudo pelo portal, a
-> Portaria 344, a retenção do chat da equipe e a idempotência da entrega.
+> Portaria 344, a retenção do chat da equipe e a idempotência da entrega;
+> e de novo em 2026-11-02 (versão 1.32.1, revisão do código), também só no
+> que mudou: os apps `tiss` e `agenda_exames`, o SNCR em produção, a lista
+> de espera e a forma de cobrança, as finanças do exame, a migração do
+> iClin, o e-mail descartável, as operadoras da ANS, os preços, o CPF e o
+> encerramento. Três leitores nessa rodada.
 > Onze leitores em paralelo, cada um com um pedaço do repositório; este
 > arquivo é a síntese. É **mapa**, não especificação: onde ele e o código
 > divergirem, vale o código, e onde divergir de `CLAUDE.md`, vale o
@@ -324,9 +329,10 @@ trilha.
   trocar o PDF sem a constante derruba a geração).
 - Console: `operacao/sncr/` (ligar exige CNPJ, `LIGAR` e motivo; ambiente só
   muda desligado). Menu só com `nd_sncr_ativo`.
-- `documents/sncr_transicao.py`: regra transitória — a RCE eletrônica não é
-  assinada digitalmente a partir de 31/10/2026 (dia de Brasília);
-  `MedicalDocumentToPaperView` refaz como impressa sem gastar número.
+- ~~`documents/sncr_transicao.py`~~: substituído na 1.29 por
+  `documents/rce_impressa.py` (ver a seção "sncr — o que mudou desde a 1.22"
+  abaixo); `MedicalDocumentToPaperView` refaz a eletrônica como impressa sem
+  gastar número — só o autor, desde a 1.32.1.
 
 ### modelos (novo, 1.28)
 - **Modelos de documento**: pedido de exames (`exam_request`, `PEX-`), solicitação
@@ -347,6 +353,228 @@ trilha.
 - Na Conduta: `templates/modelos/_na_conduta.html` (estruturado e texto livre),
   com `data-nd-preservar-atendimento`, que `clinical/atendimento.js` usa para
   gravar o texto não salvo antes de sair.
+
+### tiss (novo, 1.30)
+Faturamento de convênio TISS (ANS): guia de Consulta e SP/SADT, até o lote
+XML. Nasce **desligado** e não fala com operadora. Rotas em `/app/tiss/`;
+roteiros `check_tiss_{liberacao,versoes,guias,lotes}`; docs em `docs/tiss/`.
+- **Modelos** (todos `TenantModel`, FK composta nas migrações):
+  `Configuracao` (singleton, `ativo` nasce `False`); `Prestador` (CNPJ
+  alfanumérico, CNES vira `9999999` no snapshot quando vazio);
+  `ProfissionalTiss` (`membership` nulo = externo); `Credenciamento`
+  prestador × operadora com `versao`, `ciclo`, `limite_guias_por_lote` e
+  `exporta_para_cobranca` (versão vigente ou aceite declarado); `Sequencia`
+  (`guia`/`lote`, sempre sob `select_for_update`, nunca `MAX+1`); `Guia`
+  (`rascunho → fechada → substituida`, ou `cancelada`; `snapshot`, `versao`,
+  `data_referencia`, `revisa`; **sem campo de CID**); `ItemGuia`
+  (`recebivel` PROTECT, UNIQUE parcial: um recebível em no máximo um item);
+  `Lote` (`gerando → pronto | falha | cancelado`; envio e resultado são
+  campos, não estados; 1–100 guias por Check); `LoteGuia` (UNIQUE parcial:
+  guia em no máximo um lote ativo).
+- `guias.py`: `criar_guia`, `criar_guia_do_exame`, `gravar_item`,
+  `remover_item`, `pendencias` (`Pendencia(campo, mensagem, impede, quem)`),
+  `fechar`, `cancelar`, `abrir_revisao`, `registrar_indicacao`,
+  `preco_contratado` (honorário de convênio casado pelo **código** TUSS),
+  `conferir_codigo` (vigência na data do serviço). Erro: `GuiaRecusada`.
+- `lotes.py`: `elegiveis`, `motivo_de_recusa`, `planejar` (`Plano` com
+  `assinatura`), `criar_lotes`, `gerar_arquivo` (worker, idempotente),
+  `ler_arquivo` (confere SHA-256), `registrar_envio`/`registrar_resultado`,
+  `cancelar_lote`, `liberar_guia`. Erro: `LoteRecusado`.
+- `xml.py` escreve `ENVIO_LOTE_GUIAS` **só do snapshot** (`mensagem_lote`,
+  `hash_tiss`); `versoes.py` tem as 7 versões (3.04.00 a 4.03.00), confere
+  o pacote XSD contra `tiss/xsd/MANIFESTO.json` e valida pelos bytes, sem
+  rede nem DTD; `impressao.py` gera o PDF no modelo oficial (do snapshot se
+  fechada); `terminologia.py` são rótulos gerados, só para exibição.
+- **As três chaves:** plano (`tenancy.plans.has_tiss`) e
+  `Tenant.tiss_liberado` viram as capacidades `TISS_*` em
+  `tenancy/context.py`; a terceira, `Configuracao.ativo`, é conferida em
+  `TissView.dispatch` (404), nas tarefas (`lotes._ainda_autorizado` refaz
+  as três no worker) e no menu (`nd_tiss_ativo`). Segundo fator de novo após
+  **600 s** sem uso (`tiss_ultimo_uso` na sessão), só nesta área.
+- **Financeiro:** a guia **nunca cria** `Receivable`; liga o que existe
+  (`ItemGuia.recebivel`). Lote, envio, protocolo e retorno nunca tocam em
+  cobrança, pagamento ou ajuste.
+- **Fluxo do lote:** fila → seleção → `planejar` (credenciamento × tipo ×
+  versão, até `min(limite, 100)`) → confirmação com a `assinatura` do plano
+  exibido → `criar_lotes` (trava, número, `on_commit` enfileira) → worker
+  grava `.parcial` + `os.replace`, modo 0600, em `MEDIA_ROOT/<tenant>/tiss/`
+  → download com SHA-256 conferido → envio e retorno registrados à mão.
+- **Pegadinhas:** XML e impressão leem o `snapshot`, nunca o cadastro; a 3.x
+  leva nomes que a 4.x não leva e não tem `regimeAtendimento`; exame
+  ambulatorial é `05` até a 4.00.01 e `23` depois; letra no CNPJ só na
+  4.03.00 (`tiss.validators.cnpj_valido`, não `base.validators`); decimais
+  8,2 até a 4.01.00 e 10,2 depois; hash MD5 do texto de todas as tags em
+  ISO-8859-1, **não confirmado por operadora real**. Desde 2026-11-02: um
+  horário tem no máximo uma guia de Consulta viva (ignora `cancelada` e
+  `substituida`), horário ou exame particular não gera guia, cobrança que
+  não é de convênio não se vincula, revisão não abre nem fecha com a
+  original em lote (`_original_fora_de_lote`), e cancelar a revisão de uma
+  original ainda fechada devolve a cobrança a ela.
+
+### agenda_exames (novo, 1.30)
+- Agenda **por recurso** (EEG, ENMG, PSG) em `/app/exames/`. **Não é
+  `Appointment`**: a agenda médica exige médico e é lida em ~200 pontos; um
+  médico fictício consumiria vaga do plano. Entidades paralelas, com a mesma
+  garantia de banco.
+- Modelos: `Recurso` (`duracao_padrao` 5–1440 min, `intervalo`, TUSS padrão
+  em texto); `Janela` (semanal; `fim <= inicio` atravessa a meia-noite);
+  `Bloqueio` (só Check de ordem no banco); `Reserva` (instantes, a PSG é uma
+  linha só nos dois dias; `ocupacao` = `[inicio, fim + intervalo)` com
+  `ExclusionConstraint` por recurso para os estados que ocupam).
+- `services.py`: `reservar`, `remarcar`, `mudar_estado`, `definir_cobranca`,
+  `criar_bloqueio`, `realizar` → `(reserva, cobranca|None)`,
+  `horarios_livres`. Corrida: o banco decide, `IntegrityError` vira
+  "horário acabou de ser ocupado".
+- Capacidades `EXAMES_AGENDAR` / `EXAMES_CONFIGURAR`, do contrato do TISS,
+  **sem** a chave da instalação e sem os 10 minutos. Lembrete na véspera por
+  `OutboxEvent` versionado (`versao_lembrete`), entregue por
+  `communications.services.deliver_exam_reminder` (`Delivery.reserva_exame`).
+- **Pegadinhas:** encaixe fura também o bloqueio; criar bloqueio não cancela
+  reserva; mudar `intervalo` não recalcula `ocupacao`; realizar antes do
+  `inicio` é recusado; repetir `realizar` devolve a mesma cobrança;
+  `Reserva.cobranca` fala `particular`/`convenio` e `Appointment.billing_mode`
+  fala `private`/`insurance`; a vigência do convênio é conferida aqui e não
+  na consulta.
+
+### finance (1.30 e revisão de 2026-11-02)
+- `_active_coverage`: determinística — a ativa da ficha, depois `starts_on`
+  mais recente, depois `created_at` (antes era a ordem física do banco).
+- `_price_for`: **a escolha do agendamento vence** (`billing_mode`
+  `private` ignora o convênio vigente; `insurance` usa o escolhido; vazio é a
+  regra antiga). Cobrança criada não se recalcula: o `fee_snapshot` é a
+  verdade.
+- `create_receivable_for_exam`: terceira origem (`reserva_exame`,
+  `ChargeKind.PROCEDURE`, uma por reserva pelo banco), idempotente; sem regra
+  aplicável, nada é inventado (`finance.receivable_pricing_missing`).
+- `resolve_price_do_procedimento` (2026-11-02): o exame só aceita regra **do
+  próprio procedimento**, casada pelo **código** TUSS (a release troca e os
+  ids mudam), com `appointment_type=None`; ordem médico+plano, plano, médico,
+  geral — a precedência que `resolve_price` já dava às regras com
+  procedimento. Antes o exame descia até a regra da consulta.
+- `resolve_price`: 7 combinações do mais específico ao mais geral; o tipo de
+  atendimento é a dimensão **menos** significativa.
+
+### scheduling — lista de espera e forma de cobrança (1.30–1.31)
+- `PacienteEmEspera`: médico nulo = qualquer médico; `posicao` 1..n só entre
+  as que aguardam, **sem UNIQUE** (a renumeração violaria no meio do
+  `UPDATE`); UNIQUE parcial: um paciente aguardando uma vez.
+- `espera.py`: `_travar` (`pg_advisory_xact_lock` por clínica) em toda
+  mudança de ordem; `incluir`, `mover_para`, `mover_vizinho` (o vizinho
+  **visível** no recorte do médico), `retirar`, `marcar_agendada`,
+  `opcoes_do_modal` (até 100).
+- Puxar: `QuickBookingView._puxar_da_espera` numa transação só
+  (`para_puxar` + `reserve_from_grid` + `marcar_agendada`); qualquer recusa
+  desfaz tudo. Sem `espera_id`, o caminho antigo do modal é o de sempre, e
+  marcar pela busca não encerra a espera (só avisa).
+- `Appointment.billing_mode` + `coverage` (Check no banco), escolhidos no
+  painel do modal **até o check-in**; `set_billing_mode` não mexe em
+  `row_version`. `change_appointment_patient` **desfaz** a forma de
+  cobrança (2026-11-02: o convênio era do paciente anterior e a troca dava
+  erro 500).
+- `agenda.js`: a caixa "Puxar da lista de espera" é recarregada a cada
+  abertura; digitar o nome do pré-cadastro desfaz o paciente escolhido (da
+  espera ou da busca); a espera pedida por "Marcar na agenda" fica em
+  `sessionStorage` e só vem pré-selecionada com o aviso à vista.
+
+### sncr — o que mudou desde a 1.22 (em produção desde a 1.29)
+- Ligado em produção em 2026-10-29 (`ambiente=producao`, CNPJ da ProntDoc).
+  Número real: `AAMM.T-UF.NNNNNNNNN`. `nd_sncr_ativo` acende o menu e o botão
+  "Receita controlada (SNCR)" da Conduta.
+- `PedirView.post` responde com `templates/sncr/entrar.html` (link Gov.br e
+  `location.assign`), **nunca** com `redirect`: a CSP `form-action 'self'`
+  vale em cada salto de navegação nascida de formulário, e o cliente de teste
+  do Django não aplica CSP — nenhum roteiro pegaria a regressão.
+- `cliente.py`: 204 vira `Recusado` (nada entregue), não `Incerto`.
+  `numeracao.enumerar` aceita faixa com menos números que a `quantidade`,
+  nunca com mais. `fluxo.pedidos_parados` também expira `aguardando_login`;
+  expirado não gasta a cota de 3 pedidos/mês.
+- Formulário da receita: autocomplete da CMED (`static/catalogs/medicamentos.js`)
+  preenche a **DCB** (é o que a Portaria 344 classifica) e escreve dose e
+  forma **dentro de `[data-nd-med-grupo]`**, nunca por id;
+  `MedicationProduct.forma_farmaceutica()` lê as abreviaturas da CMED.
+  **Uso contínuo** acrescenta " — uso contínuo" à quantidade, não a
+  substitui (Portaria 344, art. 52 §1º).
+- `documents/rce_impressa.py` **substituiu** `documents/sncr_transicao.py`
+  (módulo, templatetag e aviso removidos): a RCE do leiaute da clínica não é
+  assinada digitalmente desde 31/10/2026 (dia de Brasília), recusada em
+  `issuance._sign_and_issue` antes da sessão de assinatura.
+
+### clinical — migração do histórico do iClin (2026-11)
+- `clinical/importacao.py` + `manage.py import_atendimentos_xml --clinica
+  --medico --arquivo --ate [--gravar]`; **ensaio por padrão**, `--ate`
+  obrigatório. Em produção (2026-11-02): 7.661 atendimentos.
+- `Encounter.legacy_id` (`iclin:<nº>`, UNIQUE parcial por clínica) torna a
+  rodada repetível; `Encounter.migrado` troca "finalizado por…" por
+  "Histórico migrado do sistema anterior (iClin)" e põe o selo na linha do
+  tempo e na ficha.
+- **Não passa por `finalize_encounter`**: `bulk_create` já `FINALIZED`,
+  `kind=FREE_TEXT`, `content_hash` calculado à mão — pelo caminho normal
+  sairiam 7 mil cobranças e 7 mil resumos de IA. Uma entrada de trilha por
+  rodada (`clinical.encounters_imported`, com o SHA-256 do arquivo).
+- Seções em lista fechada: `Diagnósticos` → `impressions`; `Prescrição` e
+  `Condutas` → `plan_text` (o que a cópia da consulta anterior leva); o resto
+  no `free_text` com os títulos. Paciente casado por `Patient.legacy_id` e
+  nome, ou nome e nascimento com uma ficha só; o dia já escrito no NeuroDoc
+  é pulado; o alerta do iClin vai uma vez para `administrative_notes`.
+- **Pegadinhas:** `finalized_at` é a hora da migração (a data da consulta é
+  `occurred_at`); o atendimento migrado conta como visita na janela de 180
+  dias do portal; o arquivo nunca entra no repositório. Pendências na
+  revisão de 2026-11-02 (a trava de privacidade da IA em "nega
+  consanguinidade", o corte do contexto do chat).
+
+### catalogs — e-mail descartável e operadoras da ANS (1.30–1.32)
+- `catalogs/descartaveis.py` (1.32): `e_descartavel`,
+  `validar_email_de_cadastro`, `ler`, `gravar` (pela diferença),
+  `sincronizar` (**nunca levanta**), `avisar_falha`. Modelos
+  `DominioDescartavel` (PK = domínio) e `ListaDominiosDescartaveis`
+  (singleton com `total`, `ultimo_erro`, `liberados`).
+- Ordem: `SEMPRE_LIBERADOS` em código (a lista pública trazia `bol.com.br`)
+  > liberados no console > lista. Comparação por **sufixo**. Lista vazia
+  (instalação nova) responde "não é descartável".
+- `ler` só aceita a lista nova com UTF-8, até 0,5% de linhas inválidas, pelo
+  menos 50 mil domínios, queda de no máximo 30%, nenhuma sentinela
+  (`gmail.com`, `com.br`) e até 40 MB; qualquer falha mantém a anterior e
+  manda e-mail aos superusuários.
+- Disparo: tarefa de domingo às 03h30 (antes da TUSS), `manage.py
+  sincronizar_descartaveis` e o botão do console (só enfileira — o `app`
+  nunca baixa). A recusa vale no cadastro de clínica, no aceite de convite e
+  no convite de equipe, com o serviço como segunda barreira; **não** vale
+  para conta existente. Trilha com o domínio, nunca o endereço.
+- `OperadoraAns` (global, 1.30): `registro_ans` com seis dígitos e zero à
+  esquerda; `import_operadoras_ans` e a tarefa de segunda às 05h, no worker;
+  inativa, nunca apaga; abaixo de 500 linhas não grava nada. O convênio
+  continua sendo `patients.Insurer`: o catálogo só sugere.
+
+### tenancy — preços, CPF e encerramento (1.30–1.32.1)
+- `plans.py`: `price_monthly` é o preço **cheio**; `Periodicidade` (anual
+  −20% de lançamento, semestral −5%, trimestral cheio);
+  `preco_na_periodicidade` arredonda uma vez, no mensal. A periodicidade vai
+  no convite e fica no aceite (`tenancy/0019`).
+  `PROMOCAO_INICIO_DE_CARREIRA` (50% do cheio, só no anual, no lugar dos 20%)
+  é **só vitrine**: convite e aceite não a registram.
+- `Tenant.cpf` (`0020`; `0021` dá `db_default=''`): CNPJ **ou** CPF, com
+  UNIQUE parcial por coluna e o Check `tenant_cnpj_ou_cpf`. Use
+  `pessoa_fisica`, `documento_rotulo`, `documento_formatado`. O cadastro tem
+  um campo só, `documento` (11 dígitos = CPF, 14 = CNPJ).
+  `accept_platform_invitation(..., documento, ...)` é atômico; a view trata
+  `ValidationError` e `IntegrityError` (corrida). `_unique_slug` tira o
+  hífen da ponta depois do corte em 55.
+- `tenancy/encerramento.py::avisar_encerramento` (1.32): depois de gravar
+  `CLOSED`, e-mail a cada responsável ativo, pelo remetente da instalação, com
+  o motivo como escrito e o prazo de 90 dias; a falha não desfaz o
+  encerramento. O campo do motivo nasce **em branco** no console (1.32.1).
+- `admin_views._atende_em_outra_organizacao` (1.32.1): registro profissional
+  e segundo fator são da **conta**; a tela de uma clínica não os altera para
+  quem atende em outra. Caminho: `manage.py verify_physician`.
+
+### documents — rascunho do portal e autoria (1.32.1)
+- `request_views.py::_draft`: o rascunho do pedido do portal só pende de
+  atendimento **de hoje** escrito no NeuroDoc; senão nasce sem atendimento e
+  o PDF sai com a data da emissão. Pegadinha: o PDF imprime a data do
+  atendimento a que o documento pende (decisão aberta para os demais
+  caminhos).
+- Emitir em papel e refazer como impressa conferem a **autoria**, como
+  revisar e descartar (`check_autoria_e_conta`).
 
 ### Outras mudanças desde a 1.15
 - **`documents/portal_exames.py`** (1.16): o paciente manda laudo em PDF pelo
@@ -545,4 +773,9 @@ sequenceDiagram
 | **Página pública indexável** | `base/seo.PAGINAS`; `check_seo` |
 | **Variável de ambiente nova** | `.env.example`, `ops/make_runtime.py` (`COMMON_KEYS` ou `OPTIONAL_KEYS`), `ops/local_compose.py` |
 | **Mudança de agenda** | `scheduling/availability.py` (recortes) e `services.py` (escrita com lock); `check_agenda`, `check_mes_e_estatisticas`, `check_incluir_horario`, `check_excluir_horario`, `check_bloquear_horario` |
+| **Guia, lote ou versão do TISS** | `tiss/guias.py`, `tiss/lotes.py`, `tiss/xml.py`, `tiss/versoes.py` (XSD conferido pelo `MANIFESTO.json`); `check_tiss_guias`, `check_tiss_lotes`, `check_tiss_versoes`, `check_tiss_liberacao` |
+| **Agenda de exame ou cobrança do exame** | `agenda_exames/services.py`, `finance/receivables.py::create_receivable_for_exam`, `finance/pricing.py::resolve_price_do_procedimento`; `check_agenda_exames` |
+| **Lista de espera ou forma de cobrança no modal** | `scheduling/espera.py`, `scheduling/views.py` (`_puxar_da_espera`), `static/scheduling/agenda.js`; `check_lista_de_espera`, `check_forma_de_cobranca` |
+| **Cadastro de organização (documento, e-mail)** | `base/forms.py::OrganizationSignupForm`, `tenancy/services.py::accept_platform_invitation`, `catalogs/descartaveis.py`; `check_cadastro_seguro` |
+| **Migração de outro sistema** | cadastro: `patients/importacao.py`; atendimentos: `clinical/importacao.py` (nunca por `finalize_encounter`); `check_importacao`, `check_migracao_atendimentos` |
 | **Deploy, backup ou restauração** | `ops/deploy.py`, `ops/backup.py`, `ops/restore.py`; `docs/operations/` |

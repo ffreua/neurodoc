@@ -24,7 +24,12 @@ class EmailAlreadyRegistered(Exception):
 def _unique_slug(base_text):
     from .models import RESERVED_SLUGS
 
-    base = slugify(base_text)[:55] or 'clinica'
+    # O corte em 55 pode cair logo depois de um hífen ("...-de-tal-"), e
+    # `SLUG_RE` recusa hífen nas pontas: o `full_clean` do cadastro subia
+    # com erro 500 para razão social longa sem nome fantasia — o caso
+    # típico do médico pessoa física, que usa o nome completo (revisão de
+    # 2026-11-02).
+    base = slugify(base_text)[:55].strip('-') or 'clinica'
     candidate = base
     suffix = 1
     while Tenant.objects.filter(slug=candidate).exists() or candidate in RESERVED_SLUGS:

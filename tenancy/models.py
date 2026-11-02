@@ -75,7 +75,11 @@ class Tenant(TimestampedModel):
     # CNPJ e **não** imprime o CPF do médico. O banco garante que há
     # exatamente um dos dois e que nenhum se repete (`Meta.constraints`).
     cnpj = models.CharField(max_length=14, blank=True)
-    cpf = models.CharField(max_length=11, blank=True)
+    # `db_default` e não só o padrão do Python: com a coluna NOT NULL sem
+    # padrão no banco, o código da 1.31 — o da réplica antiga durante a
+    # publicação, ou o de um rollback — fazia INSERT sem `cpf` e todo
+    # cadastro novo dava erro 500 (revisão de 2026-11-02, migração 0021).
+    cpf = models.CharField(max_length=11, blank=True, default='', db_default='')
     slug = models.SlugField(max_length=63, unique=True)
     status = models.CharField(max_length=40, choices=TenantStatus.choices, default=TenantStatus.ACTIVE)
 

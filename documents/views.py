@@ -449,6 +449,13 @@ class MedicalDocumentIssueOnPaperView(ClinicalDocumentView):
 
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
+        # Só o autor, como revisar e descartar (revisão de 2026-11-02): a
+        # tela só desenhava o botão para ele, mas a rota aceitava qualquer
+        # médico da clínica — que numerava, em papel e com o nome e o CRM
+        # de outro, o rascunho alheio.
+        physician_membership = _own_doctor_membership_or_403(request)
+        if physician_membership is None or physician_membership.id != document.physician_id:
+            return HttpResponseForbidden('Só o médico que escreveu o documento pode emiti-lo.')
         try:
             issuance.issue_on_paper(document, request.user.id)
         except ValueError as exc:
@@ -473,6 +480,9 @@ class MedicalDocumentToPaperView(ClinicalDocumentView):
 
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
+        physician_membership = _own_doctor_membership_or_403(request)
+        if physician_membership is None or physician_membership.id != document.physician_id:
+            return HttpResponseForbidden('Só o médico que escreveu a receita pode refazê-la como impressa.')
         try:
             novo = issuance.converter_para_impressa(document, request.user.id)
         except ValueError as exc:

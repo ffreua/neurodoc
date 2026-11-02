@@ -135,9 +135,18 @@
                                 </div>
                                 <div class="col-md-7">
                                     <label class="form-label fs-11" for="status-note-{{ row.obj.id }}">Motivo <span class="text-danger">*</span></label>
+                                    {% comment %}Sempre em branco: ao encerrar, o motivo vai por
+                                    e-mail ao responsável como justificativa (1.32). Vir preenchido
+                                    com o da mudança anterior — muitas vezes uma nota interna —
+                                    desarmava o `required` e mandava essa nota ao cliente com um
+                                    clique em Aplicar (revisão de 2026-11-02). O anterior fica à
+                                    vista, abaixo, só para leitura.{% endcomment %}
                                     <input class="form-control form-control-sm" name="status_note" id="status-note-{{ row.obj.id }}" required
-                                           value="{{ row.obj.status_note }}"
+                                           value="" maxlength="255"
                                            placeholder="Ex.: fatura de 08/2026 em aberto há 40 dias">
+                                    {% if row.obj.status_note %}
+                                    <p class="fs-11 text-muted mb-0 mt-1">Motivo da mudança anterior: {{ row.obj.status_note }}</p>
+                                    {% endif %}
                                 </div>
                                 <div class="col-md-2">
                                     <button class="btn btn-sm btn-primary w-100" type="submit" data-nd-busy>

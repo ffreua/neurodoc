@@ -328,6 +328,14 @@ def change_appointment_patient(context, appointment, new_patient, reason, actor_
         )
     previous = appointment.patient
     appointment.patient = new_patient
+    # A forma de cobrança (1.30) foi escolhida para o paciente anterior — o
+    # convênio escolhido é dele, e `Appointment.clean` recusa convênio de
+    # outro paciente. Mantê-la dava erro 500 na troca (revisão de
+    # 2026-11-02); o novo paciente volta à regra de sempre até alguém
+    # escolher de novo no modal.
+    forma_desfeita = bool(appointment.billing_mode or appointment.coverage_id)
+    appointment.billing_mode = ''
+    appointment.coverage = None
     appointment.row_version += 1
     appointment.full_clean()
     appointment.save()
@@ -336,9 +344,10 @@ def change_appointment_patient(context, appointment, new_patient, reason, actor_
         object_type='appointment', object_id=appointment.id, outcome='success',
         integrity_metadata={
             'previous_patient_id': str(previous.id), 'new_patient_id': str(new_patient.id),
-            'reason': reason[:255],
+            'reason': reason[:255], 'forma_de_cobranca_desfeita': forma_desfeita,
         },
     )
+    appointment.forma_de_cobranca_desfeita = forma_desfeita
     invalidate_stale_reminders(appointment)
     schedule_reminders(appointment)
     return appointment

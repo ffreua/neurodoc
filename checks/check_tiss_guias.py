@@ -52,7 +52,7 @@ from tenancy.plans import PlanCode
 from tiss import guias
 from tiss.impressao import pdf_da_guia
 from tiss.models import (
-    Configuracao, Credenciamento, EstadoGuia, Guia, ItemGuia, Prestador, ProfissionalTiss, TipoGuia,
+    Configuracao, Credenciamento, EstadoGuia, Guia, ItemGuia, Lote, LoteGuia, Prestador, ProfissionalTiss, TipoGuia,
 )
 
 falhas = []
@@ -196,7 +196,15 @@ try:
             conferir('guia fechada não aceita item', True)
 
         print('=== 3. A mesma cobrança não entra em duas guias ===')
-        g2 = guias.criar_guia(ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA, appointment=appt)
+        # Desde 2026-11-02 o horário tem no máximo uma guia de Consulta viva
+        # (dois cliques criavam duas); a segunda, sem horário, serve para
+        # conferir a restrição do banco sobre o recebível.
+        try:
+            guias.criar_guia(ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA, appointment=appt)
+            conferir('segunda guia de Consulta do mesmo horário recusada', False)
+        except guias.GuiaRecusada:
+            conferir('segunda guia de Consulta do mesmo horário recusada', True)
+        g2 = guias.criar_guia(ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA)
         conferir('a segunda guia não vincula a cobrança já faturada', not g2.itens.exclude(recebivel=None).exists())
         try:
             with transaction.atomic():
@@ -216,6 +224,74 @@ try:
         g.refresh_from_db()
         conferir('a original fica substituída, com o snapshot intacto',
                  g.estado == EstadoGuia.SUBSTITUIDA and g.snapshot == snap)
+
+        print('=== 4-B. A mesma consulta nunca em duas guias faturáveis (revisão de 2026-11-02) ===')
+
+        def guia_fechada(horas_atras):
+            ini = timezone.now().replace(microsecond=0) - timedelta(hours=horas_atras)
+            ap = agenda.reserve_appointment(ctx_sec, paciente, medico, ini, ini + timedelta(minutes=30), TIPO,
+                                            is_overbook=True, override_reason='roteiro guias', override_by=medico)
+            agenda.set_billing_mode(ctx_sec, ap, BillingMode.INSURANCE, cobertura.id, secretaria.user_id)
+            agenda.check_in(ap, secretaria.user_id)
+            cob = Receivable.objects.get(appointment=ap)
+            gg = guias.criar_guia(ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA, appointment=ap)
+            guias.gravar_item(ctx_sec, secretaria.user, gg, {'data_execucao': ini.date(), 'codigo': '10101012',
+                                                              'tabela': '22'})
+            Guia.objects.filter(id=gg.id).update(tipo_consulta='1')
+            gg.refresh_from_db()
+            guias.fechar(ctx_sec, secretaria.user, gg)
+            gg.refresh_from_db()
+            return ap, cob, gg
+
+        def em_lote(gg, numero):
+            lote = Lote.objects.create(tenant=clinica, numero=numero, credenciamento=cred, tipo=TipoGuia.CONSULTA,
+                                       versao='4.03.00', transacao_em=timezone.now(), quantidade=1)
+            return LoteGuia.objects.create(tenant=clinica, lote=lote, guia=gg, ativo=True)
+
+        def recusou(funcao, *args):
+            try:
+                funcao(*args)
+                return False
+            except guias.GuiaRecusada:
+                return True
+
+        ap3, cob3, g3 = guia_fechada(3)
+        em_lote(g3, '9001')
+        conferir('não abre revisão de guia que está em lote ativo',
+                 recusou(guias.abrir_revisao, ctx_sec, secretaria.user, g3)
+                 and not Guia.objects.filter(revisa=g3).exists())
+
+        ap4, cob4, g4 = guia_fechada(4)
+        rev4 = guias.abrir_revisao(ctx_sec, secretaria.user, g4)
+        participacao = em_lote(g4, '9002')
+        conferir('não fecha a revisão com a original entrando num lote',
+                 recusou(guias.fechar, ctx_sec, secretaria.user, Guia.objects.get(id=rev4.id))
+                 and Guia.objects.get(id=g4.id).estado == EstadoGuia.FECHADA)
+        LoteGuia.objects.filter(id=participacao.id).update(ativo=False)
+        guias.cancelar(ctx_sec, secretaria.user, Guia.objects.get(id=rev4.id), 'desisti da correção')
+        conferir('revisão cancelada devolve a cobrança à original',
+                 Guia.objects.get(id=g4.id).itens.filter(recebivel=cob4).exists()
+                 and not Guia.objects.get(id=rev4.id).itens.exclude(recebivel=None).exists())
+        conferir('e o horário não ganha segunda guia',
+                 recusou(guias.criar_guia, ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA, ap4))
+
+        ini5 = timezone.now().replace(microsecond=0) - timedelta(hours=5)
+        ap5 = agenda.reserve_appointment(ctx_sec, paciente, medico, ini5, ini5 + timedelta(minutes=30), TIPO,
+                                         is_overbook=True, override_reason='roteiro guias', override_by=medico)
+        agenda.set_billing_mode(ctx_sec, ap5, BillingMode.PRIVATE, None, secretaria.user_id)
+        conferir('horário particular não gera guia de Consulta',
+                 recusou(guias.criar_guia, ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA, ap5)
+                 and not Guia.objects.filter(appointment=ap5).exists())
+
+        ini6 = timezone.now().replace(microsecond=0) - timedelta(hours=6)
+        ap6 = agenda.reserve_appointment(ctx_sec, paciente, medico, ini6, ini6 + timedelta(minutes=30), TIPO,
+                                         is_overbook=True, override_reason='roteiro guias', override_by=medico)
+        agenda.set_billing_mode(ctx_sec, ap6, BillingMode.INSURANCE, cobertura.id, secretaria.user_id)
+        agenda.check_in(ap6, secretaria.user_id)
+        cob6 = Receivable.objects.get(appointment=ap6)
+        Receivable.objects.filter(id=cob6.id).update(fee_snapshot=dict(cob6.fee_snapshot, payment_category='private'))
+        g6 = guias.criar_guia(ctx_sec, secretaria.user, paciente, TipoGuia.CONSULTA, appointment=ap6)
+        conferir('cobrança particular não entra na guia', not g6.itens.filter(recebivel=cob6).exists())
 
         print('=== 5. SP/SADT: código, data, preço, versão ===')
         s = guias.criar_guia(ctx_sec, secretaria.user, paciente, TipoGuia.SP_SADT)

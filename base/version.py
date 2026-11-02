@@ -223,7 +223,13 @@ carimbá-la na publicação.
 #: cadastro (lista semanal com aviso quando falha), organização de pessoa
 #: física com CPF, e o e-mail com a justificativa ao encerrar a clínica.
 #: Migrações só de expansão.
-VERSION = '1.32'
+#: A **1.32.1**: a revisão de 2026-11-02 -- código inteiro relido depois
+#: das versões 1.29 a 1.32, com instalação zerada, rastreador de telas e a
+#: bateria completa; doze falhas críticas corrigidas (cobrança em dobro no
+#: TISS, exame cobrado como consulta, receita do portal com data antiga,
+#: paciente errado no pré-cadastro, autoria e conta). Uma migração de
+#: expansão (`tenancy.0021`, padrão no banco para o CPF).
+VERSION = '1.32.1'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

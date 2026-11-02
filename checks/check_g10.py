@@ -279,11 +279,27 @@ if pedido.status != DocumentRequestStatus.RECEIVED:
     failures.append('recusou o pedido sem motivo registrado')
 
 print('=== 18. o pedido vira RASCUNHO, nunca documento emitido ===')
+# Um atendimento antigo do paciente: até 2026-11-02 o rascunho ia para o
+# último atendimento, e o PDF saía com a data dele. O texto começa como o
+# registro que a limpeza do fim já apaga.
+from datetime import timedelta as _td
+from django.utils import timezone as _tz
+from tenancy.models import Membership as _M
+antigo = Encounter.objects.create(
+    tenant=tenant, patient=paciente, occurred_at=_tz.now() - _td(days=60),
+    physician_membership=_M.objects.filter(tenant=tenant, user__email='doctor-a@demo.neurodoc.local').first(),
+    chief_complaint='Registro aberto a partir de pedido (roteiro: atendimento antigo)',
+)
 antes = MedicalDocument.objects.filter(tenant=tenant).count()
 r = owner.post(f'/app/documents/solicitacoes/{pedido.id}/rascunho/', {}, follow=True)
 pedido.refresh_from_db()
 print('  ->', note(r)[:90])
 doc = pedido.resulting_document
+if doc is not None:
+    print('  pendurado em:', 'nenhum atendimento' if doc.encounter_id is None else doc.encounter.occurred_at)
+    if doc.encounter_id == antigo.id or (
+            doc.encounter_id and _tz.localtime(doc.encounter.occurred_at).date() != _tz.localdate()):
+        failures.append('o rascunho do portal pendeu de atendimento de outro dia (o PDF sairia com a data dele)')
 print('  documento gerado:', doc.document_number or '(sem numero)', '| status:', doc.status if doc else None)
 criados.append(doc)
 if doc is None:

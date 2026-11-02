@@ -284,7 +284,7 @@ def create_receivable_for_exam(reserva, actor_id):
     aplicável, nenhuma cobrança é inventada: a trilha registra a falta, e
     a tela da reserva diz o que cadastrar.
     """
-    from catalogs.models import CatalogReleaseStatus, CatalogSystem, ProcedureCode
+    from .pricing import resolve_price_do_procedimento
 
     existente = Receivable.objects.filter(
         tenant_id=reserva.tenant_id, reserva_exame=reserva, charge_kind=ChargeKind.PROCEDURE,
@@ -298,18 +298,13 @@ def create_receivable_for_exam(reserva, actor_id):
         coverage = reserva.cobertura
     else:
         coverage = _active_coverage(reserva.paciente, dia)
-    procedimento = None
-    if reserva.codigo_tuss:
-        procedimento = ProcedureCode.objects.filter(
-            code=reserva.codigo_tuss, release__system=CatalogSystem.TUSS,
-            release__status=CatalogReleaseStatus.ACTIVE,
-        ).first()
     medico = reserva.executante.membership if reserva.executante_id and reserva.executante.membership_id else None
     categoria = PaymentCategory.INSURANCE if coverage else PaymentCategory.PRIVATE
     try:
-        regra = resolve_price(
-            reserva.tenant, medico, categoria, dia,
-            plan=coverage.plan if coverage else None, procedure=procedimento,
+        # Só regra do próprio procedimento: as gerais são as da consulta.
+        regra = resolve_price_do_procedimento(
+            reserva.tenant, medico, categoria, dia, reserva.codigo_tuss,
+            plan=coverage.plan if coverage else None,
         )
     except NoApplicableFeeSchedule:
         record_audit_event(

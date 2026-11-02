@@ -338,7 +338,7 @@ def has_tiss(code):
 
     Completo e Personalizado. É uma das **três** chaves do módulo, e a única
     comercial: as outras são `Tenant.tiss_liberado` (a clínica entra quando
-    a liberação gradual chega a ela) e `InstallationSettings.tiss_ativo` (o
+    a liberação gradual chega a ela) e `tiss.Configuracao.ativo` (o
     freio da instalação inteira). Ver `docs/tiss/REVISAO_SPRINT1.md` §4.1.
 
     Ausente vale `False`, e plano desconhecido cai no Gratuito

@@ -214,29 +214,31 @@ class DocumentRequestActionView(ClinicalDocumentView):
         return redirect('documents:request-queue')
 
     def _draft(self, request, pedido, physician):
-        from clinical.models import Encounter, EncounterStatus
+        from clinical.models import Encounter
         from tenancy.models import Tenant
 
         kind, formato = REQUEST_TO_DOCUMENT.get(pedido.kind, (None, None))
         if kind is None:
             raise Http404
 
-        # Todo documento pende de um atendimento, e pedido de portal não
-        # nasce de consulta. Usa o último atendimento do paciente; na falta
-        # dele, abre um registro próprio. Pendurar o documento na consulta
-        # errada só para ter onde pendurá-lo seria pior: a receita passaria
-        # a constar de um atendimento em que ela não foi discutida.
+        # Pedido de portal não nasce de consulta. Só se pendura num
+        # atendimento **de hoje** escrito aqui — o paciente que pede na
+        # recepção, durante a visita. Fora disso, o documento nasce sem
+        # atendimento (`MedicalDocument.encounter` é opcional desde a
+        # renovação por telefone), e o PDF sai com a data da emissão.
+        #
+        # Até 2026-11-02 ele ia para o **último** atendimento do paciente,
+        # e o PDF imprime a data do atendimento: a receita pedida em
+        # novembro saía datada da consulta de junho — e, depois da migração
+        # do iClin, da anotação de lá. Quando não havia atendimento, abria
+        # um registro em rascunho, que contava como visita para a janela de
+        # 180 dias do próprio portal sem o paciente ter vindo.
         encounter = (
-            Encounter.objects.filter(tenant_id=pedido.tenant_id, patient=pedido.patient)
-            .order_by('-occurred_at').first()
+            Encounter.objects.filter(
+                tenant_id=pedido.tenant_id, patient=pedido.patient, legacy_id='',
+                occurred_at__date=timezone.localdate(),
+            ).order_by('-occurred_at').first()
         )
-        if encounter is None:
-            encounter = Encounter.objects.create(
-                tenant_id=pedido.tenant_id, patient=pedido.patient,
-                physician_membership=physician, occurred_at=timezone.now(),
-                status=EncounterStatus.DRAFT,
-                chief_complaint='Registro aberto a partir de pedido no portal do paciente.',
-            )
 
         # O conteúdo vem do formulário, e não mais direto do pedido: o
         # médico corrige antes de o rascunho existir. Se nada foi enviado

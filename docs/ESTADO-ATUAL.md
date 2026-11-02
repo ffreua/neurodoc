@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.24.2 "o pedido pronto" (2026-10-22) · **Produção:**
+**Versão:** 1.32.1 "o cadastro seguro" (2026-11-02) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -94,6 +94,17 @@ que ele não é mais o único lugar onde a chave existe.
 
 **Nunca entra em limpeza de disco**, e a prova de restauração tem de ser
 refeita a cada mudança de `BACKUP_AGE_RECIPIENT`.
+
+### Revisão de 2026-11-02: o que ficou para decidir
+
+O código inteiro foi relido depois das versões 1.29 a 1.32, com instalação
+zerada, rastreador de telas e a bateria completa. Os doze achados críticos
+foram corrigidos na 1.32.1; os não críticos estão em
+`docs/homologation/revisao-2026-11-02.md`, ordenados pelo que mais pesa no
+uso de hoje. O primeiro da lista: **a trava de privacidade da IA fecha o
+chat e o resumo para 972 dos 2.217 pacientes migrados do iClin**, porque a
+anamnese diz "nega consanguinidade" (946 das 1.003 ocorrências são
+negação). Esperando a decisão do responsável.
 
 ### Os pacientes migrados não recebem documento
 

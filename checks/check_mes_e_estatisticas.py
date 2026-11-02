@@ -158,7 +158,12 @@ try:
     conferir('as vagas livres nao mudaram', resumo_depois[dia]['free'], livres_antes)
     conferir('e uma vaga passada virou atendimento',
              resumo_depois[dia]['past'], passados_antes - 1)
-    conferir('o contador de atendidos subiu', resumo_depois[dia]['realizados'], 1)
+    # Um a mais do que antes, e não "1": `realizados` conta atendidos e
+    # faltas, e a semeadura deixa uma falta de sete dias atrás — numa
+    # instalação semeada no começo do mês, ela cai justo no dia escolhido
+    # (revisão de 2026-11-02, banco zerado).
+    conferir('o contador de atendidos subiu', resumo_depois[dia]['realizados'],
+             resumo_antes[dia]['realizados'] + 1)
     conferir('e o dia aparece como encerrado', resumo_depois[dia]['encerrado'], True)
 
     print('\n2. Um horario ocupado agora diz de quem e')

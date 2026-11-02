@@ -1034,14 +1034,17 @@ class ChangePatientView(TenantScopedView):
             messages.error(request, 'Paciente não encontrado nesta organização.')
             return _agenda_redirect(request, doctor, day)
         try:
-            services.change_appointment_patient(
+            trocado = services.change_appointment_patient(
                 request.access_context, appointment, patient,
                 form.cleaned_data['reason'], request.user.id,
             )
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
-        messages.success(request, f'Horário agora é de {patient.full_name}.')
+        aviso = ''
+        if getattr(trocado, 'forma_de_cobranca_desfeita', False):
+            aviso = ' A forma de cobrança escolhida era do paciente anterior e foi desfeita; escolha de novo se precisar.'
+        messages.success(request, f'Horário agora é de {patient.full_name}.{aviso}')
         return _agenda_redirect(request, doctor, day)
 
 

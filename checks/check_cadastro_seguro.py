@@ -314,6 +314,34 @@ try:
         conferir('"Atualizar agora" pede ao worker', pedido.called)
         conferir('agendada aos domingos', dj_settings.CELERY_BEAT_SCHEDULE['sincronizar-dominios-descartaveis']
                  ['schedule'].day_of_week == {0})
+
+        print('=== 9. Revisão de 2026-11-02 ===')
+        from django.db import connection
+        from tenancy.services import _unique_slug
+        # Razão social longa sem nome fantasia: o corte em 55 caía num
+        # hífen, o `full_clean` recusava o slug e o cadastro dava erro 500.
+        longa = 'Clinica de Neurologia e Neurocirurgia Dr. Fulano de Tal e Associados'
+        slug = _unique_slug(longa)
+        conferir('o slug cortado não termina em hífen', not slug.endswith('-') and not slug.startswith('-'), slug)
+        r, _ = cadastrar('longa@clinicareal.com.br', cpf_valido('987654321'), nome=longa)
+        conferir('cadastro com razão social longa entra', r.status_code == 200
+                 and Tenant.objects.filter(legal_name=longa).exists(), r.status_code)
+        # O código anterior à 1.32 faz INSERT sem `cpf`: o banco tem de
+        # preencher o vazio (migração 0021), senão o rollback quebra o cadastro.
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO tenancy_tenant (id, created_at, updated_at, row_version, legal_name, trade_name, "
+                    "cnpj, slug, status, status_note, plan, plan_note, tiss_liberado, tiss_nota, timezone, settings) "
+                    "VALUES (gen_random_uuid(), now(), now(), 1, 'Antiga', '', %s, 'insert-sem-cpf', 'active', '', "
+                    "'free', '', false, '', 'America/Sao_Paulo', '{}')", [cnpj_valido('445566000001')],
+                )
+        conferir('INSERT sem cpf (código da 1.31) funciona', Tenant.objects.filter(slug='insert-sem-cpf', cpf='').exists())
+        # O motivo do encerramento vai ao cliente: o campo não pode vir
+        # preenchido com a nota interna da mudança anterior.
+        html = open('/app/templates/ops/superadmin/tenants.html', encoding='utf-8').read()
+        conferir('o campo do motivo nasce vazio e com teto de 255',
+                 'value="{{ row.obj.status_note }}"' not in html and 'maxlength="255"' in html)
         raise Desfazer
 except Desfazer:
     pass

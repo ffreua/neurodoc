@@ -137,7 +137,11 @@
                         esperaSelect.appendChild(opcao);
                     });
                     esperaBox.hidden = !rows.length;
-                    if (esperaPedida && esperaOpcoes[esperaPedida]) escolherEspera(esperaPedida);
+                    /* A espera pedida só vem escolhida enquanto o aviso dela
+                     * está à vista no alto da agenda: fechado o aviso (ou
+                     * nunca mostrado), o modal abre limpo como sempre. */
+                    var avisoVisivel = aviso && !aviso.hidden;
+                    if (esperaPedida && avisoVisivel && esperaOpcoes[esperaPedida]) escolherEspera(esperaPedida);
                     if (depois) depois(rows);
                 })
                 .catch(function () { esperaBox.hidden = true; });
@@ -159,8 +163,24 @@
              * da lista: o horário iria para a pessoa digitada, e a espera
              * ficaria encerrada no nome de outra. */
             bookSearch.addEventListener('input', limparEspera);
-            bookNewName.addEventListener('input', limparEspera);
         }
+
+        /* Digitar o nome do pré-cadastro é dizer "é outra pessoa": desfaz o
+         * paciente escolhido — da lista de espera ou da busca. Só limpar a
+         * espera (como era) deixava `patient_id` preenchido, e o servidor,
+         * que dá preferência ao paciente escolhido, marcava a pessoa da
+         * lista no lugar da que estava ao telefone — com a confirmação
+         * indo para ela (revisão de 2026-11-02). */
+        bookNewName.addEventListener('input', function () {
+            if (!bookNewName.value.trim()) return;
+            limparEspera();
+            if (bookPatientId.value) {
+                bookPatientId.value = '';
+                bookSearch.value = '';
+                bookChosen.textContent = '';
+                bookChosen.className = 'form-text fs-11';
+            }
+        });
 
         /* "Marcar na agenda", vindo da lista: a espera pedida fica guardada
          * na aba para sobreviver à troca de semana; o aviso no alto diz para

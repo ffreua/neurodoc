@@ -277,6 +277,36 @@ try:
                                                                           em(ontem - timedelta(days=14), 10), 0),
             codigo_tuss='40103420', cobranca='particular',
         )
+        # Revisão de 2026-11-02: a regra **da consulta** (sem procedimento)
+        # não pode cobrar exame. Antes, um EEG sem honorário próprio saía
+        # pelo preço da consulta particular.
+        FeeSchedule.objects.create(tenant=clinica, physician=None, plan=None, procedure=None,
+                                   payment_category=PaymentCategory.PRIVATE, gross_amount=Decimal('400.00'),
+                                   doctor_share_amount=Decimal('0'), effective_from=hoje - timedelta(days=30))
+        dia_c = ontem - timedelta(days=21)
+        so_consulta = Reserva.objects.create(
+            tenant=clinica, recurso=eeg, paciente=paciente, inicio=em(dia_c, 9), fim=em(dia_c, 10),
+            ocupacao=ex._ocupacao(em(dia_c, 9), em(dia_c, 10), 0), codigo_tuss='40103420', cobranca='particular',
+        )
+        _, cob_c = ex.realizar(ctx, secretaria.user, so_consulta, executante)
+        conferir('exame sem regra própria não é cobrado pelo preço da consulta', cob_c is None)
+        # A regra do exame cadastrada sobre uma release antiga da TUSS continua
+        # valendo depois da troca de release: o casamento é pelo código.
+        antiga = CatalogRelease.objects.create(system=CatalogSystem.TUSS, version=f'ANS-roteiro-antiga-{uuid.uuid4().hex[:6]}',
+                                               status=CatalogReleaseStatus.SUPERSEDED, imported_at=timezone.now())
+        eeg_antigo = ProcedureCode.objects.create(release=antiga, code='40103439', description='EEG ANTIGO',
+                                                  starts_on=date(2010, 1, 1), active=True)
+        FeeSchedule.objects.create(tenant=clinica, physician=None, plan=None, procedure=eeg_antigo,
+                                   payment_category=PaymentCategory.PRIVATE, gross_amount=Decimal('320.00'),
+                                   doctor_share_amount=Decimal('0'), effective_from=hoje - timedelta(days=30))
+        dia_r = ontem - timedelta(days=22)
+        pela_antiga = Reserva.objects.create(
+            tenant=clinica, recurso=eeg, paciente=paciente, inicio=em(dia_r, 9), fim=em(dia_r, 10),
+            ocupacao=ex._ocupacao(em(dia_r, 9), em(dia_r, 10), 0), codigo_tuss='40103439', cobranca='particular',
+        )
+        _, cob_r = ex.realizar(ctx, secretaria.user, pela_antiga, executante)
+        conferir('regra do exame vale pelo código, mesmo em release antiga',
+                 cob_r is not None and cob_r.charged_amount == Decimal('320.00'))
         FeeSchedule.objects.filter(tenant=clinica, payment_category=PaymentCategory.PRIVATE).update(
             effective_from=hoje + timedelta(days=3650))
         reserva_sp, cob_sp = ex.realizar(ctx, secretaria.user, sem_preco, executante)

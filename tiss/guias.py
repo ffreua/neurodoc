@@ -196,6 +196,26 @@ def criar_guia(context, user, paciente, tipo, appointment=None):
         appointment.tenant_id != context.tenant_id or appointment.patient_id != paciente.id
     ):
         raise GuiaRecusada('Este horário não é deste paciente.')
+    if appointment is not None and tipo == TipoGuia.CONSULTA:
+        from scheduling.models import Appointment, BillingMode
+
+        # Trava o horário: dois cliques em "Gerar guia" criavam duas guias
+        # da mesma consulta, ou estouravam o `UNIQUE` do recebível com erro
+        # 500 (revisão de 2026-11-02). Como `criar_guia_do_exame` já faz
+        # para o exame, um horário tem no máximo uma guia de Consulta viva.
+        appointment = Appointment.objects.select_for_update().get(id=appointment.id)
+        if appointment.billing_mode == BillingMode.PRIVATE:
+            raise GuiaRecusada(
+                'Este horário foi marcado como particular. Troque a forma de cobrança no '
+                'horário antes de gerar a guia — senão a mesma consulta seria cobrada do '
+                'paciente e da operadora.'
+            )
+        if Guia.objects.filter(
+            tenant_id=context.tenant_id, appointment=appointment, tipo=TipoGuia.CONSULTA,
+        ).exclude(estado__in=[EstadoGuia.CANCELADA, EstadoGuia.SUBSTITUIDA]).exists():
+            # A substituída não conta: a revisão dela, viva, carrega o mesmo
+            # horário e já barra aqui.
+            raise GuiaRecusada('Este horário já tem guia de Consulta. Abra a guia existente.')
 
     hoje = timezone.localdate()
     dia = timezone.localtime(appointment.starts_at).date() if appointment else hoje
@@ -247,6 +267,12 @@ def _item_da_consulta_cobrada(guia, appointment, dia):
         ).exclude(status=ReceivableStatus.CANCELLED).first()
     )
     if recebivel is None or ItemGuia.objects.filter(recebivel=recebivel).exists():
+        return None
+    # Cobrança particular não vai para a operadora: vinculá-la faria a guia
+    # faturar o que o paciente já pagou (revisão de 2026-11-02).
+    from finance.models import PaymentCategory
+
+    if (recebivel.fee_snapshot or {}).get('payment_category') != PaymentCategory.INSURANCE:
         return None
     procedimento_id = (recebivel.fee_snapshot or {}).get('procedure_id')
     termo = ProcedureCode.objects.filter(id=procedimento_id).first() if procedimento_id else None
@@ -562,6 +588,8 @@ def fechar(context, user, guia):
     impedem = [x for x in pendencias(guia) if x.impede]
     if impedem:
         raise GuiaRecusada('Ainda há pendências: ' + '; '.join(x.mensagem for x in impedem))
+    if guia.revisa_id:
+        _original_fora_de_lote(guia.revisa_id)
     guia.snapshot = _snapshot(guia)
     guia.versao = guia.credenciamento.versao
     guia.data_referencia = max(i.data_execucao for i in guia.itens.all())
@@ -606,14 +634,50 @@ def cancelar(context, user, guia, motivo):
     guia.estado = EstadoGuia.CANCELADA
     guia.cancelada_em, guia.cancelada_por, guia.motivo_cancelamento = timezone.now(), user, motivo[:255]
     guia.save()
-    # Solta a cobrança: o mesmo serviço pode ser faturado de novo noutra
-    # guia. A guia cancelada guarda no snapshot qual era.
-    guia.itens.exclude(recebivel=None).update(recebivel=None)
+    original = (
+        Guia.objects.select_for_update().filter(id=guia.revisa_id, estado=EstadoGuia.FECHADA).first()
+        if guia.revisa_id else None
+    )
+    if original is not None:
+        # Revisão desistida: a original continua fechada e faturável, e as
+        # cobranças que `abrir_revisao` passou para cá voltam para ela.
+        # Soltá-las (como no cancelamento comum) deixava a original sem
+        # vínculo, e uma guia nova do mesmo horário revinculava a cobrança —
+        # duas guias fechadas para a mesma consulta (revisão de 2026-11-02).
+        for item in guia.itens.exclude(recebivel=None):
+            recebivel = item.recebivel_id
+            ItemGuia.objects.filter(id=item.id).update(recebivel=None)
+            ItemGuia.objects.filter(guia=original, sequencial=item.sequencial, recebivel=None).update(
+                recebivel_id=recebivel,
+            )
+    else:
+        # Solta a cobrança: o mesmo serviço pode ser faturado de novo noutra
+        # guia. A guia cancelada guarda no snapshot qual era.
+        guia.itens.exclude(recebivel=None).update(recebivel=None)
     record_audit_event(
         user, context.tenant_id, 'tiss.guia_cancelada', object_type='guia_tiss', object_id=guia.id,
         outcome='success', integrity_metadata={'numero': guia.numero_prestador, 'motivo': motivo[:255]},
     )
     return guia
+
+
+def _original_fora_de_lote(guia_id):
+    """Recusa corrigir guia que está num lote ativo.
+
+    Fechar a revisão torna a original "substituída", mas o lote continua
+    levando a original — e a revisão, sem participação, entrava num lote
+    novo: a operadora recebia a mesma consulta duas vezes (revisão de
+    2026-11-02). O caminho é o mesmo do cancelamento: cancelar o lote, ou
+    liberar a guia para reapresentação, antes de corrigir.
+    """
+    from .models import LoteGuia
+
+    no_lote = LoteGuia.objects.filter(guia_id=guia_id, ativo=True).select_related('lote').first()
+    if no_lote is not None:
+        raise GuiaRecusada(
+            f'A guia original está no lote {no_lote.lote.numero}. Cancele o lote (ou, se já '
+            'enviado, libere a guia para reapresentação) antes de corrigi-la.'
+        )
 
 
 @transaction.atomic
@@ -631,6 +695,7 @@ def abrir_revisao(context, user, guia):
         raise GuiaRecusada('Só guia fechada se corrige por revisão; em preenchimento, edite.')
     if Guia.objects.filter(revisa=original).exclude(estado=EstadoGuia.CANCELADA).exists():
         raise GuiaRecusada('Esta guia já tem uma revisão em andamento.')
+    _original_fora_de_lote(original.id)
     campos = [f.name for f in Guia._meta.concrete_fields if f.name not in {
         'id', 'created_at', 'updated_at', 'row_version', 'estado', 'numero_prestador', 'versao',
         'snapshot', 'fechada_em', 'fechada_por', 'cancelada_em', 'cancelada_por',

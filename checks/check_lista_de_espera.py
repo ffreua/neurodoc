@@ -97,14 +97,18 @@ def posicoes():
 
 
 ctx = contexto(secretaria)
-pacientes = list(Patient.objects.filter(tenant=tenant).order_by('record_number', 'id')[:6])
-assert len(pacientes) >= 6, 'a semeadura precisa de ao menos seis pacientes na Clinica Demo A'
 paciente_b = Patient.objects.filter(tenant=outra).first()
 
 try:
     with transaction.atomic():
         # Começa da lista vazia, para as posições terem significado.
         PacienteEmEspera.objects.filter(tenant=tenant).delete()
+        # Seis pacientes, criados aqui quando a semeadura não tem tantos: a
+        # instalação zerada traz cinco, e o roteiro só passava em banco
+        # velho (revisão de 2026-11-02). A transação desfaz os criados.
+        pacientes = list(Patient.objects.filter(tenant=tenant).order_by('record_number', 'id')[:6])
+        for n in range(len(pacientes), 6):
+            pacientes.append(Patient.objects.create(tenant=tenant, full_name=f'Paciente Roteiro Espera {n}'))
 
         print('\n1. Incluir vai para o fim, e um paciente aguarda uma vez so')
         e1 = espera.incluir(ctx, pacientes[0], ator=secretaria)
@@ -347,6 +351,20 @@ try:
         raise Desfazer
 except Desfazer:
     pass
+
+print()
+print('10. O pré-cadastro desfaz o paciente escolhido (revisão de 2026-11-02)')
+# Só limpar a espera deixava `patient_id` preenchido: o servidor marcava o
+# paciente da lista no lugar de quem estava ao telefone. A conferência é
+# estrutural — não há navegador aqui —, sobre o trecho que trata o campo.
+js = open('/app/static/scheduling/agenda.js', encoding='utf-8').read()
+inicio = js.find("bookNewName.addEventListener('input', function () {")
+trecho = js[inicio:inicio + 600] if inicio >= 0 else ''
+conferir('digitar o nome do pré-cadastro limpa o paciente escolhido',
+         bool(trecho) and "bookPatientId.value = ''" in trecho and 'limparEspera()' in trecho, True)
+conferir('o handler antigo, que só limpava a espera, saiu',
+         "bookNewName.addEventListener('input', limparEspera)" not in js, True)
+conferir('a espera pedida só vem escolhida com o aviso à vista', 'avisoVisivel && esperaOpcoes[esperaPedida]' in js, True)
 
 print()
 if falhas:
