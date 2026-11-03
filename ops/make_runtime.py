@@ -59,7 +59,10 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  'GOOGLE_SITE_VERIFICATION',
                  # O prazo do segundo fator obrigatório (`accounts/mfa.py`).
                  # Opcional: o padrão do código vale para quem não o declara.
-                 'SEGUNDO_FATOR_OBRIGATORIO_DESDE']
+                 'SEGUNDO_FATOR_OBRIGATORIO_DESDE',
+                 # Processos do `app` e tarefas simultâneas do worker
+                 # (`ops/entrypoint.sh`). Opcionais: sem elas, 2 e 2.
+                 'APP_WORKERS', 'WORKER_CONCURRENCY']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 

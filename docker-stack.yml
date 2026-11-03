@@ -58,7 +58,10 @@ services:
       restart_policy: *restart
       placement: *placement
       resources:
-        limits: {cpus: '1.0', memory: 1G}
+        # Dois núcleos e 1,5 GB por cópia: o teto para até quatro processos
+        # (`APP_WORKERS`, ~150 MB cada). É limite, não reserva — numa VPS
+        # menor não impede a subida (2026-11-03).
+        limits: {cpus: '2.0', memory: 1536M}
         reservations: {cpus: '0.25', memory: 384M}
       update_config:
         parallelism: 1
@@ -123,7 +126,10 @@ services:
       placement: *placement
       restart_policy: *restart
       resources:
-        limits: {cpus: '1.5', memory: 3G}
+        # Dois núcleos para até seis tarefas simultâneas (`WORKER_CONCURRENCY`):
+        # IA, e-mail e SMS passam quase todo o tempo esperando o provedor,
+        # e a CPU que gastam é pouca (2026-11-03).
+        limits: {cpus: '2.0', memory: 3G}
         reservations: {cpus: '0.75', memory: 1G}
       update_config: {parallelism: 1, order: stop-first, failure_action: rollback, monitor: 180s}
   celery_beat:

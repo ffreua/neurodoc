@@ -24,13 +24,22 @@ perguntar à própria VPS (`docker version`), não a este documento.
 
 | Serviço | Réplicas | CPU limite/reserva | Memória limite/reserva | Rede |
 | --- | --- | --- | --- | --- |
-| app | 2 | 1 / 0,25 | 1 GiB / 384 MiB | traefik_public + neurodoc_v1_internal |
-| celery_worker | 1 (concorrência 2) | 1,5 / 0,75 | 3 GiB / 1 GiB | interna + neurodoc_v1_egress |
+| app | 2 (4 processos cada, `APP_WORKERS`) | 2 / 0,25 | 1,5 GiB / 384 MiB | traefik_public + neurodoc_v1_internal |
+| celery_worker | 1 (concorrência 6, `WORKER_CONCURRENCY`) | 2 / 0,75 | 3 GiB / 1 GiB | interna + neurodoc_v1_egress |
 | celery_beat | 1 | 0,25 / 0,1 | 256 MiB / 64 MiB | interna + egress |
 | db | 1 | 1 / 0,25 | 2 GiB / 512 MiB | interna |
 | rabbitmq | 1 | 0,75 / 0,25 | 1 GiB / 256 MiB | interna |
 | redis | 1 | 0,5 / 0,1 | 512 MiB / 128 MiB | interna |
 | traefik | 1 | 0,5 / 0,1 | 256 MiB / 64 MiB | traefik_public |
+
+**Medido em 2026-11-03** (VPS de produção: 6 vCPU AMD EPYC, 16 GiB, 197 GiB):
+com 4 processos por cópia o `app` usa ~475 MiB, e o worker com 6 tarefas,
+~700 MiB. Antes, com 2 e 2, a VPS usava 2,5 GiB de memória e carga média de
+0,5. Os números de processos e tarefas são do `.env` e o padrão do código
+(2 e 2) é o de uma VPS pequena — ver `ops/entrypoint.sh`. O `db` ficou em
+1 núcleo: ele é atualizado `stop-first`, e mudar o limite reinicia o
+PostgreSQL com o sistema fora do ar; subir quando ele passar a pesar, numa
+janela combinada.
 
 ### Redes (três, pré-criadas fora do stack)
 

@@ -472,6 +472,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_ia_o_que_vai.py` | **o que vai à IA** (1.32.2): o trecho de consanguinidade omitido em texto e em JSON (com e sem trema, negado ou não), a trava que não dispara mais por ele e continua disparando por doença rara, o apoio diagnóstico sem o campo estruturado, o pedido bloqueado pela política antiga refeito, a marca de omissão barrada no papel do relatório, e o prontuário que cabe — campo encurtado com a marca, o teto total do relatório declarado no recorte, e o chat com a medicação **antes** dos atendimentos |
 | `check_revisao_grupo1.py` | o **primeiro grupo da revisão** (1.32.3): CNPJ alfanumérico cadastrando com as letras e sem virar CPF, SMTP próprio recusado em endereço privado com a tela sem o erro cru, timbre e nome do médico com marcação saindo como texto no PDF, redefinição de senha parando no limite com a mesma tela, `x@localhost` recusado, CPF mascarado para a operação, ficha arquivada fora da lista de espera, migrado do iClin fechando na data da anotação, total da guia acima do campo e caractere de controle virando recusa, encerramento com `error` e sem repetir, e a recusa do convite de equipe na trilha |
 | `check_revisao_grupo2.py` | o **restante da revisão** (1.33) e os pedidos de 2026-11-03: segundo fator obrigatório (desligado, aviso antes do prazo, configuração depois, secretária livre, exportação pedindo o código), console pedindo o código nas ações graves e não no desligar, recusa do documento repetido sem dizer que é cliente e o limite do cadastro, conta descartável antiga indo ao login, CRM validado para o papel e a indicação clínica, a espera devolvida ao topo na troca de paciente, convênio vencido recusado e desfeito na remarcação, a nota do médico nas hipóteses, o tipo da consulta na grade e o mais recente no topo |
+| `check_processos.py` | os **processos e tarefas por instalação** (2026-11-03): o `entrypoint.sh` recusando número fora da faixa, vazio, letra e sinal (rodando a função no `sh`), o padrão 2 e 2, nenhum número fixo sobrando, as chaves chegando ao contêiner, o script sem CRLF, e os limites do `docker-stack.yml` cabendo os processos |
 | `check_data_do_documento.py` | a **data do documento** é a da emissão (1.32.2): o rascunho e o emitido de uma consulta de dez dias atrás saem com a data de hoje |
 | `check_operadoras_ans.py` | o **catálogo de operadoras da ANS** (1.30): zero à esquerda, acento, colunas faltando, lista curta que não grava, a que sai fica inativa e não apagada, a busca por palavras e pelo registro sem os zeros, e a rota |
 | `check_instalacao.py`, `check_super.py` | instalação limpa e console |
@@ -816,6 +817,16 @@ com trava de execução. **A porta de entrada é `DEPLOY.md`.**
   chega lá pelo `pull`.
 - Três temporizadores do systemd: backup diário, limpeza de chaves de
   assinatura e o firewall da Cloudflare.
+- **Capacidade por instalação, no `.env`** (2026-11-03): `APP_WORKERS`
+  (processos por cópia do `app`, 1–16) e `WORKER_CONCURRENCY` (tarefas
+  simultâneas do worker, 1–32), conferidos pelo `ops/entrypoint.sh` antes de
+  subir; vazio é 2 e 2. Produção: **4 e 6**, com os limites do
+  `docker-stack.yml` subidos junto (app 2 núcleos e 1,5 GB por cópia, worker
+  2 núcleos). Cada processo do `app` atende **uma** requisição por vez (view
+  síncrona numa thread), então mais processos só rendem com CPU para eles.
+  O banco ficou em 1 núcleo de propósito: ele é atualizado `stop-first`, e
+  mudar o limite reinicia o PostgreSQL com o sistema fora do ar — e ele
+  usava 7% de CPU. `check_processos.py` cobre.
 
 - **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`, e
   `scripts/setup_deploy.sh` para fazê-lo sozinho numa VPS limpa (retoma de
