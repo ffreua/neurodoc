@@ -17,6 +17,14 @@ cada versão está no `README.md` e em `docs/releases/`.
 Sete serviços em Docker Swarm, todos saudáveis: `app` (2 réplicas),
 `celery_worker`, `celery_beat`, `db`, `rabbitmq`, `redis`, `traefik`.
 
+**Capacidade** (2026-11-03): o `app` roda **4 processos** por réplica e o
+worker **6 tarefas** por vez (`APP_WORKERS` e `WORKER_CONCURRENCY` no
+`.env`, antes 2 e 2), com os limites de CPU subidos junto. A VPS (6 vCPU,
+16 GiB, 197 GiB) usa ~3 GiB e fica perto do ocioso; a estimativa — sem teste
+de carga — é de cerca de 300 clínicas do porte das atuais. O banco ficou em
+1 núcleo para não reiniciar o PostgreSQL. Detalhe em
+`docs/operations/capacidade.md`.
+
 **Duas** clínicas reais, conferidas em 05/10/2026 — e a segunda é o que
 tirou o multi-inquilino do papel:
 
@@ -344,6 +352,9 @@ ssh neurodoc-vps "cd /srv/neurodoc && git pull --ff-only \
 ```
 
 - O ambiente local **só sobe para rodar roteiros**, e desce depois.
+- Processos do `app` e tarefas do worker mudam pelo `.env` da VPS
+  (`APP_WORKERS`, `WORKER_CONCURRENCY`) e um deploy — sem código; ver
+  `docs/operations/capacidade.md`.
 - `rodar_roteiros` lê `checks/` **de dentro da imagem**: mudou roteiro,
   reconstrua (`docker compose build app`) ou empurre pela entrada padrão.
 - Migração roda sozinha na subida (`prepare_release`). **Nunca**

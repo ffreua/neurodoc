@@ -223,6 +223,14 @@ Com o proxy da Cloudflare ligado, ponha as faixas dela em
 (`ops/cloudflare_firewall.sh`, instalado à mão — ver
 [`manutencao.md`](docs/operations/manutencao.md)).
 
+**Quantos processos.** `APP_WORKERS` e `WORKER_CONCURRENCY` no `.env`
+dizem quantos processos cada réplica do `app` roda e quantas tarefas o
+worker faz ao mesmo tempo (vazio é 2 e 2, o de uma VPS pequena; a produção
+roda 4 e 6, numa VPS de 6 vCPU e 16 GB, e estima-se que aguente cerca de
+300 clínicas do porte das atuais). Subir os números exige subir o limite de
+CPU do `docker-stack.yml` junto — ver
+[`capacidade.md`](docs/operations/capacidade.md).
+
 Duas chaves começam desligadas **de propósito**: `SECURE_HSTS_SECONDS`
 (ligue só com o HTTPS comprovado — o navegador guarda a instrução e não há
 volta) e `CSP_ENFORCE` (a política sai primeiro em modo de relatório;

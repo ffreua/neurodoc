@@ -14,7 +14,8 @@ total_tokens: 2195784
 > que mudou: os apps `tiss` e `agenda_exames`, o SNCR em produção, a lista
 > de espera e a forma de cobrança, as finanças do exame, a migração do
 > iClin, o e-mail descartável, as operadoras da ANS, os preços, o CPF e o
-> encerramento. Três leitores nessa rodada.
+> encerramento. Três leitores nessa rodada. Acréscimo à mão em 2026-11-03:
+> os processos do `app` e do worker por instalação (seção `ops e scripts`).
 > Onze leitores em paralelo, cada um com um pedaço do repositório; este
 > arquivo é a síntese. É **mapa**, não especificação: onde ele e o código
 > divergirem, vale o código, e onde divergir de `CLAUDE.md`, vale o
@@ -635,6 +636,7 @@ roteiros `check_tiss_{liberacao,versoes,guias,lotes}`; docs em `docs/tiss/`.
   - `docker stack deploy`;
   - `wait_for_stack`;
   - GET em `/health/`.
+- **Processos por instalação** (2026-11-03). `ops/entrypoint.sh` lê `APP_WORKERS` (`uvicorn --workers`, 1–16) e `WORKER_CONCURRENCY` (`celery --concurrency`, 1–32) do `.env`, recusa valor inválido antes de subir, e cai em 2 e 2 quando vazio; `ops/make_runtime.py` entrega as duas chaves aos contêineres. Produção 4 e 6, com os limites do `docker-stack.yml` subidos junto (`app` 2 núcleos e 1,5 GiB, worker 2 núcleos). `check_processos.py`; ver `docs/operations/capacidade.md`.
 - **Migração na subida.** `ops/entrypoint.sh app` → `bootstrap_release` → `ops/runtime.prepare_release`:
   - advisory lock 72654001;
   - `migrate --database=migrations`;

@@ -826,7 +826,8 @@ com trava de execução. **A porta de entrada é `DEPLOY.md`.**
   síncrona numa thread), então mais processos só rendem com CPU para eles.
   O banco ficou em 1 núcleo de propósito: ele é atualizado `stop-first`, e
   mudar o limite reinicia o PostgreSQL com o sistema fora do ar — e ele
-  usava 7% de CPU. `check_processos.py` cobre.
+  usava 7% de CPU. `check_processos.py` cobre; o que a VPS aguenta e como
+  ajustar está em `docs/operations/capacidade.md`.
 
 - **Passo a passo do zero:** `docs/operations/primeiro-deploy.md`, e
   `scripts/setup_deploy.sh` para fazê-lo sozinho numa VPS limpa (retoma de

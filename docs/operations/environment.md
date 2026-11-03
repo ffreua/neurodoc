@@ -39,7 +39,8 @@ com 4 processos por cópia o `app` usa ~475 MiB, e o worker com 6 tarefas,
 (2 e 2) é o de uma VPS pequena — ver `ops/entrypoint.sh`. O `db` ficou em
 1 núcleo: ele é atualizado `stop-first`, e mudar o limite reinicia o
 PostgreSQL com o sistema fora do ar; subir quando ele passar a pesar, numa
-janela combinada.
+janela combinada. O que a VPS aguenta e como ajustar:
+[`capacidade.md`](capacidade.md).
 
 ### Redes (três, pré-criadas fora do stack)
 

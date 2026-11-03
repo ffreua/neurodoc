@@ -43,6 +43,7 @@ Onde este arquivo e o código divergirem, vale o código: `ops/deploy.py`,
 | Certificado da origem | Let's Encrypt pelo Traefik, por **desafio de DNS na Cloudflare** (`dnsChallenge`, token no segredo `CLOUDFLARE_DNS_API_TOKEN`). A porta 80 não participa da emissão |
 | Firewall | UFW com 22/80/443; e 80/443 **só para as faixas da Cloudflare** (`ops/cloudflare_firewall.sh`, timer `neurodoc-cloudflare-fw.timer`) |
 | Segredos | **quinze segredos do Swarm** (`docker secret`), lidos de `docker-stack.yml`. `.secrets/` é só do ambiente local |
+| Capacidade | `APP_WORKERS=4` (processos por réplica do `app`) e `WORKER_CONCURRENCY=6` (tarefas do worker) no `.env`, desde 2026-11-03 — o que a VPS aguenta e como ajustar em [`docs/operations/capacidade.md`](docs/operations/capacidade.md) |
 | Temporizadores | `neurodoc-backup.timer` (03:00 de Brasília), `neurodoc-signing-cleanup.timer` (a cada 5 min), `neurodoc-cloudflare-fw.timer` (na subida e uma vez por dia) |
 
 **O `app` tem saída para a internet**, ao contrário do que alguns
@@ -131,6 +132,7 @@ primeiro no molde, onde aparece num diff.
 
 ```bash
 docker service ls                                   # sete serviços, 2/2 no app e 1/1 nos outros
+docker stats --no-stream | grep -E 'app|worker'     # ~470 MiB por réplica do app, ~700 MiB no worker
 curl -s https://neurodoc.app.br/health/             # ok
 curl -sI https://neurodoc.app.br/ | grep -i 'strict-transport\|x-frame\|nosniff\|referrer\|content-security'
 ```
