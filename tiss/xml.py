@@ -82,6 +82,13 @@ def latin1(texto):
     saida = []
     for c in texto:
         c = _TROCAS.get(c, c)
+        # Caractere de controle (colado de outro sistema, invisível na tela)
+        # não existe em XML 1.0: o lxml recusava a guia inteira com
+        # "All strings must be XML compatible", e o lote falhava sem dizer
+        # qual guia (revisão de 2026-11-02, T10). Ele não carrega conteúdo,
+        # então sai.
+        if unicodedata.category(c) == 'Cc':
+            continue
         try:
             c.encode('latin-1')
             saida.append(c)
@@ -119,7 +126,13 @@ class _Escritor:
     def el(self, pai, nome, valor=None):
         filho = etree.SubElement(pai, f'{{{NS}}}{nome}')
         if valor is not None:
-            filho.text = valor
+            try:
+                filho.text = valor
+            except ValueError as exc:
+                # A rede embaixo de `latin1`: o que ainda não couber em XML
+                # vira recusa **com a guia e o campo**, e não um lote que
+                # falha sem dizer onde.
+                raise XmlInvalido(f'Guia {self.guia}: o campo {nome} tem caractere inválido.') from exc
         return filho
 
     def texto(self, pai, nome, valor, maximo, obrigatorio=False):

@@ -226,13 +226,20 @@ class Command(BaseCommand):
         for inicio in range(0, len(entram), LOTE):
             linhas = []
             for anotacao in entram[inicio:inicio + LOTE]:
+                quando = timezone.make_aware(anotacao['quando'], fuso)
                 encounter = Encounter(
                     tenant=tenant, patient_id=anotacao['paciente_id'], physician_membership=medico,
-                    occurred_at=timezone.make_aware(anotacao['quando'], fuso),
+                    occurred_at=quando,
                     kind=EncounterKind.FREE_TEXT,
                     free_text=anotacao['free_text'], impressions=anotacao['impressions'],
                     plan_text=anotacao['plan_text'],
-                    status=EncounterStatus.FINALIZED, finalized_at=agora, finalized_by=medico,
+                    status=EncounterStatus.FINALIZED,
+                    # Fechado no dia em que foi escrito, no iClin — e não no
+                    # dia da migração, que ordenaria 2013 acima de outubro e
+                    # faria a exportação dizer "finalizado em" uma data em
+                    # que nada foi escrito. A data da migração fica na
+                    # justificativa (revisão de 2026-11-02, W9).
+                    finalized_at=quando, finalized_by=medico,
                     finalization_justification=(
                         f'Migrado do iClin (anotação nº {anotacao["numero"]}) em {timezone.localdate():%d/%m/%Y}.'
                     ),

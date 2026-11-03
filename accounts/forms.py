@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.admin.forms import AdminAuthenticationForm
-from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.forms import AuthenticationForm, PasswordResetForm
 from django.core.exceptions import ValidationError
 
 from . import throttling
@@ -104,3 +104,52 @@ class MinhaContaForm(forms.ModelForm):
 
     def clean_last_name(self):
         return (self.cleaned_data.get('last_name') or '').strip()
+
+
+#: Quantos e-mails de redefinição de senha um mesmo endereço recebe, e
+#: quantos pedidos um mesmo IP faz, por hora. Até a revisão de 2026-11-02
+#: não havia limite nenhum: quem soubesse um endereço podia encher a caixa
+#: dele de mensagens nossas — e cada uma sai pelo SMTP da instalação, cuja
+#: reputação é a de todas as clínicas.
+REDEFINICAO_POR_ENDERECO = 3
+REDEFINICAO_POR_IP = 10
+REDEFINICAO_JANELA = 3600
+
+
+def _conta_e_excede(chave, limite):
+    from django.core.cache import cache
+
+    # Falha aberto se a cache estiver fora, como o limite do formulário de
+    # contato: recuperar a senha é o caminho de quem está trancado do lado
+    # de fora, e não pode sumir junto com o Redis.
+    try:
+        cache.get_or_set(chave, 0, REDEFINICAO_JANELA)
+        return cache.incr(chave) > limite
+    except Exception:                                   # noqa: BLE001
+        return False
+
+
+class LimitedPasswordResetForm(PasswordResetForm):
+    """A redefinição de senha do Django com limite por destino e por IP.
+
+    Excedido o limite, **nada sai e a tela é a mesma** de sempre ("se o
+    endereço existir, enviamos"): uma resposta diferente diria a quem
+    testa que o endereço está cadastrado.
+    """
+
+    def save(self, *args, request=None, **kwargs):
+        import hashlib
+
+        email = (self.cleaned_data.get('email') or '').strip().lower()
+        destino = hashlib.sha256(email.encode()).hexdigest()[:32]
+        ip = client_ip(request) if request is not None else 'sem-ip'
+        excedeu_ip = _conta_e_excede(f'senha:ip:{ip}', REDEFINICAO_POR_IP)
+        excedeu_destino = _conta_e_excede(f'senha:destino:{destino}', REDEFINICAO_POR_ENDERECO)
+        if excedeu_ip or excedeu_destino:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                'password reset limitado (ip=%s, por_destino=%s)', excedeu_ip, excedeu_destino,
+            )
+            return None
+        return super().save(*args, request=request, **kwargs)

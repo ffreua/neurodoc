@@ -172,6 +172,14 @@ class TeamView(OrgAdminView):
     def post(self, request):
         form = CollaboratorInvitationForm(request.POST)
         if not form.is_valid():
+            # A recusa de e-mail descartável no convite entra na trilha como
+            # nas outras portas (revisão de 2026-11-02, C11) — aqui com quem
+            # convidou e a clínica, que são conhecidos.
+            from .views import registrar_email_descartavel
+
+            registrar_email_descartavel(
+                request, form, 'convite de equipe', ator=request.user, tenant_id=self.tenant_id,
+            )
             return render(request, 'tenancy/team.html', self._context(request, invite_form=form))
         email = form.cleaned_data['email']
         existing = Membership.objects.filter(

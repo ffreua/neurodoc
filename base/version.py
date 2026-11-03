@@ -232,7 +232,7 @@ carimbá-la na publicação.
 #: A **1.32.2**: as três decisões do responsável sobre a revisão -- a
 #: consanguinidade não vai à IA nem a trava, a data do documento é a da
 #: emissão, e o prontuário cabe no pedido de IA. Sem migração.
-VERSION = '1.32.2'
+VERSION = '1.32.3'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

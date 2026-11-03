@@ -78,8 +78,10 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
     if e_descartavel(email):
         raise EmailDescartavel(email)
     user = User.objects.create_user(email=email, password=password)
-    digitos = re.sub(r'\D', '', documento or '')
-    pessoa_fisica = len(digitos) == 11
+    from base.validators import normalizar_cnpj
+
+    digitos = normalizar_cnpj(documento)
+    pessoa_fisica = bool(re.fullmatch(r'[0-9]{11}', digitos))
     tenant = Tenant(
         legal_name=legal_name,
         trade_name=trade_name,

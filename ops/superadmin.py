@@ -471,12 +471,23 @@ class TenantStatusView(SuperAdminView):
             )
             return redirect('superadmin:tenants')
 
-        anterior = tenant.status
-        tenant.status = estado
-        tenant.status_note = motivo[:255]
-        tenant.status_changed_at = timezone.now()
-        tenant.full_clean()
-        tenant.save(update_fields=['status', 'status_note', 'status_changed_at', 'updated_at'])
+        from django.db import transaction
+
+        # A troca relê a linha travada: duas abas abertas na mesma clínica
+        # encerravam duas vezes — e mandavam dois e-mails de encerramento ao
+        # cliente (revisão de 2026-11-02, C10). A segunda agora encontra o
+        # estado já trocado e para aqui.
+        with transaction.atomic():
+            tenant = Tenant.objects.select_for_update().get(id=tenant.id)
+            if estado == tenant.status:
+                messages.info(request, f'{tenant.legal_name} ja esta neste estado.')
+                return redirect('superadmin:tenants')
+            anterior = tenant.status
+            tenant.status = estado
+            tenant.status_note = motivo[:255]
+            tenant.status_changed_at = timezone.now()
+            tenant.full_clean()
+            tenant.save(update_fields=['status', 'status_note', 'status_changed_at', 'updated_at'])
         record_audit_event(
             request.user, tenant, 'tenancy.tenant_status_changed',
             object_type='tenant', object_id=tenant.id, outcome='success',
@@ -497,7 +508,9 @@ class TenantStatusView(SuperAdminView):
             record_audit_event(
                 request.user, tenant, 'tenancy.encerramento_avisado',
                 object_type='tenant', object_id=tenant.id,
-                outcome='success' if enviados else 'failure',
+                # `error`, e não `failure`: é o valor que `AuditOutcome`
+                # conhece e o que o filtro da trilha procura.
+                outcome='success' if enviados else 'error',
                 integrity_metadata={'emails': enviados},
             )
             if enviados:

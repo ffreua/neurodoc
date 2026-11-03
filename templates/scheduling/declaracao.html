@@ -158,7 +158,7 @@ da clínica e não do médico.
             {% if clinica.phone %}{{ clinica.phone }}{% endif %}
             {% if clinica.phone and clinica.email %} · {% endif %}
             {% if clinica.email %}{{ clinica.email }}{% endif %}
-            {% if tenant.cnpj %}<br>CNPJ {{ tenant.cnpj }}{% endif %}
+            {% if tenant.cnpj %}<br>CNPJ {{ tenant.documento_formatado }}{% endif %}
         </div>
     </div>
 

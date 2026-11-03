@@ -202,6 +202,9 @@ não lê prontuário.
                             {% if registro.patient.registration_stage == 'preliminary' %}
                             <span class="badge bg-soft-warning text-warning fs-10">Pré-cadastro</span>
                             {% endif %}
+                            {% if registro.status == 'aguardando' and registro.patient.status == 'archived' %}
+                            <span class="badge bg-soft-danger text-danger fs-10">Ficha arquivada — não pode ser puxado; retire da lista ou desarquive a ficha</span>
+                            {% endif %}
                             {% for contact in registro.patient.contacts.all|nd_contatos_vigentes|slice:":1" %}
                             <span class="d-block fs-11 text-muted">{{ contact.phone|default:contact.email }}</span>
                             {% endfor %}
@@ -226,8 +229,8 @@ não lê prontuário.
                         <td class="text-end pe-4">
                             {% if registro.status == 'aguardando' %}
                             <div class="d-flex flex-wrap gap-1 justify-content-end">
-                                <a class="btn btn-sm btn-primary"
-                                   href="{% url 'scheduling:week' %}?{% if registro.physician_membership_id %}physician={{ registro.physician_membership_id }}&amp;{% endif %}espera={{ registro.id }}">Marcar na agenda</a>
+                                {% if registro.patient.status != 'archived' %}<a class="btn btn-sm btn-primary"
+                                   href="{% url 'scheduling:week' %}?{% if registro.physician_membership_id %}physician={{ registro.physician_membership_id }}&amp;{% endif %}espera={{ registro.id }}">Marcar na agenda</a>{% endif %}
                             </div>
                             <details class="mt-1 text-start">
                                 <summary class="fs-12 text-muted text-end">Editar ou retirar</summary>

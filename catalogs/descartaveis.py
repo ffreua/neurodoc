@@ -139,7 +139,14 @@ def e_descartavel(email):
     """
     from .models import DominioDescartavel
 
-    candidatos = _sufixos(dominio_do_email(email))
+    dominio = dominio_do_email(email)
+    # O `EmailField` do Django aceita `x@localhost` (está na lista de
+    # domínios dele) e `x@[127.0.0.1]`: endereços que nenhum provedor
+    # entrega, e que a lista pública nem teria como trazer. Nome sem ponto
+    # e IP literal são recusados aqui pelo formato (revisão de 2026-11-02, C7).
+    if dominio and ('.' not in dominio or dominio.startswith('[')):
+        return True
+    candidatos = _sufixos(dominio)
     if not candidatos:
         return False
     liberados = SEMPRE_LIBERADOS | _liberados_do_console()

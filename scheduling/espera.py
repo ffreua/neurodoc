@@ -21,6 +21,7 @@ from django.db import connection, transaction
 from django.utils import timezone
 
 from audit.services import record_audit_event
+from patients.models import PatientStatus
 
 from .models import EsperaStatus, PacienteEmEspera
 
@@ -106,6 +107,8 @@ def incluir(context, patient, physician_membership=None, appointment_type='',
         raise EsperaError('Paciente não encontrado nesta organização.')
     if physician_membership is not None and physician_membership.tenant_id != context.tenant_id:
         raise EsperaError('Médico não encontrado nesta organização.')
+    if patient.status == PatientStatus.ARCHIVED:
+        raise EsperaError(f'A ficha de {patient.full_name} está arquivada. Desarquive antes de pôr na lista.')
     if _aguardando(context.tenant_id).filter(patient=patient).exists():
         raise EsperaError(f'{patient.full_name} já está na lista de espera.')
     ultima = _aguardando(context.tenant_id).order_by('-posicao').values_list(
@@ -229,6 +232,13 @@ def para_puxar(context, espera_id, physician_membership):
         raise EsperaError(
             'Este paciente já saiu da lista de espera — talvez outra pessoa o tenha agendado agora.'
         )
+    # Ficha arquivada não marca horário por caminho nenhum (revisão de
+    # 2026-11-02, W7): a espera continua à vista, com o aviso, para alguém
+    # decidir — retirar da lista ou desarquivar —, e não é encerrada sozinha.
+    if entrada.patient.status == PatientStatus.ARCHIVED:
+        raise EsperaError(
+            f'A ficha de {entrada.patient.full_name} está arquivada. Desarquive antes de marcar.'
+        )
     if entrada.physician_membership_id not in (None, physician_membership.id):
         medico = entrada.physician_membership.user.get_full_name() or 'outro médico'
         raise EsperaError(f'{entrada.patient.full_name} espera por horário com {medico}.')
@@ -257,6 +267,7 @@ def opcoes_do_modal(tenant_id, physician_membership_id):
         _aguardando(tenant_id)
         .filter(Q(physician_membership_id=physician_membership_id)
                 | Q(physician_membership__isnull=True))
+        .exclude(patient__status=PatientStatus.ARCHIVED)
         .select_related('patient')
         [:100]
     )

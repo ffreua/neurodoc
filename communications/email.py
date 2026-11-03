@@ -6,6 +6,66 @@ class EmailSendFailed(Exception):
     pass
 
 
+class ServidorNaoPublico(EmailSendFailed):
+    """O host do SMTP próprio aponta para dentro da rede da instalação."""
+
+
+def _exigir_host_publico(host, port):
+    """Recusa servidor SMTP que resolve para endereço privado ou local.
+
+    O host é digitado pela clínica, e a conexão sai de dentro da rede da
+    instalação — onde estão o banco, o Redis e o RabbitMQ. Até a revisão de
+    2026-11-02 o botão "testar" abria a conexão para qualquer host e
+    devolvia o erro inteiro na tela: "Connection refused" num endereço e
+    "timed out" noutro bastavam para mapear a rede interna. Servidor de
+    e-mail de clínica é sempre um endereço público (Hostinger, Gmail,
+    Microsoft); nenhum provedor legítimo fica em faixa privada.
+    """
+    import ipaddress
+    import socket
+
+    try:
+        enderecos = {info[4][0] for info in socket.getaddrinfo(host, port or 25, proto=socket.IPPROTO_TCP)}
+    except (OSError, UnicodeError) as exc:
+        raise EmailSendFailed('Não foi possível encontrar este servidor. Confira o endereço.') from None
+    for endereco in enderecos:
+        ip = ipaddress.ip_address(endereco.split('%')[0])
+        if not ip.is_global or ip.is_multicast:
+            raise ServidorNaoPublico(
+                'Este endereço não é de um servidor de e-mail na internet. Use o servidor SMTP '
+                'do seu provedor (por exemplo, smtp.hostinger.com).'
+            )
+
+
+def _mensagem_para_a_tela(exc):
+    """O que a tela mostra de uma falha SMTP: a causa provável, nunca o erro cru.
+
+    A mensagem do `smtplib` traz a resposta do servidor remoto e, nas falhas
+    de rede, o endereço e a porta tentados — matéria-prima de sondagem. A
+    tela precisa dizer o que conferir, e isso cabe em cinco casos.
+    """
+    import smtplib
+    import socket
+    import ssl
+
+    # As recusas escritas aqui (host privado, host inexistente) já são texto
+    # para a tela, e saem sem causa encadeada.
+    if isinstance(exc, EmailSendFailed) and exc.__cause__ is None:
+        return str(exc)
+    causa = exc.__cause__ if isinstance(exc, EmailSendFailed) else exc
+    if isinstance(causa, smtplib.SMTPAuthenticationError):
+        return 'O servidor recusou o usuário ou a senha.'
+    if isinstance(causa, smtplib.SMTPSenderRefused):
+        return 'O servidor recusou o endereço de remetente. Confira se ele pertence a esta conta.'
+    if isinstance(causa, smtplib.SMTPRecipientsRefused):
+        return 'O servidor recusou o destinatário do teste.'
+    if isinstance(causa, ssl.SSLError):
+        return 'A conexão segura falhou. Confira as opções TLS/SSL e a porta (587 com TLS, 465 com SSL).'
+    if isinstance(causa, (socket.timeout, TimeoutError, ConnectionError, OSError)):
+        return 'Não foi possível conectar a este servidor nesta porta.'
+    return 'O servidor de e-mail respondeu com um erro. Confira host, porta, usuário e senha.'
+
+
 def _doctor_settings(physician_membership):
     """Configuração de e-mail do médico, se ativa."""
     if physician_membership is None:
@@ -129,6 +189,7 @@ def _connection_for(sender):
         password = sender.password()
     except SecretUnavailable as exc:
         raise EmailSendFailed(str(exc)) from exc
+    _exigir_host_publico(sender.host, sender.port)
     return get_connection(
         backend='django.core.mail.backends.smtp.EmailBackend',
         host=sender.host, port=sender.port,
@@ -196,11 +257,14 @@ def verify_connection(sender):
         raise EmailSendFailed(
             'Sem servidor SMTP próprio para testar. O envio usará o servidor da instalação.'
         )
-    connection = _connection_for(sender)
+    try:
+        connection = _connection_for(sender)
+    except EmailSendFailed as exc:
+        raise EmailSendFailed(_mensagem_para_a_tela(exc)) from None
     try:
         connection.open()
     except Exception as exc:
-        raise EmailSendFailed(f'{exc.__class__.__name__}: {exc}') from exc
+        raise EmailSendFailed(_mensagem_para_a_tela(exc)) from None
     finally:
         try:
             connection.close()
@@ -235,6 +299,13 @@ def send_test_email(to_email, physician_membership=None, tenant_id=None, label='
     ninguém deve descobrir a configuração errada por um paciente reclamando.
     """
     origem = label or 'da clínica'
+    try:
+        return _enviar_teste(to_email, origem, physician_membership, tenant_id)
+    except EmailSendFailed as exc:
+        raise EmailSendFailed(_mensagem_para_a_tela(exc)) from None
+
+
+def _enviar_teste(to_email, origem, physician_membership, tenant_id):
     return send_email(
         to_email,
         'NeuroDoc — teste de envio de e-mail',

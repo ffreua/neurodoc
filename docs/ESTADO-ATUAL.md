@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.32.2 "o cadastro seguro" (2026-11-02) · **Produção:**
+**Versão:** 1.32.3 "o cadastro seguro" (2026-11-02) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -104,7 +104,12 @@ foram corrigidos na 1.32.1; os não críticos estão em
 uso de hoje. Os três primeiros foram decididos e feitos na 1.32.2: a
 consanguinidade não vai mais à IA nem a trava (ela fechava o chat e o resumo
 para 972 dos 2.217 pacientes migrados do iClin), a data do documento é a da
-emissão, e o prontuário cabe no pedido de IA. O resto espera decisão.
+emissão, e o prontuário cabe no pedido de IA. Na 1.32.3 saiu o primeiro
+grupo — treze correções que não mudam a rotina de ninguém, entre elas o
+**CNPJ com letras**, que barrava clínica aberta depois de julho de 2026, e o
+teste do servidor de e-mail que permitia sondar a rede interna. O resto
+(segundo fator obrigatório, CRM validado para emitir, convênio vencido,
+entre outros) espera decisão.
 
 ### Os pacientes migrados não recebem documento
 

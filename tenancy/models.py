@@ -195,7 +195,7 @@ class Tenant(TimestampedModel):
             if not is_valid_cpf(self.cpf):
                 raise ValidationError({'cpf': 'CPF inválido. Confira os onze dígitos.'})
         elif not is_valid_cnpj(self.cnpj or ''):
-            raise ValidationError({'cnpj': 'CNPJ inválido. Confira os quatorze dígitos.'})
+            raise ValidationError({'cnpj': 'CNPJ inválido. Confira os quatorze caracteres.'})
         if self.plan not in PLANS:
             raise ValidationError({'plan': f'Plano desconhecido: {self.plan}'})
 

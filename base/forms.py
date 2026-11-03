@@ -126,20 +126,25 @@ class OrganizationSignupForm(forms.Form):
         return dados
 
     def clean_documento(self):
-        digits = re.sub(r'\D', '', self.cleaned_data['documento'] or '')
-        if len(digits) == 11:
-            validate_cpf(digits)
-            if Tenant.objects.filter(cpf=digits).exists():
+        from base.validators import normalizar_cnpj
+
+        valor = normalizar_cnpj(self.cleaned_data['documento'])
+        # Letra só existe no CNPJ alfanumérico; onze dígitos, só no CPF.
+        # Decidir pelo tamanho depois de arrancar as letras (a regra até a
+        # revisão de 2026-11-02) fazia um CNPJ com três letras virar CPF.
+        if re.fullmatch(r'[0-9]{11}', valor):
+            validate_cpf(valor)
+            if Tenant.objects.filter(cpf=valor).exists():
                 raise forms.ValidationError('Este CPF já está cadastrado em outra organização.')
-            return digits
-        if len(digits) == 14:
-            validate_cnpj(digits)
-            if Tenant.objects.filter(cnpj=digits).exists():
+            return valor
+        if len(valor) == 14:
+            validate_cnpj(valor)
+            if Tenant.objects.filter(cnpj=valor).exists():
                 raise forms.ValidationError('Este CNPJ já está cadastrado em outra clínica.')
-            return digits
+            return valor
         raise forms.ValidationError(
-            'Informe o CNPJ da clínica (14 dígitos) ou, se você atende como pessoa física, '
-            'o seu CPF (11 dígitos).'
+            'Informe o CNPJ da clínica (14 caracteres, com ou sem letras) ou, se você atende '
+            'como pessoa física, o seu CPF (11 dígitos).'
         )
 
 

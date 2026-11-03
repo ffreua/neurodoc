@@ -197,6 +197,20 @@ def enviar_copia(aceite):
     return True
 
 
+def _documento_para_operacao(tenant):
+    """O documento como vai à caixa de operação: o CPF sai mascarado.
+
+    O CNPJ é público; o CPF é dado pessoal de quem contrata como pessoa
+    física, e esta caixa é a dos pedidos de contato, lida por mais gente e
+    guardada sem prazo. Quem opera precisa reconhecer a adesão, não o
+    número — que está inteiro no console (revisão de 2026-11-02, C8).
+    """
+    if tenant.pessoa_fisica:
+        d = tenant.cpf
+        return f'***.{d[3:6]}.{d[6:9]}-**'
+    return tenant.documento_formatado
+
+
 def copia_para_operacao(aceite):
     """Avisa quem mantém a instalação que uma clínica aderiu.
 
@@ -214,7 +228,7 @@ def copia_para_operacao(aceite):
             f'[NeuroDoc] Nova adesão: {aceite.tenant.trade_name or aceite.tenant.legal_name}',
             '\n'.join([
                 f'Clínica:  {aceite.tenant.legal_name} '
-                f'({aceite.tenant.documento_rotulo} {aceite.tenant.documento_formatado})',
+                f'({aceite.tenant.documento_rotulo} {_documento_para_operacao(aceite.tenant)})',
                 f'Plano:    {plan_label(aceite.plan)}',
                 f'Aceite:   {aceite.accepted_email} em '
                 f'{timezone.localtime(aceite.created_at).strftime("%d/%m/%Y %H:%M")}',

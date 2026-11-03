@@ -166,29 +166,34 @@ def _letterhead(document, clinic):
     logotipo a coluna simplesmente some, sem deixar buraco.
     """
     profile = _physician_profile(document)
-    rqe = f' — RQE {profile.rqe}' if profile.rqe else ''
+    # Tudo aqui é digitado pela clínica ou pelo médico e entra como marcação
+    # do ReportLab: sem escape, um `<b` sem fechar quebrava todo documento
+    # daquele médico, e um `<img src=...>` fazia o servidor buscar a URL
+    # (revisão de 2026-11-02, S4).
+    rqe = f' — RQE {texto_seguro(profile.rqe)}' if profile.rqe else ''
 
     right = []
     if clinic is not None:
         tenant = document.tenant
         name = tenant.trade_name or tenant.legal_name
-        right.append(Paragraph(name, CLINIC_NAME_STYLE))
+        right.append(Paragraph(texto_seguro(name), CLINIC_NAME_STYLE))
         endereco = clinic.address_summary()
         if endereco:
-            right.append(Paragraph(endereco, SMALL_STYLE))
+            right.append(Paragraph(texto_seguro(endereco), SMALL_STYLE))
         contato = ' · '.join(p for p in [clinic.phone, clinic.email, clinic.website] if p)
         if contato:
-            right.append(Paragraph(contato, SMALL_STYLE))
+            right.append(Paragraph(texto_seguro(contato), SMALL_STYLE))
         right.append(Spacer(1, 0.15 * cm))
 
     right.append(Paragraph(
-        f'{profile.professional_name} — CRM {profile.crm_number}/{profile.crm_state}{rqe}',
+        f'{texto_seguro(profile.professional_name)} — CRM {texto_seguro(profile.crm_number)}/'
+        f'{texto_seguro(profile.crm_state)}{rqe}',
         LABEL_STYLE,
     ))
     contact_bits = [b for b in [profile.professional_address, profile.professional_phone,
                                 profile.professional_email] if b]
     if contact_bits:
-        right.append(Paragraph(' | '.join(contact_bits), SMALL_STYLE))
+        right.append(Paragraph(texto_seguro(' | '.join(contact_bits)), SMALL_STYLE))
 
     logo = _logo_flowable(clinic)
     if logo is None:
@@ -296,7 +301,7 @@ def _signature_footer(document):
 
     left = [
         Paragraph('_' * 42, BODY_STYLE),
-        Paragraph(profile.professional_name, LABEL_STYLE),
+        Paragraph(texto_seguro(profile.professional_name), LABEL_STYLE),
         Paragraph(f'CRM {texto_seguro(profile.crm_number)}/{texto_seguro(profile.crm_state)}', SMALL_STYLE),
     ]
     if issued:

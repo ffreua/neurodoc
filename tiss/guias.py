@@ -63,6 +63,10 @@ def _proximo_numero(tenant_id):
 
 # ------------------------------------------------------------------ preço e código
 
+#: O maior valor que `ItemGuia.valor_total` (10 dígitos, 2 decimais) guarda.
+TETO_VALOR_ITEM = Decimal('99999999.99')
+
+
 def total_do_item(quantidade, valor_unitario, fator):
     """Quantidade × unitário × fator, arredondado ao centavo — uma vez só."""
     bruto = Decimal(quantidade) * Decimal(valor_unitario) * Decimal(fator)
@@ -345,6 +349,15 @@ def gravar_item(context, user, guia, dados, item=None):
             origem = f'Informado por {user.get_full_name() or user.email}'
     if valor <= 0:
         raise GuiaRecusada('O valor do procedimento precisa ser maior que zero.')
+    # O formulário limita o unitário; o total é quantidade × unitário × fator
+    # e passava do campo (10 dígitos), e o banco recusava com erro 500 na
+    # tela (revisão de 2026-11-02, T7). O teto menor das versões até a
+    # 4.01.00 (8,2) é conferido na geração do lote, onde a versão é a do lote.
+    if total_do_item(quantidade, valor, fator) > TETO_VALOR_ITEM:
+        raise GuiaRecusada(
+            'O valor total deste procedimento passa de R$ 99.999.999,99. Confira a quantidade, '
+            'o valor unitário e o fator.'
+        )
 
     alvo = item or ItemGuia(
         tenant_id=guia.tenant_id, guia=guia,
@@ -365,7 +378,10 @@ def gravar_item(context, user, guia, dados, item=None):
     alvo.valor_total = total_do_item(quantidade, valor, fator)
     alvo.preco_origem = origem[:255]
     alvo.preco_motivo = motivo[:255] if motivo else ''
-    alvo.full_clean(exclude=['tenant', 'guia', 'recebivel'])
+    try:
+        alvo.full_clean(exclude=['tenant', 'guia', 'recebivel'])
+    except ValidationError as exc:
+        raise GuiaRecusada(' '.join(exc.messages)) from exc
     alvo.save()
     record_audit_event(
         user, context.tenant_id, 'tiss.item_gravado', object_type='guia_tiss', object_id=guia.id,

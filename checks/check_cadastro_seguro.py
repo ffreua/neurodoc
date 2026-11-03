@@ -254,7 +254,11 @@ try:
                      str(tela.status_code))
             declaracao = open('templates/scheduling/declaracao.html', encoding='utf-8').read()
             conferir('a declaração imprime só o CNPJ (nunca o CPF do médico)',
-                     '{% if tenant.cnpj %}' in declaracao and 'tenant.cpf' not in declaracao and 'tenant.documento' not in declaracao)
+                     # O documento formatado só dentro do `if tenant.cnpj`: ali ele é
+                     # sempre o CNPJ (pontuado desde a revisão de 2026-11-02, C12).
+                     '{% if tenant.cnpj %}<br>CNPJ {{ tenant.documento_formatado }}{% endif %}' in declaracao
+                     and 'tenant.cpf' not in declaracao
+                     and declaracao.count('tenant.documento') == 1)
             pagina = console(su).get('/instalacao/organizacoes/').content.decode()
             conferir('o console lista a pessoa física', pf.documento_formatado in pagina and 'pessoa física' in pagina)
 

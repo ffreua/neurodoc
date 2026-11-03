@@ -233,7 +233,17 @@ def atendimentos_markdown(rows, **_parametros):
                 titulo = f'{row["numero_do_prontuario"]} — {titulo}'
             linhas += ['', f'## {titulo}', '']
         data = row['data']
-        cabecalho = data.strftime('%d/%m/%Y %H:%M') if hasattr(data, 'strftime') else str(data)
+        # Na hora de Brasília: o `occurred_at` vem do banco em UTC, e o
+        # `strftime` direto imprimia três horas adiantado — a consulta das
+        # 21h saía no dia seguinte (CLAUDE.md §1; revisão de 2026-11-02, W9).
+        if hasattr(data, 'strftime'):
+            from django.utils import timezone
+
+            if timezone.is_aware(data):
+                data = timezone.localtime(data)
+            cabecalho = data.strftime('%d/%m/%Y %H:%M')
+        else:
+            cabecalho = str(data)
         linhas += [f'### {cabecalho} — {row["medico"]}', '',
                    f'*{row["tipo"]} · {row["situacao"]}*', '']
         for _campo, rotulo in SECOES_CLINICAS:

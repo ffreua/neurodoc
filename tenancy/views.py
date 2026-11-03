@@ -27,7 +27,7 @@ from .services import (
 )
 
 
-def registrar_email_descartavel(request, form, porta):
+def registrar_email_descartavel(request, form, porta, ator=None, tenant_id=None):
     """A recusa de e-mail descartável vai para a trilha — com o domínio, sem o endereço.
 
     É o que mostra no console que alguém está tentando: as três clínicas
@@ -41,7 +41,7 @@ def registrar_email_descartavel(request, form, porta):
     if not form.has_error('email', 'email_descartavel'):
         return
     record_audit_event(
-        None, None, 'accounts.email_descartavel_recusado',
+        ator, tenant_id, 'accounts.email_descartavel_recusado',
         object_type='cadastro', outcome='denied',
         origin_ip=None if client_ip(request) == 'desconhecido' else client_ip(request),
         integrity_metadata={'dominio': dominio_do_email(form.data.get('email')), 'porta': porta},
