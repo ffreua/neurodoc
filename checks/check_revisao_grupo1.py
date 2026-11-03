@@ -107,6 +107,9 @@ def console(su):
     s.force_login(su)
     requisicao = type('R', (), {'session': s.session, 'user': su})()
     otp_login(requisicao, TOTPDevice.objects.filter(user=su, confirmed=True).first())
+    # As ações graves do console pedem o código recente (revisão de 2026-11-02, S6).
+    from accounts.mfa import mark_recent_mfa
+    mark_recent_mfa(requisicao)
     requisicao.session.save()
     s.cookies['sessionid'] = requisicao.session.session_key
     return s
@@ -144,7 +147,7 @@ try:
         f = OrganizationSignupForm(data={'documento': alfa})
         f.is_valid()
         conferir('o formulário recusa o mesmo CNPJ alfanumérico de novo',
-                 'documento' in f.errors and 'já está cadastrado' in str(f.errors['documento']))
+                 'documento' in f.errors and 'não pode ser usado' in str(f.errors['documento']))
         f = OrganizationSignupForm(data={'documento': '529.982.247-25'})
         f.is_valid()
         conferir('onze dígitos continuam sendo CPF', 'documento' not in f.errors, f.errors.get('documento'))

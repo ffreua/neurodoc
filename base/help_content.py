@@ -242,6 +242,11 @@ ARTICLES = [
              'sai da lista sozinho e os de baixo sobem. Na lista, **Marcar na agenda** '
              'abre a grade com o paciente já escolhido.',
              '', ''),
+            ('Se a consulta que veio da lista for **cancelada**, marque **Pôr o paciente na '
+             'lista de espera** no cancelamento: ele volta ao topo, porque já era a vez dele. '
+             'Se o horário for **trocado para outro paciente**, quem esperava volta ao topo '
+             'sozinho. Ficha arquivada não é puxada nem entra na lista.',
+             '', ''),
         ],
     },
     {
@@ -1068,6 +1073,17 @@ FAQ_USO = [
                     'fazem o trabalho administrativo — cadastro, agenda, financeiro — e não '
                     'abrem nota clínica. Quem hospeda o sistema vê quantas organizações '
                     'existem e a trilha de quem fez o quê, nunca o conteúdo.',
+    },
+    {
+        'pergunta': 'O código do celular (segundo fator) é obrigatório?',
+        'resposta': 'Para responsáveis pela clínica e médicos, sim: além da senha, a entrada '
+                    'pede o código de seis dígitos de um aplicativo autenticador (Google '
+                    'Authenticator, Microsoft Authenticator). Enquanto o prazo não chega, um '
+                    'aviso no alto da tela leva à configuração; depois dele, a configuração é '
+                    'pedida antes de abrir o prontuário. Leva um minuto, e os códigos de '
+                    'recuperação mostrados no fim servem se o celular se perder. Exportar o '
+                    'acervo também pede o código. Secretaria e gestor podem configurar, sem '
+                    'obrigação.',
     },
     {
         'pergunta': 'Esqueci minha senha.',

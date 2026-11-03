@@ -150,6 +150,10 @@ try:
                                                        defaults={'confirmed': True})
         s = console.session
         s[DEVICE_ID_SESSION_KEY] = aparelho.persistent_id
+        # Ligar o SNCR pede o código recente (revisão de 2026-11-02, S6).
+        from accounts.mfa import RECENT_MFA_SESSION_KEY
+        from django.utils import timezone as _tz
+        s[RECENT_MFA_SESSION_KEY] = _tz.now().isoformat()
         s.save()
         tela = console.get('/instalacao/operacao/')
         conferir('com MFA, a tela mostra o cartão do SNCR, desligado',

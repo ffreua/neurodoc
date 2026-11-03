@@ -80,6 +80,19 @@ class TenantMiddleware:
         if context.tenant_status == TenantStatus.CLOSED:
             return render(request, 'tenancy/tenant_closed.html', status=403)
 
+        # Segundo fator obrigatório para dono e médico, depois do prazo
+        # (`accounts/mfa.py`). A configuração mora em `/accounts/`, fora
+        # daqui, então não há laço; o `next` traz a pessoa de volta.
+        from accounts import mfa
+
+        if mfa.segundo_fator_exigido_hoje() and mfa.segundo_fator_pendente(request.user, context.permissions):
+            from django.shortcuts import redirect
+            from django.urls import reverse
+            from django.utils.http import urlencode
+
+            destino = request.get_full_path() if request.method in SAFE_METHODS else '/app/reporting/'
+            return redirect(f'{reverse("accounts:mfa-setup")}?{urlencode({"next": destino, "obrigatorio": "1"})}')
+
         # Suspensa: congela. Ler segue livre; escrever é recusado aqui, num
         # lugar só, e não em cada view -- a view que esquecesse a
         # verificação seria a que ninguém testaria.

@@ -271,7 +271,8 @@ class TimelineView(TenantScopedView):
         ordenar = request.GET.get('ordenar', selectors.ORDEM_PADRAO)
         if ordenar not in selectors.ORDENS_DA_GRADE:
             ordenar = selectors.ORDEM_PADRAO
-        decrescente = request.GET.get('desc') == '1'
+        # Mais recente no topo por padrão; `desc=0` inverte (2026-11-03).
+        decrescente = request.GET.get('desc', '1') != '0'
         encounters = selectors.patient_timeline(
             request.access_context, patient, ordenar=ordenar, decrescente=decrescente,
         )

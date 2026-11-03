@@ -151,6 +151,9 @@ else:
     c.force_login(su)
     pedido = type('R', (), {'session': c.session, 'user': su})()
     otp_login(pedido, aparelho)
+    # As ações graves do console pedem o código recente (revisão de 2026-11-02, S6).
+    from accounts.mfa import mark_recent_mfa
+    mark_recent_mfa(pedido)
     pedido.session.save()
     c.cookies['sessionid'] = pedido.session.session_key
     com_mfa = c.get('/instalacao/').status_code

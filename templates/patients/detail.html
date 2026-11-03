@@ -198,7 +198,7 @@ sem caçar em cartões laterais.{% endcomment %}
                                 <th class="ps-4" scope="col"
                                     {% if ordenar == 'abertura' %}aria-sort="{% if decrescente %}descending{% else %}ascending{% endif %}"{% endif %}>
                                     <a class="text-dark text-decoration-none text-nowrap"
-                                       href="?ordenar=abertura{% if ordenar == 'abertura' and not decrescente %}&amp;desc=1{% endif %}#atendimentos">
+                                       href="?ordenar=abertura&amp;desc={% if ordenar == 'abertura' and decrescente %}0{% else %}1{% endif %}#atendimentos">
                                         Abertura
                                         {% if ordenar == 'abertura' %}<span aria-hidden="true">{% if decrescente %}↓{% else %}↑{% endif %}</span>{% endif %}
                                     </a>
@@ -206,12 +206,13 @@ sem caçar em cartões laterais.{% endcomment %}
                                 <th scope="col"
                                     {% if ordenar == 'fechamento' %}aria-sort="{% if decrescente %}descending{% else %}ascending{% endif %}"{% endif %}>
                                     <a class="text-dark text-decoration-none text-nowrap"
-                                       href="?ordenar=fechamento{% if ordenar == 'fechamento' and not decrescente %}&amp;desc=1{% endif %}#atendimentos">
+                                       href="?ordenar=fechamento&amp;desc={% if ordenar == 'fechamento' and decrescente %}0{% else %}1{% endif %}#atendimentos">
                                         Fechamento
                                         {% if ordenar == 'fechamento' %}<span aria-hidden="true">{% if decrescente %}↓{% else %}↑{% endif %}</span>{% endif %}
                                     </a>
                                 </th>
                                 <th scope="col">Tipo</th>
+                                <th scope="col">Consulta</th>
                                 <th scope="col">Médico</th>
                                 <th scope="col">Status</th>
                                 <th class="text-end pe-4" scope="col">Ações</th>
@@ -241,6 +242,10 @@ sem caçar em cartões laterais.{% endcomment %}
                                     <span class="badge bg-soft-primary text-primary text-nowrap">Estruturada</span>
                                     {% endif %}
                                 </td>
+                                {% comment %}O tipo da consulta vem do horário da agenda (primeira
+                                consulta, seguimento, retorno). Atendimento sem horário — o encaixe
+                                aberto pela ficha, o histórico migrado — não tem.{% endcomment %}
+                                <td><span class="fs-12 text-dark">{{ encounter.appointment.get_type_display|default:"—" }}</span></td>
                                 <td><span class="fs-12 text-muted">{{ encounter.physician_membership.user.get_full_name }}</span></td>
                                 <td>
                                     <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">{{ encounter.get_status_display }}</span>
@@ -254,7 +259,7 @@ sem caçar em cartões laterais.{% endcomment %}
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="6" class="text-center text-muted py-4 fs-12">Nenhum atendimento registrado.</td></tr>
+                            <tr><td colspan="7" class="text-center text-muted py-4 fs-12">Nenhum atendimento registrado.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

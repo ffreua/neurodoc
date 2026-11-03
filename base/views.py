@@ -346,10 +346,34 @@ class OrganizationSignupView(View):
             invitation, OrganizationSignupForm(initial={'contract_version': contract.VERSAO}),
         ))
 
+    #: Tentativas de cadastro por IP e por hora (revisão de 2026-11-02, S8).
+    #: O convite do plano Gratuito é aberto, e sem teto ele servia para
+    #: testar e-mails e documentos em série. Vinte é muito mais do que uma
+    #: clínica erra preenchendo — e atrás de um NAT a conta é por prédio.
+    LIMITE_POR_IP = 20
+
+    def _excedeu_o_limite(self, request):
+        from django.core.cache import cache
+
+        chave = f'cadastro:{client_ip(request)}'
+        try:
+            cache.get_or_set(chave, 0, 3600)
+            return cache.incr(chave) > self.LIMITE_POR_IP
+        except Exception:                                   # noqa: BLE001
+            return False
+
     def post(self, request, token):
         if self._invitation_or_none(token) is None:
             return render(request, 'onboarding/invitation_invalid.html', status=400)
         form = OrganizationSignupForm(request.POST)
+        if self._excedeu_o_limite(request):
+            form.is_valid()
+            form.errors.clear()
+            form.add_error(None, 'Muitas tentativas de cadastro a partir desta rede. Aguarde uma hora '
+                                 'e tente de novo, ou fale conosco pelo formulário da página inicial.')
+            return render(request, 'onboarding/signup.html', self._contexto(
+                self._invitation_or_none(token), form,
+            ), status=429)
         if not form.is_valid():
             from tenancy.views import registrar_email_descartavel
 

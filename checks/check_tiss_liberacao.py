@@ -228,6 +228,9 @@ try:
         s.force_login(su)
         requisicao = type('R', (), {'session': s.session, 'user': su})()
         otp_login(requisicao, dispositivo)
+        # As ações graves do console pedem o código recente (revisão de 2026-11-02, S6).
+        from accounts.mfa import mark_recent_mfa
+        mark_recent_mfa(requisicao)
         requisicao.session.save()
         s.cookies['sessionid'] = requisicao.session.session_key
 

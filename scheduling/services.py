@@ -111,6 +111,20 @@ def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, act
     old_starts_at, old_ends_at, old_version = appointment.starts_at, appointment.ends_at, appointment.row_version
     appointment.starts_at = new_starts_at
     appointment.ends_at = new_ends_at
+    # Remarcar para uma data em que o convênio escolhido não vale mais:
+    # a remarcação segue (é o paciente pedindo outro dia), e a escolha do
+    # convênio é desfeita — o atendimento volta à regra de sempre até alguém
+    # escolher de novo, e a tela avisa (revisão de 2026-11-02, T9).
+    from .models import BillingMode
+
+    forma_desfeita = bool(
+        appointment.billing_mode == BillingMode.INSURANCE and appointment.coverage_id
+        and not cobertura_vigente_no_dia(appointment.coverage, timezone.localtime(new_starts_at).date())
+    )
+    if forma_desfeita:
+        appointment.billing_mode = ''
+        appointment.coverage = None
+    appointment.forma_de_cobranca_desfeita = forma_desfeita
     appointment.occupied_range = _build_occupied_range(new_starts_at, new_ends_at, buffer_minutes)
     appointment.row_version += 1
     appointment.full_clean()
@@ -121,6 +135,7 @@ def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, act
         integrity_metadata={
             'old_starts_at': old_starts_at.isoformat(), 'old_ends_at': old_ends_at.isoformat(),
             'old_row_version': old_version, 'new_row_version': appointment.row_version,
+            'forma_de_cobranca_desfeita': forma_desfeita,
         },
     )
     schedule_reminders(appointment)
@@ -455,6 +470,12 @@ def change_appointment_type(context, appointment, new_type, actor_id):
     return appointment
 
 
+def cobertura_vigente_no_dia(cobertura, dia):
+    """A cobertura vale em `dia`? Início e término opcionais, os dois inclusivos."""
+    return not ((cobertura.starts_on and cobertura.starts_on > dia)
+                or (cobertura.ends_on and cobertura.ends_on < dia))
+
+
 def billing_options(appointment):
     """As coberturas do paciente para o painel "Forma de cobrança" do modal.
 
@@ -465,8 +486,7 @@ def billing_options(appointment):
     opcoes = []
     for cobertura in (appointment.patient.coverages
                       .select_related('plan__insurer').order_by('-starts_on', '-created_at')):
-        vigente = not ((cobertura.starts_on and cobertura.starts_on > dia)
-                       or (cobertura.ends_on and cobertura.ends_on < dia))
+        vigente = cobertura_vigente_no_dia(cobertura, dia)
         carteira = cobertura.member_number or ''
         opcoes.append({
             'id': str(cobertura.id),
@@ -513,6 +533,15 @@ def set_billing_mode(context, appointment, mode, coverage_id, actor_id):
         ).first() if coverage_id else None
         if cobertura is None:
             raise SchedulingError('Escolha um convênio deste paciente.')
+        # A agenda de exames já recusava convênio fora da vigência; a de
+        # consultas aceitava, e a guia saía para a operadora recusar
+        # (revisão de 2026-11-02, T9/T13). Agora as duas agendas dizem o
+        # mesmo, medido no dia do atendimento.
+        if not cobertura_vigente_no_dia(cobertura, timezone.localtime(appointment.starts_at).date()):
+            raise SchedulingError(
+                'O convênio escolhido não está vigente na data do atendimento. '
+                'Confira a vigência na ficha do paciente ou marque como particular.'
+            )
     anterior = {'mode': appointment.billing_mode, 'coverage': str(appointment.coverage_id or '')}
     appointment.billing_mode = mode
     appointment.coverage = cobertura

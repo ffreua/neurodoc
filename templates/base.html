@@ -79,6 +79,16 @@ vinculo em clinica nenhuma.{% endcomment %}
             muda — fechá-lo só esconderia o motivo de o prontuário não
             aparecer. O link vai só para quem pode resolver (o responsável).
             {% endcomment %}
+            {% if nd_segundo_fator_prazo %}
+            <div class="alert alert-soft-warning d-flex align-items-start gap-2 fs-13" role="status" data-nd-aviso="segundo-fator">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                <span>
+                    <strong>A partir de {{ nd_segundo_fator_prazo|date:"d/m/Y" }}, o código do celular (segundo fator) será obrigatório para responsáveis e médicos.</strong>
+                    Leva um minuto: instale um aplicativo autenticador (Google Authenticator, Microsoft Authenticator) e leia o QR.
+                    <a href="{% url 'accounts:mfa-setup' %}?next={{ request.get_full_path|urlencode }}" class="fw-semibold">Configurar agora</a>
+                </span>
+            </div>
+            {% endif %}
             {% if nd_sem_medico %}
             <div class="alert alert-soft-warning d-flex align-items-start gap-2 fs-13" role="status" data-nd-aviso="sem-medico">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>

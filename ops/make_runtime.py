@@ -56,7 +56,10 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  # desta lista e por mais um: e **por instalacao**. Quem
                  # subir o NeuroDoc no proprio dominio tem outro token, e
                  # a maioria nao tem nenhum.
-                 'GOOGLE_SITE_VERIFICATION']
+                 'GOOGLE_SITE_VERIFICATION',
+                 # O prazo do segundo fator obrigatório (`accounts/mfa.py`).
+                 # Opcional: o padrão do código vale para quem não o declara.
+                 'SEGUNDO_FATOR_OBRIGATORIO_DESDE']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 

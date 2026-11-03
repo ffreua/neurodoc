@@ -276,3 +276,50 @@ def opcoes_do_modal(tenant_id, physician_membership_id):
 def esperando(tenant_id, patient_id):
     """A espera em aberto do paciente, se houver — para o aviso após marcar."""
     return _aguardando(tenant_id).filter(patient_id=patient_id).first()
+
+
+@transaction.atomic
+def devolver_a_lista(context, appointment, ator=None):
+    """A consulta puxada da lista deixou de ser do paciente: ele volta ao topo.
+
+    Até a revisão de 2026-11-02 (W6), trocar o paciente ou cancelar a
+    consulta que veio da lista tirava a pessoa dela sem ninguém decidir: a
+    espera ficava "agendada" apontando para um horário que não era mais
+    dela. Volta ao **topo**, e não ao fim: ela já era a vez quando foi
+    puxada. Devolve a espera reaberta, ou None se a consulta não veio da
+    lista (ou se o paciente já voltou a aguardar por outro caminho).
+    """
+    _travar(context.tenant_id)
+    entrada = PacienteEmEspera.objects.filter(
+        tenant_id=context.tenant_id, appointment_id=appointment.id, status=EsperaStatus.AGENDADO,
+    ).select_related('patient').select_for_update(of=('self',)).first()
+    if entrada is None or entrada.patient.status == PatientStatus.ARCHIVED:
+        return None
+    if _aguardando(context.tenant_id).filter(patient_id=entrada.patient_id).exists():
+        return None
+    entrada.status = EsperaStatus.AGUARDANDO
+    entrada.appointment = None
+    entrada.resolvido_em = None
+    entrada.resolvido_por = None
+    entrada.posicao = 0
+    entrada.full_clean()
+    entrada.save()
+    _renumerar(context.tenant_id, [entrada, *_aguardando(context.tenant_id).exclude(id=entrada.id)])
+    _auditar(context, 'devolvida', entrada)
+    return entrada
+
+
+@transaction.atomic
+def por_na_lista_ao_cancelar(context, appointment, ator=None):
+    """O "pôr na lista de espera" do cancelamento: devolve, ou inclui no fim.
+
+    Quem decide é quem cancela, pela caixa no modal: o paciente que
+    desmarcou porque desistiu não volta para a lista sozinho.
+    """
+    devolvida = devolver_a_lista(context, appointment, ator=ator)
+    if devolvida is not None:
+        return devolvida, 'devolvida'
+    return incluir(
+        context, appointment.patient, physician_membership=appointment.physician_membership,
+        appointment_type=appointment.type, observacao='Consulta cancelada.', ator=ator,
+    ), 'incluida'

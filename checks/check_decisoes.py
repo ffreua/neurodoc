@@ -266,6 +266,10 @@ else:
         aparelho.save(update_fields=['confirmed'])
     sessao = cliente.session
     sessao[DEVICE_ID_SESSION_KEY] = aparelho.persistent_id
+    # Autorizar o apagamento pede o código recente (revisão de 2026-11-02, S6).
+    from accounts.mfa import RECENT_MFA_SESSION_KEY
+    from django.utils import timezone as _tz
+    sessao[RECENT_MFA_SESSION_KEY] = _tz.now().isoformat()
     sessao.save()
     com_mfa = cliente.get('/instalacao/operacao/').status_code
     print(f'  GET com MFA -> {com_mfa}')

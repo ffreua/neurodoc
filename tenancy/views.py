@@ -77,6 +77,14 @@ class AcceptCollaboratorInvitationView(View):
                 'invitation': invitation,
                 'login_url': login_url,
             })
+        # Convite emitido antes da 1.32 para um e-mail que hoje é recusado
+        # como descartável: o formulário levaria a pessoa até uma recusa sem
+        # saída, porque o convite é preso àquele endereço. A tela diz logo o
+        # caminho — pedir outro convite (revisão de 2026-11-02, C6).
+        from catalogs.descartaveis import e_descartavel
+
+        if invitation.email_binding and e_descartavel(invitation.email_binding):
+            return render(request, 'tenancy/accept_invitation_descartavel.html', {'invitation': invitation})
         return render(request, 'tenancy/accept_invitation_signup.html', {
             'invitation': invitation, 'form': AcceptInvitationAccountForm(initial={'email': invitation.email_binding}),
         })

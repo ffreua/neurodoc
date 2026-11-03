@@ -447,6 +447,9 @@ if True:
     # view de nao existir.
     requisicao = type('R', (), {'session': console.session, 'user': su})()
     otp_login(requisicao, TOTPDevice.objects.filter(user=su, confirmed=True).first())
+    # As ações graves do console pedem o código recente (revisão de 2026-11-02, S6).
+    from accounts.mfa import mark_recent_mfa
+    mark_recent_mfa(requisicao)
     requisicao.session.save()
     console.cookies['sessionid'] = requisicao.session.session_key
     pagina = console.get('/instalacao/contratos/')

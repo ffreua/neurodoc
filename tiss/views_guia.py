@@ -162,7 +162,7 @@ class GuiaView(TissView):
             'pendencias': pend, 'pode_fechar': guia.editavel and not [p for p in pend if p.impede],
             'pode_preparar': pode_preparar,
             'pode_fechar_cap': ctx.can(Capability.TISS_CLOSE),
-            'pode_indicar': ctx.can(Capability.READ_CLINICAL) and guia.editavel,
+            'pode_indicar': ctx.can(Capability.WRITE_CLINICAL) and guia.editavel,
             'total': sum((i.valor_total for i in guia.itens.all()), 0),
             'revisoes': Guia.objects.filter(revisa=guia).order_by('-created_at'),
             'lote_ativo': lotes.lote_ativo_da_guia(guia),
@@ -184,14 +184,28 @@ class GuiaView(TissView):
         form = GuiaForm(request.POST, guia=guia)
         if not form.is_valid():
             return render(request, 'tiss/guia.html', self._contexto(request, guia, form=form))
-        alterada = form.save(commit=False)
-        cob = alterada.cobertura
-        if cob is not None and 'cobertura' in form.changed_data:
-            # Trocar o convênio troca a carteira, que vem dele; a validade
-            # também. Quem quiser outra, edita depois.
-            alterada.carteira = (cob.member_number or '')[:20]
-            alterada.validade_carteira = cob.ends_on
-        alterada.save()
+        from django.db import transaction
+
+        with transaction.atomic():
+            # A guia relida **travada**, e gravados só os campos do
+            # formulário (revisão de 2026-11-02, T8). O `save()` inteiro do
+            # objeto lido antes regravava também o estado — e uma guia
+            # fechada por outra pessoa no mesmo instante voltava a rascunho.
+            try:
+                guias._travar_rascunho(guia)
+            except guias.GuiaRecusada as exc:
+                messages.error(request, str(exc))
+                return redirect('tiss:guia', pk=guia.id)
+            alterada = form.save(commit=False)
+            campos = [f for f in form._meta.fields if f in form.fields]
+            cob = alterada.cobertura
+            if cob is not None and 'cobertura' in form.changed_data:
+                # Trocar o convênio troca a carteira, que vem dele; a validade
+                # também. Quem quiser outra, edita depois.
+                alterada.carteira = (cob.member_number or '')[:20]
+                alterada.validade_carteira = cob.ends_on
+                campos += ['carteira', 'validade_carteira']
+            alterada.save(update_fields=sorted(set(campos) | {'updated_at'}))
         record_audit_event(
             request.user, guia.tenant_id, 'tiss.guia_alterada', object_type='guia_tiss', object_id=guia.id,
             outcome='success', integrity_metadata={'campos': sorted(form.changed_data)},
@@ -228,10 +242,10 @@ class ItemView(TissView):
 
 
 class IndicacaoView(TissView):
-    """A indicação clínica — só quem lê prontuário (o médico) escreve."""
+    """A indicação clínica — só o médico com CRM validado escreve (T11)."""
 
     def post(self, request, pk):
-        if not request.access_context.can(Capability.READ_CLINICAL):
+        if not request.access_context.can(Capability.WRITE_CLINICAL):
             raise Http404
         guia = _guia(request, pk)
         if not guia.editavel:

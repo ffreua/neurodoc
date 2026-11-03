@@ -79,6 +79,7 @@ def shell(request):
         'nd_user_initials': _initials(user) if user is not None and user.is_authenticated else '',
         'nd_can': {},
         'nd_sem_medico': False,
+        'nd_segundo_fator_prazo': None,
     }
     if context is None:
         return data
@@ -135,6 +136,12 @@ def shell(request):
         from tenancy.limits import has_doctor
 
         data['nd_sem_medico'] = not has_doctor(data['nd_tenant'])
+    # Segundo fator obrigatório que ainda não chegou ao prazo: o aviso diz o
+    # dia e leva à configuração (`accounts/mfa.py`).
+    from accounts import mfa
+
+    if mfa.segundo_fator_pendente(request.user, context.permissions):
+        data['nd_segundo_fator_prazo'] = mfa.prazo_do_segundo_fator()
     # Numeração do SNCR: o item do menu existe só com a integração ligada
     # (`sncr.models.Configuracao.ativo`) e só para quem emite receita. Uma
     # linha só, lida para quem tem a capacidade.

@@ -12,6 +12,18 @@ class InvitationCodeForm(forms.Form):
     code = forms.CharField(label='Código de convite', max_length=128)
 
 
+#: A recusa do documento que já tem cadastro. Não diz "já é cliente": até a
+#: revisão de 2026-11-02 (S8, C5) a frase confirmava a qualquer um, com um
+#: convite grátis e sem limite de tentativas, que aquele CPF ou CNPJ usava o
+#: NeuroDoc. Ela continua dizendo o que fazer — que é o que importa ao dono
+#: do documento, inclusive quando alguém o cadastrou sem autorização.
+MENSAGEM_DOCUMENTO_EM_USO = (
+    'Este documento não pode ser usado num cadastro novo. Se a organização já usa o '
+    'NeuroDoc, entre com a conta do responsável; se você não reconhece este cadastro, '
+    'fale conosco pelo formulário da página inicial.'
+)
+
+
 class OrganizationSignupForm(forms.Form):
     email = forms.EmailField(label='E-mail')
     password = forms.CharField(label='Senha', widget=forms.PasswordInput)
@@ -98,7 +110,15 @@ class OrganizationSignupForm(forms.Form):
         from catalogs.descartaveis import validar_email_de_cadastro
 
         email = self.cleaned_data['email'].strip().lower()
-        validar_email_de_cadastro(email)
+        # Conta que já existe não é barrada pela lista: o serviço responde
+        # "este e-mail já possui conta, faça login", que é o caminho dela.
+        # Antes a recusa de descartável vinha primeiro e mandava a pessoa
+        # trocar um e-mail que ela não precisava trocar (revisão de
+        # 2026-11-02, C6).
+        from accounts.models import User
+
+        if not User.objects.filter(email__iexact=email).exists():
+            validar_email_de_cadastro(email)
         return email
 
     def clean_password(self):
@@ -135,12 +155,12 @@ class OrganizationSignupForm(forms.Form):
         if re.fullmatch(r'[0-9]{11}', valor):
             validate_cpf(valor)
             if Tenant.objects.filter(cpf=valor).exists():
-                raise forms.ValidationError('Este CPF já está cadastrado em outra organização.')
+                raise forms.ValidationError(MENSAGEM_DOCUMENTO_EM_USO)
             return valor
         if len(valor) == 14:
             validate_cnpj(valor)
             if Tenant.objects.filter(cnpj=valor).exists():
-                raise forms.ValidationError('Este CNPJ já está cadastrado em outra clínica.')
+                raise forms.ValidationError(MENSAGEM_DOCUMENTO_EM_USO)
             return valor
         raise forms.ValidationError(
             'Informe o CNPJ da clínica (14 caracteres, com ou sem letras) ou, se você atende '

@@ -445,7 +445,14 @@ class MedicalDocumentIssueOnPaperView(ClinicalDocumentView):
     """Emite o documento para ser assinado à caneta e carimbado.
 
     `POST`, e nunca um link: atribui número de documento e muda o estado.
+
+    Exige `ISSUE_DOCUMENT` — papel médico **e** CRM validado —, como a
+    assinatura digital (revisão de 2026-11-02, S2-b). Até ali bastava ler o
+    prontuário, e o médico cujo registro ainda não tinha sido conferido
+    numerava documento em papel com o próprio CRM.
     """
+
+    required_capability = Capability.ISSUE_DOCUMENT
 
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)
@@ -477,6 +484,8 @@ class MedicalDocumentToPaperView(ClinicalDocumentView):
     (decisão I15). O rascunho eletrônico é descartado e o impresso abre no
     lugar, pronto para "Emitir para assinar e carimbar".
     """
+
+    required_capability = Capability.ISSUE_DOCUMENT  # mesma regra da emissão em papel (S2-b)
 
     def post(self, request, document_id):
         document = _medical_document_or_404(request, document_id)

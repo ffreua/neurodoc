@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.32.3 "o cadastro seguro" (2026-11-02) · **Produção:**
+**Versão:** 1.33 "o cadastro seguro" (2026-11-03) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -107,9 +107,12 @@ para 972 dos 2.217 pacientes migrados do iClin), a data do documento é a da
 emissão, e o prontuário cabe no pedido de IA. Na 1.32.3 saiu o primeiro
 grupo — treze correções que não mudam a rotina de ninguém, entre elas o
 **CNPJ com letras**, que barrava clínica aberta depois de julho de 2026, e o
-teste do servidor de e-mail que permitia sondar a rede interna. O resto
-(segundo fator obrigatório, CRM validado para emitir, convênio vencido,
-entre outros) espera decisão.
+teste do servidor de e-mail que permitia sondar a rede interna. O restante
+saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
+**código do celular passa a ser obrigatório para responsáveis e médicos em
+16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
+papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
+lista de espera.
 
 ### Os pacientes migrados não recebem documento
 

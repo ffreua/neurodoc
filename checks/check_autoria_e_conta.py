@@ -77,10 +77,12 @@ try:
         r = cliente(colega).post(f'/app/documents/medical/{doc.id}/emitir-em-papel/')
         doc.refresh_from_db()
         conferir('outro médico não emite em papel o rascunho alheio',
-                 r.status_code == 403 and doc.status == MedicalDocumentStatus.DRAFT and not doc.document_number,
+                 # 403 pela autoria, ou 404 se o colega ainda nem tem o CRM validado
+                 # (desde a revisão, S2-b, emitir em papel exige `ISSUE_DOCUMENT`).
+                 r.status_code in (403, 404) and doc.status == MedicalDocumentStatus.DRAFT and not doc.document_number,
                  f'{r.status_code} {doc.status}')
         r = cliente(colega).post(f'/app/documents/medical/{doc.id}/refazer-impressa/')
-        conferir('nem o refaz como impressa', r.status_code == 403
+        conferir('nem o refaz como impressa', r.status_code in (403, 404)
                  and MedicalDocument.objects.get(id=doc.id).status == MedicalDocumentStatus.DRAFT)
         r = cliente(autor).post(f'/app/documents/medical/{doc.id}/emitir-em-papel/')
         doc.refresh_from_db()

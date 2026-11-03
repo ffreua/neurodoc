@@ -323,7 +323,12 @@
                 VALIDADE" em vermelho. O documento ganha número e data e sai
                 **sem QR**: no papel, quem responde por ele é a assinatura de
                 próprio punho e o carimbo.{% endcomment %}
-                {% if rx %}
+                {% if not nd_can.issue_document %}
+                <div class="alert alert-soft-warning fs-12 mb-0" role="status">
+                    Emitir exige o CRM validado. Peça ao responsável pela clínica para validá-lo
+                    em <em>Organização → Equipe e papéis</em>.
+                </div>
+                {% elif rx %}
                 {% comment %}A receita eletrônica não tem versão em papel
                 (issuance.issue_on_paper recusa, decisão I10).{% endcomment %}
                 {% include "documents/_refazer_impressa.html" %}

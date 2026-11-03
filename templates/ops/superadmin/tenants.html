@@ -39,7 +39,7 @@
                         </td>
                         <td class="fs-12 text-muted">
                             {{ row.obj.documento_formatado|default:"—" }}
-                            {% if row.obj.pessoa_fisica %}<span class="badge bg-gray-200 text-dark ms-1">pessoa física</span>{% endif %}
+                            {% if row.obj.pessoa_fisica %}<span class="badge bg-gray-200 text-dark ms-1">pessoa física</span>{% endif %}{% if row.obj.responsavel_sem_confirmar %}<span class="badge bg-soft-warning text-warning ms-1" title="O responsável nunca confirmou o e-mail: o documento está ocupado sem prova de posse do endereço.">e-mail não confirmado</span>{% endif %}
                         </td>
                         <td class="fs-12"><code>/{{ row.obj.slug }}</code></td>
                         <td class="fs-12">

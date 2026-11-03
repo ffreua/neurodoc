@@ -118,9 +118,13 @@ class Receivable(TenantModel):
                            | models.Q(reserva_exame__isnull=False)),
                 name='finance_receivable_has_origin',
             ),
+            # Uma cobrança **viva** por reserva. A cancelada fica de fora desde
+            # a revisão de 2026-11-02 (T12): trocar a forma de cobrança do
+            # exame realizado cancela a cobrança antiga e cria a nova, e a
+            # antiga continua no banco com o motivo.
             models.UniqueConstraint(
                 fields=['tenant', 'reserva_exame', 'charge_kind'],
-                condition=models.Q(reserva_exame__isnull=False),
+                condition=models.Q(reserva_exame__isnull=False) & ~models.Q(status='cancelled'),
                 name='finance_receivable_reserva_uniq',
             ),
             models.UniqueConstraint(

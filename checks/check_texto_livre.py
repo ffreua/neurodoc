@@ -534,10 +534,15 @@ for marca in ['Abertura', 'Fechamento', 'em aberto', 'ordenar=fechamento']:
     if not presente:
         failures.append(f'a grade nao traz {marca!r}')
 
+# A ordem crescente continua existindo (a seta, `desc=0`); a padrão passou a
+# ser a do mais recente no topo em 2026-11-03, e é conferida logo abaixo.
 por_abertura = list(selectors.patient_timeline(
-    contexto, paciente, ordenar='abertura'))
+    contexto, paciente, ordenar='abertura', decrescente=False))
 por_fechamento = list(selectors.patient_timeline(
-    contexto, paciente, ordenar='fechamento'))
+    contexto, paciente, ordenar='fechamento', decrescente=False))
+padrao = list(selectors.patient_timeline(contexto, paciente, ordenar='abertura'))
+if [e.occurred_at for e in padrao] != sorted((e.occurred_at for e in padrao), reverse=True):
+    failures.append('a ordem padrao nao traz o mais recente no topo')
 print(f'  por abertura   -> {len(por_abertura)} linhas, crescente: '
       f'{[e.occurred_at for e in por_abertura] == sorted(e.occurred_at for e in por_abertura)}')
 abertos_primeiro = [e.finalized_at is None for e in por_fechamento]

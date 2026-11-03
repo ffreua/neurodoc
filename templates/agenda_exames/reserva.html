@@ -87,6 +87,29 @@
         </div>
         {% endif %}
 
+        {% if reserva.estado == 'realizada' %}
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">Corrigir a forma de cobrança</h5></div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">Marcado errado? Enquanto a cobrança não tiver pagamento, ajuste nem guia,
+                    a troca cancela a cobrança atual (que fica no financeiro, com o motivo) e cria outra com o preço da forma certa.</p>
+                <form method="post" class="row g-2" data-nd-confirm="Trocar a forma de cobrança deste exame já realizado? A cobrança atual será cancelada e outra será criada.">
+                    {% csrf_token %}<input type="hidden" name="acao" value="cobranca">
+                    <div class="col-12"><label class="form-label fs-12" for="r-cob2">Forma</label>
+                        <select class="form-select form-select-sm" id="r-cob2" name="cobranca">
+                            {% for v, r in formas %}<option value="{{ v }}" {% if v == reserva.cobranca %}selected{% endif %}>{{ r }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-12"><label class="form-label fs-12" for="r-cov2">Convênio</label>
+                        <select class="form-select form-select-sm" id="r-cov2" name="cobertura">
+                            <option value="">—</option>
+                            {% for c in coberturas %}<option value="{{ c.id }}" {% if c.id == reserva.cobertura_id %}selected{% endif %}>{{ c.plan.insurer.name }} — {{ c.plan.name }}</option>{% endfor %}
+                        </select></div>
+                    <div class="col-12"><button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>Trocar a forma</button></div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+
         {% if reserva.estado == 'agendada' or reserva.estado == 'confirmada' %}
         <div class="card mb-4">
             <div class="card-header"><h5 class="card-title mb-0">Remarcar</h5></div>

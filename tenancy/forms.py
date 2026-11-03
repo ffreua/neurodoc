@@ -322,7 +322,15 @@ class AcceptInvitationAccountForm(forms.Form):
         from catalogs.descartaveis import validar_email_de_cadastro
 
         email = self.cleaned_data['email'].strip().lower()
-        validar_email_de_cadastro(email)
+        # Conta que já existe não é barrada pela lista: o serviço responde
+        # "este e-mail já possui conta, faça login", que é o caminho dela.
+        # Antes a recusa de descartável vinha primeiro e mandava a pessoa
+        # trocar um e-mail que ela não precisava trocar (revisão de
+        # 2026-11-02, C6).
+        from accounts.models import User
+
+        if not User.objects.filter(email__iexact=email).exists():
+            validar_email_de_cadastro(email)
         return email
 
     def clean(self):

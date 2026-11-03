@@ -258,7 +258,9 @@ def _detail_context(request, patient, **overrides):
     ordenar = request.GET.get('ordenar', clinical_selectors.ORDEM_PADRAO)
     if ordenar not in clinical_selectors.ORDENS_DA_GRADE:
         ordenar = clinical_selectors.ORDEM_PADRAO
-    decrescente = request.GET.get('desc') == '1'
+    # O mais recente no topo por padrão (pedido do Dr. Fernando, 2026-11-03):
+    # é o que se procura ao abrir a ficha. `desc=0` inverte, pela seta.
+    decrescente = request.GET.get('desc', '1') != '0'
 
     # Se este paciente consegue receber documento por mensagem.
     #
@@ -294,8 +296,14 @@ def _detail_context(request, patient, **overrides):
         # fechamento "quando este registro foi fechado?" — com atendimento
         # aberto num dia e finalizado em outro, as duas deixam de coincidir.
         # Validada contra a tabela fechada do selector, nunca interpolada.
+        # Só as colunas da grade (revisão de 2026-11-02, W11): o paciente que
+        # veio do iClin tem dezenas de atendimentos com o texto inteiro, e a
+        # ficha lia todos para mostrar data, tipo, médico e situação.
         'encounters': clinical_selectors.patient_timeline(
             request.access_context, patient, ordenar=ordenar, decrescente=decrescente,
+        ).defer(
+            'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
+            'consanguinity_details', 'neurological_exam_text', 'plan_text', 'free_text', 'impressions',
         ),
         'ordenar': ordenar,
         'decrescente': decrescente,

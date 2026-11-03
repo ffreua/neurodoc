@@ -152,7 +152,10 @@ class ReservaView(ExamesView):
         local = timezone.localtime(reserva.inicio)
         return render(request, 'agenda_exames/reserva.html', {
             'reserva': reserva,
-            'cobranca_financeira': Receivable.objects.filter(reserva_exame=reserva).first(),
+            # A viva: a cancelada (troca de forma depois da realização, T12)
+            # fica no financeiro com o motivo, e não é a que vale.
+            'cobranca_financeira': Receivable.objects.filter(reserva_exame=reserva)
+            .exclude(status='cancelled').order_by('-created_at').first(),
             'guias': Guia.objects.filter(reserva_exame=reserva).order_by('-created_at'),
             'profissionais': ProfissionalTiss.objects.filter(tenant_id=ctx.tenant_id, ativo=True).order_by('nome'),
             'coberturas': reserva.paciente.coverages.select_related('plan__insurer').order_by('-starts_on'),

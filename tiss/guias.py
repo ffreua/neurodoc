@@ -742,8 +742,11 @@ def registrar_indicacao(context, user, guia, texto):
     """A indicação clínica é do médico: quem escreveu e quando ficam na guia."""
     from tenancy.permissions import Capability
 
-    if not context.can(Capability.READ_CLINICAL):
-        raise GuiaRecusada('A indicação clínica é preenchida pelo médico.')
+    # Escrever no prontuário, e não só lê-lo: médico com o CRM validado.
+    # Com `READ_CLINICAL` o médico ainda não validado preenchia a indicação
+    # que vai à operadora em nome dele (revisão de 2026-11-02, T11).
+    if not context.can(Capability.WRITE_CLINICAL):
+        raise GuiaRecusada('A indicação clínica é preenchida pelo médico, com o CRM validado.')
     texto = (texto or '').strip()[:500]
     guia.indicacao_clinica = texto
     guia.indicacao_por = user if texto else None
@@ -778,7 +781,10 @@ def criar_guia_do_exame(context, user, reserva):
             estado__in=[EstadoGuia.CANCELADA, EstadoGuia.SUBSTITUIDA]).exists():
         raise GuiaRecusada('Este exame já tem guia. Abra a guia existente.')
     if reserva.cobranca == 'particular':
-        raise GuiaRecusada('O exame foi marcado como particular. Troque a forma de cobrança antes.')
+        raise GuiaRecusada(
+            'O exame foi marcado como particular. Troque a forma de cobrança na reserva para convênio '
+            '(vale enquanto a cobrança não tiver pagamento) e gere a guia de novo.'
+        )
     inicio = timezone.localtime(reserva.inicio)
     fim = timezone.localtime(reserva.fim)
     dia = inicio.date()

@@ -215,6 +215,9 @@ else:
     sc.force_login(superadmin)
     pedido = type('R', (), {'session': sc.session, 'user': superadmin})()
     otp_login(pedido, aparelho)
+    # As ações graves do console pedem o código recente (revisão de 2026-11-02, S6).
+    from accounts.mfa import mark_recent_mfa
+    mark_recent_mfa(pedido)
     pedido.session.save()
     sc.cookies['sessionid'] = pedido.session.session_key
     rota = f'/instalacao/organizacoes/{tenant_a.id}/estado/'

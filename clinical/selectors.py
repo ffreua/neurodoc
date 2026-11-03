@@ -19,7 +19,7 @@ ORDENS_DA_GRADE = {
 ORDEM_PADRAO = 'abertura'
 
 
-def patient_timeline(context, patient, ordenar=ORDEM_PADRAO, decrescente=False):
+def patient_timeline(context, patient, ordenar=ORDEM_PADRAO, decrescente=True):
     """Atendimentos deste paciente, no inquilino do contexto.
 
     Clinical access-grant scoping (PatientAccessGrant) is not modeled yet;
@@ -35,7 +35,7 @@ def patient_timeline(context, patient, ordenar=ORDEM_PADRAO, decrescente=False):
     consulta = (
         scope_to_tenant(Encounter.objects.all(), context)
         .filter(patient=patient)
-        .select_related('physician_membership__user')
+        .select_related('physician_membership__user', 'appointment')
     )
     expressao = F(campo).desc(nulls_last=True) if decrescente else F(campo).asc(nulls_first=True)
     # Desempate por abertura: dois atendimentos ainda não finalizados têm o

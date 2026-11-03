@@ -161,3 +161,55 @@ def redirect_to_mfa_confirm(request, destino=None):
 
     alvo = destino or request.get_full_path()
     return redirect(f'{reverse("accounts:mfa-confirm")}?{urlencode({"next": alvo})}')
+
+
+# ------------------------------------------------- segundo fator obrigatório
+#
+# Para quem é dono ou médico numa organização ativa (revisão de 2026-11-02,
+# S5). Dono pede a exportação do acervo inteiro e decide quem entra na
+# equipe; médico lê e assina prontuário. Com só a senha, uma senha vazada
+# bastava para as duas coisas — e 9 donos e 1 médico estavam assim em
+# produção no dia da revisão.
+#
+# Não é "a partir de agora" para não trancar ninguém no meio de um
+# atendimento: até o prazo, o aviso fica no alto de toda tela de `/app/`;
+# depois dele, a entrada passa pela configuração do código antes de abrir
+# qualquer tela. A secretária e o gestor ficam como estão — podem configurar,
+# e não são obrigados.
+#
+# O prazo é por instalação (`SEGUNDO_FATOR_OBRIGATORIO_DESDE`), porque quem
+# sobe uma instalação nova decide quando a equipe dela se adapta; o padrão
+# do código é o desta instalação. `desligado` desliga — é como a bateria de
+# roteiros roda, com usuários criados sem dispositivo; o roteiro
+# `check_segundo_fator` liga a regra para conferi-la.
+
+PAPEIS_COM_SEGUNDO_FATOR = frozenset({'owner', 'doctor'})
+
+
+def prazo_do_segundo_fator():
+    """A data a partir da qual o segundo fator é exigido, ou None (desligado)."""
+    from datetime import date
+
+    from django.conf import settings
+
+    valor = (getattr(settings, 'SEGUNDO_FATOR_OBRIGATORIO_DESDE', '') or '').strip().lower()
+    if not valor or valor == 'desligado':
+        return None
+    try:
+        return date.fromisoformat(valor)
+    except ValueError:
+        return None
+
+
+def segundo_fator_pendente(user, papeis):
+    """Este vínculo precisa de segundo fator e o usuário ainda não tem?"""
+    if prazo_do_segundo_fator() is None:
+        return False
+    if not (set(papeis or ()) & PAPEIS_COM_SEGUNDO_FATOR):
+        return False
+    return not user_has_confirmed_totp(user)
+
+
+def segundo_fator_exigido_hoje():
+    prazo = prazo_do_segundo_fator()
+    return prazo is not None and timezone.localdate() >= prazo

@@ -936,10 +936,32 @@ class AppointmentActionView(TenantScopedView):
                 services.mark_no_show(appointment, request.user.id)
                 messages.success(request, 'Falta registrada.')
             elif action == 'cancel':
-                services.cancel_appointment(
-                    appointment, request.user.id, reason=request.POST.get('reason', ''),
-                )
-                messages.success(request, 'Horário liberado.')
+                from django.db import transaction
+
+                from . import espera
+
+                with transaction.atomic():
+                    services.cancel_appointment(
+                        appointment, request.user.id, reason=request.POST.get('reason', ''),
+                    )
+                    # Quem cancela decide se o paciente volta à lista de
+                    # espera (revisão de 2026-11-02, W6). A consulta que veio
+                    # da lista devolve a espera ao topo; a outra entra no fim.
+                    volta = None
+                    if request.POST.get('por_na_espera') == '1':
+                        try:
+                            _entrada, volta = espera.por_na_lista_ao_cancelar(
+                                request.access_context, appointment,
+                            )
+                        except espera.EsperaError as exc:
+                            messages.warning(request, f'Horário liberado, mas: {exc}')
+                            return _agenda_redirect(request, doctor, day)
+                if volta == 'devolvida':
+                    messages.success(request, 'Horário liberado. O paciente voltou ao topo da lista de espera.')
+                elif volta == 'incluida':
+                    messages.success(request, 'Horário liberado. O paciente entrou no fim da lista de espera.')
+                else:
+                    messages.success(request, 'Horário liberado.')
             else:
                 raise Http404
         except services.SchedulingError as exc:
@@ -1033,15 +1055,25 @@ class ChangePatientView(TenantScopedView):
         if patient is None:
             messages.error(request, 'Paciente não encontrado nesta organização.')
             return _agenda_redirect(request, doctor, day)
+        from django.db import transaction
+
+        from . import espera
+
         try:
-            trocado = services.change_appointment_patient(
-                request.access_context, appointment, patient,
-                form.cleaned_data['reason'], request.user.id,
-            )
+            with transaction.atomic():
+                trocado = services.change_appointment_patient(
+                    request.access_context, appointment, patient,
+                    form.cleaned_data['reason'], request.user.id,
+                )
+                # O horário que veio da lista de espera deixou de ser do
+                # paciente que esperava: ele volta ao topo (W6).
+                devolvida = espera.devolver_a_lista(request.access_context, trocado)
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
         aviso = ''
+        if devolvida is not None:
+            aviso += f' {devolvida.patient.full_name}, que veio da lista de espera, voltou ao topo dela.'
         if getattr(trocado, 'forma_de_cobranca_desfeita', False):
             aviso = ' A forma de cobrança escolhida era do paciente anterior e foi desfeita; escolha de novo se precisar.'
         messages.success(request, f'Horário agora é de {patient.full_name}.{aviso}')
@@ -1321,6 +1353,12 @@ class RescheduleAppointmentView(TenantScopedView):
             f'{appointment.patient.full_name} remarcado de '
             f'{original_day.strftime("%d/%m")} para {local.strftime("%d/%m/%Y às %H:%M")}.',
         )
+        if getattr(appointment, 'forma_de_cobranca_desfeita', False):
+            messages.warning(
+                request,
+                'O convênio escolhido não está vigente na nova data, e a escolha foi desfeita. '
+                'Confira a forma de cobrança no horário antes da chegada do paciente.',
+            )
         return _agenda_redirect(request, doctor, local.date())
 
 
@@ -1842,7 +1880,16 @@ class EsperaEditarView(TenantScopedView):
             messages.error(request, _first_error(form))
             return _espera_redirect(request)
         try:
-            medico = _medico_da_espera(request, form.cleaned_data.get('physician'))
+            escolhido = form.cleaned_data.get('physician')
+            # Espera de médico que saiu da equipe: ele não está mais na lista
+            # de médicos, e editar só a observação trocava a espera para
+            # "qualquer médico" sem ninguém pedir (revisão de 2026-11-02,
+            # W10). O mesmo médico de antes continua valendo; trocar por
+            # outro segue passando pela lista de quem atende hoje.
+            if escolhido and escolhido == entrada.physician_membership_id:
+                medico = entrada.physician_membership
+            else:
+                medico = _medico_da_espera(request, escolhido)
             espera.editar(
                 ctx, entrada, physician_membership=medico,
                 appointment_type=form.cleaned_data.get('appointment_type') or '',

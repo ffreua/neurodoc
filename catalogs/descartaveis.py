@@ -341,12 +341,16 @@ def sincronizar(conteudo=None):
     anterior e vira aviso. É a regra do pedido: "se não conseguir ou o
     repositório mudar, avisa por e-mail".
     """
-    from .models import ListaDominiosDescartaveis
+    from .models import DominioDescartavel, ListaDominiosDescartaveis
 
     try:
         if conteudo is None:
             conteudo = baixar()
-        atual = ListaDominiosDescartaveis.carregar().total
+        # A queda é medida contra o que está **gravado**, e não contra o
+        # total do estado: com o estado perdido (zerado), o total dizia 0 e
+        # uma lista curta passaria apagando a maior parte da tabela
+        # (revisão de 2026-11-02, C9). O maior dos dois vale.
+        atual = max(ListaDominiosDescartaveis.carregar().total, DominioDescartavel.objects.count())
         resultado = gravar(ler(conteudo, atual=atual))
     except ListaRecusada as exc:
         avisados = registrar_falha(str(exc))

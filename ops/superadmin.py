@@ -92,6 +92,30 @@ def _nav(active):
     return {'nav_active': active}
 
 
+#: Quanto tempo o código do login vale para as ações graves do console.
+#: O login aceita o segundo fator por 8 horas, e era só isso que separava
+#: uma sessão esquecida aberta de encerrar uma clínica ou autorizar o
+#: apagamento de arquivo clínico (revisão de 2026-11-02, S6). Dez minutos é
+#: o mesmo prazo da área TISS (requisito 83 do A9).
+RECONFIRMACAO_GRAVE_SEGUNDOS = 600
+
+
+def _pede_codigo_de_novo(request, volta):
+    """Redireciona à reconfirmação se o código não é recente; senão, None.
+
+    Só na direção que destrói ou expõe: encerrar e suspender clínica,
+    autorizar o apagamento, ligar o SNCR e o TISS. Desligar continua um
+    clique — freio que pede código chega tarde.
+    """
+    from accounts import mfa
+    from django.urls import reverse
+
+    if mfa.mfa_verified_recently(request, max_age_seconds=RECONFIRMACAO_GRAVE_SEGUNDOS):
+        return None
+    messages.info(request, 'Ação grave: confirme o código do aplicativo e repita a ação.')
+    return mfa.redirect_to_mfa_confirm(request, destino=reverse(volta))
+
+
 # ------------------------------------------------------------------ visão geral
 
 def _avisos_de_seguranca():
@@ -322,6 +346,16 @@ class TenantsView(SuperAdminView):
             member_count=Count(
                 'membership', filter=Q(membership__status=MembershipStatus.ACTIVE), distinct=True,
             ),
+            # Responsável que nunca confirmou o e-mail: o cadastro ocupa o
+            # CNPJ ou o CPF sem ninguém ter provado que é dono do endereço
+            # (revisão de 2026-11-02, C5). O selo deixa à vista o caso que o
+            # dono verdadeiro do documento vai relatar pelo contato.
+            responsavel_sem_confirmar=Count(
+                'membership', filter=Q(
+                    membership__roles__contains=['owner'],
+                    membership__user__email_verified_at__isnull=True,
+                ), distinct=True,
+            ),
         ).order_by('legal_name'):
             linhas.append({
                 'obj': tenant,
@@ -470,6 +504,10 @@ class TenantStatusView(SuperAdminView):
                 'assim?" quando alguem perguntar depois.',
             )
             return redirect('superadmin:tenants')
+        if estado in (TenantStatus.CLOSED, TenantStatus.SUSPENDED):
+            pedido = _pede_codigo_de_novo(request, 'superadmin:tenants')
+            if pedido is not None:
+                return pedido
 
         from django.db import transaction
 
@@ -978,6 +1016,9 @@ class SncrInstallationView(SuperAdminView):
             config.ambiente = ambiente
             evento, aviso = 'ops.sncr_environment_changed', f'Ambiente: {config.get_ambiente_display()}.'
         elif acao == 'ligar':
+            pedido = _pede_codigo_de_novo(request, 'superadmin:operations')
+            if pedido is not None:
+                return pedido
             if not is_valid_cnpj(config.cnpj_mantenedora):
                 messages.error(
                     request,
@@ -1139,6 +1180,9 @@ class TissInstallationView(SuperAdminView):
             config.ativo = False
             evento, aviso = 'ops.tiss_disabled', 'Faturamento TISS desligado em todas as clínicas.'
         elif acao == 'ligar':
+            pedido = _pede_codigo_de_novo(request, 'superadmin:operations')
+            if pedido is not None:
+                return pedido
             if (request.POST.get('confirmacao') or '').strip() != CONFIRMACAO_LIGAR_TISS:
                 messages.error(
                     request,
@@ -1229,6 +1273,9 @@ class GarbageCollectionView(SuperAdminView):
         quer_apagar = request.POST.get('acao') == 'apagar'
 
         if quer_apagar:
+            pedido = _pede_codigo_de_novo(request, 'superadmin:operations')
+            if pedido is not None:
+                return pedido
             if (request.POST.get('confirmacao') or '').strip() != CONFIRMACAO_APAGAR:
                 messages.error(
                     request,

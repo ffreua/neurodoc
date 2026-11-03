@@ -172,6 +172,26 @@ class AcervoView(CapabilityRequiredView):
         if formato not in {ReportExportKind.MD, ReportExportKind.JSON}:
             raise Http404
 
+        # O acervo inteiro num arquivo é o pedido mais valioso para quem
+        # tiver só a senha de alguém: exige o segundo fator, confirmado há
+        # pouco (revisão de 2026-11-02, S5). Sem dispositivo, a tela leva à
+        # configuração; com ele, à reconfirmação, e volta para cá.
+        from django.contrib import messages
+        from django.urls import reverse
+        from django.utils.http import urlencode
+
+        from accounts import mfa
+
+        volta = reverse('reporting:acervo')
+        if not mfa.user_has_confirmed_totp(request.user):
+            messages.warning(
+                request,
+                'Para exportar o acervo, configure antes o código do celular (segundo fator).',
+            )
+            return redirect(f'{reverse("accounts:mfa-setup")}?{urlencode({"next": volta})}')
+        if not mfa.mfa_verified_recently(request):
+            return mfa.redirect_to_mfa_confirm(request, destino=volta)
+
         membership = Membership.objects.filter(
             id=request.access_context.membership_id,
         ).first()

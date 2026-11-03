@@ -6,6 +6,12 @@
 {% if error %}
 <div class="alert alert-danger fade show fs-13" role="alert">{{ error }}</div>
 {% endif %}
+{% if request.GET.obrigatorio %}
+<div class="alert alert-soft-warning fs-13" role="status">
+    Para responsáveis e médicos, o código do celular é obrigatório para entrar no
+    prontuário. Configure abaixo e você volta para onde estava.
+</div>
+{% endif %}
 <p class="fs-13 text-muted">Escaneie o QR abaixo em um aplicativo autenticador
 (Google Authenticator, Authy, 1Password, entre outros):</p>
 <div class="text-center mb-3">

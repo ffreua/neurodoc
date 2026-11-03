@@ -288,7 +288,7 @@ def create_receivable_for_exam(reserva, actor_id):
 
     existente = Receivable.objects.filter(
         tenant_id=reserva.tenant_id, reserva_exame=reserva, charge_kind=ChargeKind.PROCEDURE,
-    ).first()
+    ).exclude(status=ReceivableStatus.CANCELLED).first()
     if existente is not None:
         return existente
     dia = timezone.localtime(reserva.inicio).date()

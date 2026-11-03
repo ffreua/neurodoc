@@ -59,15 +59,17 @@ def returning_patients_count(tenant, start, end):
     encounters_in_period = Encounter.objects.filter(
         tenant=tenant, status=EncounterStatus.FINALIZED, occurred_at__date__gte=start, occurred_at__date__lte=end,
     )
-    count = 0
-    for encounter in encounters_in_period.select_related(None).only('id', 'patient_id', 'occurred_at'):
-        earlier_exists = Encounter.objects.filter(
-            tenant=tenant, status=EncounterStatus.FINALIZED, patient_id=encounter.patient_id,
-            occurred_at__lt=encounter.occurred_at,
-        ).exists()
-        if earlier_exists:
-            count += 1
-    return count
+    # Uma consulta só, com `EXISTS` correlacionado (revisão de 2026-11-02,
+    # W8). Antes era uma consulta por atendimento do período: o mês padrão
+    # passava, e um ano inteiro com o histórico do iClin fazia milhares.
+    # A regra é a mesma, linha a linha: anterior **estrito** no tempo.
+    from django.db.models import Exists, OuterRef
+
+    anterior = Encounter.objects.filter(
+        tenant=tenant, status=EncounterStatus.FINALIZED, patient_id=OuterRef('patient_id'),
+        occurred_at__lt=OuterRef('occurred_at'),
+    )
+    return encounters_in_period.filter(Exists(anterior)).count()
 
 
 def no_show_rate(tenant, start, end, physician_membership=None):

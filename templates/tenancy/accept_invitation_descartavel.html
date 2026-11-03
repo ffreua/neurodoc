@@ -1,0 +1,15 @@
+{% extends "base_auth.html" %}
+{% block title %}Aceitar convite — NeuroDoc{% endblock %}
+{% block heading %}Este convite precisa de outro e-mail{% endblock %}
+{% block subheading %}{{ invitation.target_tenant.trade_name|default:invitation.target_tenant.legal_name }}{% endblock %}
+{% block content %}
+<p class="fs-13 text-muted">
+    O convite foi emitido para <strong>{{ invitation.email_binding }}</strong>, um endereço de
+    serviço de e-mail temporário. O NeuroDoc não aceita esse tipo de endereço em contas novas,
+    porque ele some sozinho — e com ele a recuperação de senha e os avisos do sistema.
+</p>
+<p class="fs-13 text-muted mb-0">
+    Peça a quem convidou um convite novo para um e-mail permanente (Gmail, Outlook, o e-mail da
+    clínica). Este link continua sem efeito.
+</p>
+{% endblock %}

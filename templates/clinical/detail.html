@@ -417,6 +417,7 @@ digitado em outra.{% endcomment %}
                                 <th class="ps-4" scope="col">#</th>
                                 <th scope="col">CID</th>
                                 <th scope="col">Descrição</th>
+                                <th scope="col">Nota do médico</th>
                                 <th class="text-end pe-4" scope="col">Certeza</th>
                             </tr>
                         </thead>
@@ -430,10 +431,8 @@ digitado em outra.{% endcomment %}
                                     virar célula em branco: o formulário agora recusa,
                                     mas registro antigo pode ter uma.{% endcomment %}
                                     <span class="fs-13">{{ diag.description_snapshot|default:"—" }}</span>
-                                    {% if diag.physician_note %}
-                                    <span class="d-block fs-11 text-muted">{{ diag.physician_note }}</span>
-                                    {% endif %}
                                 </td>
+                                <td class="text-wrap"><span class="fs-12 text-muted">{{ diag.physician_note|default:"—"|linebreaksbr }}</span></td>
                                 <td class="text-end pe-4">
                                     <span class="badge bg-soft-{{ diag.certainty|nd_tone }} text-{{ diag.certainty|nd_tone }}">
                                         {{ diag.get_certainty_display }}
@@ -441,7 +440,7 @@ digitado em outra.{% endcomment %}
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="4" class="text-center text-muted py-5 fs-13">Nenhuma hipótese registrada.</td></tr>
+                            <tr><td colspan="5" class="text-center text-muted py-5 fs-13">Nenhuma hipótese registrada.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

@@ -8,6 +8,12 @@ class AuditOutcome(models.TextChoices):
     SUCCESS = 'success', 'Sucesso'
     DENIED = 'denied', 'Negado'
     ERROR = 'error', 'Erro'
+    #: Uma falha esperada do domínio (sem preço, envio que não saiu, lote
+    #: que não gerou), registrada por nove lugares desde antes desta
+    #: enumeração a conhecer. Sem a escolha, o filtro da trilha no console
+    #: não achava esses eventos (revisão de 2026-11-02). A trilha é imutável:
+    #: os já gravados não são reescritos — a escolha nova é que passa a lê-los.
+    FAILURE = 'failure', 'Falha'
 
 
 class AuditEvent(TimestampedModel):

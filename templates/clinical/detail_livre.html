@@ -183,6 +183,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                             <tr class="border-b">
                                 <th class="ps-4" scope="col">CID-10</th>
                                 <th scope="col">Descrição</th>
+                                <th scope="col">Nota do médico</th>
                                 <th scope="col">Certeza</th>
                             </tr>
                         </thead>
@@ -193,6 +194,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                                     <span class="badge bg-soft-primary text-primary">{{ d.code_snapshot }}</span>
                                 </td>
                                 <td><span class="fs-12 text-dark">{{ d.description_snapshot }}</span></td>
+                                <td class="text-wrap"><span class="fs-12 text-muted">{{ d.physician_note|default:"—"|linebreaksbr }}</span></td>
                                 <td><span class="fs-12 text-muted">{{ d.get_certainty_display }}</span></td>
                             </tr>
                             {% endfor %}

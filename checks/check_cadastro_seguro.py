@@ -108,6 +108,9 @@ def console(su):
     s.force_login(su)
     requisicao = type('R', (), {'session': s.session, 'user': su})()
     otp_login(requisicao, TOTPDevice.objects.filter(user=su, confirmed=True).first())
+    # As ações graves do console pedem o código recente (revisão de 2026-11-02, S6).
+    from accounts.mfa import mark_recent_mfa
+    mark_recent_mfa(requisicao)
     requisicao.session.save()
     s.cookies['sessionid'] = requisicao.session.session_key
     return s
@@ -217,7 +220,7 @@ try:
         conferir('rótulo e formato do documento', pf is not None and pf.documento_rotulo == 'CPF'
                  and pf.documento_formatado == f'{CPF[:3]}.{CPF[3:6]}.{CPF[6:9]}-{CPF[9:]}')
         r, _ = cadastrar('outro.pf@roteiro-cadastro.example', CPF)
-        conferir('CPF repetido recusado', 'Este CPF já está cadastrado' in r.content.decode())
+        conferir('CPF repetido recusado', 'Este documento não pode ser usado num cadastro novo' in r.content.decode())
         r, _ = cadastrar('invalido@roteiro-cadastro.example', '52998224700')
         conferir('CPF inválido recusado', 'CPF inválido' in r.content.decode())
         r, _ = cadastrar('curto@roteiro-cadastro.example', '1234567890123')

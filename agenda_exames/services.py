@@ -240,16 +240,62 @@ def remarcar(context, user, reserva, inicio, *, duracao=None, encaixe=False, mot
 def definir_cobranca(context, user, reserva, cobranca, cobertura=None):
     """Particular ou convênio — até a realização, como no check-in da consulta."""
     reserva = _travar(context, reserva)
-    if reserva.estado in (EstadoReserva.REALIZADA, EstadoReserva.CANCELADA, EstadoReserva.FALTOU):
-        raise ReservaRecusada('Depois da realização, a cobrança já nasceu com a forma escolhida.')
+    if reserva.estado in (EstadoReserva.CANCELADA, EstadoReserva.FALTOU):
+        raise ReservaRecusada('O exame não aconteceu: não há cobrança para definir.')
     if cobranca not in Cobranca.values:
         raise ReservaRecusada('Forma de cobrança inválida.')
+    if reserva.estado == EstadoReserva.REALIZADA:
+        return _trocar_cobranca_do_realizado(context, user, reserva, cobranca, cobertura)
     reserva.cobertura = _conferir_cobranca(reserva.paciente, cobranca, cobertura,
                                            timezone.localtime(reserva.inicio).date())
     reserva.cobranca = cobranca
     reserva.save(update_fields=['cobranca', 'cobertura', 'updated_at'])
     record_audit_event(user, context.tenant_id, 'agenda_exames.cobranca_definida', object_type='reserva_exame',
                        object_id=reserva.id, outcome='success', integrity_metadata={'cobranca': cobranca})
+    return reserva
+
+
+def _trocar_cobranca_do_realizado(context, user, reserva, cobranca, cobertura):
+    """Corrige particular ↔ convênio de exame já realizado (revisão de 2026-11-02, T12).
+
+    A cobrança nasce na realização com a forma escolhida; marcada errado, o
+    exame particular não virava guia ("troque a forma antes") e a reserva
+    recusava a troca — sem caminho na tela. Agora a troca vale enquanto
+    **nada aconteceu com a cobrança**: sem pagamento, sem ajuste e sem guia.
+    A cobrança antiga é cancelada com o motivo e fica no banco; a nova nasce
+    com o preço da forma certa. Com pagamento ou guia, quem corrige é o
+    financeiro, com ajuste — como antes.
+    """
+    from finance.models import ChargeKind, Receivable, ReceivableStatus
+    from finance.receivables import cancel_receivable, create_receivable_for_exam
+    from tiss.models import Guia, ItemGuia
+
+    if Guia.objects.filter(tenant_id=context.tenant_id, reserva_exame=reserva).exclude(estado='cancelada').exists():
+        raise ReservaRecusada('Este exame já tem guia TISS. Cancele a guia antes de trocar a forma de cobrança.')
+    atual = Receivable.objects.select_for_update().filter(
+        tenant_id=context.tenant_id, reserva_exame=reserva, charge_kind=ChargeKind.PROCEDURE,
+    ).exclude(status=ReceivableStatus.CANCELLED).first()
+    if atual is not None and (
+        atual.status != ReceivableStatus.PENDING or atual.payments.exists() or atual.adjustments.exists()
+        or ItemGuia.objects.filter(recebivel=atual).exists()
+    ):
+        raise ReservaRecusada(
+            'A cobrança deste exame já tem pagamento, ajuste ou guia. Corrija pelo financeiro, com ajuste e motivo.'
+        )
+    nova_cobertura = _conferir_cobranca(reserva.paciente, cobranca, cobertura,
+                                        timezone.localtime(reserva.inicio).date())
+    anterior = reserva.cobranca
+    if atual is not None:
+        cancel_receivable(atual, user.id, f'Forma de cobrança do exame trocada de {anterior or "não informada"} para {cobranca}.')
+    reserva.cobranca = cobranca
+    reserva.cobertura = nova_cobertura
+    reserva.save(update_fields=['cobranca', 'cobertura', 'updated_at'])
+    nova = create_receivable_for_exam(reserva, user.id)
+    record_audit_event(user, context.tenant_id, 'agenda_exames.cobranca_trocada_apos_realizacao',
+                       object_type='reserva_exame', object_id=reserva.id, outcome='success',
+                       integrity_metadata={'de': anterior, 'para': cobranca,
+                                           'cobranca_cancelada': str(atual.id) if atual else None,
+                                           'cobranca_nova': str(nova.id) if nova else None})
     return reserva
 
 

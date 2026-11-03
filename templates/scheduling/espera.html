@@ -240,6 +240,9 @@ não lê prontuário.
                                     <label class="form-label fs-11 mb-0" for="ed-med-{{ registro.id }}">Médico</label>
                                     <select class="form-select form-select-sm mb-1" id="ed-med-{{ registro.id }}" name="physician">
                                         <option value="">Qualquer médico</option>
+                                        {% if registro.physician_membership_id and registro.physician_membership not in doctors %}
+                                        <option value="{{ registro.physician_membership_id }}" selected>{{ registro.physician_membership.user.get_full_name|default:registro.physician_membership.user.email }} (saiu da equipe)</option>
+                                        {% endif %}
                                         {% for option in doctors %}
                                         <option value="{{ option.id }}" {% if registro.physician_membership_id == option.id %}selected{% endif %}>
                                             {{ option.user.get_full_name|default:option.user.email }}
