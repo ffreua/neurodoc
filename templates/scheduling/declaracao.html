@@ -112,6 +112,14 @@ da clínica e não do médico.
             line-height: 1.5;
         }
 
+        /* No celular a folha perde a margem de papel (18 mm de cada lado
+           são um terço da tela), e a barra de cima ganha respiro da borda.
+           A impressão (abaixo) não muda. */
+        @media screen and (max-width: 600px) {
+            .toolbar { margin: 12px 8px 0; }
+            .sheet { margin: 12px 8px; padding: 20px 16px; }
+        }
+
         @media print {
             body { background: #fff; }
             .toolbar, .aviso { display: none; }

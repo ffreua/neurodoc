@@ -1140,3 +1140,224 @@ body.nd-no-shell .nxl-content {
         max-height: 60vh !important;
     }
 }
+
+/* ==========================================================================
+   Avisos e celular, segunda auditoria (2026-11-04)
+
+   Feita num Chromium dentro do Docker, em 360px e 768px, nas 57 telas do
+   manual e nos links internos que elas abrem (~95 telas). A primeira
+   auditoria (o bloco acima) tratou do toque; esta tratou do que sai
+   torto. Nada aqui muda template, rota ou comportamento: so a forma.
+   ========================================================================== */
+
+/* Os avisos "soft" nao existiam.
+ *
+ * `alert-soft-warning` e `alert-soft-primary` sao usados em `base.html`
+ * (segundo fator, clinica sem medico, organizacao suspensa) e em mais seis
+ * telas, mas o tema so define as variantes `-message` (com borda
+ * tracejada). A classe sem estilo deixava o `.alert` do Bootstrap com fundo
+ * e borda transparentes: o aviso que aparece em toda tela saia como texto
+ * solto no alto da pagina, no computador e no celular. As cores sao as do
+ * proprio tema para o "soft". */
+.alert.alert-soft-warning {
+    --bs-alert-color: #7a4a05;
+    --bs-alert-bg: #fff6e9;
+    --bs-alert-border-color: #ffd69d;
+}
+.alert.alert-soft-primary {
+    --bs-alert-color: #1f327d;
+    --bs-alert-bg: #eef1fc;
+    --bs-alert-border-color: #c2ccf1;
+}
+.alert.alert-soft-warning a,
+.alert.alert-soft-primary a {
+    color: inherit;
+    text-decoration: underline;
+}
+
+/* O icone do aviso nao encolhe, e o texto quebra.
+ *
+ * O aviso e `d-flex` com o icone, o texto e o botao de fechar lado a lado.
+ * Sem `flex-shrink: 0` o icone e o primeiro a ceder quando o texto e longo,
+ * e no celular ele virava um ponto ou sumia. E sem `min-width: 0` o texto
+ * nao quebra palavra comprida (um endereco, um nome de arquivo): ela
+ * empurrava o aviso para fora da tela. */
+.alert > svg {
+    flex-shrink: 0;
+}
+.alert > span,
+.alert > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* A gaveta fechada sem sombra na beira da tela.
+ *
+ * Ela fica fora da tela por `transform`, mas a sombra de 32px vazava para
+ * dentro: uma faixa cinza na borda direita do atendimento, sempre. Fechada,
+ * fica invisivel de fato -- o que tambem tira do caminho do Tab o que
+ * ninguem esta vendo. O atraso na volta deixa a animacao de fechar
+ * terminar antes de sumir. */
+.nd-gaveta {
+    transition: transform .18s ease-out, visibility 0s linear .18s;
+    visibility: hidden;
+}
+.nd-gaveta.is-aberta {
+    transition: transform .18s ease-out, visibility 0s;
+    visibility: visible;
+}
+
+@media (max-width: 767.98px) {
+    /* O titulo da pagina numa linha, a trilha embaixo.
+     *
+     * O tema poe titulo e trilha lado a lado com um traco entre eles. Na
+     * tela do celular a trilha ficava com um terco da largura, e cada item
+     * ia para uma linha: "Inicio / CARLOS ADULTO / DA SILVA / Prontuario"
+     * empilhado ao lado do titulo. */
+    .page-header .page-header-left {
+        flex-wrap: wrap;
+        flex: 1 1 auto;
+        min-width: 0;
+        row-gap: 2px;
+        padding: 10px 0;
+    }
+    .page-header .page-header-title {
+        flex: 0 0 100%;
+    }
+    .page-header h5,
+    .page-header .h5 {
+        border-right: 0;
+        padding-right: 0;
+        margin-right: 0;
+    }
+    .page-header .breadcrumb {
+        flex-wrap: wrap;
+        row-gap: 2px;
+        font-size: 12px;
+    }
+
+    /* Fileira de botoes que quebra a linha em vez de sair do cartao.
+     *
+     * "Documentos / Anexos / Arquivar" na ficha, "Trazer para esta consulta
+     * / Descartar" no atendimento: `d-flex` sem `flex-wrap`, e o ultimo
+     * botao passava da borda. Vale para a fileira que tem botao como filho
+     * -- direto ou dentro do `<form>` de um botao so --, que e o desenho das
+     * telas; fileira sem botao segue como esta. Inclui `d-inline-flex`: o
+     * par "Trazer / Descartar" e um `<form class="d-inline-flex
+     * flex-shrink-0">`, e `max-width` e o que o impede de pedir a largura
+     * dos dois botoes juntos a um pai que nao tem. */
+    :is(.d-flex, .d-inline-flex):not(.flex-nowrap):has(> .btn, > form > .btn, > .btn-group) {
+        flex-wrap: wrap;
+        row-gap: .5rem;
+        max-width: 100%;
+    }
+    /* E o rotulo comprido quebra dentro do botao, em vez de alargar o
+     * botao alem da tela. */
+    .btn {
+        white-space: normal;
+        max-width: 100%;
+    }
+
+    /* Cabecalho de cartao que quebra a linha.
+     *
+     * Titulo a esquerda e selo ou botao a direita, em `d-flex` sem
+     * `flex-wrap` em 47 telas: no celular o selo tomava a largura que
+     * quisesse e o titulo ia para uma coluna de uma palavra por linha
+     * ("Conteudo / do / documento", com o nome do paciente embaixo, em
+     * oito linhas). Quebrando, o selo desce quando nao cabe. */
+    .card-header.d-flex {
+        flex-wrap: wrap;
+        gap: .5rem;
+    }
+
+    /* Linha de "conteudo a esquerda, acoes a direita" que quebra.
+     *
+     * O desenho se repete em 77 telas (`d-flex justify-content-between`,
+     * quase sempre num item de lista), e as acoes costumam vir em
+     * `flex-shrink-0`. No celular quem cedia era o texto: na central de
+     * notificacoes, "Sem contato para entregar: receita REC-2026-000004"
+     * virava uma coluna de uma palavra por linha ao lado de dois botoes
+     * que passavam da tela. Quebrando, as acoes descem para baixo do
+     * texto. So dentro do conteudo da pagina: cabecalho e menu do tema
+     * tem o proprio desenho. */
+    .main-content .d-flex.justify-content-between:not(.flex-nowrap) {
+        flex-wrap: wrap;
+        row-gap: .5rem;
+    }
+
+    /* Caixa de selecao com a explicacao ao lado (o "Uso continuo" da
+     * receita): a coluna e `d-flex align-items-end` para alinhar com os
+     * campos vizinhos no computador, e no celular a explicacao ficava
+     * espremida a direita da caixa. Aqui ela desce para baixo dela. */
+    .d-flex:has(> .form-check + .form-text) {
+        flex-wrap: wrap;
+    }
+    .d-flex > .form-check + .form-text {
+        flex-basis: 100%;
+    }
+
+    /* O seletor "Aplicar escala" pede 280px no proprio atributo `style`
+     * (largura boa para ler o nome da escala no computador). No celular,
+     * com o rotulo ao lado, isso passava do cartao, e o exame neurologico
+     * rolava de lado dentro da aba. Aqui ele ocupa a linha inteira. */
+    #scale-picker {
+        min-width: 0 !important;
+        flex: 1 1 auto;
+    }
+    .card-header > .d-flex:has(> #scale-picker) {
+        flex: 1 1 100%;
+    }
+
+    /* A tabela que rola de lado avisa que rola.
+     *
+     * As tabelas estao embrulhadas em `.table-responsive`, e no celular
+     * rolam na horizontal -- mas nada na tela dizia isso. Na equipe, nos
+     * convenios e nas guias a coluna de acoes ficava fora da tela, e quem
+     * nao tentasse arrastar achava que ela nao existia. A sombra na borda
+     * aparece so do lado em que ha mais tabela, e some quando se chega ao
+     * fim: as duas camadas brancas rolam com o conteudo (`local`) e cobrem
+     * a sombra, que fica parada (`scroll`). Para a sombra aparecer, a
+     * celula fica sem fundo proprio -- o cartao por tras ja e branco. */
+    .table-responsive {
+        background:
+            linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)) left center / 28px 100% no-repeat local,
+            linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right center / 28px 100% no-repeat local,
+            linear-gradient(to right, rgba(40, 60, 80, .16), rgba(40, 60, 80, 0)) left center / 12px 100% no-repeat scroll,
+            linear-gradient(to left, rgba(40, 60, 80, .16), rgba(40, 60, 80, 0)) right center / 12px 100% no-repeat scroll;
+        background-color: #fff;
+    }
+    .table-responsive > .table {
+        --bs-table-bg: transparent;
+    }
+
+    /* O rodape em duas linhas, e nao tres colunas de quatro palavras. */
+    .nxl-container .footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: .5rem;
+        padding: 16px 20px;
+    }
+
+    /* Com um modal aberto, o tema desfoca o container com `filter` -- e
+     * elemento com `filter` passa a ser o referencial dos `position: fixed`
+     * de dentro dele. O painel de acoes da pagina, escondido 280px a
+     * direita da tela, deixava de ser fixo na janela e alargava a pagina
+     * para 640px: com o modal de marcar aberto, a tela rolava de lado. */
+    body.modal-open .nxl-container {
+        overflow-x: clip;
+    }
+}
+
+/* O cartao de entrar cabe no celular de 360px.
+ *
+ * Abaixo de 425px o tema fixa o cartao em 350px, e com as margens da pagina
+ * isso passa 6px da tela: o botao Entrar encostado na borda e a pagina
+ * rolando de lado no aparelho mais comum do Brasil. */
+@media (max-width: 480px) {
+    .auth-container .card.wd-450,
+    .auth-container .wd-450 {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 450px !important;
+    }
+}

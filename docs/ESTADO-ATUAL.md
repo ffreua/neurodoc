@@ -130,6 +130,16 @@ o proprietário não pediu a cota eletrônica à Vigilância, e o primeiro lote
 é o teste — o passo a passo está em `docs/sncr/ATIVACAO.md`, item 12. As de
 retinoide e de talidomida não são emitidas, e a página de vendas diz isso.
 
+**Celular, segunda auditoria** (2026-11-04, sem mudar a versão: é só CSS):
+cerca de 130 telas medidas em 320, 360 e 768px e lidas foto a foto. Os avisos
+de segundo fator, de clínica sem médico e de suspensão saíam **sem cor em
+toda tela, também no computador** (a classe não existia no tema); no celular,
+botões, cabeçalhos de cartão e linhas de "conteúdo + ações" passavam da borda,
+um modal aberto alargava a página e o cartão de entrar não cabia em 360px.
+Hoje nenhuma tela rola de lado. O que ficou para decidir (a visão de mês longa
+no celular, as tabelas que rolam em vez de empilhar) está em
+`docs/homologation/mobile.md`.
+
 ### Os pacientes migrados não recebem documento
 
 Dos 2.229, **sete** contatos estão aptos. A migração não autoriza

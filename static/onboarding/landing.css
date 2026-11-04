@@ -424,3 +424,19 @@
     .nd-periodo-btn { font-size: .8rem; }
     .nd-periodo-off { margin-left: .2rem; }
 }
+
+/* O aviso da novidade no celular: so o titulo, o link e o fechar.
+ *
+ * Com o texto inteiro ele cobria um terco da tela de 360px, por cima do
+ * que a pessoa estava lendo, ate ela achar o X. O texto continua no
+ * computador; no celular o "Como funciona" leva a ele. Os tres valores de
+ * posicao vencem o `style` do proprio elemento, que e o que os define. */
+@media (max-width: 575.98px) {
+    .nd-novidade {
+        right: 12px !important;
+        bottom: 12px !important;
+        width: calc(100% - 24px) !important;
+    }
+    .nd-novidade p { display: none; }
+    .nd-novidade h2 { font-size: .875rem !important; }
+}

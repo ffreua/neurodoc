@@ -123,6 +123,50 @@ usa calha grande sem variante responsiva. As três isenções de tabela são
 declaradas com nome: as duas folhas de impressão e a página pública de
 verificação, que não carregam o tema.
 
+## Segunda auditoria (2026-11-04): o que saía torto
+
+A primeira auditoria tratou do toque. A segunda partiu de uma queixa de uso
+real — "alguns avisos saem desconfigurados" — e mediu outra coisa: o que
+**sai do lugar**. Foi feita num Chromium dentro do Docker, nas 57 telas do
+manual e nos links internos que elas abrem (cerca de 130 telas), em 320,
+360 e 768px: uma medição automática de tudo que passa da borda da tela
+fora de um container que rola, e a leitura, foto a foto, de cada tela em
+fatias de 360×800, o tamanho que o celular mostra.
+
+Nada mudou em template de tela, rota, view ou comportamento: são regras de
+CSS no fim do `neurodoc.css` (bloco "Avisos e celular, segunda
+auditoria"), duas no `chat.css` e no `landing.css`, e um `@media screen`
+nas duas folhas A4.
+
+| O que se via | Onde | A causa | A correção |
+| --- | --- | --- | --- |
+| Aviso de segundo fator, de clínica sem médico e de suspensão **sem fundo nem borda**, como texto solto no alto da página — **também no computador** | toda tela de `/app/`, e mais seis | `alert-soft-warning` e `alert-soft-primary` não existem no tema (só as variantes `-message`) | as duas classes definidas com as cores "soft" do tema |
+| O ícone do aviso virando um ponto, ou sumindo; endereço comprido saindo da tela | mensagens de sucesso e de erro | ícone sem `flex-shrink: 0`, texto sem `min-width: 0` | as duas regras em todo `.alert` |
+| Uma faixa cinza na borda direita do atendimento, sempre | atendimento | a sombra da gaveta fechada vazava para dentro da tela | gaveta fechada com `visibility: hidden` (e fora do Tab) |
+| Título da página e trilha lado a lado, com cada item da trilha numa linha | toda tela | o tema põe os dois na mesma linha | no celular, título numa linha e trilha embaixo |
+| "Trazer para esta consulta / Descartar", "Documentos / Anexos / Arquivar" passando da borda do cartão | atendimento, ficha | fileira de botões em `d-flex`/`d-inline-flex` sem quebra | a fileira quebra a linha, e o rótulo comprido quebra dentro do botão |
+| Título do cartão numa coluna de uma palavra por linha ao lado de um selo | 47 cabeçalhos de cartão | `card-header d-flex` sem quebra | quebra a linha no celular |
+| Texto do aviso em coluna de uma palavra por linha, botões fora da tela | central de notificações e 76 outras linhas "conteúdo + ações" | ações em `flex-shrink-0` ao lado do texto | a linha quebra e as ações descem |
+| O exame neurológico rolando de lado dentro da aba | escalas funcionais | `min-width: 280px` no `style` do seletor | no celular o seletor ocupa a linha |
+| Arquivar cortado e Apagar fora da tela | conversa do chat de apoio | título e botões lado a lado | botões descem para baixo do título |
+| A explicação de "Uso contínuo" espremida ao lado da caixa | receita do SNCR | coluna `d-flex align-items-end` | a explicação desce para baixo da caixa |
+| A página rolando de lado (640px) com um modal aberto | marcar horário, nova conversa, registro profissional | o `filter` que desfoca o fundo torna o container referencial do painel fixo de ações, escondido 280px à direita | `overflow-x: clip` no container enquanto o modal está aberto |
+| O cartão de entrar 6px mais largo que a tela | login, segundo fator, escolher organização, minha conta | o tema fixa 350px abaixo de 425px | largura 100% até 450px |
+| Coluna de seis palavras no resumo do atendimento e na declaração | as duas folhas A4 | margem de papel (16–18mm) na tela | no celular, margem de tela; a impressão não muda |
+| O aviso "Novidade" cobrindo um terço da tela | página de vendas | o texto inteiro no celular | no celular, só título, link e fechar |
+| Nada dizia que a tabela rola de lado, e a coluna de ações parecia não existir | equipe, convênios, guias e as outras | — | sombra na borda do lado em que há mais tabela, que some no fim |
+
+Depois das correções, a medição automática não acha **nenhuma** tela que
+role de lado, nas três larguras (387 medições), e a bateria inteira de
+roteiros passa. A seção 8 do `check_mobile.py` cobra cada uma das regras —
+e reprova quando uma delas some, o que foi conferido apagando duas de
+propósito.
+
+Uma lição para quem escrever tela: **classe que não existe no tema não dá
+erro**. O aviso ficou transparente desde que nasceu, no computador e no
+celular, e nenhum roteiro reclamou porque o HTML estava certo. A seção 8.1
+procura nos templates todo `alert-soft-*` usado e exige a cor de cada um.
+
 ## O que ficou de fora
 
 - **Não há aplicativo nem *service worker*.** O produto é servidor
@@ -135,3 +179,11 @@ verificação, que não carregam o tema.
 - **A grade da agenda por semana rola na horizontal** no celular, de
   propósito: sete dias lado a lado é o que a grade significa, e empilhá-los
   deixaria de ser uma grade.
+- **A visão de mês fica muito longa no celular** (2026-11-04): cada dia
+  mostra a lista dos seus horários, e um mês inteiro vira vários metros de
+  tela. Encurtá-la seria esconder informação, e isso muda o que a tela é —
+  fica para decidir. No celular, a visão **Dia** é a que serve.
+- **As tabelas continuam rolando de lado** em vez de virar cartões
+  empilhados. Virar cartão exige rótulo em cada célula, em 48 tabelas — é
+  mexer em template, não em CSS. A sombra na borda resolve o pior (não
+  saber que há mais coluna).

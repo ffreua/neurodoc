@@ -93,6 +93,17 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
             color: #6b7280;
         }
 
+        /* No celular a folha perde a margem de papel: 16 mm de cada lado
+           são um terço da tela, e o texto clínico ficava numa coluna de
+           seis palavras. O cabeçalho empilha, e os botões ganham respiro da
+           borda. A impressão (abaixo) não muda. */
+        @media screen and (max-width: 600px) {
+            .toolbar { padding: 0 12px; }
+            .sheet { margin: 12px 8px; padding: 20px 16px; }
+            .head { flex-direction: column; gap: 10px; }
+            .head > div:last-child { text-align: left !important; }
+        }
+
         @media print {
             body { background: #fff; }
             .toolbar { display: none; }

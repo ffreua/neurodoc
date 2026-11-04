@@ -236,3 +236,11 @@
     .nd-chat-acoes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .nd-chat-acao-desc { display: none; }
 }
+
+/* No celular o título da conversa ocupa a linha, e Arquivar / Apagar
+ * descem para a de baixo: lado a lado com um título de vinte palavras, o
+ * Arquivar ficava cortado na borda e o Apagar fora da tela. */
+@media (max-width: 575.98px) {
+    .nd-chat-head { flex-wrap: wrap; row-gap: .5rem; }
+    .nd-chat-head > .min-width-0 { flex: 1 1 100%; }
+}

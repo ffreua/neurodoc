@@ -246,6 +246,81 @@ print(f'  templates com hidden + classe de display: {sorted(set(combinam)) or "n
 # porque e onde o defeito reaparece se alguem mexer na ordem das folhas.
 
 print()
+print('=' * 66)
+print('8. AVISOS E CELULAR, SEGUNDA AUDITORIA (2026-11-04)')
+print('=' * 66)
+
+# Medidas num Chromium em 320, 360 e 768px, em ~130 telas: o que esta aqui
+# saia torto. A conferencia e no texto do CSS porque o defeito nao e de
+# logica -- e a regra que some numa limpeza e ninguem nota ate abrir no
+# celular.
+css = ler(CSS_TEMA)
+corte = css.find('Avisos e celular, segunda auditoria')
+segunda = css[corte:] if corte >= 0 else ''
+print('  bloco da segunda auditoria   ', corte >= 0)
+if corte < 0:
+    falhas.append('o bloco "Avisos e celular, segunda auditoria" saiu de neurodoc.css')
+
+# 8.1 Os avisos "soft" tem cor. Sem a definicao, o aviso de segundo fator,
+# de clinica sem medico e de suspensao sai transparente -- no computador
+# tambem.
+usadas = set()
+for caminho in pathlib.Path(RAIZ_TEMPLATES).rglob('*.html'):
+    usadas.update(re.findall(r'\balert-soft-(?!\w+-message)([a-z]+)\b', ler(str(caminho))))
+sem_cor = sorted(
+    c for c in usadas
+    if not re.search(rf'\.alert\.alert-soft-{c}\s*\{{[^}}]*--bs-alert-bg', css)
+)
+print(f'  alert-soft usados: {sorted(usadas)} | sem cor: {sem_cor or "nenhum"}')
+if sem_cor:
+    falhas.append(f'aviso alert-soft sem cor definida (sai transparente): {sem_cor}')
+
+# 8.2 O icone do aviso nao encolhe, e o texto quebra palavra comprida.
+for regra, rotulo in [
+    (r'\.alert\s*>\s*svg\s*\{[^}]*flex-shrink:\s*0', 'icone do aviso sem encolher'),
+    (r'\.alert\s*>\s*span[^{]*\{[^}]*overflow-wrap:\s*anywhere', 'texto do aviso quebrando palavra'),
+    (r'\.nd-gaveta\s*\{[^}]*visibility:\s*hidden', 'gaveta fechada invisivel (sem sombra na borda)'),
+    (r'\.nd-gaveta\.is-aberta\s*\{[^}]*visibility:\s*visible', 'gaveta aberta visivel'),
+]:
+    achou = bool(re.search(regra, segunda))
+    print(f'  {rotulo:<46} {achou}')
+    if not achou:
+        falhas.append(f'regra perdida: {rotulo}')
+
+# 8.3 No celular (dentro do bloco de largura da segunda auditoria).
+celular = re.search(r'@media \(max-width: 767\.98px\) \{(.*?)\n\}', segunda, re.S)
+corpo = celular.group(1) if celular else ''
+for regra, rotulo in [
+    (r'\.page-header \.page-header-title\s*\{[^}]*flex:\s*0 0 100%', 'titulo da pagina numa linha so'),
+    (r':is\(\.d-flex, \.d-inline-flex\)[^{]*:has\(> \.btn', 'fileira de botoes quebrando a linha'),
+    (r'\.card-header\.d-flex\s*\{[^}]*flex-wrap:\s*wrap', 'cabecalho de cartao quebrando a linha'),
+    (r'\.main-content \.d-flex\.justify-content-between[^{]*\{[^}]*flex-wrap:\s*wrap', 'conteudo e acoes quebrando a linha'),
+    (r'#scale-picker\s*\{[^}]*min-width:\s*0', 'seletor de escala sem os 280px'),
+    (r'\.table-responsive\s*\{[^}]*local', 'sombra na tabela que rola'),
+    (r'body\.modal-open \.nxl-container\s*\{[^}]*overflow-x:\s*clip', 'modal aberto sem alargar a pagina'),
+]:
+    achou = bool(re.search(regra, corpo, re.S))
+    print(f'  {rotulo:<46} {achou}')
+    if not achou:
+        falhas.append(f'regra do celular perdida: {rotulo}')
+
+# 8.4 O cartao de entrar cabe em 360px: o tema o fixa em 350px abaixo de
+# 425px, e a regra que solta precisa do !important para vencer.
+entrar = re.search(r'\.auth-container \.card\.wd-450[^{]*\{[^}]*min-width:\s*0 !important', segunda)
+print(f'  {"cartao de entrar cabendo em 360px":<46} {bool(entrar)}')
+if not entrar:
+    falhas.append('o cartao de entrar voltou a ter 350px fixos (passa da tela de 360px)')
+
+# 8.5 As duas folhas A4 perdem a margem de papel na tela do celular, e so na
+# tela: a impressao segue com a dela.
+for folha in ('templates/clinical/summary.html', 'templates/scheduling/declaracao.html'):
+    texto = ler(folha)
+    achou = '@media screen and (max-width: 600px)' in texto
+    print(f'  {folha:<46} {achou}')
+    if not achou:
+        falhas.append(f'{folha}: a folha A4 voltou a ter 16-18mm de margem no celular')
+
+print()
 if falhas:
     for linha in falhas:
         print('FALHA:', linha)
