@@ -49,8 +49,8 @@
                                 <th class="ps-4 fs-12 text-muted fw-normal" scope="row">{% if rx.folhas > 1 %}Números SNCR{% else %}Número SNCR{% endif %}</th>
                                 <td class="pe-4 fw-semibold text-dark">
                                     {% if rx.numeros %}{{ rx.numeros|join:", " }}{% if rx.homologacao %} <span class="badge bg-soft-danger text-danger">homologação — sem validade</span>{% endif %}
-                                    {% if rx.folhas > 1 %}<div class="fs-12 text-muted fw-normal">Uma folha por medicamento, cada uma com o seu número.</div>{% endif %}
-                                    {% else %}<span class="text-muted fw-normal">{% if rx.folhas > 1 %}{{ rx.folhas }} números, um por medicamento, atribuídos na assinatura digital, do seu bloco{% else %}atribuído na assinatura digital, do seu bloco{% endif %}</span>{% endif %}
+                                    {% if rx.folhas > 1 %}<div class="fs-12 text-muted fw-normal">{% if rx.notificacao %}{{ rx.folhas }} Notificações, uma por medicamento, cada uma com o seu número.{% else %}Uma folha por medicamento, cada uma com o seu número.{% endif %}</div>{% endif %}
+                                    {% else %}<span class="text-muted fw-normal">{% if rx.notificacao %}{% if rx.folhas > 1 %}{{ rx.folhas }} Notificações, uma por medicamento, cada uma com o seu número, atribuído na assinatura digital, do seu lote{% else %}atribuído na assinatura digital, do seu lote{% endif %}{% elif rx.folhas > 1 %}{{ rx.folhas }} números, um por medicamento, atribuídos na assinatura digital, do seu bloco{% else %}atribuído na assinatura digital, do seu bloco{% endif %}</span>{% endif %}
                                 </td>
                             </tr>
                             {% if rx.notificacao %}

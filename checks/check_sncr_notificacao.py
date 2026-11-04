@@ -1,5 +1,8 @@
 """Notificação de Receita A, B e B2 eletrônica (1.34): os números, a regra, o PDF e o QR.
 
+Cada Notificação leva **um medicamento só**: dois medicamentos são duas
+Notificações, cada folha com o seu número, e a tela e o rodapé dizem isso.
+
 Decisões D9, D10 e I17 a I20 de `docs/sncr/DECISOES.md`. A Anvisa é
 **simulada** (`httpx.MockTransport`) — o teste real é a primeira Notificação
 com a cota da Vigilância Sanitária (D10) — e a **assinatura é real**, com
@@ -530,6 +533,9 @@ try:
              'Clonazepam' in folhas[0] and 'Zolpidem' not in folhas[0] and 'Zolpidem' in folhas[1]
              and all(p.full_name in f for f in folhas))
     conferir('rascunho marcado e sem número', all('RASCUNHO' in f and 'atribuído pelo SNCR' in f for f in folhas))
+    conferir('cada folha diz que é uma Notificação de um conjunto ("notificação 1 de 2"), não "receita"',
+             'notificação 1 de 2' in folhas[0] and 'notificação 2 de 2' in folhas[1]
+             and not any('receita 1 de' in f or 'receita 2 de' in f for f in folhas))
     nomes_da_clinica = [n for n in (tenant_a.legal_name, getattr(tenant_a, 'trade_name', '')) if n]
     conferir('nenhum timbre da clínica', not any(n in texto for n in nomes_da_clinica))
     pos = posicoes(pdf)
@@ -629,6 +635,11 @@ try:
     print('=== 9. as telas ===')
     c = entrar()
     detalhe = c.get(f'/app/documents/medical/{emitido.id}/').content.decode()
+    conferir('o detalhe diz que são 2 Notificações, uma por medicamento',
+             '2 Notificações, uma por medicamento' in detalhe)
+    formulario_nr = c.get(f'/app/documents/patients/{p.id}/medical/new/').content.decode()
+    conferir('o formulário diz que cada medicamento vira uma Notificação separada',
+             'um medicamento só' in formulario_nr and 'uma Notificação separada, com número próprio' in formulario_nr)
     conferir('o detalhe mostra o tipo, os números e a validade de 30 dias',
              'Notificação de Receita B' in detalhe and lote_real[0] in detalhe
              and 'data-nd-notificacao-validade' in detalhe and '30 dias' in detalhe)

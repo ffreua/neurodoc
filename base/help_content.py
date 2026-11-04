@@ -389,7 +389,9 @@ ARTICLES = [
              'procedimento dela; é diferente da numeração do talonário de papel, e quem atende em '
              'mais de um estado pede a cada Vigilância. Com a cota liberada, em **Numeração SNCR** '
              'escolha quantos números quer (10, o padrão, até 50) e **Pedir números com o '
-             'Gov.br**. A Anvisa entrega até 50 por dia de cada tipo, e o que se retira e não se '
+             'Gov.br**. Cada Notificação leva **um medicamento só**: dois medicamentos são duas '
+             'Notificações, cada uma com o seu número — o formulário faz isso sozinho, até 3 por '
+             'vez. A Anvisa entrega até 50 por dia de cada tipo, e o que se retira e não se '
              'usa **se perde**: peça só o que vai usar — um lote novo fica disponível quando '
              'restarem menos de 3. Se o pedido ficar "Resultado incerto", **dê os números por '
              'perdidos** no painel e peça outros: o NeuroDoc nunca usa número que não recebeu.',

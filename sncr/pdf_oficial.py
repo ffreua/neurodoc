@@ -326,7 +326,12 @@ def _identificacao_da_plataforma(document, folha, total):
     if total > 1:
         # A folha diz que faz parte de um conjunto, sem depender das outras:
         # cada uma tem número SNCR próprio e vale sozinha na farmácia.
-        partes.append(f'receita {folha} de {total}')
+        # Na Notificação, cada folha é uma Notificação — um medicamento só,
+        # com número próprio —, e o rodapé diz isso com a palavra dela.
+        from .receita import eh_notificacao_eletronica
+
+        nome = 'notificação' if eh_notificacao_eletronica(document) else 'receita'
+        partes.append(f'{nome} {folha} de {total}')
     return ' · '.join(p for p in partes if p)
 
 
