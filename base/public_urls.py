@@ -11,7 +11,7 @@ navegador pede `/favicon.ico` literal, sem ler o HTML.
 """
 from django.urls import path
 
-from .seo_views import ATIVOS, AtivoDaRaiz, LlmsView, ManifestView, RobotsView, SitemapView
+from .seo_views import ATIVOS, AtivoDaRaiz, LlmsView, ManifestView, RobotsView, LlmsFullView, SitemapView
 
 urlpatterns = [
     path('robots.txt', RobotsView.as_view(), name='robots'),
@@ -21,6 +21,8 @@ urlpatterns = [
     # O nome que às vezes se pede no singular: o mesmo texto, sem redirecionar
     # (robô que não segue redirecionamento não perde a leitura).
     path('llm.txt', LlmsView.as_view(), name='llm'),
+    # O manual inteiro em texto, para quando o índice acima não basta.
+    path('llms-full.txt', LlmsFullView.as_view(), name='llms-full'),
 ] + [
     path(nome, AtivoDaRaiz.as_view(), {'nome': nome}, name='ativo-%s' % nome)
     for nome in ATIVOS

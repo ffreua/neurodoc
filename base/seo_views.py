@@ -123,6 +123,7 @@ class RobotsView(View):
             # Não é diretiva do padrão: é o aviso, para quem lê o arquivo,
             # de onde está o resumo para modelos de linguagem.
             '# llms.txt: ' + seo.absoluta('/llms.txt'),
+            '# llms-full.txt: ' + seo.absoluta('/llms-full.txt'),
             '',
         ]
         return HttpResponse('\n'.join(linhas), content_type='text/plain; charset=utf-8',
@@ -162,69 +163,123 @@ class LlmsView(View):
 
     A proposta de llmstxt.org: um Markdown curto, na raiz, que um assistente
     lê antes de responder "o que é o NeuroDoc" ou "quanto custa". Montado
-    das mesmas fontes da página — `base/seo.py`, `tenancy/plans.py`,
-    `base/help_content.py` —, e nunca escrito à parte: um texto para robô
-    que envelhece separado da vitrine responde preço antigo com toda a
-    confiança, e é exatamente o número que o visitante vai conferir.
+    das mesmas fontes da página — `base/seo.py`, `base/content.py`,
+    `tenancy/plans.py`, `base/help_content.py` —, e nunca escrito à parte:
+    um texto para robô que envelhece separado da vitrine responde preço
+    antigo com toda a confiança, e é exatamente o número que o visitante vai
+    conferir. Os recursos entram com o texto da vitrine inteiro, e é por isso
+    que o que o produto **não** faz (a Notificação de retinoide e de
+    talidomida, decisão D9) chega aqui sem uma linha a mais.
 
     Só o que é público: a vitrine, o manual e o contrato. Nada de `/app/`.
     """
 
     def get(self, request):
-        from base.help_content import ARTICLES
-        from tenancy.plans import PUBLIC_ORDER, PLANS, pricing
+        return _texto_para_modelo(completo=False)
 
-        def linha_do_plano(code):
-            plano, preco = PLANS[code], pricing(code)
-            medicos = plano['max_doctors']
-            limites = (
-                f"até {plano['max_patients']:,} pacientes ativos e {medicos} médico{'s' if medicos != 1 else ''}"
-                .replace(',', '.')
-                if plano['max_patients'] else 'pacientes e médicos sem limite fixo'
+
+class LlmsFullView(View):
+    """`/llms-full.txt`: o mesmo, com o manual inteiro por extenso.
+
+    O `llms.txt` é o índice; este é o que um assistente lê quando a pergunta
+    é "como eu faço tal coisa no NeuroDoc". O texto de cada passo é o do
+    manual público, e os links relativos viram absolutos — fora do site,
+    `/ajuda/agenda/` não leva a lugar nenhum.
+    """
+
+    def get(self, request):
+        return _texto_para_modelo(completo=True)
+
+
+def _absolutos(texto):
+    """`](/ajuda/x/)` vira `](https://dominio/ajuda/x/)`."""
+    import re
+
+    return re.sub(r'\]\((/[^)\s]*)\)', lambda m: '](%s)' % seo.absoluta(m.group(1)), texto)
+
+
+def _texto_para_modelo(completo):
+    from base.content import FAQ, RECURSOS
+    from base.help_content import ARTICLES, FAQ_USO
+    from tenancy.plans import PUBLIC_ORDER, PLANS, pricing
+
+    def linha_do_plano(code):
+        plano, preco = PLANS[code], pricing(code)
+        medicos = plano['max_doctors']
+        limites = (
+            f"até {plano['max_patients']:,} pacientes ativos e {medicos} médico{'s' if medicos != 1 else ''}"
+            .replace(',', '.')
+            if plano['max_patients'] else 'pacientes e médicos sem limite fixo'
+        )
+        if preco['free']:
+            valor = 'Grátis, sem prazo e sem cartão'
+        elif not preco['quoted']:
+            valor = 'Valores combinados caso a caso'
+        else:
+            valor = 'Pagamento ' + '; '.join(
+                f"{p['label'].lower()}: {p['mensal']}/mês ({p['pagamento']} {p['por']}, "
+                f"{p['ano']} em 12 meses{', ' + str(p['desconto']) + '% de desconto' if p['desconto'] else ', preço cheio'})"
+                for p in preco['periodos']
             )
-            if preco['free']:
-                valor = 'Grátis, sem prazo e sem cartão'
-            elif not preco['quoted']:
-                valor = 'Valores combinados caso a caso'
-            else:
-                valor = 'Pagamento ' + '; '.join(
-                    f"{p['label'].lower()}: {p['mensal']}/mês ({p['pagamento']} {p['por']}, "
-                    f"{p['ano']} em 12 meses{', ' + str(p['desconto']) + '% de desconto' if p['desconto'] else ', preço cheio'})"
-                    for p in preco['periodos']
-                )
-            return f"- **{plano['label']}** — {limites}. {valor}."
+        return f"- **{plano['label']}** — {limites}. {valor}."
 
-        base = seo.absoluta('')
-        partes = [
-            '# NeuroDoc',
-            '',
-            '> ' + seo.RESUMO,
-            '',
-            'Prontuário eletrônico e gestão de consultório em português, feito por um '
-            'neurologista para neurologia e neurocirurgia e utilizável por qualquer '
-            'especialidade. Funciona no navegador; os dados ficam no Brasil, sob a LGPD.',
-            '',
-            '## Planos e preços',
-            '',
-            'Contrato de 12 meses. Nos planos pagos, o pagamento pode ser anual '
-            '(desconto de lançamento), semestral (5% de desconto) ou trimestral (preço cheio).',
-            '',
-            *[linha_do_plano(code) for code in PUBLIC_ORDER],
-            '',
-            '## Páginas',
-            '',
-            f'- [Página do produto]({base}/): recursos, planos e perguntas frequentes',
-            f'- [Manual de uso]({base}/ajuda/): os processos do sistema, passo a passo',
-            f'- [Contrato de adesão]({base}/contrato/): o texto em vigor',
-            f'- [Verificar documento]({base}/verificar/): conferir receita ou laudo assinado pelo QR',
-            '',
+    base = seo.absoluta('')
+    partes = [
+        '# NeuroDoc',
+        '',
+        '> ' + seo.RESUMO,
+        '',
+        'Prontuário eletrônico e gestão de consultório em português, feito por um '
+        'neurologista para neurologia e neurocirurgia e utilizável por qualquer '
+        'especialidade. Funciona no navegador; os dados ficam no Brasil, sob a LGPD.',
+        '',
+        '## Recursos',
+        '',
+        *[f"- **{r['titulo']}**: {r['texto']}" for r in RECURSOS],
+        '',
+        '## Planos e preços',
+        '',
+        'Contrato de 12 meses. Nos planos pagos, o pagamento pode ser anual '
+        '(desconto de lançamento), semestral (5% de desconto) ou trimestral (preço cheio).',
+        '',
+        *[linha_do_plano(code) for code in PUBLIC_ORDER],
+        '',
+        '## Perguntas frequentes',
+        '',
+        *[f"- **{f['pergunta']}** {f['resposta']}" for f in FAQ],
+        '',
+        '## Páginas',
+        '',
+        f'- [Página do produto]({base}/): recursos, planos e perguntas frequentes',
+        f'- [Manual de uso]({base}/ajuda/): os processos do sistema, passo a passo',
+        f'- [Perguntas de uso]({base}/ajuda/perguntas/): as dúvidas de quem usa o sistema',
+        f'- [Contrato de adesão]({base}/contrato/): o texto em vigor',
+        f'- [Verificar documento]({base}/verificar/): conferir receita ou laudo assinado pelo QR',
+        '',
+    ]
+    if not completo:
+        partes += [
             '## Manual',
             '',
             *[f"- [{a['title']}]({base}/ajuda/{a['slug']}/): {a['summary']}" for a in ARTICLES],
             '',
+            '## Opcional',
+            '',
+            f'- [Manual completo em texto]({base}/llms-full.txt): todos os artigos, passo a passo',
+            '',
         ]
-        return HttpResponse('\n'.join(partes), content_type='text/plain; charset=utf-8',
-                            headers={'Cache-Control': CACHE})
+    else:
+        partes += ['## Manual de uso, na íntegra', '']
+        for artigo in ARTICLES:
+            partes += [f"### {artigo['title']}", '',
+                       f"Endereço: {base}/ajuda/{artigo['slug']}/ — para: {artigo.get('audience', '')}",
+                       '', artigo['summary'], '']
+            for numero, passo in enumerate(artigo['steps'], 1):
+                partes += [f'{numero}. ' + _absolutos(passo[0]).replace('\n', '\n   '), '']
+        partes += ['## Perguntas de uso', '',
+                   *[f"- **{f['pergunta']}** {f['resposta']}" for f in FAQ_USO], '']
+    return HttpResponse('\n'.join(partes), content_type='text/plain; charset=utf-8',
+                        headers={'Cache-Control': CACHE})
 
 
 class ManifestView(View):

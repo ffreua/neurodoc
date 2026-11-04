@@ -16,7 +16,9 @@ documento, e imprimi-lo dentro dele mudaria o insumo do cálculo. Quem
 mostra o carimbo é a tela em volta.{% endcomment %}
 <article class="nd-contrato">
     <header class="nd-contrato-cabeca">
-        <h2 class="fw-bold text-dark mb-1">{{ contrato.TITULO }}</h2>
+        {% comment %}`<h1>` só na página pública do contrato, onde ele é o assunto; no
+cadastro e no console ele entra dentro de outra página, que já tem o seu.{% endcomment %}
+        {% if contrato_titulo_h1 %}<h1 class="h2 fw-bold text-dark mb-1">{{ contrato.TITULO }}</h1>{% else %}<h2 class="fw-bold text-dark mb-1">{{ contrato.TITULO }}</h2>{% endif %}
         <p class="fs-12 text-muted mb-0">{{ contrato.SUBTITULO }}</p>
         <p class="fs-11 text-muted mb-0">
             Versão {{ contrato.VERSAO }} · vigência desde {{ contrato.VIGENCIA_DESDE }}

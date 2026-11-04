@@ -57,6 +57,8 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  # subir o NeuroDoc no proprio dominio tem outro token, e
                  # a maioria nao tem nenhum.
                  'GOOGLE_SITE_VERIFICATION',
+                 # O do Bing Webmaster Tools, pelo mesmo motivo.
+                 'BING_SITE_VERIFICATION',
                  # O prazo do segundo fator obrigatório (`accounts/mfa.py`).
                  # Opcional: o padrão do código vale para quem não o declara.
                  'SEGUNDO_FATOR_OBRIGATORIO_DESDE',

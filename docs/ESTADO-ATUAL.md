@@ -180,6 +180,15 @@ são tags, e tag é alvo móvel.
 
 ### Outras
 
+- **Indexação no Google: falta a parte do dono do domínio** (2026-11-04).
+  O site está pronto para ser indexado — catálogo, sitemap, `robots.txt`,
+  `llms.txt`/`llms-full.txt`, 301 de `www.` e `X-Robots-Tag`
+  (`docs/homologation/seo.md` §9) —, mas a propriedade ainda **não foi
+  verificada** no Google Search Console nem no Bing Webmaster Tools
+  (`GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION` vazios no `.env`), e
+  o sitemap não foi enviado. E o *robots.txt gerenciado* da Cloudflare está
+  ligado: acrescenta o bloqueio dos robôs de treino de IA antes do nosso, sem
+  afetar o Googlebot. Manter ou desligar é decisão do dono.
 - ~~**Três roteiros reprovam de madrugada**~~ **Investigado e corrigido em
   2026-10-22** (sem versão nova: correção de roteiro e da trilha, pela regra
   de `base/version.py`). O diagnóstico registrado aqui estava errado duas

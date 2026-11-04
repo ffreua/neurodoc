@@ -41,6 +41,10 @@ PUBLIC_BASE_URL = env('PUBLIC_BASE_URL', default='http://localhost:8000')
 #: nossa. Depois de verificado, o token pode ficar: o Google revalida de
 #: tempos em tempos e a propriedade cai se a tag sumir.
 GOOGLE_SITE_VERIFICATION = env('GOOGLE_SITE_VERIFICATION', default='')
+#: O mesmo, para o Bing Webmaster Tools (`msvalidate.01`). O Bing alimenta
+#: também o DuckDuckGo, o Yahoo e a busca do ChatGPT; pelo mesmo motivo,
+#: por instalação e vazio por padrão.
+BING_SITE_VERIFICATION = env('BING_SITE_VERIFICATION', default='')
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = env('TIME_ZONE', default='America/Sao_Paulo')
 USE_I18N = True
@@ -70,6 +74,9 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Logo depois da segurança: a vitrine pedida por subdomínio sai daqui com
+    # 301 antes de abrir sessão. Ver `base/middleware.py`.
+    'base.middleware.HostCanonicoMiddleware',
     'ops.staticfiles.ReleaseStaticMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',

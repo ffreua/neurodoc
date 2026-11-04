@@ -354,6 +354,92 @@ else:
     conferir('sem token configurado, nenhuma tag vazia e emitida', tag in html, False)
     print('  (nota: GOOGLE_SITE_VERIFICATION vazio nesta instalacao)')
 
+print('\n11. Subdominio volta ao dominio principal, so na vitrine')
+# O dominio do teste e fixo: no ambiente local `PUBLIC_BASE_URL` e
+# `localhost`, que nao tem subdominio, e a secao seria pulada justamente
+# onde a bateria roda. O middleware le o endereco ao ser montado, e cada
+# `Client` novo monta o seu.
+base_original = dj_settings.PUBLIC_BASE_URL
+dj_settings.PUBLIC_BASE_URL = 'https://neurodoc.app.br'
+canonico = 'neurodoc.app.br'
+if True:
+    dj_settings.ALLOWED_HOSTS = list(dj_settings.ALLOWED_HOSTS) + ['.' + canonico]
+    sub = Client(HTTP_HOST='www.' + canonico)
+    for caminho in ('/', '/ajuda/', '/contrato/', '/robots.txt', '/sitemap.xml',
+                    '/llms.txt', '/favicon.ico', '/ajuda/%s/' % ARTICLES[0]['slug']):
+        r = sub.get(caminho + '?utm_source=x' if caminho == '/' else caminho)
+        esperado = seo.absoluta(caminho) + ('?utm_source=x' if caminho == '/' else '')
+        conferir('www%s -> 301 para o dominio principal' % caminho,
+                 (r.status_code, r.get('Location')), (301, esperado))
+    for caminho in ('/accounts/login/', '/app/', '/verificar/abc/', '/naoexiste/'):
+        r = sub.get(caminho)
+        conferir('www%s nao e redirecionado (sessao e host-only)' % caminho,
+                 r.status_code != 301, True)
+    conferir('POST na vitrine por subdominio nao vira redirecionamento',
+             sub.post('/').status_code != 301, True)
+    conferir('o host principal nao se redireciona a si mesmo',
+             Client(HTTP_HOST=canonico).get('/').status_code, 200)
+    conferir('testserver nao e redirecionado', Client().get('/').status_code, 200)
+dj_settings.PUBLIC_BASE_URL = base_original
+
+print('\n12. X-Robots-Tag no que nao e pagina publica')
+for caminho in ('/accounts/login/', '/app/', '/verificar/abc/', '/naoexiste/'):
+    conferir('%s sai com X-Robots-Tag noindex' % caminho,
+             anonimo.get(caminho).get('X-Robots-Tag'), 'noindex, nofollow')
+for caminho in ('/', '/ajuda/', '/verificar/', '/robots.txt', '/sitemap.xml',
+                '/llms.txt', '/llms-full.txt', '/og-image.png', '/favicon.ico'):
+    conferir('%s sem X-Robots-Tag' % caminho,
+             anonimo.get(caminho).get('X-Robots-Tag'), None)
+
+print('\n13. Lingua declarada e um H1 por pagina publica')
+for pagina in seo.paginas_do_sitemap():
+    corpo = anonimo.get(pagina.caminho).content.decode()
+    canonica = seo.absoluta(pagina.caminho)
+    conferir('%s declara hreflang pt-BR' % pagina.caminho,
+             '<link rel="alternate" hreflang="pt-BR" href="%s">' % canonica in corpo, True)
+    conferir('%s declara x-default' % pagina.caminho,
+             '<link rel="alternate" hreflang="x-default" href="%s">' % canonica in corpo, True)
+    conferir('%s tem exatamente um <h1>' % pagina.caminho,
+             len(re.findall(r'<h1[\s>]', corpo)), 1)
+    conferir('%s tem JSON-LD' % pagina.caminho,
+             'application/ld+json' in corpo, True)
+privada = anonimo.get('/accounts/login/').content.decode()
+conferir('pagina privada nao declara hreflang', 'hreflang' in privada, False)
+
+print('\n14. llms.txt e llms-full.txt')
+from base.content import RECURSOS
+from base.help_content import FAQ_USO
+from tenancy.plans import pricing
+curto = anonimo.get('/llms.txt')
+conferir('/llms.txt responde texto', (curto.status_code, curto['Content-Type'].split(';')[0]),
+         (200, 'text/plain'))
+curto = curto.content.decode()
+conferir('comeca pelo titulo, como pede llmstxt.org', curto.startswith('# NeuroDoc\n'), True)
+conferir('traz todos os recursos da vitrine',
+         [r['titulo'] for r in RECURSOS if r['titulo'] not in curto], [])
+conferir('e diz o que nao emite (decisao D9)', 'talidomida' in curto, True)
+conferir('traz o FAQ da vitrine', [f['pergunta'] for f in FAQ if f['pergunta'] not in curto], [])
+conferir('o preco do Basico e o do catalogo',
+         pricing('basic')['periodos'][0]['mensal'] in curto, True)
+conferir('aponta o llms-full.txt', seo.absoluta('/llms-full.txt') in curto, True)
+conferir('nao fala de /app/', '/app/' in curto, False)
+longo = anonimo.get('/llms-full.txt')
+conferir('/llms-full.txt responde', longo.status_code, 200)
+longo = longo.content.decode()
+conferir('traz todos os artigos do manual',
+         [a['title'] for a in ARTICLES if '### ' + a['title'] not in longo], [])
+conferir('e todas as perguntas de uso', [f['pergunta'] for f in FAQ_USO if f['pergunta'] not in longo], [])
+conferir('links do manual saem absolutos', '](/ajuda/' in longo, False)
+conferir('o robots.txt anuncia os dois',
+         ('llms.txt' in texto and 'llms-full.txt' in texto), True)
+
+print('\n15. Verificacao do Bing')
+if dj_settings.BING_SITE_VERIFICATION:
+    conferir('o token do Bing aparece', meta(html, 'msvalidate.01'),
+             dj_settings.BING_SITE_VERIFICATION)
+else:
+    conferir('sem token, nenhuma tag msvalidate vazia', 'msvalidate.01' in html, False)
+
 print()
 if falhas:
     print('FALHAS (%d):' % len(falhas))

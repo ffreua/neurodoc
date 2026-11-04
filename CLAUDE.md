@@ -417,7 +417,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 | `check_por_cid.py` | busca de paciente por diagnóstico: a fronteira (a secretária e o gestor não abrem a tela), o código por prefixo com o ponto dispensável, o diagnóstico anotado sem código, e o refutado que não volta — vale a última palavra sobre cada código |
 | `check_retorno.py` | retorno programado: meses de calendário sem estourar o fim do mês, um retorno por atendimento, a janela de 20 dias com o dia perdido recuperado, o `notified_at` que barra o segundo e-mail, a recusa do contato respeitada, a redação de cuidado e não de captação, e a fila da secretária |
 | `check_portal_retorno.py` | consulta recente no portal: a fronteira dos 180 dias, a escolha do médico vencendo a da clínica, as três portas, sessão aberta antes de ligar a regra, e a tela citando as duas normas do CFM com a redação que consta nelas |
-| `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 29 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos |
+| `check_seo.py` | como o produto aparece na busca: o `<title>` que o template declara chegando à página (ele não chegava), toda rota fora do catálogo saindo `noindex`, as 29 URLs do sitemap abrindo e saindo `index`, a canônica que não segue um `Host:` forjado, o JSON-LD com nonce e com preço lido de `plans.py`, e os ícones respondendo na raiz com os bytes certos; e (2026-11-04) o **301 de `www.`** só na vitrine, o `X-Robots-Tag` fora do catálogo, `hreflang`, um `<h1>` e JSON-LD em toda URL do sitemap, e os dois `llms` conferidos contra a vitrine e o manual |
 | `check_exames_do_portal.py` | o **laudo enviado pelo paciente no portal**: só PDF, até 5 por envio e 3 MB cada, onze recusas sem gravar nada, **tudo ou nada**, o formulário de um paciente que não grava na ficha de outro, o arquivo clínico em quarentena sem autor de conta, o aviso ao médico e não à secretária, o **alerta no prontuário** que some no "Ciente" (que a secretária e outra clínica não marcam), e a janela de retorno que barra o pedido e **não** o laudo; e, **com o CSRF ligado** (`Client(enforce_csrf_checks=True)` — o cliente padrão o dispensa, e foi assim que o primeiro envio real foi recusado em produção sem nenhum roteiro reprovar), o login no meio do envio, que encerra a identificação, e o "Encerrar identificação" |
 | `check_medicacao_editar.py` | **alterar a medicação** do atendimento pelo lápis: um formulário por linha com prefixo próprio (sem `id_dose` repetido, e o autocomplete preenchendo a dose **daquela** linha), só o campo mudado muda, a trilha com os **nomes** dos campos e não os valores, envio sem mudança sem rastro, e as recusas — finalizado, secretária, outra clínica, medicação de outro atendimento |
 | `check_resumos_aprovados.py` | o **resumo por IA aprovado aparece no atendimento** (1.20): aprovado e editado sim, pendente, recusado, apoio diagnóstico, de outro atendimento e de outra clínica não; nos dois tipos de atendimento; **fora do registro** — texto clínico e `content_hash` intactos —, e a secretária não abre |
@@ -670,8 +670,18 @@ geometria só; o resultado vai versionado. Duas variantes da mesma marca,
 e a razão é tamanho: em 16 px o traçado de pulso some no antialiasing, e
 por isso o `.ico` e o SVG da aba levam só o monograma.
 
-`GOOGLE_SITE_VERIFICATION` no `.env` emite a meta tag do Search Console.
-Vazio não emite nada. Detalhe e homologação em
+**Subdomínio volta ao domínio principal, só na vitrine** (2026-11-04,
+`base/middleware.py::HostCanonicoMiddleware`): o roteador aceita
+`*.neurodoc.app.br` de propósito (DEC-15), e `www.` servia o site inteiro.
+O catálogo e os arquivos da raiz pedidos por subdomínio saem com **301**;
+`/app/` e o resto, não — o cookie de sessão é host-only. O mesmo middleware
+põe `X-Robots-Tag: noindex` em tudo fora do catálogo (o PDF não tem onde
+levar `<meta>`), menos `/static/`. Toda página pública declara `hreflang`
+`pt-BR`/`x-default` e tem **um** `<h1>`. `/llms.txt` e `/llms-full.txt` (o
+manual inteiro) saem das mesmas fontes da vitrine.
+
+`GOOGLE_SITE_VERIFICATION` e `BING_SITE_VERIFICATION` no `.env` emitem as
+meta tags do Search Console e do Bing Webmaster. Vazio não emite nada. Detalhe e homologação em
 `docs/homologation/seo.md`; o roteiro é `check_seo.py`.
 
 ## 7-F. O que a IA devolve: forma e conteúdo

@@ -234,3 +234,75 @@ tempos e tira a propriedade de quem removeu a tag.
 10. sem token configurado, nenhuma tag de verificação vazia é emitida.
 
 Bateria completa: **89 roteiros**, nenhuma falha.
+
+## 9. A revisão de 2026-11-04
+
+Uma volta inteira pelo que o Google vê em produção — com o `curl` de fora,
+como o rastreador, e não pelo código. Sete achados; seis viraram código e
+um depende do painel da Cloudflare.
+
+**Subdomínio servia a vitrine inteira.** `www.neurodoc.app.br` respondia
+200 com o site, e qualquer outro nome inventado também: o roteador aceita
+`*.neurodoc.app.br` de propósito (DEC-15, apelido de subdomínio por
+clínica). A canônica apontava para o domínio certo e o Google acabava
+juntando, mas canônica é sugestão. Agora `base/middleware.py::HostCanonicoMiddleware`
+devolve **301** ao domínio de `PUBLIC_BASE_URL` — só para o catálogo
+público e os arquivos da raiz, só em `GET`/`HEAD`, e só quando o host é
+**subdomínio** do canônico. `/app/`, `/accounts/` e o portal seguem no
+subdomínio como antes: o cookie de sessão é host-only, e redirecioná-los
+derrubaria quem já está dentro. `testserver` e `localhost` passam direto.
+
+**`X-Robots-Tag` no que não é HTML.** O `<meta name="robots">` só existe
+em página; o PDF de um documento, um arquivo de exportação e uma resposta
+JSON não têm onde levá-lo. O mesmo middleware põe `noindex, nofollow` no
+cabeçalho de tudo que não é do catálogo — menos `/static/`, que é o CSS e o
+JS de que o Google precisa para desenhar a página.
+
+**Língua declarada.** `hreflang="pt-BR"` e `x-default` em toda página
+pública. Sem eles o Google adivinha o público, e um `.app.br` em português
+às vezes cai como resultado para Portugal.
+
+**Um `<h1>` por página.** O contrato e a verificação não tinham nenhum:
+o título do contrato era `<h2>` (o mesmo trecho entra no cadastro, dentro
+de outra página) e o das telas de entrada era `<h4>`. Viraram `<h1>` com a
+classe do tamanho antigo — nada muda na tela —, e o do contrato só na
+página pública (`contrato_titulo_h1`).
+
+**JSON-LD na verificação**, que era a única página do sitemap sem: trilha
+e `WebPage`.
+
+**`llms.txt` completo e `llms-full.txt`.** O `llms.txt` passou a trazer os
+recursos com o texto inteiro da vitrine — e com ele o que o produto **não**
+faz, a Notificação de retinoide e de talidomida (D9) — e o FAQ; o
+`llms-full.txt` é novo e traz o manual inteiro, passo a passo, com os links
+absolutos. Os dois saem das mesmas fontes da página, nenhuma linha escrita
+à parte, e o `robots.txt` anuncia os dois.
+
+**`lastmod` do sitemap** em 2026-11-04 (a 1.34 mudou a página e o manual)
+e **`BING_SITE_VERIFICATION`** ao lado do Google: o Bing alimenta também o
+DuckDuckGo, o Yahoo e a busca do ChatGPT.
+
+**O que não é código: o `robots.txt` da Cloudflare.** O painel da
+Cloudflare está com o *robots.txt gerenciado* ligado, e ele **acrescenta**
+um bloco antes do nosso — com `Content-Signal: ai-train=no` e o bloqueio
+dos robôs de treino de IA (GPTBot, ClaudeBot, Google-Extended…). O Googlebot
+não é bloqueado, e o Google junta os dois grupos `User-agent: *` como manda
+a RFC 9309, então a indexação não é afetada. A decisão de manter o bloqueio
+de treino é de quem é dono do conteúdo; desligar é em **Security → Bots →
+Manage AI crawlers** (ou *Instruct AI bot traffic with robots.txt*).
+
+**Deliberadamente de fora:** o sitemap de imagens. As capturas do manual
+moram em `/static/<sha>/`, que muda a cada publicação — um sitemap de
+imagens anunciaria endereços novos a cada deploy. Elas têm `alt` e
+`loading="lazy"`, e o Google as acha pela página.
+
+**Roteiro:** `check_seo.py` ganhou as seções 11 a 15 — o 301 de oito
+endereços públicos por `www.`, os quatro privados que **não** redirecionam,
+o `POST` que não redireciona, o `X-Robots-Tag` presente e ausente onde
+cada um deve estar, `hreflang`, um `<h1>` e JSON-LD em **toda** URL do
+sitemap, os dois `llms` conferidos contra a vitrine e o manual, e a tag do
+Bing.
+
+**Falta, e é do dono do domínio:** verificar a propriedade no Google Search
+Console e no Bing Webmaster Tools (o token vai para o `.env` da VPS), e
+enviar `https://neurodoc.app.br/sitemap.xml` nos dois.

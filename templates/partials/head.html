@@ -21,8 +21,14 @@ mesma razão: catálogo único. Tudo que não está naquele catálogo sai
 privada seria a que apareceria na busca.{% endcomment %}
 <meta name="robots" content="{{ nd_seo.robots }}">
 {% if nd_seo.descricao %}<meta name="description" content="{{ nd_seo.descricao }}">{% endif %}
-{% if nd_seo.canonica %}<link rel="canonical" href="{{ nd_seo.canonica }}">{% endif %}
+{% if nd_seo.canonica %}<link rel="canonical" href="{{ nd_seo.canonica }}">
+{% comment %}Uma língua só, e declarada assim mesmo: sem `hreflang`, o Google
+adivinha o público pelo domínio e pelo texto, e um `.app.br` em português
+às vezes cai como resultado para Portugal. `x-default` é a mesma página.{% endcomment %}
+<link rel="alternate" hreflang="pt-BR" href="{{ nd_seo.canonica }}">
+<link rel="alternate" hreflang="x-default" href="{{ nd_seo.canonica }}">{% endif %}
 {% if nd_seo.verificacao %}<meta name="google-site-verification" content="{{ nd_seo.verificacao }}">{% endif %}
+{% if nd_seo.verificacao_bing %}<meta name="msvalidate.01" content="{{ nd_seo.verificacao_bing }}">{% endif %}
 
 {% comment %}Open Graph: o cartão que aparece quando o endereço é colado
 no WhatsApp, e é assim que um médico manda o sistema para o sócio. Sem

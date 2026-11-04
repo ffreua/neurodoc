@@ -44,7 +44,7 @@ from tenancy.contract import CONTRATADO
 #: sitemap. À mão de propósito: `localdate()` faria toda página parecer
 #: atualizada em toda publicação, o rastreador aprenderia que o sinal não
 #: significa nada e passaria a ignorá-lo. Mexer no texto é mexer aqui.
-ATUALIZADO = date(2026, 10, 30)
+ATUALIZADO = date(2026, 11, 4)
 
 #: O que o produto responde quando perguntam "isso é o quê". Entra na
 #: descrição da raiz, no JSON-LD e no cartão de compartilhamento.
@@ -292,6 +292,17 @@ def dados_do_contrato():
     ]
 
 
+def dados_da_verificacao():
+    return [
+        _trilha([('Início', '/'), ('Verificar documento', '/verificar/')]),
+        {'@type': 'WebPage', 'name': 'Verificar a autenticidade de um documento médico',
+         'url': absoluta('/verificar/'), 'inLanguage': 'pt-BR',
+         'isPartOf': {'@id': _id('site')},
+         'publisher': {'@id': _id('organizacao')}},
+        organizacao(),
+    ]
+
+
 # --------------------------------------------------------------------------
 # O catálogo de páginas públicas
 # --------------------------------------------------------------------------
@@ -352,6 +363,7 @@ PAGINAS = {
                   'NeuroDoc é autêntico. Informe o código impresso no documento '
                   'ou leia o QR — sem precisar de conta.',
         prioridade='0.3', frequencia='yearly',
+        dados=dados_da_verificacao,
     ),
 }
 
@@ -449,6 +461,7 @@ def contexto(request):
         'tipo': 'website',
         'jsonld': '',
         'verificacao': getattr(settings, 'GOOGLE_SITE_VERIFICATION', ''),
+        'verificacao_bing': getattr(settings, 'BING_SITE_VERIFICATION', ''),
     }
     if pagina is None:
         return {'nd_seo': dados}

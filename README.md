@@ -1,9 +1,21 @@
-# NeuroDoc
+# NeuroDoc — prontuário eletrônico para neurologia (e qualquer especialidade)
+
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.34-3454d1)](docs/releases/)
+[![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
+[![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
+[![Django 6.1](https://img.shields.io/badge/django-6.1-0c4b33)](https://www.djangoproject.com/)
+
+**[neurodoc.app.br](https://neurodoc.app.br)** · [Manual de uso](https://neurodoc.app.br/ajuda/) ·
+[Perguntas frequentes](https://neurodoc.app.br/ajuda/perguntas/) ·
+[Contrato](https://neurodoc.app.br/contrato/)
 
 Prontuário eletrônico e gestão para consultório médico, com o exame
 neurológico estruturado que a neurologia e a neurocirurgia exigem — e com
-agenda, receita, documento assinado digitalmente, portal do paciente e
-financeiro que servem a **qualquer especialidade**.
+agenda, **receita digital da Anvisa (SNCR)**, **Notificação de Receita A, B
+e B2 eletrônica**, documento assinado em PAdES, **faturamento TISS**,
+agenda de exames, portal do paciente e financeiro que servem a **qualquer
+especialidade**. Feito por um neurologista, em uso real em consultório.
 
 Django monolítico modular, SSR com Django Templates, PostgreSQL como fonte
 de verdade clínica e Celery para trabalho pesado. Multi-inquilino: uma
@@ -11,11 +23,11 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.19 "o recado que se apaga" (`base/version.py`) |
+| **Versão** | 1.34 "a Notificação eletrônica" (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
-| **Verificação** | 113 roteiros em `checks/`, nenhuma falha |
-| **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm |
+| **Verificação** | 157 roteiros em `checks/`, nenhuma falha |
+| **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm · Cloudflare |
 
 ## Apoie o projeto
 
@@ -39,17 +51,36 @@ laboratoriais, cópia revisada da consulta anterior, série temporal em
 gráfico, busca de paciente por diagnóstico. Durante o atendimento, os
 dados de cadastro ficam numa **gaveta** (`Alt+D`), sem sair da evolução.
 Prontuário finalizado é imutável: correção é **adendo**, com autor e data,
-nos dois tipos.
+nos dois tipos. O histórico de outro sistema entra por migração (o do
+iClin, 7.661 atendimentos, já entrou), como texto livre finalizado.
 
-**Documentos.** Receita simples e de controle especial (duas vias, quadro
-da Portaria 344/98), laudo, atestado, declaração de comparecimento, pedido
-de exame e encaminhamento — assinados em **PAdES** com o certificado do
-próprio médico e verificáveis publicamente por QR, sem conta. Catálogo
-CMED/Anvisa com 26 mil apresentações no autocomplete.
+**Documentos.** Receita simples, laudo, atestado, relatório, declaração de
+comparecimento, pedido de exame, encaminhamento e solicitação de cirurgia —
+assinados em **PAdES** com o certificado do próprio médico e verificáveis
+publicamente por QR, sem conta. **Modelos de documento** por médico
+(pedidos por categoria, conjuntos que abrem um pedido por categoria) emitidos
+direto da Conduta. Catálogo CMED/Anvisa com 26 mil apresentações no
+autocomplete.
+
+**Receita controlada no SNCR da Anvisa** (RDC 1.000/2025). O médico pede a
+própria numeração com o Gov.br e emite, no **modelo oficial**, a Receita de
+Controle Especial e a de Retenção (blocos de 1.000 números) e, desde a 1.34,
+a **Notificação de Receita A, B e B2** (lotes retirados da cota da Vigilância
+Sanitária) — uma folha e um número por medicamento, com o QR da consulta no
+SNCR. A lista oficial da Portaria 344/98 (780 substâncias, 16 listas) confere
+cada medicamento contra o tipo de receita e aponta o certo.
+
+**Convênio e exames.** Faturamento **TISS** da ANS — guias de Consulta e
+SP/SADT, lotes em XML validados contra o XSD oficial de **sete versões** do
+padrão (3.04.00 a 4.03.00) — e **agenda de exames por equipamento** (EEG,
+ENMG, polissonografia que atravessa a noite), separada da dos médicos.
+Particular ou convênio escolhido por atendimento; 1.105 operadoras da ANS
+no cadastro de convênio.
 
 **Operação do consultório.** Agenda por médico com regras de
-disponibilidade, **intervalos pontuais** (o almoço), bloqueios, feriados e
-retorno programado; **aviso automático** ao paciente ao marcar, remarcar e
+disponibilidade, **intervalos pontuais** (o almoço), bloqueios, feriados,
+retorno programado e **lista de espera** ordenada pela secretária e puxada
+direto para o horário; **aviso automático** ao paciente ao marcar, remarcar e
 cancelar, com o endereço e o telefone da clínica; cadastro com
 **naturalidade** (5.571 municípios do IBGE no autocomplete); portal
 público onde o paciente pede receita, relatório ou pedido de exames sem
@@ -77,9 +108,16 @@ planos e sai só pelo servidor de e-mail da própria clínica. O nome
 fantasia é editado pela própria clínica; razão social e CNPJ continuam
 vindo do convite.
 
+**Segurança e cadastro.** Segundo fator (TOTP) obrigatório para
+responsável e médico a partir de 16/11/2026; CRM validado para o papel
+médico; cadastro de clínica com CNPJ (inclusive o alfanumérico) ou CPF;
+e-mail descartável recusado por uma lista pública de ~220 mil domínios,
+atualizada toda semana.
+
 **Plataforma.** Multi-inquilino com três camadas de autorização, trilha de
 auditoria imutável, backup cifrado com `age` e cópia externa, console de
-superadministrador, central de ajuda pública e página de vendas.
+superadministrador, central de ajuda pública e página de vendas. Telas
+ajustadas ao celular de 320 px ao tablet, e um tema só, o claro.
 
 ---
 
@@ -121,11 +159,14 @@ demonstração com dados de paciente real.
 
 Os e-mails que o sistema enviaria aparecem no Mailpit, em
 <http://localhost:8025>. Dois catálogos ficam de fora da semeadura porque
-são baixados da internet; rode-os quando for usar receita e naturalidade:
+são baixados da internet, e um terceiro mora no repositório mas também não
+vem da semeadura; rode-os quando for usar receita, receita controlada e
+naturalidade:
 
 ```bash
 docker compose exec celery_worker python manage.py import_cmed        # medicamentos da Anvisa (~12 MB)
 docker compose exec celery_worker python manage.py import_municipios  # municípios do IBGE
+docker compose exec app python manage.py import_portaria344           # lista oficial dos controlados
 ```
 
 Para desligar: `docker compose down` (mantém o banco) ou
@@ -142,10 +183,10 @@ separada e com trava.
 Não há suíte de testes automatizados — o substituto são os **roteiros** em
 [`checks/`](checks/): cada um tenta quebrar um comportamento, imprime seção
 por seção e sai com código 1 listando as falhas. Com a demonstração
-semeada e o `import_cmed` rodado:
+semeada e os três catálogos acima importados:
 
 ```bash
-docker compose exec app python manage.py rodar_roteiros            # todos (~8 min)
+docker compose exec app python manage.py rodar_roteiros            # todos os 157
 docker compose exec app python manage.py rodar_roteiros planos landing
 docker compose exec app python manage.py rodar_roteiros --listar
 ```
@@ -314,7 +355,7 @@ registro em [`docs/releases/`](docs/releases/).
 ## Arquitetura
 
 ```
-Navegador → Traefik (TLS) → Django ASGI (app) → PostgreSQL
+Navegador → Cloudflare (proxy) → Traefik (TLS) → Django ASGI (app) → PostgreSQL
                                    ↓
                               RabbitMQ → Celery worker → PostgreSQL
                                               ↓         ↘ IA / SMTP / SMSDEV
@@ -322,10 +363,14 @@ Navegador → Traefik (TLS) → Django ASGI (app) → PostgreSQL
 ```
 
 Sete serviços permanentes: `app`, `celery_worker`, `celery_beat`, `db`,
-`rabbitmq`, `redis`, `traefik` (+ `mailpit` só no ambiente local).
+`rabbitmq`, `redis`, `traefik` (+ `mailpit` só no ambiente local). Quantos
+processos e tarefas cada um roda é do `.env` da instalação
+([`docs/operations/capacidade.md`](docs/operations/capacidade.md)).
 
-**Regra de rede que explica muito código:** e-mail, SMS, IA e o espelho da
-TUSS saem sempre por **tarefa Celery**, nunca de dentro da requisição. O
+**Regra de rede que explica muito código:** e-mail, SMS, IA, o espelho da
+TUSS e a lista de e-mail descartável saem sempre por **tarefa Celery**,
+nunca de dentro da requisição. A exceção deliberada é o pedido de numeração
+do SNCR, trocado na requisição porque o token do Gov.br vive 30 segundos. O
 worker tem a chave de SMTP (só a ele o segredo é entregue) e pode tentar de
 novo quando o provedor falha; uma requisição web espera o timeout com o
 usuário olhando.
@@ -350,14 +395,18 @@ No banco, o isolamento é reforçado por chave estrangeira composta
 | App | O que guarda / faz |
 | --- | --- |
 | `core` | settings, urls, asgi, celery |
-| `base` | primitivas (`TenantModel`, cripto, logging com redação), página de vendas, central de ajuda e **SEO** (`seo.py`) |
-| `accounts` | `User` (e-mail como login), MFA TOTP, códigos de recuperação, CRM do médico |
-| `tenancy` | `Tenant`, `Membership`, convites, leads, **planos, limites, matriz de permissão e contrato de adesão** |
+| `base` | primitivas (`TenantModel`, cripto, logging com redação), página de vendas, central de ajuda e **SEO** (`seo.py`: título, descrição, `robots`, sitemap, JSON-LD e `llms.txt` de uma fonte só) |
+| `accounts` | `User` (e-mail como login), MFA TOTP obrigatório para responsável e médico, códigos de recuperação, CRM do médico |
+| `tenancy` | `Tenant` (CNPJ ou CPF), `Membership`, convites, leads, **planos, limites, matriz de permissão e contrato de adesão**, e-mail de encerramento |
 | `patients` | ficha, contatos, convênio, numeração por clínica, naturalidade, forma canônica do nome, migração de cadastro |
-| `catalogs` | CID-10, TUSS, CMED/Anvisa, municípios do IBGE, CEP |
-| `clinical` | atendimento nos dois tipos, exame, diagnósticos, medicações, adendo, cópia da consulta anterior, série temporal |
+| `catalogs` | CID-10, TUSS (com vigência por código), CMED/Anvisa, municípios do IBGE, CEP, operadoras da ANS, **Portaria 344/98** e domínios de e-mail descartável |
+| `clinical` | atendimento nos dois tipos, exame, diagnósticos, medicações, adendo, cópia da consulta anterior, série temporal, migração do histórico do iClin |
 | `exams` | motor do roteiro em árvore e as 14 escalas |
-| `scheduling` | agenda, disponibilidade, intervalos pontuais, bloqueios, retorno programado, declaração, estatísticas |
+| `scheduling` | agenda, disponibilidade, intervalos pontuais, bloqueios, retorno programado, **lista de espera**, forma de cobrança por atendimento, declaração, estatísticas |
+| `sncr` | numeração da Anvisa (blocos da RCE/RET, lotes da Notificação A/B/B2), receita eletrônica no modelo oficial |
+| `modelos` | modelos de documento do médico e a emissão pela Conduta |
+| `tiss` | faturamento TISS: prestador, credenciamento, guias, lotes e XML em sete versões do padrão |
+| `agenda_exames` | agenda por equipamento (EEG, ENMG, polissonografia) e a cobrança do exame realizado |
 | `documents` | anexos com antivírus, documentos médicos, assinatura PAdES, QR público, portal do paciente (solicitações e envio de laudos), OCR |
 | `communications` | outbox, links opacos com OTP, aviso de horário, campanhas com consentimento, credenciais da clínica |
 | `finance` | honorários com vigência, recebíveis, pagamentos, ajustes |
@@ -404,13 +453,17 @@ mais pegam quem chega:
 | Onde | O quê |
 | --- | --- |
 | [`CLAUDE.md`](CLAUDE.md) | **o mapa** — convenções, topologia, apps, planos, verificação, deploy |
+| [`docs/CODEBASE_MAP.md`](docs/CODEBASE_MAP.md) | o mapa do código: o que cada módulo exporta, fluxos em diagrama, e "para mexer em X, abra Y" |
 | [`docs/ESTADO-ATUAL.md`](docs/ESTADO-ATUAL.md) | **leia primeiro** — o retrato de hoje: o que está provado, o que está aberto, as lições que custaram caro |
 | [`PRD.md`](PRD.md) | a especificação completa (matriz de permissão §4, roteiro de homologação §21) |
 | [`docs/index.md`](docs/index.md) | índice da documentação técnica, publicada em `/technical-docs/` (MFA) |
 | [`docs/decisions.md`](docs/decisions.md) | decisões (DEC-xx) e pendências (P-xx) com dono e condição de liberação |
 | [`docs/governance/lgpd.md`](docs/governance/lgpd.md) | matriz de tratamento, operadores, medidas técnicas e o roteiro que verifica cada uma |
 | [`DEPLOY.md`](DEPLOY.md) | **a porta de entrada da operação**: como a produção está montada, como se publica, e o índice de `docs/operations/` |
-| [`docs/operations/`](docs/operations/) | deploy, rollback, backup, cópia externa, monitoramento |
+| [`docs/operations/`](docs/operations/) | deploy, rollback, backup, cópia externa, monitoramento, capacidade |
+| [`docs/sncr/`](docs/sncr/) | a integração com o SNCR da Anvisa: decisões, estado e ativação |
+| [`docs/tiss/`](docs/tiss/) | o faturamento TISS: campos, operação e homologação |
+| [`docs/homologation/seo.md`](docs/homologation/seo.md) | como o produto aparece na busca: catálogo, sitemap, `robots`, `llms.txt` e o que falta fazer no Search Console |
 | [`docs/homologation/`](docs/homologation/) | homologação por entrega — é onde mora o "por que ficou assim" |
 | [`docs/releases/`](docs/releases/) | registro de cada release publicada (PRD §18.6) |
 
