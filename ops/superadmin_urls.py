@@ -25,6 +25,10 @@ urlpatterns = [
         superadmin.TenantPlanView.as_view(), name='tenant-plan',
     ),
     path(
+        'organizacoes/<uuid:tenant_id>/degustacao/',
+        superadmin.TenantDegustacaoView.as_view(), name='tenant-degustacao',
+    ),
+    path(
         'organizacoes/<uuid:tenant_id>/tiss/',
         superadmin.TenantTissView.as_view(), name='tenant-tiss',
     ),

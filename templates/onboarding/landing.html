@@ -388,6 +388,27 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                                 Sem cartão e sem esperar retorno
                             </span>
                         </form>
+                        {% elif plan.code == degustacao.plano %}
+                        {% comment %}A degustação (`tenancy/degustacao.py`): a mesma porta
+                        do Gratuito, com o convite do Completo por sete dias. O "Quero este
+                        plano" continua logo abaixo, para quem já decidiu.{% endcomment %}
+                        <form method="post" action="{% url 'onboarding:start-trial' %}" class="mt-auto">
+                            {% csrf_token %}
+                            <div class="d-none" aria-hidden="true">
+                                <label for="website-degustacao">Não preencha este campo</label>
+                                <input type="text" id="website-degustacao" name="website"
+                                       tabindex="-1" autocomplete="off">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" data-nd-busy>
+                                Testar o {{ plan.label }} por {{ degustacao.dias }} dias
+                            </button>
+                            <span class="d-block fs-11 text-muted text-center mt-2">
+                                Sem cartão. Depois, vira Gratuito — nada é apagado
+                            </span>
+                        </form>
+                        <a class="btn btn-outline-secondary mt-2" href="#contato" data-nd-plan="{{ plan.code }}">
+                            Quero este plano
+                        </a>
                         {% else %}
                         <a class="btn {% if plan.highlight %}btn-primary{% else %}btn-outline-secondary{% endif %} mt-auto"
                            href="#contato" data-nd-plan="{{ plan.code }}">

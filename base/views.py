@@ -59,6 +59,13 @@ class StartFreePlanView(View):
     #: um histórico de navegador.
     TTL_DIAS = 2
 
+    #: O que esta porta emite. A degustação (`StartTrialView`) muda só isto.
+    PLANO = None
+    DEGUSTACAO = False
+    EVENTO = 'tenancy.free_plan_invitation_issued'
+    CHAVE_DO_LIMITE = 'plano-gratis'
+    NOME_NO_LIMITE = 'do plano Gratuito'
+
     def get(self, request):
         """Sem POST não há convite — mas também não há erro na cara.
 
@@ -86,23 +93,24 @@ class StartFreePlanView(View):
             messages.info(
                 request,
                 'Já emitimos alguns acessos a partir desta conexão agora há pouco. '
-                'Deixe seu contato que devolvemos o código do plano Gratuito.',
+                f'Deixe seu contato que devolvemos o código {self.NOME_NO_LIMITE}.',
             )
             return redirect(f"{reverse('onboarding:landing')}#contato")
 
         invitation, raw_token = issue_invitation(
             purpose=InvitationPurpose.PLATFORM,
-            plan=PlanCode.FREE,
+            plan=self.PLANO or PlanCode.FREE,
             ttl_days=self.TTL_DIAS,
+            degustacao=self.DEGUSTACAO,
         )
         # `issued_by` fica nulo de propósito: não houve pessoa emitindo.
         # A trilha registra a origem, que é o que distingue este convite
         # de um emitido no console pelo superadministrador.
         record_audit_event(
-            None, None, 'tenancy.free_plan_invitation_issued',
+            None, None, self.EVENTO,
             object_type='invitation', object_id=invitation.id, outcome='success',
             origin_ip=client_ip(request),
-            integrity_metadata={'plan': PlanCode.FREE, 'origem': 'landing'},
+            integrity_metadata={'plan': invitation.plan, 'origem': 'landing'},
         )
         return redirect('onboarding:signup', token=raw_token)
 
@@ -121,12 +129,37 @@ class StartFreePlanView(View):
         """
         from django.core.cache import cache
 
-        chave = f'plano-gratis:{client_ip(request)}'
+        chave = f'{self.CHAVE_DO_LIMITE}:{client_ip(request)}'
         try:
             cache.get_or_set(chave, 0, self.JANELA_SEGUNDOS)
             return cache.incr(chave) > self.LIMITE_POR_IP
         except Exception:                                   # noqa: BLE001
             return True
+
+
+class StartTrialView(StartFreePlanView):
+    """A degustação de sete dias do Completo, pela mesma porta do Gratuito.
+
+    Herda tudo de `StartFreePlanView` — POST com CSRF, campo-armadilha,
+    teto por IP que falha fechado, convite de dois dias — e muda só o que o
+    convite carrega. A contagem por IP é separada da do Gratuito: quem
+    testou o Gratuito e voltou para provar o Completo não deve encontrar a
+    porta fechada pelo próprio clique anterior. O mecanismo da degustação
+    está em `tenancy/degustacao.py`.
+    """
+
+    PLANO = 'complete'
+    DEGUSTACAO = True
+    EVENTO = 'tenancy.trial_invitation_issued'
+    CHAVE_DO_LIMITE = 'degustacao'
+    NOME_NO_LIMITE = 'da degustação'
+
+
+def _degustacao_na_vitrine():
+    """O que o cartão do Completo diz da degustação, lido de onde é cobrado."""
+    from tenancy import degustacao
+
+    return {'plano': degustacao.PLANO_DEGUSTADO, 'dias': degustacao.DIAS}
 
 
 class LandingView(View):
@@ -184,6 +217,7 @@ class LandingView(View):
             # A promoção de início de carreira (residentes e recém-formados),
             # com o preço de cada plano lido de `tenancy.plans` como os demais.
             'promo_carreira': PROMOCAO_INICIO_DE_CARREIRA,
+            'degustacao': _degustacao_na_vitrine(),
             'promo_carreira_precos': [
                 preco_inicio_de_carreira(c) for c in PROMOCAO_INICIO_DE_CARREIRA['planos']
             ],
@@ -313,6 +347,20 @@ class OrganizationSignupView(View):
         from tenancy.limits import describe_limit
         from tenancy.plans import max_doctors, max_patients, plan_label
 
+        if invitation.degustacao:
+            from tenancy import degustacao
+
+            plano = degustacao.PLANO_DEGUSTADO
+            return {
+                'degustacao': True,
+                'rotulo': plan_label(plano),
+                'pacientes': describe_limit(max_patients(plano)),
+                'medicos': describe_limit(max_doctors(plano)),
+                'dias': degustacao.DIAS,
+                'teto_ia': degustacao.TETO_IA,
+                'teto_sms': degustacao.TETO_SMS,
+                'depois': plan_label(degustacao.PLANO_DEPOIS),
+            }
         return {
             'rotulo': plan_label(invitation.plan),
             'pacientes': describe_limit(max_patients(invitation.plan)),

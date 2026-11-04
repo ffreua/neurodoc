@@ -1048,6 +1048,16 @@ ARTICLES = [
 #: este responde a quem já está usando.
 FAQ_USO = [
     {
+        'pergunta': 'Estou na degustação do Completo. O que acontece quando ela acaba?',
+        'resposta': 'No dia seguinte ao último dia (a faixa no alto da tela diz qual é), a '
+                    'clínica volta ao plano Gratuito, que é o contrato aceito no cadastro. '
+                    'Nada é apagado. Deixam de valer a IA clínica e o SMS, e o Gratuito tem '
+                    'um médico só: se a clínica tiver mais de um, o responsável escolhe em '
+                    'Organização → Equipe e papéis quem continua com o perfil médico, e os '
+                    'outros voltam ao contratar. Para contratar, use o formulário da página '
+                    'do NeuroDoc.',
+    },
+    {
         'pergunta': 'Apaguei um paciente por engano. Como recupero?',
         'resposta': 'Paciente não é apagado — é arquivado. Procure-o na lista usando o '
                     'filtro de arquivados e reative. Todo o histórico continua lá, '

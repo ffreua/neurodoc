@@ -97,6 +97,14 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
         doctor_limit_override=invitation.doctor_limit_override,
         plan_note=invitation.plan_note,
     )
+    if invitation.degustacao:
+        # Sete dias no Completo, e o contrato é o do Gratuito
+        # (`tenancy/degustacao.py`). O plano do convite fica de fora de
+        # propósito: a degustação é sempre do Completo, e um convite forjado
+        # com outro plano não abre degustação de outra coisa.
+        from . import degustacao
+
+        degustacao.iniciar(tenant)
     tenant.full_clean()
     tenant.save()
     membership = Membership.objects.create(
@@ -105,11 +113,21 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
     )
     invitation.consumed_by = user
     invitation.save(update_fields=['consumed_by'])
-    aceite = registrar_aceite(
-        tenant, user, plan=invitation.plan,
-        ip=contract_ip, user_agent=contract_user_agent,
-        poderes_declarados=contract_powers, periodicidade=invitation.periodicidade,
-    )
+    if invitation.degustacao:
+        from . import degustacao
+
+        aceite = registrar_aceite(
+            tenant, user, plan=degustacao.PLANO_DEPOIS,
+            ip=contract_ip, user_agent=contract_user_agent,
+            poderes_declarados=contract_powers,
+            degustacao_plano=degustacao.PLANO_DEGUSTADO, degustacao_ate=tenant.degustacao_ate,
+        )
+    else:
+        aceite = registrar_aceite(
+            tenant, user, plan=invitation.plan,
+            ip=contract_ip, user_agent=contract_user_agent,
+            poderes_declarados=contract_powers, periodicidade=invitation.periodicidade,
+        )
     # A clínica nasce pronta para atender: sem isto, o primeiro exame
     # neurológico abre num aviso pedindo um comando de terminal.
     ensure_default_template(tenant.id)

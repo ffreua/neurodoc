@@ -1,0 +1,16 @@
+{% autoescape off %}Olá!
+
+A degustação do plano {{ plano_degustado }} da clínica {{ clinica }} vai até {{ ultimo_dia|date:"d/m/Y" }} (último dia).
+
+O QUE ACONTECE DEPOIS
+No dia seguinte, a clínica volta ao plano {{ plano_depois }}, que é o plano do contrato que você aceitou. Nada é apagado: pacientes, atendimentos, documentos e agenda continuam lá. Mudam os limites — {{ pacientes_depois }} pacientes ativos e {{ medicos_depois }} médico — e deixam de valer a IA clínica e o SMS.
+
+Se a clínica tiver mais de um médico, só um continua com o perfil médico no plano {{ plano_depois }}. Você escolhe qual em Organização → Equipe e papéis; sem escolha, fica o mais antigo. Os outros voltam assim que a clínica contratar.
+{{ url_equipe }}
+
+PARA CONTINUAR NO {{ plano_degustado|upper }}
+Fale com a gente pelo formulário da página do NeuroDoc — os médicos, a IA e o SMS voltam no mesmo dia da contratação:
+{{ url_contratar }}
+
+Equipe NeuroDoc
+{% endautoescape %}

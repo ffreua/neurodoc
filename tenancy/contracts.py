@@ -78,7 +78,8 @@ def preco_do_pagamento_centavos(plan, periodicidade=None):
 
 
 def registrar_aceite(tenant, user, plan, ip=None, user_agent='', versao=None,
-                     quando=None, poderes_declarados=False, periodicidade=None):
+                     quando=None, poderes_declarados=False, periodicidade=None,
+                     degustacao_plano='', degustacao_ate=None):
     """Grava o aceite. Chamado de dentro da transação que cria a clínica.
 
     Guarda o texto inteiro, e não só o hash: a cláusula 2.3 exige que uma
@@ -97,6 +98,10 @@ def registrar_aceite(tenant, user, plan, ip=None, user_agent='', versao=None,
         # tempo, e quanto em cada vez. Só tem sentido em plano com preço.
         periodicidade=(periodicidade or 'anual') if preco_anual_centavos(plan) else '',
         price_payment_cents=preco_do_pagamento_centavos(plan, periodicidade),
+        # A degustação é condição comercial do aceite do Gratuito (1.35):
+        # o que se provou e até quando, gravado no instante como o resto.
+        degustacao_plano=degustacao_plano or '',
+        degustacao_ate=degustacao_ate,
         representation_declared=bool(poderes_declarados),
         accepted_by=user,
         # Nome montado do primeiro e do ultimo, e nao de `get_full_name()`:
@@ -140,6 +145,10 @@ def _corpo(aceite):
         *([f'Pagamento:          {aceite.get_periodicidade_display()} — '
            f'{brl(aceite.price_payment_cents)} por vez']
           if aceite.price_payment_cents and aceite.periodicidade else []),
+        *([f'Condição comercial: degustação do plano {plan_label(aceite.degustacao_plano)} '
+           f'até {(timezone.localtime(aceite.degustacao_ate) - timezone.timedelta(days=1)):%d/%m/%Y} '
+           f'(último dia); depois, plano {plan_label(aceite.plan)}']
+          if aceite.degustacao_plano and aceite.degustacao_ate else []),
         # Sem o nome entre parenteses quando ele nao existe: a conta recem
         # criada ainda nao tem nome, e a linha saia com o mesmo e-mail duas
         # vezes.

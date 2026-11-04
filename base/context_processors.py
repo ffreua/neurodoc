@@ -45,6 +45,33 @@ def _view_name(request):
     return getattr(match, 'url_name', '') or ''
 
 
+def _degustacao(tenant, context):
+    from django.utils import timezone
+
+    from tenancy import degustacao
+    from tenancy.plans import plan_label
+
+    if not tenant.degustacao_ate:
+        return None
+    base = {
+        'plano': plan_label(degustacao.PLANO_DEGUSTADO),
+        'depois': plan_label(degustacao.PLANO_DEPOIS),
+        'ultimo_dia': degustacao.ultimo_dia(tenant),
+    }
+    if degustacao.em_andamento(tenant):
+        return {
+            **base, 'em_andamento': True,
+            'dias': degustacao.dias_restantes(tenant),
+            'ia_restante': max(degustacao.TETO_IA - degustacao.uso_de_ia(tenant), 0),
+            'sms_restante': max(degustacao.TETO_SMS - tenant.degustacao_sms, 0),
+        }
+    encerrada = tenant.degustacao_encerrada_em
+    if (encerrada and context.can(Capability.MANAGE_ORGANIZATION)
+            and timezone.now() - encerrada < timezone.timedelta(days=30)):
+        return {**base, 'em_andamento': False, 'retirados': len(tenant.degustacao_retirados or [])}
+    return None
+
+
 def _initials(user):
     parts = [p for p in (user.first_name, user.last_name) if p]
     if parts:
@@ -80,6 +107,7 @@ def shell(request):
         'nd_can': {},
         'nd_sem_medico': False,
         'nd_segundo_fator_prazo': None,
+        'nd_degustacao': None,
     }
     if context is None:
         return data
@@ -136,6 +164,11 @@ def shell(request):
         from tenancy.limits import has_doctor
 
         data['nd_sem_medico'] = not has_doctor(data['nd_tenant'])
+        # Degustação do Completo (`tenancy/degustacao.py`): a faixa diz quanto
+        # falta e quanto resta de IA e SMS; depois do fim, por trinta dias,
+        # lembra o responsável de que dá para contratar. Lido da linha que já
+        # está na mão — nenhuma consulta para quem não veio da degustação.
+        data['nd_degustacao'] = _degustacao(data['nd_tenant'], context)
     # Segundo fator obrigatório que ainda não chegou ao prazo: o aviso diz o
     # dia e leva à configuração (`accounts/mfa.py`).
     from accounts import mfa

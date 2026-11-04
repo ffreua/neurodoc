@@ -18,8 +18,16 @@ clínica.{% endcomment %}
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
     </svg>
     <span>
+        {% if plano.degustacao %}
+        <strong>Degustação do plano {{ plano.rotulo }} por {{ plano.dias }} dias</strong> — até
+        {{ plano.pacientes }} paciente(s) ativo(s) e {{ plano.medicos }} médico(s), com IA clínica
+        ({{ plano.teto_ia }} pedidos) e SMS ({{ plano.teto_sms }} mensagens). Sem cartão. Depois, a
+        clínica volta ao plano <strong>{{ plano.depois }}</strong>, que é o contrato abaixo, e nada
+        é apagado.
+        {% else %}
         Plano <strong>{{ plano.rotulo }}</strong> — até {{ plano.pacientes }} paciente(s)
         ativo(s) e {{ plano.medicos }} médico(s). Mudar de plano depois não apaga nada.
+        {% endif %}
     </span>
 </div>
 {% endif %}

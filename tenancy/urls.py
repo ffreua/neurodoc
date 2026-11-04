@@ -7,6 +7,7 @@ app_name = 'tenancy'
 urlpatterns = [
     # Equipe e concessão de papel.
     path('app/org/equipe/', admin_views.TeamView.as_view(), name='team'),
+    path('app/org/equipe/degustacao/', admin_views.DegustacaoMedicoView.as_view(), name='team-degustacao'),
     path(
         'app/org/equipe/<uuid:membership_id>/papeis/',
         admin_views.MembershipRolesView.as_view(), name='membership-roles',

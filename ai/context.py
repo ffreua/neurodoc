@@ -26,6 +26,12 @@ def build_ai_authorization(access_context, patient_id=None, encounter_id=None):
     membership revoked between enqueue and execution, or a patient_id that
     doesn't belong to this tenant, must never let data into the job.
     """
+    # A degustação vencida volta ao Gratuito aqui também: o worker não passa
+    # pelo middleware, e um job enfileirado no sétimo dia não pode chegar ao
+    # provedor no oitavo (`tenancy/degustacao.py`).
+    from tenancy import degustacao
+
+    degustacao.encerrar_se_vencida(access_context.tenant_id)
     membership = (
         Membership.objects
         .select_related('tenant')

@@ -122,6 +122,15 @@ class ChatMessageCreateView(TenantScopedView):
             check_concurrency_limit(session.tenant_id, session.owner_user_id)
         except ConcurrencyLimitExceeded as exc:
             return HttpResponseForbidden(str(exc))
+        # Teto de IA da degustação: a pergunta não é gravada, e a tela diz
+        # por quê (`tenancy/degustacao.py`).
+        from tenancy import degustacao
+
+        try:
+            degustacao.conferir_ia(session.tenant_id)
+        except degustacao.CotaEsgotada as exc:
+            messages.error(request, str(exc))
+            return redirect('ai:chat-session-detail', session_id=session.id)
 
         user_message = chat_services.post_user_message(session, content)
         # A primeira pergunta vira o titulo. O campo era opcional e ficava

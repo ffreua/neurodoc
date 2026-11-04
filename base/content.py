@@ -374,6 +374,8 @@ def _resposta_residentes():
 #: Perguntas que um médico faz antes de confiar o prontuário a alguém. As
 #: respostas dizem o que o sistema faz — inclusive quando a resposta é
 #: desconfortável, como a do item sobre o que ainda não existe.
+from tenancy import degustacao as _degustacao  # noqa: E402
+
 FAQ = [
     # Esta vem primeiro porque é a pergunta que decide se as outras
     # importam. Quem não é neurologista chega ao FAQ depois de ler uma
@@ -451,6 +453,19 @@ FAQ = [
                     'um médico, sem cartão de crédito e sem prazo para acabar. Clique '
                     'em "Começar agora" no cartão do plano e você cai direto na tela '
                     'de criação da clínica — nenhum contato comercial no caminho.',
+    },
+    # Os números da degustação vêm de `tenancy/degustacao.py`, que é onde o
+    # servidor os cobra: a resposta não pode prometer um dia ou um pedido de
+    # IA a mais do que o oitavo dia entrega.
+    {
+        'pergunta': 'Posso testar o plano Completo antes de contratar?',
+        'resposta': f'Pode, por {_degustacao.DIAS} dias e sem cartão. Clique em "Testar o '
+                    'Completo" no cartão do plano: a clínica nasce no Completo, com a IA '
+                    f'clínica ({_degustacao.TETO_IA} pedidos) e o SMS ({_degustacao.TETO_SMS} '
+                    'mensagens) incluídos. Ao fim da degustação ela volta ao plano Gratuito, '
+                    'que é o contrato aceito no cadastro, e nada é apagado. Se houver mais '
+                    'de um médico, o responsável escolhe quem continua com o perfil médico; '
+                    'os outros voltam ao contratar.',
     },
     {
         'pergunta': 'Dá para migrar depois, se a clínica crescer?',

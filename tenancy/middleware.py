@@ -66,6 +66,19 @@ class TenantMiddleware:
             # antes de escolher uma) -- manda escolher e volta para ca, em
             # vez de um 404 sem saida.
             return redirect_to_login(request.get_full_path(), login_url='accounts:tenant-picker')
+        # A degustação vencida volta ao Gratuito **antes** de montar o
+        # contexto, que lê o plano para decidir as capacidades. Sem isto, a
+        # clínica seguiria no Completo até a próxima rodada da tarefa
+        # (`tenancy/degustacao.py`). Uma falha aqui não derruba a tela: a
+        # tarefa encerra na rodada seguinte.
+        try:
+            from . import degustacao
+
+            degustacao.encerrar_se_vencida(request.session['tenant_id'])
+        except Exception:                                   # noqa: BLE001
+            import logging
+
+            logging.getLogger(__name__).exception('degustacao: falha ao encerrar no middleware')
         context = build_access_context(request)
         if context is None:
             raise Http404

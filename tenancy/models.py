@@ -114,6 +114,33 @@ class Tenant(TimestampedModel):
     #: Por que foi liberado (ou recolhido). Mesmo motivo do `plan_note`.
     tiss_nota = models.CharField(max_length=255, blank=True)
 
+    # ------------------------------------------------------- degustação
+    #
+    # Os sete dias do Completo para quem entra pelo cartão da página de
+    # vendas (1.35). O mecanismo e o porquê de cada campo estão em
+    # `tenancy/degustacao.py`. Nulo em toda clínica que não veio da
+    # degustação, que é a imensa maioria — e por isso nenhuma outra linha
+    # do sistema precisa saber que eles existem.
+    #: Quando a degustação começou: é a partir daqui que o teto de IA conta.
+    degustacao_inicio = models.DateTimeField(null=True, blank=True)
+    #: A meia-noite de Brasília que encerra o sétimo dia. Nulo depois da
+    #: conversão em contrato.
+    degustacao_ate = models.DateTimeField(null=True, blank=True)
+    #: Quando voltou ao Gratuito. Fica como registro mesmo depois de contratar.
+    degustacao_encerrada_em = models.DateTimeField(null=True, blank=True)
+    #: Quando saiu o e-mail de véspera — marcado antes de enviar, para duas
+    #: rodadas da tarefa não mandarem duas vezes.
+    degustacao_avisada_em = models.DateTimeField(null=True, blank=True)
+    #: SMS enviados pela chave da instalação durante a degustação.
+    degustacao_sms = models.PositiveIntegerField(default=0, db_default=0)
+    #: O médico que continua no Gratuito, escolhido pelo responsável.
+    degustacao_medico_mantido = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+    #: Os vínculos que perderam o papel médico no oitavo dia, para voltarem
+    #: na conversão: `[{"membership": id, "suspenso": bool}]`.
+    degustacao_retirados = models.JSONField(default=list, db_default=[], blank=True)
+
     # ------------------------------------------------- estado comercial
     #
     # Mesma razão do `plan_note`: um estado sem motivo escrito é
@@ -443,6 +470,9 @@ class Invitation(TimestampedModel):
     #: É a "condição comercial expressamente registrada" do contrato: vai
     #: do convite para o aceite, e o aceite grava o valor dela.
     periodicidade = models.CharField(max_length=12, default='anual')
+    #: Convite da degustação do Completo (1.35, `tenancy/degustacao.py`):
+    #: a clínica nasce no Completo por sete dias e adere ao Gratuito.
+    degustacao = models.BooleanField(default=False, db_default=False)
 
     expires_at = models.DateTimeField()
     consumed_at = models.DateTimeField(null=True, blank=True)
@@ -593,6 +623,10 @@ class ContractAcceptance(TenantModel):
         choices=[('anual', 'Anual'), ('semestral', 'Semestral'), ('trimestral', 'Trimestral')],
     )
     price_payment_cents = models.PositiveIntegerField(null=True, blank=True)
+    #: A degustação registrada como condição comercial (1.35): o plano
+    #: provado e até quando. O plano contratado (`plan`) é o Gratuito.
+    degustacao_plano = models.CharField(max_length=40, blank=True, db_default='', default='')
+    degustacao_ate = models.DateTimeField(null=True, blank=True)
 
     #: A conta que aceitou, enquanto ela existir.
     #:

@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologia (e qualquer especialidade)
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.34-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.35-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -23,10 +23,10 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.34 "a Notificação eletrônica" (`base/version.py`) |
+| **Versão** | 1.35 "a degustação" (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
-| **Verificação** | 157 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 158 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm · Cloudflare |
 
 ## Apoie o projeto
@@ -114,6 +114,10 @@ médico; cadastro de clínica com CNPJ (inclusive o alfanumérico) ou CPF;
 e-mail descartável recusado por uma lista pública de ~220 mil domínios,
 atualizada toda semana.
 
+**Para conhecer.** Plano Gratuito sem prazo, e **degustação de sete dias
+do Completo** pela página de vendas, sem cartão — depois, a clínica volta ao
+Gratuito e nada é apagado.
+
 **Plataforma.** Multi-inquilino com três camadas de autorização, trilha de
 auditoria imutável, backup cifrado com `age` e cópia externa, console de
 superadministrador, central de ajuda pública e página de vendas. Telas
@@ -186,7 +190,7 @@ por seção e sai com código 1 listando as falhas. Com a demonstração
 semeada e os três catálogos acima importados:
 
 ```bash
-docker compose exec app python manage.py rodar_roteiros            # todos os 157
+docker compose exec app python manage.py rodar_roteiros            # todos os 158
 docker compose exec app python manage.py rodar_roteiros planos landing
 docker compose exec app python manage.py rodar_roteiros --listar
 ```
@@ -289,6 +293,7 @@ registro em [`docs/releases/`](docs/releases/).
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.35** | 2026-11-04 | a degustação | **Degustação de sete dias do Completo**, para qualquer pessoa, pelo cartão do Completo na página de vendas: a clínica nasce no Completo sem cartão, com a IA limitada a 30 pedidos e o SMS a 20 mensagens, e adere ao contrato do Gratuito, com a degustação registrada no aceite. Faixa com os dias que faltam, e-mail na véspera e no fim. No oitavo dia (meia-noite de Brasília) volta ao Gratuito sem apagar nada, e os médicos além do primeiro — o que o responsável escolheu fica — perdem o papel até a clínica contratar. No console, o selo, "Estender 7 dias" e a conversão pela troca de plano, que devolve os médicos. Migração só de expansão (`tenancy/0022`). |
 | **1.34** | 2026-11-03 | a Notificação eletrônica | **Notificação de Receita A, B e B2 eletrônica**, com a numeração do SNCR (RDC 1.000/2025). O médico pede à Vigilância Sanitária uma cota de numeração eletrônica e, em **Numeração SNCR**, retira lotes dela com o Gov.br — 10 por padrão, até 50, até 50 por dia; o painel mostra o saldo da cota, e o pedido incerto é dado por perdido. A Notificação sai no **modelo oficial** de cada tipo, uma folha e um número por medicamento, com o **QR da consulta no SNCR** e a validade de 30 dias em todo o território; a lista da Portaria 344 confere que cada medicamento é do tipo escolhido e aponta o certo. As de retinoide e de talidomida não são emitidas (a página de vendas diz). Migração só de expansão (`sncr/0002`). |
 | **1.33** | 2026-11-03 | o cadastro seguro | **A revisão concluída.** O **código do celular passa a ser obrigatório** para responsáveis e médicos a partir de 16/11/2026 (aviso até lá; depois, a configuração antes do prontuário), e a exportação do acervo já o pede; o console pede o código de novo nas ações graves. **Emitir em papel exige o CRM validado**, como a assinatura. O cancelamento oferece **pôr o paciente na lista de espera** (topo, se veio dela), e trocar o paciente de um horário da lista devolve quem esperava ao topo. Convênio fora da vigência é recusado também na consulta. Exame marcado como particular por engano pode ter a forma trocada depois de realizado, enquanto nada foi pago. No prontuário, a **nota do médico** aparece na tabela de hipóteses, a grade de atendimentos ganha o **tipo da consulta**, e o **mais recente fica no topo**. Uma restrição de banco trocada (`finance/0009`). |
 | **1.32.3** | 2026-11-02 | o cadastro seguro | **O primeiro grupo da revisão**: treze correções sem mudar a rotina de ninguém. O **CNPJ com letras** (emitido desde julho de 2026) se cadastra; o teste do servidor de e-mail só aceita servidor na internet e não mostra mais o erro cru (que servia para sondar a rede interna); timbre e nome do médico entram no PDF como texto; a redefinição de senha tem limite; `x@localhost` é recusado; o CPF vai mascarado à operação; ficha arquivada sai do "puxar" da lista de espera; os migrados do iClin fecham na data da anotação; a guia TISS recusa total grande demais e tira caractere invisível; o encerramento não manda e-mail duplicado; e a declaração imprime o CNPJ pontuado. Uma migração de dados, sem mudança de schema. |

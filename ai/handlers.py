@@ -40,6 +40,14 @@ def handle_encounter_finalized(event):
     # Mesma forma dos dois `return` acima, pela mesma razao.
     if not has_clinical_ai(tenant.plan):
         return
+    # Degustação sem cota de IA: mesma forma de `return`, pela mesma razão —
+    # não é falha do evento, é o recurso que acabou (`tenancy/degustacao.py`).
+    from tenancy import degustacao
+
+    try:
+        degustacao.conferir_ia(tenant.id)
+    except degustacao.CotaEsgotada:
+        return
 
     fake_context = AccessContext(
         user_id=encounter.finalized_by.user_id, tenant_id=tenant.id,

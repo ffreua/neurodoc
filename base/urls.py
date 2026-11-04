@@ -17,6 +17,8 @@ urlpatterns = [
     # pagos continuam indo ao formulário de contato, onde a conversa
     # comercial é o ponto.
     path('comecar-gratis/', views.StartFreePlanView.as_view(), name='start-free'),
+    # Sete dias do Completo (1.35, `tenancy/degustacao.py`).
+    path('degustacao/', views.StartTrialView.as_view(), name='start-trial'),
     # Ajuda pública, sem login: quem avalia o sistema precisa ver como ele
     # funciona antes de ter conta, e quem já usa costuma procurar ajuda no
     # celular, fora da sessão aberta no consultório.

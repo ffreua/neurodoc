@@ -1,7 +1,10 @@
 {% autoescape off %}Olá!
 
 A clínica {{ clinica }} foi cadastrada no NeuroDoc, no plano {{ plano }}. Seja bem-vindo(a).
-
+{% if degustacao_ultimo_dia %}
+DEGUSTAÇÃO ATÉ {{ degustacao_ultimo_dia|date:"d/m/Y" }}
+Esta é a degustação do plano {{ plano }}: vale até {{ degustacao_ultimo_dia|date:"d/m/Y" }} (último dia), com a IA clínica limitada a {{ degustacao_teto_ia }} pedidos e o SMS a {{ degustacao_teto_sms }} mensagens. No dia seguinte, a clínica volta ao plano {{ degustacao_depois }}, o do contrato que você aceitou — nada é apagado. Para continuar no {{ plano }}, fale com a gente pelo formulário da página do NeuroDoc.
+{% endif %}
 A sua conta é a do Responsável pela clínica: ela administra equipe, agenda, integrações e financeiro, mas não abre prontuário.
 
 IMPORTANTE — CADASTRE UM USUÁRIO COM PERFIL MÉDICO

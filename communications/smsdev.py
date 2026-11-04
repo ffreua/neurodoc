@@ -25,7 +25,16 @@ class SmsSendFailed(Exception):
 
 
 def resolve_api_key(tenant_id=None):
-    """A chave a usar: a da clínica, se houver; senão a da instalação.
+    """A chave a usar: a da clínica, se houver; senão a da instalação."""
+    return _resolver_chave(tenant_id)[0]
+
+
+def _resolver_chave(tenant_id=None):
+    """A chave e se ela é a da instalação — quem paga o envio.
+
+    O segundo valor existe pela degustação (`tenancy/degustacao.py`): o teto
+    de SMS vale só para a chave da instalação, e só se conta o envio que saiu
+    por ela.
 
     A chave por clínica é o caso normal — quem tem conta no SMSDEV é a
     clínica. A da instalação continua valendo como padrão para quem não
@@ -46,9 +55,13 @@ def resolve_api_key(tenant_id=None):
         # Antes da leitura da chave da clinica, de proposito: o corte e por
         # plano, e vale inclusive para quem trouxe a propria chave. Ver
         # `tenancy.plans.has_sms`.
+        from tenancy import degustacao
         from tenancy.models import Tenant
         from tenancy.plans import has_sms
 
+        # A degustação vencida volta ao Gratuito antes de o plano ser lido:
+        # o lembrete do worker não passa pelo middleware.
+        degustacao.encerrar_se_vencida(tenant_id)
         plano = Tenant.objects.filter(id=tenant_id).values_list('plan', flat=True).first()
         if plano is not None and not has_sms(plano):
             raise SmsChannelDisabled(
@@ -67,15 +80,20 @@ def resolve_api_key(tenant_id=None):
                     'O canal de SMS está desativado nas configurações desta clínica.'
                 )
             try:
-                return row.api_key()
+                return row.api_key(), False
             except SecretUnavailable as exc:
                 raise SmsSendFailed(str(exc)) from exc
+        # Daqui em diante é a chave da instalação: a degustação tem teto.
+        try:
+            degustacao.conferir_sms(tenant_id)
+        except degustacao.CotaEsgotada as exc:
+            raise SmsChannelDisabled(str(exc)) from exc
     key = getattr(settings, 'SMSDEV_API_KEY', '')
     if not key:
         raise SmsChannelDisabled(
             'Nenhuma chave do SMSDEV configurada. Informe-a em Configurações da clínica.'
         )
-    return key
+    return key, True
 
 
 def send_sms(number, message, refer, tenant_id=None):
@@ -104,6 +122,11 @@ def send_sms(number, message, refer, tenant_id=None):
             f'message of {len(message)} chars exceeds the 160-character segment'
         )
     api_key = resolve_api_key(tenant_id)
+    # Quem paga este envio: a chave da instalação conta no teto da
+    # degustação, a da clínica não. Comparada aqui, e não devolvida pela
+    # resolução, para `resolve_api_key` continuar sendo o único ponto que
+    # um roteiro substitui.
+    da_instalacao = bool(api_key) and api_key == getattr(settings, 'SMSDEV_API_KEY', '')
     try:
         response = requests.post(
             SEND_URL,
@@ -125,6 +148,10 @@ def send_sms(number, message, refer, tenant_id=None):
     if isinstance(payload, dict) and str(payload.get('situacao', '')).upper() == 'ERRO':
         descricao = str(payload.get('descricao', ''))[:80]
         raise SmsSendFailed(f'SMSDEV recusou o envio: {descricao}')
+    if da_instalacao and tenant_id is not None:
+        from tenancy import degustacao
+
+        degustacao.registrar_sms(tenant_id)
     return payload
 
 

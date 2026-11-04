@@ -240,12 +240,16 @@ carimbá-la na publicação.
 #: do SNCR -- o lote retirado da cota que a Vigilância Sanitária libera ao
 #: médico, o modelo oficial de cada tipo, um número por folha e o QR da
 #: consulta no SNCR. Migração só de expansão (`sncr.0002`).
-VERSION = '1.34'
+#: A **1.35**: a degustação de sete dias do Completo, aberta a qualquer
+#: pessoa pela página de vendas -- contrato do Gratuito, tetos de IA e SMS,
+#: e no oitavo dia a volta ao Gratuito com um médico só. Migração só de
+#: expansão (`tenancy.0022`).
+VERSION = '1.35'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a Notificação eletrônica'
+CODENAME = 'a degustação'
 
 
 def version_display():

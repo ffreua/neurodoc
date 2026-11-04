@@ -1,0 +1,16 @@
+{% autoescape off %}Olá!
+
+A degustação do plano {{ plano_degustado }} da clínica {{ clinica }} terminou, e a clínica voltou ao plano {{ plano_depois }}.
+
+Nada foi apagado: pacientes, atendimentos, documentos e agenda continuam lá. No plano {{ plano_depois }}, os limites são {{ pacientes_depois }} pacientes ativos e {{ medicos_depois }} médico, sem IA clínica e sem SMS.{% if retirados %}
+
+{{ retirados }} vínculo{{ retirados|pluralize }} ficou sem o perfil médico, porque o plano {{ plano_depois }} tem um médico só. O que eles escreveram continua no prontuário, e o perfil volta quando a clínica contratar.{% endif %}
+
+PARA CONTRATAR O {{ plano_degustado|upper }}
+{{ url_contratar }}
+
+Para entrar:
+{{ url_entrar }}
+
+Equipe NeuroDoc
+{% endautoescape %}

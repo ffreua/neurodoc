@@ -89,6 +89,15 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
         source_version = encounter.row_version if encounter else 0
         target = authorization.encounter_id or authorization.patient_id
     idempotency_key = f'{kind}:{target}:{source_version}'[:150]
+    # O teto da degustação conta pedido **novo**: pedir de novo o mesmo
+    # resumo devolve o job que já existe e não gasta cota.
+    if not AIJob.objects.filter(tenant_id=access_context.tenant_id, idempotency_key=idempotency_key).exists():
+        from tenancy import degustacao
+
+        try:
+            degustacao.conferir_ia(access_context.tenant_id)
+        except degustacao.CotaEsgotada as exc:
+            raise AIAuthorizationDenied(str(exc)) from exc
 
     job, _ = AIJob.objects.get_or_create(
         tenant_id=access_context.tenant_id, idempotency_key=idempotency_key,

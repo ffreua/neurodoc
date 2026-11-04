@@ -357,10 +357,18 @@ class TenantsView(SuperAdminView):
                 ), distinct=True,
             ),
         ).order_by('legal_name'):
+            from tenancy import degustacao
+
             linhas.append({
                 'obj': tenant,
                 'patients': limits.patient_status(tenant),
                 'doctors': limits.doctor_status(tenant),
+                'degustacao': (
+                    'em_andamento' if degustacao.em_andamento(tenant)
+                    else 'encerrada' if tenant.degustacao_ate and tenant.degustacao_encerrada_em
+                    else ''
+                ),
+                'degustacao_ultimo_dia': degustacao.ultimo_dia(tenant),
             })
         context = _nav('tenants')
         context['rows'] = linhas
@@ -445,6 +453,15 @@ class TenantPlanView(SuperAdminView):
         tenant.save(update_fields=[
             'plan', 'patient_limit_override', 'doctor_limit_override', 'plan_note', 'updated_at',
         ])
+        # Clínica que veio da degustação: trocar o plano no console é a
+        # conversão em contrato. O prazo sai de cena e os médicos que
+        # perderam o papel no oitavo dia voltam, até o limite do plano novo
+        # (`tenancy/degustacao.py::converter`).
+        from tenancy import degustacao
+
+        devolvidos = degustacao.converter(tenant, por=request.user)
+        if devolvidos:
+            messages.info(request, f'{devolvidos} médico(s) da degustação voltaram ao perfil médico.')
         record_audit_event(
             request.user, tenant, 'tenancy.tenant_plan_changed',
             object_type='tenant', object_id=tenant.id, outcome='success',
@@ -458,6 +475,31 @@ class TenantPlanView(SuperAdminView):
             },
         )
         messages.success(request, f'Plano de {tenant.legal_name} atualizado.')
+        return redirect('superadmin:tenants')
+
+
+class TenantDegustacaoView(SuperAdminView):
+    """Estende a degustação em andamento por mais sete dias.
+
+    Para a conversa que ainda não terminou: a clínica testando, a decisão de
+    contratar marcada para a semana seguinte. Só em andamento — reabrir uma
+    degustação encerrada seria uma segunda degustação com outro nome. A
+    conversão em contrato é a troca de plano, logo acima.
+    """
+
+    def post(self, request, tenant_id):
+        from tenancy import degustacao
+        from tenancy.models import Tenant
+
+        tenant = get_object_or_404(Tenant, id=tenant_id)
+        if degustacao.estender(tenant, degustacao.DIAS, por=request.user):
+            messages.success(
+                request,
+                f'Degustação de {tenant.legal_name} estendida até '
+                f'{degustacao.ultimo_dia(tenant):%d/%m/%Y}.',
+            )
+        else:
+            messages.error(request, 'Só a degustação em andamento pode ser estendida.')
         return redirect('superadmin:tenants')
 
 

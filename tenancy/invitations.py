@@ -41,7 +41,7 @@ def issue_invitation(
     purpose, issued_by=None, target_tenant=None, email_binding='',
     role_grants=None, ttl_days=DEFAULT_TTL_DAYS,
     plan=None, patient_limit_override=None, doctor_limit_override=None,
-    plan_note='', periodicidade=None,
+    plan_note='', periodicidade=None, degustacao=False,
 ):
     """Emite um convite. O de plataforma carrega o plano contratado.
 
@@ -72,6 +72,7 @@ def issue_invitation(
         doctor_limit_override=doctor_limit_override if plataforma else None,
         plan_note=(plan_note or '')[:255] if plataforma else '',
         periodicidade=(periodicidade or PERIODICIDADE_PADRAO) if plataforma else PERIODICIDADE_PADRAO,
+        degustacao=bool(degustacao) and plataforma,
     )
     return invitation, raw_token
 

@@ -44,6 +44,19 @@
                         <td class="fs-12"><code>/{{ row.obj.slug }}</code></td>
                         <td class="fs-12">
                             <span class="badge bg-soft-primary text-primary">{{ row.patients.plan_label }}</span>
+                            {% comment %}Degustação (`tenancy/degustacao.py`): o prazo à vista, e
+                            estender só enquanto está em andamento. Converter é trocar o
+                            plano no formulário desta linha.{% endcomment %}
+                            {% if row.degustacao == 'em_andamento' %}
+                            <span class="badge bg-soft-warning text-warning d-block mt-1">degustação até {{ row.degustacao_ultimo_dia|date:"d/m" }}</span>
+                            <form method="post" action="{% url 'superadmin:tenant-degustacao' row.obj.id %}" class="mt-1">
+                                {% csrf_token %}
+                                <button class="btn btn-sm btn-light" type="submit"
+                                        data-nd-confirm="Estender a degustação desta clínica por mais 7 dias?">Estender 7 dias</button>
+                            </form>
+                            {% elif row.degustacao == 'encerrada' %}
+                            <span class="badge bg-gray-200 text-dark d-block mt-1">degustação encerrada {{ row.obj.degustacao_encerrada_em|date:"d/m" }}</span>
+                            {% endif %}
                         </td>
                         {% comment %}Uso ao lado do limite, e não só a contagem: é
                         o que torna a troca de plano uma decisão em vez de um

@@ -15,6 +15,39 @@
 {% endblock %}
 {% block content %}
 
+{% comment %}Degustação com mais médicos do que o Gratuito admite: o
+responsável escolhe quem continua com o perfil médico no oitavo dia
+(`tenancy/degustacao.py`). Sem escolha, fica o mais antigo — que é o que
+vem marcado.{% endcomment %}
+{% if degustacao %}
+<div class="card mb-4 border border-primary">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Quem continua médico depois da degustação</h5>
+    </div>
+    <div class="card-body">
+        <p class="fs-13 text-muted mb-3">
+            A degustação vai até {{ degustacao.ultimo_dia|date:"d/m/Y" }}. No plano Gratuito a clínica
+            tem um médico só: os outros ficam sem o perfil médico — nada do que escreveram some — e o
+            perfil volta quando a clínica contratar. Escolha quem continua.
+        </p>
+        <form method="post" action="{% url 'tenancy:team-degustacao' %}" class="d-flex flex-wrap gap-2 align-items-end">
+            {% csrf_token %}
+            <div class="flex-grow-1">
+                <label class="form-label fs-12" for="degustacao-medico">Médico que continua</label>
+                <select class="form-select" name="membership" id="degustacao-medico">
+                    {% for vinculo in degustacao.medicos %}
+                    <option value="{{ vinculo.id }}" {% if vinculo.id == degustacao.mantido_id %}selected{% endif %}>
+                        {{ vinculo.user.get_full_name|default:vinculo.user.email }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary">Gravar a escolha</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
 {% comment %}Convites pendentes vêm primeiro: é o que está em aberto e o que
 some da tela se ninguém olhar. A lista da equipe é estado; isto é pendência.
 {% endcomment %}

@@ -107,6 +107,28 @@ vinculo em clinica nenhuma.{% endcomment %}
                 </span>
             </div>
             {% endif %}
+            {% comment %}Degustação do Completo (`tenancy/degustacao.py`). Os números
+            saem do processador de contexto, que os lê do mesmo lugar que os cobra.{% endcomment %}
+            {% if nd_degustacao %}
+            <div class="alert {% if nd_degustacao.em_andamento %}alert-soft-primary{% else %}alert-soft-warning{% endif %} d-flex align-items-start gap-2 fs-13" role="status" data-nd-aviso="degustacao">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <span>
+                    {% if nd_degustacao.em_andamento %}
+                    <strong>Degustação do plano {{ nd_degustacao.plano }}: {% if nd_degustacao.dias == 1 %}hoje é o último dia{% else %}faltam {{ nd_degustacao.dias }} dias{% endif %}</strong>
+                    (até {{ nd_degustacao.ultimo_dia|date:"d/m/Y" }}).
+                    Restam {{ nd_degustacao.ia_restante }} pedido{{ nd_degustacao.ia_restante|pluralize }} de IA
+                    e {{ nd_degustacao.sms_restante }} SMS. Depois, a clínica volta ao plano
+                    {{ nd_degustacao.depois }} — nada é apagado.
+                    {% else %}
+                    <strong>A degustação do plano {{ nd_degustacao.plano }} terminou</strong> e a clínica
+                    está no plano {{ nd_degustacao.depois }}. Nada foi apagado.{% if nd_degustacao.retirados %}
+                    {{ nd_degustacao.retirados }} vínculo{{ nd_degustacao.retirados|pluralize }} ficou sem o perfil
+                    médico, e volta{{ nd_degustacao.retirados|pluralize:"m" }} ao contratar.{% endif %}
+                    {% endif %}
+                    <a href="{% url 'onboarding:landing' %}#contato" class="fw-semibold" target="_blank" rel="noopener">Contratar o {{ nd_degustacao.plano }}</a>
+                </span>
+            </div>
+            {% endif %}
 
             {% if messages %}
             <div class="row">

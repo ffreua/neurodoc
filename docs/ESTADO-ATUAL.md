@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.34 "a Notificação eletrônica" (2026-11-03) · **Produção:**
+**Versão:** 1.35 "a degustação" (2026-11-04) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,14 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Degustação de sete dias do Completo** (1.35, 2026-11-04): qualquer
+pessoa abre, pelo cartão do Completo na página de vendas, uma clínica no
+Completo, sem cartão, com 30 pedidos de IA e 20 SMS; o contrato é o do
+Gratuito, com a degustação registrada no aceite. No oitavo dia (meia-noite
+de Brasília) volta ao Gratuito sem apagar nada, e os médicos além do
+primeiro perdem o papel até a clínica contratar. A conversão é a troca de
+plano do console. Ver `docs/homologation/degustacao.md`.
 
 **Notificação de Receita A, B e B2 eletrônica** (1.34, 2026-11-03): com a
 numeração que a Vigilância Sanitária libera ao médico, retirada em lotes de

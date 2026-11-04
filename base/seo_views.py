@@ -118,6 +118,7 @@ class RobotsView(View):
             'Disallow: /signup/',
             'Disallow: /invite/',
             'Disallow: /comecar-gratis/',
+            'Disallow: /degustacao/',
             '',
             'Sitemap: ' + seo.absoluta('/sitemap.xml'),
             # Não é diretiva do padrão: é o aviso, para quem lê o arquivo,

@@ -34,9 +34,16 @@ ARTIGO_PRIMEIROS_PASSOS = 'primeiros-passos'
 def contexto(tenant, user):
     from base.seo import absoluta
 
+    from . import degustacao
     from .plans import has_clinical_ai, has_sms, plan_label
 
     return {
+        # A degustação muda a frase do plano: "plano Completo" sozinho
+        # prometeria o que acaba em sete dias (`tenancy/degustacao.py`).
+        'degustacao_ultimo_dia': degustacao.ultimo_dia(tenant) if degustacao.em_andamento(tenant) else None,
+        'degustacao_depois': plan_label(degustacao.PLANO_DEPOIS),
+        'degustacao_teto_ia': degustacao.TETO_IA,
+        'degustacao_teto_sms': degustacao.TETO_SMS,
         'clinica': tenant.trade_name or tenant.legal_name,
         'plano': plan_label(tenant.plan),
         'tem_ia': has_clinical_ai(tenant.plan),

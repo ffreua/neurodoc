@@ -162,12 +162,40 @@ class TeamView(OrgAdminView):
             'invitations': _pending_invitations(self.tenant_id),
             'invite_form': CollaboratorInvitationForm(),
             'tenant': self.membership.tenant,
+            'degustacao': self._degustacao(),
         }
         context.update(overrides)
         return context
 
     def get(self, request):
         return render(request, 'tenancy/team.html', self._context(request))
+
+    def _degustacao(self):
+        """Os médicos entre os quais o responsável escolhe quem fica.
+
+        Só durante a degustação e com mais médicos do que o Gratuito admite
+        (`tenancy/degustacao.py`): fora disso a escolha não decide nada.
+        """
+        from . import degustacao
+        from .plans import max_doctors
+
+        tenant = self.membership.tenant
+        if not degustacao.em_andamento(tenant):
+            return None
+        medicos = list(
+            Membership.objects.filter(
+                tenant_id=self.tenant_id, status=MembershipStatus.ACTIVE, roles__contains=[Role.DOCTOR],
+            ).select_related('user').order_by('activated_at', 'created_at')
+        )
+        limite = max_doctors(degustacao.PLANO_DEPOIS)
+        if limite is None or len(medicos) <= limite:
+            return None
+        return {
+            'medicos': medicos,
+            'mantido_id': tenant.degustacao_medico_mantido_id or medicos[0].id,
+            'ultimo_dia': degustacao.ultimo_dia(tenant),
+            'depois': degustacao.PLANO_DEPOIS,
+        }
 
     def post(self, request):
         form = CollaboratorInvitationForm(request.POST)
@@ -903,3 +931,48 @@ class ClinicMessageView(CapabilityRequiredView):
             'Mensagem enviada. Obrigado — ela chega a quem cuida do sistema.',
         )
         return redirect('reporting:dashboard')
+
+
+class DegustacaoMedicoView(OrgAdminView):
+    """O médico que continua com o papel quando a degustação acabar.
+
+    Só `POST`, só durante a degustação e só um vínculo médico ativo **desta**
+    clínica: o id vem do formulário, e um id de outra clínica ou de quem não
+    é médico é recusado sem gravar nada. O efeito é no oitavo dia, em
+    `tenancy/degustacao.py::encerrar`.
+    """
+
+    def post(self, request):
+        from audit.services import record_audit_event
+
+        from . import degustacao
+
+        tenant = self.membership.tenant
+        if not degustacao.em_andamento(tenant):
+            messages.error(request, 'A degustação desta clínica não está em andamento.')
+            return redirect('tenancy:team')
+        escolhido = Membership.objects.filter(
+            id=request.POST.get('membership') or None, tenant_id=self.tenant_id,
+            status=MembershipStatus.ACTIVE, roles__contains=[Role.DOCTOR],
+        ).first() if _uuid_valido(request.POST.get('membership')) else None
+        if escolhido is None:
+            messages.error(request, 'Escolha um dos médicos ativos desta clínica.')
+            return redirect('tenancy:team')
+        tenant.degustacao_medico_mantido = escolhido
+        tenant.save(update_fields=['degustacao_medico_mantido', 'updated_at'])
+        record_audit_event(
+            request.user, tenant, 'tenancy.degustacao_medico_escolhido',
+            object_type='membership', object_id=escolhido.id, outcome='success',
+        )
+        messages.success(request, 'Anotado: este médico continua com o perfil médico depois da degustação.')
+        return redirect('tenancy:team')
+
+
+def _uuid_valido(valor):
+    import uuid
+
+    try:
+        uuid.UUID(str(valor))
+    except (TypeError, ValueError):
+        return False
+    return True

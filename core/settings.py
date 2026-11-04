@@ -283,6 +283,13 @@ CELERY_BEAT_SCHEDULE = {
     },
     # Chat da equipe: mensagem vive 72 horas (teamchat/services.py). De
     # hora em hora, para o prazo prometido na janela ser o prazo cumprido.
+    # Degustação do Completo: o oitavo dia e o aviso de véspera
+    # (`tenancy/degustacao.py`). A cada quinze minutos, porque o prazo é à
+    # meia-noite e o middleware só encerra quem abre a tela.
+    'tenancy-rodada-da-degustacao': {
+        'task': 'tenancy.tasks.rodada_da_degustacao',
+        'schedule': crontab(minute='*/15'),
+    },
     'teamchat-apagar-vencidas': {
         'task': 'teamchat.tasks.apagar_vencidas',
         'schedule': crontab(minute=35),

@@ -88,6 +88,9 @@ EXCECOES_NA_TELA = {
     # Faturamento TISS (1.30): as recusas da guia e do lote são escritas em
     # português em `tiss/guias.py` e `tiss/lotes.py`.
     'GuiaRecusada', 'LoteRecusado', 'ReservaRecusada',
+    # Degustação (1.35): os tetos de IA e SMS, escritos em português em
+    # `tenancy/degustacao.py`.
+    'CotaEsgotada',
     # Achadas quando a seção 5 passou a ler `except modulo.Excecao` (1.30):
     # já chegavam à tela, e o texto delas nunca tinha sido conferido.
     'CarryForwardBlocked', 'AccessLocked', 'AccessDenied', 'TooManyAttempts',
