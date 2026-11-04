@@ -273,8 +273,10 @@ tela: o campo só aceita gravar. Ligar exige a verificação em verde.
             <div class="card-body">
                 <p class="fs-13">
                     Ligada, o formulário da receita passa a oferecer a <strong>RCE e a RET
-                    eletrônicas</strong>, no modelo da Anvisa, com um número do bloco do médico por
-                    folha. A receita impressa continua igual nos dois estados. Passo a passo e
+                    eletrônicas</strong> e a <strong>Notificação de Receita A, B e B2</strong>, no modelo
+                    da Anvisa, com um número do médico por folha — do bloco, na RCE e na RET; do lote
+                    retirado da cota da Vigilância Sanitária, na Notificação. A receita impressa continua
+                    igual nos dois estados. Passo a passo e
                     reversão: <code>docs/sncr/ATIVACAO.md</code>.
                 </p>
                 <div class="row g-3 fs-12 mb-3">
@@ -286,9 +288,10 @@ tela: o campo só aceita gravar. Ligar exige a verificação em verde.
                 </div>
                 {% if sncr.incertos %}
                 <div class="alert alert-light-danger fs-12" role="alert">
-                    Há pedido de bloco com resultado incerto: o médico precisa conferir no portal do
-                    SNCR e registrar o que encontrou no painel "Numeração SNCR" dele. Até lá, ele não
-                    pede outro bloco do mesmo tipo.
+                    Há pedido com resultado incerto. No bloco da RCE ou da RET, o médico precisa conferir
+                    no portal do SNCR e registrar o que encontrou no painel "Numeração SNCR" dele; no lote
+                    da Notificação, dá-lo por perdido no mesmo painel. Até lá, ele não pede outro do mesmo
+                    tipo.
                 </div>
                 {% endif %}
 

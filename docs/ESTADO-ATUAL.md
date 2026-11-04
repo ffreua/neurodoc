@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.33 "o cadastro seguro" (2026-11-03) · **Produção:**
+**Versão:** 1.34 "a Notificação eletrônica" (2026-11-03) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,14 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Notificação de Receita A, B e B2 eletrônica** (1.34, 2026-11-03): com a
+numeração que a Vigilância Sanitária libera ao médico, retirada em lotes de
+10 (até 50) no painel do SNCR, no modelo oficial de cada tipo e com o QR da
+consulta no SNCR. **Ainda sem uso real** (decisão D10 de `docs/sncr/DECISOES.md`):
+o proprietário não pediu a cota eletrônica à Vigilância, e o primeiro lote
+é o teste — o passo a passo está em `docs/sncr/ATIVACAO.md`, item 12. As de
+retinoide e de talidomida não são emitidas, e a página de vendas diz isso.
 
 ### Os pacientes migrados não recebem documento
 

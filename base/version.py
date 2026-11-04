@@ -232,12 +232,20 @@ carimbá-la na publicação.
 #: A **1.32.2**: as três decisões do responsável sobre a revisão -- a
 #: consanguinidade não vai à IA nem a trava, a data do documento é a da
 #: emissão, e o prontuário cabe no pedido de IA. Sem migração.
-VERSION = '1.33'
+#: A **1.33**: o restante da revisão -- segundo fator obrigatório para dono
+#: e médico, CRM validado para o papel, a lista de espera no cancelamento e
+#: o prontuário com a nota do médico, o tipo da consulta e o mais recente no
+#: topo.
+#: A **1.34**: a Notificação de Receita A, B e B2 eletrônica com a numeração
+#: do SNCR -- o lote retirado da cota que a Vigilância Sanitária libera ao
+#: médico, o modelo oficial de cada tipo, um número por folha e o QR da
+#: consulta no SNCR. Migração só de expansão (`sncr.0002`).
+VERSION = '1.34'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'o cadastro seguro'
+CODENAME = 'a Notificação eletrônica'
 
 
 def version_display():

@@ -14,8 +14,10 @@ total_tokens: 2195784
 > que mudou: os apps `tiss` e `agenda_exames`, o SNCR em produção, a lista
 > de espera e a forma de cobrança, as finanças do exame, a migração do
 > iClin, o e-mail descartável, as operadoras da ANS, os preços, o CPF e o
-> encerramento. Três leitores nessa rodada. Acréscimo à mão em 2026-11-03:
-> os processos do `app` e do worker por instalação (seção `ops e scripts`).
+> encerramento. Três leitores nessa rodada. Acréscimos à mão em 2026-11-03:
+> os processos do `app` e do worker por instalação (seção `ops e scripts`) e
+> a Notificação de Receita A, B e B2 (1.34, seção "sncr — Notificação de
+> Receita").
 > Onze leitores em paralelo, cada um com um pedaço do repositório; este
 > arquivo é a síntese. É **mapa**, não especificação: onde ele e o código
 > divergirem, vale o código, e onde divergir de `CLAUDE.md`, vale o
@@ -500,6 +502,36 @@ roteiros `check_tiss_{liberacao,versoes,guias,lotes}`; docs em `docs/tiss/`.
   assinada digitalmente desde 31/10/2026 (dia de Brasília), recusada em
   `issuance._sign_and_issue` antes da sessão de assinatura.
 
+### sncr — Notificação de Receita A, B e B2 (1.34)
+- Tipos `NRA`, `NRB`, `NRB2` em `TipoReceita` (o campo `tipo` passou a 4
+  caracteres, `sncr/0002`), `NOTIFICACOES` e `eh_notificacao`. Os números
+  vêm da **cota da Vigilância Sanitária**, em **lotes** de 10 a 50:
+  `cliente.pedir_notificacoes` (`numeracoes/notificacao-receita`, sem
+  `cnpj`) → `numeracao.registrar_lote`, que grava a **lista como veio** (o
+  `BlocoNumeracao` de um lote tem `inicio`/`fim` = primeiro e último da
+  lista e `saldo_visa`). `_lista_de_numeros` aceita lista ou texto
+  `"[a, b]"` e recusa a resposta inteira por um item estranho.
+- `fluxo`: `_conferir_notificacao` (lote novo só com menos de
+  `LIMITE_MEDICAMENTOS` livres; `recebidos_hoje` contra o limite diário de
+  50; incerto barra), `quantidade_do_lote`, `dar_por_perdido` (estado
+  `perdido`; `resolver_incerto` recusa Notificação). `ConferirPedidoView`
+  aceita `resultado=perdido`.
+- `receita._validar_notificacao`: um tipo por documento; o medicamento pede
+  a Notificação mais exigente das suas substâncias (`_RIGOR`); o adendo da
+  lista passa; RCE, receita simples, retinoide e talidomida (barrada pelo
+  nome) recusados com o caminho. O endereço é exigido em tudo menos na RET.
+- `pdf_oficial`: `Leiaute` por modelo (`LEIAUTE_RCE` = as constantes de
+  sempre; `_leiaute_ret()`; `LEIAUTES_NOTIFICACAO`), `render_notificacao`
+  sobre `modelos/nr*_eletronica_anvisa.pdf` (SHA-256 em
+  `MODELOS_NOTIFICACAO`), e `destino_do_qr`: a Notificação abre
+  `CONSULTA_SNCR + número` (treinamento na homologação); RCE e RET, a
+  verificação do NeuroDoc.
+- `documents`: `issue_on_paper` e `converter_para_impressa` recusam a
+  Notificação (o papel é o talonário); `_refazer_impressa.html` mostra só o
+  caminho; o detalhe mostra a validade (30 dias, território nacional); o
+  formulário traz o aviso dos limites (`data-nd-rx-notificacao`, mostrado
+  pelo `medical_form.js` nos formatos `sncr_nr*`) e os saldos.
+
 ### clinical — migração do histórico do iClin (2026-11)
 - `clinical/importacao.py` + `manage.py import_atendimentos_xml --clinica
   --medico --arquivo --ate [--gravar]`; **ensaio por padrão**, `--ate`
@@ -764,7 +796,7 @@ sequenceDiagram
   - salvar a configuração da reserva de IA a **desliga**; ligar exige verificação ok;
   - download a partir de `ops/` usa `ops.deploy.buscar` (com User-Agent) — `urlopen` cru leva 403 da Cloudflare;
   - travas advisory na família 72654xxx (`ops/locks.py`): 001 migração, 004 TUSS;
-  - pedido do SNCR `incerto` nunca se repete sozinho — barra pedido novo até o médico conciliar.
+  - pedido do SNCR `incerto` nunca se repete sozinho — barra pedido novo até o médico conciliar (bloco da RCE/RET: conferido no portal; lote da Notificação: dado por perdido).
 - **Pendências e incertezas:**
   - `ops/deploy.py` ainda tem `DEFAULT_REGISTRY = 'ghcr.io/pycodebr/scsi_v1'`, herdado de outro projeto e usado só quando `REGISTRY` falta no `.env`. Não foi alterado (é código);
   - ~~`LICENSE` diz MIT e o contrato (cláusula 16) diz o contrário~~ — resolvida em 2026-10-19: repositório público sob MIT e contrato 1.1 com o item 16.3.

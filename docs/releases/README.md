@@ -16,7 +16,7 @@ repositório com mudança rastreada não commitada, então o registro entra na
 mesma árvore que vai ao ar.
 
 A versão de produto segue `docs/operations/versionamento.md`. A versão
-atual é a **1.27**. O SHA continua mudando em toda publicação, mesmo
+atual é a **1.34**. O SHA continua mudando em toda publicação, mesmo
 quando `VERSION` não muda.
 
 > **Prática atual (desde a 1.1):** a nota leva o nome da **versão**, é
@@ -71,4 +71,10 @@ quando pedem homologação própria, como a 1.6.1 e a 1.6.2.
 | 1.25 | [`1.25-boas-vindas.md`](1.25-boas-vindas.md) |
 | 1.26 | [`1.26-atendidos-e-faltas.md`](1.26-atendidos-e-faltas.md) |
 | 1.27 | [`1.27-excluir-contato.md`](1.27-excluir-contato.md) |
+| 1.28 | [`1.28-modelos-de-documento.md`](1.28-modelos-de-documento.md) |
+| 1.29 | [`1.29-a-receita-da-anvisa.md`](1.29-a-receita-da-anvisa.md) |
+| 1.30 | [`1.30-a-fundacao-do-tiss.md`](1.30-a-fundacao-do-tiss.md) |
 | 1.31 | [`1.31-lista-de-espera.md`](1.31-lista-de-espera.md) |
+| 1.32 | [`1.32-cadastro-seguro.md`](1.32-cadastro-seguro.md), e as correções [`1.32.1`](1.32.1-revisao.md), [`1.32.2`](1.32.2-decisoes-da-revisao.md) e [`1.32.3`](1.32.3-primeiro-grupo-da-revisao.md) |
+| 1.33 | [`1.33-revisao-concluida.md`](1.33-revisao-concluida.md) |
+| 1.34 | [`1.34-notificacao-eletronica.md`](1.34-notificacao-eletronica.md) |

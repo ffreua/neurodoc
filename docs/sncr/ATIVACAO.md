@@ -58,6 +58,19 @@ expressa do proprietário.
 11. Só com o teste real bem-sucedido: avisar as clínicas (os médicos de
     cada uma pedem o próprio bloco) e publicar o artigo da central de
     ajuda (texto pronto em [AJUDA.md](AJUDA.md)).
+12. **Notificação de Receita A, B e B2 (1.34, decisões D9 e D10).** Não há
+    chave própria: com a integração ligada, os três formatos aparecem. O
+    primeiro uso real é o teste — sem cota da Vigilância Sanitária, o
+    pedido volta **recusado** ("Prescritor não possui saldo disponível"),
+    sem custo. Com a cota liberada, pedir **um lote de 10** em "Numeração
+    SNCR":
+    - **Concluído:** o painel mostra os 10 números e o saldo da cota.
+      Emitir uma Notificação de um medicamento, assinar, abrir o QR da
+      folha (consulta do número no SNCR) e conferir o PDF contra o modelo.
+    - **Incerto:** a resposta não chegou ou veio num formato que o NeuroDoc
+      não reconhece. Dar os números por perdidos no painel (decisão I18) e,
+      se for formato, ajustar `sncr/cliente.py::_lista_de_numeros` antes de
+      pedir de novo.
 
 ## Reverter
 

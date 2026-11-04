@@ -53,6 +53,12 @@
                                     {% else %}<span class="text-muted fw-normal">{% if rx.folhas > 1 %}{{ rx.folhas }} números, um por medicamento, atribuídos na assinatura digital, do seu bloco{% else %}atribuído na assinatura digital, do seu bloco{% endif %}</span>{% endif %}
                                 </td>
                             </tr>
+                            {% if rx.notificacao %}
+                            <tr data-nd-notificacao-validade>
+                                <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Validade</th>
+                                <td class="pe-4">30 dias a partir da assinatura, em todo o território nacional</td>
+                            </tr>
+                            {% endif %}
                             {% endif %}
                             <tr>
                                 <th class="ps-4 fs-12 text-muted fw-normal" scope="row">Versão</th>

@@ -368,7 +368,7 @@ ARTICLES = [
     {
         'slug': 'receita-sncr',
         'title': 'Receita eletrônica com numeração do SNCR',
-        'summary': 'Receita controlada no modelo da Anvisa, com o seu número.',
+        'summary': 'Receita controlada e Notificação de Receita A, B e B2 no modelo da Anvisa, com o seu número.',
         'audience': 'Médico',
         'steps': [
             ('**Peça o seu bloco de números.** No menu, **Numeração SNCR** → **Pedir bloco '
@@ -383,11 +383,25 @@ ARTICLES = [
              'Gov.br, veja se há bloco gerado nessa data e registre no painel — **Nenhum bloco '
              'foi gerado**, ou o primeiro e o último número que o portal mostra.',
              '', ''),
+            ('**Notificação de Receita A, B e B2: primeiro, a Vigilância Sanitária.** Os números '
+             'da Notificação não vêm em bloco: saem da **cota** que a Vigilância Sanitária do '
+             'lugar onde você atende libera para **emissão eletrônica** — peça a ela, pelo '
+             'procedimento dela; é diferente da numeração do talonário de papel, e quem atende em '
+             'mais de um estado pede a cada Vigilância. Com a cota liberada, em **Numeração SNCR** '
+             'escolha quantos números quer (10, o padrão, até 50) e **Pedir números com o '
+             'Gov.br**. A Anvisa entrega até 50 por dia de cada tipo, e o que se retira e não se '
+             'usa **se perde**: peça só o que vai usar — um lote novo fica disponível quando '
+             'restarem menos de 3. Se o pedido ficar "Resultado incerto", **dê os números por '
+             'perdidos** no painel e peça outros: o NeuroDoc nunca usa número que não recebeu.',
+             '', ''),
             ('**Na receita.** No atendimento, em **Conduta**, o botão **Receita controlada '
              '(SNCR)** abre o formulário já no formato eletrônico; fora do atendimento, em '
              '**Emitir documento**, escolha **Controle especial — eletrônica** (listas C1 e C5, '
-             'e os adendos) ou **Sujeita à retenção — eletrônica** (antimicrobiano, GLP-1). A '
-             'tela mostra quantos números você tem livres de cada tipo.',
+             'e os adendos), **Sujeita à retenção — eletrônica** (antimicrobiano, GLP-1) ou a '
+             '**Notificação de Receita A** (amarela: listas A1, A2 e A3, como o metilfenidato), '
+             '**B** (azul: lista B1, como o clonazepam e o zolpidem) ou **B2** — o formato também '
+             'se troca no próprio formulário. A tela mostra quantos números você tem livres de '
+             'cada tipo.',
              'sncr-conduta.png', 'O botão na Conduta'),
             ('Preencha até **3 medicamentos**. Digite o nome e escolha na lista da Anvisa '
              '(CMED): a substância, a concentração e a forma farmacêutica entram sozinhas, e '
@@ -395,10 +409,15 @@ ARTICLES = [
              '**Uso contínuo** quando for o caso — ele sai impresso junto da quantidade, que a '
              'norma continua exigindo (até 60 dias de tratamento; anticonvulsivante e '
              'antiparkinsoniano, até 6 meses). O NeuroDoc '
-             'procura cada um na **lista oficial da Portaria 344**. Medicamento que pede '
-             '**Notificação de Receita** (lista B1, como o clonazepam) não sai aqui — use o '
-             'talonário. Se o medicamento depende de dose para entrar no adendo, ou não foi '
-             'encontrado, marque a confirmação: a decisão é sua e fica registrada.',
+             'procura cada um na **lista oficial da Portaria 344**, e cada documento é de um tipo '
+             'só: o medicamento que pede Notificação é recusado na Receita de Controle Especial, '
+             'e o de uma Notificação é recusado na outra, com o formato certo indicado — '
+             'clonazepam e sertralina, por exemplo, saem em dois documentos. Se o medicamento '
+             'depende de dose para entrar no adendo, ou não foi encontrado, marque a '
+             'confirmação: a decisão é sua e fica registrada. Na Notificação, a quantidade vai '
+             'até 30 dias de tratamento na A e na B2 e 60 dias na B (injetável, 5 ampolas); '
+             'acima disso, a norma pede a sua justificativa com o CID, entregue junto. A '
+             'Notificação vale **30 dias em todo o território nacional**.',
              'sncr-receita.png', 'Receita eletrônica, com o saldo de números'),
             ('**Assine.** Cada medicamento sai **na sua folha**, com o **seu número SNCR** — o '
              'paciente pode levar cada folha a uma farmácia. Todas as folhas vão numa '
@@ -407,12 +426,16 @@ ARTICLES = [
              '', ''),
             ('**Sem número livre, ou sem certificado agora?** Use **Refazer como receita '
              'impressa**: a prescrição é copiada para a receita impressa da clínica, para '
-             'assinar e carimbar, e nenhum número é gasto. A receita eletrônica emitida **não '
-             'é corrigida** — o número dela já foi usado —: emita uma nova.',
+             'assinar e carimbar, e nenhum número é gasto. A Notificação não tem versão '
+             'impressa no NeuroDoc — em papel, ela é o talonário da Vigilância Sanitária: '
+             'descarte o rascunho e use o talonário. A receita eletrônica emitida **não é '
+             'corrigida** — o número dela já foi usado —: emita uma nova.',
              '', ''),
             ('**O que a farmácia confere:** o número na plataforma da Anvisa '
              '(sncr.anvisa.gov.br), onde ela registra a utilização, e a assinatura digital no '
-             'validar.iti.gov.br. O QR de cada folha abre a página de verificação do NeuroDoc.',
+             'validar.iti.gov.br. O QR de cada folha da receita abre a página de verificação do '
+             'NeuroDoc; o da **Notificação** abre a consulta do número no SNCR, como a Anvisa '
+             'manda, e a verificação do NeuroDoc fica escrita no rodapé.',
              '', ''),
         ],
     },

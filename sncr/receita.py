@@ -1,9 +1,10 @@
 """A receita eletrônica do SNCR: itens, classificação e limites.
 
 Sprint 2 da integração (`docs/sncr/`). Este módulo decide **se** uma
-receita pode sair como Receita de Controle Especial (RCE) ou Receita
-Sujeita à Retenção (RET) eletrônica e devolve o conteúdo pronto para o
-documento. Nada aqui gera PDF nem fala com a Anvisa.
+receita pode sair como Receita de Controle Especial (RCE), Receita Sujeita
+à Retenção (RET) ou **Notificação de Receita A, B ou B2** (1.34, decisão
+D9) eletrônica e devolve o conteúdo pronto para o documento. Nada aqui gera
+PDF nem fala com a Anvisa.
 
 **Por que a lista oficial e não a tarja da CMED** (decisão D7): a tarja é
 dado de preço; quem diz que receituário a substância pede é o Anexo I da
@@ -15,7 +16,11 @@ no Anvisalegis, lido em 2026-10-21):
 
 - art. 55 — a RCE serve às listas **C1** e **C5** e aos **adendos** das
   listas A1, A2 e B1 (tramadol e codeína em dose baixa, por exemplo). Fora
-  do adendo, A e B pedem Notificação de Receita, fora do escopo (D5);
+  do adendo, A e B pedem Notificação de Receita: a **A** (amarela) para as
+  listas A1, A2 e A3, a **B** (azul) para a B1 e a **B2** para a B2. Cada
+  documento é de um tipo só, e cada medicamento é conferido contra ele
+  (`_validar_notificacao`); a de retinoide (C2) e a de talidomida (C3)
+  não são emitidas;
 - art. 57 — no máximo **3 substâncias da lista C1** por receita. Cada
   medicamento sai na **sua folha, com número SNCR próprio** (decisão I12):
   cada folha é uma receita, e o limite vale **por folha** — só um
@@ -41,13 +46,46 @@ from .models import TipoReceita
 
 SNCR_RCE = 'sncr_rce'
 SNCR_RET = 'sncr_ret'
+SNCR_NRA = 'sncr_nra'
+SNCR_NRB = 'sncr_nrb'
+SNCR_NRB2 = 'sncr_nrb2'
 
-FORMATOS = {SNCR_RCE: TipoReceita.RCE, SNCR_RET: TipoReceita.RET}
+FORMATOS = {
+    SNCR_RCE: TipoReceita.RCE, SNCR_RET: TipoReceita.RET,
+    SNCR_NRA: TipoReceita.NRA, SNCR_NRB: TipoReceita.NRB, SNCR_NRB2: TipoReceita.NRB2,
+}
 
+#: Os nomes começam todos com `sncr_`: é o prefixo que o formulário
+#: (`static/documents/medical_form.js`) lê para mostrar os itens estruturados.
 FORMAT_CHOICES = (
     (SNCR_RCE, 'Controle especial — eletrônica com numeração do SNCR (Anvisa)'),
     (SNCR_RET, 'Sujeita à retenção — eletrônica com numeração do SNCR (antimicrobiano, GLP-1)'),
+    (SNCR_NRA, 'Notificação de Receita A (amarela) — eletrônica com numeração do SNCR'),
+    (SNCR_NRB, 'Notificação de Receita B (azul) — eletrônica com numeração do SNCR'),
+    (SNCR_NRB2, 'Notificação de Receita B2 (azul) — eletrônica com numeração do SNCR'),
 )
+
+#: O receituário da lista oficial (`catalogs.portaria344`) que cada
+#: Notificação atende.
+RECEITUARIO_DA_NOTIFICACAO = {
+    TipoReceita.NRA: 'notificacao_a',
+    TipoReceita.NRB: 'notificacao_b',
+    TipoReceita.NRB2: 'notificacao_b2',
+}
+
+#: O formato que atende cada receituário, para a recusa apontar o certo.
+_FORMATO_DO_RECEITUARIO = {
+    'notificacao_a': 'Notificação de Receita A',
+    'notificacao_b': 'Notificação de Receita B',
+    'notificacao_b2': 'Notificação de Receita B2',
+}
+
+#: As duas Notificações que o NeuroDoc não emite (decisão D9): seguem no
+#: talonário da Vigilância Sanitária.
+_NOTIFICACOES_NAO_EMITIDAS = {
+    'notificacao_retinoide': 'Notificação de Receita Especial de retinoide',
+    'notificacao_talidomida': 'Notificação de Receita de talidomida',
+}
 
 #: Política do proprietário (2026-10-21): uma emissão de medicamentos
 #: controlados não leva mais de três medicamentos — cada um na sua folha,
@@ -330,10 +368,7 @@ def _validar_rce(itens, classificacao, confirmada):
                 '(Portaria 344, listas E e F).'
             )
         if notificacao:
-            raise ReceitaInvalida(
-                f'Medicamento {n} ({item["nome"]}): {_descricao(notificacao[0])} exige Notificação de '
-                'Receita, que o NeuroDoc ainda não emite eletronicamente. Use o talonário da Notificação.'
-            )
+            raise ReceitaInvalida(f'Medicamento {n} ({item["nome"]}): ' + _caminho_da_notificacao(notificacao[0]))
         adendo = [s for s in subs if s['receituario'] in _NOTIFICACOES and s['adendo_rce']]
         if adendo:
             pendencias.append(
@@ -360,6 +395,80 @@ def _validar_rce(itens, classificacao, confirmada):
         raise ReceitaInvalida(
             'Nenhum medicamento desta receita consta das listas C1 ou C5 da Portaria 344. '
             'Use a receita simples, ou marque a confirmação se o medicamento exige a RCE.'
+        )
+
+
+def _caminho_da_notificacao(sub):
+    """A recusa de quem exige uma Notificação, apontando o formato que a atende."""
+    receituario = sub['receituario']
+    if receituario in _NOTIFICACOES_NAO_EMITIDAS:
+        return (f'{_descricao(sub)} exige a {_NOTIFICACOES_NAO_EMITIDAS[receituario]}. '
+                'Use o talonário da Vigilância Sanitária.')
+    return (f'{_descricao(sub)} exige a {_FORMATO_DO_RECEITUARIO[receituario]}. Escolha o formato '
+            f'“{_FORMATO_DO_RECEITUARIO[receituario]} — eletrônica com numeração do SNCR”.')
+
+
+#: A Notificação mais exigente vence quando um medicamento combina
+#: substâncias de listas diferentes: a A (entorpecentes e psicotrópicos da
+#: A3) acima da B2, e a B2 acima da B1.
+_RIGOR = {'notificacao_a': 3, 'notificacao_b2': 2, 'notificacao_b': 1}
+
+
+def _validar_notificacao(itens, classificacao, confirmada, tipo):
+    """Cada medicamento da Notificação tem de ser do tipo dela.
+
+    A lista oficial diz o receituário de cada substância; o medicamento pede
+    o mais exigente entre as suas. Errar o tipo é recusado com o formato
+    certo: a farmácia recusaria a Notificação B de um metilfenidato, e a A de
+    um clonazepam gastaria número da cota da A. O que vai para a RCE ou
+    para a receita simples também é recusado — Notificação não é receita
+    "mais forte" que serve a tudo, e cada número dela sai da cota que a
+    Vigilância Sanitária liberou.
+
+    O adendo que manda uma preparação para a RCE (fenobarbital, tramadol)
+    não barra: a Notificação da lista continua válida para ela.
+    """
+    from catalogs.portaria344 import normalizar
+
+    receituario = RECEITUARIO_DA_NOTIFICACAO[tipo]
+    pendencias = []
+    for n, (item, cls) in enumerate(zip(itens, classificacao), start=1):
+        subs = cls['substancias']
+        rotulo = f'Medicamento {n} ({item["nome"]})'
+        if 'TALIDOMIDA' in normalizar(item['nome']):
+            # A talidomida (lista C3) tem Notificação, cadastro do médico e
+            # termo próprios; nome achado ou não na lista, não sai aqui.
+            raise ReceitaInvalida(f'{rotulo}: a talidomida exige a Notificação de Receita de talidomida. '
+                                  'Use o talonário da Vigilância Sanitária.')
+        proibida = [s for s in subs if s['receituario'] == 'proscrita']
+        if proibida:
+            raise ReceitaInvalida(f'{rotulo}: {_descricao(proibida[0])} é de uso proibido no Brasil '
+                                  '(Portaria 344, listas E e F).')
+        nao_emitida = [s for s in subs if s['receituario'] in _NOTIFICACOES_NAO_EMITIDAS]
+        if nao_emitida:
+            raise ReceitaInvalida(f'{rotulo}: ' + _caminho_da_notificacao(nao_emitida[0]))
+        das_notificacoes = sorted((s for s in subs if s['receituario'] in _RIGOR),
+                                  key=lambda s: _RIGOR[s['receituario']], reverse=True)
+        if das_notificacoes:
+            exigida = das_notificacoes[0]
+            if exigida['receituario'] != receituario:
+                raise ReceitaInvalida(f'{rotulo}: ' + _caminho_da_notificacao(exigida))
+            continue
+        if subs:
+            rce = [s for s in subs if s['receituario'] == _RCE]
+            if rce:
+                raise ReceitaInvalida(
+                    f'{rotulo}: {_descricao(rce[0])} não exige Notificação de Receita. Use a Receita de '
+                    'Controle Especial.'
+                )
+            raise ReceitaInvalida(
+                f'{rotulo}: {_descricao(subs[0])} não exige Notificação de Receita. Use a receita simples.'
+            )
+        pendencias.append(f'medicamento {n} ({item["nome"]}) não foi encontrado na lista oficial')
+    if pendencias and not confirmada:
+        raise ReceitaInvalida(
+            'Confira a classificação antes de gerar a receita: ' + '; '.join(pendencias) + '. '
+            f'Se o medicamento exige mesmo a {TipoReceita(tipo).label}, marque a confirmação.'
         )
 
 
@@ -395,9 +504,12 @@ def preparar(campos, patient, confirmada=False):
             'A receita eletrônica do SNCR exige o CPF do paciente. Cadastre o CPF na ficha; '
             'para paciente estrangeiro com passaporte, use por enquanto a receita impressa.'
         )
-    if formato == SNCR_RCE and not (patient.street and patient.city and patient.state):
+    tipo = FORMATOS[formato]
+    if tipo != TipoReceita.RET and not (patient.street and patient.city and patient.state):
+        # FAQ de Integração, P45 e P46: o endereço completo é obrigatório na
+        # RCE e na Notificação de Receita.
         raise ReceitaInvalida(
-            'A Receita de Controle Especial exige o endereço completo do paciente (logradouro, '
+            f'A {tipo.label} exige o endereço completo do paciente (logradouro, '
             'município e UF). Complete o cadastro antes de emitir.'
         )
     itens = itens_do_formulario(campos)
@@ -410,8 +522,10 @@ def preparar(campos, patient, confirmada=False):
         if item.get('uso_continuo') and MARCA_USO_CONTINUO not in item['quantidade'].lower():
             item['quantidade'] = f'{item["quantidade"]} — {MARCA_USO_CONTINUO}'
     classificacao = [classificar_item(item['nome']) for item in itens]
-    if formato == SNCR_RCE:
+    if tipo == TipoReceita.RCE:
         _validar_rce(itens, classificacao, confirmada)
+    elif tipo in RECEITUARIO_DA_NOTIFICACAO:
+        _validar_notificacao(itens, classificacao, confirmada, tipo)
     else:
         _validar_ret(itens, classificacao)
     release = controlados.release_ativa()
@@ -434,4 +548,9 @@ def tipo_do_documento(document):
 
 def eh_eletronica(document):
     return tipo_do_documento(document) is not None
+
+
+def eh_notificacao_eletronica(document):
+    """A Notificação de Receita eletrônica (A, B ou B2)."""
+    return tipo_do_documento(document) in RECEITUARIO_DA_NOTIFICACAO
 

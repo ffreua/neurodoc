@@ -17,7 +17,7 @@ from accounts.models import PhysicianProfile
 from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import fluxo
-from .models import BlocoNumeracao, Configuracao, EstadoNumero, NumeroSncr, PedidoNumeracao, TipoReceita
+from .models import BlocoNumeracao, Configuracao, EstadoNumero, NumeroSncr, PedidoNumeracao, TipoReceita, eh_notificacao
 from .numeracao import saldo
 
 
@@ -41,6 +41,7 @@ class PainelView(SncrView):
         for tipo in TipoReceita:
             tipos.append({
                 'codigo': tipo.value, 'rotulo': tipo.label,
+                'notificacao': eh_notificacao(tipo.value),
                 'saldo': saldo(medico, tipo.value, config.ambiente),
                 'impedimentos': fluxo.conferir(config, medico, tipo.value),
             })
@@ -49,6 +50,8 @@ class PainelView(SncrView):
             'blocos': BlocoNumeracao.objects.filter(medico=medico).order_by('-created_at')[:20],
             'pedidos': PedidoNumeracao.objects.filter(medico=medico).order_by('-created_at')[:20],
             'usados': NumeroSncr.objects.filter(medico=medico, estado=EstadoNumero.CONSUMIDO).count(),
+            'quantidades': fluxo.QUANTIDADES_DO_LOTE, 'lote_padrao': fluxo.LOTE_PADRAO,
+            'notificacoes': [t.value for t in TipoReceita if eh_notificacao(t.value)],
         })
 
 
@@ -75,7 +78,10 @@ class PedirView(SncrView):
         if medico is None:
             raise Http404
         try:
-            pedido, endereco = fluxo.iniciar(request, medico, tipo, request.access_context.tenant_id)
+            pedido, endereco = fluxo.iniciar(
+                request, medico, tipo, request.access_context.tenant_id,
+                quantidade=request.POST.get('quantidade') if eh_notificacao(tipo) else None,
+            )
         except fluxo.PedidoRecusado as exc:
             messages.error(request, str(exc))
             return redirect('sncr:painel')
@@ -99,16 +105,24 @@ class RetornoView(SncrView):
 
 
 class ConferirPedidoView(SncrView):
-    """O médico registra o que viu no portal do SNCR sobre um pedido incerto."""
+    """O médico registra o que viu no portal do SNCR sobre um pedido incerto.
+
+    Na Notificação de Receita, em vez de conferir, ele dá o pedido por
+    perdido (`resultado=perdido`, decisão I18).
+    """
 
     def post(self, request, pedido_id):
         medico = _medico(request)
         if medico is None:
             raise Http404
         gerado = request.POST.get('resultado')
-        if gerado not in ('gerado', 'nao_gerado'):
+        if gerado not in ('gerado', 'nao_gerado', 'perdido'):
             raise Http404
         try:
+            if gerado == 'perdido':
+                pedido = fluxo.dar_por_perdido(pedido_id, medico, request.user.id)
+                messages.success(request, pedido.mensagem)
+                return redirect('sncr:painel')
             pedido = fluxo.resolver_incerto(
                 pedido_id, medico, request.user.id, gerado=gerado == 'gerado',
                 inicio=request.POST.get('inicio', ''), fim=request.POST.get('fim', ''),

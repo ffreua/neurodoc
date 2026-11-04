@@ -40,8 +40,13 @@ def receita_sncr(document):
                 for s in cls.get('substancias') or []
             ],
         })
+    from sncr.receita import eh_notificacao_eletronica
+
     return {
         'tipo': tipo_do_documento(document),
+        # A Notificação vale 30 dias em todo o território nacional (Portaria
+        # 344, art. 45, na redação da RDC 1.000/2025, art. 21).
+        'notificacao': eh_notificacao_eletronica(document),
         'numeros': numeros,
         'folhas': len(itens),
         'homologacao': meta.get('ambiente') == 'homologacao',
@@ -70,6 +75,9 @@ def saldos_sncr(user):
     return {
         'rce': saldo(perfil, TipoReceita.RCE, config.ambiente),
         'ret': saldo(perfil, TipoReceita.RET, config.ambiente),
+        'nra': saldo(perfil, TipoReceita.NRA, config.ambiente),
+        'nrb': saldo(perfil, TipoReceita.NRB, config.ambiente),
+        'nrb2': saldo(perfil, TipoReceita.NRB2, config.ambiente),
         'ambiente': config.get_ambiente_display(),
         'homologacao': config.ambiente == 'homologacao',
     }

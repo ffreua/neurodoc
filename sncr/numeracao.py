@@ -84,6 +84,42 @@ def registrar_bloco(pedido, resposta):
     return bloco
 
 
+@transaction.atomic
+def registrar_lote(pedido, resposta):
+    """Grava o lote de Notificação de Receita e um registro por número.
+
+    O lote vem como **lista** (`resposta['numeros']`) e é gravado como
+    veio, na ordem em que veio: não há faixa a enumerar, e nenhum número é
+    deduzido de outro. A mesma condição de parada do bloco vale aqui —
+    número repetido na própria lista, ou já registrado noutro lote, deixa o
+    lote inteiro **não utilizável**.
+    """
+    numeros = resposta['numeros']
+    bloco = BlocoNumeracao.objects.create(
+        pedido=pedido, medico=pedido.medico, tipo=pedido.tipo, ambiente=pedido.ambiente,
+        inicio=numeros[0], fim=numeros[-1], quantidade=len(numeros), saldo_visa=resposta.get('saldo'),
+    )
+    if len(set(numeros)) != len(numeros):
+        bloco.utilizavel = False
+        bloco.motivo_bloqueio = 'O lote veio com número repetido; ele não será usado.'
+        bloco.save(update_fields=['utilizavel', 'motivo_bloqueio'])
+        return bloco
+    try:
+        with transaction.atomic():
+            NumeroSncr.objects.bulk_create([
+                NumeroSncr(
+                    bloco=bloco, medico=pedido.medico, tipo=pedido.tipo, ambiente=pedido.ambiente,
+                    numero=numero, ordem=ordem,
+                )
+                for ordem, numero in enumerate(numeros)
+            ])
+    except IntegrityError:
+        bloco.utilizavel = False
+        bloco.motivo_bloqueio = 'O lote repete números já registrados; ele não será usado.'
+        bloco.save(update_fields=['utilizavel', 'motivo_bloqueio'])
+    return bloco
+
+
 def saldo(medico, tipo, ambiente):
     return NumeroSncr.objects.filter(
         medico=medico, tipo=tipo, ambiente=ambiente, estado=EstadoNumero.LIVRE, bloco__utilizavel=True,

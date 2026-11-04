@@ -21,11 +21,19 @@
             </div>
             <div class="card-body">
                 <p class="fs-12 text-muted">
-                    O SNCR entrega os números em blocos de 1.000, até 3 blocos por mês de cada tipo.
-                    O bloco é seu — vale em todas as clínicas em que você atende —, e o NeuroDoc usa
-                    só os números que ele mesmo recebeu. Para pedir, você entra com o Gov.br.
+                    Os números são seus — valem em todas as clínicas em que você atende —, e o NeuroDoc
+                    usa só os que ele mesmo recebeu. Para pedir, você entra com o Gov.br.
                     Ambiente: <strong>{{ config.get_ambiente_display }}</strong>.
                 </p>
+                <ul class="fs-12 text-muted ps-3">
+                    <li><strong>Receita de Controle Especial e de Retenção:</strong> o SNCR gera blocos de
+                        1.000 números, até 3 por mês de cada tipo.</li>
+                    <li><strong>Notificação de Receita A, B e B2:</strong> os números saem da cota que a
+                        <strong>Vigilância Sanitária</strong> do lugar onde você atende liberou para emissão
+                        eletrônica — peça a ela antes; é diferente da numeração do talonário. O NeuroDoc
+                        retira lotes de 10 a 50, até 50 por dia de cada tipo, e o que se retira e não se usa
+                        se perde: peça só o que vai usar.</li>
+                </ul>
                 <div class="row g-3">
                     {% for tipo in tipos %}
                     <div class="col-md-6">
@@ -37,6 +45,20 @@
                             <ul class="fs-12 text-muted mt-2 mb-0 ps-3">
                                 {% for motivo in tipo.impedimentos %}<li>{{ motivo }}</li>{% endfor %}
                             </ul>
+                            {% elif tipo.notificacao %}
+                            {% comment %}Notificação de Receita: o lote sai da cota da Vigilância
+                            (decisão I17). O padrão é o mínimo, 10; o médico escolhe até 50.{% endcomment %}
+                            <form method="post" action="{% url 'sncr:pedir' tipo.codigo %}" class="mt-2 d-flex flex-wrap align-items-end gap-2"
+                                  data-nd-confirm="Retirar números de {{ tipo.rotulo }} da sua cota da Vigilância Sanitária? Você vai entrar com o Gov.br. Os números não podem ser devolvidos: o que não for usado se perde.">
+                                {% csrf_token %}
+                                <div>
+                                    <label class="form-label fs-12 mb-1" for="sncr-qtd-{{ tipo.codigo }}">Quantos</label>
+                                    <select class="form-select form-select-sm" id="sncr-qtd-{{ tipo.codigo }}" name="quantidade" data-nd-sncr-quantidade>
+                                        {% for q in quantidades %}<option value="{{ q }}" {% if q == lote_padrao %}selected{% endif %}>{{ q }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary" data-nd-busy>Pedir números com o Gov.br</button>
+                            </form>
                             {% else %}
                             <form method="post" action="{% url 'sncr:pedir' tipo.codigo %}" class="mt-2"
                                   data-nd-confirm="Pedir um bloco de 1.000 números de {{ tipo.codigo }} à Anvisa? Você vai entrar com o Gov.br. Cada pedido conta 1 dos 3 do mês, e o bloco não pode ser devolvido.">
@@ -60,7 +82,20 @@
                     <span class="fw-semibold">{{ p.tipo }}</span> · {{ p.created_at|date:"d/m/Y H:i" }} ·
                     {{ p.get_estado_display }}
                     {% if p.mensagem %}<span class="d-block text-muted">{{ p.mensagem }}</span>{% endif %}
-                    {% if p.estado == 'incerto' %}
+                    {% if p.estado == 'incerto' and p.tipo in notificacoes %}
+                    {% comment %}Notificação de Receita (decisão I18): o prescritor não vê a
+                    numeração dele no SNCR, então não há o que conferir. Dar por perdido não
+                    arrisca número repetido — o NeuroDoc só usa o que recebeu e gravou.{% endcomment %}
+                    <div class="border rounded p-2 mt-2 bg-light" data-nd-sncr-perdido>
+                        <span class="d-block text-muted mb-2">A resposta da Anvisa não chegou. Se ela retirou números da sua cota, eles não serão usados. Para pedir outros, dê estes por perdidos.</span>
+                        <form method="post" action="{% url 'sncr:conferir' p.id %}"
+                              data-nd-confirm="Dar por perdidos os números deste pedido? Se a Anvisa os entregou, eles não serão usados, e você poderá pedir outros.">
+                            {% csrf_token %}
+                            <input type="hidden" name="resultado" value="perdido">
+                            <button type="submit" class="btn btn-light btn-sm" data-nd-busy>Dar por perdidos e liberar novo pedido</button>
+                        </form>
+                    </div>
+                    {% elif p.estado == 'incerto' %}
                     {% comment %}A reconciliação que a API não tem (decisão I14): o médico
                     confere no portal do SNCR, que mostra a numeração dele, e diz o que
                     encontrou. Nada se repete sozinho.{% endcomment %}
@@ -91,7 +126,7 @@
                 {% if blocos %}
                 <h6 class="mt-3">Blocos recebidos</h6>
                 {% for b in blocos %}
-                <div class="fs-12 py-1">{{ b.tipo }}: {{ b.inicio }} a {{ b.fim }}{% if not b.utilizavel %} — <span class="text-danger">{{ b.motivo_bloqueio }}</span>{% endif %}</div>
+                <div class="fs-12 py-1">{{ b.tipo }}: {{ b.inicio }} a {{ b.fim }}{% if b.tipo in notificacoes %} ({{ b.quantidade }} números{% if b.saldo_visa is not None %}; restavam {{ b.saldo_visa }} na cota{% endif %}){% endif %}{% if not b.utilizavel %} — <span class="text-danger">{{ b.motivo_bloqueio }}</span>{% endif %}</div>
                 {% endfor %}
                 {% endif %}
                 <span class="d-block fs-12 text-muted mt-2">{{ usados }} número(s) já usado(s) em receitas.</span>

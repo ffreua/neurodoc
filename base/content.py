@@ -133,8 +133,8 @@ NOVIDADES = [
     {
         'icone': '℞',
         'titulo': 'Receita digital com numeração da Anvisa',
-        'texto': 'Receita de Controle Especial e de Retenção eletrônicas no modelo do '
-                 'SNCR, com o bloco de números do médico e assinatura ICP-Brasil.',
+        'texto': 'Receita de Controle Especial, de Retenção e Notificação de Receita A, B e '
+                 'B2 eletrônicas no modelo do SNCR, com os números do médico e assinatura ICP-Brasil.',
         'link': '/ajuda/receita-sncr/', 'rotulo': 'Como emitir',
     },
 ]
@@ -205,10 +205,17 @@ RECURSOS = [
     },
     {
         'titulo': 'Receita controlada com a numeração da Anvisa',
-        'texto': 'Integrado ao SNCR (RDC 1.000/2025): o médico pede o próprio bloco de '
-                 'números com o Gov.br e emite a Receita de Controle Especial e a de '
-                 'Retenção eletrônicas no modelo oficial, uma folha por medicamento, com '
-                 'assinatura ICP-Brasil e a lista da Portaria 344 conferida na hora.',
+        # A decisão D9 (2026-11-03) manda dizer **aqui** que as Notificações
+        # de retinoide e de talidomida não são emitidas: quem procura isso
+        # sabe antes de contratar, e dentro do produto a recusa só aparece a
+        # quem tenta.
+        'texto': 'Integrado ao SNCR (RDC 1.000/2025): o médico pede os próprios números '
+                 'com o Gov.br e emite a Receita de Controle Especial, a de Retenção e a '
+                 'Notificação de Receita A, B e B2 eletrônicas no modelo oficial, uma folha '
+                 'por medicamento, com assinatura ICP-Brasil e a lista da Portaria 344 '
+                 'conferida na hora. A Notificação usa a numeração eletrônica que a '
+                 'Vigilância Sanitária libera ao médico. As Notificações de retinoide e de '
+                 'talidomida não são emitidas pelo NeuroDoc.',
     },
     {
         # "No Completo" no texto, pela mesma razão da IA: quem lê a lista de

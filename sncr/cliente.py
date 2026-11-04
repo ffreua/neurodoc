@@ -26,6 +26,8 @@ classificado pelo que se sabe do lado de lá:
 - `SessaoInvalida` — 401: o login expirou (o token vive 30 s).
 """
 
+import re
+
 import httpx
 
 #: Conectar é rápido ou não vai; ler espera a Anvisa gerar o bloco.
@@ -152,6 +154,94 @@ class Cliente:
             'quantidade': quantidade, 'mensagem': str(dados.get('mensagem') or '')[:300],
         }
 
+    def pedir_notificacoes(self, token, receita, conselho, uf, documento, quantidade):
+        """Retira um lote da cota da Vigilância. Devolve `numeros`, `saldo`, `mensagem`.
+
+        Manual v5, §2.3.1: `numeracoes/notificacao-receita`, corpo com
+        `receita` (NRA, NRB, NRB2), `conselho`, `uf`, `documento` e
+        `quantidade` (10 a 50) — **sem** o CNPJ da mantenedora. A resposta
+        traz a lista dos números e o saldo que sobra na cota.
+
+        Os desfechos seguem a mesma classificação do bloco, com uma
+        diferença no custo: perder a resposta aqui gasta, no máximo, os
+        números do lote — nunca um dos três pedidos do mês.
+        """
+        corpo = {'receita': receita, 'conselho': conselho, 'uf': uf, 'documento': documento,
+                 'quantidade': quantidade}
+        try:
+            resposta = self._http.post(
+                self.base_url + 'numeracoes/notificacao-receita', json=corpo,
+                headers={'Authorization': f'Bearer {token}'},
+            )
+        except (httpx.ConnectError, httpx.ConnectTimeout) as exc:
+            raise Indisponivel('O SNCR não respondeu. Nenhum pedido foi feito; tente mais tarde.') from exc
+        except httpx.TransportError as exc:
+            raise Incerto(
+                'O pedido saiu, mas a resposta do SNCR não chegou. Os números podem ter sido retirados '
+                'da sua cota; se foram, se perderam. Dê-os por perdidos no painel para pedir outros.'
+            ) from exc
+        status = resposta.status_code
+        if status == 401:
+            raise SessaoInvalida('O login no Gov.br expirou antes do pedido. Peça de novo.', 401)
+        if 400 <= status < 500:
+            raise Recusado(f'O SNCR recusou o pedido: {_mensagem(resposta)}', status)
+        if status == 204:
+            raise Recusado('O SNCR respondeu que não há números disponíveis na sua cota. Peça '
+                           'numeração eletrônica à Vigilância Sanitária.', status)
+        if status >= 500:
+            raise Incerto(
+                f'O SNCR respondeu com erro ({status}) depois de receber o pedido. Os números podem ter '
+                'sido retirados da sua cota; se foram, se perderam. Dê-os por perdidos no painel para '
+                'pedir outros.', status,
+            )
+        try:
+            dados = resposta.json()
+        except ValueError:
+            dados = None
+        numeros = _lista_de_numeros(dados.get('numeracoesReceita') if isinstance(dados, dict) else None)
+        if numeros is None:
+            raise Incerto(
+                'O SNCR aceitou o pedido, mas a resposta veio sem a lista de números que o NeuroDoc '
+                'reconheça. Os números podem ter sido retirados da sua cota; dê-os por perdidos no painel '
+                'para pedir outros.', status,
+            )
+        if not numeros:
+            raise Recusado('O SNCR respondeu sem nenhum número: a sua cota pode ter acabado.', status)
+        saldo = dados.get('saldoReceitas')
+        try:
+            saldo = int(saldo) if saldo is not None else None
+        except (TypeError, ValueError):
+            saldo = None
+        return {'numeros': numeros, 'saldo': saldo, 'mensagem': str(dados.get('mensagem') or '')[:300]}
+
     def fechar(self):
         self._http.close()
+
+
+#: Um número de receita, como a Anvisa o escreve: dígitos, ponto, hífen e
+#: barra (`2411.1-00.0000001`). Nada além disso é aceito como número.
+_NUMERO = re.compile(r'^[0-9A-Za-z][0-9A-Za-z.\-/]{3,62}$')
+
+
+def _lista_de_numeros(valor):
+    """A lista de números do lote, ou `None` se a resposta não se reconhece.
+
+    O manual mostra `numeracoesReceita` como **texto**
+    (`"[2411.1-00.0000001, 2411.1-00.0000002]"`), a OpenAPI 1.2.1 como
+    **lista** de textos — é a lacuna L2, e as duas formas são aceitas. Um
+    item que não tem cara de número recusa a resposta inteira: um número
+    mal lido iria impresso numa Notificação.
+    """
+    if isinstance(valor, str):
+        texto = valor.strip()
+        if texto.startswith('[') and texto.endswith(']'):
+            texto = texto[1:-1]
+        itens = [parte.strip().strip('"\'').strip() for parte in texto.split(',')] if texto.strip() else []
+    elif isinstance(valor, list):
+        itens = [str(item).strip() for item in valor]
+    else:
+        return None
+    if not all(_NUMERO.match(item) for item in itens):
+        return None
+    return itens
 

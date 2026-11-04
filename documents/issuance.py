@@ -118,6 +118,13 @@ def issue_on_paper(document, actor_id):
     locked = MedicalDocument.objects.select_for_update().get(pk=document.pk)
     if locked.status not in (MedicalDocumentStatus.DRAFT, MedicalDocumentStatus.READY_TO_SIGN):
         raise ValueError('Só um rascunho ou documento pronto para assinar pode ser emitido em papel.')
+    if sncr_receita.eh_notificacao_eletronica(locked):
+        # A Notificação em papel é o talonário numerado pela Vigilância
+        # Sanitária: o NeuroDoc não a imprime (decisão I20).
+        raise ValueError(
+            'A Notificação de Receita eletrônica só existe assinada digitalmente, com o número da Anvisa. '
+            'Em papel, a Notificação é o talonário da Vigilância Sanitária.'
+        )
     if sncr_receita.eh_eletronica(locked):
         # O modelo eletrônico impresso sem número nem assinatura digital
         # pareceria uma receita válida e não é (decisão I10). O papel é outro
@@ -283,6 +290,10 @@ def converter_para_impressa(document, actor_id):
 
     Só rascunho: a eletrônica emitida já tem número da Anvisa e vale como
     está (decisão I10).
+
+    **A Notificação de Receita não se refaz aqui** (decisão I20): em papel,
+    ela é o talonário numerado pela Vigilância Sanitária, que o NeuroDoc não
+    imprime. O médico descarta o rascunho e usa o talonário.
     """
     from .pdf.prescription import SIMPLE, SPECIAL_CONTROL
 
@@ -290,6 +301,11 @@ def converter_para_impressa(document, actor_id):
     tipo = sncr_receita.tipo_do_documento(locked)
     if tipo is None:
         raise ValueError('Só a receita eletrônica do SNCR é refeita como impressa.')
+    if sncr_receita.eh_notificacao_eletronica(locked):
+        raise ValueError(
+            'A Notificação de Receita não tem versão impressa no NeuroDoc: em papel, ela é o talonário '
+            'da Vigilância Sanitária. Descarte este rascunho e use o talonário.'
+        )
     if locked.status not in (MedicalDocumentStatus.DRAFT, MedicalDocumentStatus.READY_TO_SIGN):
         raise ValueError('Só o rascunho da receita eletrônica pode ser refeito como impresso.')
     snapshot = locked.content_snapshot or {}
@@ -369,15 +385,23 @@ def _reservar_numeros_sncr(locked, physician_membership, session):
 
     config = Configuracao.carregar()
     if not config.ativo:
+        alternativa = ('Use o talonário da Notificação em papel.' if sncr_receita.eh_notificacao_eletronica(locked)
+                       else 'Use “Refazer como receita impressa”.')
         raise _falhou(NotReadyToSign(
-            'A receita eletrônica com numeração do SNCR está desligada nesta instalação. '
-            'Use “Refazer como receita impressa”.'
+            'A receita eletrônica com numeração do SNCR está desligada nesta instalação. ' + alternativa
         ), 'denied', 'sncr_desligado')
     perfil = physician_membership.user.physician_profile
     folhas = len((locked.content_snapshot or {}).get('itens') or [])
     try:
         numeros = numeracao.reservar_varios(perfil, tipo, config.ambiente, locked, locked.tenant_id, folhas)
     except numeracao.SemNumeroLivre as exc:
+        if sncr_receita.eh_notificacao_eletronica(locked):
+            raise _falhou(NotReadyToSign(
+                f'Você não tem números de {tipo.label} livres para as {folhas} folha(s) desta receita (um '
+                'por medicamento). Peça um lote em “Numeração SNCR” (entrando com o Gov.br) e assine de '
+                'novo — o rascunho continua pronto, e nenhum número foi gasto. Os números saem da cota '
+                'que a Vigilância Sanitária liberou para você; sem cota, use o talonário em papel.'
+            ), 'denied', 'sncr_sem_numero') from exc
         raise _falhou(NotReadyToSign(
             f'Você não tem números do SNCR livres para as {folhas} folha(s) desta receita (um por '
             'medicamento). Peça um bloco em “Numeração SNCR” (entrando com o Gov.br) e assine de '

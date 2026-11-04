@@ -6,11 +6,11 @@ arquivo resume, não substitui a inspeção.
 
 | Campo | Valor |
 | --- | --- |
-| Sprint / gate | **EM PRODUÇÃO desde 2026-10-29** (1.29). Teste real (D8) bem-sucedido |
+| Sprint / gate | **EM PRODUÇÃO desde 2026-10-29** (1.29). Teste real (D8) bem-sucedido. **Notificação de Receita A, B e B2 desde a 1.34** (2026-11-03), sem teste real ainda (D10) |
 | Branch | `main` |
 | Produção | **ligada, ambiente Produção**, CNPJ 69.887.146/0001-05 (ProntDoc). Primeiro bloco real: RCE `2610.6-35.049779001` a `2610.6-35.049780000`, pedido em 2026-10-29 às 23:26 pelo Gov.br do Dr. Fernando; primeira RCE eletrônica assinada com o número `2610.6-35.049779001`, **AUTORIZADA** no portal da Anvisa |
 | Bloqueio para ativar | nenhum — CNPJ resolvido ([PENDENCIA-CNPJ.md](PENDENCIA-CNPJ.md)) |
-| Decisões | [DECISOES.md](DECISOES.md) — D1 a D8 do proprietário, I1 a I16 de implementação |
+| Decisões | [DECISOES.md](DECISOES.md) — D1 a D10 do proprietário, I1 a I25 de implementação |
 | Ativação e reversão | [ATIVACAO.md](ATIVACAO.md) — o passo a passo de publicar desligada, ligar, o teste real e voltar atrás |
 | Ajuda | publicada na 1.29: `base/help_content.py`, artigo `receita-sncr` (o rascunho em [AJUDA.md](AJUDA.md) fica como histórico) |
 | Relatório da Sprint 0 | [SPRINT-0-RELATORIO.md](SPRINT-0-RELATORIO.md) |
@@ -34,7 +34,8 @@ arquivo resume, não substitui a inspeção.
 | Conferência do pedido incerto | `sncr/fluxo.py::resolver_incerto`, `sncr/views.py::ConferirPedidoView`, rota `/app/sncr/pedido/<id>/conferir/`, formulário no `templates/sncr/painel.html` |
 | Contingência: refazer como impressa | `documents/issuance.py::converter_para_impressa`, `documents/views.py::MedicalDocumentToPaperView`, rota `medical/<id>/refazer-impressa/`, parcial `templates/documents/_refazer_impressa.html` |
 | Aviso de 31/10 com a integração ligada | `documents/sncr_transicao.py::aviso` (`_integracao_ligada`) |
-| Roteiros | `check_sncr_numeracao` (Sprint 1, Anvisa simulada), `check_sncr_receita` (Sprint 2, **assinatura PAdES real** com certificado de teste), `check_sncr_contingencia` (Sprint 3) |
+| Notificação de Receita A, B e B2 (1.34) | tipos e `NOTIFICACOES` em `sncr/models.py` (migração `sncr/0002`); lote em `sncr/fluxo.py` (`LOTE_PADRAO`, `recebidos_hoje`, `_conferir_notificacao`, `dar_por_perdido`) e `sncr/numeracao.py::registrar_lote`; pedido em `sncr/cliente.py::pedir_notificacoes`; regra em `sncr/receita.py::_validar_notificacao`; PDF em `sncr/pdf_oficial.py::render_notificacao` com os modelos `sncr/modelos/nra_`, `nrb_` e `nrb2_eletronica_anvisa.pdf` e um `Leiaute` por modelo |
+| Roteiros | `check_sncr_numeracao` (Sprint 1, Anvisa simulada), `check_sncr_receita` (Sprint 2, **assinatura PAdES real** com certificado de teste), `check_sncr_contingencia` (Sprint 3), `check_sncr_notificacao` (1.34, Anvisa simulada e assinatura real) |
 
 ## Sprint 1 — numeração (concluída)
 
@@ -104,11 +105,34 @@ número (I7), faixa irreconhecível não utilizável (I8). Anvisa
   A trava da RCE impressa assinada digitalmente foi **mantida** (decisão do
   proprietário, mesma data).
 
+## Notificação de Receita A, B e B2 (1.34, 2026-11-03)
+
+- **Escopo (D9):** A (listas A1, A2, A3), B (B1) e B2. Retinoide e
+  talidomida ficam fora, e só a página de vendas diz isso.
+- **Os números:** o médico pede à Vigilância Sanitária uma cota eletrônica;
+  o NeuroDoc retira lotes dela pelo Gov.br, 10 por padrão (até 50), até 50
+  por dia, um lote novo só com menos de 3 livres (I17, I19). O incerto é
+  dado por perdido (I18). Sem CNPJ no pedido (I25).
+- **A receita:** um tipo por documento, cada medicamento conferido contra a
+  lista oficial (I24); modelo oficial de cada tipo, um número por folha, o
+  QR da consulta no SNCR (I23); sem papel nem contingência no NeuroDoc
+  (I20); limites da Portaria 344 como aviso, uso contínuo permitido (I21).
+- **Evidência:** `check_sncr_notificacao` verde; a RCE e a RET comparadas
+  palavra por palavra com os PDFs de antes da mudança (mesmas posições, fora
+  série do certificado e código de verificação, que são aleatórios);
+  bateria completa, 156 roteiros, nenhuma falha (2026-11-03, imagem
+  reconstruída); as folhas da A, da B e da B2 inspecionadas em imagem.
+- **Teste real:** nenhum ainda (D10). O primeiro é a primeira Notificação
+  de um médico com cota eletrônica liberada pela Vigilância.
+
 ## Próxima ação
 
 1. Acompanhar os primeiros blocos dos outros médicos (console: pedidos
    incertos em vermelho).
-2. Notificações de Receita (A, B, B2) continuam fora do escopo (D5).
+2. **O primeiro lote real de Notificação** (D10): quando a Vigilância
+   liberar a cota do proprietário, pedir 10 números e conferir, no painel, o
+   formato que chegou; se a resposta vier num formato não reconhecido, o
+   pedido fica incerto e o ajuste é em `sncr/cliente.py::_lista_de_numeros`.
 3. Catálogo de antimicrobianos e GLP-1 para a RET (hoje ela aceita o que não
    é controlado da Portaria 344 e confia no médico para o resto).
 
@@ -121,7 +145,9 @@ número (I7), faixa irreconhecível não utilizável (I8). Anvisa
 - A lista de **antimicrobianos e GLP-1** (RET) é outra norma, sem
   catálogo ainda: hoje a RET aceita o que **não** é controlado da
   Portaria 344 e confia no médico para o resto.
-- Notificações de Receita (A, B, B2): fora do escopo (D5).
+- Notificação de Receita de retinoide e de talidomida: fora do escopo (D9).
+- A lista importada da Portaria 344 não encontra a **talidomida** (lista C3);
+  a Notificação a barra pelo nome (I24).
 
 ## Riscos registrados
 

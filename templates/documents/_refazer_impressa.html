@@ -1,6 +1,17 @@
 {% comment %}A contingência (decisão I15): quando o SNCR não dá — sem
 número, sem sessão, integração desligada —, o médico refaz como
-impressa, escolhendo; nada converte sozinho.{% endcomment %}
+impressa, escolhendo; nada converte sozinho.
+
+A Notificação de Receita não tem versão impressa no NeuroDoc (decisão
+I20): em papel, ela é o talonário da Vigilância Sanitária. Ali só o
+caminho, sem botão.{% endcomment %}
+{% if rx.notificacao %}
+<p class="fs-11 text-muted mb-0" data-nd-notificacao-papel>
+    Sem número do SNCR ou sem certificado agora? A Notificação eletrônica só vale
+    assinada digitalmente. Em papel, a Notificação é o talonário da Vigilância
+    Sanitária: descarte este rascunho e use o talonário.
+</p>
+{% else %}
 <form method="post" action="{% url 'documents:medical-to-paper' document.id %}"
       data-nd-confirm="Refazer esta receita como receita impressa, para assinar e carimbar? O rascunho eletrônico é descartado; a prescrição é copiada e nenhum número do SNCR é gasto.">
     {% csrf_token %}
@@ -12,3 +23,4 @@ impressa, escolhendo; nada converte sozinho.{% endcomment %}
     Sem número do SNCR ou sem certificado agora? A receita eletrônica só vale
     assinada digitalmente; a impressa sai no leiaute da clínica, para assinar à mão.
 </p>
+{% endif %}

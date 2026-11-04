@@ -44,6 +44,10 @@
     var rxGroups = form.querySelectorAll('[data-nd-rx]');
     if (!formatField || !rxGroups.length) return;
 
+    /* O aviso da Notificação de Receita (limites da Portaria 344) só nos
+     * formatos dela (`sncr_nra`, `sncr_nrb`, `sncr_nrb2`). */
+    var notificacaoNote = form.querySelector('[data-nd-rx-notificacao]');
+
     function applyFormat() {
         var isPrescription = kindField.value === 'prescription';
         var wanted = (formatField.value || '').indexOf('sncr_') === 0 ? 'sncr' : 'impressa';
@@ -54,6 +58,9 @@
                 input.disabled = !mine;
             });
         });
+        if (notificacaoNote) {
+            notificacaoNote.hidden = (formatField.value || '').indexOf('sncr_nr') !== 0;
+        }
     }
 
     formatField.addEventListener('change', applyFormat);

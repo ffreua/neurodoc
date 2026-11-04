@@ -35,7 +35,10 @@ SPECIAL_COPIES = (
 #: desvia antes de chegar a `build_pdf` (decisão D6, `docs/sncr/`).
 SNCR_RCE = 'sncr_rce'
 SNCR_RET = 'sncr_ret'
-ELECTRONIC_FORMATS = (SNCR_RCE, SNCR_RET)
+SNCR_NRA = 'sncr_nra'
+SNCR_NRB = 'sncr_nrb'
+SNCR_NRB2 = 'sncr_nrb2'
+ELECTRONIC_FORMATS = (SNCR_RCE, SNCR_RET, SNCR_NRA, SNCR_NRB, SNCR_NRB2)
 
 
 def prescription_format(document):

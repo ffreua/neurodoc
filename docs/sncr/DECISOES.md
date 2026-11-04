@@ -103,6 +103,9 @@ Receita Sujeita à Retenção (RET, antimicrobianos da RDC 471/2021 e
 agonistas de GLP-1).** As Notificações de Receita (A, B, B2, retinoides,
 talidomida) ficam para outra atualização.
 
+**Ampliada em 2026-11-03 (D9):** a Notificação de Receita A, B e B2 entrou
+na 1.34; as de retinoide e de talidomida continuam fora.
+
 **Nota.** A RET entrou no escopo; o relatório da Sprint 0 a tinha deixado
 fora por não ter modelo eletrônico. A página oficial confirma: **não há
 modelo específico para a RET** (Receituário Eletrônico, "Receituários não
@@ -162,6 +165,56 @@ produção**. "Se funcionar, é porque funciona."
    conteúdo do token, o formato da resposta (L2) — fica isolado em
    `sncr/cliente.py`, para o ajuste, se houver, ficar ali.
 
+## D9 — Notificação de Receita A, B e B2 eletrônica (2026-11-03)
+
+**Pergunta.** Desde 30/09/2026 o SNCR permite emitir eletronicamente as
+Notificações de Receita (A, B, B2, retinoide e talidomida), com numeração
+que a Vigilância Sanitária local libera ao prescritor e a plataforma retira
+pela API (`numeracoes/notificacao-receita`, Manual v5 §2.3.1). Quais
+implementar, e como tratar as outras?
+
+**Decisão.** **A, B e B2 apenas.** "O sistema deve informar que não emite
+as demais receitas. Isso deve constar apenas na landing page." Também
+decididos na mesma conversa:
+
+- o pedido incerto é **dado por perdido** pelo médico, que pede outro (I18);
+- a Notificação **permite o uso contínuo**, como a RCE (I21);
+- o **lote padrão é 10** (I17);
+- o número da Notificação eletrônica **não tem prazo de validade** próprio:
+  "as receitas B físicas não têm validade do número da Anvisa, logo,
+  imagino que as digitais também não" (I22).
+
+**Implementação.** NeuroDoc **1.34** (`docs/releases/1.34-notificacao-eletronica.md`):
+tipos `NRA`, `NRB`, `NRB2` em `sncr/models.py`, o lote em
+`sncr/fluxo.py` e `sncr/numeracao.py::registrar_lote`, o pedido em
+`sncr/cliente.py::pedir_notificacoes`, a regra em
+`sncr/receita.py::_validar_notificacao`, o PDF sobre os três modelos
+oficiais em `sncr/pdf_oficial.py::render_notificacao`, e o roteiro
+`check_sncr_notificacao`. A frase da página de vendas mora em
+`base/content.py` (`RECURSOS`, "Receita controlada com a numeração da
+Anvisa"); dentro do produto, o medicamento de retinoide ou talidomida só
+recebe a recusa de quem tenta, apontando o talonário.
+
+## D10 — Sem teste prévio da Notificação (2026-11-03)
+
+**Decisão.** O proprietário ainda não pediu cota eletrônica à Vigilância.
+"Como a de receita controlada funcionou, posso pagar pra ver sem teste
+antes e confiar que vai dar certo quando eu emitir o número pela minha Visa
+local." É a D8 de novo: o primeiro uso real é o teste.
+
+**Consequências, registradas para não surpreender:**
+
+1. O que é suposição sobre a resposta — a lista como texto (manual) ou como
+   lista (OpenAPI 1.2.1), o formato do número — está isolado em
+   `sncr/cliente.py::pedir_notificacoes` e `_lista_de_numeros`, que aceita
+   as duas formas e recusa a resposta inteira se um item não tiver cara de
+   número.
+2. A resposta que o NeuroDoc não reconhecer vira **incerto**, e o médico dá
+   os números por perdidos: no pior caso, perde-se um lote da cota (10
+   números, no padrão), nunca se imprime número mal lido.
+3. Sem cota liberada, a Anvisa responde "Prescritor não possui saldo
+   disponível" e o pedido fica **recusado**, sem custo nenhum.
+
 ---
 
 ## Decisões de desenho tomadas na implementação
@@ -186,4 +239,13 @@ Registradas aqui para que a próxima sessão não as refaça.
 | I14 | O pedido **incerto** é reconciliado **pelo médico, no portal do SNCR**: ele registra "nenhum bloco foi gerado" (o pedido vira `FALHOU` e libera pedir de novo) ou digita início e fim da faixa que o portal mostra — que precisa ter **exatamente 1.000 números**, e que, se repetir número já registrado, entra como bloco **não utilizável** | A API não tem consulta nem cancelamento de bloco; quem sabe o que aconteceu é o portal da Anvisa, onde o médico vê a numeração dele. O tamanho exato pega o erro de digitação; a sobreposição é condição de parada (I7). Só o próprio médico confere o pedido dele |
 | I15 | **Contingência: "Refazer como receita impressa"**, por escolha do médico e com confirmação, no rascunho eletrônico. A RCE vira a RCE impressa da clínica; a RET, a receita simples. A prescrição é copiada, o rascunho eletrônico é descartado na mesma transação, e nenhum número é gasto. A emitida não se converte | Os cenários 1 e 4 do plano: o SNCR indisponível não pode parar o consultório, e a troca de modalidade é decisão do médico, nunca silenciosa. A eletrônica emitida já tem número e vale como está (I10) |
 | I16 | A chave da integração fica no **console da instalação**, com a mesma assimetria da coleta: **desligar é um clique**; ligar exige **CNPJ válido**, digitar `LIGAR` e o motivo, que vai à trilha. O **ambiente** só muda com ela desligada. Com ela ligada, o aviso de 31/10 passa a apontar a eletrônica — e a trava da RCE impressa assinada digitalmente **continua**, porque é da norma | Freio de emergência que pede confirmação chega tarde; ligar põe na farmácia receita com número da Anvisa. Trocar o ambiente com rascunhos abertos misturaria numeração que não vale de um lado no outro. Plano completo em [ATIVACAO.md](ATIVACAO.md) |
+| I17 | **Lote de Notificação: 10 por padrão, o médico escolhe 10, 20, 30, 40 ou 50.** O pedido fora de 10 a 50 é recusado antes de sair, e o que passaria do limite diário de 50 também, dizendo quanto ainda cabe | Decisão do proprietário (D9). O manual recomenda deixar o médico informar a quantidade e alertá-lo contra pedido antecipado ou excessivo (§2.3.1.5); a FAQ de Integração (P30) pede lotes fracionados, porque o limite de 50 por dia soma todas as plataformas do médico; e o número retirado sai da cota da Vigilância e, sem uso, se perde |
+| I18 | **O pedido incerto de Notificação é dado por perdido** pelo próprio médico (estado `perdido`), e não conferido no portal como o bloco (I14). Enquanto incerto, barra pedido novo do mesmo tipo | Decisão do proprietário (D9). O prescritor não acessa a numeração dele no SNCR (orientação da Anvisa às Vigilâncias, 29/09/2026), então não há o que conferir. Dar por perdido não arrisca número repetido — o NeuroDoc só usa número que recebeu e gravou; o custo é, no máximo, o lote |
+| I19 | **Um lote novo só abre com menos de 3 números livres** do tipo (`LIMITE_MEDICAMENTOS`) | A Anvisa pede retirar "apenas à medida que o saldo em uso for consumido" (FAQ Integração P30). O corte não é zero, como no bloco da RCE: uma emissão de 3 medicamentos gasta 3 números de uma vez, e com 1 ou 2 livres o médico não assinaria nem pediria |
+| I20 | **A Notificação não tem versão em papel nem contingência no NeuroDoc**: `issue_on_paper` e `converter_para_impressa` recusam, e a tela aponta o talonário | Em papel, a Notificação é o talonário numerado pela Vigilância Sanitária, que o NeuroDoc não imprime; o modelo eletrônico impresso sem número pareceria válido e não é (mesma razão da I10) |
+| I21 | **Os limites de quantidade da Portaria 344 são aviso, não trava**: a tela diz 30 dias de tratamento na A e na B2, 60 na B, 5 ampolas no injetável, e que acima disso a norma pede a justificativa do médico com o CID. O uso contínuo sai junto da quantidade, que continua obrigatória | Os dias de tratamento saem da posologia, que é texto livre — o programa não os calcula sem errar. Decisão do proprietário sobre o uso contínuo (D9) |
+| I22 | **O número de Notificação recebido não vence** no NeuroDoc | Decisão do proprietário (D9): a numeração física da Notificação B não tem validade, e nada na documentação da Anvisa dá prazo à eletrônica. A validade é da **receita**: 30 dias da assinatura, em todo o território nacional (Portaria 344, art. 45, na redação da RDC 1.000/2025, art. 21), mostrada no detalhe do documento |
+| I23 | **O QR da Notificação abre a consulta do número no SNCR** (`sncr.anvisa.gov.br/receita/consultar?numero=`; o portal de treinamento na homologação). A verificação do NeuroDoc continua no rodapé, por extenso | Regra escrita na página do Receituário Eletrônico da Anvisa, ao contrário da RCE, cujo destino do QR nunca foi especificado (lacuna L3, I9) |
+| I24 | **Cada documento é de um tipo, e cada medicamento é conferido contra ele**: o medicamento pede a Notificação mais exigente entre as suas substâncias (A acima de B2, B2 acima de B1); o tipo errado é recusado apontando o certo; o que vai à RCE ou à receita simples é recusado; o adendo da lista (fenobarbital, tramadol) passa; o nome que a lista não acha exige a confirmação do médico; a talidomida é barrada pelo nome, porque a lista importada não a encontra | A farmácia recusaria uma Notificação B de metilfenidato, e uma A de clonazepam gastaria número da cota errada. Notificação não é receita "mais forte" que serve a tudo: cada número sai da cota que a Vigilância liberou. O adendo autoriza a RCE para certas preparações sem proibir a Notificação da lista |
+| I25 | **O pedido de Notificação não leva o CNPJ da mantenedora**, e o endereço completo do paciente é exigido | Manual v5 §2.3.1.3 (o corpo não tem `cnpj`); FAQ de Integração P45 e P46 |
 

@@ -38,7 +38,8 @@ class MedicalDocumentForm(forms.Form):
         choices=PRESCRIPTION_FORMAT_CHOICES, initial=SIMPLE,
         help_text='O controle especial impresso sai em duas vias, para assinar e carimbar, e exige '
                   'o endereço completo do paciente. Para assinar digitalmente um controlado, use o '
-                  'formato eletrônico com numeração do SNCR, quando ele aparecer na lista.',
+                  'formato eletrônico com numeração do SNCR, quando ele aparecer na lista — Receita de '
+                  'Controle Especial, ou Notificação de Receita A, B ou B2.',
     )
     prescription_text = forms.CharField(
         label='Prescrição', required=False, widget=forms.Textarea(attrs={'rows': 5}),

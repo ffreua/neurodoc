@@ -10,6 +10,16 @@ redesenho por aproximação nunca se prova igual. O SHA-256 do modelo está
 em `SHA256_MODELO_RCE`: trocar o arquivo sem trocar a constante derruba a
 geração em vez de imprimir outro modelo em silêncio.
 
+**A Notificação de Receita A, B e B2 também é escrita sobre o modelo
+oficial** (1.34, decisão D9): `modelos/nra_`, `nrb_` e `nrb2_eletronica_anvisa.pdf`,
+publicados pela Anvisa em "Modelos de receituários eletrônicos", cada um com
+o SHA-256 conferido como o da RCE. Os três têm os campos da RCE — emitente,
+paciente com CPF e endereço, os cinco de um medicamento e o mesmo rodapé —,
+deslocados pela faixa colorida à esquerda; as posições de cada um estão no
+seu `Leiaute`, medidas no próprio arquivo. O que muda além da posição é o
+**QR**: o da Notificação leva à consulta do número no SNCR, como a página
+do Receituário Eletrônico manda (`destino_do_qr`).
+
 **A RET não tem modelo oficial** (página Receituário Eletrônico,
 "Receituários não contemplados"; decisão D5). Ela sai com a **mesma
 estrutura** do modelo da RCE — título, N.º, emitente, paciente,
@@ -40,7 +50,9 @@ sistema de coordenadas e mesclada sem transformação.
 
 import hashlib
 import io
+from dataclasses import dataclass, replace
 from pathlib import Path
+from urllib.parse import quote
 
 from django.conf import settings
 from django.utils import timezone
@@ -55,8 +67,29 @@ from reportlab.pdfgen import canvas as pdfcanvas
 
 from .receita import ReceitaInvalida
 
-MODELO_RCE = Path(__file__).resolve().parent / 'modelos' / 'rce_eletronica_anvisa.pdf'
+_MODELOS = Path(__file__).resolve().parent / 'modelos'
+MODELO_RCE = _MODELOS / 'rce_eletronica_anvisa.pdf'
 SHA256_MODELO_RCE = '112946ead832ec07f9343f81b35b3571065eb51dea5526cf5c949e0259c11fde'
+
+#: Os modelos eletrônicos da Notificação de Receita, como a Anvisa os
+#: publicou (baixados em 2026-11-03): arquivo, SHA-256 e o título do PDF.
+MODELOS_NOTIFICACAO = {
+    'NRA': (_MODELOS / 'nra_eletronica_anvisa.pdf',
+            'e72ddb49831615c4b4c652ee9ca0d4f01f131a3896e43512494b16dca6b9f001',
+            'Notificação de Receita A — eletrônica'),
+    'NRB': (_MODELOS / 'nrb_eletronica_anvisa.pdf',
+            '8c7db7622ef8eda963684409da4e0c70ebd7090d5834b7ed7b6f2c05d1f5c7c4',
+            'Notificação de Receita B — eletrônica'),
+    'NRB2': (_MODELOS / 'nrb2_eletronica_anvisa.pdf',
+             '9011a69630f9c42ad0b039aea5d46d05ea082b0a473f48be1445da8cab2c913b',
+             'Notificação de Receita B2 — eletrônica'),
+}
+
+#: A consulta do número no SNCR, que o QR da Notificação abre (página
+#: Receituário Eletrônico da Anvisa: `.../receita/consultar?numero={numero}`).
+#: O número da homologação só existe no portal de treinamento.
+CONSULTA_SNCR = 'https://sncr.anvisa.gov.br/receita/consultar?numero='
+CONSULTA_SNCR_TREINAMENTO = 'https://sncr-treinamento.anvisa.gov.br/receita/consultar?numero='
 
 #: Página do modelo: 595,5 × 842,25 pt, começando em y = 7,83.
 LARGURA = 595.5
@@ -105,6 +138,81 @@ VALOR_QUADRO = 8.6
 VALOR_RODAPE = 6.8
 
 
+@dataclass(frozen=True)
+class Leiaute:
+    """Onde cada valor vai num modelo: as posições medidas no arquivo.
+
+    A RCE e a RET usam as constantes acima, como sempre usaram; cada
+    Notificação tem as suas, porque a faixa colorida empurra tudo para a
+    direita e o QR e o rodapé mudam de lugar de um modelo para outro.
+    """
+
+    numero_x: float
+    emitente_x: float
+    emitente_fim_x: float
+    emitente_topos: tuple
+    paciente_x: float
+    paciente_fim_x: float
+    paciente_topos: tuple
+    quadro_base: float
+    prescricao_x: float
+    prescricao_fim_x: float
+    rotulos: dict
+    prescricao_base: float
+    rodape: tuple
+    rodape_fim_x: float
+    qr: tuple
+    #: O QR leva à consulta do número no SNCR (Notificação) em vez da
+    #: verificação do NeuroDoc (RCE e RET, decisão I9).
+    qr_da_anvisa: bool = False
+
+
+LEIAUTE_RCE = Leiaute(
+    numero_x=400.0,
+    emitente_x=EMITENTE_X, emitente_fim_x=EMITENTE_FIM_X, emitente_topos=QUADRO_TOPOS,
+    paciente_x=PACIENTE_X, paciente_fim_x=PACIENTE_FIM_X, paciente_topos=QUADRO_TOPOS,
+    quadro_base=CAIXA_EMITENTE[3] - 2,
+    prescricao_x=PRESCRICAO_X, prescricao_fim_x=PRESCRICAO_FIM_X, rotulos=ROTULOS_PRESCRICAO_RCE,
+    prescricao_base=CAIXA_PRESCRICAO[3],
+    rodape=(RODAPE_PLATAFORMA, RODAPE_ASSINATURA, RODAPE_VERIFICACAO), rodape_fim_x=RODAPE_FIM_X,
+    qr=QR,
+)
+
+
+def _leiaute_notificacao(numero_x, rodape, qr):
+    """As três Notificações têm emitente, paciente e prescrição no mesmo
+    lugar (caixas de 62,8 a 321,0 e de 330,8 a 589,1 pt); mudam o número,
+    o rodapé e o QR. O paciente tem três rótulos, alinhados 5 pt abaixo dos
+    do emitente."""
+    return Leiaute(
+        numero_x=numero_x,
+        emitente_x=69.6, emitente_fim_x=316.0, emitente_topos=QUADRO_TOPOS,
+        paciente_x=334.2, paciente_fim_x=584.0, paciente_topos=(155.8, 195.2, 234.6),
+        quadro_base=305.0,
+        prescricao_x=71.7, prescricao_fim_x=582.0,
+        rotulos={
+            'nome': (375.9, 316.5),
+            'concentracao': (405.7, 169.6),
+            'forma': (435.5, 206.2),
+            'quantidade': (465.3, 150.8),
+            'posologia': (495.1, 142.2),
+        },
+        prescricao_base=673.1,
+        rodape=rodape, rodape_fim_x=qr[0] - 5.6, qr=qr, qr_da_anvisa=True,
+    )
+
+
+LEIAUTES_NOTIFICACAO = {
+    'NRA': _leiaute_notificacao(400.0, ((710.7, 175.8), (732.0, 209.4), (774.4, 217.6)),
+                                (502.5, 723.6, 569.0, 793.9)),
+    'NRB': _leiaute_notificacao(400.0, ((710.7, 177.9), (732.0, 211.4), (774.4, 219.6)),
+                                (508.1, 712.0, 574.7, 782.4)),
+    # Na B2, a caixa do número começa 7 pt adiante (o "B2" do título é mais largo).
+    'NRB2': _leiaute_notificacao(407.1, ((713.7, 175.8), (735.0, 209.4), (777.4, 217.6)),
+                                 (504.6, 726.1, 571.2, 796.4)),
+}
+
+
 def _y(topo):
     """De "distância do alto" para a coordenada do PDF."""
     return TOPO - topo
@@ -120,14 +228,18 @@ def _base(topo_do_rotulo, tamanho):
     return topo_do_rotulo + tamanho * 1.07
 
 
-def _carregar_modelo_rce():
-    dados = MODELO_RCE.read_bytes()
-    if hashlib.sha256(dados).hexdigest() != SHA256_MODELO_RCE:
+def _carregar_modelo(caminho, sha256, nome):
+    dados = caminho.read_bytes()
+    if hashlib.sha256(dados).hexdigest() != sha256:
         raise RuntimeError(
-            'O modelo oficial da RCE eletrônica não confere com o SHA-256 registrado em '
+            f'O modelo oficial da {nome} não confere com o SHA-256 registrado em '
             'sncr/pdf_oficial.py. Um modelo novo da Anvisa entra com a constante trocada no mesmo commit.'
         )
     return dados
+
+
+def _carregar_modelo_rce():
+    return _carregar_modelo(MODELO_RCE, SHA256_MODELO_RCE, 'RCE eletrônica')
 
 
 # --- valores do documento ------------------------------------------------------
@@ -245,10 +357,10 @@ def _linhas(texto, largura, fonte, tamanho, largura_primeira=None):
     return ([primeira] if primeira else []) + resto
 
 
-def _valor_no_quadro(c, x, x_fim, indice, texto):
+def _valor_no_quadro(c, x, x_fim, topos, base, indice, texto):
     """O valor abaixo do rótulo do quadro, em até duas linhas (ou mais no último)."""
-    topo = QUADRO_TOPOS[indice] + QUADRO_ALTURA_ROTULO + 0.5
-    proximo = QUADRO_TOPOS[indice + 1] if indice + 1 < len(QUADRO_TOPOS) else CAIXA_EMITENTE[3] - 2
+    topo = topos[indice] + QUADRO_ALTURA_ROTULO + 0.5
+    proximo = topos[indice + 1] if indice + 1 < len(topos) else base
     linhas = _linhas(texto or '—', x_fim - x, FONTE, VALOR_QUADRO)
     cabem = max(1, int((proximo - topo) // (VALOR_QUADRO * 1.15)))
     if len(linhas) > cabem:
@@ -257,17 +369,17 @@ def _valor_no_quadro(c, x, x_fim, indice, texto):
         _texto(c, x, topo + n * VALOR_QUADRO * 1.15, linha, tamanho=VALOR_QUADRO)
 
 
-def _item_no_modelo(c, item, rotulos, fim_x):
+def _item_no_modelo(c, item, rotulos, x_inicio, fim_x):
     """O primeiro item: cada valor na linha do rótulo do modelo. Devolve o
     topo livre depois dele."""
     entrelinha = VALOR * 1.25
     ultimo = 0
     for campo, (topo, fim_rotulo) in rotulos.items():
         x = fim_rotulo + 5
-        linhas = _linhas(item[campo], fim_x - PRESCRICAO_X, FONTE, VALOR, largura_primeira=fim_x - x)
+        linhas = _linhas(item[campo], fim_x - x_inicio, FONTE, VALOR, largura_primeira=fim_x - x)
         ajuste = (TAMANHO_ROTULO_PRESCRICAO - VALOR) * 1.07
         for n, linha in enumerate(linhas):
-            _texto(c, x if n == 0 else PRESCRICAO_X, topo + ajuste + n * entrelinha, linha)
+            _texto(c, x if n == 0 else x_inicio, topo + ajuste + n * entrelinha, linha)
         ultimo = topo + ajuste + max(len(linhas) - 1, 0) * entrelinha
     return ultimo + VALOR * 1.6
 
@@ -281,20 +393,19 @@ _ROTULOS = (
 )
 
 
-def _prescricao(c, item, rotulos):
+def _prescricao(c, item, leiaute):
     """O medicamento da folha, cada valor na linha do rótulo do modelo."""
-    topo = _item_no_modelo(c, item, rotulos, PRESCRICAO_FIM_X)
-    if topo > CAIXA_PRESCRICAO[3] - 4:
+    topo = _item_no_modelo(c, item, leiaute.rotulos, leiaute.prescricao_x, leiaute.prescricao_fim_x)
+    if topo > leiaute.prescricao_base - 4:
         raise ReceitaInvalida(
             f'O medicamento {item["nome"]} não cabe na folha do modelo da Anvisa. Encurte a posologia.'
         )
 
 
-def _rodape(c, document, rascunho, folha, total, rodape=None):
-    """Os valores depois dos rótulos do rodapé. `rodape` troca as posições
-    medidas no modelo da RCE pelas da RET, cujos rótulos são desenhados em
-    outra fonte e terminam noutro ponto."""
-    plataforma, assinatura, verificacao = rodape or (RODAPE_PLATAFORMA, RODAPE_ASSINATURA, RODAPE_VERIFICACAO)
+def _rodape(c, document, rascunho, folha, total, leiaute):
+    """Os valores depois dos rótulos do rodapé, nas posições do leiaute (os
+    da RET são desenhados em outra fonte e terminam noutro ponto)."""
+    plataforma, assinatura, verificacao = leiaute.rodape
     dados = (
         (plataforma, _identificacao_da_plataforma(document, folha, total)),
         (assinatura, 'será registrado na assinatura' if rascunho else _registro_da_assinatura(document)),
@@ -307,33 +418,49 @@ def _rodape(c, document, rascunho, folha, total, rodape=None):
     for (topo, fim_rotulo), texto in dados:
         x = fim_rotulo + 4
         ajuste = (TAMANHO_RODAPE - VALOR_RODAPE) * 1.07
-        linhas = _linhas(texto, RODAPE_FIM_X - PRESCRICAO_X, FONTE, VALOR_RODAPE,
-                         largura_primeira=RODAPE_FIM_X - x)
+        # A continuação começa no mesmo `x` da primeira linha, então cabe na
+        # mesma largura — medida antes do fim do rodapé, e não a partir da
+        # margem da prescrição, que a deixaria passar por cima do QR.
+        linhas = _linhas(texto, leiaute.rodape_fim_x - x, FONTE, VALOR_RODAPE)
         for n, linha in enumerate(linhas[:2]):
-            _texto(c, x if n == 0 else x, topo + ajuste + n * VALOR_RODAPE * 1.15, linha, tamanho=VALOR_RODAPE)
+            _texto(c, x, topo + ajuste + n * VALOR_RODAPE * 1.15, linha, tamanho=VALOR_RODAPE)
 
 
-def _qr(c, document, rascunho):
-    """O QR leva à página de verificação **do NeuroDoc** (decisão I9).
+def destino_do_qr(document, numero, leiaute):
+    """Para onde o QR da folha leva.
 
-    O modelo traz um QR de exemplo nesse lugar; ele é coberto. Para receita
-    de plataforma privada, a verificação da assinatura é a indicada pela
-    própria plataforma (FAQ RDC 1.000, pergunta 42), e o rodapé do modelo
-    diz "esta prescrição pode ser verificada em:" — é para lá que o QR
-    aponta. A numeração continua sendo conferida em sncr.anvisa.gov.br,
-    como o rodapé impresso manda.
+    **RCE e RET: a página de verificação do NeuroDoc** (decisão I9). Para
+    receita de plataforma privada, a verificação da assinatura é a indicada
+    pela própria plataforma (FAQ RDC 1.000, pergunta 42), e o rodapé do
+    modelo diz "esta prescrição pode ser verificada em:" — é para lá que o
+    QR aponta. A numeração continua conferida em sncr.anvisa.gov.br, como o
+    rodapé impresso manda.
+
+    **Notificação de Receita: a consulta do número no SNCR**, com o número
+    daquela folha. Aqui a regra é escrita: a página do Receituário
+    Eletrônico manda configurar o QR da Notificação para
+    `sncr.anvisa.gov.br/receita/consultar?numero={numero}`. A verificação do
+    NeuroDoc continua no rodapé, por extenso.
     """
-    x0, y0, x1, y1 = QR
+    if leiaute.qr_da_anvisa:
+        base = CONSULTA_SNCR_TREINAMENTO if _ambiente_de_homologacao(document) else CONSULTA_SNCR
+        return base + quote(numero, safe='')
+    from documents.pdf.common import verification_url
+
+    return verification_url(document)
+
+
+def _qr(c, document, rascunho, leiaute, numero):
+    """O QR da folha, no lugar do QR de exemplo do modelo, que é coberto."""
+    x0, y0, x1, y1 = leiaute.qr
     c.setFillColor(white)
     c.setStrokeColor(white)
     c.rect(x0 - 1, _y(y1 + 1), x1 - x0 + 2, y1 - y0 + 2, stroke=0, fill=1)
     if rascunho:
         _texto(c, x0 + 4, (y0 + y1) / 2 - 4, 'QR na emissão', tamanho=7, cor=Color(0.5, 0.5, 0.5))
         return
-    from documents.pdf.common import verification_url
-
     lado = min(x1 - x0, y1 - y0)
-    widget = qr.QrCodeWidget(verification_url(document), barLevel='M')
+    widget = qr.QrCodeWidget(destino_do_qr(document, numero, leiaute), barLevel='M')
     b = widget.getBounds()
     desenho = Drawing(lado, lado, transform=[lado / (b[2] - b[0]), 0, 0, lado / (b[3] - b[1]), 0, 0])
     desenho.add(widget)
@@ -350,11 +477,12 @@ def _tarja(c, texto):
     c.restoreState()
 
 
-def _numero(c, numero, rascunho):
+def _numero(c, numero, rascunho, leiaute):
     if numero and not rascunho:
-        _texto(c, 400.0, 31.3 + (13.39 - 13) * 1.07, numero, fonte=FONTE_NEGRITO, tamanho=13)
+        _texto(c, leiaute.numero_x, 31.3 + (13.39 - 13) * 1.07, numero, fonte=FONTE_NEGRITO, tamanho=13)
     else:
-        _texto(c, 400.0, 35.0, 'atribuído pelo SNCR na assinatura', tamanho=8, cor=Color(0.45, 0.45, 0.45))
+        _texto(c, leiaute.numero_x, 35.0, 'atribuído pelo SNCR na assinatura', tamanho=8,
+               cor=Color(0.45, 0.45, 0.45))
 
 
 def _itens(document):
@@ -382,22 +510,24 @@ def _numeros_das_folhas(document, itens, rascunho):
     return numeros
 
 
-def _camada(document, item, numero, folha, total, desenhar_estrutura=None, rotulos=ROTULOS_PRESCRICAO_RCE,
-            com_idade_e_sexo=False, rodape=None):
+def _camada(document, item, numero, folha, total, leiaute=LEIAUTE_RCE, desenhar_estrutura=None,
+            com_idade_e_sexo=False):
     """A camada de valores de uma folha, do tamanho exato da página do modelo."""
     rascunho = document.status != 'issued'
     saida = io.BytesIO()
     c = pdfcanvas.Canvas(saida, pagesize=(LARGURA, TOPO))
     if desenhar_estrutura:
         desenhar_estrutura(c)
-    _numero(c, numero, rascunho)
+    _numero(c, numero, rascunho, leiaute)
     for indice, valor in enumerate(_emitente(document)):
-        _valor_no_quadro(c, EMITENTE_X, EMITENTE_FIM_X, indice, valor)
+        _valor_no_quadro(c, leiaute.emitente_x, leiaute.emitente_fim_x, leiaute.emitente_topos,
+                         leiaute.quadro_base, indice, valor)
     for indice, valor in enumerate(_paciente(document, com_idade_e_sexo)):
-        _valor_no_quadro(c, PACIENTE_X, PACIENTE_FIM_X, indice, valor)
-    _prescricao(c, item, rotulos)
-    _rodape(c, document, rascunho, folha, total, rodape)
-    _qr(c, document, rascunho)
+        _valor_no_quadro(c, leiaute.paciente_x, leiaute.paciente_fim_x, leiaute.paciente_topos,
+                         leiaute.quadro_base, indice, valor)
+    _prescricao(c, item, leiaute)
+    _rodape(c, document, rascunho, folha, total, leiaute)
+    _qr(c, document, rascunho, leiaute, numero)
     if rascunho:
         _tarja(c, 'RASCUNHO — SEM VALIDADE')
     elif _ambiente_de_homologacao(document):
@@ -511,18 +641,33 @@ def _pagina_em_branco():
     return saida.getvalue()
 
 
+def _leiaute_ret():
+    return replace(LEIAUTE_RCE, rotulos=_rotulos_ret(),
+                   rodape=(_fim_do_rotulo_ret(0), _fim_do_rotulo_ret(1), _fim_do_rotulo_ret(3)))
+
+
 def render_ret(document):
-    folhas = _folhas(document, desenhar_estrutura=_estrutura_ret, rotulos=_rotulos_ret(), com_idade_e_sexo=True,
-                     rodape=(_fim_do_rotulo_ret(0), _fim_do_rotulo_ret(1), _fim_do_rotulo_ret(3)))
+    folhas = _folhas(document, leiaute=_leiaute_ret(), desenhar_estrutura=_estrutura_ret, com_idade_e_sexo=True)
     return _juntar(_pagina_em_branco(), folhas, 'Receita Sujeita à Retenção — eletrônica')
+
+
+def render_notificacao(document, tipo):
+    """A Notificação de Receita A, B ou B2: o modelo oficial, uma folha por
+    medicamento, cada uma com o seu número e o QR da consulta no SNCR."""
+    caminho, sha256, titulo = MODELOS_NOTIFICACAO[tipo]
+    modelo = _carregar_modelo(caminho, sha256, titulo)
+    return _juntar(modelo, _folhas(document, leiaute=LEIAUTES_NOTIFICACAO[tipo]), titulo)
 
 
 def render(document):
     from .models import TipoReceita
     from .receita import tipo_do_documento
 
-    if tipo_do_documento(document) == TipoReceita.RCE:
+    tipo = tipo_do_documento(document)
+    if tipo == TipoReceita.RCE:
         return render_rce(document)
+    if tipo in MODELOS_NOTIFICACAO:
+        return render_notificacao(document, tipo)
     return render_ret(document)
 
 
@@ -540,4 +685,5 @@ def registro_de_assinatura(perfil, credencial, quando):
             f'com certificado ICP-Brasil nº {serie}, em {hora} (horário de Brasília).')
 
 
-__all__ = ['render', 'render_rce', 'render_ret', 'registro_de_assinatura', 'numeros_do_documento']
+__all__ = ['render', 'render_rce', 'render_ret', 'render_notificacao', 'registro_de_assinatura',
+           'numeros_do_documento', 'destino_do_qr']
