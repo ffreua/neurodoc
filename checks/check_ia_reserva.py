@@ -164,6 +164,20 @@ class Lento:
         return Resposta(RESUMO_VALIDO)
 
 
+class LentoUmaVez:
+    """A cauda do roteador (2026-11-05): a primeira chamada demora, a segunda não."""
+    model_name = 'principal-lento-uma-vez'
+
+    def __init__(self):
+        self.chamadas = 0
+
+    def invoke(self, prompt):
+        self.chamadas += 1
+        if self.chamadas == 1:
+            time.sleep(3)
+        return Resposta(RESUMO_VALIDO)
+
+
 class Lixo:
     model_name = 'principal-responde-lixo'
 
@@ -263,6 +277,17 @@ try:
         print(f'  status={job.status}  reserva chamada={chamadas}')
         conferir(job.status == AIJobStatus.SUCCEEDED and chamadas == 1,
                  'o tempo esgotado no principal não passou para a reserva')
+
+        print('=== 4b. o principal que esgota o prazo ganha uma segunda chamada ===')
+        lento = LentoUmaVez()
+        job, chamadas = rodar(lento, timeout=1)
+        print(f'  status={job.status}  chamadas ao principal={lento.chamadas}  reserva chamada={chamadas}')
+        conferir(job.status == AIJobStatus.SUCCEEDED and lento.chamadas == 2 and chamadas == 0,
+                 'a segunda chamada ao principal não resolveu sem a reserva')
+        conferir(services.DEFAULT_LIMITS['timeout_seconds'] >= 60,
+                 'o prazo do resumo voltou a ser curto demais para a cauda do roteador')
+        conferir(services.REPORT_LIMITS['timeout_seconds'] > services._REPETIR_NO_PRAZO,
+                 'o relatório passaria a ganhar segunda chamada e estouraria o orçamento do job')
 
         print('=== 5. resposta que chega e não passa na validação NÃO troca ===')
         antes = usos()

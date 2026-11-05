@@ -75,3 +75,28 @@ suboperador de dados de saúde: a linha entra em
 
 `checks/check_ia_reserva.py` — doze grupos, com os provedores simulados
 (nenhuma chamada sai para a internet). Bateria completa em 2026-10-22.
+
+## Prazo do resumo e a segunda chamada (2026-11-05)
+
+Um resumo de atendimento curto falhou em produção com "O provedor de IA
+não respondeu em 30s", numa clínica com **IA própria** pela OpenRouter —
+onde a reserva da instalação não entra, por desenho. Medido com texto
+fictício, no worker de produção, o mesmo pedido levou **5,5 s, 2,8 s e
+94 s** em três chamadas seguidas: o roteador manda cada pedido a um
+servidor, e de vez em quando é um lento. A demora é sorteio, não peso do
+pedido.
+
+Duas mudanças em `ai/services.py`, valendo para toda clínica:
+
+- o prazo do resumo e do apoio diagnóstico passou de **30 s para 75 s**
+  (`DEFAULT_LIMITS`): o job roda no worker, ninguém fica olhando a tela,
+  e o prazo curto só transformava a cauda do provedor em falha;
+- o principal que esgota o prazo ganha **uma segunda chamada** ao mesmo
+  provedor antes da reserva ou da falha (`_REPETIR_NO_PRAZO`), só em
+  prazos de até 90 s — o relatório, com 240 s, ficaria acima do orçamento
+  do job. A primeira chamada é abandonada, não cancelada: o custo é um
+  pedido a mais ao provedor.
+
+O que **não** mudou: o roteamento da OpenRouter da clínica com chave
+própria continua sendo escolha dela. `check_ia_reserva` §4b cobre a
+segunda chamada resolvendo sem a reserva.

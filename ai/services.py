@@ -27,7 +27,23 @@ from .providers import (
 from .schemas import SCHEMA_VERSION
 from .tools import clinical as clinical_tools
 
-DEFAULT_LIMITS = {'timeout_seconds': 30, 'max_output_chars': 20000}
+#: 75 s, e não os 30 s de antes (2026-11-05). O resumo de um atendimento
+#: de duas linhas falhou por prazo numa clínica com OpenRouter, e a medição
+#: com texto fictício explicou: o mesmo pedido levou 5,5 s, 2,8 s e 94 s em
+#: três chamadas seguidas -- o roteador manda cada pedido a um servidor, e
+#: de vez em quando é um lento. O prazo curto não protegia ninguém (o job
+#: roda no worker, o médico não fica olhando a tela) e transformava a cauda
+#: do provedor em falha. Ver também `_REPETIR_NO_PRAZO`.
+DEFAULT_LIMITS = {'timeout_seconds': 75, 'max_output_chars': 20000}
+
+#: O principal que estoura o prazo ganha **uma** segunda chamada, ao mesmo
+#: provedor, antes da reserva ou da falha. A demora medida é sorteio de
+#: servidor, não pedido pesado: a segunda chamada quase sempre cai num
+#: rápido. Só para prazos curtos -- o relatório já tem 240 s, e repetir
+#: ali passaria do orçamento do job. A primeira chamada é abandonada, não
+#: cancelada (`graphs._invoke_with_timeout`); se ela ainda responder, a
+#: resposta é descartada, e o custo é um pedido a mais ao provedor.
+_REPETIR_NO_PRAZO = 90
 
 #: Escrever um relatorio sobre vinte atendimentos e mais lento que resumir
 #: um, e a saida e prosa, nao campo estruturado: o teto do resumo cortaria
@@ -266,6 +282,10 @@ _ORCAMENTO_DO_JOB = 270
 _PRAZO_MINIMO_DA_RESERVA = 15
 
 
+def _esgotou(result_state):
+    return bool((result_state.get('diagnostics') or {}).get('tempo_esgotado'))
+
+
 def _falha_do_provedor(exc, job):
     """Traduz a recusa do provedor numa frase útil e num diagnóstico.
 
@@ -446,7 +466,13 @@ def run_job(job_id):
         except Exception as exc:
             falha_principal = exc
         else:
-            if (result_state.get('diagnostics') or {}).get('tempo_esgotado'):
+            if _esgotou(result_state) and limite <= _REPETIR_NO_PRAZO:
+                logger.info('ai.job %s: principal esgotou o prazo; segunda chamada', job.id)
+                try:
+                    result_state = executar(chat_model, limite)
+                except Exception as exc:
+                    falha_principal = exc
+            if falha_principal is None and _esgotou(result_state):
                 falha_principal = TimeoutError(result_state.get('error') or 'tempo esgotado')
 
     if falha_principal is not None:
