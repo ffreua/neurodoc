@@ -89,6 +89,7 @@
                             {% if nd_unread_notifications %}
                             <form method="post" action="{% url 'notifications:mark-all-read' %}" class="ms-auto me-2">
                                 {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-link p-0 fs-11 text-muted">Marcar todas</button>
                             </form>
                             {% endif %}
@@ -100,6 +101,7 @@
                                   class="{% if not nd_unread_notifications %}ms-auto {% endif %}me-2"
                                   data-nd-confirm="Limpar todas as notificações desta clínica? Elas saem da caixa e não voltam. O que elas apontavam — pedidos do portal, resultados, exportações — continua onde está.">
                                 {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                 <button type="submit" class="btn btn-link p-0 fs-11 text-danger">Limpar</button>
                             </form>
                             {% endif %}
@@ -120,6 +122,7 @@
                                 parecendo uma lista.{% endcomment %}
                                 <form method="post" action="{% url 'notifications:open' item.id %}">
                                     {% csrf_token %}
+                                <input type="hidden" name="next" value="{{ request.get_full_path }}">
                                     <button type="submit" class="btn btn-link p-0 text-start font-body text-truncate-2-line border-0">
                                         <span class="fw-semibold text-dark d-block">{{ item.sanitized_title }}</span>
                                         {% if item.context.patient %}

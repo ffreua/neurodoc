@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.db.models import F
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from tenancy.permissions import CapabilityRequiredView
 
@@ -28,6 +29,26 @@ class TenantScopedView(CapabilityRequiredView):
         return Notification.objects.filter(
             tenant_id=self.request.access_context.tenant_id, user=self.request.user,
         )
+
+
+def _voltar(request):
+    """Para onde voltar depois de uma ação feita pelo sino.
+
+    O sino está em toda tela, e quem marca como lida ou limpa a caixa por
+    ele quer continuar onde estava — mandar para a central tirava a pessoa
+    do atendimento ou da agenda por um clique que não pedia isso. O
+    formulário do sino manda o endereço da tela em `next`; a central não
+    manda, e continua voltando para si.
+
+    Só caminho do próprio site: `next` vem do cliente, e aceitá-lo cru
+    faria do sino um redirecionador aberto.
+    """
+    destino = request.POST.get('next', '')
+    if destino and url_has_allowed_host_and_scheme(
+        destino, allowed_hosts={request.get_host()}, require_https=request.is_secure(),
+    ) and destino.startswith('/') and not destino.startswith('//'):
+        return redirect(destino)
+    return redirect('notifications:list')
 
 
 def _rows(notifications):
@@ -72,7 +93,7 @@ class NotificationMarkReadView(TenantScopedView):
     def post(self, request, notification_id):
         notification = get_object_or_404(self._mine(), id=notification_id)
         mark_read(notification)
-        return redirect('notifications:list')
+        return _voltar(request)
 
 
 class NotificationMarkAllReadView(TenantScopedView):
@@ -84,7 +105,7 @@ class NotificationMarkAllReadView(TenantScopedView):
             )
         else:
             messages.info(request, 'Não havia notificação não lida.')
-        return redirect('notifications:list')
+        return _voltar(request)
 
 
 class NotificationClearAllView(TenantScopedView):
@@ -100,7 +121,7 @@ class NotificationClearAllView(TenantScopedView):
             messages.success(request, f'{quantas} notificação(ões) removida(s) da caixa.')
         else:
             messages.info(request, 'A caixa já estava vazia.')
-        return redirect('notifications:list')
+        return _voltar(request)
 
 
 class NotificationOpenView(TenantScopedView):
@@ -125,7 +146,7 @@ class NotificationOpenView(TenantScopedView):
                 request,
                 'Este aviso não tem uma tela para abrir. Foi marcado como lido.',
             )
-            return redirect('notifications:list')
+            return _voltar(request)
         if not targets.exists(notification):
             # O alvo pode ter sido descartado depois do aviso — rascunho
             # apagado, exportação vencida. Mandar para um 404 seria pior
@@ -135,6 +156,6 @@ class NotificationOpenView(TenantScopedView):
                 request,
                 'O que este aviso apontava não existe mais. Foi marcado como lido.',
             )
-            return redirect('notifications:list')
+            return _voltar(request)
         mark_read(notification)
         return redirect(url)

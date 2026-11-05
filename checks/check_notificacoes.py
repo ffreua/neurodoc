@@ -320,6 +320,39 @@ if confirmados != botoes:
     falhas.append('botao de limpar sem confirmacao')
 Notification.objects.filter(tenant=tenant, user=u_dono, kind='teste').delete()
 
+print()
+print('=' * 66)
+print('9. O SINO DEVOLVE A PESSOA A TELA EM QUE ESTAVA')
+print('=' * 66)
+# Marcar todas e limpar pelo sino levavam a central; agora voltam ao
+# `next`. A central nao manda `next` e continua voltando para si, e um
+# `next` de outro site cai na central em vez de redirecionar para fora.
+aqui = '/app/scheduling/'
+# O sino so desenha os botoes com aviso na caixa.
+Notification.objects.create(tenant=tenant, user=u_dono, kind='teste', sanitized_title='Volta')
+r = dono.get(aqui)
+print('  tela de origem ->', r.status_code)
+pagina = r.content.decode()
+campos = pagina.count('name="next" value="/app/scheduling/"')
+print('  campos next no sino ->', campos)
+if campos < 1:
+    falhas.append('o sino nao manda o endereco da tela')
+for nome, rota in (('marcar todas', '/app/notifications/marcar-todas/'),
+                   ('limpar', '/app/notifications/limpar/')):
+    Notification.objects.create(tenant=tenant, user=u_dono, kind='teste', sanitized_title='Volta')
+    r = dono.post(rota, {'next': aqui})
+    print(f'  {nome} pelo sino ->', r.status_code, r.get('Location'))
+    if r.get('Location') != aqui:
+        falhas.append(f'{nome} pelo sino nao voltou a tela de origem')
+    r = dono.post(rota)
+    if r.get('Location') != '/app/notifications/':
+        falhas.append(f'{nome} pela central nao voltou a central')
+    for fora in ('https://exemplo.com/x', '//exemplo.com/x'):
+        r = dono.post(rota, {'next': fora})
+        if r.get('Location') != '/app/notifications/':
+            falhas.append(f'{nome} aceitou next de fora: {fora}')
+Notification.objects.filter(tenant=tenant, user=u_dono, kind='teste').delete()
+
 # ---------------------------------------------------------------- limpeza
 Notification.objects.filter(id__in=criados['avisos']).delete()
 Notification.objects.filter(target_id__in=criados['pedidos']).delete()
