@@ -251,12 +251,13 @@ carimbá-la na publicação.
 #: desfaz, o mês só com o mês e quem chegou em azul, o pagamento apagado e o
 #: pagamento em várias formas, e na receita do SNCR o nome comercial e o "uso
 #: contínuo" sem número. Sem migração.
-VERSION = '1.37'
+#: A **1.38**: os agendamentos futuros na ficha do paciente. Sem migração.
+VERSION = '1.38'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'ajustes do uso real'
+CODENAME = 'agendamentos na ficha'
 
 
 def version_display():

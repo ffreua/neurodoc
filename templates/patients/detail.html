@@ -364,6 +364,40 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
 
     {% comment %}Coluna lateral: o que é estável no cadastro.{% endcomment %}
     <div class="col-xxl-4 col-xl-5">
+        {% comment %}Agendamentos futuros (2026-11-05): "quando é a minha
+        consulta?" respondido na ficha, sem procurar na agenda. A data leva à
+        semana daquele dia, para quem pode abrir a agenda.{% endcomment %}
+        <div class="card mb-4" id="agendamentos-futuros">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Agendamentos futuros</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if agendamentos_futuros %}
+                <ul class="list-group list-group-flush">
+                    {% for ag in agendamentos_futuros %}
+                    <li class="list-group-item d-flex align-items-center justify-content-between gap-2">
+                        <div>
+                            {% if nd_can.schedule %}
+                            <a class="fw-semibold text-dark fs-13"
+                               href="{% url 'scheduling:week' %}?physician={{ ag.physician_membership_id }}&date={{ ag.starts_at|date:'Y-m-d' }}">
+                                {{ ag.starts_at|date:"d/m/Y" }} às {{ ag.starts_at|date:"H:i" }}
+                            </a>
+                            {% else %}
+                            <span class="fw-semibold text-dark fs-13">{{ ag.starts_at|date:"d/m/Y" }} às {{ ag.starts_at|date:"H:i" }}</span>
+                            {% endif %}
+                            <span class="d-block fs-11 text-muted text-capitalize">
+                                {{ ag.starts_at|date:"l" }} · {{ ag.get_type_display }} · {{ ag.physician_membership.user.get_full_name|default:ag.physician_membership.user.email }}
+                            </span>
+                        </div>
+                        <span class="badge bg-soft-{{ ag.status|nd_tone }} text-{{ ag.status|nd_tone }} flex-shrink-0">{{ ag.get_status_display }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted fs-12 px-4 py-3 mb-0">Nenhum agendamento futuro.</p>
+                {% endif %}
+            </div>
+        </div>
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">Dados de base</h5>

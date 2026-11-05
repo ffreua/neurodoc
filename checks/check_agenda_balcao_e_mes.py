@@ -186,6 +186,31 @@ try:
         Appointment.objects.filter(id=veio.id).update(status=AppointmentStatus.NO_SHOW)
         mes_p = sec.get(reverse('scheduling:month') + f'?physician={medico.id}&date={dia_p:%Y-%m-%d}').content.decode()
         conferir('a falta sai riscada e não azul', 'nd-month-slot-falta' in mes_p, True)
+
+    print('\n6. A ficha mostra os agendamentos futuros')
+    pac = paciente('ROTEIRO FICHA FUTUROS')
+    agora = timezone.now()
+    depois = marcar(pac, agora + timedelta(days=9), AppointmentStatus.SCHEDULED)
+    antes = marcar(pac, agora + timedelta(days=2), AppointmentStatus.CONFIRMED)
+    marcar(pac, agora - timedelta(days=30), AppointmentStatus.CHECKED_IN)
+    marcar(pac, agora + timedelta(days=5), AppointmentStatus.CANCELLED)
+    outro = marcar(paciente('ROTEIRO FICHA OUTRO'), agora + timedelta(days=3), AppointmentStatus.SCHEDULED)
+    ficha = sec.get(reverse('patients:detail', args=[pac.id])).content.decode()
+    bloco = ficha.split('id="agendamentos-futuros"')[1].split('Dados de base')[0] if 'id="agendamentos-futuros"' in ficha else ''
+    d1 = timezone.localtime(antes.starts_at)
+    d2 = timezone.localtime(depois.starts_at)
+    conferir('o cartão existe', bool(bloco), True)
+    conferir('os dois futuros, o mais próximo primeiro',
+             f'{d1:%d/%m/%Y} às {d1:%H:%M}' in bloco and f'{d2:%d/%m/%Y}' in bloco
+             and bloco.index(f'{d1:%d/%m/%Y}') < bloco.index(f'{d2:%d/%m/%Y}'), True)
+    conferir('passado e cancelado ficam fora', bloco.count('list-group-item'), 2)
+    conferir('o horário de outro paciente fica fora',
+             f'{timezone.localtime(outro.starts_at):%d/%m/%Y às %H:%M}' in bloco, False)
+    conferir('a data leva à agenda daquele dia', f'date={d1:%Y-%m-%d}' in bloco, True)
+    vazio = paciente('ROTEIRO FICHA SEM HORARIO')
+    conferir('sem horário, diz que não há',
+             'Nenhum agendamento futuro.' in sec.get(reverse('patients:detail', args=[vazio.id])).content.decode(), True)
+
     css = open('static/duralux/neurodoc.css', encoding='utf-8').read()
     conferir('o CSS pinta o check-in de azul',
              'button.nd-month-slot-busy[data-status="checked_in"]' in css, True)

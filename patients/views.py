@@ -248,6 +248,27 @@ class PatientCreateView(TenantScopedView):
         })
 
 
+def _agendamentos_futuros(patient):
+    """Os horários deste paciente que ainda vão acontecer (2026-11-05).
+
+    Na ficha, porque é onde a secretária está quando o paciente liga
+    perguntando "quando é a minha consulta?" -- antes era preciso procurá-lo
+    na agenda, semana por semana. Só os que ocupam horário (agendado,
+    confirmado, chegou, em atendimento), do que termina agora em diante, e
+    da clínica da ficha: `patient` já vem escopado ao inquilino.
+    """
+    from django.utils import timezone
+
+    from scheduling.models import OCCUPYING_STATUSES, Appointment
+
+    return list(
+        Appointment.objects.filter(
+            tenant_id=patient.tenant_id, patient=patient,
+            ends_at__gte=timezone.now(), status__in=OCCUPYING_STATUSES,
+        ).select_related('physician_membership__user').order_by('starts_at')[:20]
+    )
+
+
 def _detail_context(request, patient, **overrides):
     """Contexto da tela do paciente, num lugar só.
 
@@ -307,6 +328,7 @@ def _detail_context(request, patient, **overrides):
         ),
         'ordenar': ordenar,
         'decrescente': decrescente,
+        'agendamentos_futuros': _agendamentos_futuros(patient),
     }
     context.update(overrides)
     return context

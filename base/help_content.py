@@ -200,6 +200,10 @@ ARTICLES = [
              'clínica. Esse número é o que se diz ao telefone e se escreve na pasta '
              '— ele nunca muda, e nunca é reaproveitado por outro paciente.',
              'paciente-ficha.png', 'Ficha do paciente'),
+            ('Na ficha, o cartão **Agendamentos futuros** mostra os horários que o '
+             'paciente ainda tem marcados, do mais próximo ao mais distante, com o tipo, '
+             'o médico e se já confirmou. Clicar na data abre a agenda daquele dia.',
+             '', ''),
             ('Paciente que não é mais acompanhado se **arquiva**, nunca se apaga: '
              'arquivar tira da carteira ativa e libera uma vaga no plano, e todo o '
              'histórico continua inteiro e legível.',

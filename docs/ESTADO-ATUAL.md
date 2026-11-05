@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.37 "ajustes do uso real" (2026-11-05) · **Produção:**
+**Versão:** 1.38 "agendamentos na ficha" (2026-11-05) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,10 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Agendamentos futuros na ficha** (1.38, 2026-11-05): o cartão no alto da
+coluna da direita da ficha do paciente lista os horários que ainda vão
+acontecer, com a data abrindo a agenda do dia.
 
 **Ajustes do uso real** (1.37, 2026-11-05): o balcão do dia imprime; a
 confirmação dada por engano se desfaz (`Confirmado → Agendado`, a única volta
