@@ -256,7 +256,7 @@ VERSION = '1.37'
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a agenda por e-mail'
+CODENAME = 'ajustes do uso real'
 
 
 def version_display():
