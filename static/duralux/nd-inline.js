@@ -24,6 +24,33 @@
         if (alvo) { window.close(); }
     });
 
+    /* ------------------------ forma de pagamento: "Outro" e mais linhas
+     *
+     * (2026-11-05) "Outro" abre a caixa para escrever qual, e "+ Outra forma
+     * de pagamento" mostra a próxima linha escondida — parte no crédito,
+     * parte no débito. Sem JavaScript, a primeira linha continua servindo. */
+
+    document.addEventListener('change', function (evento) {
+        var select = evento.target.closest('[data-nd-metodo]');
+        if (!select) return;
+        var linha = select.closest('.nd-pagamento-linha');
+        var outro = linha && linha.querySelector('[data-nd-metodo-outro]');
+        if (outro) outro.hidden = select.value !== 'outro';
+    });
+
+    document.addEventListener('click', function (evento) {
+        var botao = evento.target.closest('[data-nd-pagamento-mais]');
+        if (!botao) return;
+        var form = botao.closest('form');
+        var proxima = form && form.querySelector('[data-nd-pagamento-extra][hidden]');
+        if (proxima) {
+            proxima.hidden = false;
+            var campo = proxima.querySelector('input');
+            if (campo) campo.focus();
+        }
+        if (!form.querySelector('[data-nd-pagamento-extra][hidden]')) botao.hidden = true;
+    });
+
     /* ----------------------------------- confirmar antes de enviar */
 
     /* O texto da pergunta vem do atributo, porque quem sabe o que está

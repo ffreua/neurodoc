@@ -373,3 +373,11 @@ def nd_exames_do_portal(context, patient):
         'next': request.get_full_path(),
         'csrf_token': context.get('csrf_token'),
     }
+
+
+@register.filter
+def nd_metodo_pagamento(valor):
+    """A forma de pagamento como aparece: `other`, o padrão antigo, é "Outro"."""
+    from finance.payments import rotulo_do_metodo
+
+    return rotulo_do_metodo(valor)

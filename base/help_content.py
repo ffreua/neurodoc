@@ -227,7 +227,14 @@ ARTICLES = [
              '', ''),
             ('Na linha do horário marcado há os botões de **confirmar por e-mail ou '
              'SMS**. A mensagem vai para os contatos do paciente que têm aquele '
-             'canal cadastrado.',
+             'canal cadastrado. Confirmou por engano? **Desfaça a confirmação**: no '
+             'balcão do dia, clique no crachá **Confirmado**; na agenda, abra o horário '
+             'e use **Desfazer a confirmação**. O horário volta a "Agendado".',
+             '', ''),
+            ('O **balcão do dia** tem o botão **Imprimir**: sai a lista do dia, com a '
+             'clínica e a data no alto, sem os botões. Na **visão de mês** aparecem só '
+             'os dias do mês aberto; quem já **chegou** (check-in) fica **azul**, o '
+             'confirmado tem um **✓** ao lado da hora e a falta sai riscada.',
              '', ''),
             ('Quem pediu horário e ainda não tem vai para a **Agenda → Lista de '
              'espera**. Secretária e médico incluem o paciente (cadastrado ou em '
@@ -406,10 +413,11 @@ ARTICLES = [
              'cada tipo.',
              'sncr-conduta.png', 'O botão na Conduta'),
             ('Preencha até **3 medicamentos**. Digite o nome e escolha na lista da Anvisa '
-             '(CMED): a substância, a concentração e a forma farmacêutica entram sozinhas, e '
-             'você ajusta. A quantidade vai em algarismos (o extenso entra sozinho); marque '
-             '**Uso contínuo** quando for o caso — ele sai impresso junto da quantidade, que a '
-             'norma continua exigindo (até 60 dias de tratamento; anticonvulsivante e '
+             '(CMED): o nome escolhido (o comercial, se foi o comercial), a concentração e a '
+             'forma farmacêutica entram sozinhos, e você ajusta. A quantidade vai em algarismos '
+             '(o extenso entra sozinho); marque **Uso contínuo** quando for o caso — ele sai '
+             'junto da quantidade, ou sozinho, com a quantidade em branco. A norma pede a '
+             'quantidade em número (até 60 dias de tratamento; anticonvulsivante e '
              'antiparkinsoniano, até 6 meses). O NeuroDoc '
              'procura cada um na **lista oficial da Portaria 344**, e cada documento é de um tipo '
              'só: o medicamento que pede Notificação é recusado na Receita de Controle Especial, '
@@ -803,9 +811,13 @@ ARTICLES = [
              'guarda um retrato do que valia; mudar a tabela hoje não reescreve o que '
              'já foi lançado.',
              'financeiro-recebiveis.png', 'Lista de recebíveis'),
-            ('Registrar um pagamento abre a baixa: valor, data, forma e observação. '
-             'Pagamento **parcial** é aceito — o recebível fica com saldo e continua '
-             'aparecendo em aberto até fechar.',
+            ('Registrar um pagamento abre a baixa: valor e forma — **crédito à vista, '
+             'crédito parcelado, débito, PIX, dinheiro** ou **outro**, que abre uma caixa '
+             'para escrever qual. Pagou parte no crédito e parte no débito? **+ Outra forma '
+             'de pagamento** abre mais uma linha, e as duas entram juntas. Pagamento '
+             '**parcial** é aceito — o recebível fica com saldo e continua aparecendo em '
+             'aberto até fechar. Digitou o valor errado? **Apagar**, ao lado do pagamento, '
+             'tira o lançamento e refaz o saldo (fica registrado na trilha).',
              'financeiro-pagamento.png', 'Registro de pagamento'),
             ('Um **ajuste** é o que corrige valor sem apagar história: desconto, glosa '
              'do convênio, acréscimo combinado. Ele entra como linha própria, com '

@@ -3,6 +3,8 @@ import io
 
 from reporting.exporters import sanitize_cell
 
+from .payments import rotulo_do_metodo
+
 
 COMPETENCE_COLUMNS = (
     ('Paciente', 'patient'),
@@ -46,7 +48,7 @@ def cash_rows(payments):
             'patient': payment.receivable.patient.full_name,
             'paid_at': payment.paid_at.isoformat(),
             'amount': str(payment.amount),
-            'method': payment.method,
+            'method': rotulo_do_metodo(payment.method),
             'external_reference': payment.external_reference,
             'fiscal_document_number': payment.receivable.fiscal_document_number,
         }

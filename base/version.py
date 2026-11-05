@@ -247,7 +247,11 @@ carimbá-la na publicação.
 #: A **1.36**: a agenda do dia seguinte por e-mail a cada médico, às 19h,
 #: pelo servidor de e-mail da clínica ou da instalação. Migrações só de
 #: expansão (`tenancy.0023`, `scheduling.0010`).
-VERSION = '1.36'
+#: A **1.37**: ajustes do uso real — o balcão impresso, a confirmação que se
+#: desfaz, o mês só com o mês e quem chegou em azul, o pagamento apagado e o
+#: pagamento em várias formas, e na receita do SNCR o nome comercial e o "uso
+#: contínuo" sem número. Sem migração.
+VERSION = '1.37'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

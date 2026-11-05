@@ -136,7 +136,12 @@ try:
              and 'name="item3_uso_continuo"' in html)
     conferir('o nome busca na CMED, preenchendo a mesma linha',
              'data-nd-med-grupo' in html and 'name="item1_nome"' in html and 'data-nd-med-url=' in html
-             and 'data-nd-med-forma=' in html and 'data-nd-med-nome="substancia"' in html)
+             and 'data-nd-med-forma=' in html and 'data-nd-med-nome="produto"' in html)
+    # O nome escolhido fica o comercial (2026-11-05: "LEPS ER" virava "ácido
+    # valproico"); o componente só troca pela substância com "substancia".
+    js = open('static/catalogs/medicamentos.js', encoding='utf-8').read()
+    conferir('escolher na CMED mantém o nome comercial',
+             "(item.produto || item.substancia)" in js and 'data-nd-med-nome="substancia"' not in html)
     itens = sncr_receita.itens_do_formulario({
         'item1_nome': 'Levetiracetam', 'item1_concentracao': '500 mg', 'item1_forma': 'comprimido',
         'item1_quantidade': '60 comprimidos', 'item1_posologia': '1 comprimido 12/12h', 'item1_uso_continuo': True,
@@ -154,15 +159,30 @@ try:
     quantidade = conteudo['itens'][0]['quantidade']
     conferir('a quantidade sai com o extenso e o uso contínuo, sem perder o número',
              quantidade == '60 (sessenta) comprimidos — uso contínuo', quantidade)
+    # Decisão I27 (2026-11-05): "uso contínuo" sozinho vale como quantidade
+    # -- escrito no campo, ou com a caixa marcada e o campo em branco.
+    base = {
+        'prescription_format': 'sncr_rce', 'item1_nome': 'Levetiracetam', 'item1_concentracao': '500 mg',
+        'item1_forma': 'comprimido', 'item1_posologia': '1 cp 12/12h',
+    }
+    so_texto = sncr_receita.preparar(dict(base, item1_quantidade='Uso continuo'), pac, confirmada=True)
+    conferir('"uso contínuo" escrito na quantidade vale, sem número',
+             (so_texto['itens'][0]['quantidade'], so_texto['itens'][0]['uso_continuo']) == ('uso contínuo', True))
+    so_caixa = sncr_receita.preparar(dict(base, item1_quantidade='', item1_uso_continuo=True), pac, confirmada=True)
+    conferir('caixa marcada e quantidade em branco sai "uso contínuo"',
+             so_caixa['itens'][0]['quantidade'] == 'uso contínuo', so_caixa['itens'][0]['quantidade'])
     try:
-        sncr_receita.preparar({
-            'prescription_format': 'sncr_rce', 'item1_nome': 'Levetiracetam', 'item1_concentracao': '500 mg',
-            'item1_forma': 'comprimido', 'item1_quantidade': 'uso contínuo', 'item1_posologia': '1 cp 12/12h',
-            'item1_uso_continuo': True,
-        }, pac, confirmada=True)
-        conferir('uso contínuo sem número é recusado (a norma exige a quantidade)', False)
+        sncr_receita.preparar(dict(base, item1_quantidade=''), pac, confirmada=True)
+        conferir('sem quantidade e sem uso contínuo continua recusado', False)
     except sncr_receita.ReceitaInvalida:
-        conferir('uso contínuo sem número é recusado (a norma exige a quantidade)', True)
+        conferir('sem quantidade e sem uso contínuo continua recusado', True)
+    try:
+        sncr_receita.preparar(dict(base, item1_quantidade='muitos'), pac, confirmada=True)
+        conferir('quantidade sem número e sem uso contínuo continua recusada', False)
+    except sncr_receita.ReceitaInvalida:
+        conferir('quantidade sem número e sem uso contínuo continua recusada', True)
+    vazio = sncr_receita.itens_do_formulario({'item2_uso_continuo': True})
+    conferir('linha vazia com a caixa marcada continua vazia', vazio == [], vazio)
     amostras = {
         'COM REV CT BL AL PLAS PVC X 30': 'comprimido revestido',
         '500 MG COM REV LIB PROL CT BL X 30': 'comprimido revestido de liberação prolongada',

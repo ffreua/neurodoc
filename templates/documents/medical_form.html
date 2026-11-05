@@ -106,9 +106,10 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                                 <strong>3 medicamentos</strong>, e <strong>cada um sai na sua folha, com o
                                 seu número SNCR</strong> — o paciente pode levar cada folha a uma farmácia.
                                 Os números são seus — do bloco ou do lote que você pediu — e atribuídos na
-                                assinatura digital, que é uma só para todas as folhas. Escreva o nome da
-                                substância (DCB); a quantidade em algarismos — o número por extenso é
-                                acrescentado sozinho.
+                                assinatura digital, que é uma só para todas as folhas. Escreva a substância
+                                ou o nome comercial; a quantidade em algarismos — o número por extenso é
+                                acrescentado sozinho —, ou marque <em>uso contínuo</em> e deixe a quantidade
+                                em branco.
                             </div>
                             {% comment %}Notificação de Receita (decisão D9): o que a norma pede e o
                             NeuroDoc não tem como conferir sozinho — os dias de tratamento saem da
@@ -124,8 +125,8 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                                 Quantidade máxima por Notificação (Portaria 344/98): <strong>A</strong>, 30 dias
                                 de tratamento; <strong>B</strong>, 60 dias; <strong>B2</strong>, 30 dias; injetável,
                                 até 5 ampolas. Acima disso, a norma pede a sua justificativa com o CID, datada e
-                                assinada, entregue junto com a Notificação. O uso contínuo pode ser marcado, e a
-                                quantidade continua obrigatória.
+                                assinada, entregue junto com a Notificação. O uso contínuo pode ser marcado, com ou
+                                sem número na quantidade.
                             </div>
                             {% saldos_sncr request.user as saldos %}
                             {% if saldos %}

@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.36 "a agenda por e-mail" (2026-11-05) · **Produção:**
+**Versão:** 1.37 "ajustes do uso real" (2026-11-05) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,15 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Ajustes do uso real** (1.37, 2026-11-05): o balcão do dia imprime; a
+confirmação dada por engano se desfaz (`Confirmado → Agendado`, a única volta
+nova); o mês mostra só o mês, com `dd/mm`, quem fez check-in em azul, o
+confirmado com ✓ e a falta riscada; o pagamento digitado errado se apaga
+(com trilha) e um registro aceita várias formas, escolhidas numa lista; e na
+receita do SNCR o nome comercial escolhido fica na linha e "uso contínuo"
+pode ir sem número (decisão I27, que revê a de 2026-10-29). Ver
+`docs/releases/1.37-ajustes-do-uso.md`.
 
 **Agenda do dia seguinte por e-mail** (1.36, 2026-11-05): todo dia às 19h,
 cada médico com horário amanhã recebe no e-mail da conta a lista do dia —

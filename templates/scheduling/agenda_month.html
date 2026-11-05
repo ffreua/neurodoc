@@ -54,15 +54,21 @@ contexto completo.{% endcomment %}
                     {% for week in weeks %}
                     <tr>
                         {% for day in week %}
-                        <td class="p-1 {% if not day.in_month %}bg-gray-100{% endif %}"
-                            style="vertical-align:top">
+                        {% if not day.in_month %}
+                        {% comment %}Dia de outro mês: a célula fica, vazia, só para a
+                        semana continuar alinhada. Mostrar os pacientes do mês vizinho,
+                        mesmo em cinza, atrapalhava quem procura vaga no mês aberto
+                        (2026-11-05).{% endcomment %}
+                        <td class="p-1 nd-month-fora" aria-hidden="true"></td>
+                        {% else %}
+                        <td class="p-1" style="vertical-align:top">
                             <div class="nd-month-day p-2 rounded-3 text-start {% if day.is_today %}bg-soft-primary{% endif %}">
                                 <div class="d-flex align-items-start justify-content-between gap-1">
                                 <a class="d-inline-block text-decoration-none"
                                    href="{% url 'scheduling:week' %}?physician={{ doctor.id }}&date={{ day.date|date:'Y-m-d' }}"
                                    aria-label="Abrir a semana de {{ day.date|date:'d/m/Y' }}">
-                                <span class="d-block fw-bold {% if day.in_month %}text-dark{% else %}text-muted{% endif %} fs-13">
-                                    {{ day.date|date:"j" }}
+                                <span class="d-block fw-bold text-dark fs-13">
+                                    {{ day.date|date:"d/m" }}
                                 </span>
                                 </a>
                                 {% if pode_incluir_horario and day.in_month and not day.is_past %}
@@ -150,6 +156,13 @@ contexto completo.{% endcomment %}
                                     mesma ordem da grade da semana. Escrever um segundo
                                     caminho daria duas telas que divergem no primeiro botão
                                     novo.{% endcomment %}
+                                    {% comment %}Quem já chegou (check-in) é **atendido**, e sai
+                                    azul como o concluído: ninguém aperta "Concluir", e a
+                                    consulta fica em "Check-in feito" para sempre — era por
+                                    isso que o mês passado aparecia todo vermelho. A cor sai
+                                    do `data-status` (neurodoc.css); a célula continua
+                                    ocupando a vaga e abrindo o modal, como antes. O
+                                    confirmado ganha o ✓ ao lado da hora.{% endcomment %}
                                     <button type="button"
                                             class="nd-month-slot nd-month-slot-busy"
                                             data-status="{{ cell.appointment.status }}"
@@ -168,7 +181,7 @@ contexto completo.{% endcomment %}
                                             {% endwith %}
                                             title="{{ cell.start|date:'H:i' }} — {{ cell.appointment.patient.full_name }} ({{ cell.appointment.get_type_display }}) · clique para abrir"
                                             aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}; abrir ações">
-                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                        <span>{{ cell.start|date:'H:i' }}h{% if cell.appointment.status == 'confirmed' %} <span class="nd-month-slot-ok" title="Confirmado">✓</span>{% endif %}</span>
                                         <strong class="nd-month-slot-nome">{{ cell.appointment.patient.full_name }}</strong>
                                     </button>
                                     {% elif cell.status == 'done' and cell.is_start %}
@@ -176,7 +189,9 @@ contexto completo.{% endcomment %}
                                     `COMPLETED` não ocupa horário — para liberar a vaga — e o
                                     efeito era que um mês passado aparecia vazio, com as
                                     consultas reais invisíveis.{% endcomment %}
-                                    <span class="nd-month-slot nd-month-slot-done"
+                                    {% comment %}A falta também é `done` na grade (não ocupa a
+                                    vaga), mas não é atendimento: sai riscada, e não azul.{% endcomment %}
+                                    <span class="nd-month-slot nd-month-slot-done{% if cell.exibida.status == 'no_show' %} nd-month-slot-falta{% endif %}"
                                           title="{{ cell.start|date:'H:i' }} — {{ cell.exibida.patient.full_name }} ({{ cell.exibida.get_status_display }})">
                                         <span>{{ cell.start|date:'H:i' }}h</span>
                                         <strong class="nd-month-slot-nome">{{ cell.exibida.patient.full_name }}</strong>
@@ -210,6 +225,7 @@ contexto completo.{% endcomment %}
                                 {% endif %}
                             </div>
                         </td>
+                        {% endif %}
                         {% endfor %}
                     </tr>
                     {% endfor %}
@@ -219,7 +235,9 @@ contexto completo.{% endcomment %}
         <div class="nd-agenda-legend mt-3">
             <span><span class="nd-key nd-month-key-free"></span>Verde — livre; clique para marcar</span>
             <span><span class="nd-key nd-month-key-busy"></span>Vermelho — ocupado, com o nome do paciente</span>
-            <span><span class="nd-key nd-month-key-done"></span>Azul — já atendido</span>
+            <span><strong class="nd-month-slot-ok">✓</strong> — paciente confirmado</span>
+            <span><span class="nd-key nd-month-key-done"></span>Azul — chegou ou foi atendido</span>
+            <span><span class="nd-key nd-month-key-falta"></span>Riscado — falta</span>
             <span><span class="nd-key nd-month-key-past"></span>Cinza — passou e ficou vago</span>
             <span><strong>lotado</strong> — dia de atendimento sem nenhuma vaga</span>
             <span><strong>encerrado</strong> — o dia já passou</span>

@@ -1,6 +1,7 @@
 import datetime
 
 from django.contrib import messages
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -28,8 +29,12 @@ from .lifecycle import (
     update_fiscal_document_number,
 )
 from .models import Receivable
-from .payments import balance, net_received, record_payment
+from .payments import MAX_OUTRO, METODOS, PagamentoNaoExcluivel, balance, delete_payment, net_received, record_payment
 from .selectors import cash_view, competence_view
+
+
+#: Quantas formas cabem num registro de pagamento: a de sempre e mais três.
+PAGAMENTO_LINHAS = 4
 
 
 class TenantScopedView(CapabilityRequiredView):
@@ -87,6 +92,8 @@ class ReceivableDetailView(TenantScopedView):
         return render(request, 'finance/receivable_detail.html', {
             'receivable': receivable, 'balance': balance(receivable), 'net_received': net_received(receivable),
             'can_manage_history': can_manage_financial_history(request.access_context),
+            'nd_metodos': METODOS, 'nd_max_outro': MAX_OUTRO,
+            'nd_pagamento_linhas': [''] + [f'p{i}' for i in range(1, PAGAMENTO_LINHAS)],
         })
 
 
@@ -272,18 +279,54 @@ class RecordPaymentView(TenantScopedView):
         # real: `Decimal('150,00')` levanta `InvalidOperation`, que herda de
         # `ArithmeticError`. A view devolvia 500 para quem digitasse o valor
         # do jeito brasileiro. Ver `finance/forms.py`.
-        form = PaymentForm(request.POST)
-        if not form.is_valid():
-            messages.error(request, next(iter(form.errors.values()))[0])
-            return redirect('finance:receivable-detail', receivable_id=receivable.id)
+        #
+        # **Mais de uma forma no mesmo registro** (2026-11-05): parte no
+        # crédito, parte no débito. A primeira linha vem sem prefixo (é o
+        # formulário de sempre); as seguintes, `p1-`, `p2-`, `p3-`, e linha
+        # sem valor nem forma é linha não usada. Cada linha vira um
+        # `Payment` -- o caixa já sabe somar vários --, e é **tudo ou nada**:
+        # uma linha recusada não deixa as outras gravadas pela metade.
+        linhas = [PaymentForm(request.POST)]
+        for indice in range(1, PAGAMENTO_LINHAS):
+            prefixo = f'p{indice}'
+            if not (request.POST.get(f'{prefixo}-amount') or '').strip():
+                continue
+            linhas.append(PaymentForm(request.POST, prefix=prefixo))
+        for form in linhas:
+            if not form.is_valid():
+                messages.error(request, next(iter(form.errors.values()))[0])
+                return redirect('finance:receivable-detail', receivable_id=receivable.id)
         try:
-            record_payment(
-                receivable, form.cleaned_data['amount'], form.cleaned_data['method'],
-                request.user.id,
-                external_reference=form.cleaned_data['external_reference'],
-            )
+            with transaction.atomic():
+                for form in linhas:
+                    record_payment(
+                        receivable, form.cleaned_data['amount'], form.cleaned_data['method'],
+                        request.user.id,
+                        external_reference=form.cleaned_data['external_reference'],
+                    )
         except ValueError as exc:
             return HttpResponseForbidden(str(exc))
+        if len(linhas) > 1:
+            messages.success(request, f'{len(linhas)} pagamentos registrados.')
+        return redirect('finance:receivable-detail', receivable_id=receivable.id)
+
+
+class DeletePaymentView(TenantScopedView):
+    """Apaga o pagamento lançado errado. Ver `payments.delete_payment`."""
+
+    def post(self, request, receivable_id, payment_id):
+        receivable = get_object_or_404(
+            scope_to_tenant(Receivable.objects.all(), request.access_context), id=receivable_id,
+        )
+        # Buscado dentro da cobrança: id de outra cobrança, ou de outra
+        # clínica, não casa e dá 404.
+        payment = get_object_or_404(receivable.payments.all(), id=payment_id)
+        try:
+            delete_payment(payment, request.user.id)
+        except PagamentoNaoExcluivel as exc:
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, 'Pagamento apagado.')
         return redirect('finance:receivable-detail', receivable_id=receivable.id)
 
 

@@ -641,6 +641,41 @@ textarea.form-control-sm {
         box-shadow: none !important;
         border: 1px solid #e5e7eb !important;
     }
+
+    /* Balcão impresso: o cabeçalho de papel já diz o dia e a clínica, então
+     * a barra de título da tela sai; a tabela não rola no papel, e uma
+     * linha de paciente não se parte entre duas folhas. */
+    .nxl-container:has(.nd-balcao-impresso) .page-header {
+        display: none !important;
+    }
+
+    .nxl-container:has(.nd-balcao-impresso) {
+        margin-left: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        background: #fff !important;
+    }
+
+    body:has(.nd-balcao-impresso),
+    .nxl-container:has(.nd-balcao-impresso) .main-content,
+    .nxl-container:has(.nd-balcao-impresso) .nxl-content {
+        background: #fff !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .nd-balcao-lista .table-responsive {
+        overflow: visible !important;
+    }
+
+    .nd-balcao-lista tr {
+        break-inside: avoid;
+    }
+
+    .nd-balcao-lista a {
+        text-decoration: none;
+        color: #000 !important;
+    }
 }
 
 /* ---- Agenda: grade da semana ------------------------------------------ */
@@ -951,6 +986,63 @@ button.nd-month-slot-busy:focus-visible {
 .nd-month-key-done {
     background: #e0e7ff;
     border-color: #a5b4fc !important;
+}
+
+/* Quem fez check-in é atendido (2026-11-05). A reserva continua `busy` --
+ * ocupa a vaga e abre o modal --, mas a cor é a do atendido: a recepção não
+ * aperta "Concluir", e sem isto todo mês passado saía vermelho, como se
+ * ninguém tivesse vindo. */
+button.nd-month-slot-busy[data-status="checked_in"],
+button.nd-month-slot-busy[data-status="in_progress"] {
+    color: #1e3a8a;
+    background: #e0e7ff;
+    border-color: #a5b4fc;
+}
+
+button.nd-month-slot-busy[data-status="checked_in"]:hover,
+button.nd-month-slot-busy[data-status="checked_in"]:focus-visible,
+button.nd-month-slot-busy[data-status="in_progress"]:hover,
+button.nd-month-slot-busy[data-status="in_progress"]:focus-visible {
+    color: #1e3a8a;
+    background: #c7d2fe;
+    border-color: #6366f1;
+}
+
+/* O ✓ do confirmado, ao lado da hora (e não no nome, que é cortado). */
+.nd-month-slot-ok {
+    color: #15803d;
+    font-weight: 700;
+}
+
+/* Falta: não é atendimento, e não pode sair azul como ele. */
+.nd-month-slot-falta {
+    color: #6b7280;
+    background: #f3f4f6;
+    border-color: #d1d5db;
+}
+
+.nd-month-slot-falta .nd-month-slot-nome {
+    text-decoration: line-through;
+}
+
+.nd-month-key-falta {
+    background: #f3f4f6;
+    border-color: #d1d5db !important;
+}
+
+/* O dia de outro mês fica vazio: só segura a coluna da semana. */
+td.nd-month-fora {
+    background: #fafbfc;
+}
+
+/* O crachá "Confirmado" do balcão é um botão (desfaz a confirmação). */
+button.nd-desfazer-confirmacao {
+    cursor: pointer;
+}
+
+button.nd-desfazer-confirmacao:hover,
+button.nd-desfazer-confirmacao:focus-visible {
+    text-decoration: line-through;
 }
 
 .nd-month-key-past {

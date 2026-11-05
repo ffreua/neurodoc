@@ -233,7 +233,12 @@ ALLOWED_TRANSITIONS = {
         AppointmentStatus.CONFIRMED, AppointmentStatus.CANCELLED,
         AppointmentStatus.CHECKED_IN, AppointmentStatus.NO_SHOW,
     },
+    # Confirmado volta a Agendado (2026-11-05): a confirmação é um clique da
+    # recepção, e clique acidental acontece. Sem a volta, o horário ficava
+    # "confirmado" sem ninguém ter falado com o paciente, e a agenda por
+    # e-mail e o balcão diziam isso ao médico.
     AppointmentStatus.CONFIRMED: {
+        AppointmentStatus.SCHEDULED,
         AppointmentStatus.CANCELLED, AppointmentStatus.CHECKED_IN, AppointmentStatus.NO_SHOW,
     },
     AppointmentStatus.CHECKED_IN: {AppointmentStatus.IN_PROGRESS},

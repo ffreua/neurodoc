@@ -95,18 +95,21 @@ class MedicalDocumentForm(forms.Form):
         from sncr.models import Configuracao
 
         exemplos = {
-            'nome': 'Ex.: Sertralina (nome da substância, DCB)', 'concentracao': 'Ex.: 50 mg',
+            'nome': 'Ex.: Sertralina, ou o nome comercial', 'concentracao': 'Ex.: 50 mg',
             'forma': 'Ex.: comprimido revestido', 'quantidade': 'Ex.: 60 comprimidos',
             'posologia': 'Ex.: 1 comprimido pela manhã',
         }
         # O nome do medicamento busca na CMED, como a receita impressa: ao
-        # escolher, preenche a substância (DCB, que é o que a lista oficial
-        # classifica), a concentração e a forma **da mesma linha** — os
+        # escolher, preenche o **nome escolhido** -- o comercial, quando foi o
+        # comercial (2026-11-05: o médico escolhia "LEPS ER" e a linha virava
+        # "ácido valproico"). A lista oficial classifica a marca pela própria
+        # CMED (`receita._substancias_pela_cmed`), então nada se perde. E a
+        # concentração e a forma **da mesma linha** — os
         # destinos são seletores procurados dentro do `data-nd-med-grupo` do
         # medicamento, e não ids, para a linha 2 não escrever na linha 1.
         busca = {
             'data-nd-med-url': reverse_lazy('catalogs:medicamento-search'),
-            'data-nd-med-nome': 'substancia', 'data-nd-med-dose': '[name$="_concentracao"]',
+            'data-nd-med-nome': 'produto', 'data-nd-med-dose': '[name$="_concentracao"]',
             'data-nd-med-forma': '[name$="_forma"]', 'data-nd-med-sem-aviso': '1',
         }
         for n in range(1, receita.LIMITE_MEDICAMENTOS + 1):
@@ -122,7 +125,8 @@ class MedicalDocumentForm(forms.Form):
                 )
             self.fields[f'item{n}_uso_continuo'] = forms.BooleanField(
                 label='Uso contínuo', required=False,
-                help_text='Sai na receita junto da quantidade, que a norma continua exigindo.',
+                help_text='Sai na receita junto da quantidade; marcado, a quantidade pode ficar '
+                          'em branco e sai só "uso contínuo".',
             )
         if Configuracao.carregar().ativo:
             self.fields['prescription_format'].choices = (
@@ -165,6 +169,8 @@ class MedicalDocumentForm(forms.Form):
                 self.add_error(name, 'Este campo é obrigatório para o tipo escolhido.')
         if kind == 'prescription' and eletronica:
             for campo in receita.CAMPOS_DO_ITEM:
+                if campo == 'quantidade' and cleaned.get('item1_uso_continuo'):
+                    continue
                 if not (cleaned.get(f'item1_{campo}') or '').strip():
                     self.add_error(f'item1_{campo}', 'Preencha o primeiro medicamento por inteiro.')
         return cleaned

@@ -214,7 +214,7 @@ try:
     conferir('o nome do paciente ocupado aparece',
              'ROTEIRO MES OCUPADO' in html, True)
     conferir('"Vago" aparece para o que passou', 'Vago' in html, True)
-    conferir('a legenda explica o azul', 'já atendido' in html, True)
+    conferir('a legenda explica o azul', 'chegou ou foi atendido' in html, True)
 
     # O horario marcado tem de ser clicavel, e abrir o MESMO modal da
     # semana e do dia. O mecanismo e o `agenda.js`, que escuta

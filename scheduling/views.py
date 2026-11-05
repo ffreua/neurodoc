@@ -912,6 +912,9 @@ class AppointmentActionView(TenantScopedView):
             if action == 'confirm':
                 services.transition_appointment(appointment, AppointmentStatus.CONFIRMED, request.user.id)
                 messages.success(request, 'Presença confirmada com o paciente.')
+            elif action == 'unconfirm':
+                services.transition_appointment(appointment, AppointmentStatus.SCHEDULED, request.user.id)
+                messages.success(request, 'Confirmação desfeita: o horário voltou a "Agendado".')
             elif action == 'check-in':
                 services.check_in(appointment, request.user.id)
                 # Check-in é o momento em que o paciente está na recepção: é

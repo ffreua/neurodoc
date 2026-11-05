@@ -26,5 +26,9 @@ urlpatterns = [
         views.UndoDoctorSharePaidView.as_view(), name='undo-doctor-share-paid',
     ),
     path('<uuid:receivable_id>/payments/', views.RecordPaymentView.as_view(), name='record-payment'),
+    path(
+        '<uuid:receivable_id>/payments/<uuid:payment_id>/excluir/',
+        views.DeletePaymentView.as_view(), name='delete-payment',
+    ),
     path('<uuid:receivable_id>/adjustments/', views.ApplyAdjustmentView.as_view(), name='apply-adjustment'),
 ]

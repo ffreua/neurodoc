@@ -8,14 +8,26 @@
 <li class="breadcrumb-item">Balcão — {{ day|date:"d/m/Y" }}</li>
 {% endblock %}
 {% block page_actions %}
+{% comment %}Imprimir usa a própria tela: a folha de impressão (neurodoc.css,
+@media print) tira o menu, os botões e a coluna de ações, e o cabeçalho
+abaixo, só de papel, diz de que clínica e de que dia é a lista.{% endcomment %}
+<button type="button" class="btn btn-light" data-nd-print>Imprimir</button>
 <a class="btn btn-light-primary" href="{% url 'scheduling:week' %}">Ver a grade</a>
 {% endblock %}
 {% block content %}
+<div class="d-none d-print-block mb-3 nd-balcao-impresso">
+    <div class="fs-5 fw-bold text-dark">
+        Agenda de {{ day|date:"l, d/m/Y" }}{% if nd_tenant %} — {{ nd_tenant.trade_name|default:nd_tenant.legal_name }}{% endif %}
+    </div>
+    <div class="fs-12 text-muted">
+        {{ counts.total }} na agenda · {{ counts.confirmed }} confirmado(s) · impressa em {% now "d/m/Y H:i" %}
+    </div>
+</div>
 
 {% comment %}O balcão é a lista do dia de **todos** os médicos, em ordem de
 horário — diferente da grade, que é de um médico por vez. Aqui a pergunta é
 "quem chega agora", não "que horário posso oferecer".{% endcomment %}
-<div class="card mb-3">
+<div class="card mb-3 nd-no-print">
     <div class="card-body py-3 d-flex flex-wrap align-items-center justify-content-between gap-3">
         <div class="d-inline-flex align-items-center gap-1">
             <a class="btn btn-icon btn-sm btn-light" href="?date={{ prev_day|date:'Y-m-d' }}"
@@ -38,7 +50,7 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
 </div>
 
 {% if pending_registration %}
-<div class="card mb-3">
+<div class="card mb-3 nd-no-print">
     <div class="card-body py-3">
         <div class="d-flex align-items-start gap-2">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-warning flex-shrink-0 mt-1"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
@@ -56,8 +68,8 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
 </div>
 {% endif %}
 
-<div class="card">
-    <div class="card-header d-flex align-items-center justify-content-between">
+<div class="card nd-balcao-lista">
+    <div class="card-header d-flex align-items-center justify-content-between nd-no-print">
         <h5 class="card-title mb-0">Pacientes do dia</h5>
     </div>
     <div class="card-body p-0">
@@ -70,7 +82,7 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                         <th scope="col">Médico</th>
                         <th scope="col">Tipo</th>
                         <th scope="col">Situação</th>
-                        <th class="text-end pe-4" scope="col">Ações</th>
+                        <th class="text-end pe-4 nd-no-print" scope="col">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -92,14 +104,30 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                         <td><span class="fs-12 text-muted">{{ appointment.physician_membership.user.get_full_name }}</span></td>
                         <td><span class="fs-12">{{ appointment.get_type_display }}</span></td>
                         <td>
+                            {% if appointment.status == 'confirmed' %}
+                            {% comment %}O crachá "Confirmado" se clica para desfazer a
+                            confirmação dada por engano, com a pergunta antes. Na
+                            impressão sai como texto.{% endcomment %}
+                            <form method="post" class="d-inline"
+                                  action="{% url 'scheduling:action' appointment.id 'unconfirm' %}"
+                                  data-nd-confirm="Desfazer a confirmação de {{ appointment.patient.full_name }}? O horário volta a &quot;Agendado&quot;.">
+                                {% csrf_token %}
+                                <input type="hidden" name="return_to" value="{% url 'scheduling:desk' %}">
+                                <button type="submit" class="badge border-0 bg-soft-info text-info nd-desfazer-confirmacao"
+                                        title="Clique para desfazer a confirmação">
+                                    {{ appointment.get_status_display }}
+                                </button>
+                            </form>
+                            {% else %}
                             <span class="badge bg-soft-{{ appointment.status|nd_tone }} text-{{ appointment.status|nd_tone }}">
                                 {{ appointment.get_status_display }}
                             </span>
+                            {% endif %}
                             {% if appointment.is_overbook %}
                             <span class="badge bg-soft-warning text-warning">encaixe</span>
                             {% endif %}
                         </td>
-                        <td class="text-end pe-4">
+                        <td class="text-end pe-4 nd-no-print">
                             <div class="d-inline-flex flex-wrap gap-1 justify-content-end">
                                 {% if appointment.status == 'scheduled' %}
                                 <form method="post" action="{% url 'scheduling:action' appointment.id 'confirm' %}">

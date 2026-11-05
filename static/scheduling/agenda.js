@@ -303,6 +303,7 @@
         var openPatient = document.getElementById('slot-open-patient');
         var checkinForm = document.getElementById('slot-checkin-form');
         var confirmForm = document.getElementById('slot-confirm-form');
+        var unconfirmForm = document.getElementById('slot-unconfirm-form');
         var rescheduleLink = document.getElementById('slot-reschedule');
         var declaracaoLink = document.getElementById('slot-declaracao');
         var changePanel = document.getElementById('slot-change-panel');
@@ -350,6 +351,7 @@
             openPatient.href = '/app/patients/' + cell.getAttribute('data-nd-patient-id') + '/';
             checkinForm.action = '/app/scheduling/' + id + '/check-in/';
             confirmForm.action = '/app/scheduling/' + id + '/confirm/';
+            if (unconfirmForm) unconfirmForm.action = '/app/scheduling/' + id + '/unconfirm/';
             cancelForm.action = '/app/scheduling/' + id + '/cancel/';
             changeForm.action = '/app/scheduling/' + id + '/trocar-paciente/';
             if (typeForm) typeForm.action = '/app/scheduling/' + id + '/tipo/';
@@ -381,6 +383,7 @@
             /* Só faz sentido confirmar quem ainda não confirmou nem chegou. */
             var status = cell.getAttribute('data-status');
             confirmForm.hidden = status !== 'scheduled';
+            if (unconfirmForm) unconfirmForm.hidden = status !== 'confirmed';
             checkinForm.hidden = ['checked_in', 'in_progress', 'completed', 'no_show'].indexOf(status) !== -1;
             /* Sem contato, o botão sai da tela: um botão que sempre devolve
              * erro é pior que a ausência dele. */

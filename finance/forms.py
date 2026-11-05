@@ -62,11 +62,34 @@ class PaymentForm(_ValorMonetarioForm):
     #: ajuste em 255, mas deixava `method` passar inteiro — um texto longo
     #: chegava ao banco e voltava como erro de coluna.
     method = forms.CharField(max_length=40, required=False, label='Forma')
+    #: O texto de "Outro", opcional (2026-11-05). Vazio, fica só "Outro".
+    method_other = forms.CharField(max_length=40, required=False, label='Qual')
     external_reference = forms.CharField(max_length=100, required=False, label='Referência')
 
     def clean_method(self):
         # Vazio vira 'other', que é o que a view passava como padrão.
         return (self.cleaned_data.get('method') or '').strip() or 'other'
+
+    def clean(self):
+        """O código da lista vira o rótulo que vai para o banco.
+
+        Texto que não é código da lista passa como está (até 40): é como a
+        forma era gravada antes da lista, e quem chama por outro caminho
+        não quebra.
+        """
+        from .payments import MAX_OUTRO, METODOS
+
+        dados = super().clean()
+        metodo = dados.get('method')
+        rotulos = dict(METODOS)
+        if metodo == 'outro':
+            qual = (dados.get('method_other') or '').strip()
+            if len(qual) > MAX_OUTRO:
+                self.add_error('method_other', f'Descreva a forma em até {MAX_OUTRO} caracteres.')
+            dados['method'] = f'Outro: {qual}' if qual else 'Outro'
+        elif metodo in rotulos:
+            dados['method'] = rotulos[metodo]
+        return dados
 
 
 class AdjustmentForm(_ValorMonetarioForm):

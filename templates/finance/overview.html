@@ -96,7 +96,7 @@
                                 <td class="ps-4 fw-semibold text-dark">{{ p.receivable.patient.full_name }}</td>
                                 <td><span class="fs-12 text-muted">{{ p.paid_at|date:"d/m/Y H:i" }}</span></td>
                                 <td><span class="fw-semibold text-success">R$ {{ p.amount }}</span></td>
-                                <td class="text-end pe-4"><span class="badge bg-gray-200 text-dark">{{ p.method }}</span></td>
+                                <td class="text-end pe-4"><span class="badge bg-gray-200 text-dark">{{ p.method|nd_metodo_pagamento }}</span></td>
                             </tr>
                             {% empty %}
                             <tr><td colspan="4" class="text-center text-muted py-5">Nenhum recebimento no período.</td></tr>

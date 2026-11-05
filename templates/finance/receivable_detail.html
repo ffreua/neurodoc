@@ -94,13 +94,26 @@
             <div class="card-body p-0">
                 <ul class="list-group list-group-flush">
                     {% for p in receivable.payments.all %}
-                    <li class="list-group-item d-flex align-items-center justify-content-between">
+                    <li class="list-group-item d-flex align-items-center justify-content-between gap-2">
                         <div>
                             <span class="d-block fw-semibold text-dark fs-12">R$ {{ p.amount }}</span>
                             <span class="d-block fs-11 text-muted">{{ p.paid_at|date:"d/m/Y H:i" }}</span>
                             {% if p.external_reference %}<span class="d-block fs-11 text-muted">Ref.: {{ p.external_reference }}</span>{% endif %}
                         </div>
-                        <span class="badge bg-gray-200 text-dark">{{ p.method }}</span>
+                        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+                            <span class="badge bg-gray-200 text-dark">{{ p.method|nd_metodo_pagamento }}</span>
+                            {% comment %}Apagar o lançamento errado (2026-11-05). Só
+                            enquanto a cobrança está no financeiro; o servidor confere
+                            de novo e recusa o pagamento com estorno ligado.{% endcomment %}
+                            {% if not receivable.doctor_share_paid_at and not receivable.archived_at %}
+                            <form method="post" action="{% url 'finance:delete-payment' receivable.id p.id %}"
+                                  data-nd-confirm="Apagar o pagamento de R$ {{ p.amount }} ({{ p.method|nd_metodo_pagamento }})? Use para lançamento digitado errado; o saldo da cobrança é refeito.">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-light-danger py-0 px-2"
+                                        title="Apagar este pagamento" aria-label="Apagar o pagamento de R$ {{ p.amount }}">Apagar</button>
+                            </form>
+                            {% endif %}
+                        </div>
                     </li>
                     {% empty %}
                     <li class="list-group-item text-muted fs-12">Nenhum pagamento.</li>
@@ -108,16 +121,40 @@
                 </ul>
             </div>
             <div class="card-footer">
+                {% comment %}Uma linha por forma de pagamento (2026-11-05): parte no
+                crédito, parte no débito. A primeira é o formulário de sempre; as
+                outras três chegam escondidas e "+ outra forma" mostra a próxima.
+                Linha sem valor é ignorada no servidor.{% endcomment %}
                 <form method="post" action="{% url 'finance:record-payment' receivable.id %}">
                     {% csrf_token %}
                     <div class="row g-2 align-items-end">
-                        <div class="col-6">
-                            <label class="form-label fw-semibold fs-11" for="pay-amount">Valor</label>
-                            <input type="text" class="form-control form-control-sm" id="pay-amount" name="amount" inputmode="decimal">
+                        {% for prefixo in nd_pagamento_linhas %}
+                        <div class="col-12 nd-pagamento-linha" {% if not forloop.first %}hidden data-nd-pagamento-extra{% endif %}>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-sm-4">
+                                    <label class="form-label fw-semibold fs-11" for="pay-amount{{ prefixo }}">Valor</label>
+                                    <input type="text" class="form-control form-control-sm" id="pay-amount{{ prefixo }}"
+                                           name="{% if prefixo %}{{ prefixo }}-{% endif %}amount" inputmode="decimal">
+                                </div>
+                                <div class="col-sm-4">
+                                    <label class="form-label fw-semibold fs-11" for="pay-method{{ prefixo }}">Método</label>
+                                    <select class="form-select form-select-sm" id="pay-method{{ prefixo }}"
+                                            name="{% if prefixo %}{{ prefixo }}-{% endif %}method" data-nd-metodo>
+                                        {% for codigo, rotulo in nd_metodos %}
+                                        <option value="{{ codigo }}">{{ rotulo }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-sm-4" hidden data-nd-metodo-outro>
+                                    <label class="form-label fw-semibold fs-11" for="pay-other{{ prefixo }}">Qual (opcional)</label>
+                                    <input type="text" class="form-control form-control-sm" id="pay-other{{ prefixo }}"
+                                           name="{% if prefixo %}{{ prefixo }}-{% endif %}method_other" maxlength="{{ nd_max_outro }}">
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold fs-11" for="pay-method">Método</label>
-                            <input type="text" class="form-control form-control-sm" id="pay-method" name="method">
+                        {% endfor %}
+                        <div class="col-12">
+                            <button type="button" class="btn btn-light btn-sm" data-nd-pagamento-mais>+ Outra forma de pagamento</button>
                         </div>
                         <div class="col-12">
                             <button type="submit" class="btn btn-primary btn-sm w-100" data-nd-busy>Registrar pagamento</button>

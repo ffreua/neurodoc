@@ -100,6 +100,8 @@ EXCECOES_NA_TELA = {
     # Lista de espera (1.31): as recusas são escritas em português em
     # `scheduling/espera.py` e na view que puxa a espera para um horário.
     'EsperaError',
+    # O pagamento que não pode ser apagado (finance/payments.py, 2026-11-05).
+    'PagamentoNaoExcluivel',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o

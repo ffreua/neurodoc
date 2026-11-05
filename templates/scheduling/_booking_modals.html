@@ -242,6 +242,16 @@ clicado diz qual horário e qual paciente.
                             Confirmar com o paciente
                         </button>
                     </form>
+                    {% comment %}O avesso do botão acima, para o clique acidental:
+                    só aparece com o horário confirmado, e pergunta antes.{% endcomment %}
+                    <form method="post" id="slot-unconfirm-form" hidden
+                          data-nd-confirm="Desfazer a confirmação deste horário? Ele volta a &quot;Agendado&quot;.">
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-light btn-sm w-100" data-nd-busy>
+                            Desfazer a confirmação
+                        </button>
+                    </form>
                     <a class="btn btn-light btn-sm" id="slot-reschedule">Remarcar</a>
                     {% comment %}Declaração de comparecimento. Fica aqui, e não nas
                     telas do prontuário, porque quem a emite é a recepção: ela

@@ -38,6 +38,7 @@ documento — nunca uma escolha silenciosa.
 """
 
 import re
+import unicodedata
 
 from catalogs import controlados
 from catalogs.portaria344 import normalizar
@@ -127,6 +128,12 @@ CAMPOS_DO_FORMULARIO = tuple(
 #: contínuo com a quantidade para cada 30 dias. Uma receita só com "uso
 #: contínuo", sem número, seria recusada no balcão — decisão de
 #: 2026-10-29, explicada ao proprietário quando ele pediu a opção.
+#:
+#: **Revista em 2026-11-05 (decisão I27), pelo proprietário:** a quantidade
+#: pode ser só "uso contínuo", sem número. O número continua aceito, e
+#: continua recebendo o extenso; o risco de a farmácia recusar a receita
+#: sem número fica com quem prescreve, e está escrito em
+#: `docs/sncr/DECISOES.md`.
 MARCA_USO_CONTINUO = 'uso contínuo'
 
 #: Receituários da lista oficial que a RCE atende sem pergunta.
@@ -321,6 +328,14 @@ def itens_do_formulario(campos):
         if not any(valores.values()):
             continue
         continuo = campos.get(f'item{n}_uso_continuo') in (True, 'on', 'true', '1')
+        # "Uso contínuo" escrito na quantidade é a mesma coisa que marcar a
+        # caixa; e com a caixa marcada a quantidade pode ficar em branco
+        # (I27). Nos dois casos a quantidade impressa é "uso contínuo".
+        if _so_uso_continuo(valores['quantidade']):
+            continuo = True
+            valores['quantidade'] = MARCA_USO_CONTINUO
+        elif continuo and not valores['quantidade'] and any(valores.values()):
+            valores['quantidade'] = MARCA_USO_CONTINUO
         faltando = [ROTULOS_DO_ITEM[c].lower() for c, v in valores.items() if not v]
         if faltando:
             raise ReceitaInvalida(f'Medicamento {n}: falta {", ".join(faltando)}.')
@@ -333,6 +348,13 @@ def itens_do_formulario(campos):
         valores['uso_continuo'] = continuo
         itens.append(valores)
     return itens
+
+
+def _so_uso_continuo(texto):
+    """A quantidade é só "uso contínuo" (com ou sem acento, em qualquer caixa)?"""
+    limpo = unicodedata.normalize('NFKD', (texto or '').lower())
+    limpo = ''.join(c for c in limpo if not unicodedata.combining(c))
+    return ' '.join(limpo.replace('.', ' ').split()) == 'uso continuo'
 
 
 def texto_da_prescricao(itens):
@@ -518,6 +540,9 @@ def preparar(campos, patient, confirmada=False):
     if len(itens) > LIMITE_MEDICAMENTOS:
         raise ReceitaInvalida(f'No máximo {LIMITE_MEDICAMENTOS} medicamentos por receita.')
     for item in itens:
+        if item['quantidade'] == MARCA_USO_CONTINUO:
+            # Só "uso contínuo", sem número (I27): não há extenso a pôr.
+            continue
         item['quantidade'] = quantidade_com_extenso(item['quantidade'])
         if item.get('uso_continuo') and MARCA_USO_CONTINUO not in item['quantidade'].lower():
             item['quantidade'] = f'{item["quantidade"]} — {MARCA_USO_CONTINUO}'
