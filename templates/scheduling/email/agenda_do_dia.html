@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+<body style="margin:0;padding:24px;background:#f5f6fa;font-family:Arial,Helvetica,sans-serif;color:#283c50;">
+<div style="max-width:640px;margin:0 auto;background:#ffffff;border-radius:8px;padding:24px;">
+  <p style="margin:0 0 4px;font-size:13px;color:#64748b;">{{ clinica }}</p>
+  <h1 style="margin:0 0 4px;font-size:20px;">Sua agenda de {{ dia|date:"l, d/m/Y" }}</h1>
+  <p style="margin:0 0 16px;font-size:14px;">Olá, {{ medico }}. {{ total }} horário{{ total|pluralize }}, {{ confirmados }} confirmado{{ confirmados|pluralize }}.</p>
+  <table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="text-align:left;border-bottom:2px solid #e5e7eb;">
+        <th style="padding:8px 6px;">Horário</th>
+        <th style="padding:8px 6px;">Paciente</th>
+        <th style="padding:8px 6px;">Tipo</th>
+        <th style="padding:8px 6px;">Confirmação</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for l in linhas %}
+      <tr style="border-bottom:1px solid #eef0f4;">
+        <td style="padding:8px 6px;white-space:nowrap;">{{ l.inicio|time:"H:i" }}–{{ l.fim|time:"H:i" }}</td>
+        <td style="padding:8px 6px;">{{ l.paciente }}{% if l.encaixe %} <span style="font-size:12px;color:#64748b;">(encaixe)</span>{% endif %}</td>
+        <td style="padding:8px 6px;">{{ l.tipo }}</td>
+        <td style="padding:8px 6px;white-space:nowrap;font-weight:bold;color:{% if l.confirmado %}#17a34a{% else %}#b45309{% endif %};">{{ l.situacao }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <p style="margin:16px 0 8px;font-size:13px;color:#64748b;">Lista tirada em {{ tirada_em|date:"d/m/Y" }} às {{ tirada_em|time:"H:i" }}. O que for marcado, remarcado ou cancelado depois disso aparece só na agenda.</p>
+  <p style="margin:0 0 16px;"><a href="{{ url_agenda }}" style="display:inline-block;background:#3454d1;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;font-size:14px;">Abrir a agenda do dia</a></p>
+  <p style="margin:0;font-size:12px;color:#94a3b8;">Para não receber mais este e-mail desta clínica, <a href="{{ url_desligar }}" style="color:#64748b;">desligue aqui</a>.</p>
+</div>
+</body>
+</html>

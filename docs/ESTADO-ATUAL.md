@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.35 "a degustação" (2026-11-04) · **Produção:**
+**Versão:** 1.36 "a agenda por e-mail" (2026-11-05) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,23 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Agenda do dia seguinte por e-mail** (1.36, 2026-11-05): todo dia às 19h,
+cada médico com horário amanhã recebe no e-mail da conta a lista do dia —
+horário, paciente, tipo e confirmação —, um e-mail por clínica, pelo
+servidor de e-mail da clínica ou do NeuroDoc. Ligada por padrão, desligada
+pelo próprio médico pelo link do e-mail. Ver
+`docs/homologation/agenda-por-email.md`.
+
+**Consentimento dos pacientes migrados do iClin** (2026-11-05, decisão do
+responsável, só na clínica-sede): o e-mail do dia a dia foi ligado em todos
+os contatos migrados com e-mail, e o consentimento de comunicação em massa
+registrado com a evidência "consentimento registrado no sistema anterior
+(iClin)", exceto os contatos da lista de descadastro do iClin, que ficaram
+com o descadastro e a data de cada um. A autorização de documentos não foi
+mexida. Um evento na trilha (`patients.consentimento_migrado_ajustado`) e o
+estado anterior de cada contato guardado na VPS, fora do repositório, para
+desfazer.
 
 **Degustação de sete dias do Completo** (1.35, 2026-11-04): qualquer
 pessoa abre, pelo cartão do Completo na página de vendas, uma clínica no

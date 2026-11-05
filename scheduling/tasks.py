@@ -45,3 +45,19 @@ def avisar_retornos_task():
         registro.save(update_fields=['notified_at'])
         avisados += 1
     return {'avisados': avisados, 'sem_contato': sem_contato, 'falhas': falhas}
+
+
+@shared_task(name='scheduling.tasks.enviar_agenda_de_amanha')
+def enviar_agenda_de_amanha_task():
+    """A agenda de amanhã, por e-mail, a cada médico (`agenda_por_email.py`).
+
+    Um médico que falha não derruba os outros: a exceção é contida por
+    vínculo e contada, pela mesma razão do aviso de retorno acima.
+    """
+    import logging
+
+    from .agenda_por_email import rodada
+
+    resultado = rodada()
+    logging.getLogger(__name__).info('agenda por e-mail: %s', resultado)
+    return resultado

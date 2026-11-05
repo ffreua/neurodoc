@@ -8,6 +8,8 @@ urlpatterns = [
     # A semana é a tela principal: é nela que se vê o que está livre.
     path('', views.AgendaWeekView.as_view(), name='week'),
     path('dia/', views.AgendaDayView.as_view(), name='day'),
+    # A agenda de amanhã por e-mail (1.36): o vínculo na rota, ver a view.
+    path('agenda-por-email/<uuid:membership_id>/', views.AgendaPorEmailView.as_view(), name='agenda-por-email'),
     path('mes/', views.AgendaMonthView.as_view(), name='month'),
     path('balcao/', views.SecretaryDeskView.as_view(), name='desk'),
     # A fila de retornos fica ao lado do balcão, e não dentro do prontuário:

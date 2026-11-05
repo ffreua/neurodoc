@@ -591,3 +591,28 @@ class PacienteEmEspera(TenantModel):
 
     def __str__(self):
         return f'espera de {self.patient_id} ({self.status})'
+
+
+class AgendaPorEmailEnvio(TenantModel):
+    """A agenda do dia seguinte que já foi mandada a um médico (1.36).
+
+    Uma linha por médico, clínica e dia, com `UNIQUE`: é o que impede o
+    segundo e-mail quando a tarefa roda duas vezes (publicação no meio da
+    rodada, beat reiniciado) — a linha é gravada **antes** do envio, e quem
+    perde a corrida pela linha não envia. Ver `scheduling/agenda_por_email.py`.
+
+    Guarda quantos horários foram listados, e não quais: o e-mail é o
+    registro do que foi enviado, e uma cópia dos nomes aqui seria um segundo
+    lugar com dado de paciente para apagar.
+    """
+
+    membership = models.ForeignKey('tenancy.Membership', on_delete=models.CASCADE, related_name='+')
+    dia = models.DateField()
+    horarios = models.PositiveIntegerField(default=0)
+    enviado_em = models.DateTimeField(null=True, blank=True)
+    erro = models.CharField(max_length=255, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['membership', 'dia'], name='scheduling_agenda_email_unica'),
+        ]

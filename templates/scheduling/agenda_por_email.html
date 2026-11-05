@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Agenda por e-mail — NeuroDoc{% endblock %}
+{% block page_title %}Agenda por e-mail{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'scheduling:week' %}">Agenda</a></li>
+<li class="breadcrumb-item">Agenda por e-mail</li>
+{% endblock %}
+{% block content %}
+{% comment %}Ligar e desligar a agenda de amanhã por e-mail (1.36,
+`scheduling/agenda_por_email.py`). É a página do link que sai no rodapé do
+próprio e-mail, e vale para a clínica do vínculo na rota.{% endcomment %}
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-body p-4">
+                <h2 class="fs-16 fw-bold text-dark mb-2">{{ clinica }}</h2>
+                <p class="fs-13 text-muted mb-3">
+                    Todo dia às {{ hora }}h, quem tem horário marcado para o dia seguinte nesta clínica
+                    recebe a lista no e-mail da própria conta ({{ request.user.email }}): horário,
+                    paciente, tipo de consulta e se o paciente já confirmou. Dia sem horário não gera
+                    e-mail. Sai pelo servidor de e-mail da clínica, se ela tiver um cadastrado, ou pelo
+                    do NeuroDoc.
+                </p>
+                <p class="fs-14 mb-3">
+                    {% if vinculo.agenda_por_email %}
+                    <span class="badge bg-soft-success text-success">Ligado</span> Você recebe a agenda desta clínica.
+                    {% else %}
+                    <span class="badge bg-gray-200 text-dark">Desligado</span> Você não recebe a agenda desta clínica.
+                    {% endif %}
+                </p>
+                <form method="post">
+                    {% csrf_token %}
+                    {% if vinculo.agenda_por_email %}
+                    <input type="hidden" name="ligar" value="0">
+                    <button type="submit" class="btn btn-light">Não quero mais receber</button>
+                    {% else %}
+                    <input type="hidden" name="ligar" value="1">
+                    <button type="submit" class="btn btn-primary">Voltar a receber</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

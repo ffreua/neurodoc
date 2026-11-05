@@ -1048,6 +1048,14 @@ ARTICLES = [
 #: este responde a quem já está usando.
 FAQ_USO = [
     {
+        'pergunta': 'Como recebo a minha agenda do dia seguinte por e-mail?',
+        'resposta': 'Ela chega sozinha: todo dia às 19h, quem tem perfil médico e horário '
+                    'marcado para o dia seguinte recebe no e-mail da própria conta a lista '
+                    'com horário, paciente, tipo de consulta e se o paciente já confirmou — '
+                    'um e-mail por clínica. Dia sem horário não gera e-mail. Para parar de '
+                    'receber, use o link no rodapé do próprio e-mail; o mesmo link religa.',
+    },
+    {
         'pergunta': 'Estou na degustação do Completo. O que acontece quando ela acaba?',
         'resposta': 'No dia seguinte ao último dia (a faixa no alto da tela diz qual é), a '
                     'clínica volta ao plano Gratuito, que é o contrato aceito no cadastro. '

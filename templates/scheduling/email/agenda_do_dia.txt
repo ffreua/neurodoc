@@ -1,0 +1,15 @@
+{% autoescape off %}Olá, {{ medico }}.
+
+Sua agenda de {{ dia|date:"l, d/m/Y" }} na {{ clinica }}: {{ total }} horário{{ total|pluralize }}, {{ confirmados }} confirmado{{ confirmados|pluralize }}.
+
+{% for l in linhas %}{{ l.inicio|time:"H:i" }}–{{ l.fim|time:"H:i" }}  {{ l.paciente }}
+             {{ l.tipo }} · {{ l.situacao }}{% if l.encaixe %} · encaixe{% endif %}
+
+{% endfor %}Lista tirada em {{ tirada_em|date:"d/m/Y" }} às {{ tirada_em|time:"H:i" }}. O que for marcado, remarcado ou cancelado depois disso aparece só na agenda:
+{{ url_agenda }}
+
+Para não receber mais este e-mail desta clínica:
+{{ url_desligar }}
+
+Equipe NeuroDoc
+{% endautoescape %}

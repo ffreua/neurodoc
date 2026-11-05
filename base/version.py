@@ -244,12 +244,15 @@ carimbá-la na publicação.
 #: pessoa pela página de vendas -- contrato do Gratuito, tetos de IA e SMS,
 #: e no oitavo dia a volta ao Gratuito com um médico só. Migração só de
 #: expansão (`tenancy.0022`).
-VERSION = '1.35'
+#: A **1.36**: a agenda do dia seguinte por e-mail a cada médico, às 19h,
+#: pelo servidor de e-mail da clínica ou da instalação. Migrações só de
+#: expansão (`tenancy.0023`, `scheduling.0010`).
+VERSION = '1.36'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'a degustação'
+CODENAME = 'a agenda por e-mail'
 
 
 def version_display():

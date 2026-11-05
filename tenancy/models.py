@@ -294,6 +294,12 @@ class Membership(TenantModel):
     #: mudanca valer para quem nao se manifestou.
     patient_portal_requires_recent_visit = models.BooleanField(null=True, blank=True)
 
+    #: A agenda do dia seguinte por e-mail (1.36, `scheduling/agenda_por_email.py`).
+    #: Ligada por padrão; o próprio médico desliga pelo link do e-mail. No
+    #: vínculo, e não na conta, porque é por clínica: quem atende em duas
+    #: pode querer a de uma só.
+    agenda_por_email = models.BooleanField(default=True, db_default=True)
+
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
             models.UniqueConstraint(fields=['tenant', 'user'], name='tenancy_membership_tenant_user_uniq'),

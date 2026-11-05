@@ -108,11 +108,14 @@ print('=' * 66)
 
 # Tabela larga sem `.table-responsive` empurra a pagina inteira para o lado.
 # As excecoes sao as folhas para impressao e a pagina publica de verificacao,
-# que nao tem o tema e cujas tabelas sao de duas colunas curtas.
+# que nao tem o tema e cujas tabelas sao de duas colunas curtas. E o
+# e-mail da agenda do dia (1.36): o cliente de e-mail nao carrega o CSS do
+# produto, e a tabela dele ja ocupa 100% da largura com estilo inline.
 ISENTAS = {
     os.path.join('clinical', 'summary.html'),
     os.path.join('documents', 'request_detail.html'),
     os.path.join('documents', 'verify.html'),
+    os.path.join('scheduling', 'email', 'agenda_do_dia.html'),
 }
 soltas = []
 total = 0

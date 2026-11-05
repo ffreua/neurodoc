@@ -176,6 +176,11 @@ CELERY_TASK_ROUTES = {
     'reporting.tasks.*': {'queue': 'documents'},
     'tiss.tasks.*': {'queue': 'documents'},
 }
+#: Hora (Brasília) em que sai a agenda de amanhã por e-mail (1.36). Aqui, e
+#: lida por `scheduling/agenda_por_email.py`, para o agendamento e o texto do
+#: e-mail ("lista tirada às...") terem uma fonte só.
+AGENDA_POR_EMAIL_HORA = 19
+
 CELERY_BEAT_SCHEDULE = {
     # SNCR: pedido de numeração parado em "enviando" (o app caiu no meio
     # da chamada) vira incerto. Não fala com a Anvisa; só banco.
@@ -277,6 +282,12 @@ CELERY_BEAT_SCHEDULE = {
     # Diaria e nao semanal porque o corte e por data: um retorno vence num
     # dia especifico, e uma rodada semanal avisaria alguns com vinte dias e
     # outros com quatorze, sem que ninguem soubesse por que.
+    # A agenda de amanhã por e-mail a cada médico (1.36,
+    # `scheduling/agenda_por_email.py`).
+    'scheduling-enviar-agenda-de-amanha': {
+        'task': 'scheduling.tasks.enviar_agenda_de_amanha',
+        'schedule': crontab(hour=AGENDA_POR_EMAIL_HORA, minute=0),
+    },
     'scheduling-avisar-retornos': {
         'task': 'scheduling.tasks.avisar_retornos',
         'schedule': crontab(hour=6, minute=0),

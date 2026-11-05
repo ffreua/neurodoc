@@ -1955,3 +1955,55 @@ class EsperaOpcoesView(TenantScopedView):
 DayView = AgendaDayView
 WeekView = AgendaWeekView
 MonthView = AgendaMonthView
+
+
+class AgendaPorEmailView(TenantScopedView):
+    """Ligar ou desligar a agenda de amanhã por e-mail (1.36).
+
+    O vínculo vem na rota, e não da sessão: o link sai no e-mail de uma
+    clínica, e quem atende em duas pode estar com a outra aberta. Só o
+    **próprio** médico mexe na própria opção — o vínculo de outra pessoa é
+    404, como o de um id que não existe, sem dizer qual dos dois foi.
+    Desligar e religar são um clique cada: é preferência de quem recebe, e
+    não há nada do outro lado que se perca.
+    """
+
+    def _vinculo(self, request, membership_id):
+        from tenancy.models import Membership, MembershipStatus, Role
+
+        vinculo = Membership.objects.filter(
+            id=membership_id, user=request.user, status=MembershipStatus.ACTIVE,
+            roles__contains=[Role.DOCTOR],
+        ).select_related('tenant').first()
+        if vinculo is None:
+            raise Http404
+        return vinculo
+
+    def get(self, request, membership_id):
+        from django.conf import settings as dj_settings
+
+        vinculo = self._vinculo(request, membership_id)
+        return render(request, 'scheduling/agenda_por_email.html', {
+            'vinculo': vinculo,
+            'clinica': vinculo.tenant.trade_name or vinculo.tenant.legal_name,
+            'hora': dj_settings.AGENDA_POR_EMAIL_HORA,
+        })
+
+    def post(self, request, membership_id):
+        from audit.services import record_audit_event
+
+        vinculo = self._vinculo(request, membership_id)
+        ligar = request.POST.get('ligar') == '1'
+        if vinculo.agenda_por_email != ligar:
+            vinculo.agenda_por_email = ligar
+            vinculo.save(update_fields=['agenda_por_email', 'updated_at'])
+            record_audit_event(
+                request.user, vinculo.tenant, 'scheduling.agenda_por_email_' + ('ligada' if ligar else 'desligada'),
+                object_type='membership', object_id=vinculo.id, outcome='success',
+            )
+        messages.success(
+            request,
+            'Pronto: a agenda do dia seguinte volta a chegar por e-mail.' if ligar
+            else 'Pronto: a agenda do dia seguinte não será mais enviada por e-mail.',
+        )
+        return redirect('scheduling:agenda-por-email', membership_id=vinculo.id)
