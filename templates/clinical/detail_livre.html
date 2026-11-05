@@ -359,7 +359,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
 {% block modals %}
 {% include "clinical/_encounter_modals.html" %}
 {% include "clinical/_gaveta_anterior.html" %}
-{% include "clinical/_gaveta_ficha.html" %}
+{% include "clinical/_gaveta_ficha.html" with paciente=encounter.patient %}
 {% endblock %}
 
 {% block scripts %}

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load nd %}
+{% load nd static %}
 {% block title %}{{ patient.full_name }} — NeuroDoc{% endblock %}
 {% block page_title %}{{ patient.full_name }}{% endblock %}
 {% block breadcrumb %}
@@ -78,6 +78,14 @@ sem caçar em cartões laterais.{% endcomment %}
             endereço responde 404 e o `onerror` troca de volta, porque uma
             ficha com um ícone de imagem quebrada no lugar do rosto se lê
             como cadastro corrompido.{% endcomment %}
+            {% comment %}A foto (ou a inicial) abre os dados de cadastro numa
+            gaveta, só leitura — a mesma do atendimento. Botão de verdade, e
+            não `div` clicável: chega pelo teclado e o leitor de tela diz o
+            que ele faz.{% endcomment %}
+            <button type="button" class="btn p-0 border-0 rounded-circle flex-shrink-0 nd-avatar-gaveta"
+                    data-nd-gaveta-abrir="nd-gaveta-ficha" aria-controls="nd-gaveta-ficha"
+                    aria-haspopup="dialog" title="Ver os dados de cadastro"
+                    aria-label="Ver os dados de cadastro de {{ patient.full_name }}">
             {% if patient.has_photo %}
             {% comment %}`avatar-xl` dá o tamanho; `avatar-text` fica de fora
             de propósito, porque ela força `width:auto!important` e a foto
@@ -97,6 +105,7 @@ sem caçar em cartões laterais.{% endcomment %}
                 {{ patient.full_name|slice:":1"|upper }}
             </span>
             {% endif %}
+            </button>
             <div class="flex-grow-1">
                 <div class="d-flex flex-wrap align-items-center gap-2 mb-1">
                     <h4 class="fw-bold text-dark mb-0">{{ patient.full_name }}</h4>
@@ -537,6 +546,8 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
 {% endblock %}
 
 {% block modals %}
+<div class="nd-gaveta-fundo" id="nd-gaveta-fundo" hidden></div>
+{% include "clinical/_gaveta_ficha.html" with paciente=patient na_ficha=True %}
 {% if patient.status == 'active' %}
 <div class="modal fade" id="archive-modal" tabindex="-1" aria-hidden="true" aria-labelledby="archive-modal-title">
     <div class="modal-dialog modal-dialog-centered">
@@ -569,4 +580,9 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
     </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'patients/gaveta_ficha.js' %}" defer></script>
 {% endblock %}

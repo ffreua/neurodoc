@@ -546,7 +546,12 @@ def run_job(job_id):
         result=artifact_data, supersedes=_previous_artifact(job),
     )
     job.status = AIJobStatus.SUCCEEDED
-    job.save(update_fields=['status'])
+    # A recusa de uma tentativa anterior do mesmo pedido sai junto: o pedido
+    # repetido que deu certo mostrava "Detalhe técnico da recusa" acima do
+    # rascunho bom (2026-11-05), e quem lê entende que algo deu errado.
+    job.status_detail = ''
+    job.failure_diagnostics = {}
+    job.save(update_fields=['status', 'status_detail', 'failure_diagnostics'])
     record_audit_event(
         job.user_id, job.tenant_id, 'ai.job_succeeded',
         object_type='ai_job', object_id=job.id, outcome='success',

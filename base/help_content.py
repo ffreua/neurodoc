@@ -204,6 +204,11 @@ ARTICLES = [
              'paciente ainda tem marcados, do mais próximo ao mais distante, com o tipo, '
              'o médico e se já confirmou. Clicar na data abre a agenda daquele dia.',
              '', ''),
+            ('Para **conferir o cadastro sem abrir a edição**, clique na foto do '
+             'paciente (ou na inicial do nome) no alto da ficha: abre ao lado a mesma '
+             'janela "Dados do paciente" do atendimento — identificação, endereço, '
+             'contatos, convênio e observações —, só para leitura. Esc fecha.',
+             '', ''),
             ('Paciente que não é mais acompanhado se **arquiva**, nunca se apaga: '
              'arquivar tira da carteira ativa e libera uma vaga no plano, e todo o '
              'histórico continua inteiro e legível.',

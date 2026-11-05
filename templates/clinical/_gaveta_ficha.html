@@ -16,8 +16,15 @@ Mesma mecânica da gaveta da consulta anterior (`_gaveta_anterior.html`):
 vem renderizada com a página e escondida por CSS, em vez de buscada por
 JavaScript ao abrir. São campos que já estão no banco e quem abre está no
 meio de uma frase — esperar uma requisição aqui é perder a frase.
+
+**Também na ficha do paciente** (2026-11-05): aberta pelo clique na foto
+ou na inicial, com `paciente` e `na_ficha` passados pelo include. Foi
+pedido para a secretária conferir o cadastro sem abrir "Editar cadastro"
+a cada dúvida — uma tela de edição aberta só para ler é onde o campo
+alterado sem querer acontece. Por isso aqui também nada é formulário.
 {% endcomment %}
 
+{% with p=paciente %}
 <aside class="nd-gaveta" id="nd-gaveta-ficha" aria-hidden="true"
        aria-labelledby="nd-gaveta-ficha-titulo" role="dialog">
     <div class="nd-gaveta-cabecalho">
@@ -26,7 +33,7 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
                 Dados do paciente
             </h2>
             <span class="fs-11 text-muted">
-                Prontuário {{ encounter.patient.record_number|default:"—" }}
+                Prontuário {{ p.record_number|default:"—" }}
                 · cadastro, não prontuário
             </span>
         </div>
@@ -35,7 +42,6 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
     </div>
 
     <div class="nd-gaveta-corpo">
-        {% with p=encounter.patient %}
         <h3 class="fs-12 fw-bold text-dark mb-2">Identificação</h3>
         {% comment %}`.table-responsive` não é decoração: a gaveta é estreita
         por natureza, e no celular ela ocupa a tela inteira. Sem a calha, um
@@ -47,6 +53,10 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
                 <tr>
                     <th class="fs-11 text-muted fw-normal" scope="row">Nome</th>
                     <td class="fs-12 text-wrap">{{ p.full_name }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Sexo</th>
+                    <td class="fs-12">{{ p.get_sex_at_registration_display|default:"não informado" }}</td>
                 </tr>
                 <tr>
                     <th class="fs-11 text-muted fw-normal" scope="row">Nascimento</th>
@@ -80,6 +90,14 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
                 <tr>
                     <th class="fs-11 text-muted fw-normal" scope="row">Ocupação</th>
                     <td class="fs-12 text-wrap">{{ p.occupation|default:"não informada" }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Estado civil</th>
+                    <td class="fs-12">{{ p.get_marital_status_display|default:"não informado" }}</td>
+                </tr>
+                <tr>
+                    <th class="fs-11 text-muted fw-normal" scope="row">Como chegou</th>
+                    <td class="fs-12 text-wrap">{{ p.get_referral_source_display|default:"não informado" }}{% if p.referral_details %} — {{ p.referral_details }}{% endif %}</td>
                 </tr>
             </tbody>
         </table>
@@ -123,6 +141,12 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
             {% endif %}
         </p>
 
+        {% if p.administrative_notes %}
+        <h3 class="fs-12 fw-bold text-dark mb-2">Observações administrativas</h3>
+        <p class="fs-12 text-wrap mb-4" style="white-space: pre-line;">{{ p.administrative_notes }}</p>
+        {% endif %}
+
+        {% if not na_ficha %}
         {% comment %}Janela própria, e não navegação: sair daqui com a
         evolução aberta é exatamente o que a gaveta existe para evitar.
         {% endcomment %}
@@ -130,6 +154,7 @@ meio de uma frase — esperar uma requisição aqui é perder a frase.
            href="{% url 'patients:detail' p.id %}" target="_blank" rel="noopener">
             Abrir a ficha completa em outra aba
         </a>
-        {% endwith %}
+        {% endif %}
     </div>
 </aside>
+{% endwith %}

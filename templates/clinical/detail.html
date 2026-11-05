@@ -590,7 +590,7 @@ digitado em outra.{% endcomment %}
 desfoca `.nxl-container` enquanto há sobreposição aberta, e ela sairia
 borrada junto com o fundo que deveria cobrir.{% endcomment %}
 {% include "clinical/_gaveta_anterior.html" %}
-{% include "clinical/_gaveta_ficha.html" %}
+{% include "clinical/_gaveta_ficha.html" with paciente=encounter.patient %}
 {% endblock %}
 
 {% block scripts %}

@@ -571,6 +571,41 @@ confere('gavetaAberta' in js, 'o JS controla qual gaveta esta aberta')
 confere("tecla === 'd'" in js, 'Alt+D abre a dos dados')
 confere("tecla === 'p'" in js, 'e Alt+P continua abrindo a da consulta anterior')
 
+print('=== 9. a mesma gaveta na ficha do paciente, pela foto ===')
+# Pedido de 2026-11-05: a secretaria abria "Editar cadastro" so para ler
+# o cadastro. A gaveta da ficha e a mesma do atendimento, aberta pela
+# foto (ou inicial), sem formulario e sem o link "abrir a ficha" (ja se
+# esta nela). Renderizada de verdade, como a secretaria a ve.
+from django.test import Client as _Client
+from patients.models import Patient as _Patient
+from patients.naming import normalizar_nome as _nn
+_sec = Membership.objects.filter(tenant=medico.tenant, roles__contains=['secretary'], status='active').first()
+_quem = _sec or medico
+_pac = _Patient.objects.filter(tenant=medico.tenant).exclude(cpf__isnull=True).exclude(cpf='').first()     or _Patient.objects.filter(tenant=medico.tenant).first()
+_cli = _Client()
+_cli.force_login(_quem.user)
+_s = _cli.session; _s['tenant_id'] = str(medico.tenant_id); _s.save()
+from django.urls import reverse as _reverse
+_r = _cli.get(_reverse('patients:detail', args=[_pac.id]))
+_html = _r.content.decode()
+confere(_r.status_code == 200, f'a ficha abre para {"a secretaria" if _sec else "o medico"}', _r.status_code)
+confere('data-nd-gaveta-abrir="nd-gaveta-ficha"' in _html and 'nd-avatar-gaveta' in _html,
+        'a foto/inicial e o botao que abre a gaveta')
+confere('id="nd-gaveta-ficha"' in _html and 'id="nd-gaveta-fundo"' in _html,
+        'a gaveta e o fundo estao na pagina')
+confere('patients/gaveta_ficha.js' in _html, 'o script proprio da gaveta e carregado')
+_ini = _html.index('id="nd-gaveta-ficha"'); _fim = _html.index('</aside>', _ini)
+_aside = _html[_ini:_fim]
+confere('<form' not in _aside and '<input' not in _aside, 'a gaveta na ficha nao tem formulario')
+confere('Abrir a ficha completa' not in _aside, 'e nao oferece abrir a ficha em que ja se esta')
+confere(_pac.full_name in _aside, 'mostra o nome do paciente da pagina')
+if _pac.cpf:
+    confere(_pac.cpf in _aside, 'mostra o CPF')
+for _campo in ('Sexo', 'Estado civil', 'Como chegou', 'Endereço', 'Contatos', 'Pagamento'):
+    confere(_campo in _aside, f'mostra {_campo}')
+_js = Path(raiz, 'static', 'patients', 'gaveta_ficha.js').read_text(encoding='utf-8')
+confere("'Escape'" in _js and 'focoAntes' in _js, 'o Esc fecha e o foco volta a quem abriu')
+
 print()
 if failures:
     print(f'FALHAS ({len(failures)}):')

@@ -1485,3 +1485,9 @@ body.nd-no-shell .nxl-content {
     background-color: var(--bs-primary);
     box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), .25);
 }
+
+/* A foto/inicial da ficha que abre os dados de cadastro (2026-11-05): o
+ * botão some como botão e só a mão e o anel de foco dizem que é clicável. */
+.nd-avatar-gaveta { cursor: pointer; line-height: 0; }
+.nd-avatar-gaveta:hover { opacity: .85; }
+.nd-avatar-gaveta:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 3px; }

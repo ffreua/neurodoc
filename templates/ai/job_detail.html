@@ -18,7 +18,7 @@
 </div>
 {% endif %}
 
-{% if job.failure_diagnostics %}
+{% if job.failure_diagnostics and job.status != 'succeeded' %}
 {% comment %}O detalhe técnico da recusa, fechado por padrão.
 
 Pode aparecer na tela porque não carrega valor nenhum do laudo — só nome

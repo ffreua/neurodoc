@@ -284,6 +284,8 @@ try:
         print(f'  status={job.status}  chamadas ao principal={lento.chamadas}  reserva chamada={chamadas}')
         conferir(job.status == AIJobStatus.SUCCEEDED and lento.chamadas == 2 and chamadas == 0,
                  'a segunda chamada ao principal não resolveu sem a reserva')
+        conferir(job.failure_diagnostics == {} and job.status_detail == '',
+                 'o pedido que deu certo ainda carrega o diagnóstico da tentativa que esgotou')
         conferir(services.DEFAULT_LIMITS['timeout_seconds'] >= 60,
                  'o prazo do resumo voltou a ser curto demais para a cauda do roteador')
         conferir(services.REPORT_LIMITS['timeout_seconds'] > services._REPETIR_NO_PRAZO,
