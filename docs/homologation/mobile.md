@@ -187,3 +187,16 @@ procura nos templates todo `alert-soft-*` usado e exige a cor de cada um.
   empilhados. Virar cartão exige rótulo em cada célula, em 48 tabelas — é
   mexer em template, não em CSS. A sombra na borda resolve o pior (não
   saber que há mais coluna).
+
+
+## Abas em pílula no azul do tema (2026-11-05)
+
+A folha do Duralux define `.nav-pills` com o azul de fábrica do Bootstrap
+(`--bs-nav-pills-link-active-bg: #0d6efd`), e não com o primário do tema
+(`#3454d1`). Na tela de Modelos, a única do produto com abas em pílula além
+do console, a aba ativa saía num azul e o botão "Novo modelo", ao lado, em
+outro; as abas inativas herdavam a cor de link. O bloco no fim de
+`neurodoc.css` põe a ativa no primário, com sombra suave, as inativas no
+texto escuro do tema e o passar do mouse no fundo azul suave das abas do
+prontuário (`nav-tabs-custom-style`), com a mesma transição. Só CSS: vale
+para todo `nav-pills` do produto. `check_mobile` §9 cobra as três regras.

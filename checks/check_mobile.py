@@ -324,6 +324,22 @@ for folha in ('templates/clinical/summary.html', 'templates/scheduling/declaraca
         falhas.append(f'{folha}: a folha A4 voltou a ter 16-18mm de margem no celular')
 
 print()
+print('=' * 66)
+print('9. ABAS EM PILULA NO AZUL DO TEMA (2026-11-05)')
+print('=' * 66)
+# O tema pinta `.nav-pills` com o #0d6efd do Bootstrap, e nao com o
+# primario: a tela de Modelos tinha dois azuis lado a lado.
+pilula = re.search(r'\.nav-pills\s*\{[^}]*--bs-nav-pills-link-active-bg:\s*var\(--bs-primary\)', css)
+ativa = re.search(r'\.nav-pills \.nav-link\.active[^{]*\{[^}]*background-color:\s*var\(--bs-primary\)', css)
+inativa = re.search(r'\.nav-pills \.nav-link\s*\{[^}]*color:\s*var\(--bs-dark\)', css)
+print('  ativa no primario do tema    ', bool(pilula and ativa))
+print('  inativa no texto do tema     ', bool(inativa))
+if not (pilula and ativa):
+    falhas.append('a aba em pilula voltou ao azul do Bootstrap (#0d6efd) em vez do primario do tema')
+if not inativa:
+    falhas.append('a aba em pilula inativa voltou a cor de link padrao')
+
+print()
 if falhas:
     for linha in falhas:
         print('FALHA:', linha)

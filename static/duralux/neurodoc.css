@@ -1361,3 +1361,35 @@ body.nd-no-shell .nxl-content {
         max-width: 450px !important;
     }
 }
+
+/* ------------------------------------------------------------------ *
+ * Abas em pílula no design system (2026-11-05)
+ *
+ * A folha do tema define `.nav-pills` com o azul de fábrica do Bootstrap
+ * (`--bs-nav-pills-link-active-bg: #0d6efd`), e não com o primário do tema
+ * (`--bs-primary`, #3454d1) — que é o do botão ao lado. As abas inativas
+ * herdavam a cor de link padrão. O resultado era a tela de Modelos (e o
+ * console) com dois azuis lado a lado. Aqui as pílulas usam o primário,
+ * o texto escuro e o fundo suave das abas do prontuário
+ * (`nav-tabs-custom-style`), com a mesma transição.
+ * ------------------------------------------------------------------ */
+.nav-pills {
+    --bs-nav-pills-link-active-bg: var(--bs-primary);
+    --bs-nav-pills-link-active-color: #fff;
+}
+.nav-pills .nav-link {
+    color: var(--bs-dark);
+    font-weight: 600;
+    transition: color .3s ease, background-color .3s ease, box-shadow .3s ease;
+}
+.nav-pills .nav-link:hover,
+.nav-pills .nav-link:focus-visible {
+    color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), .08);
+}
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+    color: #fff;
+    background-color: var(--bs-primary);
+    box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), .25);
+}
