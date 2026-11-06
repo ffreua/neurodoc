@@ -28,6 +28,7 @@
                         <thead class="bg-gray-100">
                             <tr class="border-b">
                                 <th class="ps-4" scope="col">Tipo</th>
+                                <th scope="col">Atendimento</th>
                                 <th scope="col">Número</th>
                                 <th scope="col">Versão</th>
                                 <th scope="col">Status</th>
@@ -37,7 +38,19 @@
                         <tbody>
                             {% for doc in documents %}
                             <tr>
-                                <td class="ps-4 fw-semibold text-dark">{{ doc.get_kind_display }}</td>
+                                <td class="ps-4">
+                                    <span class="fw-semibold text-dark">{{ doc.get_kind_display }}</span>
+                                    <span class="d-block fs-12 text-muted">{{ doc.created_at|date:"d/m/Y H:i" }}</span>
+                                </td>
+                                <td>
+                                    {% if doc.encounter_id == encounter.id %}
+                                    <span class="badge bg-soft-primary text-primary">Este atendimento</span>
+                                    {% elif doc.encounter_id %}
+                                    <a class="fs-12" href="{% url 'clinical:detail' doc.encounter_id %}">{{ doc.encounter.occurred_at|date:"d/m/Y" }}</a>
+                                    {% else %}
+                                    <span class="fs-12 text-muted">Sem atendimento</span>
+                                    {% endif %}
+                                </td>
                                 <td><span class="fs-12 text-muted">{{ doc.document_number|default:"rascunho" }}</span></td>
                                 <td><span class="badge bg-gray-200 text-dark">v{{ doc.version }}</span></td>
                                 <td>
@@ -48,7 +61,7 @@
                                 </td>
                             </tr>
                             {% empty %}
-                            <tr><td colspan="5" class="text-center text-muted py-5">Nenhum documento.</td></tr>
+                            <tr><td colspan="6" class="text-center text-muted py-5">Nenhum documento.</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>

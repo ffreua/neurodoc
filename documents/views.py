@@ -297,8 +297,20 @@ def _own_doctor_membership_or_403(request):
 
 class MedicalDocumentListView(ClinicalDocumentView):
     def get(self, request, encounter_id):
+        """Os documentos do paciente, com os deste atendimento marcados.
+
+        Listava só os vinculados a este atendimento, e a receita emitida pela
+        ficha (sem atendimento) ou noutra consulta não aparecia — o médico abria
+        "Documentos" de dentro do prontuário e concluía que ela não existia. O
+        botão está no atendimento, mas quem o aperta procura o papel do paciente.
+        """
         encounter = _encounter_or_404(request, encounter_id)
-        documents = encounter.medical_documents.order_by('-created_at')
+        documents = (
+            MedicalDocument.objects
+            .filter(tenant_id=request.access_context.tenant_id, patient_id=encounter.patient_id)
+            .select_related('encounter')
+            .order_by('-created_at')
+        )
         return render(request, 'documents/medical_list.html', {'encounter': encounter, 'documents': documents})
 
 
@@ -636,6 +648,11 @@ class MedicalDocumentDiscardView(ClinicalDocumentView):
             issuance.discard_document(document, request.user.id)
         except issuance.NotReadyToSign as exc:
             return HttpResponseForbidden(str(exc))
+        # O documento emitido pela ficha não tem atendimento, e voltar à lista
+        # do atendimento com `encounter_id=None` dava erro 500 — **depois** de
+        # descartar, então a tela dizia que falhou e o documento já tinha saído.
+        if encounter_id is None:
+            return redirect('documents:patient-documents', patient_id=document.patient_id)
         return redirect('documents:medical-list', encounter_id=encounter_id)
 
 
