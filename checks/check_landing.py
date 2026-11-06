@@ -82,6 +82,25 @@ if not codigo_aberto:
     falhas.append('a landing nao aponta o repositorio publico, a estrela e o PIX')
 if 'solicitar acesso' in corpo:
     falhas.append('a landing ainda manda pedir acesso a um repositorio que e publico')
+# O Instagram (2026-11-06): a faixa com o convite, o link no rodape e o
+# `sameAs` do JSON-LD -- os tres de `base.content.INSTAGRAM`. O rodape e o
+# de toda pagina publica, entao confere tambem no manual.
+from base.content import INSTAGRAM
+_href_insta = f'href="{INSTAGRAM["url"]}"'
+_insta = {
+    'faixa com o convite': 'Siga o NeuroDoc no Instagram' in corpo and 'id="instagram"' in corpo,
+    'link na faixa e no rodape': corpo.count(_href_insta) >= 2,
+    'o perfil no JSON-LD': f'"sameAs":["{INSTAGRAM["url"]}"]' in corpo,
+    'o rodape do manual': _href_insta in Client().get('/ajuda/').content.decode(),
+}
+print(f'  Instagram: {_insta}')
+for _oquee, _ok in _insta.items():
+    if not _ok:
+        falhas.append(f'Instagram: faltou {_oquee}')
+# O botao do site do autor nao pode virar barra: o Duralux poe
+# `.btn{display:flex}`, e sem `d-inline-flex` ele ocupava a coluna inteira.
+if 'btn-outline-secondary btn-sm d-inline-flex' not in corpo:
+    falhas.append('o botao do site do autor voltou a ocupar a largura inteira')
 for code in PUBLIC_ORDER:
     cfg = PLANS[code]
     if cfg['max_patients'] is None:

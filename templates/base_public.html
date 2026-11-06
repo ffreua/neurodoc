@@ -86,6 +86,7 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
                 <h6 class="fs-12 fw-bold text-dark text-uppercase">Contato</h6>
                 <ul class="list-unstyled fs-12 mb-0">
                     <li><a href="mailto:{{ leads_email }}">{{ leads_email }}</a></li>
+                    <li><a href="{{ nd_instagram.url }}" target="_blank" rel="noopener noreferrer">Instagram {{ nd_instagram.usuario }}</a></li>
                     <li><a href="{% url 'accounts:login' %}">Entrar na minha clínica</a></li>
                 </ul>
             </div>

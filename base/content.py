@@ -89,6 +89,15 @@ CODIGO_ABERTO = {
     'pix': 'fernando.freua@gmail.com',
 }
 
+#: Onde o NeuroDoc fala fora do produto (2026-11-06). Um endereço só, lido
+#: pela faixa da página de vendas, pelo rodapé de toda página pública e pelo
+#: `sameAs` do JSON-LD — escrito à mão em três lugares, o primeiro perfil
+#: renomeado deixaria dois links quebrados e o Google apontando para o velho.
+INSTAGRAM = {
+    'usuario': '@neurodoc_prontuario',
+    'url': 'https://www.instagram.com/neurodoc_prontuario/',
+}
+
 #: O aviso que a página mostra uma vez a cada visitante (fechado, não volta:
 #: `static/onboarding/landing.js` guarda a `chave` no navegador). Uma novidade
 #: de cada vez, e só o que **já funciona** em produção — a regra do topo deste

@@ -10,6 +10,8 @@ from django.db.models import F
 from django.urls import Resolver404, resolve
 
 from tenancy.contract import CONTRATADO
+
+from .content import INSTAGRAM
 from tenancy.permissions import Capability
 
 from .version import VERSION
@@ -92,6 +94,7 @@ def shell(request):
         # lidos do contrato de adesão, que é onde a empresa é qualificada —
         # um segundo texto escrito à mão divergiria dele no primeiro ajuste.
         'nd_mantenedora': CONTRATADO,
+        'nd_instagram': INSTAGRAM,
         'nd_section': _section(request),
         'nd_view': _view_name(request),
         'nd_portal_requests': 0,

@@ -200,7 +200,7 @@ def _absolutos(texto):
 
 
 def _texto_para_modelo(completo):
-    from base.content import FAQ, RECURSOS
+    from base.content import FAQ, INSTAGRAM, RECURSOS
     from base.help_content import ARTICLES, FAQ_USO
     from tenancy.plans import PUBLIC_ORDER, PLANS, pricing
 
@@ -256,6 +256,7 @@ def _texto_para_modelo(completo):
         f'- [Perguntas de uso]({base}/ajuda/perguntas/): as dúvidas de quem usa o sistema',
         f'- [Contrato de adesão]({base}/contrato/): o texto em vigor',
         f'- [Verificar documento]({base}/verificar/): conferir receita ou laudo assinado pelo QR',
+        f"- [Instagram {INSTAGRAM['usuario']}]({INSTAGRAM['url']}): novidades de cada versão e dicas de uso",
         '',
     ]
     if not completo:

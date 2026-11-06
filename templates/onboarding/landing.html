@@ -673,14 +673,17 @@ escreve e ninguém verifica.{% endcomment %}
                         Contribuição de qualquer valor ajuda a manter o
                         desenvolvimento. PIX:
                         <strong id="nd-pix">{{ codigo_aberto.pix }}</strong>
-                        <button type="button" class="btn btn-sm btn-light ms-1 py-0"
+                        <button type="button" class="btn btn-sm btn-light d-inline-flex align-middle ms-1 py-0"
                                 data-nd-copy="nd-pix">Copiar</button>
                     </div>
                 </div>
                 <ul class="nd-tick list-unstyled fs-12 text-muted mb-4">
                     {% for credencial in autor.credenciais %}<li>{{ credencial }}</li>{% endfor %}
                 </ul>
-                <a class="btn btn-outline-secondary btn-sm" href="{{ autor.site.url }}"
+                {% comment %}`d-inline-flex`: o Duralux põe `.btn{display:flex}`, e
+                o botão virava uma barra da largura da coluna no computador (no
+                celular a coluna é estreita e ninguém notava).{% endcomment %}
+                <a class="btn btn-outline-secondary btn-sm d-inline-flex" href="{{ autor.site.url }}"
                    target="_blank" rel="noopener noreferrer">
                     {{ autor.site.rotulo }}
                 </a>
@@ -712,6 +715,39 @@ escreve e ninguém verifica.{% endcomment %}
                         </div>
                     </div>
                     {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- --------------------------------------------------------- instagram -->
+{% comment %}Entre as perguntas e o formulário: quem leu até aqui e ainda não
+decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
+`base.content.INSTAGRAM`, o mesmo do rodapé e do JSON-LD.{% endcomment %}
+<section class="nd-section pt-0" id="instagram">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+                             class="text-primary flex-shrink-0" aria-hidden="true">
+                            <rect x="2" y="2" width="20" height="20" rx="5"></rect>
+                            <circle cx="12" cy="12" r="4"></circle>
+                            <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"></circle>
+                        </svg>
+                        <div class="flex-grow-1">
+                            <h3 class="fs-16 fw-bold text-dark mb-1">Siga o NeuroDoc no Instagram</h3>
+                            <p class="fs-13 text-muted mb-0">
+                                Novidades de cada versão, dicas de uso no consultório e os
+                                bastidores de um prontuário feito por neurologista.
+                            </p>
+                        </div>
+                        <a class="btn btn-primary d-inline-flex flex-shrink-0" href="{{ instagram.url }}"
+                           target="_blank" rel="noopener noreferrer">Seguir {{ instagram.usuario }}</a>
+                    </div>
                 </div>
             </div>
         </div>

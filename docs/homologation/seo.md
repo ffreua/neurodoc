@@ -97,7 +97,10 @@ Nada ali é escrito à mão:
   que a página mostra;
 - `featureList` são os títulos de `RECURSOS`;
 - o `Person` é o autor de `AUTOR` — formação e área, que é o sinal de
-  origem que o Google pesa em assunto de saúde.
+  origem que o Google pesa em assunto de saúde;
+- o `sameAs` da `Organization` é o perfil do Instagram
+  (`base/content.py::INSTAGRAM`, 2026-11-06), o mesmo endereço da faixa
+  da página de vendas, do rodapé público e do `llms.txt`.
 
 **Não há `aggregateRating`.** Nota inventada é a infração que o Google
 pune com remoção do resultado rico, e aqui seria também falso

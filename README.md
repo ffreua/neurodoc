@@ -8,7 +8,8 @@
 
 **[neurodoc.app.br](https://neurodoc.app.br)** · [Manual de uso](https://neurodoc.app.br/ajuda/) ·
 [Perguntas frequentes](https://neurodoc.app.br/ajuda/perguntas/) ·
-[Contrato](https://neurodoc.app.br/contrato/)
+[Contrato](https://neurodoc.app.br/contrato/) ·
+[Instagram @neurodoc_prontuario](https://www.instagram.com/neurodoc_prontuario/)
 
 Prontuário eletrônico e gestão para consultório médico, com o exame
 neurológico estruturado que a neurologia e a neurocirurgia exigem — e com
@@ -37,6 +38,8 @@ atendimento e outro. Se ele for útil para você:
 - ⭐ **deixe uma estrela** neste repositório — é o que mostra a outros
   médicos que o projeto existe e é usado;
 - 💚 **contribua com qualquer valor pelo PIX:** `fernando.freua@gmail.com`;
+- 📷 **siga o NeuroDoc no Instagram:** [@neurodoc_prontuario](https://www.instagram.com/neurodoc_prontuario/)
+  — novidades de cada versão e dicas de uso;
 - 🐛 **abra uma issue** com o defeito que encontrou ou com o que falta para
   a sua especialidade.
 

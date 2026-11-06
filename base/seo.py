@@ -102,6 +102,8 @@ def _id(fragmento):
 
 
 def organizacao():
+    from .content import INSTAGRAM
+
     return {
         '@type': 'Organization',
         '@id': _id('organizacao'),
@@ -116,6 +118,9 @@ def organizacao():
         'legalName': CONTRATADO['nome'],
         'taxID': CONTRATADO['cnpj'],
         'areaServed': {'@type': 'Country', 'name': 'Brasil'},
+        # O perfil oficial: `sameAs` diz ao buscador que a conta e o site
+        # são a mesma organização.
+        'sameAs': [INSTAGRAM['url']],
     }
 
 
