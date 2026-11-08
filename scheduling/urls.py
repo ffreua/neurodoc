@@ -118,5 +118,10 @@ urlpatterns = [
         '<uuid:appointment_id>/confirmar-por/<str:channel>/',
         views.SendConfirmationView.as_view(), name='send-confirmation',
     ),
+    # O WhatsApp da recepção (1.39), antes da rota genérica pelo mesmo motivo.
+    path(
+        '<uuid:appointment_id>/whatsapp/',
+        views.WhatsAppReminderView.as_view(), name='whatsapp',
+    ),
     path('<uuid:appointment_id>/<str:action>/', views.AppointmentActionView.as_view(), name='action'),
 ]

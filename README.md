@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologia (e qualquer especialidade)
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.38-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.39-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -26,10 +26,10 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.38 "agendamentos na ficha" (`base/version.py`) |
+| **Versão** | 1.39 "WhatsApp da recepção" (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
-| **Verificação** | 161 roteiros em `checks/`, nenhuma falha |
+| **Verificação** | 162 roteiros em `checks/`, nenhuma falha |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm · Cloudflare |
 
 ## Apoie o projeto
@@ -196,7 +196,7 @@ por seção e sai com código 1 listando as falhas. Com a demonstração
 semeada e os três catálogos acima importados:
 
 ```bash
-docker compose exec app python manage.py rodar_roteiros            # todos os 161
+docker compose exec app python manage.py rodar_roteiros            # todos os 162
 docker compose exec app python manage.py rodar_roteiros planos landing
 docker compose exec app python manage.py rodar_roteiros --listar
 ```
@@ -299,6 +299,7 @@ registro em [`docs/releases/`](docs/releases/).
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.39** | 2026-11-08 | WhatsApp da recepção | **Lembrete pelo WhatsApp da clínica**: o botão **WhatsApp** no modal do horário e no balcão abre a conversa com o paciente no WhatsApp Web ou no aplicativo da clínica, com o lembrete escrito no texto que ela definiu em **Integrações → SMS, e-mail e WhatsApp** (campos como `{primeiro_nome}`, `{data}`, `{hora}`, `{medico}`, prévia e texto padrão). A secretária confere e envia: o sistema não envia nada, não há custo nem cadastro na Meta, e vale em todos os planos. E-mail e SMS sem mudança. Migração só de expansão (`communications.0011`). |
 | **1.38** | 2026-11-05 | agendamentos na ficha | **Agendamentos futuros na ficha do paciente**: os horários que ainda vão acontecer, do mais próximo ao mais distante, com dia, hora, tipo, médico e situação, e a data abrindo a agenda daquele dia. Sem migração. |
 | **1.37** | 2026-11-05 | ajustes do uso real | **Agenda:** imprimir o balcão do dia; desfazer a confirmação dada por engano (no crachá do balcão e no modal); o mês só com o mês, com `dd/mm`; quem fez check-in em azul, o confirmado com ✓ e a falta riscada. **Financeiro:** apagar o pagamento digitado errado; várias formas no mesmo registro; a forma numa lista (crédito à vista ou parcelado, débito, PIX, dinheiro, outro). **Receita do SNCR:** o nome comercial escolhido na busca fica na linha, e "uso contínuo" pode ir sem número. Sem migração. |
 | **1.36** | 2026-11-05 | a agenda por e-mail | **A agenda do dia seguinte por e-mail** a cada médico, todo dia às 19h: horário, paciente, tipo de consulta e se o paciente confirmou, um e-mail por clínica, pelo servidor de e-mail da clínica ou do NeuroDoc. Dia sem horário não gera e-mail; cancelado e falta ficam de fora; uma vez por dia mesmo com a tarefa rodando duas. Ligada por padrão, e o próprio médico desliga pelo link do e-mail. Migrações só de expansão (`tenancy/0023`, `scheduling/0010`). |

@@ -18,6 +18,7 @@ urlpatterns = [
     path('mensageria/', admin_views.MessagingSettingsView.as_view(), name='settings'),
     path('mensageria/sms/', admin_views.SmsSettingsSaveView.as_view(), name='save-sms'),
     path('mensageria/sms/testar/', admin_views.SmsTestView.as_view(), name='test-sms'),
+    path('mensageria/whatsapp/', admin_views.WhatsAppTextSaveView.as_view(), name='save-whatsapp'),
     path(
         'mensageria/email/<uuid:membership_id>/',
         admin_views.DoctorEmailSettingsSaveView.as_view(), name='save-doctor-email',

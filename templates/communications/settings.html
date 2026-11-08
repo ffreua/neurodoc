@@ -114,6 +114,63 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
                 {% endif %}{# fecha sms_contratado #}
             </div>
         </div>
+
+        {% comment %}-------------------------------------------- WhatsApp (1.39)
+
+        Não é canal de envio: o botão "WhatsApp" da agenda abre a conversa com
+        o paciente, no WhatsApp da clínica, com este texto já escrito — e quem
+        aperta enviar é a recepção. Por isso não há chave, plano nem teste
+        aqui, e o cartão aparece em todos os planos. Ver
+        `communications/whatsapp.py`.{% endcomment %}
+        <div class="card mt-4" id="whatsapp">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">WhatsApp da recepção</h5>
+                {% if whatsapp_padrao %}
+                <span class="badge bg-gray-200 text-dark">Texto padrão</span>
+                {% else %}
+                <span class="badge bg-soft-success text-success">Texto da clínica</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    Na agenda e no balcão, o botão <strong>WhatsApp</strong> abre a conversa
+                    com o paciente no WhatsApp da clínica (Web ou aplicativo), com esta
+                    mensagem já preenchida com os dados do horário. A secretária confere e
+                    envia. Nada sai sozinho, não há custo e o número da clínica não fica
+                    conectado ao sistema.
+                </p>
+                <form method="post" action="{% url 'messaging:save-whatsapp' %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=whatsapp_form %}
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=whatsapp_form.whatsapp_texto col="col-12" %}
+                    </div>
+                    <div class="fs-11 text-muted mt-2">
+                        <span class="fw-semibold">Campos que o sistema preenche</span> — escreva
+                        entre chaves, exatamente assim:
+                        <ul class="list-unstyled mb-0 mt-1">
+                            {% for nome, descricao in whatsapp_campos.items %}
+                            <li><code>{% templatetag openbrace %}{{ nome }}{% templatetag closebrace %}</code> — {{ descricao }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Salvar texto</button>
+                        {% if not whatsapp_padrao %}
+                        <button type="submit" class="btn btn-light" name="padrao" value="1" data-nd-busy>
+                            Voltar ao texto padrão
+                        </button>
+                        {% endif %}
+                    </div>
+                </form>
+                <div class="border rounded-3 p-3 bg-gray-100 mt-3">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                        Prévia{% if whatsapp_padrao %} do texto padrão{% endif %}, com um paciente de exemplo
+                    </span>
+                    <div class="fs-13 text-dark" style="white-space: pre-wrap;">{{ whatsapp_exemplo }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="col-xxl-7 col-xl-6">

@@ -53,7 +53,7 @@ quem muda a tela vê o texto no mesmo diff.
 | 16 | Financeiro: recebíveis, pagamentos e ajustes | Dono, gestor, secretaria, médico |
 | 17 | A grade de horários do médico | Médico, dono, gestor |
 | 18 | Identidade da clínica e o encarregado de dados | Dono |
-| 19 | E-mail e SMS da clínica | Dono, gestor |
+| 19 | E-mail, SMS e WhatsApp da clínica | Dono, gestor |
 | 20 | Comunicação em massa | Dono, gestor |
 | 21 | Notificações | Todos |
 | 22 | Mensagens internas da equipe | Todos |

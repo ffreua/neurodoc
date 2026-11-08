@@ -231,3 +231,56 @@ class MarketingCampaignForm(forms.ModelForm):
                 'não é preciso escrevê-lo. Confira se o texto não vai duplicá-lo.',
             ))
         return texto
+
+
+class WhatsAppTextForm(forms.ModelForm):
+    """O texto do lembrete pelo WhatsApp da recepção (1.39).
+
+    Em branco é o texto padrão do sistema, e não "sem mensagem": a clínica
+    que nunca abriu esta tela já tem o botão funcionando na agenda.
+    """
+
+    class Meta:
+        model = MessagingSettings
+        fields = ['whatsapp_texto']
+        labels = {'whatsapp_texto': 'Texto da mensagem'}
+        widgets = {
+            'whatsapp_texto': forms.Textarea(attrs={'rows': 8}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        from .whatsapp import MAX_CARACTERES
+
+        super().__init__(*args, **kwargs)
+        campo = self.fields['whatsapp_texto']
+        campo.max_length = MAX_CARACTERES
+        campo.widget.attrs['maxlength'] = str(MAX_CARACTERES)
+        campo.help_text = (
+            f'Até {MAX_CARACTERES} caracteres. Deixe em branco para usar o texto padrão do sistema.'
+        )
+        # A caixa nasce com o texto padrão, para a clínica editar em vez de
+        # escrever do zero. Salvo sem mudança, continua sendo "o padrão"
+        # (ver `clean_whatsapp_texto`), e não vira uma cópia que deixaria de
+        # acompanhar uma melhoria futura do texto do sistema.
+        if not self.is_bound and self.instance.pk and not (self.instance.whatsapp_texto or '').strip():
+            from .whatsapp import padrao_da_clinica
+
+            self.initial['whatsapp_texto'] = padrao_da_clinica(self.instance.tenant)
+
+    def clean_whatsapp_texto(self):
+        from .whatsapp import MAX_CARACTERES, TEXTO_PADRAO, TEXTO_PADRAO_SEM_ENDERECO, campos_desconhecidos
+
+        # O navegador manda a quebra de linha da caixa como CR+LF.
+        texto = (self.cleaned_data.get('whatsapp_texto') or '').replace('\r\n', '\n').strip()
+        if texto in (TEXTO_PADRAO, TEXTO_PADRAO_SEM_ENDERECO):
+            return ''
+        if len(texto) > MAX_CARACTERES:
+            raise forms.ValidationError(f'O texto passa de {MAX_CARACTERES} caracteres.')
+        desconhecidos = campos_desconhecidos(texto)
+        if desconhecidos:
+            lista = ', '.join('{' + nome + '}' for nome in desconhecidos)
+            raise forms.ValidationError(
+                f'Campo que o sistema não conhece: {lista}. Use só os campos da lista ao lado, '
+                'escritos exatamente como aparecem.'
+            )
+        return texto

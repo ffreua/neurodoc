@@ -125,14 +125,14 @@ ARTICLES = [
             ('**SMS nativo.** O SMS de confirmação e de lembrete de consulta faz '
              'parte dos planos ' + _planos_com(has_sms) + ' e também **funciona sem '
              'configurar nada**, pelo envio do NeuroDoc. Se quiser usar a sua '
-             'própria conta de SMS, cadastre a chave em **Integrações → SMS e '
-             'e-mail**. No plano sem SMS, nem a chave própria o libera.',
+             'própria conta de SMS, cadastre a chave em **Integrações → SMS, '
+             'e-mail e WhatsApp**. No plano sem SMS, nem a chave própria o libera.',
              '', ''),
             ('**E-mail.** Confirmação de horário, entrega de documento e '
              'recuperação de senha saem pelo e-mail do NeuroDoc em todos os planos. '
              'Para que saiam com o remetente da clínica, cadastre o servidor de '
-             'e-mail (SMTP) dela em **Integrações → SMS e e-mail**. Ver [E-mail e SMS '
-             'da clínica](/ajuda/mensageria/).',
+             'e-mail (SMTP) dela em **Integrações → SMS, e-mail e WhatsApp**. Ver '
+             '[E-mail, SMS e WhatsApp da clínica](/ajuda/mensageria/).',
              '', ''),
             ('**E-mail marketing só com SMTP próprio.** A **Comunicação em massa** '
              'está em todos os planos, mas sai **apenas** pelo servidor de e-mail da '
@@ -235,10 +235,21 @@ ARTICLES = [
              'consegue, e a segunda recebe um aviso — nunca as duas.',
              '', ''),
             ('Na linha do horário marcado há os botões de **confirmar por e-mail ou '
-             'SMS**. A mensagem vai para os contatos do paciente que têm aquele '
-             'canal cadastrado. Confirmou por engano? **Desfaça a confirmação**: no '
+             'SMS**, e o botão **WhatsApp**. A mensagem vai para os contatos do paciente '
+             'que têm aquele canal cadastrado. Confirmou por engano? **Desfaça a confirmação**: no '
              'balcão do dia, clique no crachá **Confirmado**; na agenda, abra o horário '
              'e use **Desfazer a confirmação**. O horário volta a "Agendado".',
+             '', ''),
+            ('**Lembrar pelo WhatsApp.** Abra o horário na agenda (ou use o botão na '
+             'linha do **balcão do dia**) e clique em **WhatsApp**: abre uma aba com a '
+             'conversa do paciente no WhatsApp da clínica, já com o lembrete escrito — '
+             'nome, data, dia da semana, hora, médico e endereço, no texto que a clínica '
+             'definiu em **Integrações → SMS, e-mail e WhatsApp**. Confira e aperte '
+             'enviar. Quem envia é você, do número da clínica; o sistema não manda nada '
+             'sozinho. O botão só aparece com telefone cadastrado, e o número usado é o '
+             'do próprio paciente primeiro. Sem DDD, o sistema avisa para corrigir a '
+             'ficha. No computador, deixe o **WhatsApp Web** ou o aplicativo da clínica '
+             'aberto e conectado.',
              '', ''),
             ('O **balcão do dia** tem o botão **Imprimir**: sai a lista do dia, com a '
              'clínica e a data no alto, sem os botões. Na **visão de mês** aparecem só '
@@ -893,8 +904,9 @@ ARTICLES = [
     },
     {
         'slug': 'mensageria',
-        'title': 'E-mail e SMS da clínica',
-        'summary': 'Configurar o remetente da clínica e acompanhar o que foi entregue.',
+        'title': 'E-mail, SMS e WhatsApp da clínica',
+        'summary': 'Configurar o remetente da clínica, o texto do WhatsApp da recepção e '
+                   'acompanhar o que foi entregue.',
         'audience': 'Dono, gestor',
         'steps': [
             ('**Mensagens → Configuração** guarda as credenciais de SMTP da clínica. '
@@ -913,6 +925,22 @@ ARTICLES = [
              'permite o sistema responder na hora e tentar de novo quando o servidor do '
              'outro lado está fora.',
              '', ''),
+            ('**WhatsApp da recepção.** No cartão **WhatsApp da recepção**, em '
+             '**Integrações → SMS, e-mail e WhatsApp**, a clínica escreve o texto do '
+             'lembrete de consulta. Os dados do horário entram por campos entre chaves: '
+             '`{primeiro_nome}`, `{paciente}`, `{data}`, `{dia_semana}`, `{hora}`, '
+             '`{medico}`, `{tipo}`, `{clinica}`, `{endereco}` e `{telefone_clinica}`. A '
+             'tela mostra uma **prévia** com um paciente de exemplo, recusa campo que o '
+             'sistema não conhece e aceita até 1.000 caracteres, com acento. Deixando em '
+             'branco (ou em **Voltar ao texto padrão**), vale o texto do sistema.',
+             '', ''),
+            ('O WhatsApp **não é enviado pelo NeuroDoc**: na agenda, o botão **WhatsApp** '
+             'abre a conversa com o paciente no WhatsApp da própria clínica — Web ou '
+             'aplicativo — com a mensagem já escrita, e a secretária confere e envia. Por '
+             'isso está em **todos os planos**, não tem custo, não precisa de chave nem '
+             'de aprovação, e o número da clínica não fica conectado ao sistema. O que '
+             'é automático continua sendo e-mail e SMS.',
+             '', ''),
         ],
     },
     {
@@ -926,7 +954,7 @@ ARTICLES = [
              'autorizou não entra, e não há como incluí-lo.',
              'campanhas-nova.png', 'Nova campanha'),
             ('Está em **todos os planos**, e exige o **servidor de e-mail da própria '
-             'clínica** (SMTP), cadastrado em **Integrações → SMS e e-mail**. Sem ele, a '
+             'clínica** (SMTP), cadastrado em **Integrações → SMS, e-mail e WhatsApp**. Sem ele, a '
              'tela abre e explica o que falta, mas não cria, não testa e não dispara: '
              'envio em massa não sai pelo e-mail do NeuroDoc, para a reputação do '
              'remetente ser a da clínica que escreve. O e-mail do dia a dia — horário, '

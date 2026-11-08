@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.38 "agendamentos na ficha" (2026-11-05) · **Produção:**
+**Versão:** 1.39 "WhatsApp da recepção" (2026-11-08) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,13 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**WhatsApp da recepção** (1.39, 2026-11-08): o botão **WhatsApp** na agenda
+e no balcão abre a conversa com o paciente no WhatsApp da própria clínica, com
+o lembrete no texto que ela escreveu em Integrações. O sistema não envia: a
+API da Meta (custo por mensagem, modelo aprovado, credenciamento) e a conexão
+por QR Code (risco ao número) foram estudadas e recusadas — ver
+`docs/homologation/whatsapp-da-recepcao.md`.
 
 **Agendamentos futuros na ficha** (1.38, 2026-11-05): o cartão no alto da
 coluna da direita da ficha do paciente lista os horários que ainda vão

@@ -315,6 +315,7 @@
         var changeSearch = document.getElementById('change-search');
         var smsForm = document.getElementById('slot-sms-form');
         var emailForm = document.getElementById('slot-email-form');
+        var whatsappLink = document.getElementById('slot-whatsapp');
         var contactHint = document.getElementById('slot-contact-hint');
         var typePanel = document.getElementById('slot-type-panel');
         var typeForm = document.getElementById('slot-type-form');
@@ -366,6 +367,7 @@
             }
             if (smsForm) smsForm.action = '/app/scheduling/' + id + '/confirmar-por/sms/';
             if (emailForm) emailForm.action = '/app/scheduling/' + id + '/confirmar-por/email/';
+            if (whatsappLink) whatsappLink.href = '/app/scheduling/' + id + '/whatsapp/';
             if (contactHint) {
                 /* Diz para onde a mensagem vai antes de clicar: mandar
                  * confirmação para o telefone errado é o tipo de erro que
@@ -373,7 +375,7 @@
                 var phone = cell.getAttribute('data-nd-phone') || '';
                 var mail = cell.getAttribute('data-nd-email') || '';
                 var parts = [];
-                if (phone) parts.push('SMS para ' + phone);
+                if (phone) parts.push('SMS e WhatsApp para ' + phone);
                 if (mail) parts.push('e-mail para ' + mail);
                 contactHint.textContent = parts.length
                     ? parts.join(' · ')
@@ -389,6 +391,9 @@
              * erro é pior que a ausência dele. */
             if (smsForm) smsForm.hidden = !cell.getAttribute('data-nd-phone');
             if (emailForm) emailForm.hidden = !cell.getAttribute('data-nd-email');
+            /* O WhatsApp segue o telefone, como o SMS: sem ele, o servidor só
+             * teria uma recusa para mostrar. */
+            if (whatsappLink) whatsappLink.hidden = !cell.getAttribute('data-nd-phone');
 
             /* Trocar o tipo só antes da chegada: no check-in o tipo define
              * o preço da cobrança, e o servidor recusa depois disso. */

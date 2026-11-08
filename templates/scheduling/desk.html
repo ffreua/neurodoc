@@ -149,6 +149,18 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                                 <a class="btn btn-sm btn-light-primary"
                                    href="{% url 'clinical:timeline' appointment.patient_id %}">Atender</a>
                                 {% endif %}
+                                {% comment %}O WhatsApp da recepção (1.39): só antes da
+                                chegada, que é quando um lembrete serve, e só com
+                                telefone. Abre o WhatsApp da clínica em aba própria.{% endcomment %}
+                                {% if appointment.status == 'scheduled' or appointment.status == 'confirmed' %}
+                                {% with contato=appointment.patient|nd_confirmation_contacts %}
+                                {% if contato.phone %}
+                                <a class="btn btn-sm btn-light-success" target="_blank" rel="noopener"
+                                   href="{% url 'scheduling:whatsapp' appointment.id %}"
+                                   title="Abre o WhatsApp da clínica com o lembrete pronto para enviar a {{ contato.phone }}">WhatsApp</a>
+                                {% endif %}
+                                {% endwith %}
+                                {% endif %}
                                 <a class="btn btn-sm btn-light" href="{% url 'scheduling:reschedule' appointment.id %}">
                                     Remarcar
                                 </a>

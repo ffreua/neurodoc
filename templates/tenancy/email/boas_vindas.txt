@@ -27,9 +27,9 @@ Em resumo:
 IA, SMS E E-MAIL
 {% if tem_ia %}- IA nativa: o apoio clínico por inteligência artificial já está incluído no seu plano, com o provedor do NeuroDoc. Se preferir a sua própria conta de IA, cadastre-a em Integrações → Inteligência artificial.
 {% else %}- IA: o apoio clínico por inteligência artificial não faz parte do plano {{ plano }}.
-{% endif %}{% if tem_sms %}- SMS nativo: confirmações e lembretes de consulta saem pelo envio do NeuroDoc. Se quiser usar a sua própria conta de SMS, cadastre a chave em Integrações → SMS e e-mail.
+{% endif %}{% if tem_sms %}- SMS nativo: confirmações e lembretes de consulta saem pelo envio do NeuroDoc. Se quiser usar a sua própria conta de SMS, cadastre a chave em Integrações → SMS, e-mail e WhatsApp.
 {% else %}- SMS: o envio de SMS não faz parte do plano {{ plano }}.
-{% endif %}- E-mail: confirmações, documentos e recuperação de senha saem pelo e-mail do NeuroDoc. Para sair com o remetente da clínica, cadastre o servidor de e-mail (SMTP) dela em Integrações → SMS e e-mail.
+{% endif %}- E-mail: confirmações, documentos e recuperação de senha saem pelo e-mail do NeuroDoc. Para sair com o remetente da clínica, cadastre o servidor de e-mail (SMTP) dela em Integrações → SMS, e-mail e WhatsApp.
 - E-mail marketing (Comunicação em massa): sai apenas pelo servidor de e-mail (SMTP) próprio da clínica, e só para os pacientes que autorizaram.
 
 Manual completo: {{ url_manual }}

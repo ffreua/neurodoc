@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 
 from django.contrib import messages
 from django.db import IntegrityError
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -1039,6 +1039,56 @@ class SendConfirmationView(TenantScopedView):
         return _agenda_redirect(request, doctor, day)
 
 
+class WhatsAppReminderView(TenantScopedView):
+    """Abre a conversa com o paciente no WhatsApp da clínica (1.39).
+
+    Monta o texto da clínica com os dados do horário **na hora do clique** e
+    redireciona para o `wa.me`; quem envia é a recepção, do número da clínica
+    (ver `communications/whatsapp.py`). Abre em aba própria, e a agenda fica
+    onde estava.
+
+    `GET`, e não `POST`, por necessidade: a CSP tem `form-action 'self'`, e o
+    navegador recusa o salto para outro domínio no fim de um envio de
+    formulário (a mesma razão de o SNCR abrir o Gov.br por uma página). O
+    `GET` não muda nada no horário — só registra na trilha que a conversa foi
+    **aberta**, sem telefone nem texto. Se foi enviada, só o WhatsApp sabe.
+
+    A rota existe, em vez de o link ir pronto na grade, para a semana não
+    montar uma mensagem por horário a cada abertura da agenda.
+    """
+
+    def get(self, request, appointment_id):
+        from audit.services import record_audit_event
+        from communications import whatsapp
+
+        from .models import Appointment, AppointmentStatus
+
+        appointment = get_object_or_404(
+            scope_to_tenant(Appointment.objects.all(), request.access_context)
+            .select_related('patient', 'tenant', 'physician_membership__user'),
+            id=appointment_id,
+        )
+        day = timezone.localtime(appointment.starts_at).date()
+        doctor = appointment.physician_membership
+        if appointment.status == AppointmentStatus.CANCELLED:
+            messages.error(request, 'Este horário foi cancelado: não há consulta para lembrar.')
+            return _agenda_redirect(request, doctor, day)
+        try:
+            endereco = whatsapp.link(appointment)
+        except whatsapp.SemTelefone:
+            messages.error(
+                request,
+                'Nenhum contato deste paciente tem um celular que sirva para o WhatsApp '
+                '(com DDD). Corrija o telefone na ficha do paciente.',
+            )
+            return _agenda_redirect(request, doctor, day)
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'scheduling.whatsapp_aberto',
+            object_type='appointment', object_id=appointment.id, outcome='success',
+        )
+        return HttpResponseRedirect(endereco)
+
+
 class ChangePatientView(TenantScopedView):
     def post(self, request, appointment_id):
         from .models import Appointment
@@ -1451,6 +1501,9 @@ class SecretaryDeskView(TenantScopedView):
                 # grade do dia faria uma consulta por agendamento.
                 'physician_membership__user__physician_profile',
             )
+            # O telefone ao lado do nome e o botão do WhatsApp leem os
+            # contatos de cada paciente; sem isto, uma consulta por linha.
+            .prefetch_related('patient__contacts')
             .order_by('starts_at')
         )
         pending = [

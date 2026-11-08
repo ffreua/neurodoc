@@ -103,4 +103,4 @@ reconstruída).
 
 Uma clínica que tenha campanha em rascunho e remetente sem servidor vê o
 aviso no lugar do botão de disparar. Nada é apagado. Basta cadastrar o
-servidor em **Integrações → SMS e e-mail**.
+servidor em **Integrações → SMS, e-mail e WhatsApp**.

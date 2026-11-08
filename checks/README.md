@@ -215,6 +215,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_texto_livre` | Atendimento em texto livre ao lado do estruturado, e o adendo depois de fechado |
 | `check_tipo_de_consulta` | Trocar o tipo de um horário marcado só antes da chegada, com a duração acompanhando |
 | `check_um_envio_por_endereco` | Um envio por endereço, e não por contato |
+| `check_whatsapp_recepcao` | O botão WhatsApp da recepção: telefone no formato do `wa.me`, campos numa lista fechada, o texto da clínica com a data de Brasília, a rota que redireciona com trilha sem dado pessoal, o cartão em todos os planos, e o balcão sem consulta por linha |
 | `check_chat_stream_ui.cjs` | Evento terminal encerra a geração na tela do chat. **É Node**: o `rodar_roteiros` não o vê; rode com `node checks/check_chat_stream_ui.cjs` |
 
 ## Cuidados

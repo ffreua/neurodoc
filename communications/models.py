@@ -196,6 +196,15 @@ class MessagingSettings(TenantModel):
     smtp_use_tls = models.BooleanField(default=True)
     smtp_use_ssl = models.BooleanField(default=False)
 
+    # ------------------------------------------------------------ WhatsApp
+    #
+    # O texto que a recepção manda pelo WhatsApp da própria clínica (1.39,
+    # `communications/whatsapp.py`). Não é canal de entrega: o NeuroDoc não
+    # envia nada, só abre a conversa com a mensagem escrita, e quem aperta
+    # "enviar" é a pessoa. Por isso não há chave, plano nem fila aqui.
+    # Vazio é o texto padrão do sistema, e não "sem mensagem".
+    whatsapp_texto = models.TextField(blank=True, default='')
+
     updated_by = models.ForeignKey(
         'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

@@ -111,9 +111,19 @@ class MessagingSettingsView(ManagerRequiredView):
         from .forms import ClinicEmailSettingsForm, EmailTestForm
         from tenancy.plans import has_sms, plan_label
 
+        from . import whatsapp
+        from .forms import WhatsAppTextForm
+
+        whatsapp_form = overrides.pop('whatsapp_form', None) or WhatsAppTextForm(instance=sms)
         context = {
             'email_form_membership': failed,
             'sms': sms,
+            # O WhatsApp da recepção (1.39): o texto, os campos que ele aceita
+            # e a prévia com dados de exemplo. Em todos os planos.
+            'whatsapp_form': whatsapp_form,
+            'whatsapp_campos': whatsapp.CAMPOS,
+            'whatsapp_exemplo': whatsapp.exemplo(manager_membership.tenant),
+            'whatsapp_padrao': not (sms.whatsapp_texto or '').strip(),
             'sms_form': SmsSettingsForm(instance=sms),
             'clinic_email_form': ClinicEmailSettingsForm(instance=sms),
             'email_test_form': EmailTestForm(),
@@ -189,6 +199,44 @@ class SmsSettingsSaveView(ManagerRequiredView):
         )
         messages.success(request, 'Configuração de SMS salva.')
         return redirect('messaging:settings')
+
+
+class WhatsAppTextSaveView(ManagerRequiredView):
+    """Grava o texto do lembrete pelo WhatsApp (1.39).
+
+    Sem conferência de plano, de propósito: o envio é da própria clínica,
+    pelo WhatsApp dela, e não custa nada a ninguém. "Voltar ao texto padrão"
+    é o mesmo POST com o campo vazio.
+    """
+
+    def post(self, request):
+        from .forms import WhatsAppTextForm
+
+        tenant_id = request.access_context.tenant_id
+        row = _sms_settings(tenant_id)
+        dados = request.POST.copy()
+        if dados.get('padrao'):
+            dados['whatsapp_texto'] = ''
+        form = WhatsAppTextForm(dados, instance=row)
+        if not form.is_valid():
+            return render(
+                request, 'communications/settings.html',
+                MessagingSettingsView._context(request, self.membership, whatsapp_form=form),
+            )
+        row = form.save(commit=False)
+        row.updated_by = self.membership
+        row.save(update_fields=['whatsapp_texto', 'updated_by', 'updated_at'])
+        record_audit_event(
+            request.user, tenant_id, 'communications.whatsapp_text_updated',
+            object_type='tenant', object_id=tenant_id, outcome='success',
+            integrity_metadata={'padrao': not row.whatsapp_texto},
+        )
+        messages.success(
+            request,
+            'Texto do WhatsApp salvo.' if row.whatsapp_texto
+            else 'O WhatsApp volta a usar o texto padrão do sistema.',
+        )
+        return redirect(reverse('messaging:settings') + '#whatsapp')
 
 
 class SmsTestView(ManagerRequiredView):
