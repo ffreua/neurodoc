@@ -174,6 +174,14 @@ try:
         conferir('o cancelado nao aparece', texto.count(p3.full_name), 1)
         conferir('o HTML traz a tabela com os mesmos pacientes',
                  ('<table' in email['html'], all(p.full_name in email['html'] for p in (p1, p2, p3))), (True, True))
+        # 2026-11-08: com quatro colunas o Gmail do celular cortava a da
+        # confirmação. Duas colunas por linha, e a confirmação no HTML.
+        import re as _re
+        linha_html = _re.search(r'<tr[^>]*>(.*?)</tr>', email['html'], _re.S)
+        conferir('o HTML cabe no celular: duas colunas por linha, sem cabecalho de quatro',
+                 (linha_html.group(1).count('<td') if linha_html else 0, '<th' in email['html']), (2, False))
+        conferir('o HTML diz quem confirmou', ('Confirmado' in email['html'], 'A confirmar' in email['html']),
+                 (True, True))
         conferir('o envio fica registrado, com o numero de horarios e sem os nomes',
                  list(AgendaPorEmailEnvio.objects.filter(membership=ana, dia=amanha)
                       .values_list('horarios', flat=True)), [3])

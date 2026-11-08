@@ -11,6 +11,14 @@ paciente, tipo de consulta, "Confirmado" ou "A confirmar" e o encaixe
 marcado, com o total e quantos já confirmaram. Em texto e em HTML, com um
 botão que abre a agenda daquele dia.
 
+**O HTML tem duas colunas, e não quatro** (2026-11-08). O primeiro e-mail
+real saiu numa tabela Horário · Paciente · Tipo · Confirmação, e no Gmail do
+celular a última coluna — a que diz quem confirmou — ficou cortada. Agora
+cada linha é o horário (início em negrito, "até" o fim embaixo) e o paciente,
+com tipo e confirmação numa segunda linha sob o nome. Cabe em 360 px sem
+rolar para o lado, e sem `@media`: o aplicativo do Gmail ignora a folha de
+estilo em parte das contas, então o layout se segura só com estilo em linha.
+
 **É agenda, não prontuário:** o mesmo que a grade mostra à secretária (nome,
 horário, tipo). Nada clínico. E vai ao e-mail da conta do médico — o mesmo
 que recebe a recuperação de senha.

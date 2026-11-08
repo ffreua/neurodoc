@@ -23,7 +23,7 @@ from communications.models import Delivery, DeliveryAttempt, DeliveryChannel
 from communications.services import (
     confirmation_contacts, deliver_appointment_notice, deliver_appointment_reminder,
 )
-from events.models import OutboxEvent
+from events.models import OutboxEvent, ProcessedEvent
 from patients.contacts import SELF_RELATIONSHIP
 from patients.models import Patient, PatientContact, RegistrationStage
 from scheduling import services as agenda
@@ -116,6 +116,9 @@ try:
 finally:
     DeliveryAttempt.objects.filter(delivery__contact__patient=paciente).delete()
     Delivery.objects.filter(contact__patient=paciente).delete()
+    # O despachante da pilha (a cada 5 s) pode ter processado o evento do
+    # cancelamento durante o roteiro: o registro dele protege o evento.
+    ProcessedEvent.objects.filter(event__aggregate_id=consulta.id).delete()
     OutboxEvent.objects.filter(aggregate_id=consulta.id).delete()
     Appointment.objects.filter(patient=paciente).delete()
     PatientContact.objects.filter(patient=paciente).delete()
