@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="250" height="54" viewBox="0 0 250 54" role="img" aria-label="Lançado no Startups to Watch">
+  <title>Lançado no Startups to Watch</title>
+  <rect x="0.5" y="0.5" width="249" height="53" rx="10" fill="#ffffff" stroke="#e6e6e6"/>
+  <g transform="translate(11 11)">
+  <rect width="32" height="32" rx="8" fill="#f25914" stroke="none"/>
+  <circle cx="16" cy="16" r="10.5" fill="none" stroke="#ffffff" stroke-width="2.75"/>
+  <path d="M16 11 21 19.5H11Z" fill="#ffffff" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/>
+</g>
+  <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+    <text x="53" y="23" font-size="9.5" font-weight="600" letter-spacing="0.6" fill="#6c6c6c">LANÇADO NO</text>
+    <text x="53" y="40" font-size="16" font-weight="700" letter-spacing="-0.2" fill="#121212">Startups to Watch</text>
+  </g>
+  
+</svg>

@@ -97,6 +97,12 @@ print(f'  Instagram: {_insta}')
 for _oquee, _ok in _insta.items():
     if not _ok:
         falhas.append(f'Instagram: faltou {_oquee}')
+# O selo do Startups to Watch (2026-11-08): no rodape, com o link deles e a
+# imagem servida daqui -- a CSP (`img-src 'self'`) recusaria a externa.
+if 'href="https://startupstowatch.com.br/produto/neurodoc?ref=selo"' not in corpo:
+    falhas.append('o rodape perdeu o selo do Startups to Watch')
+if 'startupstowatch-selo.svg' not in corpo or 'src="https://startupstowatch.com.br' in corpo:
+    falhas.append('o selo do Startups to Watch nao e a copia local (a CSP bloquearia a externa)')
 # O botao do site do autor nao pode virar barra: o Duralux poe
 # `.btn{display:flex}`, e sem `d-inline-flex` ele ocupava a coluna inteira.
 if 'btn-outline-secondary btn-sm d-inline-flex' not in corpo:

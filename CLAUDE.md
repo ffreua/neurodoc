@@ -389,7 +389,7 @@ sai com código 1 listando as falhas. Os mais relevantes:
 
 | Roteiro | Cobre |
 | --- | --- |
-| `check_landing.py` | página de vendas: limites vêm do catálogo, preço fecha a conta **em cada forma de pagamento** (mensal, cada pagamento e total de 12 meses), os valores de 2026-10-30 cravados, lead não se perde com SMTP fora, campo-armadilha, relay aberto, limite por IP; e (2026-11-06) o **Instagram** na faixa, no rodapé (também do manual) e no `sameAs`, e o botão do site do autor sem virar barra (`.btn{display:flex}` do Duralux) |
+| `check_landing.py` | página de vendas: limites vêm do catálogo, preço fecha a conta **em cada forma de pagamento** (mensal, cada pagamento e total de 12 meses), os valores de 2026-10-30 cravados, lead não se perde com SMTP fora, campo-armadilha, relay aberto, limite por IP; e (2026-11-06) o **Instagram** na faixa, no rodapé (também do manual) e no `sameAs`, e o botão do site do autor sem virar barra (`.btn{display:flex}` do Duralux); e (2026-11-08) o **selo do Startups to Watch** no rodapé, com a imagem **copiada para `static/onboarding/`** porque a CSP só aceita imagem do próprio site |
 | `check_planos.py` | limites do plano nas seis portas, override, rebaixamento |
 | `check_isolation.py` | vazamento entre inquilinos |
 | `check_roles.py`, `check_matrix.py` | matriz de permissão |

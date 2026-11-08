@@ -6,6 +6,8 @@
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
 [![Django 6.1](https://img.shields.io/badge/django-6.1-0c4b33)](https://www.djangoproject.com/)
 
+[![NeuroDoc no Startups to Watch](https://startupstowatch.com.br/selo/neurodoc.svg)](https://startupstowatch.com.br/produto/neurodoc?ref=selo)
+
 **[neurodoc.app.br](https://neurodoc.app.br)** · [Manual de uso](https://neurodoc.app.br/ajuda/) ·
 [Perguntas frequentes](https://neurodoc.app.br/ajuda/perguntas/) ·
 [Contrato](https://neurodoc.app.br/contrato/) ·
