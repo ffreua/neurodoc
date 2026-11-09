@@ -170,7 +170,16 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
     </div>
     {% else %}
 
-    {% comment %}História{% endcomment %}
+    {% comment %}História — ou, no seguimento (1.41), Evolução: a queixa e a
+    história ficam na primeira consulta, e imprimir "Não registrada" embaixo
+    das duas em todo retorno diria que faltou algo que não faltou.{% endcomment %}
+    {% if encounter.eh_seguimento %}
+    <h2>Evolução</h2>
+    <div class="block">
+        {% if encounter.evolucao %}
+        <p class="prose">{{ encounter.evolucao }}</p>
+        {% else %}<p class="empty">Não registrada.</p>{% endif %}
+    {% else %}
     <h2>História</h2>
     <div class="block">
         <h3>Queixa principal</h3>
@@ -182,6 +191,7 @@ para que uma folha impressa não circule parecendo laudo.{% endcomment %}
         {% if encounter.hpi %}
         <p class="prose">{{ encounter.hpi }}</p>
         {% else %}<p class="empty">Não registrada.</p>{% endif %}
+    {% endif %}
 
         {% if encounter.personal_history %}
         <h3>Antecedentes pessoais</h3>

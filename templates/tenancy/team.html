@@ -281,11 +281,12 @@ seria mais código para o mesmo resultado.{% endcomment %}
                     </form>
                     {% if row.has_mfa and row.membership.id != request.access_context.membership_id %}
                     <form method="post" action="{% url 'tenancy:membership-mfa-reset' row.membership.id %}"
-                          class="d-flex gap-1">
+                          class="d-flex flex-wrap align-items-center gap-1">
                         {% csrf_token %}
                         <input type="text" name="code" class="form-control form-control-sm"
                                inputmode="numeric" autocomplete="one-time-code"
-                               placeholder="Seu código MFA" aria-label="Seu código MFA, para confirmar o reset" required style="max-width: 145px">
+                               placeholder="Seu código MFA" aria-label="Seu código MFA, para confirmar o reset" required style="max-width: 145px"
+                               data-nd-otp="6" data-nd-otp-compacto data-nd-otp-recuperacao>
                         <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>
                             Resetar MFA
                         </button>

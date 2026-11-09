@@ -21,6 +21,7 @@ urlpatterns = [
     path('<uuid:encounter_id>/', views.EncounterDetailView.as_view(), name='detail'),
     path('<uuid:encounter_id>/resumo/', views.EncounterSummaryView.as_view(), name='summary'),
     path('<uuid:encounter_id>/autosave/', views.EncounterAutosaveView.as_view(), name='autosave'),
+    path('<uuid:encounter_id>/estrutura/', views.EncounterStructureChangeView.as_view(), name='estrutura'),
     path('<uuid:encounter_id>/findings/', views.FindingUpsertView.as_view(), name='add-finding'),
     path(
         '<uuid:encounter_id>/exam/<slug:axis>/',

@@ -42,6 +42,9 @@ no header — the Duralux auth card layout instead.{% endcomment %}
 </div>
 
 <script src="{% static 'duralux/app.js' %}"></script>
+{% comment %}Entrar, configurar e reconfirmar o segundo fator são telas daqui: o
+código em casas (1.41) mora nelas mais do que em qualquer outra.{% endcomment %}
+<script src="{% static 'duralux/nd-otp.js' %}" defer></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

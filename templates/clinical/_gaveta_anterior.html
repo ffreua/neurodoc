@@ -50,6 +50,10 @@ aceitou o quê (`clinical/carry_forward.py`).{% endcomment %}
         <p class="fs-13 nd-prose">{{ consulta_anterior.impressions }}</p>
         {% endif %}
         {% else %}
+        {% if consulta_anterior.evolucao %}
+        <h3 class="fs-11 text-uppercase text-muted fw-semibold">Evolução</h3>
+        <p class="fs-13 nd-prose">{{ consulta_anterior.evolucao }}</p>
+        {% endif %}
         {% if consulta_anterior.chief_complaint %}
         <h3 class="fs-11 text-uppercase text-muted fw-semibold">Queixa principal</h3>
         <p class="fs-13 nd-prose">{{ consulta_anterior.chief_complaint }}</p>

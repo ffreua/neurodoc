@@ -154,12 +154,16 @@ def pacientes_markdown(rows, **_parametros):
 SECOES_CLINICAS = [
     ('chief_complaint', 'Queixa principal'),
     ('hpi', 'História da doença atual'),
+    # O campo do seguimento (1.41). "Evolução" era o rótulo do texto livre
+    # até aqui, que passou a se chamar pelo nome da tela que o escreve —
+    # duas seções com o mesmo título no Markdown seriam indistinguíveis.
+    ('evolucao', 'Evolução'),
     ('personal_history', 'Antecedentes pessoais'),
     ('family_history', 'Antecedentes familiares'),
     ('habits_history', 'Hábitos'),
     ('consanguinity_details', 'Consanguinidade'),
     ('neurological_exam_text', 'Exame neurológico em texto livre'),
-    ('free_text', 'Evolução'),
+    ('free_text', 'Texto livre'),
     ('impressions', 'Impressões'),
     ('plan_text', 'Conduta'),
 ]
@@ -189,7 +193,7 @@ def atendimentos_rows(tenant_id, **_parametros):
             'paciente_id': str(encontro.patient_id),
             'data': encontro.occurred_at,
             'medico': medico.get_full_name() or medico.email,
-            'tipo': encontro.get_kind_display(),
+            'tipo': encontro.rotulo_do_tipo,
             'situacao': encontro.get_status_display(),
             'finalizado_em': encontro.finalized_at,
             'id': str(encontro.id),

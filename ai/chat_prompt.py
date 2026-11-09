@@ -170,6 +170,7 @@ def build_patient_context(authorization):
             data = (e.get('occurred_at') or '')[:10]
             queixa = (e.get('chief_complaint') or '').strip()
             hpi = (e.get('hpi') or '').strip()
+            evolucao = (e.get('evolucao') or '').strip()
             exame_livre = (e.get('neurological_exam_text') or '').strip()
             plano = (e.get('plan_text') or '').strip()
             livre = (e.get('free_text') or '').strip()
@@ -177,6 +178,9 @@ def build_patient_context(authorization):
             texto = f'{data}: {queixa}' if queixa else data
             if hpi:
                 texto += f' | História: {hpi}'
+            # No seguimento (1.41) é a evolução que diz o que houve no dia.
+            if evolucao:
+                texto += f' | Evolução: {evolucao}'
             if exame_livre:
                 texto += f' | Exame neurológico: {exame_livre}'
             # No atendimento de texto livre este é o corpo da consulta, e os

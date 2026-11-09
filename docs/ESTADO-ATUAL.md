@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.40 "portal integrado" (2026-11-09) · **Produção:**
+**Versão:** 1.41 "primeira consulta e seguimento" (2026-11-09) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,16 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Primeira consulta e seguimento** (1.41, 2026-11-09): o atendimento
+estruturado tem dois tipos — a primeira consulta, com queixa e história, e o
+seguimento e retorno, com a **Evolução** no lugar das duas (e a queixa e a
+história da primeira consulta ao lado, para ler) —, os três tipos abrem por um
+botão só na ficha e no prontuário, com o tipo sugerido pela agenda ou pelo
+histórico, as **escalas** entraram no texto livre (na mesma série do gráfico
+de evolução) e o código do segundo fator é digitado em **casas**. O hash dos
+atendimentos já finalizados não muda. Ver
+`docs/homologation/primeira-consulta-e-seguimento.md`.
 
 **Portal integrado** (1.40, 2026-11-09): o pedido do portal entra pelos
 caminhos do resto do sistema — a receita pelos mesmos campos da tela de

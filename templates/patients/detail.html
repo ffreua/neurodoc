@@ -44,25 +44,9 @@ renova por telefone, o pedido de exame que ficou faltando. Exige
 </a>
 {% endif %}
 {% if nd_can.write_clinical %}
-{% comment %}Dois botões, e não um seletor: a escolha entre prontuário
-estruturado e texto livre é feita antes de escrever, e um passo a mais para
-descobri-la anularia o motivo de o texto livre existir — que é ter pressa.
-
-Ambos abrem um atendimento de verdade, e o que muda é a tela. Estruturado
-primeiro, e como botão primário: é o prontuário completo, e o padrão tem de
-ser o que registra mais.{% endcomment %}
-<form method="post" action="{% url 'clinical:new' patient.id %}" class="d-flex gap-2">
-    {% csrf_token %}
-    <button type="submit" name="kind" value="structured" class="btn btn-primary" data-nd-busy>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>Novo atendimento</span>
-    </button>
-    <button type="submit" name="kind" value="free_text" class="btn btn-light-primary" data-nd-busy
-            title="Uma página só, para o retorno rápido">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-        <span>Texto livre</span>
-    </button>
-</form>
+{% comment %}Os três tipos de atendimento — primeira consulta, seguimento e texto
+livre — num botão dividido (1.41). Ver `clinical/_novo_atendimento.html`.{% endcomment %}
+{% nd_novo_atendimento patient %}
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -248,7 +232,10 @@ sem caçar em cartões laterais.{% endcomment %}
                                     {% if encounter.kind == 'free_text' %}
                                     <span class="badge bg-soft-info text-info text-nowrap">Texto livre</span>
                                     {% else %}
-                                    <span class="badge bg-soft-primary text-primary text-nowrap">Estruturada</span>
+                                    {% comment %}Desde a 1.41 a estruturada é de dois tipos, e a
+                                    pastilha diz qual: a primeira consulta é onde está a
+                                    história; o seguimento, a evolução.{% endcomment %}
+                                    <span class="badge bg-soft-primary text-primary text-nowrap">Estruturada · {% if encounter.eh_seguimento %}seguimento{% else %}1ª consulta{% endif %}</span>
                                     {% endif %}
                                 </td>
                                 {% comment %}O tipo da consulta vem do horário da agenda (primeira

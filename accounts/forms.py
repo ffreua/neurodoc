@@ -56,7 +56,17 @@ class ThrottledAdminAuthenticationForm(ThrottledAuthenticationForm, AdminAuthent
 
 
 class MFAChallengeForm(forms.Form):
-    code = forms.CharField(max_length=32, label='Código de autenticação')
+    #: Seis casas desenhadas sobre o campo (`static/duralux/nd-otp.js`, 1.41),
+    #: com a troca para o código de recuperação — que também vale aqui e não
+    #: cabe em seis dígitos. O campo continua um só e com o mesmo nome; sem
+    #: JavaScript, aparece como sempre.
+    code = forms.CharField(
+        max_length=32, label='Código de autenticação',
+        widget=forms.TextInput(attrs={
+            'inputmode': 'numeric', 'autocomplete': 'one-time-code', 'autofocus': True,
+            'data-nd-otp': '6', 'data-nd-otp-recuperacao': '1',
+        }),
+    )
 
 
 class MinhaContaForm(forms.ModelForm):

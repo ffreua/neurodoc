@@ -190,6 +190,10 @@ def _gather_diagnostic_context(authorization, encounter):
     # estes dois campos, e os estruturados acima vêm vazios. Ficavam de
     # fora — o apoio diagnóstico recebia um atendimento em branco e
     # respondia assim mesmo.
+    # Seguimento (1.41): a evolução é o texto do dia, e queixa e história
+    # vêm vazias — sem ela o apoio receberia um retorno em branco.
+    if encounter.evolucao.strip():
+        current['evolucao_desde_a_ultima_consulta'] = encounter.evolucao
     if encounter.free_text.strip():
         current['consulta_texto_livre'] = encounter.free_text
     if encounter.impressions.strip():

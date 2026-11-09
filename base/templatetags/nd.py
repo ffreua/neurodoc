@@ -375,6 +375,29 @@ def nd_exames_do_portal(context, patient):
     }
 
 
+@register.inclusion_tag('clinical/_novo_atendimento.html', takes_context=True)
+def nd_novo_atendimento(context, patient):
+    """O botão **Novo atendimento** com os três tipos (1.41).
+
+    Tag pela mesma razão de `nd_exames_do_portal`: são duas portas — a ficha
+    e o prontuário — e a sugestão do botão principal (`clinical/estrutura.py`)
+    precisa ser a mesma nas duas. Duas views montando o mesmo contexto são
+    duas chances de uma ficar para trás.
+    """
+    from clinical.estrutura import abertura_sugerida
+
+    request = context.get('request')
+    ctx = getattr(request, 'access_context', None)
+    sugerida = 'structured'
+    if ctx is not None and patient is not None:
+        sugerida = abertura_sugerida(ctx.tenant_id, patient, ctx.membership_id)
+    return {
+        'patient': patient,
+        'sugerida': sugerida,
+        'csrf_token': context.get('csrf_token'),
+    }
+
+
 @register.filter
 def nd_metodo_pagamento(valor):
     """A forma de pagamento como aparece: `other`, o padrão antigo, é "Outro"."""

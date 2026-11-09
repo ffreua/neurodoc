@@ -8,12 +8,21 @@ Cada escala é um formulário próprio. Enviar sem nenhum item marcado remove a
 escala do atendimento — é como se desfaz uma aplicação equivocada.
 
 Nenhuma abre sozinha: o ✓ no seletor diz quais já foram aplicadas, e escolher
-a escala reabre com os valores marcados.{% endcomment %}
+a escala reabre com os valores marcados.
+
+Desde a 1.41 o mesmo bloco está também no atendimento em texto livre, como
+um cartão numerado (`numero`), para a escala aplicada num retorno rápido
+entrar na mesma série do gráfico de evolução que a do estruturado — o
+gráfico lê o achado `escala.<código>`, e não o tipo do atendimento. Ali os
+formulários salvam antes o texto do atendimento
+(`data-nd-save-encounter-before-submit`), como os de medicação e hipótese:
+aplicar uma escala no meio da consulta não pode custar o parágrafo que
+ainda não foi salvo.{% endcomment %}
 {% load nd %}
 
-<div class="card mt-4">
+<div class="card {% if numero %}mb-4{% else %}mt-4{% endif %}" id="escalas">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
-        <h5 class="card-title mb-0">Escalas funcionais</h5>
+        <h5 class="card-title mb-0">{% if numero %}<span class="badge bg-soft-primary text-primary me-2">{{ numero }}</span>{% endif %}Escalas funcionais</h5>
         <div class="d-flex align-items-center gap-2">
             <label class="fs-11 text-muted mb-0" for="scale-picker">Aplicar escala</label>
             <select class="form-select form-select-sm" id="scale-picker" style="min-width:280px"
@@ -32,6 +41,7 @@ a escala reabre com os valores marcados.{% endcomment %}
         {% with finding=scale_values|nd_get:scale.code %}
         <form method="post" action="{% url 'clinical:record-scale' encounter.id scale.code %}"
               class="nd-scale-form" id="scale-{{ scale.code }}" hidden
+              {% if encounter.kind == 'free_text' %}data-nd-save-encounter-before-submit{% endif %}
               data-nd-scale="{{ scale.code }}"
               data-nd-max="{{ scale.max_score|default_if_none:'' }}"
               data-nd-bands="{{ scale.bands|nd_json }}">

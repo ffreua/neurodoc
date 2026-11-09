@@ -213,6 +213,7 @@ sai com código 1 listando as falhas quando não passa.
 | `check_servicos_do_inquilino` | IA, SMS e e-mail da clínica, e o retorno ao padrão quando desliga |
 | `check_sms_plano` | O SMS segue o plano contratado |
 | `check_texto_livre` | Atendimento em texto livre ao lado do estruturado, e o adendo depois de fechado |
+| `check_primeira_e_seguimento` | Primeira consulta e seguimento (Evolução no lugar de queixa e história), os três tipos num botão, escalas no texto livre e o código do segundo fator em casas (1.41) |
 | `check_tipo_de_consulta` | Trocar o tipo de um horário marcado só antes da chegada, com a duração acompanhando |
 | `check_um_envio_por_endereco` | Um envio por endereço, e não por contato |
 | `check_whatsapp_recepcao` | O botão WhatsApp da recepção: telefone no formato do `wa.me`, campos numa lista fechada, o texto da clínica com a data de Brasília, a rota que redireciona com trilha sem dado pessoal, o cartão em todos os planos, e o balcão sem consulta por linha |

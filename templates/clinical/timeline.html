@@ -32,22 +32,12 @@ vista, e a primeira pergunta de quem pede um relatorio e "desde quando".{% endco
 {% comment %}A escolha do tipo tem de estar em TODA porta que abre
 atendimento, e nao so na ficha do paciente: quem entra pelo prontuario nao
 passa pela ficha, e uma porta sem a escolha nao parece uma porta faltando —
-parece que o texto livre nao existe. `check_texto_livre.py` confere as duas.
-
-Estruturado primeiro e como botao primario: e o prontuario completo, e o
-padrao tem de ser o que registra mais.{% endcomment %}
-<form method="post" action="{% url 'clinical:new' patient.id %}" class="d-flex gap-2">
-    {% csrf_token %}
-    <button type="submit" name="kind" value="structured" class="btn btn-primary" data-nd-busy>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-        <span>Novo atendimento</span>
-    </button>
-    <button type="submit" name="kind" value="free_text" class="btn btn-light-primary" data-nd-busy
-            title="Uma página só, para o retorno rápido">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
-        <span>Texto livre</span>
-    </button>
-</form>
+parece que o tipo nao existe. Desde a 1.41 sao tres tipos num botao so, o
+mesmo da ficha (`nd_novo_atendimento`); `check_texto_livre.py` confere as
+duas portas.{% endcomment %}
+{% if nd_can.write_clinical %}
+{% nd_novo_atendimento patient %}
+{% endif %}
 {% endblock %}
 {% block content %}
 {% nd_exames_do_portal patient %}
@@ -108,7 +98,7 @@ padrao tem de ser o que registra mais.{% endcomment %}
                                     {% endif %}
                                 </td>
                                 <td>
-                                    <span class="fs-11 text-muted">{{ encounter.get_kind_display }}</span>
+                                    <span class="fs-11 text-muted">{{ encounter.rotulo_do_tipo }}</span>
                                 </td>
                                 {% comment %}O tipo da consulta vem do horário da agenda (primeira
                                 consulta, seguimento, retorno). Atendimento sem horário — o encaixe

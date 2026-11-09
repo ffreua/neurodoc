@@ -1,0 +1,85 @@
+{% comment %}O botão "Novo atendimento" com os três tipos (1.41).
+
+Primeira consulta (queixa e história), seguimento e retorno (evolução no
+lugar das duas) e texto livre. Eram dois botões lado a lado; com três, a
+barra da ficha passava de seis botões e o nome do paciente quebrava em três
+linhas. Por isso um botão dividido:
+
+- **a parte principal abre o tipo sugerido** (`clinical/estrutura.py`: o
+  horário de hoje com check-in, senão o histórico) — o caso comum continua
+  sendo um clique, que é o motivo de o texto livre ter nascido como botão e
+  não como seletor;
+- **a seta abre os três**, cada um com uma linha dizendo o que é, e o
+  sugerido marcado. Quem quer outro tipo vê os três antes de escolher.
+
+No celular a barra de ações é um painel lateral (`base.html`), e menu
+suspenso dentro de painel que rola é menu cortado: ali os três aparecem
+empilhados, cada um com a sua explicação, e o sugerido em destaque.
+
+Todos são `name="kind"`: `structured`, `seguimento` e `free_text`. O
+`check_texto_livre` confere que toda porta oferece os tipos; o
+`check_primeira_e_seguimento` confere o terceiro.{% endcomment %}
+<form method="post" action="{% url 'clinical:new' patient.id %}" class="nd-novo-atendimento">
+    {% csrf_token %}
+    <div class="btn-group d-none d-md-inline-flex" role="group" aria-label="Novo atendimento">
+        <button type="submit" name="kind" value="{{ sugerida }}" class="btn btn-primary" data-nd-busy
+                title="Abre {% if sugerida == 'seguimento' %}um seguimento{% else %}uma primeira consulta{% endif %} — a seta ao lado mostra os outros tipos">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Novo atendimento</span>
+            <span class="nd-novo-atendimento__tipo">{% if sugerida == 'seguimento' %}Seguimento{% else %}Primeira consulta{% endif %}</span>
+        </button>
+        <button type="button" class="btn btn-primary dropdown-toggle dropdown-toggle-split"
+                data-bs-toggle="dropdown" aria-expanded="false" aria-label="Escolher o tipo de atendimento">
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end nd-novo-atendimento__menu">
+            <li><h6 class="dropdown-header">Que atendimento é este?</h6></li>
+            <li>
+                <button type="submit" name="kind" value="structured" class="dropdown-item" data-nd-busy>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+                    <span>
+                        <span class="nd-novo-atendimento__nome">Primeira consulta{% if sugerida == 'structured' %} <span class="badge bg-soft-primary text-primary">sugerido</span>{% endif %}</span>
+                        <span class="nd-novo-atendimento__descricao">Queixa principal, história, antecedentes e o exame neurológico completo.</span>
+                    </span>
+                </button>
+            </li>
+            <li>
+                <button type="submit" name="kind" value="seguimento" class="dropdown-item" data-nd-busy>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+                    <span>
+                        <span class="nd-novo-atendimento__nome">Seguimento e retorno{% if sugerida == 'seguimento' %} <span class="badge bg-soft-primary text-primary">sugerido</span>{% endif %}</span>
+                        <span class="nd-novo-atendimento__descricao">A evolução no lugar de queixa e história; exame, hipóteses e conduta como sempre.</span>
+                    </span>
+                </button>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li>
+                <button type="submit" name="kind" value="free_text" class="dropdown-item" data-nd-busy>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                    <span>
+                        <span class="nd-novo-atendimento__nome">Texto livre</span>
+                        <span class="nd-novo-atendimento__descricao">Uma página só, para o retorno rápido — com escalas, medicação e hipóteses.</span>
+                    </span>
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="d-md-none nd-novo-atendimento__lista">
+        <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">Novo atendimento</span>
+        <button type="submit" name="kind" value="structured" data-nd-busy
+                class="btn {% if sugerida == 'structured' %}btn-primary{% else %}btn-light-primary{% endif %} w-100 text-start mb-2">
+            <span class="nd-novo-atendimento__nome">Primeira consulta</span>
+            <span class="nd-novo-atendimento__descricao">Queixa, história e exame completo.</span>
+        </button>
+        <button type="submit" name="kind" value="seguimento" data-nd-busy
+                class="btn {% if sugerida == 'seguimento' %}btn-primary{% else %}btn-light-primary{% endif %} w-100 text-start mb-2">
+            <span class="nd-novo-atendimento__nome">Seguimento e retorno</span>
+            <span class="nd-novo-atendimento__descricao">Evolução, exame, hipóteses e conduta.</span>
+        </button>
+        <button type="submit" name="kind" value="free_text" data-nd-busy
+                class="btn btn-light w-100 text-start">
+            <span class="nd-novo-atendimento__nome">Texto livre</span>
+            <span class="nd-novo-atendimento__descricao">Uma página só, para o retorno rápido.</span>
+        </button>
+    </div>
+</form>

@@ -1491,3 +1491,138 @@ body.nd-no-shell .nxl-content {
 .nd-avatar-gaveta { cursor: pointer; line-height: 0; }
 .nd-avatar-gaveta:hover { opacity: .85; }
 .nd-avatar-gaveta:focus-visible { outline: 2px solid var(--bs-primary); outline-offset: 3px; }
+
+/* ---- Código do segundo fator em casas (1.41) -------------------------
+ * As casas só desenham o que está no campo de verdade, que fica por cima,
+ * transparente, com o mesmo nome — o gerenciador de senhas, o "código de
+ * uso único" do celular, o colar e o leitor de tela continuam falando com
+ * um campo só. Ver `static/duralux/nd-otp.js`.
+ *
+ * Largura pela fila e não pela casa: `flex: 1` com teto de 3,25rem faz as
+ * seis caberem em 360px sem rolar e não virarem tijolos numa tela larga.
+ * O campo transparente fica em 16px pelo mesmo motivo do bloco de toque:
+ * abaixo disso o Safari do iPhone dá zoom ao focar.
+ * --------------------------------------------------------------------- */
+.nd-otp {
+    position: relative;
+    display: flex;
+    width: 100%;
+    max-width: 21rem;
+}
+.nd-otp__casas {
+    display: flex;
+    gap: .5rem;
+    width: 100%;
+}
+.nd-otp__casa {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 3.25rem;
+    aspect-ratio: 5 / 6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #dce1e7;
+    border-radius: .6rem;
+    background: #fff;
+    color: #283c50;
+    font-size: 1.5rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+.nd-otp__casa.is-preenchida { border-color: #aab6c6; }
+.nd-otp.is-focada .nd-otp__casa.is-ativa {
+    border-color: var(--bs-primary, #3454d1);
+    box-shadow: 0 0 0 .2rem rgba(var(--bs-primary-rgb, 52, 84, 209), .15);
+}
+.nd-otp.is-invalid .nd-otp__casa { border-color: var(--bs-danger, #ea4d4d); }
+.nd-otp:not(.nd-otp--livre) .nd-otp__campo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    font-size: 16px;
+    caret-color: transparent;
+    cursor: text;
+}
+.nd-otp--livre { max-width: none; }
+.nd-otp--livre .nd-otp__casas { display: none; }
+.nd-otp--compacto { max-width: 12rem; }
+.nd-otp--compacto .nd-otp__casas { gap: .25rem; }
+.nd-otp--compacto .nd-otp__casa {
+    font-size: 1rem;
+    border-radius: .4rem;
+    aspect-ratio: 4 / 5;
+}
+.nd-otp--compacto + .nd-otp__troca { margin-top: 0 !important; font-size: 11px; }
+
+/* ---- Novo atendimento: botão dividido com os três tipos (1.41) -------
+ * A parte principal abre o tipo sugerido; a seta mostra os três, cada um
+ * com uma linha dizendo o que é. O menu quebra linha (o `.dropdown-item`
+ * do Bootstrap é `nowrap`) para a descrição caber sem alargar a página.
+ * No celular os três aparecem empilhados no painel de ações. Ver
+ * `templates/clinical/_novo_atendimento.html`.
+ * --------------------------------------------------------------------- */
+.nd-novo-atendimento__tipo {
+    margin-left: .5rem;
+    padding-left: .5rem;
+    border-left: 1px solid rgba(255, 255, 255, .45);
+    font-weight: 500;
+    opacity: .92;
+}
+.nd-novo-atendimento__menu {
+    min-width: 21rem;
+    max-width: 25rem;
+    padding: .35rem;
+}
+.nd-novo-atendimento__menu .dropdown-item {
+    display: flex;
+    align-items: flex-start;
+    gap: .75rem;
+    white-space: normal;
+    padding: .6rem .75rem;
+    border-radius: .4rem;
+}
+.nd-novo-atendimento__menu .dropdown-item > svg {
+    flex-shrink: 0;
+    margin-top: .1rem;
+    color: var(--bs-primary, #3454d1);
+}
+.nd-novo-atendimento__nome {
+    display: block;
+    font-weight: 600;
+    font-size: .8125rem;
+    color: #283c50;
+}
+.nd-novo-atendimento__descricao {
+    display: block;
+    margin-top: .15rem;
+    font-size: .75rem;
+    line-height: 1.35;
+    color: #6c757d;
+}
+.nd-novo-atendimento__lista .btn {
+    display: block;
+    text-transform: none;
+    letter-spacing: 0;
+}
+.nd-novo-atendimento__lista .btn .nd-novo-atendimento__nome,
+.nd-novo-atendimento__lista .btn .nd-novo-atendimento__descricao { color: inherit; }
+.nd-novo-atendimento__lista .btn .nd-novo-atendimento__descricao { opacity: .8; font-weight: 400; }
+@media (max-width: 767.98px) {
+    .nd-novo-atendimento { width: 100%; }
+}
+
+/* No seguimento, a queixa e a história da primeira consulta ao lado da
+ * evolução — para ler, com rolagem própria, sem empurrar os antecedentes
+ * para baixo quando a história é longa. */
+.nd-primeira-consulta__historia {
+    max-height: 16rem;
+    overflow-y: auto;
+}

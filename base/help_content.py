@@ -279,17 +279,37 @@ ARTICLES = [
     {
         'slug': 'atendimento',
         'title': 'Atender: escrever o prontuário',
-        'summary': 'Abrir o atendimento, aproveitar a consulta anterior e finalizar.',
+        'summary': 'Primeira consulta, seguimento ou texto livre: abrir o atendimento e finalizar.',
         'audience': 'Médico',
         'steps': [
-            ('Na ficha do paciente, **Novo atendimento** abre um rascunho. O '
-             'rascunho é seu: ninguém mais o vê enquanto não for finalizado, e ele '
-             'fica salvo mesmo se você fechar o navegador.',
+            ('Na ficha do paciente (ou no prontuário), **Novo atendimento** abre um '
+             'rascunho. O rascunho é seu: ninguém mais o vê enquanto não for '
+             'finalizado, e ele fica salvo mesmo se você fechar o navegador.',
              'atendimento-abas.png', 'Atendimento aberto'),
-            ('As abas separam **História**, **Exame**, **Hipóteses** e **Conduta**. '
-             'Hábitos e vícios têm campo próprio na História: em neurologia, álcool '
-             'e sono explicam crise, tremor e cefaleia, e diluídos no texto livre '
-             'somem na releitura.',
+            ('São **três tipos de atendimento**, no mesmo botão. **Primeira '
+             'consulta**: o prontuário estruturado completo, com queixa principal e '
+             'história da doença atual. **Seguimento e retorno**: o mesmo prontuário '
+             'estruturado, mas a primeira aba é a **Evolução** — um campo só, para o '
+             'que mudou desde a última consulta —, e o resto continua (antecedentes, '
+             'hábitos, exame, hipóteses, conduta). **Texto livre**: uma página só, '
+             'para o retorno rápido. A parte principal do botão já abre o tipo '
+             'sugerido — primeira consulta para paciente novo, seguimento para quem já '
+             'foi atendido, ou o que a secretária marcou no horário de hoje —, e a '
+             'seta ao lado mostra os três. No celular, os três aparecem empilhados no '
+             'painel de ações.',
+             '', ''),
+            ('No **seguimento**, ao lado da Evolução, ficam a queixa e a história da '
+             'primeira consulta do paciente, só para leitura: elas se escrevem uma vez, '
+             'e o que muda a cada retorno é a evolução. A finalização do seguimento '
+             'pede a evolução, e não a queixa. Abriu o tipo errado? No alto da primeira '
+             'aba, **Mudar para primeira consulta** (ou **Mudar para seguimento**) troca '
+             'enquanto o atendimento está aberto — e só se o campo que some estiver '
+             'vazio, para nenhum texto ficar escondido.',
+             '', ''),
+            ('As abas separam **História** (ou **Evolução**, no seguimento), **Exame**, '
+             '**Hipóteses** e **Conduta**. Hábitos e vícios têm campo próprio na '
+             'primeira aba: em neurologia, álcool e sono explicam crise, tremor e '
+             'cefaleia, e diluídos no texto livre somem na releitura.',
              '', ''),
             ('O que foi registrado na consulta anterior pode ser **trazido para esta** '
              '— medicações em uso, por exemplo. Cada item vem para revisão, e você '
@@ -342,6 +362,13 @@ ARTICLES = [
              'automática e faixa de interpretação. Aplicada, a escala fica na '
              'história do paciente e dá para comparar entre consultas.',
              'exame-escalas.png', 'Escalas funcionais'),
+            ('As mesmas escalas estão também no **atendimento em texto livre**, num '
+             'cartão logo abaixo do texto: escolha a escala, pontue e salve — o texto '
+             'que você estava escrevendo é salvo antes. A escala aplicada num retorno '
+             'em texto livre entra na mesma linha do gráfico de **Evolução** do '
+             'prontuário que a aplicada numa consulta estruturada, e é isso que permite '
+             'acompanhar a progressão do paciente seja qual for o tipo de atendimento.',
+             '', ''),
             ('Abaixo da árvore há **Exame neurológico em texto livre**. Use-o para '
              'uma descrição narrativa que não caiba bem nos itens; ele complementa '
              'o roteiro, aparece no resumo e integra o registro finalizado.',
@@ -1191,7 +1218,9 @@ FAQ_USO = [
         'pergunta': 'O código do celular (segundo fator) é obrigatório?',
         'resposta': 'Para responsáveis pela clínica e médicos, sim: além da senha, a entrada '
                     'pede o código de seis dígitos de um aplicativo autenticador (Google '
-                    'Authenticator, Microsoft Authenticator). Enquanto o prazo não chega, um '
+                    'Authenticator, Microsoft Authenticator), digitado em seis casinhas, uma '
+                    'por número — colar o código inteiro também funciona, e quem estiver '
+                    'sem o celular toca em "Usar um código de recuperação". Enquanto o prazo não chega, um '
                     'aviso no alto da tela leva à configuração; depois dele, a configuração é '
                     'pedida antes de abrir o prontuário. Leva um minuto, e os códigos de '
                     'recuperação mostrados no fim servem se o celular se perder. Exportar o '

@@ -16,6 +16,7 @@ from tenancy.permissions import Capability, CapabilityRequiredView
 from tenancy.selectors import scope_to_tenant
 
 from . import carry_forward as cf
+from . import estrutura as estrutura_do_atendimento
 from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
 from exams.models import ExamScale
@@ -31,7 +32,7 @@ from .forms import (
     MedicationForm,
 )
 from .models import (
-    EncounterKind,
+    EncounterKind, EstruturaDoAtendimento,
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
     ExamResult, LabValue, Medication, ReviewAction,
 )
@@ -288,12 +289,11 @@ class EncounterCreateView(TenantScopedView):
         membership = _doctor_membership(request)
         if membership is None:
             raise Http404
-        # O tipo vem do botão que foi clicado. Valor desconhecido cai no
-        # estruturado — que é o prontuário completo, e errar para o lado de
-        # pedir mais registro é o erro aceitável aqui.
-        kind = request.POST.get('kind')
-        if kind not in EncounterKind.values:
-            kind = EncounterKind.STRUCTURED
+        # O tipo vem do botão que foi clicado: primeira consulta, seguimento
+        # ou texto livre. Valor desconhecido cai na primeira consulta — o
+        # prontuário completo, e errar para o lado de pedir mais registro é o
+        # erro aceitável aqui. Ver `clinical/estrutura.py`.
+        kind, estrutura = estrutura_do_atendimento.abertura(request.POST.get('kind'))
         from scheduling.models import Appointment, AppointmentStatus
 
         today = timezone.localdate()
@@ -314,6 +314,7 @@ class EncounterCreateView(TenantScopedView):
         encounter = Encounter.objects.create(
             tenant_id=request.access_context.tenant_id, patient=patient, physician_membership=membership,
             appointment=appointment, occurred_at=timezone.now(), status=EncounterStatus.DRAFT, kind=kind,
+            estrutura=estrutura,
         )
         source = cf.default_source_encounter(encounter)
         if source is not None:
@@ -395,6 +396,12 @@ class EncounterDetailView(TenantScopedView):
             # já estão no banco, e o médico que abre a gaveta está no meio de
             # uma frase — uma espera de rede ali é uma frase interrompida.
             'consulta_anterior': selectors.consulta_anterior(request.access_context, encounter),
+            # No seguimento, a queixa e a história de onde tudo começou, para
+            # ler ao lado da evolução sem abrir outra consulta.
+            'primeira_consulta': (
+                estrutura_do_atendimento.primeira_consulta(encounter)
+                if encounter.eh_seguimento else None
+            ),
             **self._extra_tabs(request, encounter),
             **self._modelos(request, encounter),
         })
@@ -697,11 +704,15 @@ class ScaleRecordView(TenantScopedView):
 
     def post(self, request, encounter_id, code):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
-            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exame')
         scale = get_object_or_404(
             ExamScale, tenant_id=request.access_context.tenant_id, code=code, active=True,
         )
+        # As escalas moram na aba do exame no estruturado e num cartão
+        # próprio no texto livre (1.41); voltar para a âncora do outro tipo
+        # deixaria a página no topo, longe do escore recém-gravado.
+        ancora = 'escalas' if encounter.kind == EncounterKind.FREE_TEXT else 'tab-exame'
+        if not encounter.is_editable():
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor=ancora)
         finding, removed = record_scale(request.access_context, encounter, scale, request.POST)
         if finding is None:
             messages.success(request, f'{scale.name} removida do atendimento.')
@@ -719,7 +730,37 @@ class ScaleRecordView(TenantScopedView):
             object_type='encounter', object_id=encounter.id, outcome='success',
             integrity_metadata=detail,
         )
-        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
+        return redirect(_detalhe(encounter, ancora))
+
+
+class EncounterStructureChangeView(TenantScopedView):
+    """Troca primeira consulta ↔ seguimento, antes de escrever (1.41).
+
+    A sugestão do botão "Novo atendimento" pode errar — o paciente que já
+    veio e hoje é consulta nova. Descartar e abrir de novo perderia o que já
+    foi trazido da consulta anterior; trocar aqui não perde nada, e a troca
+    é recusada se o campo que sumiria tem texto (`estrutura.trocar_estrutura`).
+    """
+
+    def post(self, request, encounter_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if _doctor_membership(request) is None:
+            raise Http404
+        destino = (request.POST.get('estrutura') or '').strip()
+        try:
+            trocou = estrutura_do_atendimento.trocar_estrutura(encounter, destino)
+        except estrutura_do_atendimento.TrocaRecusada as exc:
+            return _blocked(request, encounter, str(exc), anchor='tab-historia')
+        if trocou:
+            record_audit_event(
+                request.user, request.access_context.tenant_id, 'clinical.encounter_estrutura_trocada',
+                object_type='encounter', object_id=encounter.id, outcome='success',
+                integrity_metadata={'estrutura': destino},
+            )
+            messages.success(
+                request, f'Atendimento agora é de {EstruturaDoAtendimento(destino).label.lower()}.',
+            )
+        return redirect(_detalhe(encounter, 'tab-historia'))
 
 
 class DiagnosisCreateView(TenantScopedView):

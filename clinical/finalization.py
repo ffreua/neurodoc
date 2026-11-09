@@ -32,7 +32,8 @@ def missing_requirements(encounter):
         pending.append({
             'texto': f'Revisar os {count} dado(s) trazidos da consulta anterior '
                      '— aceitar ou rejeitar cada um.',
-            'aba': 'História', 'ancora': 'tab-historia', 'justificavel': False,
+            'aba': 'Evolução' if encounter.eh_seguimento else 'História',
+            'ancora': 'tab-historia', 'justificavel': False,
         })
     justified = bool(encounter.finalization_justification)
 
@@ -60,7 +61,16 @@ def missing_requirements(encounter):
             })
         return pending
 
-    if not (encounter.chief_complaint or encounter.hpi or justified):
+    # No seguimento (1.41) o registro do dia mora na evolução, e queixa e
+    # história nem aparecem na tela: cobrá-las mandaria o médico procurar
+    # campos que não existem ali.
+    if encounter.eh_seguimento:
+        if not (encounter.evolucao or justified):
+            pending.append({
+                'texto': 'Escrever a evolução.',
+                'aba': 'Evolução', 'ancora': 'tab-historia', 'justificavel': True,
+            })
+    elif not (encounter.chief_complaint or encounter.hpi or justified):
         pending.append({
             'texto': 'Preencher a queixa principal ou a história da doença atual.',
             'aba': 'História', 'ancora': 'tab-historia', 'justificavel': True,
@@ -137,7 +147,7 @@ def discard_summary(encounter):
     return {
         'tem_historia': bool(encounter.chief_complaint or encounter.hpi
                              or encounter.personal_history or encounter.family_history
-                             or encounter.habits_history),
+                             or encounter.habits_history or encounter.evolucao),
         'tem_conduta': bool(encounter.plan_text),
         'tem_exame_texto': bool(encounter.neurological_exam_text),
         # O corpo do atendimento de texto livre, e as impressões. Ficavam

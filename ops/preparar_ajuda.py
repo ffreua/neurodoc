@@ -373,14 +373,24 @@ aberto = Encounter.objects.filter(tenant=clinica, patient=carlos, kind='structur
 if aberto is None:
     from clinical import carry_forward as cf
 
+    # Um retorno: desde a 1.41 é seguimento, com a evolução no lugar de
+    # queixa e história — é a tela que o manual mostra.
     aberto = Encounter.objects.create(
         tenant=clinica, patient=carlos, physician_membership=dona, occurred_at=agora, status='draft',
-        kind='structured', chief_complaint='Retorno: crises controladas, sem efeitos adversos.',
-        hpi='Sem crises desde o último ajuste. Dorme bem, sem sonolência diurna. Adesão regular ao tratamento.',
+        kind='structured', estrutura='seguimento',
+        evolucao='Crises controladas, sem efeitos adversos. Sem crises desde o último ajuste. '
+                 'Dorme bem, sem sonolência diurna. Adesão regular ao tratamento.',
     )
     origem = cf.default_source_encounter(aberto)
     if origem is not None:
         cf.carry_forward(ctx_dona, aberto, origem)
+elif aberto.estrutura == 'primeira' and aberto.chief_complaint.startswith('Retorno'):
+    # A demonstração montada antes da 1.41 tinha o retorno escrito como
+    # queixa e história; vira seguimento para a captura mostrar a tela nova.
+    Encounter.objects.filter(id=aberto.id).update(
+        estrutura='seguimento', evolucao=f'{aberto.chief_complaint} {aberto.hpi}'.strip(),
+        chief_complaint='', hpi='',
+    )
 dispositivo = TOTPDevice.objects.filter(user=dona.user, confirmed=True).first()
 if dispositivo:
     # Os roteiros de MFA erram o código de propósito, e o django-otp passa a

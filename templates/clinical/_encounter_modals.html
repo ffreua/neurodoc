@@ -80,7 +80,7 @@ confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
                     {% if discard_has_content %}
                     <p class="fs-13 mb-2"><strong>Já há conteúdo registrado aqui:</strong></p>
                     <ul class="fs-13 mb-3">
-                        {% if discard_summary.tem_historia %}<li>história preenchida</li>{% endif %}
+                        {% if discard_summary.tem_historia %}<li>{% if encounter.eh_seguimento %}evolução ou antecedentes preenchidos{% else %}história preenchida{% endif %}</li>{% endif %}
                         {% if discard_summary.tem_conduta %}<li>conduta preenchida</li>{% endif %}
                         {% if discard_summary.tem_exame_texto %}<li>exame neurológico em texto livre preenchido</li>{% endif %}
                         {% if discard_summary.tem_texto_livre %}<li>texto do atendimento escrito</li>{% endif %}

@@ -18,6 +18,7 @@ class EncounterForm(forms.ModelForm):
             'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
             'consanguinity_state', 'consanguinity_details', 'neurological_exam_text',
             'plan_text', 'finalization_justification', 'free_text', 'impressions',
+            'evolucao',
         ]
         labels = {
             'chief_complaint': 'Queixa principal',
@@ -32,6 +33,7 @@ class EncounterForm(forms.ModelForm):
             'free_text': 'Texto livre',
             'impressions': 'Impressões',
             'finalization_justification': 'Justificativa da finalização',
+            'evolucao': 'Evolução',
         }
         widgets = {
             # A queixa principal é uma linha ("cefaleia há 3 meses"); a
@@ -45,6 +47,13 @@ class EncounterForm(forms.ModelForm):
                 'rows': 10,
                 'placeholder': 'Início, evolução, fatores de melhora e piora, sintomas associados, '
                                'tratamentos já tentados…',
+            }),
+            # No seguimento a evolução ocupa o lugar de queixa e história, e é
+            # o texto longo da consulta: nasce com a altura da história.
+            'evolucao': forms.Textarea(attrs={
+                'rows': 10,
+                'placeholder': 'O que mudou desde a última consulta: sintomas, resposta ao '
+                               'tratamento, efeitos adversos, intercorrências, exames trazidos…',
             }),
             'personal_history': forms.Textarea(attrs={'rows': 4}),
             'family_history': forms.Textarea(attrs={'rows': 4}),

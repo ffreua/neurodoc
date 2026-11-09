@@ -128,14 +128,22 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
             </div>
         </div>
 
-        {% comment %}2. Medicação em uso. Continua campo de verdade, e não
+        {% comment %}2. Escalas funcionais (1.41) — as mesmas do estruturado, no
+        mesmo formulário. Logo depois do texto porque é parte do exame do dia,
+        e porque é o que alimenta o gráfico de evolução do paciente: a escala
+        aplicada num retorno em texto livre entra na mesma série da aplicada
+        numa primeira consulta estruturada. Fechado por padrão: só o seletor
+        aparece até se escolher uma escala.{% endcomment %}
+        {% include "exams/scales.html" with numero="2" %}
+
+        {% comment %}3. Medicação em uso. Continua campo de verdade, e não
         texto: é dela que saem a receita e o alerta. Texto livre é sobre como
         se escreve a consulta, não sobre abrir mão do que o sistema precisa
         entender.{% endcomment %}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <span class="badge bg-soft-primary text-primary me-2">2</span>Medicações em uso
+                    <span class="badge bg-soft-primary text-primary me-2">3</span>Medicações em uso
                 </h5>
                 <span class="fs-11 text-muted">
                     O que o paciente toma hoje. Fica registrado neste atendimento.
@@ -144,13 +152,13 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
             {% include "clinical/_medications.html" %}
         </div>
 
-        {% comment %}3. Impressões e conduta, nesta ordem: uma é a leitura do
+        {% comment %}4. Impressões e conduta, nesta ordem: uma é a leitura do
         caso, a outra é o que se faz com ela. As duas vão para a próxima
         consulta pelo mesmo mecanismo das hipóteses.{% endcomment %}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <span class="badge bg-soft-primary text-primary me-2">3</span>Impressões e conduta
+                    <span class="badge bg-soft-primary text-primary me-2">4</span>Impressões e conduta
                 </h5>
                 <span class="fs-11 text-muted">
                     Estes dois campos e as hipóteses são oferecidos na próxima consulta
@@ -166,12 +174,12 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
             </div>
         </div>
 
-        {% comment %}4. Hipóteses (CID-10), por último: é a conclusão
+        {% comment %}5. Hipóteses (CID-10), por último: é a conclusão
         codificada, e é o que alimenta indicador e relatório.{% endcomment %}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <span class="badge bg-soft-primary text-primary me-2">4</span>Hipóteses (CID-10)
+                    <span class="badge bg-soft-primary text-primary me-2">5</span>Hipóteses (CID-10)
                 </h5>
                 <span class="fs-11 text-muted">Também levadas para a próxima consulta.</span>
             </div>
@@ -244,7 +252,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
             </div>
         </div>
 
-        {% comment %}5. Adendos, e só depois de finalizado.
+        {% comment %}6. Adendos, e só depois de finalizado.
 
         Esta tela não tinha o bloco. O atendimento em texto livre
         finalizado era um beco: nem dava para escrever um adendo nem para
@@ -279,7 +287,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                 descia uma linha e ficava embaixo do número do cartão,
                 parecendo um segundo número.{% endcomment %}
                 <h5 class="card-title mb-0 text-nowrap">
-                    <span class="badge bg-soft-primary text-primary me-2">5</span>Adendos
+                    <span class="badge bg-soft-primary text-primary me-2">6</span>Adendos
                     <span class="badge bg-gray-200 text-dark ms-1">{{ amendments|length }}</span>
                 </h5>
                 <span class="fs-11 text-muted">
@@ -366,8 +374,10 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
 {% comment %}`cid.js` é o autocomplete do CID-10 no formulário de hipótese —
 o mesmo do estruturado. `medicamentos.js` atende o campo livre de medicação e
 preenche nome e dose compacta; é o mesmo componente usado no portal. `exam.js`
-não entra: não há roteiro de exame nesta tela.{% endcomment %}
+é o seletor das escalas e o total ao vivo (1.41) — o roteiro de exame não
+está aqui, mas as escalas estão.{% endcomment %}
 <script src="{% static 'clinical/atendimento.js' %}" defer></script>
 <script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
+<script src="{% static 'clinical/exam.js' %}"></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
 {% endblock %}

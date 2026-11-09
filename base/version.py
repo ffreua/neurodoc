@@ -260,12 +260,17 @@ carimbá-la na publicação.
 #: preenchidos e o formato que a lista oficial indica), o relatório pedido
 #: pelo portal é escrito com apoio de IA e a aprovação atende o pedido, e a
 #: recusa exige motivo dito no próprio campo. Sem migração.
-VERSION = '1.40'
+#: A **1.41**: primeira consulta e seguimento -- o seguimento e retorno troca
+#: queixa e história pela Evolução (com as duas da primeira consulta ao lado,
+#: para ler), os três tipos num botão só, as escalas também no texto livre
+#: (na mesma série do gráfico de evolução) e o código do segundo fator em
+#: casas. Migração só de expansão (`clinical.0013`).
+VERSION = '1.41'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'portal integrado'
+CODENAME = 'primeira consulta e seguimento'
 
 
 def version_display():

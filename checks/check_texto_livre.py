@@ -296,9 +296,15 @@ if livre_form_attrs < 4:
 # navegar, os dois precisam salvar os tres campos do atendimento pelo
 # endpoint acima; sem esse contrato, o texto digitado some e reaparece so
 # na faixa "Restaurar", que foi o defeito reproduzido num navegador real.
+#
+# Desde a 1.41 as escalas tambem estao nesta tela, e cada formulario de
+# escala salva o texto antes pelo mesmo contrato: o esperado e 2 (medicacao
+# e hipotese) mais um por escala.
+escalas_na_tela = corpo.count('class="nd-scale-form"')
 salvamentos_auxiliares = corpo.count('data-nd-save-encounter-before-submit')
-print(f'  formularios que preservam o texto: {salvamentos_auxiliares} (2 esperados)')
-if salvamentos_auxiliares != 2:
+print(f'  formularios que preservam o texto: {salvamentos_auxiliares} '
+      f'({2 + escalas_na_tela} esperados: medicacao, hipotese e {escalas_na_tela} escala(s))')
+if salvamentos_auxiliares != 2 + escalas_na_tela:
     failures.append(
         'medicacao e hipotese nao salvam o texto livre antes de recarregar a pagina'
     )

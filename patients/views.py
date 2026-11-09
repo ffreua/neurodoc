@@ -325,6 +325,7 @@ def _detail_context(request, patient, **overrides):
         ).defer(
             'chief_complaint', 'hpi', 'personal_history', 'family_history', 'habits_history',
             'consanguinity_details', 'neurological_exam_text', 'plan_text', 'free_text', 'impressions',
+            'evolucao',
         ),
         'ordenar': ordenar,
         'decrescente': decrescente,

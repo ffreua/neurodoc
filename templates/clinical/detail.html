@@ -82,8 +82,12 @@ digitado em outra.{% endcomment %}
     <div class="card-header p-0 border-bottom">
         <ul class="nav nav-tabs nav-tabs-custom-style border-0" role="tablist">
             <li class="nav-item" role="presentation">
+                {% comment %}No seguimento a primeira aba é a Evolução (1.41). O id do
+                painel continua `tab-historia`: é para ele que apontam a
+                finalização, o Alt+1 e o retorno depois de salvar, e trocar o id
+                trocaria quatro coisas para mudar uma palavra.{% endcomment %}
                 <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-historia"
-                        type="button" role="tab" aria-selected="true">História</button>
+                        type="button" role="tab" aria-selected="true">{% if encounter.eh_seguimento %}Evolução{% else %}História{% endif %}</button>
             </li>
             <li class="nav-item" role="presentation">
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-medicacoes"
@@ -137,6 +141,29 @@ digitado em outra.{% endcomment %}
         {# ---------------------------------------------------------- História #}
         <div class="tab-pane fade show active" id="tab-historia" role="tabpanel">
             <div class="card-body">
+                {% comment %}Qual das duas telas estruturadas é esta, e a troca para a
+                outra enquanto o atendimento está aberto — o botão "Novo
+                atendimento" sugere o tipo, e a sugestão pode errar. Formulário
+                próprio, fora do de salvar: HTML não aninha formulário. O servidor
+                recusa a troca que esconderia texto já escrito
+                (`clinical/estrutura.py::trocar_estrutura`).{% endcomment %}
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 nd-estrutura">
+                    <span class="badge bg-soft-primary text-primary">{{ encounter.rotulo_do_tipo }}</span>
+                    {% if encounter.status != 'finalized' %}
+                    <form method="post" action="{% url 'clinical:estrutura' encounter.id %}" class="d-flex align-items-center gap-2">
+                        {% csrf_token %}
+                        {% if encounter.eh_seguimento %}
+                        <input type="hidden" name="estrutura" value="primeira">
+                        <span class="fs-11 text-muted">Consulta nova, com queixa e história?</span>
+                        <button type="submit" class="btn btn-sm btn-light" data-nd-busy>Mudar para primeira consulta</button>
+                        {% else %}
+                        <input type="hidden" name="estrutura" value="seguimento">
+                        <span class="fs-11 text-muted">É retorno de um caso em acompanhamento?</span>
+                        <button type="submit" class="btn btn-sm btn-light" data-nd-busy>Mudar para seguimento</button>
+                        {% endif %}
+                    </form>
+                    {% endif %}
+                </div>
                 <form method="post" action="{% url 'clinical:autosave' encounter.id %}" novalidate>
                     {% csrf_token %}
                     <input type="hidden" name="row_version" value="{{ encounter.row_version }}">
@@ -155,8 +182,40 @@ digitado em outra.{% endcomment %}
                     segue essa proporção — um terço contra dois terços — em vez de
                     dar o mesmo espaço às duas.{% endcomment %}
                     <div class="row g-3">
+                        {% if encounter.eh_seguimento %}
+                        {% comment %}Seguimento: a evolução no lugar de queixa e
+                        história, na mesma proporção de dois terços, e no terço que
+                        sobra a queixa e a história da primeira consulta — para ler,
+                        não para escrever. Elas se escrevem uma vez; o que muda a
+                        cada retorno é a evolução.{% endcomment %}
+                        {% include "partials/field.html" with field=form.evolucao col="col-lg-8" %}
+                        <div class="col-lg-4">
+                            <div class="border rounded-3 bg-gray-100 p-3 h-100 nd-primeira-consulta">
+                                <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">
+                                    Da primeira consulta{% if primeira_consulta %} · {{ primeira_consulta.occurred_at|date:"d/m/Y" }}{% endif %}
+                                </span>
+                                {% if primeira_consulta %}
+                                {% if primeira_consulta.chief_complaint %}
+                                <span class="d-block fs-12 text-muted">Queixa principal</span>
+                                <p class="fs-13 text-dark fw-semibold nd-prose mb-2">{{ primeira_consulta.chief_complaint }}</p>
+                                {% endif %}
+                                {% if primeira_consulta.hpi %}
+                                <span class="d-block fs-12 text-muted">História da doença atual</span>
+                                <div class="fs-13 text-dark nd-prose nd-primeira-consulta__historia">{{ primeira_consulta.hpi }}</div>
+                                {% endif %}
+                                {% else %}
+                                <p class="fs-12 text-muted mb-0">
+                                    Nenhuma primeira consulta estruturada deste paciente com queixa ou
+                                    história escritas. A consulta anterior, de qualquer tipo, abre em
+                                    “Consulta anterior” (Alt+P).
+                                </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% else %}
                         {% include "partials/field.html" with field=form.chief_complaint col="col-lg-4" %}
                         {% include "partials/field.html" with field=form.hpi col="col-lg-8" %}
+                        {% endif %}
                         {% include "partials/field.html" with field=form.personal_history col="col-lg-6" %}
                         {% include "partials/field.html" with field=form.family_history col="col-lg-6" %}
                         {% include "partials/field.html" with field=form.habits_history col="col-lg-6" %}
@@ -164,7 +223,7 @@ digitado em outra.{% endcomment %}
                         {% include "partials/field.html" with field=form.consanguinity_details col="col-lg-9" %}
                     </div>
                     <button type="submit" class="btn btn-primary mt-3" data-nd-busy
-                            {% if encounter.status == 'finalized' %}disabled{% endif %}>Salvar história</button>
+                            {% if encounter.status == 'finalized' %}disabled{% endif %}>{% if encounter.eh_seguimento %}Salvar evolução{% else %}Salvar história{% endif %}</button>
                 </form>
             </div>
         </div>

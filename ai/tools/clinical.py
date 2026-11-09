@@ -19,7 +19,12 @@ MAX_LAB_VALUES = 120
 MAX_CHARS_POR_CAMPO = 2500
 MARCA_DE_CORTE = ' [... texto encurtado para a IA]'
 
-_CAMPOS_NARRATIVOS = ('chief_complaint', 'hpi', 'plan_text', 'neurological_exam_text', 'free_text', 'impressions')
+#: A evolução (1.41) é o registro do dia no seguimento, no lugar de queixa e
+#: história — fora daqui, a IA leria um retorno como consulta sem texto.
+_CAMPOS_NARRATIVOS = (
+    'chief_complaint', 'hpi', 'evolucao', 'plan_text', 'neurological_exam_text', 'free_text',
+    'impressions',
+)
 
 
 def encurtar(texto, teto):

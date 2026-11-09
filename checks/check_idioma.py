@@ -102,6 +102,9 @@ EXCECOES_NA_TELA = {
     'EsperaError',
     # O pagamento que não pode ser apagado (finance/payments.py, 2026-11-05).
     'PagamentoNaoExcluivel',
+    # A troca entre primeira consulta e seguimento (clinical/estrutura.py,
+    # 1.41): as recusas dizem em português o que fazer com o texto escrito.
+    'TrocaRecusada',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o

@@ -37,6 +37,33 @@ class EncounterKind(models.TextChoices):
     FREE_TEXT = 'free_text', 'Texto livre'
 
 
+class EstruturaDoAtendimento(models.TextChoices):
+    """Qual das duas telas estruturadas o atendimento usa (1.41).
+
+    A queixa principal e a história da doença atual se escrevem **uma vez**,
+    na primeira consulta. Daí em diante o que se escreve é a evolução — e um
+    retorno que obrigava a reabrir "queixa" e "história" fazia o médico
+    escrever a evolução dentro da história, ou repetir a queixa de seis
+    meses atrás para passar pela finalização. O seguimento troca os dois
+    campos por um só, **Evolução**; o resto da aba (antecedentes, hábitos,
+    consanguinidade) e as outras cinco abas continuam as mesmas.
+
+    Um campo ao lado de `kind`, e não um terceiro valor de `kind`, de
+    propósito: `kind` decide **qual tela** se desenha, e são vinte e tantos
+    lugares que perguntam "é texto livre?" — o roteiro de exame, a cópia da
+    consulta anterior, o resumo, a IA, a exportação. Um `kind` novo faria
+    cada um deles cair no ramo errado sem aviso. O seguimento é estruturado
+    em tudo, e só a primeira aba muda. No texto livre o valor fica no
+    padrão e não é lido.
+
+    Atendimento anterior à 1.41 nasce `primeira`, que é como ele foi
+    escrito: com queixa e história.
+    """
+
+    PRIMEIRA = 'primeira', 'Primeira consulta'
+    SEGUIMENTO = 'seguimento', 'Seguimento e retorno'
+
+
 class ConsanguinityState(models.TextChoices):
     NONE = 'none', 'Ausente'
     SUSPECTED = 'suspected', 'Suspeita'
@@ -81,6 +108,16 @@ class Encounter(TenantModel):
     kind = models.CharField(
         max_length=20, choices=EncounterKind.choices, default=EncounterKind.STRUCTURED,
     )
+    #: Primeira consulta ou seguimento, no estruturado. Ver
+    #: `EstruturaDoAtendimento`.
+    estrutura = models.CharField(
+        max_length=20, choices=EstruturaDoAtendimento.choices,
+        default=EstruturaDoAtendimento.PRIMEIRA,
+    )
+    #: O que aconteceu desde a última consulta — o campo do seguimento, no
+    #: lugar de queixa e história. Mesmo teto da história da doença atual,
+    #: que é o texto que ele substitui.
+    evolucao = models.TextField(max_length=20000, blank=True)
     #: O corpo do atendimento de texto livre.
     #:
     #: Teto alto de propósito: é onde cabe a consulta inteira quando o
@@ -127,6 +164,26 @@ class Encounter(TenantModel):
     def migrado(self):
         return bool(self.legacy_id)
 
+    @property
+    def eh_seguimento(self):
+        return (
+            self.kind == EncounterKind.STRUCTURED
+            and self.estrutura == EstruturaDoAtendimento.SEGUIMENTO
+        )
+
+    @property
+    def rotulo_do_tipo(self):
+        """O tipo como o médico o escolheu: os três botões de abrir atendimento.
+
+        "Prontuário estruturado" deixou de dizer o bastante quando passaram a
+        ser duas telas estruturadas — a lista de atendimentos precisa
+        distinguir a consulta em que a história foi escrita das que vieram
+        depois.
+        """
+        if self.kind == EncounterKind.FREE_TEXT:
+            return EncounterKind.FREE_TEXT.label
+        return EstruturaDoAtendimento(self.estrutura).label
+
     def clean(self):
         if self.status == EncounterStatus.FINALIZED and not self.finalized_at:
             raise ValidationError({'finalized_at': 'Obrigatório para finalizar o atendimento.'})
@@ -146,14 +203,21 @@ class Encounter(TenantModel):
         Acrescentar campo muda o hash de atendimentos ainda abertos, e não o
         dos já finalizados: aquele valor está gravado em `content_hash` e nada
         o recalcula.
+
+        A evolução (1.41) entra **só quando há texto**: assim o hash de todo
+        atendimento escrito antes dela — que tem a evolução vazia — continua
+        sendo, recalculado, o mesmo que foi gravado no fechamento.
         """
-        payload = '|'.join([
+        partes = [
             self.chief_complaint, self.hpi, self.personal_history, self.family_history,
             self.habits_history,
             self.consanguinity_state, self.consanguinity_details,
             self.neurological_exam_text, self.plan_text,
             self.free_text, self.impressions,
-        ])
+        ]
+        if self.evolucao:
+            partes.append(self.evolucao)
+        payload = '|'.join(partes)
         return hashlib.sha256(payload.encode()).hexdigest()
 
     def __str__(self):
