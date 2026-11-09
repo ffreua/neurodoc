@@ -579,3 +579,34 @@ def eh_notificacao_eletronica(document):
     """A Notificação de Receita eletrônica (A, B ou B2)."""
     return tipo_do_documento(document) in RECEITUARIO_DA_NOTIFICACAO
 
+
+
+#: O formato eletrônico de cada receituário da lista oficial.
+_FORMATO_ELETRONICO = {
+    _RCE: SNCR_RCE,
+    'notificacao_a': SNCR_NRA, 'notificacao_b': SNCR_NRB, 'notificacao_b2': SNCR_NRB2,
+}
+
+
+def formato_sugerido(nomes):
+    """O formato eletrônico que a lista oficial indica para estes nomes, ou `None`.
+
+    Serve ao pedido do portal (2026-11-09): o paciente escreve "receita de
+    controle especial" para o clonazepam, que é da lista B1 e pede
+    Notificação B — abrir a tela já na RCE faria a primeira tentativa ser
+    recusada por `_validar_rce`. É **sugestão**: o seletor continua aberto,
+    e a classificação de verdade, com a confirmação do médico quando a lista
+    não decide, acontece em `preparar`.
+
+    `None` quando nada é controlado, quando a lista não reconhece o nome ou
+    quando os nomes pedem receituários diferentes — uma emissão é de um tipo
+    só, e escolher um deles por conta própria esconderia o outro.
+    """
+    formatos = set()
+    for nome in nomes:
+        for sub in classificar_item(nome)['substancias']:
+            if sub['adendo_rce']:
+                formatos.add(SNCR_RCE)
+            elif sub['receituario'] in _FORMATO_ELETRONICO:
+                formatos.add(_FORMATO_ELETRONICO[sub['receituario']])
+    return formatos.pop() if len(formatos) == 1 else None

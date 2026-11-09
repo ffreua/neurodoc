@@ -237,7 +237,14 @@ def _gather_patient_report_context(authorization, patient, job):
     extras = {
         'destinatario': escolhida.destinatario,
         'orientacao': escolhida.orientacao,
-        'pedido': (alvo.get('pedido') or '').strip() or 'Relatorio clinico geral.',
+        # O pedido também passa pela desidentificação, como o contexto. Ele
+        # ia ao provedor como foi digitado — e desde 2026-11-09 pode vir do
+        # que o paciente escreveu no portal, onde nome, CPF e telefone
+        # aparecem com naturalidade. A regra do módulo é que a
+        # identificação nunca chega ao modelo (`ai/relatorio.py`).
+        'pedido': deidentification.deidentify_text(
+            (alvo.get('pedido') or '').strip() or 'Relatorio clinico geral.', patient,
+        ),
         'secoes': '; '.join(escolhida.secoes) or 'defina voce as secoes.',
     }
     return contexto, source_refs, extras, recorte
@@ -643,7 +650,7 @@ def cancel_job(job, actor_id):
 
 
 def request_patient_report(access_context, patient, codigo_finalidade, pedido,
-                           risco_confirmado=False):
+                           risco_confirmado=False, pedido_portal=None):
     """Pede o rascunho de um relatório sobre o paciente.
 
     `risco_confirmado` só chega aqui vindo da tela, depois de o médico ter
@@ -671,6 +678,14 @@ def request_patient_report(access_context, patient, codigo_finalidade, pedido,
             access_context.user_id, access_context.tenant_id, 'ai.privacy_risk_confirmed',
             object_type='patient', object_id=patient.id, outcome='success',
             integrity_metadata={'finalidade': escolhida.codigo},
+        )
+    if pedido_portal:
+        # O pedido do portal que este relatório atende (2026-11-09): a
+        # aprovação o dá como atendido. Entra também na chave — dois pedidos
+        # do portal com o mesmo texto são dois relatórios, não um.
+        target_ref['pedido_portal'] = str(pedido_portal)
+        target_ref['ref'] = relatorio.referencia_do_pedido(
+            escolhida.codigo, f'{target_ref["ref"]}|portal:{pedido_portal}',
         )
     job = create_job(
         access_context, AIJobKind.PATIENT_REPORT, escolhida.rotulo,

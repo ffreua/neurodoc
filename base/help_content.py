@@ -555,8 +555,29 @@ ARTICLES = [
              'sobre o tratamento: ele aceita pedido, e só.',
              'solicitacoes-fila.png', 'Fila de solicitações'),
             ('Na revisão, o texto do paciente aparece **ao lado** do rascunho que '
-             'você vai emitir — e o rascunho é editável antes de virar documento. '
-             'Você também pode recusar, com motivo registrado.',
+             'você vai emitir — e o rascunho é editável antes de virar documento.',
+             '', ''),
+            ('O **pedido de receita** abre com os **mesmos campos da receita** da tela '
+             'de emissão: o formato, os medicamentos da **receita eletrônica do SNCR** '
+             '(até 3, já preenchidos com o nome, a dose e o modo de usar que o paciente '
+             'escreveu) e o texto livre das impressas. Com a numeração do SNCR ligada, '
+             'o controlado já abre no formato que a **lista oficial da Portaria 344** '
+             'indica — clonazepam na Notificação de Receita B, sertralina na Receita de '
+             'Controle Especial —, e você completa a **forma farmacêutica** e a '
+             '**quantidade**, que o paciente não informa. O que faltar fica marcado em '
+             'vermelho no próprio campo.',
+             '', ''),
+            ('O **pedido de relatório** pode ser escrito **com apoio de IA** (planos com '
+             'IA): o botão **Redigir com IA** abre o relatório com IA já com a '
+             'finalidade e o pedido do paciente na caixa, para você ajustar. Ao '
+             '**aprovar** o rascunho da IA, o relatório vira documento e o pedido é dado '
+             'como atendido. Enquanto a IA escreve, a fila mostra *rascunho com IA em '
+             'andamento*. Escrever à mão continua possível na mesma tela.',
+             '', ''),
+            ('**Toda recusa precisa de motivo.** O campo diz que é obrigatório, e a '
+             'recusa sem motivo não sai da fila: o aviso aparece no próprio campo. O '
+             'motivo fica registrado no pedido e na auditoria, e a clínica o usa para '
+             'avisar o paciente.',
              '', ''),
             ('Pelo mesmo portal, o paciente **envia os laudos dos exames** que já fez: '
              'até **5 PDFs por vez, de até 3 MB cada**, informando qual exame é, a data '

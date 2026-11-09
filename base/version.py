@@ -255,12 +255,17 @@ carimbá-la na publicação.
 #: A **1.39**: o WhatsApp da recepção -- o botão que abre a conversa com o
 #: paciente no WhatsApp da clínica, com o lembrete no texto que ela escreveu.
 #: O sistema não envia nada. Migração só de expansão (`communications.0011`).
-VERSION = '1.39'
+#: A **1.40**: o portal integrado -- a receita pedida pelo portal sai pela
+#: receita eletrônica do SNCR (o mesmo bloco da tela de emissão, com os itens
+#: preenchidos e o formato que a lista oficial indica), o relatório pedido
+#: pelo portal é escrito com apoio de IA e a aprovação atende o pedido, e a
+#: recusa exige motivo dito no próprio campo. Sem migração.
+VERSION = '1.40'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'WhatsApp da recepção'
+CODENAME = 'portal integrado'
 
 
 def version_display():

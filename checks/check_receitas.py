@@ -456,7 +456,9 @@ from django.conf import settings as _dj
 
 _RAIZ = _dj.BASE_DIR
 _js = (_RAIZ / 'static' / 'catalogs' / 'medicamentos.js').read_text(encoding='utf-8')
-_form = (_RAIZ / 'templates' / 'documents' / 'medical_form.html').read_text(encoding='utf-8')
+# Os campos da receita moram num arquivo próprio desde 2026-11-09, incluído
+# pela tela de emissão e pela de atender o pedido do portal.
+_form = (_RAIZ / 'templates' / 'documents' / '_campos_da_receita.html').read_text(encoding='utf-8')
 
 _i = _form.index('id="nd-med-busca"')
 _tag = _form[_form.rfind('<input', 0, _i):_form.index('>', _i) + 1]

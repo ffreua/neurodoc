@@ -72,7 +72,12 @@ Médica.{% endcomment %}
                             <span class="fs-11 text-muted">Prontuário {{ req.patient.record_number }}</span>
                             {% endif %}
                         </td>
-                        <td>{{ req.get_kind_display }}</td>
+                        <td>
+                            {{ req.get_kind_display }}
+                            {% if req.status == 'in_review' %}
+                            <span class="badge bg-soft-info text-info fs-10 ms-1">rascunho com IA em andamento</span>
+                            {% endif %}
+                        </td>
                         <td>
                             {% if req.requester_is_patient %}
                             <span class="fs-12 text-muted">O próprio paciente</span>
@@ -130,7 +135,7 @@ Médica.{% endcomment %}
                             <span class="fs-11 text-muted d-block">{{ req.review_note }}</span>
                             {% endif %}
                         </td>
-                        <td class="fs-12 text-muted">{{ req.reviewed_by.user.full_name|default:"—" }}</td>
+                        <td class="fs-12 text-muted">{{ req.reviewed_by.user.get_full_name|default:"—" }}</td>
                         <td class="fs-12 text-muted pe-4">{{ req.reviewed_at|date:"d/m/Y H:i" }}</td>
                     </tr>
                     {% endfor %}

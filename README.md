@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologia (e qualquer especialidade)
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.39-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.40-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -26,7 +26,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.39 "WhatsApp da recepção" (`base/version.py`) |
+| **Versão** | 1.40 "portal integrado" (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
 | **Verificação** | 162 roteiros em `checks/`, nenhuma falha |
@@ -299,6 +299,7 @@ registro em [`docs/releases/`](docs/releases/).
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
+| **1.40** | 2026-11-09 | portal integrado | **O portal do paciente fala com o resto do sistema.** O **pedido de receita** abre nos mesmos campos da tela de emissão, com a **receita eletrônica do SNCR** — os medicamentos já preenchidos com o que o paciente escreveu e o formato que a lista oficial da Portaria 344 indica (clonazepam na Notificação B, por exemplo); antes, escolher o formato do SNCR ali dava "Confira o conteúdo" sem campo marcado. O **pedido de relatório** pode ser escrito **com apoio de IA**, e aprovar o rascunho atende o pedido. **Toda recusa exige motivo**, dito no campo. A coluna "Por" da fila mostra quem respondeu, e o pedido do relatório vai desidentificado à IA. Sem migração. |
 | **1.39** | 2026-11-08 | WhatsApp da recepção | **Lembrete pelo WhatsApp da clínica**: o botão **WhatsApp** no modal do horário e no balcão abre a conversa com o paciente no WhatsApp Web ou no aplicativo da clínica, com o lembrete escrito no texto que ela definiu em **Integrações → SMS, e-mail e WhatsApp** (campos como `{primeiro_nome}`, `{data}`, `{hora}`, `{medico}`, prévia e texto padrão). A secretária confere e envia: o sistema não envia nada, não há custo nem cadastro na Meta, e vale em todos os planos. E-mail e SMS sem mudança. Migração só de expansão (`communications.0011`). |
 | **1.38** | 2026-11-05 | agendamentos na ficha | **Agendamentos futuros na ficha do paciente**: os horários que ainda vão acontecer, do mais próximo ao mais distante, com dia, hora, tipo, médico e situação, e a data abrindo a agenda daquele dia. Sem migração. |
 | **1.37** | 2026-11-05 | ajustes do uso real | **Agenda:** imprimir o balcão do dia; desfazer a confirmação dada por engano (no crachá do balcão e no modal); o mês só com o mês, com `dd/mm`; quem fez check-in em azul, o confirmado com ✓ e a falta riscada. **Financeiro:** apagar o pagamento digitado errado; várias formas no mesmo registro; a forma numa lista (crédito à vista ou parcelado, débito, PIX, dinheiro, outro). **Receita do SNCR:** o nome comercial escolhido na busca fica na linha, e "uso contínuo" pode ir sem número. Sem migração. |

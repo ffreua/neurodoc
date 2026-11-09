@@ -144,6 +144,25 @@ class RelatorioView(TenantScopedView):
         return Membership.objects.filter(id=request.access_context.membership_id).first()
 
     @staticmethod
+    def _pedido_do_portal(request, patient, pedido_id):
+        """O pedido de relatório do portal que este relatório atende, ou `None`.
+
+        Chega pela URL (o botão da tela do pedido) e depois por um campo
+        escondido; nos dois casos é conferido por inteiro — da clínica, do
+        paciente, de relatório e ainda aberto. Um id que não confere não é
+        erro: o relatório segue, só sem responder a pedido nenhum.
+        """
+        if not pedido_id:
+            return None
+        from documents import pedidos_do_portal
+        from documents.models import DocumentRequestKind
+
+        return pedidos_do_portal.pedido_aberto(
+            request.access_context.tenant_id, patient.id, pedido_id,
+            kind=DocumentRequestKind.REPORT,
+        )
+
+    @staticmethod
     def _total_de_atendimentos(patient):
         from clinical.models import Encounter
 
@@ -167,17 +186,27 @@ class RelatorioRequestView(RelatorioView):
 
     def get(self, request, patient_id):
         patient = self._paciente(request, patient_id)
-        return render(request, 'ai/relatorio_form.html', self._tela(request, patient))
+        extra = {}
+        pedido_portal = self._pedido_do_portal(request, patient, request.GET.get('pedido_portal'))
+        if pedido_portal is not None:
+            # A tela abre com o que o paciente pediu no portal, na caixa
+            # aberta: quem pede o relatório ao modelo é o médico.
+            from documents import pedidos_do_portal
+
+            codigo, texto = pedidos_do_portal.instrucao_para_ia(pedido_portal)
+            extra = {'pedido_portal': pedido_portal, 'finalidade_escolhida': codigo, 'pedido': texto}
+        return render(request, 'ai/relatorio_form.html', self._tela(request, patient, **extra))
 
     def post(self, request, patient_id):
         patient = self._paciente(request, patient_id)
         pedido = (request.POST.get('pedido') or '').strip()
         escolhida = request.POST.get('finalidade', '')
+        pedido_portal = self._pedido_do_portal(request, patient, request.POST.get('pedido_portal'))
         if not pedido:
             return render(request, 'ai/relatorio_form.html', self._tela(
                 request, patient,
                 erro='Diga o que o relatório precisa conter.',
-                finalidade_escolhida=escolhida,
+                finalidade_escolhida=escolhida, pedido_portal=pedido_portal,
             ), status=400)
         try:
             job = services.request_patient_report(
@@ -186,9 +215,14 @@ class RelatorioRequestView(RelatorioView):
                 # única que manda este campo — e ela só aparece depois de a
                 # recusa ter dito qual marcador foi encontrado.
                 risco_confirmado=request.POST.get('risco_confirmado') == '1',
+                pedido_portal=pedido_portal.id if pedido_portal else None,
             )
         except AIAuthorizationDenied as exc:
             return HttpResponseForbidden(str(exc))
+        if pedido_portal is not None:
+            from documents import pedidos_do_portal
+
+            pedidos_do_portal.marcar_em_revisao(pedido_portal, request.access_context.user_id)
         return redirect('ai:relatorio-detalhe', job_id=job.id)
 
 
@@ -205,6 +239,16 @@ class RelatorioDetailView(RelatorioView):
             id=job_id, kind=AIJobKind.PATIENT_REPORT,
         )
         artifact = job.artifacts.order_by('-created_at').first()
+        # O pedido do portal que este relatório atende, aberto ou não: a
+        # tela mostra de onde o relatório veio mesmo depois de respondido.
+        pedido_portal = None
+        if (job.target_ref or {}).get('pedido_portal'):
+            from documents.models import DocumentRequest
+
+            pedido_portal = DocumentRequest.objects.filter(
+                tenant_id=job.tenant_id, patient_id=job.patient_id,
+                id=job.target_ref['pedido_portal'],
+            ).first()
         documento = None
         if artifact is not None:
             documento = MedicalDocument.objects.filter(
@@ -217,6 +261,7 @@ class RelatorioDetailView(RelatorioView):
             'finalidade': relatorio.finalidade((job.target_ref or {}).get('finalidade')),
             'pedido': (job.target_ref or {}).get('pedido', ''),
             'texto': relatorio.texto_do_relatorio(artifact.result) if artifact else '',
+            'pedido_portal': pedido_portal,
         })
 
 
@@ -263,6 +308,21 @@ class RelatorioAprovarView(RelatorioView):
                 documento = relatorio.criar_rascunho_de_documento(
                     artifact, reviewer, request.access_context.user_id,
                 )
+                # O relatório pedido pelo portal responde ao pedido ao virar
+                # documento — a mesma marca do rascunho escrito à mão na tela
+                # do pedido. O médico revisou o texto da IA para chegar aqui.
+                pedido_id = (artifact.job.target_ref or {}).get('pedido_portal')
+                if pedido_id:
+                    from documents import pedidos_do_portal
+
+                    pedido_portal = pedidos_do_portal.pedido_aberto(
+                        artifact.tenant_id, artifact.job.patient_id, pedido_id,
+                    )
+                    if pedido_portal is not None:
+                        pedidos_do_portal.marcar_atendido(
+                            pedido_portal, documento, reviewer,
+                            request.access_context.user_id, alterado=True, via_ia=True,
+                        )
         except AlreadyReviewed as exc:
             # Duplo clique, ou o botao de voltar: o documento ja existe, e
             # mostra-lo e a resposta util. Repetir "ja foi revisado" numa

@@ -11,6 +11,7 @@ público.
 """
 
 from django.contrib import messages
+from django.db import transaction
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -18,7 +19,7 @@ from django.utils import timezone
 from audit.services import record_audit_event
 from tenancy.selectors import scope_to_tenant
 
-from . import document_kinds, issuance
+from . import document_kinds, issuance, pedidos_do_portal
 from .forms import MedicalDocumentForm
 from .models import DocumentRequest, DocumentRequestKind, DocumentRequestStatus
 from .views import ClinicalDocumentView, _own_doctor_membership_or_403
@@ -52,7 +53,7 @@ class DocumentRequestQueueView(ClinicalDocumentView):
             DocumentRequest.objects
             .filter(tenant_id=request.access_context.tenant_id,
                     status__in=[DocumentRequestStatus.FULFILLED, DocumentRequestStatus.DECLINED])
-            .select_related('patient', 'reviewed_by__user', 'resulting_document')
+            .select_related('patient', 'reviewed_by__user__physician_profile', 'resulting_document')
             .order_by('-reviewed_at')[:30]
         )
         from tenancy.models import PORTAL_RECENT_VISIT_DAYS, ClinicProfile, Membership
@@ -133,11 +134,42 @@ def _draft_form(pedido, data=None):
     kind, formato = REQUEST_TO_DOCUMENT.get(pedido.kind, (None, None))
     if kind is None:
         return None
-    initial = {'kind': kind}
-    initial.update(_content_from_request(pedido, kind, formato))
     if data is not None:
         return MedicalDocumentForm(data, locked_kind=kind)
+    initial = {'kind': kind}
+    initial.update(_content_from_request(pedido, kind, formato))
+    if kind == 'prescription':
+        initial['prescription_format'] = _formato_inicial(pedido, formato)
     return MedicalDocumentForm(initial=initial, locked_kind=kind)
+
+
+def _formato_inicial(pedido, formato):
+    """O formato com que a receita do pedido abre.
+
+    Com a numeração do SNCR ligada, o controlado vai para a receita
+    eletrônica — a impressa de controle especial não se assina mais
+    digitalmente desde 31/10/2026 (`documents/rce_impressa.py`) — e no tipo
+    que a lista oficial indica para o que o paciente pediu
+    (`sncr.receita.formato_sugerido`): clonazepam abre na Notificação B, e
+    não na RCE que o recusaria. O pedido de controle especial que a lista não
+    reconhece abre na RCE, que pede a confirmação do médico. Com o SNCR
+    desligado nada muda: o formato é o do pedido.
+
+    É o valor **inicial** do seletor; a escolha é do médico.
+    """
+    from sncr import receita
+    from sncr.models import Configuracao
+
+    padrao = formato or 'simple'
+    if not Configuracao.carregar().ativo:
+        return padrao
+    nomes = [m['nome'] for m in pedidos_do_portal.medicacoes(pedido)[:receita.LIMITE_MEDICAMENTOS]]
+    sugerido = receita.formato_sugerido(nomes) if nomes else None
+    if sugerido:
+        return sugerido
+    if pedido.kind == DocumentRequestKind.PRESCRIPTION_SPECIAL:
+        return receita.SNCR_RCE
+    return padrao
 
 
 #: Quais campos do formulário aparecem em cada tipo de pedido. O
@@ -152,18 +184,29 @@ DRAFT_FIELDS = {
 }
 
 
-def _draft_context(request, pedido, form=None):
+def _draft_context(request, pedido, form=None, motivo_erro=None):
+    from sncr import receita
+
     kind, _ = REQUEST_TO_DOCUMENT.get(pedido.kind, (None, None))
     form = form if form is not None else _draft_form(pedido)
     fields = []
-    if form is not None:
+    if form is not None and kind != 'prescription':
         fields = [form[name] for name in DRAFT_FIELDS.get(kind, ())]
+    medicacoes = pedidos_do_portal.medicacoes(pedido) if kind == 'prescription' else []
     return {
         'req': pedido,
         'items': _readable_payload(pedido),
         'can_draft': _own_doctor_membership_or_403(request) is not None,
         'draft_form': form,
         'draft_fields': fields,
+        # A receita usa o mesmo bloco da tela de emissão
+        # (`documents/_campos_da_receita.html`), com os itens do SNCR; os
+        # outros tipos seguem com os campos de `DRAFT_FIELDS`.
+        'e_receita': kind == 'prescription',
+        'medicacoes_alem_do_limite': max(0, len(medicacoes) - receita.LIMITE_MEDICAMENTOS),
+        'limite_de_medicamentos': receita.LIMITE_MEDICAMENTOS,
+        'relatorios_da_ia': pedidos_do_portal.relatorios_da_ia(pedido),
+        'motivo_erro': motivo_erro,
     }
 
 
@@ -195,12 +238,17 @@ class DocumentRequestActionView(ClinicalDocumentView):
     def _decline(self, request, pedido, physician):
         motivo = (request.POST.get('note') or '').strip()
         if not motivo:
-            messages.error(
-                request,
-                'Explique o motivo. O paciente pediu alguma coisa e merece saber por '
-                'que não foi atendido — ainda que o aviso saia por telefone.',
-            )
-            return redirect('documents:request-detail', request_id=pedido.id)
+            # A recusa sem motivo voltava à tela com um aviso só no alto da
+            # página, e o médico (2026-11-09) via a mesma tela de antes, com
+            # o pedido ainda na fila e nada dizendo por quê. O erro agora fica
+            # no próprio campo, e a tela é desenhada de novo em vez de
+            # redirecionada — com o motivo obrigatório dito antes do clique.
+            return render(request, 'documents/request_detail.html', _draft_context(
+                request, pedido,
+                motivo_erro='Toda recusa precisa de um motivo. Escreva por que o pedido '
+                            'não será atendido: ele fica registrado, e a clínica o usa '
+                            'para avisar o paciente.',
+            ), status=400)
         pedido.status = DocumentRequestStatus.DECLINED
         pedido.review_note = motivo[:500]
         pedido.reviewed_by = physician
@@ -249,11 +297,11 @@ class DocumentRequestActionView(ClinicalDocumentView):
             if not form.is_valid():
                 messages.error(request, 'Confira o conteúdo do documento antes de gerar o rascunho.')
                 return render(request, 'documents/request_detail.html',
-                              _draft_context(request, pedido, form=form))
-            conteudo = {
-                name: form.cleaned_data.get(name) or ''
-                for name in document_kinds.all_fields(kind)
-            }
+                              _draft_context(request, pedido, form=form), status=400)
+            # O valor como o formulário o limpou, como na tela de emissão: a
+            # marca de uso contínuo e a confirmação da classificação são
+            # booleanas, e virar texto aqui as perderia.
+            conteudo = {name: form.cleaned_data.get(name) for name in document_kinds.all_fields(kind)}
             # O formato da receita não é escolha do paciente: quem pediu
             # "receita de controle especial" no portal descreveu o que
             # precisa, e é o médico quem decide a modalidade. O campo vem
@@ -263,37 +311,44 @@ class DocumentRequestActionView(ClinicalDocumentView):
         else:
             conteudo = _content_from_request(pedido, kind, formato)
 
-        tenant = Tenant.objects.get(id=pedido.tenant_id)
-        try:
-            documento = issuance.create_draft(
-                tenant, pedido.patient, encounter, physician, request.user.id,
-                kind, conteudo,
-            )
-        except (ValueError, issuance.MissingPhysicianProfile) as exc:
-            messages.error(request, str(exc))
-            return redirect('documents:request-detail', request_id=pedido.id)
-
-        pedido.status = DocumentRequestStatus.FULFILLED
-        pedido.resulting_document = documento
-        pedido.reviewed_by = physician
-        pedido.reviewed_at = timezone.now()
-        pedido.save(update_fields=[
-            'status', 'resulting_document', 'reviewed_by', 'reviewed_at',
-        ])
-        # Registra **se** o médico reescreveu, nunca o quê: o conteúdo é
-        # clínico e a trilha de auditoria não guarda texto de prontuário.
-        # A pergunta que isto responde é "o documento emitido repete o que
-        # o paciente escreveu, ou passou por revisão?".
+        # A pergunta que a trilha responde é "o documento repete o que o
+        # paciente escreveu, ou passou por revisão?".
         original = _content_from_request(pedido, kind, formato)
         alterado = any(
-            (conteudo.get(campo) or '').strip() != (original.get(campo) or '').strip()
+            _como_texto(conteudo.get(campo)) != _como_texto(original.get(campo))
             for campo in document_kinds.all_fields(kind)
         )
-        record_audit_event(
-            request.user, pedido.tenant_id, 'documents.portal_request_drafted',
-            object_type='document_request', object_id=pedido.id, outcome='success',
-            integrity_metadata={'document': str(documento.id), 'edited_by_physician': alterado},
-        )
+
+        tenant = Tenant.objects.get(id=pedido.tenant_id)
+        try:
+            with transaction.atomic():
+                documento = issuance.create_draft(
+                    tenant, pedido.patient, encounter, physician, request.user.id,
+                    kind, conteudo,
+                )
+                atendido = pedidos_do_portal.marcar_atendido(
+                    pedido, documento, physician, request.user.id, alterado,
+                )
+                if not atendido:
+                    # Outro médico respondeu enquanto esta tela estava
+                    # aberta: nada é criado, para não sobrar um rascunho
+                    # pendurado num pedido que teve outro desfecho.
+                    transaction.set_rollback(True)
+        except (ValueError, issuance.MissingPhysicianProfile) as exc:
+            # A recusa da receita (a classificação da lista oficial, o limite
+            # de medicamentos, o endereço do controle especial) volta para o
+            # formulário com o que foi digitado. Redirecionar, como era,
+            # apagava a receita inteira da tela junto com o erro.
+            if form is not None:
+                form.add_error(None, str(exc))
+                return render(request, 'documents/request_detail.html',
+                              _draft_context(request, pedido, form=form), status=400)
+            messages.error(request, str(exc))
+            return redirect('documents:request-detail', request_id=pedido.id)
+        if not atendido:
+            messages.error(request, 'Este pedido já foi respondido.')
+            return redirect('documents:request-detail', request_id=pedido.id)
+
         messages.success(
             request,
             'Rascunho criado. Revise o conteúdo antes de assinar.'
@@ -302,6 +357,13 @@ class DocumentRequestActionView(ClinicalDocumentView):
             'antes de assinar: ninguém o conferiu ainda.',
         )
         return redirect('documents:medical-detail', document_id=documento.id)
+
+
+def _como_texto(valor):
+    """Valor de campo para comparar: booleano falso e vazio são a mesma ausência."""
+    if valor is None or valor is False:
+        return ''
+    return str(valor).strip()
 
 
 def _content_from_request(pedido, kind, formato):
@@ -315,15 +377,27 @@ def _content_from_request(pedido, kind, formato):
     """
     payload = pedido.payload or {}
     if kind == 'prescription':
+        from sncr import receita
+
         linhas = [
             ' — '.join(p for p in [m.get('nome', ''), m.get('dose', ''), m.get('uso', '')] if p)
             for m in payload.get('medicacoes', [])
         ]
-        return {
+        conteudo = {
             'prescription_text': '\n'.join(linhas),
             'special_instructions': '',
             'prescription_format': formato or 'simple',
         }
+        # Os itens da receita eletrônica, do mesmo pedido: o nome, a dose
+        # como concentração e o modo de usar como posologia. A forma
+        # farmacêutica e a quantidade o paciente não informa, e ficam em
+        # branco para o médico — inventá-las seria escrever na receita o que
+        # ninguém disse. Na receita impressa, `issuance` descarta os itens.
+        for n, med in enumerate(pedidos_do_portal.medicacoes(pedido)[:receita.LIMITE_MEDICAMENTOS], 1):
+            conteudo[f'item{n}_nome'] = (med.get('nome') or '').strip()
+            conteudo[f'item{n}_concentracao'] = (med.get('dose') or '').strip()
+            conteudo[f'item{n}_posologia'] = (med.get('uso') or '').strip()
+        return conteudo
     if kind == 'report':
         return {
             'report_text': (

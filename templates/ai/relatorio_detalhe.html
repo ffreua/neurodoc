@@ -28,7 +28,14 @@ não seria uma decisão, seria um clique para fazer a tela andar.
 <div class="card mb-3">
     <div class="card-body py-3 fs-13">
         <span class="fw-semibold text-dark">{{ finalidade.rotulo }}</span>
-        <p class="text-muted mb-0 mt-1">{{ pedido }}</p>
+        <p class="text-muted mb-0 mt-1">{{ pedido|linebreaksbr }}</p>
+        {% if pedido_portal %}
+        <p class="fs-12 mb-0 mt-2">
+            Atende ao <a href="{% url 'documents:request-detail' pedido_portal.id %}">pedido do portal</a>
+            de {{ pedido_portal.created_at|date:"d/m/Y H:i" }}
+            {% if pedido_portal.is_open %}— ao aprovar o rascunho, o pedido é dado como atendido.{% else %}({{ pedido_portal.get_status_display|lower }}).{% endif %}
+        </p>
+        {% endif %}
     </div>
 </div>
 
@@ -64,6 +71,7 @@ não seria uma decisão, seria um clique para fazer a tela andar.
             <input type="hidden" name="finalidade" value="{{ finalidade.codigo }}">
             <input type="hidden" name="pedido" value="{{ pedido }}">
             <input type="hidden" name="risco_confirmado" value="1">
+            {% if pedido_portal %}<input type="hidden" name="pedido_portal" value="{{ pedido_portal.id }}">{% endif %}
             <button type="submit" class="btn btn-warning" data-nd-busy>
                 <span>Entendo o risco, gerar assim mesmo</span>
             </button>
@@ -76,7 +84,7 @@ não seria uma decisão, seria um clique para fazer a tela andar.
 <div class="alert alert-danger fs-13" role="alert">
     {{ job.status_detail|default:"Não foi possível gerar o rascunho." }}
 </div>
-<a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}">Tentar de novo</a>
+<a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}{% if pedido_portal.is_open %}?pedido_portal={{ pedido_portal.id }}{% endif %}">Tentar de novo</a>
 
 {% elif artifact %}
 <div class="row g-4">
@@ -109,7 +117,7 @@ não seria uma decisão, seria um clique para fazer a tela andar.
                         <button type="submit" class="btn btn-primary" data-nd-busy>
                             <span>Aprovar e criar o relatório</span>
                         </button>
-                        <a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}">Pedir outro</a>
+                        <a class="btn btn-light" href="{% url 'ai:relatorio-novo' patient.id %}{% if pedido_portal.is_open %}?pedido_portal={{ pedido_portal.id }}{% endif %}">Pedir outro</a>
                     </div>
                 </form>
 

@@ -1,0 +1,128 @@
+{% load sncr_receita %}{% comment %}Os campos da receita — formato, os itens estruturados do SNCR e o
+texto livre das impressas —, num arquivo só.
+
+Incluído pela tela de emissão (`medical_form.html`) e pela de atender o
+pedido do portal (`request_detail.html`). Até 2026-11-09 a do portal
+desenhava só o formato e o texto livre: com o formato eletrônico do SNCR
+escolhido, o servidor exigia os itens que a tela não mostrava, e o erro
+saía como "Confira o conteúdo", sem campo marcado nenhum. Um bloco só é o que
+impede as duas telas de divergirem de novo. O JavaScript que alterna os
+blocos é o mesmo (`documents/medical_form.js`), e espera o formulário com
+`id="medical-document-form"` e um campo `kind`.{% endcomment %}
+<div class="row g-3 mt-1" data-nd-doc-kind="prescription">
+    {% include "partials/field.html" with field=form.prescription_format col="col-md-6" %}
+
+    {% comment %}Receita eletrônica do SNCR (docs/sncr/): itens
+    estruturados no lugar do texto livre, porque o modelo da Anvisa
+    pede cinco campos por medicamento e a classificação pela lista
+    oficial precisa saber qual é o medicamento. O JavaScript mostra
+    este bloco só nos formatos eletrônicos e o de texto livre só nos
+    impressos; sem JavaScript os dois ficam à mostra, e o servidor
+    lê o que o formato pede.{% endcomment %}
+    <div class="col-12" data-nd-rx="sncr">
+        <div class="alert alert-info fs-12 mb-3" role="note">
+            <strong>Receita eletrônica com numeração do SNCR (Anvisa).</strong>
+            Sai no modelo oficial da Anvisa, sem o cabeçalho da clínica. Até
+            <strong>3 medicamentos</strong>, e <strong>cada um sai na sua folha, com o
+            seu número SNCR</strong> — o paciente pode levar cada folha a uma farmácia.
+            Os números são seus — do bloco ou do lote que você pediu — e atribuídos na
+            assinatura digital, que é uma só para todas as folhas. Escreva a substância
+            ou o nome comercial; a quantidade em algarismos — o número por extenso é
+            acrescentado sozinho —, ou marque <em>uso contínuo</em> e deixe a quantidade
+            em branco.
+        </div>
+        {% comment %}Notificação de Receita (decisão D9): o que a norma pede e o
+        NeuroDoc não tem como conferir sozinho — os dias de tratamento saem da
+        posologia, que é texto livre. O JavaScript mostra o aviso só nos formatos
+        de Notificação; sem JavaScript ele fica à mostra.{% endcomment %}
+        <div class="alert alert-warning fs-12 mb-3" role="note" data-nd-rx-notificacao>
+            <strong>Notificação de Receita (A, B e B2).</strong> A Notificação leva
+            <strong>um medicamento só</strong>: cada medicamento preenchido abaixo vira
+            <strong>uma Notificação separada, com número próprio</strong> — até 3 por vez,
+            assinadas juntas. Cada medicamento tem de
+            ser da lista do tipo escolhido: A para as listas A1, A2 e A3, B para a B1 e B2
+            para a B2. Vale por <strong>30 dias, em todo o território nacional</strong>.
+            Quantidade máxima por Notificação (Portaria 344/98): <strong>A</strong>, 30 dias
+            de tratamento; <strong>B</strong>, 60 dias; <strong>B2</strong>, 30 dias; injetável,
+            até 5 ampolas. Acima disso, a norma pede a sua justificativa com o CID, datada e
+            assinada, entregue junto com a Notificação. O uso contínuo pode ser marcado, com ou
+            sem número na quantidade.
+        </div>
+        {% saldos_sncr request.user as saldos %}
+        {% if saldos %}
+        <div class="d-flex flex-wrap align-items-center gap-2 fs-12 mb-3" data-nd-sncr-saldo>
+            <span class="text-muted">Seus números livres{% if saldos.homologacao %} ({{ saldos.ambiente }}){% endif %}:</span>
+            <span class="badge bg-soft-{% if saldos.rce %}success text-success{% else %}danger text-danger{% endif %}">RCE {{ saldos.rce }}</span>
+            <span class="badge bg-soft-{% if saldos.ret %}success text-success{% else %}danger text-danger{% endif %}">RET {{ saldos.ret }}</span>
+            <span class="badge bg-soft-{% if saldos.nra %}success text-success{% else %}secondary text-secondary{% endif %}">Notificação A {{ saldos.nra }}</span>
+            <span class="badge bg-soft-{% if saldos.nrb %}success text-success{% else %}secondary text-secondary{% endif %}">Notificação B {{ saldos.nrb }}</span>
+            <span class="badge bg-soft-{% if saldos.nrb2 %}success text-success{% else %}secondary text-secondary{% endif %}">Notificação B2 {{ saldos.nrb2 }}</span>
+            <a href="{% url 'sncr:painel' %}" class="ms-1">{% if saldos.rce and saldos.ret %}Numeração SNCR{% else %}Pedir bloco com o Gov.br{% endif %}</a>
+        </div>
+        {% endif %}
+        {% comment %}Uma linha por medicamento, com larguras que cabem o
+        exemplo de cada campo: em quatro colunas iguais a forma e a
+        quantidade ficavam com o texto cortado e o rótulo quebrado.
+        `data-nd-med-grupo` limita a busca da CMED a esta linha.{% endcomment %}
+        {% for item in form.itens_do_sncr %}
+        <fieldset class="border rounded-3 p-3 mb-3" data-nd-med-grupo>
+            <legend class="fs-13 fw-semibold float-none w-auto px-2 mb-0">
+                Medicamento {{ item.numero }}{% if item.numero > 1 %} <span class="text-muted fw-normal">(opcional)</span>{% endif %}
+            </legend>
+            <div class="row g-2">
+                {% include "partials/field.html" with field=item.nome col="col-md-6" %}
+                {% include "partials/field.html" with field=item.concentracao col="col-md-3" %}
+                {% include "partials/field.html" with field=item.forma col="col-md-3" %}
+                {% include "partials/field.html" with field=item.quantidade col="col-md-6" %}
+                {% include "partials/field.html" with field=item.uso_continuo col="col-md-6 d-flex align-items-end" %}
+                {% include "partials/field.html" with field=item.posologia col="col-12" %}
+            </div>
+        </fieldset>
+        {% endfor %}
+        <div class="row g-3">
+            {% include "partials/field.html" with field=form.classificacao_confirmada col="col-12" %}
+        </div>
+    </div>
+
+    <div class="col-12" data-nd-rx="impressa"><div class="row g-3">
+    {% comment %}Busca na tabela de medicamentos da Anvisa (CMED).
+
+    Fica **acima** da prescrição e escreve nela: escolher um
+    item acrescenta uma linha ao texto, sem apagar o que já
+    estava. A prescrição continua sendo um campo livre — é
+    nela que entram posologia, manipulado e o que a tabela
+    não tem. Uma busca que substituísse o campo livre por um
+    seletor tiraria do médico metade do que ele escreve.
+
+    `data-nd-med-formato` liga o aviso de tarja ao seletor de
+    formato: item de tarja preta numa receita simples faz
+    aparecer a sugestão de trocar, com o botão. Quem troca é
+    o médico.{% endcomment %}
+    <div class="col-12">
+        <label class="form-label" for="nd-med-busca">
+            Buscar medicamento na tabela da Anvisa
+        </label>
+        <input type="search" class="form-control" id="nd-med-busca"
+               placeholder="Ex.: clonazepam 2 mg"
+               data-nd-med-url="{% url 'catalogs:medicamento-search' %}"
+               data-nd-med-texto="id_prescription_text"
+               data-nd-med-formato="id_prescription_format">
+        {% comment %}O texto diz que esta caixa NÃO vai para a
+        receita sozinha. A versão anterior dizia "você continua
+        escrevendo à vontade — inclusive o que não está na tabela",
+        o que é verdade e foi lido como "escreva aqui": esta caixa
+        não tem `name`, não é enviada, e saiu receita de controle
+        especial com a posologia e sem o medicamento.{% endcomment %}
+        <div class="form-text fs-11">
+            Opcional, e <strong>só para buscar</strong> — o que você
+            digita aqui não vai para a receita sozinho. Escolha um item
+            da lista, ou use o botão <em>“Usar … assim mesmo”</em> quando
+            a Anvisa não tiver o medicamento. A prescrição abaixo é o
+            campo que vale, e nela você escreve à vontade.
+        </div>
+    </div>
+    {% include "partials/field.html" with field=form.prescription_text col="col-12" %}
+    {% include "partials/field.html" with field=form.special_instructions col="col-12" %}
+    </div></div>
+</div>
+

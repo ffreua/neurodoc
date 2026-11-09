@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Solicitação de {{ req.patient.full_name }} — NeuroDoc{% endblock %}
 {% block page_title %}Revisar solicitação{% endblock %}
 {% block breadcrumb %}
@@ -21,8 +22,11 @@ recurso mais facilita.{% endcomment %}
     antes de emitir qualquer documento.
 </div>
 
+{% comment %}A receita leva até três medicamentos com cinco campos cada, e na
+coluna de 7/12 a forma farmacêutica e o "uso contínuo" saíam cortados: o pedido
+de receita usa 4/8.{% endcomment %}
 <div class="row g-4">
-    <div class="col-lg-5">
+    <div class="{% if e_receita %}col-lg-4{% else %}col-lg-5{% endif %}">
         <div class="card">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">{{ req.get_kind_display }}</h5>
@@ -45,7 +49,7 @@ recurso mais facilita.{% endcomment %}
         </div>
     </div>
 
-    <div class="col-lg-7">
+    <div class="{% if e_receita %}col-lg-8{% else %}col-lg-7{% endif %}">
         <div class="card mb-4">
             <div class="card-header"><h5 class="card-title mb-0">Origem</h5></div>
             <div class="card-body fs-13">
@@ -67,8 +71,40 @@ recurso mais facilita.{% endcomment %}
 
         {% if req.is_open %}
         {% if can_draft %}
+        {% if req.kind == 'report' and nd_can.issue_document and nd_can.clinical_ai %}
+        {% comment %}O relatório pedido pelo portal pode ser escrito como o resto
+        do sistema escreve relatório: pela IA, que lê o prontuário, com o pedido
+        do paciente como ponto de partida. A tela da IA abre com a finalidade e o
+        texto já preenchidos e abertos para o médico reescrever; o rascunho
+        aprovado lá vira o documento e responde a este pedido
+        (`documents/pedidos_do_portal.py`).{% endcomment %}
         <div class="card mb-4">
-            <div class="card-header"><h5 class="card-title mb-0">Atender</h5></div>
+            <div class="card-header"><h5 class="card-title mb-0">Escrever com apoio de IA</h5></div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    A IA lê o prontuário do paciente e redige o relatório a partir do que foi
+                    pedido. Você revisa e corrige o texto antes de ele virar documento — e, ao
+                    aprovar, este pedido é dado como atendido com o relatório.
+                </p>
+                {% if relatorios_da_ia %}
+                <ul class="list-unstyled fs-12 mb-3">
+                    {% for job in relatorios_da_ia %}
+                    <li class="mb-1">
+                        <a href="{% url 'ai:relatorio-detalhe' job.id %}">Rascunho de {{ job.created_at|date:"d/m/Y H:i" }}</a>
+                        <span class="text-muted">— {{ job.get_status_display }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+                <a class="btn btn-primary w-100" href="{% url 'ai:relatorio-novo' req.patient.id %}?pedido_portal={{ req.id }}">
+                    {% if relatorios_da_ia %}Pedir outro rascunho à IA{% else %}Redigir com IA{% endif %}
+                </a>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card mb-4">
+            <div class="card-header"><h5 class="card-title mb-0">{% if req.kind == 'report' and nd_can.clinical_ai %}Ou escrever você mesmo{% else %}Atender{% endif %}</h5></div>
             <div class="card-body">
                 {% comment %}O texto vem preenchido com o que o paciente escreveu e
                 fica aberto para reescrita. O pedido em si, à esquerda, não muda:
@@ -82,17 +118,44 @@ recurso mais facilita.{% endcomment %}
                     permanece como o paciente escreveu.
                 </p>
                 <form method="post" action="{% url 'documents:request-action' req.id 'rascunho' %}"
-                      novalidate>
+                      novalidate{% if e_receita %} id="medical-document-form"{% endif %}>
                     {% csrf_token %}
                     {% comment %}Marcador de que o conteúdo veio deste formulário. O
                     campo `kind` é travado no servidor e, por ser `disabled`, não é
                     enviado pelo navegador — não serve como sinal.{% endcomment %}
                     <input type="hidden" name="conteudo_revisado" value="1">
+
+                    {% if draft_form.non_field_errors %}
+                    <div class="alert alert-danger fs-13" role="alert">
+                        {% for error in draft_form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                    </div>
+                    {% endif %}
+
+                    {% if e_receita %}
+                    {% comment %}A receita usa o mesmo bloco da tela de emissão: o
+                    formato, os itens da receita eletrônica do SNCR (já preenchidos com
+                    o nome, a dose e o modo de usar que o paciente escreveu) e o texto
+                    livre das impressas. Até 2026-11-09 só o texto livre aparecia aqui,
+                    e a receita do SNCR era recusada pelos itens que a tela não tinha.
+                    O `kind` escondido é só para o JavaScript saber que é receita: o
+                    servidor usa o tipo do pedido.{% endcomment %}
+                    <input type="hidden" name="kind" value="prescription">
+                    {% if medicacoes_alem_do_limite %}
+                    <div class="alert alert-warning fs-12" role="note">
+                        O paciente pediu mais medicamentos do que cabem numa receita eletrônica
+                        ({{ limite_de_medicamentos }}). Os {{ medicacoes_alem_do_limite }} a mais estão
+                        no pedido, à esquerda, e não foram copiados para os itens: emita-os numa
+                        segunda receita pela ficha do paciente.
+                    </div>
+                    {% endif %}
+                    {% include "documents/_campos_da_receita.html" with form=draft_form %}
+                    {% else %}
                     <div class="row g-3">
                         {% for field in draft_fields %}
                         {% include "partials/field.html" with field=field col="col-12" %}
                         {% endfor %}
                     </div>
+                    {% endif %}
                     <button type="submit" class="btn btn-primary w-100 mt-3" data-nd-busy>
                         Gerar rascunho
                     </button>
@@ -100,17 +163,29 @@ recurso mais facilita.{% endcomment %}
             </div>
         </div>
 
-        <div class="card">
+        <div class="card" id="recusar">
             <div class="card-header"><h5 class="card-title mb-0">Recusar</h5></div>
             <div class="card-body">
+                {% comment %}O motivo é obrigatório, e a tela diz isso antes do clique.
+                Sem motivo, o pedido voltava para esta mesma tela com um aviso só no
+                alto da página, e quem recusava via o pedido continuar na fila sem
+                entender por quê (2026-11-09). Agora o campo diz que é obrigatório, o
+                navegador barra o envio vazio, e o servidor — que confere de novo —
+                marca o erro no próprio campo.{% endcomment %}
                 <form method="post" action="{% url 'documents:request-action' req.id 'recusar' %}">
                     {% csrf_token %}
-                    <label class="form-label fw-semibold fs-13" for="note">Motivo</label>
-                    <textarea class="form-control mb-3" id="note" name="note" rows="3"
+                    <label class="form-label fw-semibold fs-13" for="note">
+                        Motivo da recusa <span class="text-danger">(obrigatório)</span>
+                    </label>
+                    <textarea class="form-control{% if motivo_erro %} is-invalid{% endif %}" id="note" name="note" rows="3" required
+                              aria-describedby="note-ajuda"{% if motivo_erro %} aria-invalid="true" autofocus{% endif %}
                               placeholder="Ex.: a medicação precisa de reavaliação em consulta."></textarea>
-                    <span class="fs-11 text-muted d-block mb-3">
-                        Fica registrado no pedido e na auditoria. A clínica avisa o paciente
-                        pelos canais habituais.
+                    {% if motivo_erro %}
+                    <div class="invalid-feedback d-block fs-12" role="alert">{{ motivo_erro }}</div>
+                    {% endif %}
+                    <span class="fs-11 text-muted d-block mt-1 mb-3" id="note-ajuda">
+                        O pedido só sai da fila com o motivo. Ele fica registrado no pedido e na
+                        auditoria, e a clínica o usa para avisar o paciente pelos canais habituais.
                     </span>
                     <button type="submit" class="btn btn-light-danger w-100" data-nd-busy>
                         Recusar solicitação
@@ -130,7 +205,7 @@ recurso mais facilita.{% endcomment %}
                 <p class="mb-1"><span class="text-muted">Situação:</span>
                     {{ req.get_status_display }}</p>
                 <p class="mb-1"><span class="text-muted">Por:</span>
-                    {{ req.reviewed_by.user.full_name|default:"—" }}
+                    {{ req.reviewed_by.user.get_full_name|default:"—" }}
                     em {{ req.reviewed_at|date:"d/m/Y H:i" }}</p>
                 {% if req.review_note %}
                 <p class="mb-1"><span class="text-muted">Motivo:</span> {{ req.review_note }}</p>
@@ -147,4 +222,10 @@ recurso mais facilita.{% endcomment %}
     </div>
 </div>
 
+{% endblock %}
+{% block scripts %}
+{% if e_receita and req.is_open and can_draft %}
+<script src="{% static 'documents/medical_form.js' %}"></script>
+<script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
+{% endif %}
 {% endblock %}

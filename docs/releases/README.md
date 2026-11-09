@@ -16,7 +16,7 @@ repositório com mudança rastreada não commitada, então o registro entra na
 mesma árvore que vai ao ar.
 
 A versão de produto segue `docs/operations/versionamento.md`. A versão
-atual é a **1.39**. O SHA continua mudando em toda publicação, mesmo
+atual é a **1.40**. O SHA continua mudando em toda publicação, mesmo
 quando `VERSION` não muda.
 
 > **Prática atual (desde a 1.1):** a nota leva o nome da **versão**, é

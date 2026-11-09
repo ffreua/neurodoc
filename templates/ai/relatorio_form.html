@@ -32,8 +32,23 @@ ao colega em ordens diferentes, e é isso que o seletor escolhe.
                 <div class="alert alert-danger fs-13" role="alert">{{ erro }}</div>
                 {% endif %}
 
+                {% if pedido_portal %}
+                {% comment %}O relatório responde a um pedido do portal: a caixa abaixo
+                vem com o que o paciente escreveu, para ser reescrita — quem pede ao
+                modelo é o médico —, e aprovar o rascunho dá o pedido como atendido.
+                {% endcomment %}
+                <div class="alert alert-info fs-12" role="note">
+                    Este relatório atende ao <strong>pedido feito pelo paciente no portal</strong> em
+                    {{ pedido_portal.created_at|date:"d/m/Y H:i" }}
+                    (<a href="{% url 'documents:request-detail' pedido_portal.id %}">ver o pedido</a>).
+                    O texto abaixo veio do que o paciente escreveu: ajuste-o como pediria a um colega.
+                    Ao aprovar o rascunho, o pedido é dado como atendido com o relatório.
+                </div>
+                {% endif %}
+
                 <form method="post" novalidate>
                     {% csrf_token %}
+                    {% if pedido_portal %}<input type="hidden" name="pedido_portal" value="{{ pedido_portal.id }}">{% endif %}
 
                     <label class="form-label fw-semibold fs-13" id="finalidade-titulo">Para quem é o relatório</label>
                     <div class="mb-4" role="radiogroup" aria-labelledby="finalidade-titulo">

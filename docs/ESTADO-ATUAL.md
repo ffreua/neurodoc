@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.39 "WhatsApp da recepção" (2026-11-08) · **Produção:**
+**Versão:** 1.40 "portal integrado" (2026-11-09) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,12 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Portal integrado** (1.40, 2026-11-09): o pedido do portal entra pelos
+caminhos do resto do sistema — a receita pelos mesmos campos da tela de
+emissão, com a receita eletrônica do SNCR já preenchida e no formato da lista
+oficial; o relatório pelo relatório com IA, cuja aprovação atende o pedido — e
+a recusa exige motivo no campo. Ver `docs/homologation/pedidos-do-portal.md`.
 
 **WhatsApp da recepção** (1.39, 2026-11-08): o botão **WhatsApp** na agenda
 e no balcão abre a conversa com o paciente no WhatsApp da própria clínica, com
