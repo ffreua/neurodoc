@@ -46,7 +46,11 @@ if secretaria is None:
     print('PULADO: demonstração sem secretária')
     raise SystemExit(0)
 
-marca = uuid.uuid4().hex[:5].upper()
+# Sempre com uma letra: uma marca só de dígitos (uma vez em dez, com hex) a
+# busca lê como número de prontuário e tira do filtro de palavras
+# (`patients/selectors.py`) — e a fronteira da seção 6 reprovava por acaso,
+# achando outro JOSÉ CONCEIÇÃO da mesma clínica.
+marca = 'K' + uuid.uuid4().hex[:4].upper()
 criados = []
 
 

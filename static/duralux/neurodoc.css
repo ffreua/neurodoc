@@ -1626,3 +1626,10 @@ body.nd-no-shell .nxl-content {
     max-height: 16rem;
     overflow-y: auto;
 }
+
+/* O menu do "Resumo do caso" (1.42) usa o mesmo desenho do menu de novo
+ * atendimento: nome e uma linha de explicação, quebrando linha. Três classes
+ * no seletor: o tema põe `display: flex` em `.dropdown .dropdown-menu
+ * .dropdown-item`, e com duas o nome e a explicação ficavam lado a lado. */
+.nd-resumo__menu { min-width: 16rem; }
+.dropdown .nd-resumo__menu .dropdown-item { display: block; white-space: normal; padding: .55rem .9rem; }

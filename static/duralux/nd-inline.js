@@ -125,6 +125,26 @@
         varrerRetratosJaQuebrados();
     }
 
+    /* ------------------------------- resumo numa janela de folha */
+
+    /* O resumo do atendimento (e, desde a 1.42, o de todos) abre numa janela
+     * com a proporção de uma folha, que é para o que ela serve. Morava num
+     * `<script>` da tela estruturada e faltava na de texto livre; aqui vale
+     * para qualquer link `data-nd-window`. Se o navegador bloquear a
+     * abertura por código, o `target="_blank"` do link continua valendo. */
+    document.addEventListener('click', function (evento) {
+        var link = evento.target.closest('[data-nd-window]');
+        if (!link) return;
+        var aberta = window.open(
+            link.href, 'nd-' + link.getAttribute('data-nd-window'),
+            'width=900,height=1000,menubar=no,toolbar=no'
+        );
+        if (aberta) {
+            evento.preventDefault();
+            aberta.focus();
+        }
+    });
+
     /* ------------------------------------------ copiar para a área */
 
     document.addEventListener('click', function (evento) {

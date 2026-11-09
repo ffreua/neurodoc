@@ -134,6 +134,13 @@ try:
                                              cnes='9876543')
         cred = Credenciamento.objects.create(tenant=clinica, prestador=prestador, operadora=operadora,
                                              codigo_na_operadora='00012345', versao='4.03.00')
+        # O executante sai do cadastro TISS do médico do horário, e só quando
+        # há UM ativo (`guias._profissional_de`: dois é ambiguidade, e a guia
+        # nasce sem executante, de propósito). A demonstração das capturas do
+        # manual (`ops/preparar_ajuda.py`) cadastra a mesma médica; sem
+        # desativá-lo aqui — dentro da transação desfeita —, o roteiro media
+        # o dado da máquina, e não a regra.
+        ProfissionalTiss.objects.filter(tenant=clinica, membership=medico, ativo=True).update(ativo=False)
         prof = ProfissionalTiss.objects.create(tenant=clinica, nome='DR ROTEIRO', numero_conselho='11788',
                                                uf='PA', cbo='225112', membership=medico)
         TIPO = AppointmentType.OTHER

@@ -16,12 +16,9 @@ que o médico escreve na própria guia.{% endcomment %}
 <a class="btn btn-light" href="{% url 'tiss:guia-nova' %}?paciente={{ encounter.patient_id }}{% if encounter.appointment_id %}&amp;appointment={{ encounter.appointment_id }}{% endif %}">Guia TISS</a>
 {% endif %}
 {% comment %}O resumo abre em janela própria: é para levar o caso para fora da
-tela — imprimir, salvar em PDF, ler ao lado do paciente.{% endcomment %}
-<a class="btn btn-light" href="{% url 'clinical:summary' encounter.id %}"
-   target="_blank" rel="noopener" data-nd-window="resumo">
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
-    <span>Resumo do caso</span>
-</a>
+tela — imprimir, salvar em PDF, ler ao lado do paciente. Deste atendimento ou
+de todos, do mais recente ao primeiro (1.42).{% endcomment %}
+{% include "clinical/_botao_resumo.html" %}
 {% comment %}A consulta anterior sem sair daqui. `Alt+P` faz o mesmo: o
 atalho está escrito no botão porque atalho que ninguém descobre não
 existe.{% endcomment %}
@@ -657,27 +654,6 @@ borrada junto com o fundo que deveria cobrir.{% endcomment %}
 <script src="{% static 'catalogs/medicamentos.js' %}" defer></script>
 <script src="{% static 'clinical/exam.js' %}"></script>
 <script src="{% static 'clinical/cid.js' %}"></script>
-<script nonce="{{ nd_csp_nonce }}">
-/* O resumo abre numa janela de tamanho próprio, não numa aba. O `target` do
-   link já garante que abre fora; isto só dá à janela a proporção de uma
-   folha, que é para o que ela serve. Se o navegador bloquear a abertura por
-   código, o `target="_blank"` do link continua valendo. */
-(function () {
-    'use strict';
-    document.addEventListener('click', function (event) {
-        var link = event.target.closest('[data-nd-window]');
-        if (!link) return;
-        var opened = window.open(
-            link.href, 'nd-' + link.getAttribute('data-nd-window'),
-            'width=900,height=1000,menubar=no,toolbar=no'
-        );
-        if (opened) {
-            event.preventDefault();
-            opened.focus();
-        }
-    });
-})();
-</script>
 <script nonce="{{ nd_csp_nonce }}">
 /* Um modal só para todos os botões "tudo normal": são dezenas de grupos no
    roteiro e declarar um modal por grupo encheria a página à toa. O botão

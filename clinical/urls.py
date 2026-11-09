@@ -20,6 +20,7 @@ urlpatterns = [
     path('patients/<uuid:patient_id>/new/', views.EncounterCreateView.as_view(), name='new'),
     path('<uuid:encounter_id>/', views.EncounterDetailView.as_view(), name='detail'),
     path('<uuid:encounter_id>/resumo/', views.EncounterSummaryView.as_view(), name='summary'),
+    path('patients/<uuid:patient_id>/resumo/', views.PatientSummaryView.as_view(), name='resumo-todos'),
     path('<uuid:encounter_id>/autosave/', views.EncounterAutosaveView.as_view(), name='autosave'),
     path('<uuid:encounter_id>/estrutura/', views.EncounterStructureChangeView.as_view(), name='estrutura'),
     path('<uuid:encounter_id>/findings/', views.FindingUpsertView.as_view(), name='add-finding'),

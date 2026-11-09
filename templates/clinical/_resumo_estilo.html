@@ -1,0 +1,103 @@
+{% comment %}O estilo das duas folhas de resumo — a de um atendimento e a de
+todos (1.42). Embutido, e não numa folha estática, pelo mesmo motivo de
+sempre: a página tem de imprimir igual mesmo aberta fora da sessão do
+painel.{% endcomment %}
+    <style>
+        :root { color-scheme: light; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: #f3f4f6;
+            font: 13px/1.55 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1f2937;
+        }
+        .sheet {
+            max-width: 210mm;
+            margin: 16px auto;
+            padding: 18mm 16mm;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, .12);
+        }
+        .toolbar {
+            max-width: 210mm;
+            margin: 16px auto 0;
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+        .toolbar button, .toolbar a {
+            font: inherit;
+            padding: 7px 14px;
+            border-radius: 6px;
+            border: 1px solid #d1d5db;
+            background: #fff;
+            color: #1f2937;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .toolbar button.primary { background: #3454d1; border-color: #3454d1; color: #fff; }
+
+        h1 { font-size: 17px; margin: 0 0 2px; }
+        h2 {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #6b7280;
+            margin: 22px 0 6px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        h3 { font-size: 12px; margin: 12px 0 4px; }
+        p { margin: 0 0 6px; }
+        .muted { color: #6b7280; }
+        .prose { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+        .head { display: flex; justify-content: space-between; gap: 18px; align-items: flex-start; }
+        .ident { font-size: 12px; color: #4b5563; }
+        .ident span { display: inline-block; margin-right: 14px; }
+
+        .tag {
+            display: inline-block;
+            font-size: 11px;
+            padding: 1px 8px;
+            border-radius: 10px;
+            border: 1px solid #d1d5db;
+            color: #374151;
+        }
+        .tag.ok { border-color: #86efac; background: #f0fdf4; color: #166534; }
+        .tag.warn { border-color: #fcd34d; background: #fffbeb; color: #92400e; }
+
+        table { width: 100%; border-collapse: collapse; margin: 4px 0 8px; }
+        th, td { text-align: left; padding: 4px 6px; border-bottom: 1px solid #f0f1f3; vertical-align: top; }
+        th { font-size: 11px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+        td { font-size: 12px; }
+        .num { white-space: nowrap; }
+
+        .empty { color: #9ca3af; font-size: 12px; font-style: italic; }
+        .foot {
+            margin-top: 26px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+            font-size: 11px;
+            color: #6b7280;
+        }
+
+        /* No celular a folha perde a margem de papel: 16 mm de cada lado
+           são um terço da tela, e o texto clínico ficava numa coluna de
+           seis palavras. O cabeçalho empilha, e os botões ganham respiro da
+           borda. A impressão (abaixo) não muda. */
+        @media screen and (max-width: 600px) {
+            .toolbar { padding: 0 12px; }
+            .sheet { margin: 12px 8px; padding: 20px 16px; }
+            .head { flex-direction: column; gap: 10px; }
+            .head > div:last-child { text-align: left !important; }
+        }
+
+        @media print {
+            body { background: #fff; }
+            .toolbar { display: none; }
+            .sheet { max-width: none; margin: 0; padding: 0; box-shadow: none; }
+            h2 { break-after: avoid; }
+            table, .block { break-inside: avoid; }
+        }
+    </style>

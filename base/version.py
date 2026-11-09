@@ -265,12 +265,15 @@ carimbá-la na publicação.
 #: para ler), os três tipos num botão só, as escalas também no texto livre
 #: (na mesma série do gráfico de evolução) e o código do segundo fator em
 #: casas. Migração só de expansão (`clinical.0013`).
-VERSION = '1.41'
+#: A **1.42**: o resumo de todos os atendimentos do paciente numa folha, do
+#: mais recente ao primeiro, ao lado do resumo deste atendimento. Sem
+#: migração.
+VERSION = '1.42'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'primeira consulta e seguimento'
+CODENAME = 'resumo do prontuário'
 
 
 def version_display():

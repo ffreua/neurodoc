@@ -1007,6 +1007,92 @@ class EncounterSummaryView(TenantScopedView):
         })
 
 
+class PatientSummaryView(TenantScopedView):
+    """Resumo de todos os atendimentos do paciente, do mais recente ao primeiro (1.42).
+
+    A mesma folha de `EncounterSummaryView`, repetida para cada consulta —
+    o corpo é o mesmo parcial, `clinical/_resumo_corpo.html`. A ordem é a do
+    pedido: o último atendimento em primeiro lugar, e os demais na sequência.
+
+    **Tudo em lote, num número fixo de consultas.** Um paciente vindo do
+    iClin tem dezenas de atendimentos; montar cada um como a folha de um
+    atendimento monta (achados, medicação, exames, hipóteses e adendos por
+    consulta) seriam seis idas ao banco por atendimento — trezentas para
+    cinquenta retornos. Aqui são sete, e o roteiro mede isso com volumes
+    diferentes.
+
+    Os atendimentos são os da linha do tempo, inclusive os não finalizados:
+    quem abre esta folha já vê todos eles na tela do prontuário, e cada um
+    sai marcado como "ainda editável".
+    """
+
+    def get(self, request, patient_id):
+        from collections import defaultdict
+
+        from .models import ClinicalAmendment
+
+        ctx = request.access_context
+        patient = get_object_or_404(scope_to_tenant(Patient.objects.all(), ctx), id=patient_id)
+        encounters = list(
+            scope_to_tenant(Encounter.objects.all(), ctx)
+            .filter(patient=patient)
+            .select_related('physician_membership__user', 'finalized_by__user')
+            .order_by('-occurred_at')
+        )
+        ids = [e.id for e in encounters]
+
+        def agrupar(consulta):
+            grupos = defaultdict(list)
+            for linha in consulta:
+                grupos[linha.encounter_id].append(linha)
+            return grupos
+
+        do_paciente = {'tenant_id': ctx.tenant_id, 'encounter_id__in': ids}
+        achados = agrupar(
+            ExaminationFinding.objects.filter(**do_paciente)
+            .select_related('template_node').order_by('domain', 'item_code', 'side')
+        )
+        medicacoes = agrupar(Medication.objects.filter(**do_paciente).order_by('name'))
+        resultados = list(
+            ExamResult.objects.filter(**do_paciente)
+            .prefetch_related('lab_values').order_by('-performed_on', 'name')
+        )
+        for result in resultados:
+            values = list(result.lab_values.all())
+            result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
+            result.values_in_count = sum(1 for v in values if v.flag == 'normal')
+        exames = agrupar(resultados)
+        hipoteses = agrupar(EncounterDiagnosis.objects.filter(**do_paciente).order_by('rank'))
+        adendos = agrupar(
+            ClinicalAmendment.objects.filter(**do_paciente)
+            .select_related('author__user').order_by('authored_at')
+        )
+
+        atendimentos = []
+        for encounter in encounters:
+            do_atendimento = achados.get(encounter.id, [])
+            atendimentos.append({
+                'encounter': encounter,
+                'findings_by_domain': group_findings_by_domain(do_atendimento),
+                'findings_count': len(do_atendimento),
+                'medications': medicacoes.get(encounter.id, []),
+                'exam_results': exames.get(encounter.id, []),
+                'diagnoses': hipoteses.get(encounter.id, []),
+                'amendments': adendos.get(encounter.id, []),
+            })
+        record_audit_event(
+            request.user, ctx.tenant_id, 'clinical.patient_summary_viewed',
+            object_type='patient', object_id=patient.id, outcome='success',
+            integrity_metadata={'atendimentos': len(atendimentos)},
+        )
+        return render(request, 'clinical/summary_todos.html', {
+            'patient': patient,
+            'atendimentos': atendimentos,
+            'printed_at': timezone.now(),
+            'printed_by': request.user.get_full_name() or request.user.email,
+        })
+
+
 class MedicationCreateView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)

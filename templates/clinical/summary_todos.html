@@ -1,0 +1,132 @@
+{% load nd static %}<!doctype html>
+{% comment %}Resumo de todos os atendimentos do paciente, para leitura e impressão (1.42).
+
+O mesmo desenho do resumo de um atendimento (`summary.html`), repetido para
+cada consulta: **a mais recente primeiro**, e as outras na sequência, até a
+primeira. É a ordem em que se lê um prontuário para decidir a consulta de
+hoje — o que importa agora vem em cima, e a história de onde tudo começou
+está no fim, para quem precisar dela.
+
+Cada atendimento traz o próprio cabeçalho (data, tipo, médico, situação) e
+o mesmo corpo da folha de um atendimento (`_resumo_corpo.html`). O sumário no
+alto leva a cada um, e na impressão vira o índice da primeira folha.
+
+Sem quebra de página forçada entre atendimentos: num paciente com dezenas de
+retornos, uma folha por consulta imprimiria resmas de papel em branco. O
+cabeçalho de cada um não se separa do que vem logo abaixo dele.
+
+Como a folha de um atendimento, não é documento assinado: o rodapé diz isso.
+{% endcomment %}
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Prontuário — {{ patient.full_name }}</title>
+    {% include "clinical/_resumo_estilo.html" %}
+    <style>
+        .sumario { margin: 14px 0 0; padding: 0; list-style: none; font-size: 12px; }
+        .sumario li { padding: 3px 0; border-bottom: 1px dotted #e5e7eb; display: flex; gap: 10px; }
+        .sumario a { color: #1f2937; text-decoration: none; }
+        .sumario .num { color: #6b7280; min-width: 1.6em; }
+        .atendimento { margin-top: 30px; padding-top: 14px; border-top: 2px solid #3454d1; }
+        .atendimento:first-of-type { margin-top: 22px; }
+        .atd-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+        .atd-titulo { font-size: 15px; font-weight: 700; margin: 0; }
+        .atd-titulo .muted { font-weight: 400; font-size: 12px; }
+        .atd-registro { font-size: 11px; color: #6b7280; margin-top: 10px; }
+        @media print {
+            .atd-head { break-after: avoid; }
+            .sumario a { color: inherit; }
+        }
+    </style>
+</head>
+<body>
+<div class="toolbar">
+    <button type="button" class="primary" data-nd-print>Imprimir</button>
+    <button type="button" data-nd-close>Fechar</button>
+</div>
+
+<div class="sheet">
+    <div class="head">
+        <div>
+            <h1>{{ patient.full_name }}</h1>
+            <div class="ident">
+                <span>Nascimento: {{ patient.birth_date|date:"d/m/Y"|default:"—" }}</span>
+                {% if patient.cpf %}<span>CPF: {{ patient.cpf }}</span>{% endif %}
+                <span>Registro: {{ patient.id|stringformat:"s"|slice:":8" }}</span>
+            </div>
+        </div>
+        <div style="text-align:right">
+            <div><strong>Todos os atendimentos</strong></div>
+            <div class="ident">
+                {% if atendimentos %}
+                <span>{{ atendimentos|length }} atendimento{{ atendimentos|length|pluralize }}</span>
+                {% with ultimo=atendimentos.0.encounter primeiro=atendimentos|last %}
+                <span>{{ primeiro.encounter.occurred_at|date:"d/m/Y" }} a {{ ultimo.occurred_at|date:"d/m/Y" }}</span>
+                {% endwith %}
+                {% else %}
+                <span>Nenhum atendimento</span>
+                {% endif %}
+            </div>
+            <div class="ident"><span>Do mais recente ao mais antigo</span></div>
+        </div>
+    </div>
+
+    {% if atendimentos %}
+    <h2>Sumário</h2>
+    <ol class="sumario">
+        {% for item in atendimentos %}
+        <li>
+            <span class="num">{{ forloop.counter }}.</span>
+            <a href="#atendimento-{{ forloop.counter }}">
+                {{ item.encounter.occurred_at|date:"d/m/Y" }} — {{ item.encounter.rotulo_do_tipo }}
+                <span class="muted">· {{ item.encounter.physician_membership.user.get_full_name }}{% if item.encounter.status != 'finalized' %} · {{ item.encounter.get_status_display|lower }}{% endif %}</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ol>
+
+    {% for item in atendimentos %}
+    <section class="atendimento" id="atendimento-{{ forloop.counter }}">
+        <div class="atd-head">
+            <p class="atd-titulo">
+                {{ forloop.counter }}. {{ item.encounter.occurred_at|date:"d/m/Y H:i" }}
+                <span class="muted">— {{ item.encounter.rotulo_do_tipo }} · {{ item.encounter.physician_membership.user.get_full_name }}</span>
+            </p>
+            {% if item.encounter.status == 'finalized' %}
+            <span class="tag ok">Finalizado — registro imutável</span>
+            {% else %}
+            <span class="tag warn">{{ item.encounter.get_status_display }} — ainda editável</span>
+            {% endif %}
+        </div>
+
+        {% include "clinical/_resumo_corpo.html" with encounter=item.encounter medications=item.medications findings_by_domain=item.findings_by_domain findings_count=item.findings_count exam_results=item.exam_results diagnoses=item.diagnoses amendments=item.amendments %}
+
+        <p class="atd-registro">
+            {% if item.encounter.migrado %}
+            Histórico migrado do sistema anterior (iClin) — {{ item.encounter.finalization_justification }}
+            Hash de integridade {{ item.encounter.content_hash|slice:":16" }}…
+            {% elif item.encounter.status == 'finalized' %}
+            Finalizado em {{ item.encounter.finalized_at|date:"d/m/Y H:i" }}; hash de integridade {{ item.encounter.content_hash|slice:":16" }}…
+            {% else %}
+            Atendimento ainda não finalizado — o conteúdo pode mudar.
+            {% endif %}
+        </p>
+    </section>
+    {% endfor %}
+    {% else %}
+    <p class="empty" style="margin-top:18px">Nenhum atendimento registrado para este paciente.</p>
+    {% endif %}
+
+    <div class="foot">
+        <p>Resumo do prontuário gerado em {{ printed_at|date:"d/m/Y H:i" }} por {{ printed_by }}.</p>
+        <p>
+            Este é um resumo do prontuário para leitura, <strong>não é documento assinado</strong>.
+            Receita, relatório e encaminhamento são emitidos com assinatura digital pelo próprio
+            sistema.
+        </p>
+    </div>
+</div>
+<script src="{% static 'duralux/nd-inline.js' %}" defer></script>
+</body>
+</html>

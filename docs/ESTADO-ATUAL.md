@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.41 "primeira consulta e seguimento" (2026-11-09) · **Produção:**
+**Versão:** 1.42 "resumo do prontuário" (2026-11-09) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,10 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Resumo do prontuário** (1.42, 2026-11-09): o **Resumo do caso** oferece
+este atendimento ou **todos os atendimentos** numa folha, do mais recente ao
+primeiro. Ver `docs/homologation/resumo-do-prontuario.md`.
 
 **Primeira consulta e seguimento** (1.41, 2026-11-09): o atendimento
 estruturado tem dois tipos — a primeira consulta, com queixa e história, e o

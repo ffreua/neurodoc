@@ -1,0 +1,36 @@
+{% comment %}"Resumo do caso": deste atendimento ou de todos (1.42).
+
+As duas folhas abrem em janela própria (`data-nd-window`, em
+`static/duralux/nd-inline.js`), com a proporção de uma folha. "Todos os
+atendimentos" sai do mais recente ao primeiro — `PatientSummaryView`.
+
+No computador, um menu no lugar do botão de antes; no celular, onde as ações
+moram num painel lateral que rola e menu suspenso sai cortado, as duas opções
+aparecem como botões. `rotulo` muda o nome do botão: o texto livre sempre o
+chamou de "Imprimir".{% endcomment %}
+<div class="dropdown d-none d-md-inline-block">
+    <button type="button" class="btn btn-light dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        <span>{{ rotulo|default:"Resumo do caso" }}</span>
+    </button>
+    <ul class="dropdown-menu dropdown-menu-end nd-resumo__menu">
+        <li>
+            <a class="dropdown-item" href="{% url 'clinical:summary' encounter.id %}"
+               target="_blank" rel="noopener" data-nd-window="resumo">
+                <span class="nd-novo-atendimento__nome">Este atendimento</span>
+                <span class="nd-novo-atendimento__descricao">{{ encounter.occurred_at|date:"d/m/Y" }} · {{ encounter.rotulo_do_tipo }}</span>
+            </a>
+        </li>
+        <li>
+            <a class="dropdown-item" href="{% url 'clinical:resumo-todos' encounter.patient_id %}"
+               target="_blank" rel="noopener" data-nd-window="resumo">
+                <span class="nd-novo-atendimento__nome">Todos os atendimentos</span>
+                <span class="nd-novo-atendimento__descricao">Do mais recente ao primeiro, numa folha só.</span>
+            </a>
+        </li>
+    </ul>
+</div>
+<a class="btn btn-light d-md-none" href="{% url 'clinical:summary' encounter.id %}"
+   target="_blank" rel="noopener" data-nd-window="resumo">Resumo deste atendimento</a>
+<a class="btn btn-light d-md-none" href="{% url 'clinical:resumo-todos' encounter.patient_id %}"
+   target="_blank" rel="noopener" data-nd-window="resumo">Resumo de todos os atendimentos</a>

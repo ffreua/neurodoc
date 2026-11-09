@@ -329,6 +329,13 @@ ARTICLES = [
              'fica destacado; de imagem, EEG e ENMG, cole ou resuma o laudo no campo '
              'Laudo. O PDF fica guardado junto, para conferência.',
              '', ''),
+            ('**Resumo do caso** (no texto livre, **Imprimir**) abre uma folha para ler, '
+             'imprimir ou salvar em PDF, com duas opções: **Este atendimento**, ou '
+             '**Todos os atendimentos** do paciente numa folha só — o mais recente '
+             'primeiro e os demais na sequência, até a primeira consulta, cada um com a '
+             'sua data, o tipo, o médico, a medicação, as hipóteses e a conduta. Não é '
+             'documento assinado: é a leitura do prontuário.',
+             '', ''),
             ('**Finalizar** fecha o atendimento com sua autoria, a data e a versão. '
              'Depois disso o texto não é apagado: uma correção entra como '
              '**retificação**, que preserva o que estava escrito antes e registra o '
