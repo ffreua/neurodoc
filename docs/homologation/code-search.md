@@ -1,6 +1,6 @@
-# Busca de códigos — CID-10 e TUSS
+# Busca de códigos — CID-10, CID-11 e TUSS
 
-Uma tela, duas abas: `/app/codigos/`. CID-10 da carga da OMS, TUSS
+Uma tela, três abas desde a 1.44 (`cid-11.md`): `/app/codigos/`. CID-10 e CID-11 da carga da OMS, TUSS
 espelhada da ANS. Evidências: `checks/check_codigos.py`.
 
 ## A decisão que mudou no meio

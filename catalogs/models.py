@@ -7,6 +7,7 @@ from base.models import TimestampedModel
 
 class CatalogSystem(models.TextChoices):
     CID10 = 'CID10', 'CID-10'
+    CID11 = 'CID11', 'CID-11'
     TUSS = 'TUSS', 'TUSS'
     CMED = 'CMED', 'CMED/Anvisa (medicamentos)'
     PORTARIA_344 = 'P344', 'Portaria 344/98 (substâncias controladas)'

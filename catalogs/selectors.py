@@ -94,8 +94,14 @@ def _token_filter(term_normalizado):
     return filtro
 
 
-def search_diagnosis_codes(term, limit=MAX_RESULTS):
+def search_diagnosis_codes(term, limit=MAX_RESULTS, system=CatalogSystem.CID10):
     """Códigos que casam com `term`, por código ou por descrição.
+
+    `system` escolhe a classificação — CID-10, que é o padrão e o que todo
+    chamador antigo recebe, ou CID-11 (1.44). Uma busca lê **uma** das
+    duas: misturadas, "epilepsia" devolveria quarenta linhas em que metade
+    é a mesma doença com outro código, e quem escolhe teria de ler o
+    código para saber de qual classificação é. Ver `catalogs/cid.py`.
 
     A ordenação põe o casamento por **início do código** na frente: quem
     digita "G40" quer G40 e seus subitens antes de qualquer descrição que
@@ -105,7 +111,7 @@ def search_diagnosis_codes(term, limit=MAX_RESULTS):
     term = (term or '').strip()
     if len(term) < MIN_TERM_CHARS:
         return []
-    release = active_release()
+    release = active_release(system)
     if release is None:
         return []
 
@@ -117,6 +123,9 @@ def search_diagnosis_codes(term, limit=MAX_RESULTS):
     candidates = {needle, bare}
     if re.fullmatch(r'[A-Z]\d{3,}', bare):
         candidates.add(f'{bare[:3]}.{bare[3:]}')
+    # Na CID-11 o ponto vem depois da quarta posição: "8A000" é 8A00.0.
+    if system == CatalogSystem.CID11 and re.fullmatch(r'[0-9A-Z][A-Z][0-9][0-9A-Z][0-9A-Z]{1,2}', bare):
+        candidates.add(f'{bare[:4]}.{bare[4:]}')
 
     code_match = Q()
     for candidate in candidates:
@@ -143,7 +152,7 @@ def search_diagnosis_codes(term, limit=MAX_RESULTS):
     ordered = sorted(rows, key=rank)[:limit]
     return [
         {'id': str(row.id), 'code': row.code, 'description': row.description,
-         'parent_code': row.parent_code}
+         'parent_code': row.parent_code, 'system': str(system)}
         for row in ordered
     ]
 

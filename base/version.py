@@ -272,12 +272,16 @@ carimbá-la na publicação.
 #: marca ao agendar ou no horário já marcado, e a câmera aparece na semana,
 #: no dia, no mês, no balcão, na ficha e na agenda por e-mail. Migração só
 #: de expansão (`scheduling.0011`, com o padrão no banco).
-VERSION = '1.43'
+#: A **1.44**: a CID-11 ao lado da CID-10 -- busca de códigos, hipóteses dos
+#: três tipos de atendimento, pacientes por diagnóstico e o rótulo nos
+#: documentos. A carga entra na subida, da planilha da OMS; o prontuário não
+#: ganha coluna (o código diz de qual classificação é).
+VERSION = '1.44'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'teleatendimento na agenda'
+CODENAME = 'CID-11'
 
 
 def version_display():

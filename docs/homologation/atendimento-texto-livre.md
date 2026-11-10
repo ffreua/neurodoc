@@ -31,7 +31,7 @@ mais.**
 | Tela | seis abas | **uma página** |
 | Medicação em uso | estruturada | **a mesma, estruturada** |
 | Vem da consulta anterior | conduta, impressões, CID, medicação | **as mesmas quatro** |
-| Hipóteses (CID-10) | estruturadas | **as mesmas, estruturadas** |
+| Hipóteses (CID-10 ou CID-11) | estruturadas | **as mesmas, estruturadas** |
 | Impressões | campo próprio | campo próprio |
 | Conduta | campo próprio | **o mesmo campo** |
 | Receita, pedido, encaminhamento | sim | **sim, o mesmo botão** |
@@ -152,7 +152,7 @@ só**, numerada, na ordem em que a consulta acontece:
 1. **Texto livre** — o corpo da consulta
 2. **Medicações em uso** — estruturadas
 3. **Impressões e conduta**
-4. **Hipóteses (CID-10)** — estruturadas
+4. **Hipóteses (CID-10 ou CID-11)** — estruturadas
 
 O obstáculo era HTML, não estética: medicação e hipóteses trazem `<form>`
 próprio, e **formulário não se aninha** — o navegador ignora o interno, e o

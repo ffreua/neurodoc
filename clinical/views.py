@@ -250,7 +250,7 @@ class PatientsByDiagnosisView(TenantScopedView):
 
 
 class DiagnosisLookupView(TenantScopedView):
-    """Autocomplete do CID-10, por código ou por descrição.
+    """Autocomplete da CID-10 ou da CID-11 (`?sistema=cid11`), por código ou descrição.
 
     O catálogo é global (não é dado do inquilino), mas o endpoint continua
     exigindo sessão autenticada: quem não tem vínculo ativo não enumera
@@ -260,8 +260,11 @@ class DiagnosisLookupView(TenantScopedView):
     def get(self, request):
         from catalogs.selectors import search_diagnosis_codes
 
+        from catalogs.cid import sistema_do_pedido
+
         term = request.GET.get('q', '')
-        return JsonResponse({'results': search_diagnosis_codes(term)})
+        sistema = sistema_do_pedido(request.GET.get('sistema'))
+        return JsonResponse({'results': search_diagnosis_codes(term, system=sistema)})
 
 
 class TimelineView(TenantScopedView):

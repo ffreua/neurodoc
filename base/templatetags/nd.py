@@ -136,6 +136,18 @@ _BADGE_TONES = {
 
 
 @register.filter
+def nd_cid11(codigo):
+    """`True` quando o código é da CID-11 (1.44).
+
+    A tela marca só a CID-11: a CID-10 é a que sempre esteve ali, e um
+    rótulo em cada linha dela seria ruído em todo prontuário antigo.
+    """
+    from catalogs.cid import CID11, sistema_do_codigo
+
+    return sistema_do_codigo(codigo) == CID11
+
+
+@register.filter
 def nd_tone(value):
     """Duralux contextual colour for a model status value."""
     return _BADGE_TONES.get(str(value), _NEUTRAL_TONE)

@@ -45,7 +45,7 @@ quem muda a tela vê o texto no mesmo diff.
 | 8 | Modelos de documento | Médico |
 | 9 | Entregar o documento ao paciente | Médico, secretaria |
 | 10 | Portal do paciente: solicitações e envio de exames | Médico, gestor |
-| 11 | Buscar códigos CID-10 e TUSS | Todos |
+| 11 | Buscar códigos CID-10, CID-11 e TUSS | Todos |
 | 12 | Chat de apoio | Médico |
 | 13 | Convênios, planos e valores | Dono, gestor, médico |
 | 14 | Equipe, papéis e registro profissional | Dono |

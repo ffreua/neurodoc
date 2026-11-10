@@ -1,4 +1,4 @@
-{% comment %}O corpo do resumo de UM atendimento: história (ou evolução, ou o
+{% load nd %}{% comment %}O corpo do resumo de UM atendimento: história (ou evolução, ou o
 texto livre), medicação, exame, resultados, hipóteses, impressões, conduta e
 adendos.
 
@@ -188,7 +188,7 @@ Recebe `encounter`, `medications`, `findings_by_domain`, `findings_count`,
                 {% for diag in diagnoses %}
                 <tr>
                     <td>{{ diag.rank }}</td>
-                    <td class="num">{{ diag.code_snapshot|default:"—" }}</td>
+                    <td class="num">{{ diag.code_snapshot|default:"—" }}{% if diag.code_snapshot|nd_cid11 %} <span class="muted" style="font-size:10px">(CID-11)</span>{% endif %}</td>
                     <td>
                         {{ diag.description_snapshot|default:"—" }}
                         {% if diag.physician_note %}

@@ -445,7 +445,7 @@ digitado em outra.{% endcomment %}
                 {% if nd_can.clinical_ai %}{% include "clinical/_diagnostic_support.html" %}{% endif %}
 
                 {% if encounter.status != 'finalized' %}
-                {% comment %}A busca no CID-10 vem antes do código e da descrição:
+                {% comment %}A busca na CID (10 ou 11, 1.44) vem antes do código e da descrição:
                 é o caminho normal. Escrever à mão continua valendo, e é o caso da
                 hipótese que ainda não tem código.{% endcomment %}
                 <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
@@ -455,7 +455,8 @@ digitado em outra.{% endcomment %}
                     {{ diagnosis_form.diagnosis_code_id }}
                     <h6 class="fw-bold text-dark mb-3">Adicionar hipótese</h6>
                     <div class="row g-3">
-                        {% include "partials/field.html" with field=diagnosis_form.cid_search col="col-lg-8" %}
+                        {% include "partials/field.html" with field=diagnosis_form.cid_sistema col="col-lg-2 col-md-4" %}
+                        {% include "partials/field.html" with field=diagnosis_form.cid_search col="col-lg-6 col-md-8" %}
                         {% include "partials/field.html" with field=diagnosis_form.certainty col="col-lg-2 col-md-6" %}
                         {% include "partials/field.html" with field=diagnosis_form.rank col="col-lg-2 col-md-6" %}
                         {% include "partials/field.html" with field=diagnosis_form.code_snapshot col="col-lg-2 col-md-3" %}
@@ -481,7 +482,8 @@ digitado em outra.{% endcomment %}
                             {% for diag in diagnoses %}
                             <tr>
                                 <td class="ps-4 fw-bold text-dark">{{ diag.rank }}</td>
-                                <td class="fw-semibold text-dark">{{ diag.code_snapshot|default:"—" }}</td>
+                                <td class="fw-semibold text-dark">{{ diag.code_snapshot|default:"—" }}{% if diag.code_snapshot|nd_cid11 %}
+                                    <span class="d-block fs-10 fw-normal text-muted">CID-11</span>{% endif %}</td>
                                 <td class="text-wrap">
                                     {% comment %}Hipótese sem descrição não pode
                                     virar célula em branco: o formulário agora recusa,

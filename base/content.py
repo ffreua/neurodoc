@@ -293,7 +293,7 @@ ESPECIALIDADES = {
          'Laudo, atestado, declaração de comparecimento, pedido de exame e '
          'encaminhamento, assinados em PAdES com o certificado do próprio '
          'médico e verificáveis por QR.'),
-        ('CID-10 e TUSS completos',
+        ('CID-10, CID-11 e TUSS completos',
          'O catálogo inteiro, não um recorte de neurologia: diagnóstico, '
          'procedimento e o espelho da TUSS atualizado toda semana.'),
         ('Convênio, honorário e recebível',
@@ -401,7 +401,7 @@ FAQ = [
                     'médico, não de neurologia: agenda por profissional, receita '
                     'com as vinte e seis mil apresentações da Anvisa, laudo e '
                     'atestado assinados digitalmente com verificação por QR, '
-                    'CID-10 e TUSS completos, convênios, honorários e '
+                    'CID-10, CID-11 e TUSS completos, convênios, honorários e '
                     'recebíveis, portal para o paciente pedir receita e '
                     'enviar os laudos dos exames, '
                     'exportação do acervo e o apoio de inteligência artificial. '

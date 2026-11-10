@@ -1,5 +1,8 @@
 /*
- * Autocomplete do CID-10 no formulário de hipóteses.
+ * Autocomplete da CID no formulário de hipóteses — CID-10 ou CID-11,
+ * conforme o seletor ao lado da busca (1.44). A escolha fica lembrada
+ * neste navegador: quem registra pela CID-11 não a escolhe a cada
+ * hipótese. O que vai gravado é só o código; ele diz de qual é.
  *
  * Busca por código ou por descrição, porque é assim que se procura: quem
  * sabe que é G40 digita G40; quem está pensando em "epilepsia focal" digita
@@ -28,6 +31,24 @@
     var codeField = form.querySelector('[name="code_snapshot"]');
     var descriptionField = form.querySelector('[name="description_snapshot"]');
     var idField = form.querySelector('[name="diagnosis_code_id"]');
+    var sistemaField = form.querySelector('[name="cid_sistema"]');
+    var CHAVE = 'nd-cid-sistema';
+
+    function sistema() {
+        return sistemaField && sistemaField.value === 'CID11' ? 'CID11' : 'CID10';
+    }
+
+    function rotulo() {
+        return sistema() === 'CID11' ? 'CID-11' : 'CID-10';
+    }
+
+    /* O armazenamento pode estar bloqueado (janela anônima); a tela
+     * funciona igual sem ele, só não lembra. */
+    if (sistemaField) {
+        try {
+            if (window.localStorage.getItem(CHAVE) === 'CID11') sistemaField.value = 'CID11';
+        } catch (erro) { /* sem lembrança */ }
+    }
 
     var MIN_CHARS = 2;
     var DEBOUNCE_MS = 220;
@@ -120,7 +141,7 @@
         inFlight = controller;
         status.textContent = 'Buscando…';
         status.className = 'form-text fs-11 text-muted';
-        fetch(url + '?q=' + encodeURIComponent(term), {
+        fetch(url + '?q=' + encodeURIComponent(term) + '&sistema=' + sistema(), {
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             signal: controller.signal
         })
@@ -132,7 +153,8 @@
                 render(data.results || []);
                 if (!(data.results || []).length) {
                     status.textContent =
-                        'Nenhum código encontrado. Você ainda pode escrever a hipótese à mão abaixo.';
+                        'Nenhum código encontrado na ' + rotulo() +
+                        '. Você ainda pode escrever a hipótese à mão abaixo.';
                     status.className = 'form-text fs-11 text-muted';
                 } else {
                     status.textContent = '';
@@ -144,7 +166,7 @@
                  * continua podendo ser escrita à mão. */
                 close();
                 status.textContent =
-                    'Busca no CID indisponível agora. Escreva a hipótese à mão abaixo.';
+                    'Busca na CID indisponível agora. Escreva a hipótese à mão abaixo.';
                 status.className = 'form-text fs-11 text-warning';
             });
     }
@@ -159,6 +181,14 @@
         }
         timer = window.setTimeout(function () { search(term); }, DEBOUNCE_MS);
     });
+
+    if (sistemaField) {
+        sistemaField.addEventListener('change', function () {
+            try { window.localStorage.setItem(CHAVE, sistema()); } catch (erro) { /* sem lembrança */ }
+            var term = input.value.trim();
+            if (term.length >= MIN_CHARS) search(term); else close();
+        });
+    }
 
     input.addEventListener('keydown', function (event) {
         if (list.hidden) {

@@ -93,6 +93,11 @@ def prepare_release():
     from catalogs.provisioning import ensure_cid10
 
     ensure_cid10()
+    # E a CID-11 (1.44), da planilha da OMS que vem no repositório. Mesma
+    # guarda por estado; a leitura leva uns dez segundos, uma vez.
+    from catalogs.cid import ensure_cid11
+
+    ensure_cid11()
 
 
 #: Rótulos de versão que não identificam uma versão. Uma versão publicada

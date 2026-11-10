@@ -172,12 +172,12 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
             </div>
         </div>
 
-        {% comment %}5. Hipóteses (CID-10), por último: é a conclusão
+        {% comment %}5. Hipóteses (CID-10 ou CID-11), por último: é a conclusão
         codificada, e é o que alimenta indicador e relatório.{% endcomment %}
         <div class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">
-                    <span class="badge bg-soft-primary text-primary me-2">5</span>Hipóteses (CID-10)
+                    <span class="badge bg-soft-primary text-primary me-2">5</span>Hipóteses (CID)
                 </h5>
                 <span class="fs-11 text-muted">Também levadas para a próxima consulta.</span>
             </div>
@@ -187,7 +187,7 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                     <table class="table table-hover align-middle mb-0">
                         <thead class="bg-gray-100">
                             <tr class="border-b">
-                                <th class="ps-4" scope="col">CID-10</th>
+                                <th class="ps-4" scope="col">CID</th>
                                 <th scope="col">Descrição</th>
                                 <th scope="col">Nota do médico</th>
                                 <th scope="col">Certeza</th>
@@ -197,7 +197,8 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                             {% for d in diagnoses %}
                             <tr>
                                 <td class="ps-4">
-                                    <span class="badge bg-soft-primary text-primary">{{ d.code_snapshot }}</span>
+                                    <span class="badge bg-soft-primary text-primary">{{ d.code_snapshot }}</span>{% if d.code_snapshot|nd_cid11 %}
+                                    <span class="d-block fs-10 text-muted mt-1">CID-11</span>{% endif %}
                                 </td>
                                 <td><span class="fs-12 text-dark">{{ d.description_snapshot }}</span></td>
                                 <td class="text-wrap"><span class="fs-12 text-muted">{{ d.physician_note|default:"—"|linebreaksbr }}</span></td>
@@ -235,7 +236,8 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                     {{ diagnosis_form.diagnosis_code_id }}
                     <h6 class="fw-bold text-dark mb-3">Acrescentar hipótese</h6>
                     <div class="row g-3">
-                        {% include "partials/field.html" with field=diagnosis_form.cid_search col="col-lg-8" %}
+                        {% include "partials/field.html" with field=diagnosis_form.cid_sistema col="col-lg-2 col-md-4" %}
+                        {% include "partials/field.html" with field=diagnosis_form.cid_search col="col-lg-6 col-md-8" %}
                         {% include "partials/field.html" with field=diagnosis_form.certainty col="col-lg-2 col-md-6" %}
                         {% include "partials/field.html" with field=diagnosis_form.rank col="col-lg-2 col-md-6" %}
                         {% include "partials/field.html" with field=diagnosis_form.code_snapshot col="col-lg-2 col-md-3" %}

@@ -183,7 +183,7 @@ class FindingForm(forms.Form):
 
 
 class DiagnosisForm(forms.Form):
-    """Hipótese diagnóstica, com busca no CID-10.
+    """Hipótese diagnóstica, com busca na CID-10 ou na CID-11.
 
     A busca é por código **ou** por descrição, porque é assim que se procura
     de fato: quem sabe que é G40 digita G40, quem está pensando em "epilepsia
@@ -194,9 +194,16 @@ class DiagnosisForm(forms.Form):
     aceita é hipótese vazia.
     """
 
+    #: Em qual classificação a busca procura (1.44). **Não é gravado**: o
+    #: que vai para o prontuário é o código, e ele diz de qual é — ver
+    #: `catalogs/cid.py`. O campo só existe para o `cid.js` ler.
+    cid_sistema = forms.ChoiceField(
+        label='Classificação', required=False, initial='CID10',
+        choices=[('CID10', 'CID-10'), ('CID11', 'CID-11')],
+    )
     cid_search = forms.CharField(
-        label='Buscar no CID-10', required=False, max_length=200,
-        help_text='Digite o código (G40) ou parte da descrição (epilepsia focal).',
+        label='Buscar na CID', required=False, max_length=200,
+        help_text='Digite o código (G40 na CID-10, 8A60 na CID-11) ou parte da descrição (epilepsia focal).',
         widget=forms.TextInput(attrs={
             'placeholder': 'Ex.: G40, enxaqueca, esclerose múltipla…',
             'autocomplete': 'off', 'data-nd-cid-search': '1',
@@ -229,7 +236,7 @@ class DiagnosisForm(forms.Form):
             # prontuário como uma linha vazia com um grau de certeza ao lado.
             self.add_error(
                 'description_snapshot',
-                'Escolha um código no CID-10 ou escreva a hipótese.',
+                'Escolha um código na CID-10 ou na CID-11, ou escreva a hipótese.',
             )
         return cleaned
 

@@ -35,6 +35,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from audit.services import record_audit_event
+from catalogs.cid import rotulo_da_hipotese
 
 from . import estrutura
 from .estrutura import CARATER, REGIME, ConteudoInvalido
@@ -148,7 +149,7 @@ def secao_validada(tipo, dados, chave_do_modelo):
         if conteudo['indicacao']:
             partes.append(f"Indicação: {conteudo['indicacao']}")
         if cid:
-            partes.append(f'CID-10: {cid}')
+            partes.append(f'{rotulo_da_hipotese(cid)}: {cid}')
         partes.append(_linha(conteudo['itens']))
         if conteudo['observacoes']:
             partes.append(f"Observações: {conteudo['observacoes']}")
@@ -165,7 +166,7 @@ def secao_validada(tipo, dados, chave_do_modelo):
         conteudo.update(cid=cid, modelo=chave_do_modelo)
         partes = [f"Indicação: {conteudo['indicacao']}"] if conteudo['indicacao'] else []
         if cid:
-            partes.append(f'CID-10: {cid}')
+            partes.append(f'{rotulo_da_hipotese(cid)}: {cid}')
         partes.append('Procedimentos:\n' + _linha(conteudo['procedimentos'], com_quantidade=True))
         if conteudo['materiais']:
             partes.append('Materiais e OPME:\n' + '\n'.join(

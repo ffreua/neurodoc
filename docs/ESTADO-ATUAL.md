@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.43 "teleatendimento na agenda" (2026-11-10) · **Produção:**
+**Versão:** 1.44 "CID-11" (2026-11-10) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,12 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**CID-11 ao lado da CID-10** (1.44, 2026-11-10): a busca de códigos, as
+hipóteses dos três tipos de atendimento e a busca de pacientes por
+diagnóstico aceitam as duas classificações; a CID-10 continua sendo o
+padrão e nada é convertido. A carga vem da planilha da OMS (MMS 2025-01)
+que mora no repositório. Ver `docs/homologation/cid-11.md`.
 
 **Teleatendimento na agenda** (1.43, 2026-11-10): o horário pode levar a
 marca de **teleatendimento**, posta ao agendar ou depois, e a câmera aparece

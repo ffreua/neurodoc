@@ -22,6 +22,12 @@
                 </button>
             </li>
             <li class="nav-item" role="presentation">
+                <button class="nav-link {% if aba == 'cid11' %}active{% endif %}" type="button"
+                        data-bs-toggle="tab" data-bs-target="#aba-cid11" role="tab">
+                    CID-11
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
                 <button class="nav-link {% if aba == 'tuss' %}active{% endif %}" type="button"
                         data-bs-toggle="tab" data-bs-target="#aba-tuss" role="tab">
                     TUSS
@@ -70,6 +76,68 @@
                         <tbody id="nd-cid-rows"></tbody>
                     </table>
                 </div>
+            </div>
+
+            <!-- --------------------------------------------------- CID-11 -->
+            <div class="tab-pane fade {% if aba == 'cid11' %}show active{% endif %}" id="aba-cid11" role="tabpanel">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                    <p class="fs-12 text-muted mb-0">
+                        Classificação Internacional de Doenças, décima primeira revisão. Procure
+                        pelo código (<code>8A60</code>, <code>8A60.0</code>) ou por parte do nome
+                        (<code>epilepsia</code>). Acento é opcional.
+                    </p>
+                    {% if cid11_release %}
+                    <span class="badge bg-gray-200 text-dark flex-shrink-0">
+                        Versão {{ cid11_release.version }} · {{ cid11_total }} códigos
+                    </span>
+                    {% endif %}
+                </div>
+
+                {% if not cid11_release %}
+                <div class="alert alert-light-warning fade show fs-12" role="alert">
+                    <strong>A CID-11 ainda não foi carregada</strong> nesta instalação.
+                    Peça ao administrador do sistema para carregá-la.
+                </div>
+                {% endif %}
+
+                <div class="input-group mb-3">
+                    <span class="input-group-text">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </span>
+                    <input class="form-control form-control-lg" id="nd-cid11-q" type="search" aria-label="Buscar CID-11 por código ou nome"
+                           autocomplete="off" placeholder="Ex.: 8A60, epilepsia, esclerose multipla"
+                           value="{% if aba == 'cid11' %}{{ termo }}{% endif %}"
+                           data-url="{% url 'catalogs:cid-search' %}?sistema=cid11">
+                </div>
+
+                <div id="nd-cid11-status" class="fs-12 text-muted mb-2"></div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 d-none" id="nd-cid11-table">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-3" scope="col" style="width: 8rem;">Código</th>
+                                <th scope="col">Descrição</th>
+                                <th class="pe-3 text-end" scope="col" style="width: 6rem;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="nd-cid11-rows"></tbody>
+                    </table>
+                </div>
+
+                {% comment %}O que ficou fora está dito na tela: quem procura um
+                código de extensão e não acha precisa saber que é escolha, e
+                não tabela incompleta. A atribuição é exigência da licença da
+                OMS (CC BY-ND 3.0 IGO).{% endcomment %}
+                <p class="fs-11 text-muted border-start border-3 ps-2 mt-3 mb-0">
+                    Códigos dos capítulos 1 a 25. Os códigos de extensão (capítulo X), a medicina
+                    tradicional e a seção de funcionalidade não entram na busca: os de extensão só
+                    valem acompanhando outro código. Alguns títulos aparecem em inglês: são os que a
+                    OMS ainda não traduziu. Fonte: CID-11 para Estatísticas de Mortalidade e
+                    de Morbidade (CID-11 MMS){% if cid11_release %}, versão {{ cid11_release.version }}{% endif %},
+                    Organização Mundial da Saúde, reproduzida sem alteração sob a licença
+                    CC BY-ND 3.0 IGO —
+                    <a href="https://icd.who.int/browse/2025-01/mms/pt" target="_blank" rel="noopener noreferrer">icd.who.int</a>.
+                </p>
             </div>
 
             <!-- ----------------------------------------------------- TUSS -->

@@ -65,7 +65,7 @@ class SecaoForm(forms.Form):
 
 def _cid():
     return forms.ChoiceField(
-        label='CID-10 no documento', required=False,
+        label='CID no documento', required=False,
         help_text='As hipóteses deste atendimento. O CID só sai impresso se você escolher.',
     )
 

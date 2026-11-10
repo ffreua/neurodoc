@@ -651,14 +651,25 @@ ARTICLES = [
     },
     {
         'slug': 'codigos',
-        'title': 'Buscar códigos CID-10 e TUSS',
+        'title': 'Buscar códigos CID-10, CID-11 e TUSS',
         'summary': 'Encontrar o código pelo nome, mesmo quando a tabela abrevia.',
         'audience': 'Todos',
         'steps': [
-            ('**Apoio → Busca de códigos** tem duas abas. O CID-10 traz mais de 14 mil '
+            ('**Apoio → Busca de códigos** tem três abas. O CID-10 traz mais de 14 mil '
              'códigos; procure pelo código (`G40`, `G40.0`) ou por parte do nome '
              '(`epilepsia`). Acento é opcional.',
              'codigos-cid.png', 'Busca no CID-10'),
+            ('A aba **CID-11** traz a classificação nova da OMS (versão 2025-01), com '
+             'mais de 15 mil códigos; procure do mesmo jeito, pelo código (`8A60`, '
+             '`8A60.0`) ou pelo nome. Os códigos de extensão (os que começam por X) não '
+             'entram na busca, porque só valem acompanhando outro código. Alguns '
+             'títulos aparecem em inglês: são os que a OMS ainda não traduziu. **No '
+             'atendimento**, ao registrar a hipótese, escolha **CID-10** ou **CID-11** '
+             'ao lado do campo de busca — o sistema lembra a última escolha, e um '
+             'atendimento pode ter hipóteses das duas. A CID-10 continua valendo como '
+             'sempre; o sistema não converte o código de uma classificação para a '
+             'outra. A busca de **Pacientes por diagnóstico** aceita código das duas.',
+             '', ''),
             ('A aba TUSS traz os procedimentos da tabela da ANS. Ela **abrevia** — '
              '"RM - Crânio (encéfalo)" —, e a busca sabe disso: digitar "ressonancia '
              'cranio" encontra o mesmo que digitar "RM cranio".',

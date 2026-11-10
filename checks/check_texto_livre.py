@@ -173,7 +173,7 @@ print('=== 3. a pagina de texto livre tem tudo, e sem form aninhado ===')
 livre = abrir(EncounterKind.FREE_TEXT)
 corpo = cliente.get(f'/app/clinical/{livre.id}/').content.decode()
 for marca in ['Texto livre', 'Impressões e conduta', 'Medicações em uso',
-              'Hipóteses (CID-10)', 'Incluir medicação', 'Emitir documento',
+              'Hipóteses (CID)', 'Incluir medicação', 'Emitir documento',
               'id_free_text', 'id_impressions', 'id_plan_text', 'finalize-modal']:
     presente = marca in corpo
     print(f'  {marca:<22} {presente}')
@@ -195,7 +195,7 @@ if aninhados:
 # A ordem da pagina e parte do pedido: texto -> medicacao -> impressoes e
 # conduta -> CID, numa coluna so. Confere pela POSICAO de cada titulo no
 # corpo, que e o que o olho encontra de cima para baixo.
-ordem_pedida = ['Texto livre', 'Medicacoes em uso', 'Impressoes e conduta', 'Hipoteses (CID-10)']
+ordem_pedida = ['Texto livre', 'Medicacoes em uso', 'Impressoes e conduta', 'Hipoteses (CID)']
 import unicodedata
 
 

@@ -15,6 +15,8 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
+from catalogs.cid import rotulo_da_hipotese
+
 from .common import BODY_STYLE, LABEL_STYLE, build_pdf, paragrafo_de_texto, texto_seguro
 
 TITLE = 'Pedido de exames'
@@ -73,7 +75,8 @@ def cabecalho_comum(document, conteudo):
         corpo += [Paragraph(f'<b>Convênio:</b> {texto_seguro(texto_convenio)}', BODY_STYLE)]
     cid = (conteudo.get('cid') or '').strip()
     if cid:
-        corpo += [Paragraph(f'<b>CID-10:</b> {texto_seguro(cid)}', BODY_STYLE)]
+        # O rótulo segue o código: a hipótese pode ser da CID-11 (1.44).
+        corpo += [Paragraph(f'<b>{rotulo_da_hipotese(cid)}:</b> {texto_seguro(cid)}', BODY_STYLE)]
     if corpo:
         corpo.append(Spacer(1, 0.3 * cm))
     return corpo

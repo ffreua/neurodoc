@@ -1,6 +1,6 @@
-/* Busca de códigos: CID-10 (local) e TUSS (API da ANS).
+/* Busca de códigos: CID-10, CID-11 (locais) e TUSS (espelho da ANS).
  *
- * As duas abas usam o mesmo motor, com parâmetros diferentes. O que muda
+ * As abas usam o mesmo motor, com parâmetros diferentes. O que muda
  * entre elas não é a mecânica — é a origem, e por isso o TUSS espera mais
  * antes de consultar: cada tecla vira uma chamada a um serviço de
  * terceiro, e digitar "eletroencefalograma" são dezoito.
@@ -44,6 +44,8 @@
         if (!campo || !tabela || !corpo || !status) return;
 
         var url = campo.getAttribute('data-url');
+        /* O endereço da CID-11 já traz `?sistema=cid11`. */
+        var juncao = url.indexOf('?') === -1 ? '?' : '&';
         var timer = null;
         /* Cada busca leva um número; só a resposta do número mais recente é
          * desenhada. Sem isso, uma resposta lenta de "epi" chegaria depois
@@ -76,7 +78,7 @@
             status.textContent = 'Procurando…';
             status.className = 'fs-12 text-muted mb-2';
 
-            fetch(url + '?q=' + encodeURIComponent(termo), {
+            fetch(url + juncao + 'q=' + encodeURIComponent(termo), {
                 headers: { 'X-Requested-With': 'XMLHttpRequest' },
                 credentials: 'same-origin'
             })
@@ -118,6 +120,17 @@
         input: 'nd-cid-q', table: 'nd-cid-table', rows: 'nd-cid-rows', status: 'nd-cid-status',
         minimo: 2,
         /* Local: 120ms basta para não consultar a cada tecla. */
+        espera: 120,
+        linha: function (item) {
+            return '<tr><td class="ps-3"><code class="fw-bold">' + escapar(item.code) + '</code></td>' +
+                   '<td class="fs-13">' + escapar(item.description) + '</td>' +
+                   '<td class="pe-3 text-end">' + botaoCopiar(item.code, item.description) + '</td></tr>';
+        }
+    });
+
+    montar({
+        input: 'nd-cid11-q', table: 'nd-cid11-table', rows: 'nd-cid11-rows', status: 'nd-cid11-status',
+        minimo: 2,
         espera: 120,
         linha: function (item) {
             return '<tr><td class="ps-3"><code class="fw-bold">' + escapar(item.code) + '</code></td>' +

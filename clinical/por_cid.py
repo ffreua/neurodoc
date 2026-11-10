@@ -34,6 +34,7 @@ coisa que existe no prontuário e sumiria de uma busca só por código.
 from django.core.paginator import Paginator
 from django.db.models import Q
 
+from catalogs.cid import CID10, CID11, sistema_do_codigo
 from catalogs.importers import normalize_for_search
 from catalogs.selectors import search_diagnosis_codes
 from patients.models import Patient, PatientStatus, RegistrationStage
@@ -97,14 +98,22 @@ def _filtro_do_termo(termo):
         # Quem digita no teclado numérico não digita o ponto, e o código
         # gravado o tem.
         filtro |= Q(code_snapshot__istartswith=f'{sem_ponto[:3]}.{sem_ponto[3:]}')
+    if len(sem_ponto) > 4 and ' ' not in sem_ponto and sistema_do_codigo(sem_ponto) == CID11:
+        # Na CID-11 (1.44) o ponto vem depois da quarta posição: "8A000"
+        # é 8A00.0.
+        filtro |= Q(code_snapshot__istartswith=f'{sem_ponto[:4]}.{sem_ponto[4:]}')
 
     # O texto que o médico gravou, para o diagnóstico anotado sem código.
     filtro |= Q(description_snapshot__icontains=termo)
 
     # E os códigos que o catálogo entende por este termo — o caminho que
     # faz "esclerose multipla", sem acento, achar G35.
-    for achado in search_diagnosis_codes(termo, limit=MAX_CODIGOS_DO_CATALOGO):
-        filtro |= Q(code_snapshot__iexact=achado['code'])
+    # Nas duas classificações: o mesmo paciente pode ter G35 de uma
+    # consulta antiga e 8A40 da de ontem, e "esclerose multipla" tem de
+    # achar os dois.
+    for sistema in (CID10, CID11):
+        for achado in search_diagnosis_codes(termo, limit=MAX_CODIGOS_DO_CATALOGO, system=sistema):
+            filtro |= Q(code_snapshot__iexact=achado['code'])
     return filtro
 
 

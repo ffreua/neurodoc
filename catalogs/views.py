@@ -55,10 +55,14 @@ class CodeSearchView(CatalogView):
 
     def get(self, request):
         cid = selectors.active_release(CatalogSystem.CID10)
+        cid11 = selectors.active_release(CatalogSystem.CID11)
         tuss = selectors.active_release(CatalogSystem.TUSS)
+        aba = request.GET.get('aba')
         return render(request, 'catalogs/search.html', {
             'cid_release': cid,
             'cid_total': cid.diagnosis_codes.filter(active=True).count() if cid else 0,
+            'cid11_release': cid11,
+            'cid11_total': cid11.diagnosis_codes.filter(active=True).count() if cid11 else 0,
             'tuss_release': tuss,
             'tuss_total': tuss.procedure_codes.count() if tuss else 0,
             # A release de amostra da semeadura tem seis linhas e nao e a
@@ -66,15 +70,19 @@ class CodeSearchView(CatalogView):
             # que nao acha nada seja lida como defeito.
             'tuss_sample': bool(tuss and tuss.version.startswith('SAMPLE')),
             'termo': request.GET.get('q', ''),
-            'aba': 'tuss' if request.GET.get('aba') == 'tuss' else 'cid',
+            'aba': aba if aba in ('tuss', 'cid11') else 'cid',
         })
 
 
 class DiagnosisSearchAPI(CatalogView):
-    """CID-10, da carga local. Responde em milissegundos e sem rede."""
+    """CID-10 ou CID-11 (`?sistema=cid11`), da carga local. Sem rede."""
 
     def get(self, request):
-        resultados = selectors.search_diagnosis_codes(request.GET.get('q', ''))
+        from .cid import sistema_do_pedido
+
+        resultados = selectors.search_diagnosis_codes(
+            request.GET.get('q', ''), system=sistema_do_pedido(request.GET.get('sistema')),
+        )
         return JsonResponse({'ok': True, 'results': resultados})
 
 
