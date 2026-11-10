@@ -26,7 +26,7 @@ layout.{% endcomment %}
         </td>
         <td valign="top" style="padding:10px 0;vertical-align:top;">
           <div style="font-weight:bold;line-height:1.35;">{{ l.paciente }}</div>
-          <div style="font-size:13px;color:#64748b;margin-top:2px;">{{ l.tipo }}{% if l.encaixe %} (encaixe){% endif %} · <span style="font-weight:bold;color:{% if l.confirmado %}#17a34a{% else %}#b45309{% endif %};">{{ l.situacao }}</span></div>
+          <div style="font-size:13px;color:#64748b;margin-top:2px;">{{ l.tipo }}{% if l.encaixe %} (encaixe){% endif %}{% if l.teleatendimento %} · <span style="font-weight:bold;color:#3454d1;">Teleatendimento</span>{% endif %} · <span style="font-weight:bold;color:{% if l.confirmado %}#17a34a{% else %}#b45309{% endif %};">{{ l.situacao }}</span></div>
         </td>
       </tr>
       {% endfor %}

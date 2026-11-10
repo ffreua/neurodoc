@@ -420,6 +420,7 @@ class QuickBookingForm(forms.Form):
         label='Justificativa do encaixe', required=False, max_length=255,
         widget=forms.TextInput(attrs={'placeholder': 'Por que este encaixe'}),
     )
+    teleatendimento = forms.BooleanField(label='Teleatendimento', required=False)
 
     def clean(self):
         cleaned = super().clean()

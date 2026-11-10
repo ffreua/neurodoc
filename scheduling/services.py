@@ -54,6 +54,7 @@ def _build_occupied_range(starts_at, ends_at, buffer_minutes=0):
 def reserve_appointment(
     context, patient, physician_membership, starts_at, ends_at, appointment_type,
     is_overbook=False, override_reason='', override_by=None, buffer_minutes=0,
+    teleatendimento=False,
 ):
     if is_overbook and not override_reason:
         raise SchedulingError('Encaixe exige uma justificativa.')
@@ -64,6 +65,7 @@ def reserve_appointment(
         occupied_range=_build_occupied_range(starts_at, ends_at, buffer_minutes),
         status=AppointmentStatus.SCHEDULED, type=appointment_type,
         is_overbook=is_overbook, override_reason=override_reason, override_by=override_by,
+        teleatendimento=bool(teleatendimento),
     )
     appointment.full_clean()
     appointment.save()
@@ -219,7 +221,7 @@ def duration_for(physician_membership_id, appointment_type):
 @transaction.atomic
 def reserve_from_grid(
     context, patient, physician_membership, starts_at, appointment_type,
-    is_overbook=False, override_reason='', override_by=None,
+    is_overbook=False, override_reason='', override_by=None, teleatendimento=False,
 ):
     """Reserva a partir de um horário da grade.
 
@@ -248,6 +250,7 @@ def reserve_from_grid(
     return reserve_appointment(
         context, patient, physician_membership, starts_at, ends_at, appointment_type,
         is_overbook=is_overbook, override_reason=override_reason, override_by=override_by,
+        teleatendimento=teleatendimento,
     )
 
 
@@ -351,6 +354,9 @@ def change_appointment_patient(context, appointment, new_patient, reason, actor_
     forma_desfeita = bool(appointment.billing_mode or appointment.coverage_id)
     appointment.billing_mode = ''
     appointment.coverage = None
+    # A marca de teleatendimento (1.43) foi combinada com o paciente anterior:
+    # o novo volta a presencial até alguém marcar de novo.
+    appointment.teleatendimento = False
     appointment.row_version += 1
     appointment.full_clean()
     appointment.save()
@@ -554,6 +560,43 @@ def set_billing_mode(context, appointment, mode, coverage_id, actor_id):
             'from': anterior,
             'to': {'mode': mode, 'coverage': str(cobertura.id) if cobertura else ''},
         },
+    )
+    return appointment
+
+
+#: A marca de teleatendimento vale enquanto o horário ainda é da agenda.
+TELEATENDIMENTO_EDITAVEL = (
+    AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED,
+    AppointmentStatus.CHECKED_IN, AppointmentStatus.IN_PROGRESS,
+)
+
+
+@transaction.atomic
+def set_teleatendimento(context, appointment, ligado, actor_id):
+    """Marca (ou desmarca) o horário como teleatendimento (1.43).
+
+    É informação de agenda: a secretária combina com o paciente e a grade
+    passa a mostrar a câmera. Não mexe em `row_version` — a marca não muda o
+    horário, e mudar a versão invalidaria os lembretes já agendados, como na
+    forma de cobrança. Vale também depois da chegada (a consulta por vídeo
+    recebe check-in como as outras), e não no que já acabou: concluído,
+    cancelado e falta são história.
+    """
+    appointment = _relida(appointment)
+    if appointment.status not in TELEATENDIMENTO_EDITAVEL:
+        raise SchedulingError(
+            f'Este horário está "{appointment.get_status_display().lower()}" e a marca '
+            'de teleatendimento não muda mais.'
+        )
+    ligado = bool(ligado)
+    if appointment.teleatendimento == ligado:
+        return appointment
+    appointment.teleatendimento = ligado
+    appointment.save(update_fields=['teleatendimento', 'updated_at'])
+    record_audit_event(
+        actor_id, context.tenant_id, 'scheduling.appointment_teleatendimento_changed',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={'teleatendimento': ligado},
     )
     return appointment
 

@@ -126,6 +126,12 @@ horário — diferente da grade, que é de um médico por vez. Aqui a pergunta �
                             {% if appointment.is_overbook %}
                             <span class="badge bg-soft-warning text-warning">encaixe</span>
                             {% endif %}
+                            {% comment %}Com a palavra, e não só a câmera: o balcão é
+                            a lista que se imprime, e no papel o desenho pequeno se
+                            perde.{% endcomment %}
+                            {% if appointment.teleatendimento %}
+                            <span class="badge bg-soft-primary text-primary nd-tele-badge">{% include "scheduling/_tele.html" %} Teleatendimento</span>
+                            {% endif %}
                         </td>
                         <td class="text-end pe-4 nd-no-print">
                             <div class="d-inline-flex flex-wrap gap-1 justify-content-end">

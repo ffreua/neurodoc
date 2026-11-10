@@ -175,13 +175,14 @@ contexto completo.{% endcomment %}
                                             data-nd-type="{{ cell.appointment.get_type_display }}"
                                             data-nd-type-code="{{ cell.appointment.type }}"
                                             data-nd-status-label="{{ cell.appointment.get_status_display }}"
+                                            data-nd-tele="{% if cell.appointment.teleatendimento %}1{% else %}0{% endif %}"
                                             data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                                             {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
                                             data-nd-phone="{{ contato.phone }}" data-nd-email="{{ contato.email }}"
                                             {% endwith %}
-                                            title="{{ cell.start|date:'H:i' }} — {{ cell.appointment.patient.full_name }} ({{ cell.appointment.get_type_display }}) · clique para abrir"
-                                            aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}; abrir ações">
-                                        <span>{{ cell.start|date:'H:i' }}h{% if cell.appointment.status == 'confirmed' %} <span class="nd-month-slot-ok" title="Confirmado">✓</span>{% endif %}</span>
+                                            title="{{ cell.start|date:'H:i' }} — {{ cell.appointment.patient.full_name }} ({{ cell.appointment.get_type_display }}{% if cell.appointment.teleatendimento %}, teleatendimento{% endif %}) · clique para abrir"
+                                            aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}{% if cell.appointment.teleatendimento %}, teleatendimento{% endif %}; abrir ações">
+                                        <span>{{ cell.start|date:'H:i' }}h{% if cell.appointment.status == 'confirmed' %} <span class="nd-month-slot-ok" title="Confirmado">✓</span>{% endif %}{% if cell.appointment.teleatendimento %} {% include "scheduling/_tele.html" %}{% endif %}</span>
                                         <strong class="nd-month-slot-nome">{{ cell.appointment.patient.full_name }}</strong>
                                     </button>
                                     {% elif cell.status == 'done' and cell.is_start %}
@@ -192,8 +193,8 @@ contexto completo.{% endcomment %}
                                     {% comment %}A falta também é `done` na grade (não ocupa a
                                     vaga), mas não é atendimento: sai riscada, e não azul.{% endcomment %}
                                     <span class="nd-month-slot nd-month-slot-done{% if cell.exibida.status == 'no_show' %} nd-month-slot-falta{% endif %}"
-                                          title="{{ cell.start|date:'H:i' }} — {{ cell.exibida.patient.full_name }} ({{ cell.exibida.get_status_display }})">
-                                        <span>{{ cell.start|date:'H:i' }}h</span>
+                                          title="{{ cell.start|date:'H:i' }} — {{ cell.exibida.patient.full_name }} ({{ cell.exibida.get_status_display }}{% if cell.exibida.teleatendimento %}, teleatendimento{% endif %})">
+                                        <span>{{ cell.start|date:'H:i' }}h{% if cell.exibida.teleatendimento %} {% include "scheduling/_tele.html" %}{% endif %}</span>
                                         <strong class="nd-month-slot-nome">{{ cell.exibida.patient.full_name }}</strong>
                                     </span>
                                     {% elif cell.status == 'past' %}
@@ -238,6 +239,7 @@ contexto completo.{% endcomment %}
             <span><strong class="nd-month-slot-ok">✓</strong> — paciente confirmado</span>
             <span><span class="nd-key nd-month-key-done"></span>Azul — chegou ou foi atendido</span>
             <span><span class="nd-key nd-month-key-falta"></span>Riscado — falta</span>
+            <span>{% include "scheduling/_tele.html" %} Teleatendimento</span>
             <span><span class="nd-key nd-month-key-past"></span>Cinza — passou e ficou vago</span>
             <span><strong>lotado</strong> — dia de atendimento sem nenhuma vaga</span>
             <span><strong>encerrado</strong> — o dia já passou</span>

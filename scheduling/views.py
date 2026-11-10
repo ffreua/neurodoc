@@ -808,6 +808,7 @@ class QuickBookingView(TenantScopedView):
                 is_overbook=form.cleaned_data.get('is_overbook') or False,
                 override_reason=form.cleaned_data.get('override_reason', ''),
                 override_by=_own_membership(request),
+                teleatendimento=form.cleaned_data.get('teleatendimento') or False,
             )
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
@@ -877,6 +878,7 @@ class QuickBookingView(TenantScopedView):
                     is_overbook=form.cleaned_data.get('is_overbook') or False,
                     override_reason=form.cleaned_data.get('override_reason', ''),
                     override_by=ator,
+                    teleatendimento=form.cleaned_data.get('teleatendimento') or False,
                 )
                 espera.marcar_agendada(ctx, entrada, appointment, ator=ator)
         except (espera.EsperaError, services.SchedulingError) as exc:
@@ -915,6 +917,17 @@ class AppointmentActionView(TenantScopedView):
             elif action == 'unconfirm':
                 services.transition_appointment(appointment, AppointmentStatus.SCHEDULED, request.user.id)
                 messages.success(request, 'Confirmação desfeita: o horário voltou a "Agendado".')
+            elif action in ('teleatendimento', 'presencial'):
+                # A marca da câmera (1.43): duas ações com nome, e não um
+                # alternador — o clique repetido (ou a aba velha) não desfaz
+                # o que a outra pessoa acabou de marcar.
+                ligado = action == 'teleatendimento'
+                services.set_teleatendimento(request.access_context, appointment, ligado, request.user.id)
+                messages.success(
+                    request,
+                    'Horário marcado como teleatendimento.' if ligado
+                    else 'Marca de teleatendimento retirada: o horário é presencial.',
+                )
             elif action == 'check-in':
                 services.check_in(appointment, request.user.id)
                 # Check-in é o momento em que o paciente está na recepção: é

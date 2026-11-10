@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologia (e qualquer especialidade)
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.42-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.43-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -26,7 +26,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.42 "resumo do prontuário" (`base/version.py`) |
+| **Versão** | 1.43 "teleatendimento na agenda" (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
 | **Verificação** | 162 roteiros em `checks/`, nenhuma falha |
@@ -300,6 +300,7 @@ registro em [`docs/releases/`](docs/releases/).
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
 | **1.42** | 2026-11-09 | resumo do prontuário | **O resumo de todos os atendimentos.** O botão **Resumo do caso** (no texto livre, **Imprimir**) abre um menu: **este atendimento** ou **todos os atendimentos** do paciente numa folha só, com o **mais recente primeiro** e os demais na sequência até a primeira consulta, cada um com data, tipo, médico, situação e o mesmo conteúdo da folha de um atendimento, e um sumário no alto. Carregado em lote, com o mesmo número de consultas ao banco para poucos ou muitos atendimentos. Sem migração. |
+| **1.43** | 2026-11-10 | teleatendimento na agenda | **A marca de teleatendimento.** A secretária (ou o médico) marca o horário como teleatendimento — numa caixa ao agendar, ou por um botão no horário já marcado — e uma **câmera** aparece ao lado do nome na semana e no dia, ao lado da hora no mês, e por extenso no balcão do dia (inclusive impresso), nos agendamentos futuros da ficha e na agenda do dia seguinte por e-mail. É marca de agenda: não muda tipo, duração, cobrança, lembrete nem a versão do horário; remarcar a mantém e trocar o paciente a retira. Migração só de expansão, com o padrão no banco. `check_teleatendimento` |
 | **1.41** | 2026-11-09 | primeira consulta e seguimento | **Primeira consulta e seguimento.** O **Novo atendimento** passa a ter três tipos num botão só, na ficha e no prontuário: **primeira consulta** (queixa, história e o exame completo), **seguimento e retorno** e **texto livre**; a parte principal abre o tipo sugerido pela agenda de hoje ou pelo histórico, e no celular os três aparecem empilhados. No **seguimento**, a primeira aba é a **Evolução**, no lugar de queixa e história, com as duas da primeira consulta ao lado para ler; o resto do prontuário continua, e a finalização pede a evolução. As **escalas** entraram no **texto livre** e alimentam a mesma série do gráfico de evolução. O **código do segundo fator** é digitado em seis casas, em toda tela que o pede. O hash dos atendimentos já finalizados não muda. Migração só de expansão (`clinical.0013`). |
 | **1.40** | 2026-11-09 | portal integrado | **O portal do paciente fala com o resto do sistema.** O **pedido de receita** abre nos mesmos campos da tela de emissão, com a **receita eletrônica do SNCR** — os medicamentos já preenchidos com o que o paciente escreveu e o formato que a lista oficial da Portaria 344 indica (clonazepam na Notificação B, por exemplo); antes, escolher o formato do SNCR ali dava "Confira o conteúdo" sem campo marcado. O **pedido de relatório** pode ser escrito **com apoio de IA**, e aprovar o rascunho atende o pedido. **Toda recusa exige motivo**, dito no campo. A coluna "Por" da fila mostra quem respondeu, e o pedido do relatório vai desidentificado à IA. Sem migração. |
 | **1.39** | 2026-11-08 | WhatsApp da recepção | **Lembrete pelo WhatsApp da clínica**: o botão **WhatsApp** no modal do horário e no balcão abre a conversa com o paciente no WhatsApp Web ou no aplicativo da clínica, com o lembrete escrito no texto que ela definiu em **Integrações → SMS, e-mail e WhatsApp** (campos como `{primeiro_nome}`, `{data}`, `{hora}`, `{medico}`, prévia e texto padrão). A secretária confere e envia: o sistema não envia nada, não há custo nem cadastro na Meta, e vale em todos os planos. E-mail e SMS sem mudança. Migração só de expansão (`communications.0011`). |

@@ -230,6 +230,17 @@ ARTICLES = [
              'ainda não estiver cadastrado, dá para fazer um **pré-cadastro** ali '
              'mesmo, com nome e telefone — o cadastro completo é pedido na recepção.',
              'agenda-marcar.png', 'Marcação de horário'),
+            ('**Teleatendimento.** Se a consulta vai ser por vídeo, marque a caixa '
+             '**Teleatendimento** ao agendar. Para um horário que já está marcado, '
+             'abra-o na agenda e use **Marcar como teleatendimento** (no mesmo lugar '
+             'fica **Retirar a marca de teleatendimento**). O horário passa a mostrar '
+             'uma **câmera** ao lado do nome na semana e no dia, ao lado da hora no '
+             'mês, e a palavra *Teleatendimento* no balcão do dia, na ficha do '
+             'paciente e na agenda que o médico recebe por e-mail. É só um aviso para '
+             'a equipe: não muda o horário, a duração, o valor nem a mensagem enviada '
+             'ao paciente, e o sistema não faz a chamada de vídeo. Remarcar mantém a '
+             'marca; trocar o paciente do horário a retira.',
+             '', ''),
             ('O sistema **recusa horário sobreposto** para o mesmo médico. Se duas '
              'pessoas tentarem marcar o mesmo horário ao mesmo tempo, só a primeira '
              'consegue, e a segunda recebe um aviso — nunca as duas.',

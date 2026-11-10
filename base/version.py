@@ -268,12 +268,16 @@ carimbá-la na publicação.
 #: A **1.42**: o resumo de todos os atendimentos do paciente numa folha, do
 #: mais recente ao primeiro, ao lado do resumo deste atendimento. Sem
 #: migração.
-VERSION = '1.42'
+#: A **1.43**: a marca de teleatendimento no agendamento -- a secretária
+#: marca ao agendar ou no horário já marcado, e a câmera aparece na semana,
+#: no dia, no mês, no balcão, na ficha e na agenda por e-mail. Migração só
+#: de expansão (`scheduling.0011`, com o padrão no banco).
+VERSION = '1.43'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'resumo do prontuário'
+CODENAME = 'teleatendimento na agenda'
 
 
 def version_display():

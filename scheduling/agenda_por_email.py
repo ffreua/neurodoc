@@ -107,6 +107,7 @@ def contexto(membership, dia, horarios, agora=None):
         'situacao': situacao(a),
         'confirmado': situacao(a) == 'Confirmado',
         'encaixe': a.is_overbook,
+        'teleatendimento': a.teleatendimento,
     } for a in horarios]
     return {
         'medico': membership.user.get_full_name() or membership.user.email,

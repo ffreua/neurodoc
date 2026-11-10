@@ -80,6 +80,7 @@
                         data-nd-type="{{ cell.appointment.get_type_display }}"
                         data-nd-type-code="{{ cell.appointment.type }}"
                         data-nd-status-label="{{ cell.appointment.get_status_display }}"
+                        data-nd-tele="{% if cell.appointment.teleatendimento %}1{% else %}0{% endif %}"
                         data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                     {% comment %}Contato do paciente no atributo: o modal precisa
                     dizer para onde a confirmação vai antes de alguém clicar.
@@ -91,9 +92,10 @@
                     {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
                     data-nd-phone="{{ contato.phone }}" data-nd-email="{{ contato.email }}"
                     {% endwith %}>
-                    <span class="fw-semibold text-dark">{{ cell.appointment.patient.full_name }}</span>
+                    <span class="fw-semibold text-dark">{% if cell.appointment.teleatendimento %}{% include "scheduling/_tele.html" %} {% endif %}{{ cell.appointment.patient.full_name }}</span>
                     <span class="d-block fs-11 text-muted">
                         {{ cell.appointment.get_type_display }} ·
+                        {% if cell.appointment.teleatendimento %}teleatendimento ·{% endif %}
                         até {{ cell.appointment.ends_at|date:"H:i" }}
                         {% if cell.appointment.patient.registration_stage == 'preliminary' %}
                         · pré-cadastro

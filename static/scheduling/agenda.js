@@ -257,6 +257,10 @@
             bookNewName.value = '';
             document.getElementById('book-new-phone').value = '';
             document.getElementById('book-note').value = '';
+            /* A marca de teleatendimento também: ficaria marcada do horário
+             * que se abriu e fechou antes. */
+            var bookTele = document.getElementById('book-tele');
+            if (bookTele) bookTele.checked = false;
             bookChosen.textContent = '';
             bookChosen.className = 'form-text fs-11';
             carregarEspera();
@@ -304,6 +308,9 @@
         var checkinForm = document.getElementById('slot-checkin-form');
         var confirmForm = document.getElementById('slot-confirm-form');
         var unconfirmForm = document.getElementById('slot-unconfirm-form');
+        var teleBadge = document.getElementById('slot-tele');
+        var teleOnForm = document.getElementById('slot-tele-on-form');
+        var teleOffForm = document.getElementById('slot-tele-off-form');
         var rescheduleLink = document.getElementById('slot-reschedule');
         var declaracaoLink = document.getElementById('slot-declaracao');
         var changePanel = document.getElementById('slot-change-panel');
@@ -406,6 +413,21 @@
             if (billingOpen) billingOpen.hidden = !tipoEditavel;
             billingId = id;
             if (billingForm) billingForm.action = '/app/scheduling/' + id + '/cobranca/';
+
+            /* Teleatendimento: a marca no alto, e embaixo só o botão que
+             * cabe. Depois de concluído, cancelado ou falta o servidor
+             * recusa a troca, e o botão sai da tela. */
+            var tele = cell.getAttribute('data-nd-tele') === '1';
+            var teleEditavel = ['scheduled', 'confirmed', 'checked_in', 'in_progress'].indexOf(status) !== -1;
+            if (teleBadge) teleBadge.hidden = !tele;
+            if (teleOnForm) {
+                teleOnForm.action = '/app/scheduling/' + id + '/teleatendimento/';
+                teleOnForm.hidden = tele || !teleEditavel;
+            }
+            if (teleOffForm) {
+                teleOffForm.action = '/app/scheduling/' + id + '/presencial/';
+                teleOffForm.hidden = !tele || !teleEditavel;
+            }
 
             changePanel.hidden = true;
             cancelPanel.hidden = true;

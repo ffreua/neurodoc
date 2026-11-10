@@ -293,6 +293,18 @@ class Appointment(TenantModel):
         'patients.PatientCoverage', on_delete=models.PROTECT, null=True, blank=True,
         related_name='+',
     )
+    #: A consulta é por vídeo (1.43). **Marca de agenda, e nada além disso**:
+    #: não muda duração, preço, lembrete nem o prontuário — existe para a
+    #: recepção não esperar no balcão quem não vem, e o médico saber antes de
+    #: chamar. Campo ao lado de `type`, e não um tipo novo: primeira consulta
+    #: e seguimento acontecem dos dois jeitos, e o tipo decide duração e
+    #: cobrança.
+    #:
+    #: `db_default` além de `default`: o `app` é trocado com a versão anterior
+    #: ainda atendendo, e voltar versão deixa o código antigo gravando numa
+    #: tabela que já tem a coluna. Sem o padrão **no banco**, marcar horário
+    #: daria erro de coluna obrigatória nos dois casos.
+    teleatendimento = models.BooleanField('teleatendimento', default=False, db_default=False)
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [

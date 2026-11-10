@@ -382,7 +382,7 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
                             <span class="fw-semibold text-dark fs-13">{{ ag.starts_at|date:"d/m/Y" }} às {{ ag.starts_at|date:"H:i" }}</span>
                             {% endif %}
                             <span class="d-block fs-11 text-muted text-capitalize">
-                                {{ ag.starts_at|date:"l" }} · {{ ag.get_type_display }} · {{ ag.physician_membership.user.get_full_name|default:ag.physician_membership.user.email }}
+                                {{ ag.starts_at|date:"l" }} · {{ ag.get_type_display }}{% if ag.teleatendimento %} · <span class="text-primary text-nowrap">{% include "scheduling/_tele.html" %} teleatendimento</span>{% endif %} · {{ ag.physician_membership.user.get_full_name|default:ag.physician_membership.user.email }}
                             </span>
                         </div>
                         <span class="badge bg-soft-{{ ag.status|nd_tone }} text-{{ ag.status|nd_tone }} flex-shrink-0">{{ ag.get_status_display }}</span>

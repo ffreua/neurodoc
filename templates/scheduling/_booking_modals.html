@@ -137,6 +137,18 @@ clicado diz qual horário e qual paciente.
                         A ficha completa é pedida no check-in, quando o paciente chega.
                     </div>
 
+                    {% comment %}Teleatendimento já ao marcar (1.43): o que a
+                    secretária combina ao telefone, na mesma hora. Desmarcada
+                    por padrão — a consulta é presencial até alguém dizer o
+                    contrário.{% endcomment %}
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" name="teleatendimento"
+                               id="book-tele" value="on">
+                        <label class="form-check-label fs-13" for="book-tele">
+                            {% include "scheduling/_tele.html" %} Teleatendimento (consulta por vídeo)
+                        </label>
+                    </div>
+
                     <details class="mt-3">
                         <summary class="fs-12 text-muted">Encaixe fora da grade</summary>
                         <div class="border rounded-3 p-3 bg-gray-100 mt-2">
@@ -223,6 +235,12 @@ clicado diz qual horário e qual paciente.
                     <span class="badge" id="slot-status"></span>
                     <span class="badge bg-soft-warning text-warning" id="slot-preliminary" hidden>
                         Pré-cadastro — completar no check-in
+                    </span>
+                    {% comment %}A marca de teleatendimento (1.43), ao lado do
+                    tipo e da situação: é a primeira coisa que o médico e a
+                    recepção leem ao abrir o horário.{% endcomment %}
+                    <span class="badge bg-soft-primary text-primary nd-tele-badge" id="slot-tele" hidden>
+                        {% include "scheduling/_tele.html" %} Teleatendimento
                     </span>
                 </div>
 
@@ -318,6 +336,25 @@ clicado diz qual horário e qual paciente.
                     <button type="button" class="btn btn-light btn-sm" id="slot-billing-open">
                         Particular ou convênio
                     </button>
+                    {% comment %}Teleatendimento (1.43): dois formulários, e o JS
+                    mostra o que cabe — marcar em quem é presencial, retirar em
+                    quem já tem a marca. Sem pergunta antes: não envia nada ao
+                    paciente nem muda o horário, e desfaz-se no mesmo lugar.
+                    POST, como toda ação do horário.{% endcomment %}
+                    <form method="post" id="slot-tele-on-form" hidden>
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-light btn-sm w-100" data-nd-busy>
+                            {% include "scheduling/_tele.html" %} Marcar como teleatendimento
+                        </button>
+                    </form>
+                    <form method="post" id="slot-tele-off-form" hidden>
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-light btn-sm w-100" data-nd-busy>
+                            Retirar a marca de teleatendimento
+                        </button>
+                    </form>
                     <button type="button" class="btn btn-light btn-sm" id="slot-change-open">
                         Trocar o paciente deste horário
                     </button>

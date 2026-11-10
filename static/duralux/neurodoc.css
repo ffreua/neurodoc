@@ -1035,6 +1035,27 @@ td.nd-month-fora {
     background: #fafbfc;
 }
 
+/* A câmera do teleatendimento (1.43). Azul do tema por padrão; dentro de
+ * botão e de crachá herda a cor do texto. `flex-shrink: 0` porque o nome ao
+ * lado é cortado com reticências, e a marca não pode encolher com ele. */
+.nd-tele {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: -2px;
+    color: #3454d1;
+}
+
+.btn .nd-tele,
+.badge .nd-tele {
+    color: inherit;
+}
+
+.nd-month-slot .nd-tele {
+    width: 11px;
+    height: 11px;
+    vertical-align: -1px;
+}
+
 /* O crachá "Confirmado" do balcão é um botão (desfaz a confirmação). */
 button.nd-desfazer-confirmacao {
     cursor: pointer;

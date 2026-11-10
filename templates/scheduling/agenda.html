@@ -114,6 +114,7 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
                     data-nd-type="{{ cell.appointment.get_type_display }}"
                     data-nd-type-code="{{ cell.appointment.type }}"
                     data-nd-status-label="{{ cell.appointment.get_status_display }}"
+                    data-nd-tele="{% if cell.appointment.teleatendimento %}1{% else %}0{% endif %}"
                     data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                     {% comment %}Contato do paciente no atributo: o modal precisa
                     dizer para onde a confirmação vai antes de alguém clicar.
@@ -125,9 +126,12 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
                     {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
                     data-nd-phone="{{ contato.phone }}" data-nd-email="{{ contato.email }}"
                     {% endwith %}
-                    aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}">
+                    aria-label="{{ cell.appointment.patient.full_name }}, {{ cell.appointment.get_status_display }}{% if cell.appointment.teleatendimento %}, teleatendimento{% endif %}">
                 {% if cell.is_start %}
-                <span class="nd-slot-name">{{ cell.appointment.patient.full_name }}</span>
+                {% comment %}A câmera vem **antes** do nome: o nome é cortado
+                com reticências na célula estreita, e a marca não pode ir
+                junto.{% endcomment %}
+                <span class="nd-slot-name">{% if cell.appointment.teleatendimento %}{% include "scheduling/_tele.html" %} {% endif %}{{ cell.appointment.patient.full_name }}</span>
                 <span class="d-block fs-10">
                     {{ cell.appointment.get_type_display }}
                     {% if cell.appointment.patient.registration_stage == 'preliminary' %}· pré{% endif %}
@@ -154,6 +158,7 @@ dentro do template do Django vira ilegível rápido.{% endcomment %}
             <span><span class="nd-key" style="background:#dbf5f3;border-color:rgba(61,199,190,.35)"></span>Confirmado</span>
             <span><span class="nd-key" style="background:#ffebd0;border-color:rgba(255,162,29,.4)"></span>Chegou / em atendimento</span>
             <span><span class="nd-key" style="background:#e1fbed;border-color:rgba(23,198,102,.35)"></span>Concluído</span>
+            <span>{% include "scheduling/_tele.html" %} Teleatendimento</span>
             <span><span class="nd-key" style="background:repeating-linear-gradient(45deg,#f1f3f5,#f1f3f5 4px,#e5e7eb 4px,#e5e7eb 8px)"></span>Fechado (feriado, férias, bloqueio)</span>
         </div>
 

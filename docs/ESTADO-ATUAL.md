@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.42 "resumo do prontuário" (2026-11-09) · **Produção:**
+**Versão:** 1.43 "teleatendimento na agenda" (2026-11-10) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,11 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Teleatendimento na agenda** (1.43, 2026-11-10): o horário pode levar a
+marca de **teleatendimento**, posta ao agendar ou depois, e a câmera aparece
+em toda tela que lista agendamento. É marca de agenda e nada além disso — o
+sistema não faz a chamada. Ver `docs/homologation/teleatendimento.md`.
 
 **Resumo do prontuário** (1.42, 2026-11-09): o **Resumo do caso** oferece
 este atendimento ou **todos os atendimentos** numa folha, do mais recente ao
