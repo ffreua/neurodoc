@@ -70,7 +70,7 @@ class OrganizationSignupForm(forms.Form):
         error_messages={'required': 'É preciso aceitar o contrato para criar a clínica.'},
     )
 
-    #: Declaração de poderes para contratar (cláusula 2.2, "i").
+    #: Declaração de poderes para contratar (cláusula 2.3 da versão 2.0; 2.2, "i" na 1.x).
     #:
     #: Campo separado da caixa de aceite, e não uma frase dentro dela.
     #: São duas declarações diferentes — "li e aceito" e "posso assinar

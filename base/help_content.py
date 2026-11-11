@@ -1127,7 +1127,7 @@ ARTICLES = [
         'audience': 'Dono',
         'steps': [
             ('**Organização → Exportar dados** entrega o acervo da clínica. É o direito '
-             'da cláusula 13.1 do contrato de adesão: obter o que é seu em formato de uso '
+             'da cláusula 14 do contrato de adesão: obter o que é seu em formato de uso '
              'comum, sem depender de ninguém.',
              'exportar-tela.png', 'Exportar dados'),
             ('São dois acervos. O **cadastro de pacientes** traz a ficha completa de cada '

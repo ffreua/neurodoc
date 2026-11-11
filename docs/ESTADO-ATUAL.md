@@ -7,7 +7,7 @@ está aberto e o que já quebrou antes.
 Escrito em 2026-10-02 e atualizado a cada publicação; o histórico de
 cada versão está no `README.md` e em `docs/releases/`.
 
-**Versão:** 1.44 "CID-11" (2026-11-10) · **Produção:**
+**Versão:** 1.45 "contrato 2.0" (2026-11-10) · **Produção:**
 `https://neurodoc.app.br` (VPS Integrator, `ssh neurodoc-vps`)
 
 ---
@@ -121,6 +121,11 @@ saiu na 1.33, e a lista não tem item aberto. O que muda para quem usa: o
 16/11/2026** (9 responsáveis e 1 médico ainda sem ele no dia), emitir em
 papel exige o CRM validado, e o cancelamento oferece pôr o paciente na
 lista de espera.
+
+**Contrato de adesão 2.0** (1.45, 2026-11-10): a redação revisada da Dra.
+Karina, com os Anexos I a V e o Aviso de Privacidade em `/contrato/`. O que
+o texto afirma e o sistema ainda não cumpre está em
+`docs/governance/contrato-2.0-pendencias.md`.
 
 **CID-11 ao lado da CID-10** (1.44, 2026-11-10): a busca de códigos, as
 hipóteses dos três tipos de atendimento e a busca de pacientes por

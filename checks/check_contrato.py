@@ -121,38 +121,40 @@ print(f'  versao={contract.VERSAO}  clausulas={len(contract.CLAUSULAS)}  '
 # O padrao casa com a ideia, nao com a frase inteira: reescrever a redacao
 # de uma clausula nao pode quebrar o roteiro, apagar a clausula precisa.
 obrigatorias = [
-    ('arrependimento de 7 dias', r'7 \(sete\) dias corridos'),
-    ('nao reembolso por conveniencia', r'n[aã]o haver[aá] restitui[cç][aã]o'),
-    ('restituicao proporcional nas excecoes',
-     r'restitui[cç][aã]o proporcional do per[ií]odo n[aã]o utilizado'),
-    ('vigencia de 12 meses da contratacao',
-     r'12 \(doze\) meses, contados da data\s+da contrata[cç][aã]o'),
-    ('renovacao automatica', r'renovado automaticamente'),
-    ('clinica e a controladora', r'CONTRATANTE atuar[aá], em regra, como CONTROLADORA'),
-    ('NeuroDoc e o operador', r'NeuroDoc, como OPERADOR'),
-    ('papel contratual nao afasta a lei',
-     r'n[aã]o afasta as\s+responsabilidades que a legisla[cç][aã]o atribuir'),
-    ('lei da LGPD citada', r'Lei n[ºo] 13\.709/2018'),
-    ('copia do contrato fica com o registro',
-     r'c[oó]pia do conte[uú]do contratual efetivamente aceito'),
-    ('declaracao de poderes para contratar', r'poderes para\s+contratar em nome'),
-    ('hash deterministico', r'identificador SHA-256'),
-    ('exportacao no termino', r'90 \(noventa\) dias'),
-    ('divida nao impede exportacao',
-     r'exist[eê]ncia de d[ií]vida n[aã]o impedir[aá] a exporta[cç][aã]o'),
-    ('guarda legal do prontuario continua da clinica',
-     r'n[aã]o transfere ao CONTRATADO a responsabilidade'),
-    ('prontuario nao e garantia de pagamento', r'como garantia\s+de pagamento'),
-    ('prazo de aviso de incidente', r'at[eé] 24 horas'),
+    # Redacao 2.0 (2026-11-10), da Dra. Karina Albuquerque Freua.
+    ('arrependimento de 7 dias', r'sete dias corridos desde o aceite'),
+    ('restituicao integral no arrependimento', r'restitui[cç][aã]o integral dos valores pagos'),
+    ('sem restituicao automatica na denuncia imotivada',
+     r'n[aã]o haver[aá] restitui[cç][aã]o autom[aá]tica'),
+    ('restituicao proporcional por falha da contratada', r'restitui[cç][aã]o proporcional do servi[cç]o pago'),
+    ('vigencia de 12 meses', r'vig[eê]ncia de 12 meses'),
+    ('parcelas sao do mesmo periodo, nao prazos diferentes',
+     r'n[aã]o prazos contratuais diferentes'),
+    ('renovacao so se informada, com 30 dias de aviso', r'anteced[eê]ncia m[ií]nima de 30 dias'),
+    ('clinica e a controladora', r'como controlador'),
+    ('ProntDoc e a operadora', r'PRONTDOC atua em regra como operadora'),
+    ('qualificacao material prevalece', r'qualifica[cç][aã]o material prevalece'),
+    ('copia integral e SHA-256 do aceite', r'vers[aã]o integral aceita'),
+    ('hash deterministico', r'SHA-256'),
+    ('declaracao de poderes', r'declara possuir poderes'),
+    ('janela de 90 dias apos o termino', r'90 \(noventa\) dias corridos'),
+    ('prontuario nao e garantia de divida', r'reten[cç][aã]o de prontu[aá]rios como garantia de d[ií]vida'),
+    ('acervo nao e garantia de pagamento', r'acervo como garantia de pagamento'),
+    ('guarda de 20 anos sem hospedagem gratuita', r'Lei n[ºo] 13\.787/2018'),
+    ('aviso de incidente em 24 horas', r'at[eé] 24 horas'),
     ('suboperadores', r'suboperadores'),
-    ('transferencia internacional e a ANPD', r'Ag[eê]ncia Nacional de Prote[cç][aã]o de Dados'),
-    ('encarregado', r'indicar encarregado'),
-    ('IA nao entra sozinha no prontuario',
-     r'Nenhum resultado produzido por intelig[eê]ncia artificial ser[aá]\s+incorporado'),
-    ('pseudonimizacao nao e anonimizacao', r'n[aã]o constituem anonimiza[cç][aã]o'),
-    ('limitacao de responsabilidade com excecoes', r'na extens[aã]o proibida por lei'),
-    ('versao aceita permanece vinculada', r'permanecer[aá] vinculada [aà] respectiva'),
-    ('foro', r'Fica eleito o foro'),
+    ('transferencia internacional e a ANPD', r'Resolu[cç][aã]o CD/ANPD n[ºo] 19/2024'),
+    ('IA so com revisao do medico', r'revis[aá]-lo e aprov[aá]-lo expressamente'),
+    ('desidentificacao nao e anonimizacao',
+     r'n[aã]o equivalem necessariamente [aà] anonimiza[cç][aã]o irrevers[ií]vel'),
+    ('sem treinamento de modelo com dado clinico', r'treinamento de modelos'),
+    ('limitacao de responsabilidade com excecoes', r'limita[cç][aã]o n[aã]o se aplica quando vedada por lei'),
+    ('codigo aberto sob MIT', r'licen[cç]a MIT'),
+    ('meta de disponibilidade', r'98%'),
+    ('backup externo cifrado', r'cifrados localmente'),
+    ('versoes anteriores nao mudam', r'sem altera[cç][aã]o retroativa'),
+    ('foro', r'fica eleito o foro'),
+    ('declaracao de aceite', r'DECLARA[CÇ][AÃ]O DE ACEITE'),
 ]
 presentes = 0
 for rotulo, padrao in obrigatorias:
@@ -162,14 +164,75 @@ for rotulo, padrao in obrigatorias:
         falhas.append(f'o contrato nao fala de: {rotulo}')
 print(f'  clausulas obrigatorias presentes={presentes}/{len(obrigatorias)}')
 
-# Numeracao coerente: a tela numera por posicao, e o texto simples tambem.
-# Se as duas contagens divergissem, o e-mail citaria "clausula 9" e a tela
-# mostraria outra coisa no lugar.
-numeros = re.findall(r'^CLÁUSULA (\d+) —', inteiro, re.MULTILINE)
-if [int(x) for x in numeros] != list(range(1, len(contract.CLAUSULAS) + 1)):
+# Numeracao coerente. Desde a 2.0 o numero e o da advogada, escrito no
+# texto: os titulos de 1 a N sem pular, e os itens de cada um em
+# sequencia. Se o arquivo pulasse um numero, o e-mail citaria "clausula 9"
+# e a tela mostraria outra coisa no lugar.
+numeros = [c['numero'] for c in contract.CLAUSULAS]
+if numeros != list(range(1, len(numeros) + 1)) or len(numeros) != 20:
     falhas.append(f'a numeracao das clausulas saiu fora de ordem: {numeros}')
 else:
-    print(f'  numeracao={numeros[0]}..{numeros[-1]}')
+    print(f'  numeracao=1..{numeros[-1]}')
+for clausula in contract.CLAUSULAS:
+    esperados = [f"{clausula['numero']}.{i}." for i in range(1, len(clausula['itens']) + 1)]
+    lidos = [item.split(' ', 1)[0] for item in clausula['itens']]
+    if not lidos or lidos != esperados:
+        falhas.append(f"clausula {clausula['numero']}: itens fora de sequencia {lidos}")
+# O que o arquivo diz e o que o codigo diz: a versao nas duas linhas que a
+# trazem, e a CONTRATADA que o rodape e o JSON-LD citam.
+arquivo = contract.ARQUIVO.read_text(encoding='utf-8')
+outra_versao = re.search(r'Vers[aã]o (?!' + re.escape(contract.VERSAO) + r')\d', arquivo)
+if arquivo.count(f'Versão {contract.VERSAO}') != 2 or outra_versao:
+    falhas.append('o arquivo do contrato cita uma versao diferente de VERSAO')
+for campo in ('cnpj', 'endereco'):
+    if contract.CONTRATADO[campo] not in arquivo:
+        falhas.append(f'o contrato da advogada nao traz o {campo} de CONTRATADO')
+if 'PRONTDOC PRONTUÁRIOS MÉDICOS LTDA.' not in arquivo:
+    falhas.append('o contrato da advogada nao traz a razao social de CONTRATADO')
+# Os cinco anexos e o aviso existem, com conteudo, e cada um com ancora.
+print(f'  documentos={len(contract.DOCUMENTOS)}  anexos={[a for _, a in contract.ANEXOS]}')
+if [a for _, a in contract.ANEXOS] != ['anexo-i', 'anexo-ii', 'anexo-iii', 'anexo-iv', 'anexo-v',
+                                       'aviso-de-privacidade']:
+    falhas.append('os documentos integrantes nao sao os cinco anexos e o aviso')
+if any(len(d['blocos']) < 3 for d in contract.DOCUMENTOS):
+    falhas.append('ha documento integrante sem conteudo')
+# A copia integral cobre os anexos: a declaracao de aceite diz "o contrato
+# e seus anexos integrais".
+if any(d['titulo'] not in inteiro for d in contract.DOCUMENTOS):
+    falhas.append('o texto simples (copia arquivada e e-mail) deixou anexo de fora')
+if 'Integrator Host do Brasil' not in inteiro or '**' in inteiro:
+    falhas.append('a tabela de suboperadores nao chegou ao texto puro, ou o negrito vazou')
+if contract.REVISAO_JURIDICA['oab'] not in inteiro:
+    falhas.append('o texto aceito nao identifica a advogada')
+# A 1.2 aceita continua existindo, com o mesmo SHA-256 dos aceites dela.
+import hashlib
+v12 = contract.ARQUIVO.with_name('contrato-1.2.txt').read_bytes()
+if hashlib.sha256(v12).hexdigest() != 'eaaf70006f2ad11dbcf409059650ddcfc0490c97b11b5a4612207a36cfbfd144':
+    falhas.append('a redacao 1.2 arquivada nao e a que os aceites da 1.2 conferem')
+# O leitor e estrito: o que ele nao reconhece nao some calado.
+import tempfile
+
+
+def _ler_teste(conteudo):
+    with tempfile.NamedTemporaryFile('w', suffix='.md', delete=False, encoding='utf-8') as arq:
+        arq.write(conteudo)
+    return contract.ler(arq.name)
+
+
+for rotulo, conteudo in (
+    ('titulo de nivel que nao existe', '# T\n### nivel\n'),
+    ('tabela com coluna faltando', '# T\n| a | b |\n|---|---|\n| so uma |\n'),
+    ('texto antes do primeiro titulo', 'solto\n# T\n'),
+):
+    try:
+        _ler_teste(conteudo)
+        falhas.append(f'o leitor do contrato aceitou: {rotulo}')
+    except ValueError:
+        pass
+# O negrito da advogada vira <strong>, e o texto e escapado antes.
+html = str(_ler_teste('# T\nTexto **forte** e <script>x</script>.\n')[0]['blocos'][0]['html'])
+if '<strong>forte</strong>' not in html or '<script>' in html:
+    falhas.append(f'o paragrafo do contrato nao foi escapado e marcado como devia: {html}')
 
 # A pagina mostra o contrato, e so o contrato. Resumo nosso e ressalva de
 # minuta pendente sairam quando a redacao foi fechada: um "isto ainda nao
@@ -185,18 +248,18 @@ print(f'  sha256={sha[:16]}...')
 if sha != sha_do_texto():
     falhas.append('o hash do contrato muda entre duas leituras do mesmo texto')
 # Mexer numa letra muda o hash -- e e isso que torna o aceite conferivel.
-_titulo = contract.TITULO
-contract.TITULO = _titulo + ' '
+_vig = contract.VIGENCIA_DESDE
+contract.VIGENCIA_DESDE = _vig + ' '
 if sha_do_texto() == sha:
     falhas.append('o hash nao mudou depois de o texto mudar')
-contract.TITULO = _titulo
+contract.VIGENCIA_DESDE = _vig
 
 print('=== 3. o contrato e publico, antes de alguem ter conta ===')
 anonimo = Client()
 pagina = anonimo.get('/contrato/')
 corpo = pagina.content.decode(errors='replace')
 tem_versao = contract.VERSAO in corpo
-tem_arrependimento = '7 (sete) dias corridos' in corpo
+tem_arrependimento = 'sete dias corridos desde o aceite' in corpo
 print(f'  GET /contrato/ -> HTTP {pagina.status_code}  versao={tem_versao}  '
       f'arrependimento={tem_arrependimento}')
 if pagina.status_code != 200 or not tem_versao or not tem_arrependimento:
@@ -215,16 +278,19 @@ qualificacao = contract.CONTRATADO['cnpj'] in corpo
 print(f'  advogada na pagina={assinatura}  qualificacao do contratado={qualificacao}')
 if not assinatura or not qualificacao:
     falhas.append('a pagina publica nao identifica a advogada ou o contratado')
-# Anexos: todos listados, e o estado de cada um dito. Prometer anexo que
-# nao existe sem dizer que nao existe e o defeito que esta linha impede.
-sem_anexo = [nome for nome, _ in contract.ANEXOS if nome not in corpo]
+# Anexos e aviso: na mesma pagina, cada um com a sua ancora e o indice
+# apontando para ela. Na 1.x esta secao cobrava que a pagina dissesse
+# "ainda nao disponibilizado"; desde a 2.0 eles existem.
+sem_anexo = [titulo for titulo, ancora in contract.ANEXOS
+             if titulo not in corpo or f'id="{ancora}"' not in corpo or f'href="#{ancora}"' not in corpo]
 if sem_anexo:
-    falhas.append(f'a pagina nao lista os anexos: {sem_anexo}')
-if any(not d for _, d in contract.ANEXOS) and 'ainda não disponibilizado' not in corpo:
-    falhas.append('ha anexo indisponivel e a pagina nao diz que ele nao existe')
-# Alineas numeradas, e nao um paragrafo corrido.
-if 'nd-contrato-alineas' not in corpo:
-    falhas.append('a pagina nao renderiza as alineas das clausulas')
+    falhas.append(f'a pagina nao mostra os anexos com ancora e indice: {sem_anexo}')
+if 'ainda não disponibilizado' in corpo:
+    falhas.append('a pagina ainda diz que ha anexo indisponivel')
+if 'Integrator Host do Brasil</td>' not in corpo or 'nd-contrato-numero' not in corpo:
+    falhas.append('a pagina nao renderiza as tabelas ou o numero dos itens')
+if '**' in corpo:
+    falhas.append('o negrito da advogada vazou como asteriscos na pagina')
 
 print('=== 4. sem aceitar, nao nasce clinica ===')
 convite, token = issue_invitation(purpose=InvitationPurpose.PLATFORM, plan=PlanCode.BASIC)
@@ -464,11 +530,11 @@ if True:
 
     # O console percebe quando o texto muda sem a versao mudar? E o unico
     # jeito de descobrir que um aceite deixou de ser conferivel.
-    _sub = contract.SUBTITULO
-    contract.SUBTITULO = _sub + ' (alterado pelo roteiro)'
+    _vigencia = contract.VIGENCIA_DESDE
+    contract.VIGENCIA_DESDE = _vigencia + ' (alterado pelo roteiro)'
     corpo = console.get('/instalacao/contratos/').content.decode(errors='replace')
     percebeu = 'texto difere do atual' in corpo
-    contract.SUBTITULO = _sub
+    contract.VIGENCIA_DESDE = _vigencia
     print(f'  texto editado sem trocar a versao -> console avisa={percebeu}')
     if not percebeu:
         falhas.append('o console nao percebe texto editado sem troca de versao')

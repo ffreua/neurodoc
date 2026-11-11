@@ -1,0 +1,280 @@
+CONTRATO DE ADESÃO AO NEURODOC
+Licença de uso de software como serviço — SaaS e acordo de tratamento de dados pessoais
+
+Versão: 1.2
+Data de vigência: 2026-10-29
+
+QUALIFICAÇÃO DAS PARTES
+
+De um lado,
+
+PRONTDOC PRONTUÁRIOS MÉDICOS LTDA., pessoa jurídica de direito privado, inscrita no CNPJ sob nº 69.887.146/0001-05, com sede na Avenida Paulista, nº 2073, sala 2220, São Paulo/SP, mantenedora da plataforma de software denominada NeuroDoc, doravante denominada simplesmente "NEURODOC" ou "CONTRATADO";
+
+e, de outro lado,
+
+A pessoa física ou jurídica, clínica, consultório ou profissional regularmente cadastrado no sistema, identificado no momento da contratação por seu nome, razão social, CPF ou CNPJ, endereço eletrônico e demais dados registrados eletronicamente. Doravante denominado simplesmente "CONTRATANTE".
+
+As partes acima qualificadas têm entre si celebrado o presente Contrato de Adesão ao NeuroDoc — Licença de Uso de Software como Serviço e Acordo de Tratamento de Dados Pessoais, mediante as cláusulas e condições seguintes.
+
+CLÁUSULA 1 — DO OBJETO
+   1.1. O CONTRATADO concede à CONTRATANTE licença de uso não exclusiva, intransferível e limitada ao período de vigência deste contrato para utilização do sistema NeuroDoc, plataforma de prontuário eletrônico e gestão destinada principalmente a clínicas e profissionais de neurologia e neurocirurgia, disponibilizada na modalidade Software as a Service — SaaS.
+   1.2. A licença compreende, conforme o plano contratado:
+       a) utilização do sistema pela CONTRATANTE e por seus profissionais e colaboradores autorizados;
+       b) hospedagem da aplicação e dos dados;
+       c) manutenção corretiva;
+       d) atualizações ordinárias disponibilizadas pelo NeuroDoc;
+       e) ferramentas de exportação dos dados;
+       f) demais funcionalidades especificadas no plano vigente no momento da contratação.
+   1.3. Os limites funcionais, quantitativos e comerciais de cada plano serão aqueles informados na página de contratação e registrados eletronicamente no momento do aceite.
+   1.4. O CONTRATADO, por meio da plataforma NeuroDoc, não presta serviço médico aos pacientes da CONTRATANTE, não substitui o julgamento profissional e não assume responsabilidade por diagnóstico, indicação terapêutica ou qualquer decisão assistencial tomada pelos profissionais que utilizam o sistema.
+   1.5. As funcionalidades do sistema destinadas a auxiliar documentação, organização de informações ou raciocínio clínico constituem instrumentos de apoio e não transferem ao CONTRATADO a responsabilidade pelo ato médico praticado pelo usuário.
+
+CLÁUSULA 2 — DA ADESÃO ELETRÔNICA E DA PROVA DO CONTRATO
+   2.1. A adesão ocorre mediante aceite eletrônico realizado pela própria CONTRATANTE ou por pessoa que declare possuir poderes para representá-la.
+   2.2. O NeuroDoc registrará, para fins de comprovação da contratação:
+       a) identificação da CONTRATANTE;
+       b) identificação do usuário responsável pelo aceite;
+       c) data e hora do aceite;
+       d) endereço IP de origem;
+       e) informações técnicas do dispositivo ou navegador, quando disponíveis;
+       f) versão contratual aceita;
+       g) identificador criptográfico do documento;
+       h) plano e condições comerciais aplicáveis;
+       i) declaração eletrônica de que o aceitante possui poderes para contratar em nome da CONTRATANTE, quando aplicável.
+   2.3. Uma cópia do conteúdo contratual efetivamente aceito permanecerá vinculada ao respectivo registro de contratação.
+   2.4. O identificador SHA-256 será calculado segundo procedimento técnico determinístico, permitindo demonstrar a integridade do texto contratual aceito.
+
+CLÁUSULA 3 — DA VIGÊNCIA E DA RENOVAÇÃO
+   3.1. Os planos pagos terão vigência de 12 (doze) meses, contados da data da contratação.
+   3.2. O contrato será renovado automaticamente por períodos sucessivos de 12 (doze) meses, salvo manifestação contrária de qualquer das partes com antecedência mínima de 30 (trinta) dias em relação ao vencimento.
+   3.3. O plano gratuito terá prazo indeterminado e poderá ser encerrado nos termos deste contrato.
+   3.4. O encerramento da relação comercial não elimina as obrigações de confidencialidade, segurança, proteção de dados, preservação de evidências, responsabilidade ou demais disposições destinadas a produzir efeitos após o término.
+
+CLÁUSULA 4 — DOS PLANOS, PREÇOS E PAGAMENTO
+   4.1. O plano, os limites quantitativos, as funcionalidades contratadas e o preço aplicável serão registrados eletronicamente no momento da contratação.
+   4.2. Nos planos pagos, o valor da contratação será anual e devido integralmente na data de contratação ou renovação, salvo condição comercial expressamente registrada.
+   4.3. O eventual valor mensal exibido na página comercial será apresentado apenas como referência econômica equivalente do plano anual e não implica modalidade mensal de contratação.
+   4.4. O atingimento de limite quantitativo do plano poderá impedir novos cadastros ou determinadas novas operações, mas não poderá ocasionar eliminação, retenção ou indisponibilidade dos dados anteriormente registrados exclusivamente em razão desse limite.
+   4.5. A mudança para plano superior poderá produzir efeito imediato, mediante cobrança proporcional do período restante.
+   4.6. A redução de plano produzirá efeitos, como regra, no ciclo contratual seguinte.
+   4.7. O atraso superior a 15 (quinze) dias poderá resultar em suspensão das funcionalidades de escrita, preservado o acesso necessário à consulta e exportação dos registros existentes, ressalvadas restrições tecnicamente necessárias à segurança.
+   4.8. O NeuroDoc não utilizará prontuários ou dados pessoais como garantia de pagamento.
+   4.9. Os valores poderão ser reajustados anualmente pela variação positiva do IPCA ou índice oficial que venha a substituí-lo, mediante comunicação prévia.
+
+CLÁUSULA 5 — DOS PAPÉIS NO TRATAMENTO DE DADOS PESSOAIS
+   5.1. Em relação aos dados pessoais de pacientes, responsáveis, acompanhantes e demais informações inseridas pela CONTRATANTE no contexto da assistência à saúde e da gestão de sua atividade, a CONTRATANTE atuará, em regra, como CONTROLADORA, e o CONTRATADO, por meio do NeuroDoc, como OPERADOR, nos termos da Lei nº 13.709/2018 — Lei Geral de Proteção de Dados Pessoais.
+   5.2. O CONTRATADO tratará esses dados conforme:
+       a) este contrato;
+       b) as funcionalidades disponibilizadas pelo sistema;
+       c) as configurações efetuadas pela CONTRATANTE;
+       d) outras instruções lícitas e documentadas da CONTROLADORA.
+   5.3. Em relação aos dados necessários à própria relação comercial e operacional do NeuroDoc, incluindo cadastro contratual, faturamento, autenticação, segurança da plataforma, prevenção a fraude, atendimento técnico, registro de aceite, defesa de direitos e cumprimento de obrigações legais próprias, o CONTRATADO poderá atuar como controlador independente.
+   5.4. A definição contratual dos papéis das partes não afasta as responsabilidades que a legislação atribuir diretamente a cada agente de tratamento.
+   5.5. O CONTRATADO responderá pelas obrigações que lhe forem legalmente atribuídas, inclusive quando atuar em desacordo com instruções lícitas da CONTROLADORA ou em violação à LGPD.
+
+CLÁUSULA 6 — DAS OBRIGAÇÕES DA CONTRATANTE
+   6.1. Compete à CONTRATANTE:
+       a) determinar as finalidades do tratamento de dados sob sua responsabilidade;
+       b) identificar as bases legais aplicáveis;
+       c) registrar apenas informações relacionadas a finalidade legítima e compatível com sua atividade;
+       d) manter atualizados e corretos os dados que inserir;
+       e) controlar os acessos concedidos a profissionais e colaboradores;
+       f) revogar acessos de pessoas que deixarem de possuir vínculo ou necessidade funcional;
+       g) adotar autenticação multifator quando disponibilizada ou exigida;
+       h) atender aos direitos dos titulares nos casos em que atuar como controladora;
+       i) obter consentimento quando essa for efetivamente a base legal exigida;
+       j) não utilizar o sistema para finalidade ilícita.
+   6.2. A CONTRATANTE deverá indicar encarregado pelo tratamento de dados pessoais quando essa indicação for exigida pela legislação ou regulamentação aplicável.
+   6.3. Quando houver hipótese válida de dispensa, a CONTRATANTE deverá manter canal apropriado para atendimento das obrigações previstas na LGPD.
+
+CLÁUSULA 7 — DAS OBRIGAÇÕES DO NEURODOC COMO OPERADOR
+   7.1. O CONTRATADO deverá tratar os dados de acordo com as instruções documentadas da CONTROLADORA e comunicar eventual instrução que entenda manifestamente contrária à legislação aplicável.
+   7.2. O NeuroDoc manterá controles técnicos e organizacionais destinados a segregar as organizações existentes na plataforma e reduzir o risco de acesso entre ambientes pertencentes a contratantes distintas.
+   7.3. O CONTRATADO não acessará rotineiramente o conteúdo clínico para finalidade própria.
+   7.4. O acesso excepcional a conteúdo clínico somente poderá ocorrer quando:
+       a) tecnicamente necessário;
+       b) compatível com finalidade de suporte, manutenção ou segurança;
+       c) autorizado nos termos deste contrato ou pela CONTRATANTE;
+       d) limitado ao mínimo necessário;
+       e) submetido a mecanismos de controle e auditoria.
+   7.5. O NeuroDoc manterá trilhas de auditoria, medidas de segurança, mecanismos de backup e procedimentos de recuperação compatíveis com a natureza sensível dos dados tratados.
+   7.6. O CONTRATADO manterá dever de confidencialidade sobre as informações pessoais ou clínicas às quais tenha acesso.
+   7.7. O CONTRATADO não utilizará dados clínicos tratados em nome da CONTRATANTE para:
+       a) publicidade própria;
+       b) comercialização de dados;
+       c) enriquecimento de bases comerciais;
+       d) treinamento próprio de modelos de inteligência artificial;
+       e) finalidade estranha à prestação contratada.
+
+CLÁUSULA 8 — DOS SUBOPERADORES
+   8.1. A CONTRATANTE autoriza a utilização de suboperadores tecnicamente necessários à prestação dos serviços.
+   8.2. A relação atualizada de suboperadores será disponibilizada em local acessível à CONTRATANTE.
+   8.3. A relação deverá indicar, sempre que aplicável:
+       a) identidade do prestador;
+       b) finalidade;
+       c) categorias gerais de informações processadas;
+       d) localização relevante do tratamento;
+       e) existência de transferência internacional.
+   8.4. A inclusão ou substituição material de suboperador será comunicada previamente à CONTRATANTE.
+   8.5. Caso a CONTRATANTE apresente oposição fundamentada e razoável a novo suboperador que trate dados sensíveis ou clínicos, as partes buscarão solução técnica alternativa.
+   8.6. Não sendo possível solução alternativa razoável, a CONTRATANTE poderá rescindir o contrato sem multa, com restituição proporcional do período pago e não utilizado.
+
+CLÁUSULA 9 — DA INTELIGÊNCIA ARTIFICIAL
+   9.1. Os recursos de inteligência artificial serão opcionais e poderão permanecer desabilitados por padrão.
+   9.2. A ativação do recurso não transfere ao CONTRATADO qualquer responsabilidade pela decisão clínica.
+   9.3. Antes de transmitir conteúdo clínico a provedor externo, o NeuroDoc aplicará localmente medidas automatizadas destinadas à minimização e pseudonimização das informações.
+   9.4. Essas técnicas:
+       a) não constituem anonimização;
+       b) não eliminam integralmente o risco de identificação;
+       c) não transformam necessariamente o conteúdo em dado anônimo para fins legais.
+   9.5. Nenhum resultado produzido por inteligência artificial será incorporado automaticamente ao prontuário.
+   9.6. A incorporação ou utilização clínica de conteúdo produzido por inteligência artificial dependerá de revisão e ação expressa do profissional responsável.
+   9.7. Quando a CONTRATANTE utilizar provedor ou credencial próprios, ela permanecerá responsável pela relação contratual direta com esse provedor, sem prejuízo das obrigações técnicas que continuarem cabendo ao NeuroDoc.
+   9.8. Quando o provedor de inteligência artificial for contratado diretamente pelo CONTRATADO para integração ao NeuroDoc, caberá a ele observar as obrigações que legalmente lhe forem aplicáveis em relação a esse fornecedor.
+
+CLÁUSULA 10 — DA TRANSFERÊNCIA INTERNACIONAL DE DADOS
+   10.1. Determinados suboperadores poderão realizar tratamento de dados fora do território brasileiro.
+   10.2. A transferência internacional somente deverá ocorrer mediante mecanismo juridicamente admitido pela LGPD e pela regulamentação da Agência Nacional de Proteção de Dados — ANPD.
+   10.3. Quando aplicáveis cláusulas contratuais padrão aprovadas pela ANPD, estas deverão ser incorporadas ao relacionamento correspondente nos termos exigidos pela regulamentação.
+   10.4. O CONTRATADO disponibilizará informações razoavelmente necessárias para que a CONTRATANTE conheça as operações internacionais realizadas em seu nome.
+
+CLÁUSULA 11 — DO DIREITO CONTRATUAL DE ARREPENDIMENTO
+   11.1. Independentemente de discussão sobre eventual incidência do Código de Defesa do Consumidor, a CONTRATANTE poderá desistir da contratação no prazo de até 7 (sete) dias corridos do aceite eletrônico.
+   11.2. A desistência poderá ser exercida sem justificativa e dará direito à devolução integral dos valores pagos.
+   11.3. O exercício desse direito não prejudicará qualquer proteção adicional que a legislação aplicável eventualmente assegure.
+   11.4. Após o encerramento decorrente de arrependimento, serão observadas as mesmas regras de exportação previstas para as demais hipóteses de término contratual.
+
+CLÁUSULA 12 — DA RESCISÃO
+   12.1. Após o período inicial de 7 (sete) dias, a CONTRATANTE poderá solicitar o encerramento antecipado do contrato.
+   12.2. Quando o encerramento decorrer exclusivamente de conveniência da CONTRATANTE, não haverá restituição dos valores referentes ao período anual contratado, permanecendo o serviço disponível até o término do período pago, salvo solicitação de encerramento imediato.
+   12.3. Será devida restituição proporcional do período não utilizado quando a rescisão decorrer de:
+       a) descumprimento contratual relevante pelo CONTRATADO;
+       b) indisponibilidade contínua superior a 72 horas causada diretamente pelo NeuroDoc;
+       c) alteração material de suboperador não aceita nas condições deste contrato;
+       d) alteração contratual material desfavorável recusada pela CONTRATANTE;
+       e) descontinuação definitiva do serviço pelo CONTRATADO.
+   12.4. O CONTRATADO poderá rescindir o contrato em caso de:
+       a) inadimplemento superior a 60 dias;
+       b) utilização comprovadamente ilícita;
+       c) uso deliberado destinado a comprometer a segurança da plataforma;
+       d) violação contratual grave não sanada após notificação.
+   12.5. Sempre que compatível com a gravidade da situação, será concedido prazo razoável para regularização.
+   12.6. A descontinuação planejada do produto deverá ser comunicada com antecedência mínima de 180 dias, salvo impossibilidade decorrente de força maior, ordem legal ou situação equivalente.
+
+CLÁUSULA 13 — DO TÉRMINO, DA EXPORTAÇÃO E DA RETENÇÃO
+   13.1. Encerrado o contrato, a CONTRATANTE terá direito, pelo período de 90 (noventa) dias, à obtenção dos dados sob sua gestão em formato tecnicamente adequado e de uso comum.
+   13.2. O NeuroDoc poderá disponibilizar ambiente restrito exclusivamente para consulta e exportação, sem possibilidade de criação de novos registros.
+   13.3. A existência de dívida não impedirá a exportação de prontuários e demais dados necessários à continuidade assistencial e ao cumprimento das obrigações legais da CONTRATANTE.
+   13.4. O término do contrato não transfere ao CONTRATADO a responsabilidade da CONTRATANTE quanto à guarda legal do prontuário.
+   13.5. A eliminação dos dados mantidos pelo NeuroDoc somente ocorrerá de acordo com:
+       a) instrução lícita da CONTROLADORA;
+       b) legislação aplicável;
+       c) prazos obrigatórios de guarda;
+       d) limitações técnicas relativas a backups e cópias residuais;
+       e) política de retenção aplicável.
+   13.6. Quando necessária a manutenção temporária de dados em backup após a exclusão do ambiente principal, esses dados permanecerão protegidos, inacessíveis para uso ordinário e sujeitos ao ciclo técnico de sobrescrita ou expurgo correspondente.
+   13.7. A CONTRATANTE deverá providenciar, antes do término do período de exportação, meios adequados para preservar o acervo que esteja sujeito a obrigação legal de guarda.
+
+CLÁUSULA 14 — DA SEGURANÇA E DOS INCIDENTES
+   14.1. O CONTRATADO adotará medidas técnicas e administrativas proporcionais à natureza dos dados tratados, incluindo, conforme aplicável:
+       a) controles de acesso;
+       b) segregação de organizações;
+       c) autenticação multifator para funções administrativas;
+       d) proteção de credenciais;
+       e) trilhas de auditoria;
+       f) mecanismos de integridade do prontuário;
+       g) backup cifrado;
+       h) procedimentos de restauração;
+       i) proteção de segredos e credenciais;
+       j) controles contra acesso indevido.
+   14.2. Ao tomar ciência de incidente confirmado ou razoavelmente suspeito que possa envolver dados pessoais tratados em nome da CONTRATANTE, o CONTRATADO comunicará a CONTRATANTE sem demora injustificada e, sempre que razoavelmente possível, em até 24 horas.
+   14.3. A comunicação inicial poderá ser complementada à medida que novas informações tecnicamente confiáveis se tornem disponíveis.
+   14.4. O CONTRATADO prestará cooperação razoável para:
+       a) contenção do incidente;
+       b) preservação de evidências;
+       c) análise de causa;
+       d) identificação das categorias de dados potencialmente afetados;
+       e) avaliação do impacto;
+       f) preparação de eventual comunicação à ANPD e aos titulares.
+   14.5. A responsabilidade pela comunicação externa caberá ao agente legalmente obrigado a fazê-la em cada situação.
+
+CLÁUSULA 15 — DA DISPONIBILIDADE E DA RESPONSABILIDADE
+   15.1. O CONTRATADO adotará esforços tecnicamente razoáveis para manter o serviço disponível de forma contínua, ressalvadas manutenções, incidentes, eventos de força maior e demais situações tecnicamente inevitáveis.
+   15.2. Falhas de suboperadores contratados diretamente pelo CONTRATADO não serão automaticamente consideradas eventos excludentes de responsabilidade.
+   15.3. O CONTRATADO não responde:
+       a) pelo conteúdo clínico inserido pela CONTRATANTE;
+       b) por diagnóstico ou conduta assistencial dos profissionais usuários;
+       c) pela exatidão das informações inseridas pelos usuários;
+       d) por atos praticados em desacordo com as instruções da plataforma ou com este contrato;
+       e) por comprometimento decorrente de credencial mantida inadequadamente pelo próprio usuário, ressalvada responsabilidade concorrente do CONTRATADO quando existente.
+   15.4. Exceto nas hipóteses previstas no item seguinte, eventual responsabilidade patrimonial do CONTRATADO poderá ser limitada ao total efetivamente pago pela CONTRATANTE nos 12 meses anteriores ao fato gerador.
+   15.5. A limitação anterior não se aplica, na extensão proibida por lei, a:
+       a) dolo;
+       b) culpa grave;
+       c) violação deliberada de confidencialidade;
+       d) responsabilidade legalmente inderrogável;
+       e) violação de dados pessoais decorrente de descumprimento das obrigações do CONTRATADO;
+       f) infração de propriedade intelectual de terceiros imputável ao CONTRATADO.
+
+CLÁUSULA 16 — DA PROPRIEDADE INTELECTUAL, DOS DADOS E DA CONFIDENCIALIDADE
+   16.1. O software NeuroDoc, seu código-fonte, identidade visual, documentação, elementos técnicos e demais ativos intelectuais pertencem ao CONTRATADO ou aos respectivos titulares de direitos eventualmente licenciados para utilização na plataforma.
+   16.2. Este contrato concede direito de uso do sistema, mas não transfere sua propriedade intelectual.
+   16.3. O código-fonte do NeuroDoc é publicado em repositório público sob a licença MIT, que rege, de forma independente deste contrato, o uso, a cópia, a modificação e a distribuição do código por qualquer interessado. Este contrato disciplina exclusivamente a prestação, pelo CONTRATADO à CONTRATANTE, do serviço hospedado e operado pelo CONTRATADO, e não restringe nem amplia os direitos conferidos por aquela licença.
+   16.4. O CONTRATADO não adquire titularidade nem direito de exploração econômica própria sobre os dados clínicos e pessoais tratados em nome da CONTRATANTE.
+   16.5. Permanecem preservados:
+       a) os direitos dos titulares dos dados;
+       b) os direitos dos pacientes;
+       c) as obrigações legais de guarda e tratamento atribuídas à CONTRATANTE;
+       d) as obrigações do CONTRATADO enquanto agente de tratamento.
+   16.6. As partes manterão confidenciais as informações comerciais não públicas pelo prazo de 5 anos após o término.
+   16.7. Quanto a prontuários, dados pessoais, dados pessoais sensíveis, informações médicas, credenciais, segredos de segurança e informações protegidas por sigilo legal ou profissional, o dever de confidencialidade persistirá enquanto essas informações permanecerem legalmente protegidas.
+
+CLÁUSULA 17 — DAS ALTERAÇÕES CONTRATUAIS
+   17.1. O presente contrato será identificado por número de versão e identificador criptográfico.
+   17.2. Alterações materiais serão comunicadas previamente à CONTRATANTE.
+   17.3. Alterações exigidas por lei, regulamentação ou determinação de autoridade poderão entrar em vigor no prazo necessário ao cumprimento da obrigação correspondente.
+   17.4. Correções meramente formais que não reduzam direitos nem ampliem obrigações poderão ser implementadas sem necessidade de novo aceite, mantendo-se registro histórico.
+   17.5. Alteração material desfavorável dará à CONTRATANTE direito de rescindir o contrato sem multa antes da entrada em vigor da nova condição.
+   17.6. A versão anteriormente aceita permanecerá vinculada à respectiva evidência histórica de contratação.
+
+CLÁUSULA 18 — DO FORO E DAS DISPOSIÇÕES FINAIS
+   18.1. Este contrato será interpretado de acordo com as leis da República Federativa do Brasil.
+   18.2. Nenhuma disposição será interpretada como renúncia a direito que não possa ser validamente renunciado.
+   18.3. A eventual nulidade ou ineficácia de disposição específica não prejudicará as demais cláusulas, sempre que juridicamente separáveis.
+   18.4. Quando aplicável norma de proteção do consumidor, prevalecerão as garantias legalmente inderrogáveis.
+   18.5. Fica eleito o foro do domicílio da CONTRATANTE para dirimir controvérsias decorrentes deste contrato, sem prejuízo de foro diverso imposto por norma de ordem pública.
+
+DOCUMENTOS INTEGRANTES
+
+   Anexo I — Acordo de Tratamento de Dados Pessoais (DPA) (ainda não disponibilizado)
+   Anexo II — Relação de Suboperadores (ainda não disponibilizado)
+   Anexo III — Regras de Transferência Internacional de Dados (ainda não disponibilizado)
+   Anexo IV — Política de Retenção e Exclusão (ainda não disponibilizado)
+   Anexo V — Níveis de Serviço e Disponibilidade, quando aplicável (ainda não disponibilizado)
+   Aviso de Privacidade do NeuroDoc (ainda não disponibilizado)
+
+Os documentos acima integram este contrato quando disponibilizados.
+
+DECLARAÇÃO DE ACEITE
+
+Ao selecionar a opção eletrônica de aceite, a CONTRATANTE ou seu representante declara:
+
+   - ter lido o contrato;
+   - ter compreendido suas condições;
+   - possuir poderes suficientes para contratar, quando representar terceiro;
+   - aceitar a versão identificada no registro eletrônico;
+   - reconhecer a validade do aceite eletrônico e dos respectivos registros técnicos.
+
+IDENTIFICAÇÃO DO CONTRATADO
+
+ProntDoc Prontuários Médicos Ltda.
+CNPJ nº 69.887.146/0001-05
+Sede: Avenida Paulista, nº 2073, sala 2220, São Paulo/SP
+Mantenedora da plataforma NeuroDoc
+
+REVISÃO JURÍDICA
+
+Dra. Karina Albuquerque Freua
+OAB/SP nº 450.476
+
+Advogada responsável pela redação e pela revisão jurídica desta versão.

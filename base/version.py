@@ -276,12 +276,15 @@ carimbá-la na publicação.
 #: três tipos de atendimento, pacientes por diagnóstico e o rótulo nos
 #: documentos. A carga entra na subida, da planilha da OMS; o prontuário não
 #: ganha coluna (o código diz de qual classificação é).
-VERSION = '1.44'
+#: A **1.45**: o contrato de adesão 2.0 da Dra. Karina, com os Anexos I a V
+#: e o Aviso de Privacidade, lido do arquivo dela (`tenancy/contrato/`).
+#: Sem migração.
+VERSION = '1.45'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'CID-11'
+CODENAME = 'contrato 2.0'
 
 
 def version_display():

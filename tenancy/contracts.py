@@ -162,7 +162,7 @@ def _corpo(aceite):
         f'{"sim" if aceite.representation_declared else "não registrado"}',
         '',
         f'Arrependimento até: {timezone.localtime(aceite.withdrawal_deadline).strftime("%d/%m/%Y")}'
-        f' ({PRAZO_ARREPENDIMENTO_DIAS} dias corridos, cláusula 11)',
+        f' ({PRAZO_ARREPENDIMENTO_DIAS} dias corridos)',
         f'Vencimento:         {timezone.localtime(aceite.expires_at).strftime("%d/%m/%Y")}',
         '',
         '-' * 70,

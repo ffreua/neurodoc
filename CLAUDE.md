@@ -283,17 +283,25 @@ e o artigo **Primeiros passos** (`primeiros-passos`, o primeiro de
 três segue o plano, lido de `plans.py`. Ver
 `docs/homologation/boas-vindas.md`.
 
-**Contrato de adesão: `tenancy/contract.py`.** Desde a **1.2** (2026-10-29) o CONTRATADO é a **ProntDoc Prontuários Médicos Ltda.**, CNPJ 69.887.146/0001-05 — o mesmo CNPJ da mantenedora no SNCR; o rodapé público e o JSON-LD leem `CONTRATADO`, e não um texto à parte. Dezoito cláusulas,
-**redigidas pela Dra. Karina Albuquerque Freua, OAB/SP nº 450.476** —
-não são texto nosso, e correção de redação passa por ela. O texto mora em
-código pelo mesmo motivo dos preços: mudá-lo é um commit com autor e
-data. `VERSAO` identifica a redação, e **nunca se edita uma versão já
-aceita** (cláusula 17.6): texto novo é versão nova.
+**Contrato de adesão: `tenancy/contract.py`.** O CONTRATADO é a **ProntDoc Prontuários Médicos Ltda.**, CNPJ 69.887.146/0001-05 — o mesmo CNPJ da mantenedora no SNCR; o rodapé público e o JSON-LD leem `CONTRATADO`, e `check_contrato` confere que o documento da advogada diz o mesmo.
+**Redação da Dra. Karina Albuquerque Freua, OAB/SP nº 450.476** —
+não é texto nosso, e correção de redação passa por ela. **Desde a 2.0
+(2026-11-10) o documento dela é o arquivo** `tenancy/contrato/contrato-2.0.md`,
+lido e renderizado como veio (título, parágrafo, tabela, negrito), e não
+mais transcrito em listas Python: quadro-resumo, vinte cláusulas, os
+**Anexos I a V e o Aviso de Privacidade**, todos na mesma página
+`/contrato/` com âncora (`#anexo-i`… `#aviso-de-privacidade`) e todos no
+texto aceito — o hash cobre os sete. O arquivo dela dizia "Versão 2.2"
+(numeração das minutas); publicou-se como **2.0**, sucessora da 1.2.
+`VERSAO` identifica a redação, e **nunca se edita uma versão já
+aceita**: texto novo é versão nova. Os aceites 1.x ficam com a cópia
+arquivada, e a redação 1.2 está também em `tenancy/contrato/contrato-1.2.txt`,
+com o SHA-256 dos aceites dela.
 
 O aceite é obrigatório no cadastro, em **duas** caixas — "li e aceito" e
-"tenho poderes para contratar por esta clínica" (cláusula 2.2, "i") —, e
-grava versão, SHA-256, **cópia integral do texto aceito** (cláusula 2.3),
-plano e valor anual (2.2, "h"), quem aceitou, IP, navegador e os dois
+"tenho poderes para contratar por esta clínica" (cláusula 2.3 da 2.0) —, e
+grava versão, SHA-256, **cópia integral do texto aceito** (cláusula 2.2),
+plano e valor anual, quem aceitou, IP, navegador e os dois
 prazos (arrependimento de 7 dias, vencimento no aniversário). Uma via
 completa vai por e-mail ao contratante, tirada da cópia arquivada e não
 do texto corrente. `/contrato/` é público; `/instalacao/contratos/` lista
@@ -301,8 +309,9 @@ os aceites e separa três situações: **texto em vigor**, **versão anterior**
 (o normal de um contrato que evolui — conferida pela própria cópia
 arquivada, sem alarme) e **texto alterado sem trocar `VERSAO`** (o alerta);
 cópia arquivada que não bate com o hash do aceite acende o vermelho.
-O que o contrato fixa em matéria de LGPD, e o que ele promete e ainda não
-existe (os Anexos I a V), está em `docs/governance/lgpd.md` §9.
+O que o contrato fixa em matéria de LGPD está em `docs/governance/lgpd.md`
+§9; o que a redação 2.0 afirma e o sistema ainda não faz (ou faz de outro
+jeito) está em `docs/governance/contrato-2.0-pendencias.md`.
 
 ## 6. Ambiente local
 

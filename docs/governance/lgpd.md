@@ -162,12 +162,11 @@ perguntar.
 | Medidas técnicas | §5, cada uma com o roteiro que a verifica |
 | SNCR / receita de controle especial | A integração com o SNCR foi publicada **desligada** na 1.22 (2026-10-21) e aguarda o CNPJ da mantenedora para ser ligada (`docs/sncr/ESTADO_EXECUCAO.md`). Até lá, a receita de controle especial sai impressa, e a partir de 31/10/2026 a eletrônica sem numeração do SNCR deixa de ser assinada (1.21.1) |
 
-**O que continua sendo trabalho, sem ser bloqueio.** O contrato prevê
-documentos "quando disponibilizados" — os Anexos I a V, o Aviso de
-Privacidade e a relação pública de suboperadores. A relação existe desde
-2026-10-19, em [`suboperadores.md`](suboperadores.md); os demais ainda não, e o
-contrato não os promete como existentes: a tela lista cada um com o seu
-estado. Publicá-los melhora o conjunto e não condiciona a operação.
+**Os anexos existem desde a redação 2.0** (2026-11-10): os Anexos I a V e
+o Aviso de Privacidade, da Dra. Karina, estão em `/contrato/` e no texto
+aceito. O que eles afirmam e o sistema ainda não cumpre — a Cloudflare e o
+país da VPS fora do Anexo II, o backup, a exportação em CSV com os PDFs, a
+janela de 90 dias — está em [`contrato-2.0-pendencias.md`](contrato-2.0-pendencias.md).
 
 ## 7. Perguntas de referência
 
@@ -263,11 +262,8 @@ documento: o SHA-256 prova que um texto é aquele texto, mas não devolve o
 texto — e `tenancy/contract.py` guarda só a versão corrente. Quem aceitou
 a 1.0 precisa poder reler a 1.0 depois de a 2.0 entrar no ar.
 
-**O que o contrato promete e ainda não existe.** As cláusulas 8.2 e 8.3
-prometem relação de suboperadores em local acessível, e os Anexos I a V
-estão condicionados a "quando disponibilizados". A relação de
-suboperadores existe desde 2026-10-19 ([`suboperadores.md`](suboperadores.md));
-os Anexos I a V, ainda não. A lista de anexos aparece na tela **com o estado de cada um**, em
-vez de prometer seis documentos que a clínica não encontra: anexo
-prometido e ausente é pior do que anexo nenhum, porque a ausência vira
-argumento contra quem prometeu. Publicá-los é o item 4 do §6.
+**A tabela acima é da redação 1.x.** Na 2.0 a numeração mudou (poderes
+na 2.3, cópia integral na 2.2) e os Anexos I a V passaram a existir; a
+redação 1.2 aceita está em `tenancy/contrato/contrato-1.2.txt`. O que a
+2.0 promete e ainda não existe está em
+[`contrato-2.0-pendencias.md`](contrato-2.0-pendencias.md).

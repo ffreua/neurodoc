@@ -25,7 +25,7 @@ contrato que evolui.{% endcomment %}
     <strong>{{ divergentes }} aceite(s) da versão {{ contrato.VERSAO }} apontam para um texto diferente do que está no ar.</strong>
     Alguém editou <code>tenancy/contract.py</code> sem trocar <code>VERSAO</code>, e
     esses aceites deixaram de ser conferíveis contra o texto em vigor. Texto novo é
-    versão nova (cláusula 17.6).
+    versão nova.
 </div>
 {% endif %}
 
@@ -33,7 +33,7 @@ contrato que evolui.{% endcomment %}
 <div class="alert alert-secondary fade show fs-13" role="status">
     {{ anteriores_total }} aceite(s) de versão anterior
     ({% for versao, n in anteriores %}{{ versao }}: {{ n }}{% if not forloop.last %}; {% endif %}{% endfor %})
-    — normal: quem aceitou uma versão anterior continua com ela (cláusula 17.4).
+    — normal: quem aceitou uma versão anterior continua com ela.
     Cada um é conferido pela própria cópia arquivada{% if not copias_violadas %}, e todas conferem{% endif %}.
 </div>
 {% endif %}
