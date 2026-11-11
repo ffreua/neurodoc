@@ -32,7 +32,7 @@ param(
     [string]$Origem = '/srv/neurodoc-backups',
 
     # Quantas pastas de backup manter no disco externo. Zero = nunca apagar.
-    # O padrao guarda mais que a VPS (9 dias): o disco externo e o lugar onde
+    # O padrao guarda mais que a VPS (30 dias, BACKUP_RETENTION_DAYS): o disco externo e o lugar onde
     # o historico pode ser mais longo, porque ninguem disputa o espaco.
     [int]$Manter = 60
 )

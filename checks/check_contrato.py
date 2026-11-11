@@ -202,6 +202,26 @@ if any(d['titulo'] not in inteiro for d in contract.DOCUMENTOS):
     falhas.append('o texto simples (copia arquivada e e-mail) deixou anexo de fora')
 if 'Integrator Host do Brasil' not in inteiro or '**' in inteiro:
     falhas.append('a tabela de suboperadores nao chegou ao texto puro, ou o negrito vazou')
+# O texto diz o que a instalacao faz (conferido em 2026-11-10). Mudar o
+# backup, a exportacao ou um provedor e mudar o contrato -- e esta lista
+# reprova ate a versao nova dizer o mesmo.
+for rotulo, padrao in (
+    ('a Cloudflare entre os suboperadores', r'Cloudflare'),
+    ('o servidor nos EUA', r'Leaseweb USA \(San Jose'),
+    ('backup no servidor por 30 dias', r'at[eé] 30 dias no servidor'),
+    ('copia externa por 60 dias', r'at[eé] 60 dias'),
+    ('roteamento da reserva fora da China', r'n[aã]o sediado na China'),
+    ('aceite anterior vale ate novo aceite expresso', r'sil[eê]ncio do CONTRATANTE n[aã]o equivale a aceite'),
+):
+    if not re.search(padrao, inteiro):
+        falhas.append(f'o contrato nao diz: {rotulo}')
+for rotulo, padrao in (
+    ('backup semanal', r'[Ss]emana'),
+    ('exportacao em CSV', r'\bCSV\b'),
+    ('retencao de 9 dias', r'9 dias'),
+):
+    if re.search(padrao, inteiro):
+        falhas.append(f'o contrato voltou a afirmar o que a instalacao nao faz: {rotulo}')
 if contract.REVISAO_JURIDICA['oab'] not in inteiro:
     falhas.append('o texto aceito nao identifica a advogada')
 # A 1.2 aceita continua existindo, com o mesmo SHA-256 dos aceites dela.
@@ -287,7 +307,7 @@ if sem_anexo:
     falhas.append(f'a pagina nao mostra os anexos com ancora e indice: {sem_anexo}')
 if 'ainda não disponibilizado' in corpo:
     falhas.append('a pagina ainda diz que ha anexo indisponivel')
-if 'Integrator Host do Brasil</td>' not in corpo or 'nd-contrato-numero' not in corpo:
+if 'Cloudflare — proxy e proteção da borda</td>' not in corpo or 'nd-contrato-numero' not in corpo:
     falhas.append('a pagina nao renderiza as tabelas ou o numero dos itens')
 if '**' in corpo:
     falhas.append('o negrito da advogada vazou como asteriscos na pagina')

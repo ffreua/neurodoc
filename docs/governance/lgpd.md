@@ -164,9 +164,8 @@ perguntar.
 
 **Os anexos existem desde a redação 2.0** (2026-11-10): os Anexos I a V e
 o Aviso de Privacidade, da Dra. Karina, estão em `/contrato/` e no texto
-aceito. O que eles afirmam e o sistema ainda não cumpre — a Cloudflare e o
-país da VPS fora do Anexo II, o backup, a exportação em CSV com os PDFs, a
-janela de 90 dias — está em [`contrato-2.0-pendencias.md`](contrato-2.0-pendencias.md).
+aceito. O texto foi conferido contra a instalação antes de publicado e ajustado
+onde não batia: [`contrato-2.0-pendencias.md`](contrato-2.0-pendencias.md).
 
 ## 7. Perguntas de referência
 
@@ -265,5 +264,5 @@ a 1.0 precisa poder reler a 1.0 depois de a 2.0 entrar no ar.
 **A tabela acima é da redação 1.x.** Na 2.0 a numeração mudou (poderes
 na 2.3, cópia integral na 2.2) e os Anexos I a V passaram a existir; a
 redação 1.2 aceita está em `tenancy/contrato/contrato-1.2.txt`. O que a
-2.0 promete e ainda não existe está em
+2.0 corrigiu em relação à minuta está em
 [`contrato-2.0-pendencias.md`](contrato-2.0-pendencias.md).

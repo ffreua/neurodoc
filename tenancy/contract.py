@@ -55,7 +55,18 @@ from django.utils.safestring import mark_safe
 #: Publicá-la como 2.2 deixaria uma 2.0 e uma 2.1 que nenhuma clínica
 #: jamais viu, e o número de um contrato é o que se cita numa discussão.
 #: Maior, e não 1.3, porque a redação inteira mudou. O número foi trocado
-#: nas duas linhas do arquivo que o trazem, e em nada mais.
+#: nas duas linhas do arquivo que o trazem.
+#:
+#: **Antes da publicação**, a 2.0 foi conferida contra a instalação e
+#: ajustada à realidade, com autorização da Dra. Karina (2026-11-10): a
+#: Cloudflare e o servidor nos EUA nos Anexos II e III e no aviso; backup
+#: diário, 30 dias no servidor e 60 no SSD; exportação em MD e JSON, com os
+#: PDFs baixados um a um ou fornecidos a pedido; o encerramento sem acesso,
+#: com exportação a pedido e consulta restabelecível por 90 dias; a
+#: suspensão que bloqueia toda escrita; a restrição de roteamento da
+#: OpenRouter; e os aceites 1.x valendo até novo aceite expresso (2.4).
+#: Nenhuma clínica tinha aceitado a 2.0, e por isso não é versão nova.
+#: O que mudou está em `docs/governance/contrato-2.0-pendencias.md`.
 VERSAO = '2.0'
 
 #: Início da vigência desta redação, no formato ISO.

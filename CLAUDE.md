@@ -310,8 +310,10 @@ os aceites e separa três situações: **texto em vigor**, **versão anterior**
 arquivada, sem alarme) e **texto alterado sem trocar `VERSAO`** (o alerta);
 cópia arquivada que não bate com o hash do aceite acende o vermelho.
 O que o contrato fixa em matéria de LGPD está em `docs/governance/lgpd.md`
-§9; o que a redação 2.0 afirma e o sistema ainda não faz (ou faz de outro
-jeito) está em `docs/governance/contrato-2.0-pendencias.md`.
+§9. A 2.0 foi conferida contra a instalação antes de publicada e ajustada
+onde não batia (`docs/governance/contrato-2.0-pendencias.md`): **mudar
+backup, exportação, encerramento ou provedor muda o contrato**, e é versão
+nova — `check_contrato` cobra os números reais no texto.
 
 ## 6. Ambiente local
 

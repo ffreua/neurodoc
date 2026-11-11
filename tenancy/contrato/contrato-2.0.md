@@ -13,7 +13,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 **PLANOS:** Gratuito, Básico, Completo e Personalizado; limites, preço total do ciclo, periodicidade dos pagamentos, benefícios e eventual desconto constam da oferta registrada no aceite, que prevalece sobre publicidade alterada posteriormente. Nos planos pagos públicos, a vigência ordinária é de 12 meses; pagamento anual, semestral ou trimestral são modalidades de adimplemento desse mesmo período, não prazos contratuais diferentes.
 
-**SUPORTE:** canal “Fale com a NeuroDoc”, no aplicativo. **META DE DISPONIBILIDADE:** 98% mensal, conforme Anexo V e suas exclusões legítimas. **EXPORTAÇÃO:** CSV, Markdown (MD), JSON e arquivos originais PDF de anexos clínicos, inclusive os assinados digitalmente com ICP-Brasil, quando integrantes do acervo. **JANELA APÓS TÉRMINO:** 90 dias em modo de consulta/exportação, com transição documentada de custódia e salvaguardas legais. **BACKUPS:** externos semanais, cifrados localmente, mantidos até 30 dias em mídia SSD.
+**SUPORTE:** canal “Fale com a NeuroDoc”, no aplicativo. **META DE DISPONIBILIDADE:** 98% mensal, conforme Anexo V e suas exclusões legítimas. **EXPORTAÇÃO:** registros estruturados em Markdown (MD) e JSON, gerados pelo próprio CONTRATANTE no aplicativo; arquivos originais PDF de anexos clínicos, inclusive os assinados digitalmente com ICP-Brasil, baixados individualmente na plataforma ou fornecidos pela PRONTDOC mediante solicitação. **JANELA APÓS TÉRMINO:** 90 dias para obtenção da exportação, mediante solicitação, com transição documentada de custódia e salvaguardas legais. **BACKUPS:** diários, cifrados localmente, mantidos por até 30 dias no servidor de produção e copiados diariamente para mídia SSD externa, onde são mantidos por até 60 dias.
 
 **PRIVACIDADE:** contato@neurodoc.app.br. Os dados clínicos pertencem à esfera de direitos dos titulares, sob responsabilidade de tratamento da clínica/médico controlador; a PRONTDOC atua predominantemente como operadora, sem adquirir propriedade dos dados.
 
@@ -37,7 +37,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 2.3. Quem aceita por pessoa jurídica declara possuir poderes adequados. A PRONTDOC poderá pedir comprovação e suspender permissões administrativas quando houver indícios objetivos de representação irregular, preservando consulta e exportação legalmente necessárias.
 
-2.4. Alterações materiais serão submetidas às regras da Cláusula 19; a ausência de objeção não substitui novo aceite quando a lei ou a natureza da mudança o exigir.
+2.4. Alterações materiais serão submetidas às regras da Cláusula 19; a ausência de objeção não substitui novo aceite quando a lei ou a natureza da mudança o exigir. Os contratos aceitos em versão anterior permanecem regidos por ela até que o CONTRATANTE aceite expressamente versão nova; a PRONTDOC poderá solicitar esse aceite pelos canais da Cláusula 18, e o silêncio do CONTRATANTE não equivale a aceite.
 
 ## CLÁUSULA 3 — VIGÊNCIA E RENOVAÇÃO
 
@@ -71,7 +71,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 5.1. O não pagamento no vencimento constitui mora, observada comunicação de cobrança e, quando juridicamente aplicável, multa moratória de até 2%, juros de 1% ao mês pro rata die e atualização monetária, sem capitalização indevida e sem cobrança contrária à legislação cogente.
 
-5.2. Após 15 dias de atraso, com aviso prévio ao contato administrativo, a PRONTDOC poderá restringir inclusão de pacientes, novos registros ou recursos não essenciais, preservando o acesso aos registros existentes e as funcionalidades de consulta/exportação necessárias à segurança do paciente e ao cumprimento legal. A implementação atual informada restringe novos cadastros de pacientes.
+5.2. Após 15 dias de atraso, com aviso prévio ao contato administrativo, a PRONTDOC poderá restringir inclusão de pacientes, novos registros ou recursos não essenciais, preservando o acesso aos registros existentes e as funcionalidades de consulta/exportação necessárias à segurança do paciente e ao cumprimento legal. Na implementação atual, a suspensão preserva a consulta aos registros existentes e impede, enquanto durar, a inclusão e a alteração de registros, inclusive novos atendimentos, agendamentos e cadastros de pacientes; a exportação ordinária permanece disponível mediante solicitação.
 
 5.3. Inadimplemento superior a 60 dias poderá ensejar rescisão, respeitado prazo razoável de regularização e a janela de exportação. Não haverá retenção de prontuários como garantia de dívida, tampouco exclusão punitiva de registros clínicos.
 
@@ -113,7 +113,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 9.1. O plano Completo e os personalizados que a incluírem podem disponibilizar IA clínica automaticamente habilitada conforme oferta, sem implicar autorização irrestrita de envio de dados. A PRONTDOC aplicará minimização e desidentificação antes da chamada de API, nos limites técnicos efetivamente implementados; **desidentificação ou pseudonimização não equivalem necessariamente à anonimização irreversível**.
 
-9.2. Para a configuração padrão informada em 10/11/2026, a plataforma utiliza a API de IA da NVIDIA como provedor principal e OpenRouter, com modelo DeepSeek, como rota de contingência (fallback). A identificação comercial do provedor não demonstra, por si só, a localização física do processamento ou a cadeia de destinatários. Outros fornecedores ou modelos dependem de configuração expressa e atualização do Anexo II. A PRONTDOC deverá manter registro técnico da rota efetivamente utilizada, observadas segurança e minimização dos logs.
+9.2. Para a configuração padrão informada em 10/11/2026, a plataforma utiliza a API de IA da NVIDIA como provedor principal e OpenRouter, com modelo DeepSeek, como rota de contingência (fallback), acionada somente quando a chamada ao provedor principal falha. Na contingência, a OpenRouter encaminha a requisição a provedor de infraestrutura que executa o modelo, escolhido a cada pedido; a configuração da PRONTDOC exige, em cada pedido, provedor com retenção zero de dados, sem uso dos dados para treinamento e não sediado na China. A identificação comercial do provedor não demonstra, por si só, a localização física do processamento ou a cadeia de destinatários. Outros fornecedores ou modelos dependem de configuração expressa e atualização do Anexo II. A PRONTDOC deverá manter registro técnico da rota efetivamente utilizada, observadas segurança e minimização dos logs.
 
 9.3. A IA é instrumento probabilístico de apoio, sujeito a erros, omissões, vieses, conteúdo fabricado e respostas inadequadas. Antes de utilizar, assinar, entregar ou incorporar resultado ao prontuário, o profissional deverá revisá-lo e aprová-lo expressamente. O sistema não deverá incorporar autonomamente material clínico gerado pela IA sem validação profissional.
 
@@ -133,7 +133,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 ## CLÁUSULA 11 — SEGURANÇA E COOPERAÇÃO EM INCIDENTES
 
-11.1. A PRONTDOC manterá medidas técnicas e administrativas compatíveis com o risco, incluindo segregação lógica por organização, logs de auditoria, autenticação multifator onde implementada, criptografia nos fluxos pertinentes, controles de acesso e backups externos com execução semanal, cifragem aplicada localmente antes do armazenamento, retenção por até 30 dias e armazenamento em unidade de estado sólido (SSD), conforme Anexos I e V. A natureza do SSD não representa, isoladamente, garantia de imutabilidade, redundância geográfica ou recuperação.
+11.1. A PRONTDOC manterá medidas técnicas e administrativas compatíveis com o risco, incluindo segregação lógica por organização, logs de auditoria, autenticação multifator onde implementada, criptografia nos fluxos pertinentes, controles de acesso e backups com execução diária, cifragem aplicada localmente antes do armazenamento, retenção por até 30 dias no servidor de produção e cópia externa diária em unidade de estado sólido (SSD), com retenção por até 60 dias, conforme Anexos I e V. A natureza do SSD não representa, isoladamente, garantia de imutabilidade, redundância geográfica ou recuperação.
 
 11.2. A expressão comercial “criptografia de ponta a ponta” somente poderá ser usada para fluxos concretamente verificados nos quais apenas as extremidades possuam as chaves. Criptografia TLS em trânsito e criptografia de armazenamento não são, isoladamente, criptografia de ponta a ponta. Este contrato não declara E2EE universal do banco de dados.
 
@@ -165,15 +165,15 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 14.1. Durante a vigência, a PRONTDOC presta serviço de armazenamento, organização, consulta e custódia tecnológica do acervo inserido, limitado ao escopo contratado. A clínica, médico ou responsável legal pelo prontuário permanece encarregado de assegurar o cumprimento dos deveres assistenciais, legais e éticos de guarda, acesso e sigilo, sem afastar os deveres próprios da PRONTDOC como operadora e prestadora do serviço.
 
-14.2. Encerrado o contrato, a PRONTDOC manterá, por 90 (noventa) dias corridos, acesso restrito à consulta e à exportação ordinária, sem permissão para criação de novos registros, salvo solução assistencial emergencial tecnicamente disponível e juridicamente necessária. O prazo começará na efetiva data do encerramento e será comunicado por meio eletrônico verificável.
+14.2. Encerrado o contrato, o acesso dos usuários ao ambiente é desativado, sem eliminação dos registros. Por 90 (noventa) dias corridos, a PRONTDOC fornecerá a exportação ordinária mediante solicitação do CONTRATANTE a contato@neurodoc.app.br e poderá, também mediante solicitação, restabelecer temporariamente o acesso em modo exclusivo de consulta, sem permissão para criação ou alteração de registros, salvo solução assistencial emergencial tecnicamente disponível e juridicamente necessária. O prazo começará na efetiva data do encerramento e será comunicado por meio eletrônico verificável.
 
-14.3. A exportação ordinária abrangerá registros estruturados em CSV, Markdown (MD) e JSON, acompanhados dos anexos documentais originais em PDF, inclusive aqueles assinados com certificado ICP-Brasil, quando existentes na plataforma. Sempre que tecnicamente disponíveis, deverão acompanhar o pacote o vínculo entre arquivo e paciente, identificação do documento, data, autoria, adendos, metadados e evidências de assinatura/verificação. Não se garantem equivalência funcional automática em software terceiro, preservação de validação temporal futura sem os artefatos correspondentes, nem migração gerenciada gratuita.
+14.3. A exportação ordinária abrangerá registros estruturados em Markdown (MD) e JSON, que o CONTRATANTE gera no próprio aplicativo durante a vigência, e os anexos documentais originais em PDF, inclusive aqueles assinados com certificado ICP-Brasil, quando existentes na plataforma, que podem ser baixados individualmente durante a vigência e, após o encerramento, serão fornecidos pela PRONTDOC mediante solicitação. Sempre que tecnicamente disponíveis, deverão acompanhar o pacote o vínculo entre arquivo e paciente, identificação do documento, data, autoria, adendos, metadados e evidências de assinatura/verificação. Não se garantem equivalência funcional automática em software terceiro, preservação de validação temporal futura sem os artefatos correspondentes, nem migração gerenciada gratuita.
 
 14.4. O CONTRATANTE deverá exportar, testar a abertura dos arquivos, conferir integridade, completude e verificabilidade das assinaturas, prover meio de armazenamento seguro e assumir a guarda subsequente de seu acervo. A PRONTDOC poderá disponibilizar manifesto de arquivos e resumos criptográficos (hashes) quando implementados. A conclusão da transferência poderá ser documentada por protocolo eletrônico de disponibilização, registros de download e, quando possível, declaração de recebimento; a ausência desta última não constitui, sozinha, prova de transferência integral.
 
 14.5. A Lei nº 13.787/2018 prevê, como regra geral, prazo mínimo de 20 (vinte) anos contado do último registro para eventual eliminação de prontuários, ressalvados prazos especiais, restrições legais e normas profissionais aplicáveis. Essa norma não impõe, por si só, fornecimento gratuito de armazenamento SaaS por 20 anos após a rescisão, nem autoriza eliminação automática sem observância das condições legais.
 
-14.6. Cumprida a transferência documentalmente demonstrável e inexistindo obrigação legal própria, ordem de preservação, disputa fundada sobre integridade ou necessidade legítima remanescente, a PRONTDOC poderá desativar o ambiente e eliminar cópias operacionais, mediante aviso final com antecedência mínima de 30 (trinta) dias, nunca antes do término da janela de 90 dias. A eliminação de cópias em backup seguirá o ciclo de retenção de até 30 dias, com acesso restrito e sem uso ordinário.
+14.6. Cumprida a transferência documentalmente demonstrável e inexistindo obrigação legal própria, ordem de preservação, disputa fundada sobre integridade ou necessidade legítima remanescente, a PRONTDOC poderá desativar o ambiente e eliminar cópias operacionais, mediante aviso final com antecedência mínima de 30 (trinta) dias, nunca antes do término da janela de 90 dias. A eliminação de cópias em backup seguirá o ciclo de retenção de até 60 dias, com acesso restrito e sem uso ordinário.
 
 14.7. Se houver controvérsia fundamentada sobre a entrega ou impedimento objetivo de exportação, a PRONTDOC suspenderá a eliminação dos elementos controvertidos pelo período estritamente necessário à regularização e documentação da destinação, sem que isso constitua promessa de acesso SaaS indefinido. O usuário deverá colaborar ativamente na resolução. Não se fará descarte irreversível que contrarie obrigação legal ou ordem de autoridade competente.
 
@@ -265,7 +265,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 ## 6. Medidas de segurança e delimitações
 
-6.1. Controles informados: MFA, logs, segregação de organizações, assinatura ICP-Brasil em documentos, imutabilidade funcional dos registros finalizados com retificação por adendos, criptografia das comunicações e backups externos semanais cifrados localmente, com retenção por até 30 dias em mídia SSD. O uso do termo “criptografia de ponta a ponta” dependerá de demonstração da arquitetura e da gestão efetiva das chaves por fluxo; não se confunde com TLS ou criptografia do backup.
+6.1. Controles informados: MFA, logs, segregação de organizações, assinatura ICP-Brasil em documentos, imutabilidade funcional dos registros finalizados com retificação por adendos, criptografia das comunicações e backups diários cifrados localmente, retidos por até 30 dias no servidor de produção e por até 60 dias em cópia externa em mídia SSD. O uso do termo “criptografia de ponta a ponta” dependerá de demonstração da arquitetura e da gestão efetiva das chaves por fluxo; não se confunde com TLS ou criptografia do backup.
 
 6.2. A PRONTDOC aplicará medidas de controle de acesso, gestão de segredos, atualizações e resposta a incidentes proporcionais ao risco, sem prometer ausência absoluta de vulnerabilidade.
 
@@ -301,10 +301,11 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 | Prestador / fluxo | Papel operacional | Dados tratados ou potencialmente recebidos | Regime e cautelas |
 |---|---|---|---|
-| Integrator Host do Brasil | VPS da aplicação e banco de dados | Dados clínicos e cadastrais armazenados no ambiente | Fornecedor de infraestrutura contratado pela PRONTDOC; conforme o contrato de infraestrutura e suas subcontratações aplicáveis |
+| Integrator Host do Brasil, com servidor da Leaseweb USA (San Jose, Califórnia, EUA) | VPS da aplicação e banco de dados | Dados clínicos e cadastrais armazenados no ambiente, inclusive dados de saúde | Fornecedor de infraestrutura contratado pela PRONTDOC; o servidor fica nos Estados Unidos, o que configura transferência internacional desde o início da operação (Anexo III) |
+| Cloudflare — proxy e proteção da borda | Intermediação de todo o tráfego entre o navegador e o servidor, para proteção contra ataques e ocultação do endereço do servidor | Todo o conteúdo trafegado, inclusive dados clínicos, processado em trânsito para filtragem, sem armazenamento como serviço | Rede global da Cloudflare, em regra o nó de São Paulo para acessos do Brasil; envolve transferência internacional (Anexo III) |
 | NVIDIA — API de IA (padrão) | Inferência de IA via API | Conteúdo de prompts após desidentificação, metadados técnicos e eventuais dados pessoais residuais | Rota padrão informada; sujeito aos endpoints, locais de processamento e políticas do fornecedor |
-| OpenRouter — fallback | Roteamento de requisições para modelo alternativo | Prompts desidentificados, metadados, potenciais dados pessoais residuais | Fallback informado; o roteador e o executor downstream devem ser avaliados separadamente |
-| DeepSeek — modelo via OpenRouter | Execução do modelo de contingência, conforme roteamento efetivo | Conteúdo transmitido ao modelo, conforme cadeia de processamento | execução sujeita ao provedor efetivo selecionado pela cadeia OpenRouter |
+| OpenRouter — fallback | Roteamento de requisições para modelo alternativo, somente quando a chamada à NVIDIA falha | Prompts desidentificados, metadados, potenciais dados pessoais residuais | Sediada nos EUA; em cada pedido, a PRONTDOC exige provedor de infraestrutura com retenção zero, sem uso para treinamento e não sediado na China |
+| Modelo DeepSeek via OpenRouter | Execução do modelo de contingência por provedor de infraestrutura escolhido pela OpenRouter a cada pedido | Conteúdo transmitido ao modelo, conforme cadeia de processamento | A empresa DeepSeek não recebe a requisição; o modelo é executado por provedor que atenda às exigências de retenção zero, ausência de treinamento e localização fora da China |
 | SMSDEV | Entrega de SMS | Números telefônicos, conteúdo mínimo de mensagens e metadados | responsabilidade contratual conforme a credencial configurada por organização; minimização do conteúdo |
 | Hostinger — serviço SMTP/e-mail | Remessa de mensagens de e-mail | Endereços, assunto, corpo e metadados das mensagens | responsabilidade contratual conforme a credencial configurada; comunicação limitada ao conteúdo necessário |
 | Outros provedores selecionados pela clínica | Integrações próprias, se habilitadas | Estritamente conforme a configuração autorizada | A clínica responde pelos contratos que celebrar diretamente, sem afastar deveres da integração controlada pela PRONTDOC |
@@ -317,7 +318,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 ## 1. Escopo
 
-1.1. O processamento primário foi informado como hospedado em VPS da Integrator Host do Brasil, sujeito à localização física e às subcontratações aplicáveis. Os fluxos principais de IA utilizam NVIDIA API, com contingência por OpenRouter e modelo DeepSeek; tais rotas podem envolver processamento fora do Brasil. SMSDEV e SMTP Hostinger estão sujeitos às respectivas localidades de tratamento e condições contratuais.
+1.1. O processamento primário ocorre em VPS contratada com a Integrator Host do Brasil e fisicamente localizada nos Estados Unidos (Leaseweb USA, San Jose, Califórnia), o que configura transferência internacional de todos os dados armazenados desde o início da operação. Todo o tráfego entre o navegador e o servidor passa pela Cloudflare, cuja rede global processa o conteúdo em trânsito. Os fluxos principais de IA utilizam NVIDIA API, com contingência por OpenRouter e modelo DeepSeek; tais rotas envolvem processamento fora do Brasil, e na contingência a PRONTDOC exige provedor com retenção zero, sem treinamento e não sediado na China. SMSDEV e SMTP Hostinger estão sujeitos às respectivas localidades de tratamento e condições contratuais.
 
 ## 2. Regras condicionantes
 
@@ -351,19 +352,19 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 | Categoria | Durante a assinatura | Após o cancelamento | Regra de destinação |
 |---|---|---|---|
-| Prontuários e anexos em produção | Acesso e guarda tecnológica conforme plano | 90 dias de consulta/exportação; término condicionado ao fluxo da seção 3 | Transição ao responsável legal, com eliminação segura apenas quando lícita e documentalmente amparada |
+| Prontuários e anexos em produção | Acesso e guarda tecnológica conforme plano | 90 dias para exportação mediante solicitação, com consulta restabelecível nos termos da cláusula 14.2; término condicionado ao fluxo da seção 3 | Transição ao responsável legal, com eliminação segura apenas quando lícita e documentalmente amparada |
 | PDFs originais assinados ICP-Brasil | Preservação dos arquivos e vínculos no acervo | Incluídos na exportação ordinária, sem conversão que invalide assinatura | Entregar binário original e evidências disponíveis; validar verificabilidade |
-| Dados estruturados e notas | Exportação CSV, MD, JSON | 90 dias | Arquivos recebidos passam a ser protegidos pelo responsável destinatário |
-| Backups externos cifrados | Semanais; cifragem local; SSD externo; retenção até 30 dias | Expurgo pelo ciclo de até 30 dias após exclusão lícita do ambiente principal | Backups são cópias de recuperação, não serviço de guarda legal por 20 anos |
+| Dados estruturados e notas | Exportação em MD e JSON, gerada pelo CONTRATANTE | 90 dias, mediante solicitação | Arquivos recebidos passam a ser protegidos pelo responsável destinatário |
+| Backups cifrados | Diários; cifragem local; até 30 dias no servidor de produção e até 60 dias em SSD externo | Expurgo pelo ciclo de até 60 dias após exclusão lícita do ambiente principal | Backups são cópias de recuperação, não serviço de guarda legal por 20 anos |
 | Logs e evidências de auditoria | Conforme finalidade e segurança | Pelo prazo proporcional à prova, incidentes e regras aplicáveis | Prazo técnico específico sujeito a inventário de logs; não presumir 20 anos para todos os logs |
 | Cadastro, contratos e faturamento | Durante relação comercial | Prazos legais fiscais, prescricionais e de defesa de direitos | PRONTDOC como controladora independente quando aplicável |
 | Conteúdo transitório em IA/API | Uso minimizado por finalidade | Conforme contratos e práticas documentadas dos fornecedores | Sujeito às regras legais e contratuais dos respectivos fornecedores, sem garantia de retenção zero |
 
 ## 3. Transição operacional da custódia
 
-3.1. A PRONTDOC comunicará a data de término e disponibilizará consulta e exportação ordinárias por 90 dias. Durante esse período enviará lembretes razoáveis ao contato administrativo sobre a necessidade de retirada e preservação do acervo.
+3.1. A PRONTDOC comunicará a data de término e, por 90 dias, fornecerá a exportação ordinária mediante solicitação, podendo restabelecer o acesso em modo exclusivo de consulta, nos termos da cláusula 14.2. Durante esse período enviará lembretes razoáveis ao contato administrativo sobre a necessidade de retirada e preservação do acervo.
 
-3.2. O pacote compreenderá CSV/MD/JSON, PDFs originais anexados, inclusive PDFs com assinatura ICP-Brasil, estrutura de vinculação por paciente, autoria, datas e adendos, na extensão efetivamente existente e tecnicamente exportável. Elementos adicionais de verificação, tais como cadeia de certificados, carimbo do tempo, hash, relatório de verificação e trilhas de auditoria deverão ser incluídos quando disponíveis e necessários à leitura probatória; sua disponibilização dependerá da existência técnica desses elementos no acervo.
+3.2. O pacote compreenderá MD/JSON, PDFs originais anexados, inclusive PDFs com assinatura ICP-Brasil, estrutura de vinculação por paciente, autoria, datas e adendos, na extensão efetivamente existente e tecnicamente exportável. Elementos adicionais de verificação, tais como cadeia de certificados, carimbo do tempo, hash, relatório de verificação e trilhas de auditoria deverão ser incluídos quando disponíveis e necessários à leitura probatória; sua disponibilização dependerá da existência técnica desses elementos no acervo.
 
 3.3. A clínica verificará o material recebido, conservará as assinaturas intactas, manterá cópia segura e providenciará sistema ou meio adequado para consulta e guarda. A PRONTDOC poderá registrar horário da disponibilização, downloads, manifestação de conferência e incidentes de exportação, sem transferir responsabilidade apenas por alegação de geração de link.
 
@@ -373,7 +374,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 3.6. Arquivamento prolongado facultativo dependerá de aditivo com objeto, remuneração, disponibilidade, prazos, regras para recuperação, eventos de encerramento e destino final. A inexistência de aditivo não confere direito de guarda integral gratuita por 20 anos após o cancelamento.
 
-3.7. A exclusão de backups residuais ocorrerá no ciclo ordinário de até 30 dias após exclusão legítima em produção. A restauração excepcional de cópia de backup não autoriza retorno de conteúdo eliminado ao uso ordinário e deverá respeitar a marcação de exclusão aplicável.
+3.7. A exclusão de backups residuais ocorrerá no ciclo ordinário de até 60 dias após exclusão legítima em produção. A restauração excepcional de cópia de backup não autoriza retorno de conteúdo eliminado ao uso ordinário e deverá respeitar a marcação de exclusão aplicável.
 
 ## 4. Casos especiais e controles essenciais
 
@@ -412,7 +413,7 @@ Aplicável aos contratos que aceitarem eletronicamente esta versão, sem altera�
 
 ## 5. Continuidade e backups
 
-5.1. Backups externos são realizados semanalmente, cifrados localmente antes do armazenamento, conservados por até 30 dias e armazenados em disco de estado sólido (SSD), conforme configuração informada. Essa estratégia não comprova isolamento físico, cópia imutável ou recuperação bem-sucedida; tampouco garante RPO inferior a sete dias ou RTO definido sem monitoramento e testes de restauração documentados.
+5.1. Backups são realizados diariamente, cifrados localmente antes do armazenamento, conservados por até 30 dias no servidor de produção e copiados diariamente para disco externo de estado sólido (SSD), onde são conservados por até 60 dias. Essa estratégia não comprova isolamento físico, cópia imutável ou recuperação bem-sucedida; tampouco garante RPO inferior a um dia ou RTO definido sem monitoramento e testes de restauração documentados.
 
 5.2. O CONTRATANTE deverá manter procedimento assistencial de contingência adequado ao risco clínico, e a PRONTDOC deverá manter plano interno de incidentes e restauração. Não há compromisso contratual de RPO ou RTO específico, salvo previsão expressa em instrumento comercial próprio.
 
@@ -440,7 +441,7 @@ A base legal depende da operação e do papel de cada parte. Para dados clínico
 
 ## 5. Compartilhamento
 
-Os dados de produção são hospedados em infraestrutura contratada com Integrator Host do Brasil. A rota padrão informada de IA é NVIDIA via API, com fallback OpenRouter/DeepSeek. O serviço de SMS informado é SMSDEV, e o e-mail é enviado por SMTP Hostinger (Mail Hostinger), sujeitos à configuração por clínica e às respectivas relações contratuais. Cada fornecedor recebe apenas os dados necessários ao fluxo em que é utilizado. Países de processamento e fornecedores indiretos precisam de confirmação documental no inventário de transferências.
+Os dados de produção são hospedados em servidor contratado com a Integrator Host do Brasil e localizado nos Estados Unidos (Leaseweb USA, San Jose, Califórnia), e todo o acesso ao sistema passa pela Cloudflare, que protege o servidor e processa o tráfego em trânsito. A rota padrão informada de IA é NVIDIA via API, com fallback OpenRouter/DeepSeek; na contingência, a OpenRouter só encaminha o pedido a provedor com retenção zero, sem treinamento e não sediado na China. O serviço de SMS informado é SMSDEV, e o e-mail é enviado por SMTP Hostinger (Mail Hostinger), sujeitos à configuração por clínica e às respectivas relações contratuais. Cada fornecedor recebe apenas os dados necessários ao fluxo em que é utilizado. Países de processamento e fornecedores indiretos precisam de confirmação documental no inventário de transferências.
 
 ## 6. IA clínica
 
@@ -452,7 +453,7 @@ O uso de APIs externas pode implicar transferência internacional. Quando os dad
 
 ## 8. Segurança e retenção
 
-São informados logs, MFA, criptografia nos fluxos pertinentes, registros finalizados com adendos, assinaturas ICP-Brasil quando usados certificados válidos e backups externos semanais cifrados localmente, mantidos por até 30 dias em SSD. Nenhuma tecnologia elimina todos os riscos. O período de conservação varia por categoria: dados clínicos observam deveres legais de guarda do responsável pelo prontuário, em regra com referência mínima de 20 anos desde o último registro na Lei nº 13.787/2018; dados comerciais e logs obedecem a finalidades e prazos próprios. Após o encerramento da conta, há janela contratual de 90 dias para consulta e exportação dos dados estruturados e PDFs originais assinados. A custódia prolongada pós-contratual exige contratação própria; nenhuma eliminação ocorrerá em desacordo com obrigação legal ou sem transição documentalmente segura, nos termos do Anexo IV.
+São informados logs, MFA, criptografia nos fluxos pertinentes, registros finalizados com adendos, assinaturas ICP-Brasil quando usados certificados válidos e backups diários cifrados localmente, mantidos por até 30 dias no servidor e por até 60 dias em cópia externa em SSD. Nenhuma tecnologia elimina todos os riscos. O período de conservação varia por categoria: dados clínicos observam deveres legais de guarda do responsável pelo prontuário, em regra com referência mínima de 20 anos desde o último registro na Lei nº 13.787/2018; dados comerciais e logs obedecem a finalidades e prazos próprios. Após o encerramento da conta, há janela contratual de 90 dias para obter, mediante solicitação, a exportação dos dados estruturados e dos PDFs originais, inclusive assinados. A custódia prolongada pós-contratual exige contratação própria; nenhuma eliminação ocorrerá em desacordo com obrigação legal ou sem transição documentalmente segura, nos termos do Anexo IV.
 
 ## 9. Direitos dos titulares
 
