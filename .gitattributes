@@ -10,3 +10,7 @@
 ops/entrypoint.sh text eol=lf
 ops/infra_entrypoint.sh text eol=lf
 ops/postgres_init.sh text eol=lf
+
+# A redação 1.2 arquivada é prova: o SHA-256 dela é o dos aceites, e
+# trocar LF por CRLF no checkout do Windows mudaria os bytes.
+tenancy/contrato/contrato-1.2.txt -text
