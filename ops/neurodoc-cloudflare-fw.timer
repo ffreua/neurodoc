@@ -1,12 +1,15 @@
 [Unit]
-Description=Reaplica a trava da Cloudflare na subida e uma vez por dia
+Description=Reaplica a trava da Cloudflare na subida e de hora em hora
 
-# Na subida porque as regras do iptables nao sobrevivem ao reinicio; uma
-# vez por dia porque a lista de faixas da Cloudflare muda, raramente.
+# Na subida porque as regras do iptables nao sobrevivem ao reinicio; de
+# hora em hora porque a rodada que falha (e avisa por e-mail) precisa
+# voltar logo -- com uma rodada por dia, a trava desfeita deixava o
+# servidor aberto por ate um dia (auditoria de 2026-11-11). A rodada e
+# barata: baixa duas listas pequenas e remonta a cadeia sem fechar a porta.
 [Timer]
 OnBootSec=1min
-OnUnitActiveSec=1d
-RandomizedDelaySec=10min
+OnUnitActiveSec=1h
+RandomizedDelaySec=5min
 Unit=neurodoc-cloudflare-fw.service
 
 [Install]

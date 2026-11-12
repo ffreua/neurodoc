@@ -1,0 +1,23 @@
+# Instalado a mao junto com `neurodoc-cloudflare-fw.service` (o passo esta
+# em docs/operations/manutencao.md), copiado sem substituicao -- por isso
+# roda como root, como a propria trava, e nao como o usuario de operacao,
+# cujo nome a instalacao escolhe e o `cp` nao conhece.
+#
+# Nao tem timer: quem a dispara e o `OnFailure=` da trava da Cloudflare.
+# A rodada que nao confirmava o site desfazia a trava e so deixava
+# `status=1` no journal -- o servidor aberto a qualquer IP, calado
+# (auditoria de 2026-11-11).
+#
+# `/bin/sh` antes do script pelo mesmo motivo das outras unidades: os
+# scripts sao versionados em 644.
+[Unit]
+Description=Aviso por e-mail de que a trava da Cloudflare falhou
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/neurodoc
+ExecStart=/bin/sh /srv/neurodoc/scripts/avisar_falha_firewall.sh
+TimeoutStartSec=5min
+NoNewPrivileges=true

@@ -195,6 +195,47 @@ if enviados:
     confere('journalctl -u neurodoc-backup.service' in enviados[0].body,
             'e diz onde ver o motivo')
 
+print('=== 5-B. a trava da Cloudflare nao abre o servidor calada ===')
+# Auditoria de 2026-11-11: qualquer /health/ sem 200 desfazia a trava --
+# inclusive na subida da maquina, com o app ainda nascendo --, e a rodada
+# seguinte vinha um dia depois, sem aviso a ninguem.
+_fw = (ROOT / 'ops/cloudflare_firewall.sh').read_text(encoding='utf-8')
+_fw_unidade = (ROOT / 'ops/neurodoc-cloudflare-fw.service').read_text(encoding='utf-8')
+_fw_timer = (ROOT / 'ops/neurodoc-cloudflare-fw.timer').read_text(encoding='utf-8')
+_fw_aviso = (ROOT / 'ops/neurodoc-cloudflare-fw-falhou.service').read_text(encoding='utf-8')
+_conferir = _fw.split('# ---------------------------------------------------------------- conferir', 1)[-1]
+confere('health=healthy' in _conferir and 'neurodoc_v1_app' in _conferir,
+        'antes de desfazer, o script pergunta se ha app saudavel')
+confere(_conferir.find('health=healthy') < _conferir.find('\nremover'),
+        'e pergunta ANTES de desfazer, nao depois')
+confere('OnFailure=neurodoc-cloudflare-fw-falhou.service' in _fw_unidade,
+        'a rodada que falha dispara o aviso por e-mail')
+confere('OnUnitActiveSec=1h' in _fw_timer, 'a rodada se repete de hora em hora, e nao uma vez por dia')
+confere('ExecStart=/bin/sh /srv/neurodoc/scripts/avisar_falha_firewall.sh' in _fw_aviso
+        and (ROOT / 'scripts/avisar_falha_firewall.sh').is_file(),
+        'a unidade do aviso chama um script que existe')
+confere('User=' not in _fw_aviso,
+        'a unidade do aviso roda como root (e copiada sem substituir o usuario)')
+confere('neurodoc-cloudflare-fw-falhou.service' in
+        (ROOT / 'docs/operations/manutencao.md').read_text(encoding='utf-8'),
+        'o passo de instalacao copia a unidade do aviso junto')
+_criado = None
+if not _User.objects.filter(is_superuser=True, is_active=True).exclude(email='').exists():
+    _criado = _User.objects.create_user(
+        email='aviso-fw@roteiro.invalid', password=None, is_superuser=True, is_staff=True,
+    )
+try:
+    with _override(EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'):
+        _mail.outbox = []
+        _call('avisar_falha_firewall')
+        _enviados_fw = list(_mail.outbox)
+finally:
+    if _criado is not None:
+        _criado.delete()
+confere(len(_enviados_fw) == 1 and 'Cloudflare' in _enviados_fw[0].subject
+        and 'journalctl -u neurodoc-cloudflare-fw.service' in _enviados_fw[0].body,
+        'o comando manda o e-mail e diz onde ver o motivo', [m.subject for m in _enviados_fw])
+
 print('=== 6. os scripts do timer usam o Python com as dependencias ===')
 for script in ['backup.sh', 'cleanup_signing_keys.sh', 'deploy.sh']:
     texto = (ROOT / 'scripts' / script).read_text(encoding='utf-8')

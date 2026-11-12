@@ -21,12 +21,29 @@
 #      não passa por ela;
 #   3. depois de aplicar, o script pede /health/ pelo domínio — o pedido
 #      sai para a Cloudflare e volta pela borda dela, exatamente o caminho
-#      de um paciente. Se não der 200, desfaz tudo e sai com erro;
+#      de um paciente. Se não der 200 **e o app estiver de pé**, a trava é
+#      a suspeita: desfaz tudo e sai com erro;
 #   4. a porta 22 não é tocada.
+#
+# **Por que "e o app estiver de pé"** (auditoria de 2026-11-11). Até aqui
+# qualquer /health/ sem 200 desfazia a trava — e o /health/ também falha
+# quando o culpado é o próprio app: na subida da máquina (o timer roda um
+# minuto depois do boot, e o app tem dois minutos de `start_period`) ou
+# num deploy na mesma hora. A trava saía justamente quando não era ela, e
+# o servidor ficava aberto a qualquer IP até a rodada seguinte, um dia
+# depois, sem aviso. Agora o script pergunta ao Docker se há contêiner do
+# app saudável: sem app saudável, a falha não é da trava, e ela **fica**.
+# Recusado: não desfazer nunca. Uma lista de faixas errada tiraria o site
+# do ar até alguém ler o e-mail; desfazer só quando o app está de pé e a
+# borda não chega é o caso em que a trava é de fato a suspeita.
+#
+# Toda saída com erro dispara o aviso por e-mail
+# (`neurodoc-cloudflare-fw-falhou.service`), e o timer roda de hora em
+# hora, para a trava desfeita ou não aplicada voltar logo.
 #
 # Desfazer à mão: `bash ops/cloudflare_firewall.sh --remover`.
 #
-# A lista de faixas muda raramente, mas muda; o timer roda uma vez por dia.
+# A lista de faixas muda raramente, mas muda; o timer a atualiza a cada rodada.
 # Ela é a mesma que o deploy põe no `traefik.yml` e que o `.env` declara em
 # TRUSTED_PROXIES — mudando a lista, as três precisam acompanhar.
 set -euo pipefail
@@ -114,6 +131,15 @@ for tentativa in 1 2 3; do
     sleep 5
 done
 
+# Há contêiner do app saudável? Se não, quem falhou foi o app (subida da
+# máquina, deploy), e desfazer a trava só abriria o servidor sem motivo.
+app_saudavel="$(docker ps -q --filter label=com.docker.swarm.service.name=neurodoc_v1_app \
+                --filter health=healthy 2>/dev/null | head -n 1 || true)"
+if [[ -z "$app_saudavel" ]]; then
+    echo "ERRO: ${DOMINIO}/health/ respondeu '${codigo}', mas nenhum contêiner do app está saudável: a falha é do app, não da trava. A trava FICA aplicada; a próxima rodada confere de novo." >&2
+    exit 1
+fi
+
 remover
-echo "ERRO: depois da trava, ${DOMINIO}/health/ respondeu '${codigo}'. A trava foi DESFEITA; o site segue aberto como antes." >&2
+echo "ERRO: com o app saudável, ${DOMINIO}/health/ respondeu '${codigo}' pela borda. A trava é a suspeita e foi DESFEITA; o site fica aberto até a próxima rodada (de hora em hora). Confira a Cloudflare e a lista de faixas." >&2
 exit 1

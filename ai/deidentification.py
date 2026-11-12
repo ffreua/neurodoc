@@ -1,7 +1,27 @@
 import re
+import unicodedata
 
-_CPF_PATTERN = re.compile(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b')
-_PHONE_PATTERN = re.compile(r'\b(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}-?\d{4}\b')
+#: **A fronteira de palavra que vale também dentro de um JSON.** O resumo,
+#: o apoio diagnóstico e o relatório desidentificam o contexto **já
+#: serializado** (`ai/services.py`), e no JSON a quebra de linha vira os
+#: dois caracteres `\n`. Com o `\b` puro, "Anamnese:\nMaria refere…" não
+#: tinha fronteira entre o `n` do escape e o `M` — o nome ia ao provedor
+#: intacto, e o CPF no começo de linha também (auditoria de 2026-11-11).
+#: Toda anotação que começa linha pelo nome do paciente caía nisso.
+#:
+#: Por isso a fronteira à esquerda aceita, além de "não é letra nem
+#: dígito", o escape de controle do JSON (`\n`, `\t`, `\r`, `\f`, `\b`).
+#: Recusada: desidentificar campo a campo antes de serializar. Resolveria
+#: os três pedidos e deixaria aberto quem já chega com JSON pronto — o
+#: próprio `check_ia_o_que_vai` faz isso —, e a regra precisa valer aqui,
+#: por onde todo texto que vai a um provedor passa. O erro que sobra é o
+#: de uma barra invertida literal antes de um "n", que redige a mais — o
+#: lado seguro.
+_INICIO = r'(?:(?<=\\[bfnrt])|(?<!\w))'
+_FIM = r'(?!\w)'
+
+_CPF_PATTERN = re.compile(_INICIO + r'\d{3}\.?\d{3}\.?\d{3}-?\d{2}' + _FIM)
+_PHONE_PATTERN = re.compile(_INICIO + r'(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}-?\d{4}' + _FIM)
 _EMAIL_PATTERN = re.compile(r'[\w.+-]+@[\w-]+\.[\w.-]+')
 _MIN_NAME_PART_LEN = 3
 
@@ -81,7 +101,48 @@ def _redact_name_part(text, part, marker):
     vaza nome de ninguem -- e nao da para distinguir os dois sem saber
     qual dos dois sentidos a frase quis dizer.
     """
-    return re.sub(rf'\b{re.escape(part)}\b', marker, text, flags=re.IGNORECASE)
+    return re.sub(_INICIO + _padrao_sem_acento(part) + _FIM, marker, text, flags=re.IGNORECASE)
+
+
+#: **O nome casa com e sem acento.** O cadastro grava "JOÃO PEREIRA"
+#: (`patients.naming`), e o texto livre — sobretudo o migrado do iClin —
+#: escreve "Joao". Comparando letra a letra, o primeiro nome passava.
+_VARIANTES = {
+    'a': 'aáàâãä', 'e': 'eéèêë', 'i': 'iíìîï', 'o': 'oóòôõö',
+    'u': 'uúùûü', 'c': 'cç', 'n': 'nñ',
+}
+
+
+def _sem_acento(texto):
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if not unicodedata.combining(c)
+    )
+
+
+def _padrao_sem_acento(part):
+    pedacos = []
+    for letra in _sem_acento(part).lower():
+        variantes = _VARIANTES.get(letra)
+        pedacos.append(f'[{variantes}]' if variantes else re.escape(letra))
+    return ''.join(pedacos)
+
+
+def _redact_birth_date(text, nascimento):
+    """Troca a data de nascimento do paciente, nas grafias de um laudo.
+
+    Nenhum pedido manda a data de propósito — o relatório leva a idade —,
+    mas ela chega pelo texto: cabeçalho de laudo colado, anamnese
+    migrada. É a data **deste** paciente, e não qualquer data: a data do
+    exame e a do início do sintoma são o que a IA precisa ler.
+    """
+    dia, mes, ano = nascimento.day, nascimento.month, nascimento.year
+    grafias = [
+        rf'0?{dia}[/.-]0?{mes}[/.-](?:{ano}|{ano % 100:02d})',
+        rf'{ano}-{mes:02d}-{dia:02d}',
+    ]
+    padrao = r'(?<!\d)(?:' + '|'.join(grafias) + r')(?!\d)'
+    return re.sub(padrao, '[NASCIMENTO]', text)
 
 
 def deidentify_text(text, patient):
@@ -102,6 +163,8 @@ def deidentify_text(text, patient):
             result = _redact_name_part(result, part, '[NOME_MAE]')
         if getattr(patient, 'cpf', None):
             result = result.replace(patient.cpf, '[CPF]')
+        if getattr(patient, 'birth_date', None):
+            result = _redact_birth_date(result, patient.birth_date)
     result = _CPF_PATTERN.sub('[CPF]', result)
     result = _PHONE_PATTERN.sub('[TELEFONE]', result)
     result = _EMAIL_PATTERN.sub('[EMAIL]', result)

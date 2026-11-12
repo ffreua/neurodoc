@@ -177,12 +177,36 @@ def atendimentos_rows(tenant_id, **_parametros):
     diário da clínica — útil para outra coisa, inútil para acompanhar um
     caso.
     """
-    from clinical.models import Encounter
+    from django.db.models import Prefetch
 
+    from clinical.models import (
+        ClinicalAmendment, Encounter, EncounterDiagnosis, ExamResult, ExaminationFinding,
+    )
+
+    # O `patient_id` entre o nome e a data: dois pacientes homônimos
+    # ordenados só por nome se intercalavam por data, e o Markdown abria
+    # um capítulo novo a cada troca — o prontuário de cada um em pedaços.
     consulta = (
         Encounter.objects.filter(tenant_id=tenant_id)
         .select_related('patient', 'physician_membership__user')
-        .order_by('patient__full_name', 'occurred_at')
+        .prefetch_related(
+            Prefetch('diagnoses', queryset=EncounterDiagnosis.objects.order_by('rank')),
+            Prefetch('medications'),
+            Prefetch(
+                'examination_findings',
+                queryset=ExaminationFinding.objects.select_related('template_node')
+                .order_by('domain', 'item_code', 'side'),
+            ),
+            Prefetch(
+                'exam_results',
+                queryset=ExamResult.objects.prefetch_related('lab_values').order_by('-performed_on', 'name'),
+            ),
+            Prefetch(
+                'amendments',
+                queryset=ClinicalAmendment.objects.select_related('author__user').order_by('authored_at'),
+            ),
+        )
+        .order_by('patient__full_name', 'patient_id', 'occurred_at')
     )
     linhas = []
     for encontro in consulta.iterator(chunk_size=100):
@@ -200,8 +224,90 @@ def atendimentos_rows(tenant_id, **_parametros):
         }
         for campo, rotulo in SECOES_CLINICAS:
             linha[rotulo] = _texto(getattr(encontro, campo))
+        linha.update(_registros_do_atendimento(encontro))
         linhas.append(linha)
     return linhas
+
+
+def _nome(membership):
+    if membership is None:
+        return ''
+    return membership.user.get_full_name() or membership.user.email
+
+
+def _registros_do_atendimento(encontro):
+    """O que o atendimento registra fora dos campos de texto.
+
+    **Até a auditoria de 2026-11-11 isto não saía**, e o acervo era o
+    texto e nada mais: sem a hipótese com o CID, sem a medicação, sem o
+    exame neurológico do roteiro e as escalas, sem o resultado de exame e
+    — o mais grave — sem o **adendo**, que é a única forma de corrigir um
+    atendimento finalizado. A clínica que levasse o acervo levava um
+    prontuário diferente do registrado, e a cláusula 14.3 do contrato 2.0
+    promete "adendos, metadados".
+
+    Cada lista vem do `prefetch_related` de `atendimentos_rows`, com a
+    mesma ordem e o mesmo rótulo do resumo do caso
+    (`clinical.views.PatientSummaryView`).
+    """
+    from clinical.examination import group_findings_by_domain
+
+    exame = []
+    for grupo in group_findings_by_domain(list(encontro.examination_findings.all())):
+        for achado in grupo['findings']:
+            valor = achado.qualifier
+            if not valor and achado.numeric_value is not None:
+                valor = str(achado.numeric_value)
+            exame.append({
+                'grupo': grupo['label'],
+                'item': achado.label,
+                'lado': '' if achado.side == 'not_applicable' else achado.get_side_display(),
+                'valor': valor or achado.get_state_display(),
+                'observacao': _texto(achado.note),
+            })
+    return {
+        'hipoteses': [
+            {
+                'codigo': _texto(d.code_snapshot),
+                'descricao': _texto(d.description_snapshot),
+                'certeza': d.get_certainty_display(),
+                'nota_do_medico': _texto(d.physician_note),
+            }
+            for d in encontro.diagnoses.all()
+        ],
+        'medicacoes': [
+            {
+                'nome': m.name, 'dose': _texto(m.dose), 'via': m.get_route_display(),
+                'frequencia': _texto(m.frequency), 'inicio': m.started_on,
+                'indicacao': _texto(m.indication), 'situacao': m.get_status_display(),
+                'prescritor': _texto(m.prescriber), 'observacao': _texto(m.notes),
+            }
+            for m in sorted(encontro.medications.all(), key=lambda m: m.name)
+        ],
+        'exame_neurologico': exame,
+        'resultados_de_exame': [
+            {
+                'exame': r.name, 'categoria': r.get_category_display(),
+                'realizado_em': r.performed_on, 'servico': _texto(r.service_name),
+                'laudo': _texto(r.report_text), 'conclusao': _texto(r.conclusion),
+                'valores': [
+                    {
+                        'analito': v.analyte, 'valor': v.value_text, 'unidade': _texto(v.unit),
+                        'referencia': _texto(v.reference_text), 'sinalizacao': v.get_flag_display(),
+                    }
+                    for v in r.lab_values.all()
+                ],
+            }
+            for r in encontro.exam_results.all()
+        ],
+        'adendos': [
+            {
+                'em': a.authored_at, 'autor': _nome(a.author),
+                'motivo': _texto(a.reason), 'texto': _texto(a.text),
+            }
+            for a in encontro.amendments.all()
+        ],
+    }
 
 
 #: Colunas da tabela do atendimento. Só as de identificação: o texto
@@ -254,4 +360,66 @@ def atendimentos_markdown(rows, **_parametros):
             texto = row.get(rotulo)
             if texto:
                 linhas += [f'**{rotulo}**', '', texto, '']
+        linhas += _registros_em_markdown(row)
     return '\n'.join(linhas)
+
+
+def _juntar(*partes):
+    return ' · '.join(str(p) for p in partes if p)
+
+
+def _registros_em_markdown(row):
+    """As listas do atendimento, cada uma só se tiver linha — pela mesma
+    razão de a seção de texto vazia não ser impressa."""
+    from django.utils import timezone
+
+    linhas = []
+    if row.get('hipoteses'):
+        linhas += ['**Hipóteses diagnósticas**', '']
+        for h in row['hipoteses']:
+            linhas.append('- ' + _juntar(h['codigo'], h['descricao'], h['certeza'], h['nota_do_medico']))
+        linhas.append('')
+    if row.get('medicacoes'):
+        linhas += ['**Medicações**', '']
+        for m in row['medicacoes']:
+            linhas.append('- ' + _juntar(
+                m['nome'], m['dose'], m['via'], m['frequencia'], m['situacao'],
+                m['indicacao'], m['observacao'],
+            ))
+        linhas.append('')
+    if row.get('exame_neurologico'):
+        linhas += ['**Exame neurológico e escalas**', '']
+        grupo_atual = None
+        for e in row['exame_neurologico']:
+            if e['grupo'] != grupo_atual:
+                grupo_atual = e['grupo']
+                linhas.append(f'- *{grupo_atual}*')
+            item = f'{e["item"]} ({e["lado"].lower()})' if e['lado'] else e['item']
+            linhas.append('  - ' + _juntar(f'{item}: {e["valor"]}', e['observacao']))
+        linhas.append('')
+    if row.get('resultados_de_exame'):
+        linhas += ['**Resultados de exame**', '']
+        for r in row['resultados_de_exame']:
+            data = r['realizado_em'].strftime('%d/%m/%Y') if r['realizado_em'] else ''
+            linhas.append('- ' + _juntar(r['exame'], r['categoria'], data, r['servico']))
+            for v in r['valores']:
+                linhas.append('  - ' + _juntar(
+                    f'{v["analito"]}: {v["valor"]} {v["unidade"]}'.strip(),
+                    v['referencia'], v['sinalizacao'],
+                ))
+            if r['conclusao']:
+                linhas.append(f'  - Conclusão: {r["conclusao"]}')
+            if r['laudo']:
+                linhas += ['', '  ' + r['laudo'].replace('\n', '\n  ')]
+        linhas.append('')
+    for a in row.get('adendos') or []:
+        quando = a['em']
+        if hasattr(quando, 'strftime'):
+            if timezone.is_aware(quando):
+                quando = timezone.localtime(quando)
+            quando = quando.strftime('%d/%m/%Y %H:%M')
+        linhas += [f'**Adendo de {quando} — {a["autor"]}**', '']
+        if a['motivo']:
+            linhas += [f'*Motivo: {a["motivo"]}*', '']
+        linhas += [a['texto'], '']
+    return linhas

@@ -405,7 +405,7 @@ E depois leia [`rollback.md`](rollback.md) antes do próximo deploy.
 
 Desde 2026-10-19 as portas 80 e 443 só aceitam conexão vinda da
 Cloudflare (`ops/cloudflare_firewall.sh`). Um timer reaplica a trava a
-cada subida da máquina e uma vez por dia, atualizando a lista de faixas.
+cada subida da máquina e de hora em hora, atualizando a lista de faixas.
 
 **Conferir se está ativa:**
 
@@ -414,9 +414,18 @@ ssh neurodoc-vps "systemctl list-timers neurodoc-cloudflare-fw.timer; sudo journ
 ```
 
 Deu certo se a última linha diz "Trava aplicada ... respondeu 200 pela
-borda". Se a rodada não conseguir confirmar o site pela Cloudflare, ela
-**desfaz a trava sozinha** e registra "A trava foi DESFEITA" — o site
-fica aberto como antes, e o que precisa ser visto é a Cloudflare.
+borda". Se a rodada não conseguir confirmar o site pela Cloudflare, o
+desfecho depende do app (desde a auditoria de 2026-11-11):
+
+- **app saudável e a borda não chega:** a trava é a suspeita, é
+  **desfeita** e o journal diz "A trava é a suspeita e foi DESFEITA" — o
+  que precisa ser visto é a Cloudflare ou a lista de faixas;
+- **nenhum contêiner do app saudável** (subida da máquina, deploy): a
+  falha é do app, e a trava **fica**.
+
+Nos dois casos a unidade termina com erro e o `OnFailure=` manda e-mail
+aos superadministradores (`neurodoc-cloudflare-fw-falhou.service`, pelo
+worker). A rodada seguinte vem em até uma hora.
 
 **Desfazer numa emergência** (por exemplo, para voltar o DNS ao modo
 "só DNS"; sem isso, desligar o proxy tira o site do ar):
@@ -428,7 +437,7 @@ ssh neurodoc-vps "sudo systemctl disable --now neurodoc-cloudflare-fw.timer && c
 **Reinstalar** (depois de um `git pull` que mude o script ou as unidades):
 
 ```
-ssh neurodoc-vps "cd /srv/neurodoc && sudo cp ops/neurodoc-cloudflare-fw.service ops/neurodoc-cloudflare-fw.timer /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now neurodoc-cloudflare-fw.timer"
+ssh neurodoc-vps "cd /srv/neurodoc && sudo cp ops/neurodoc-cloudflare-fw.service ops/neurodoc-cloudflare-fw.timer ops/neurodoc-cloudflare-fw-falhou.service /etc/systemd/system/ && sudo systemctl daemon-reload && sudo systemctl enable --now neurodoc-cloudflare-fw.timer"
 ```
 
 **A mesma lista em três lugares.** As faixas da Cloudflare valem no

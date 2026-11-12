@@ -81,6 +81,27 @@ saida = deidentify_text('Filha de Rita Pereira, sem intercorrencias.', _Paciente
 confere('Rita' not in saida and 'Pereira' not in saida,
         'o nome da mae sai', saida)
 
+# Auditoria de 2026-11-11: o resumo, o apoio diagnostico e o relatorio
+# desidentificam o contexto ja em JSON, onde a quebra de linha vira `\n`.
+# O nome e o CPF no comeco de linha atravessavam inteiros.
+import datetime as _dt
+import json as _json
+
+_pac = _Paciente('MARIA JOÃO SILVA', 'RITA PEREIRA')
+_pac.birth_date = _dt.date(1980, 3, 7)
+_enviado = deidentify_text(_json.dumps({'t': (
+    'Anamnese:\nMaria refere cefaleia.\n\tSilva assinou.\n123.456.789-00\n'
+    'Joao veio com a mae.\nNasc. 07/03/1980, 7/3/80, 1980-03-07; exame em 07/03/2024.'
+)}, ensure_ascii=False), _pac)
+confere('Maria' not in _enviado and 'Silva' not in _enviado,
+        'o nome no comeco de linha, dentro do JSON, sai', _enviado[:60])
+confere('123.456' not in _enviado, 'o CPF no comeco de linha, dentro do JSON, sai')
+confere('Joao' not in _enviado, 'o nome escrito sem acento sai')
+confere('1980' not in _enviado and '7/3/80' not in _enviado,
+        'a data de nascimento sai, nas tres grafias')
+confere('07/03/2024' in _enviado, 'a data do exame fica')
+confere('Anamnese' in _enviado, 'o escape do JSON nao vira nome: "Anamnese" fica')
+
 print('=== 2. o IP do visitante atravessa o proxy, e so o nosso ===')
 rf = RequestFactory()
 

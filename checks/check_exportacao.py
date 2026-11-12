@@ -179,6 +179,72 @@ if com_texto:
 else:
     print('  (nenhum atendimento com texto nesta clinica)')
 
+print('=== 5b. o que o atendimento registra fora do texto tambem sai ===')
+# Auditoria de 2026-11-11: o acervo levava so os campos de texto. Sem o
+# adendo -- a unica correcao de um atendimento finalizado --, sem CID,
+# medicacao, exame e escalas. Montado dentro de transacao desfeita.
+from django.db import transaction
+
+from clinical.models import (
+    ClinicalAmendment, DiagnosisCertainty, EncounterDiagnosis, EncounterStatus,
+    ExamResult, ExaminationDomain, ExaminationFinding, LabValue, Medication,
+)
+from patients.models import RegistrationStage
+
+
+class _Desfazer(Exception):
+    pass
+
+
+try:
+    with transaction.atomic():
+        _pac = Patient.objects.create(
+            tenant=clinica, full_name='PACIENTE ROTEIRO ACERVO REGISTROS',
+            registration_stage=RegistrationStage.COMPLETE,
+            birth_date_unknown_reason='Roteiro de verificacao.',
+        )
+        _at = Encounter.objects.create(
+            tenant=clinica, patient=_pac, physician_membership=medico,
+            occurred_at=timezone.now(), status=EncounterStatus.FINALIZED,
+            finalized_at=timezone.now(), finalized_by=medico, plan_text='Conduta do roteiro.',
+        )
+        EncounterDiagnosis.objects.create(
+            tenant=clinica, encounter=_at, code_snapshot='G40.9',
+            description_snapshot='Epilepsia nao especificada', certainty=DiagnosisCertainty.CONFIRMED,
+        )
+        Medication.objects.create(tenant=clinica, encounter=_at, name='LEVETIRACETAM ROTEIRO', dose='500 mg')
+        ExaminationFinding.objects.create(
+            tenant=clinica, encounter=_at, domain=ExaminationDomain.AXIS_SCALES,
+            item_code='escala.epworth', value_json={'name': 'Epworth do roteiro'}, qualifier='12/24',
+        )
+        _res = ExamResult.objects.create(
+            tenant=clinica, encounter=_at, patient=_pac, name='HEMOGRAMA ROTEIRO', conclusion='Sem alteracoes.',
+        )
+        LabValue.objects.create(tenant=clinica, exam_result=_res, analyte='Hemoglobina', value_text='13,5')
+        ClinicalAmendment.objects.create(
+            tenant=clinica, encounter=_at, author=medico, reason='Correcao do roteiro',
+            text='Texto do adendo do roteiro.', authored_at=timezone.now(),
+        )
+        _linha = next(r for r in acervo.atendimentos_rows(clinica.id) if r['id'] == str(_at.id))
+        _md = acervo.atendimentos_markdown([_linha])
+        _json = json.loads(export_json([_linha]))[0]
+        for _rotulo, _trecho in [
+            ('o adendo', 'Texto do adendo do roteiro.'), ('o motivo do adendo', 'Correcao do roteiro'),
+            ('o CID da hipotese', 'G40.9'), ('a medicacao', 'LEVETIRACETAM ROTEIRO'),
+            ('a escala', 'Epworth do roteiro: 12/24'), ('o resultado de exame', 'HEMOGRAMA ROTEIRO'),
+            ('o valor laboratorial', 'Hemoglobina: 13,5'),
+        ]:
+            _ok = _trecho in _md
+            print(f'  markdown traz {_rotulo}: {_ok}')
+            if not _ok:
+                falhas.append(f'o markdown do acervo nao traz {_rotulo}')
+        for _chave in ('hipoteses', 'medicacoes', 'exame_neurologico', 'resultados_de_exame', 'adendos'):
+            if not _json.get(_chave):
+                falhas.append(f'o json do acervo nao traz "{_chave}"')
+        raise _Desfazer
+except _Desfazer:
+    pass
+
 print('=== 6. a exportacao respeita o inquilino ===')
 # O relacionamento reverso de `Patient` e `patient`, no singular: o modelo
 # nao declara `related_name`, e o Django usa o nome da classe em minusculas.

@@ -12,6 +12,9 @@ Description=Restringe as portas 80 e 443 do NeuroDoc as faixas da Cloudflare
 Requires=docker.service
 After=docker.service network-online.target ufw.service
 Wants=network-online.target
+# Falhou? Avisa por e-mail. A trava desfeita ou nao aplicada so deixava
+# `status=1` no journal (auditoria de 2026-11-11).
+OnFailure=neurodoc-cloudflare-fw-falhou.service
 
 [Service]
 Type=oneshot

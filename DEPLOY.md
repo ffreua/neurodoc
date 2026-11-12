@@ -44,7 +44,7 @@ Onde este arquivo e o código divergirem, vale o código: `ops/deploy.py`,
 | Firewall | UFW com 22/80/443; e 80/443 **só para as faixas da Cloudflare** (`ops/cloudflare_firewall.sh`, timer `neurodoc-cloudflare-fw.timer`) |
 | Segredos | **quinze segredos do Swarm** (`docker secret`), lidos de `docker-stack.yml`. `.secrets/` é só do ambiente local |
 | Capacidade | `APP_WORKERS=4` (processos por réplica do `app`) e `WORKER_CONCURRENCY=6` (tarefas do worker) no `.env`, desde 2026-11-03 — o que a VPS aguenta e como ajustar em [`docs/operations/capacidade.md`](docs/operations/capacidade.md) |
-| Temporizadores | `neurodoc-backup.timer` (03:00 de Brasília), `neurodoc-signing-cleanup.timer` (a cada 5 min), `neurodoc-cloudflare-fw.timer` (na subida e uma vez por dia) |
+| Temporizadores | `neurodoc-backup.timer` (03:00 de Brasília), `neurodoc-signing-cleanup.timer` (a cada 5 min), `neurodoc-cloudflare-fw.timer` (na subida e de hora em hora; avisa por e-mail quando falha) |
 
 **O `app` tem saída para a internet**, ao contrário do que alguns
 documentos antigos dizem: ele está em `traefik_public`, que não é
