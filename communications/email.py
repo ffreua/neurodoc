@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.core.mail import EmailMessage, EmailMultiAlternatives, get_connection
+from django.core.mail.backends.smtp import EmailBackend
 
 
 class EmailSendFailed(Exception):
@@ -35,6 +36,44 @@ def _exigir_host_publico(host, port):
                 'Este endereço não é de um servidor de e-mail na internet. Use o servidor SMTP '
                 'do seu provedor (por exemplo, smtp.hostinger.com).'
             )
+    # O IPv4 primeiro: é o que todo provedor de e-mail atende, e a rede da
+    # instalação nem sempre tem rota IPv6.
+    return sorted(enderecos, key=lambda e: (':' in e, e))[0]
+
+
+class ServidorConferidoBackend(EmailBackend):
+    """SMTP que conecta **no IP conferido**, e não no nome de novo.
+
+    `_exigir_host_publico` pergunta ao DNS e recusa endereço interno; mas o
+    `smtplib`, ao conectar, pergunta ao DNS outra vez. Quem controla o
+    domínio pode responder um IP público à primeira pergunta e um interno à
+    segunda (*DNS rebinding*, auditoria de 2026-11-11) — e a conexão sairia
+    para dentro da rede da instalação mesmo depois de conferida.
+
+    Por isso a conexão vai ao IP que passou na conferência. O **nome**
+    continua sendo o do servidor (`_host`), e é ele que o TLS confere no
+    certificado: trocar o nome pelo IP faria todo certificado legítimo ser
+    recusado, e desligar a conferência abriria outra porta.
+    """
+
+    def __init__(self, *args, ip_conferido=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.ip_conferido = ip_conferido
+
+    @property
+    def connection_class(self):
+        base = super().connection_class
+        if not self.ip_conferido:
+            return base
+        ip = self.ip_conferido
+
+        class _NoIpConferido(base):
+            def _get_socket(self, host, port, timeout):
+                # `host` aqui é o nome digitado; o `_host` que o TLS usa
+                # para o certificado continua sendo ele.
+                return super()._get_socket(ip, port, timeout)
+
+        return _NoIpConferido
 
 
 def _mensagem_para_a_tela(exc):
@@ -189,9 +228,9 @@ def _connection_for(sender):
         password = sender.password()
     except SecretUnavailable as exc:
         raise EmailSendFailed(str(exc)) from exc
-    _exigir_host_publico(sender.host, sender.port)
+    ip = _exigir_host_publico(sender.host, sender.port)
     return get_connection(
-        backend='django.core.mail.backends.smtp.EmailBackend',
+        backend='communications.email.ServidorConferidoBackend', ip_conferido=ip,
         host=sender.host, port=sender.port,
         username=sender.user or None, password=password or None,
         use_tls=sender.use_tls, use_ssl=sender.use_ssl, fail_silently=False,
