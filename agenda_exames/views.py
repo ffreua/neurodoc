@@ -31,10 +31,13 @@ class ExamesView(CapabilityRequiredView):
 
 
 def _data(texto, padrao):
+    # Ano entre 2000 e 2100: `?dia=0001-01-01` calculava o dia anterior e
+    # estourava em `OverflowError` (auditoria de 2026-11-11).
     try:
-        return date.fromisoformat(texto) if texto else padrao
+        lida = date.fromisoformat(texto) if texto else padrao
     except ValueError:
         return padrao
+    return lida if 2000 <= lida.year <= 2100 else padrao
 
 
 def _uuid_ok(texto):

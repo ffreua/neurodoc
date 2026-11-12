@@ -1,4 +1,5 @@
 import datetime
+import uuid
 
 from django.contrib import messages
 from django.db import transaction
@@ -14,7 +15,7 @@ from .adjustments import apply_adjustment
 from .exports import (
     CASH_COLUMNS,
     COMPETENCE_COLUMNS,
-    cash_rows,
+    caixa_rows,
     competence_rows,
     render_excel_csv,
 )
@@ -30,7 +31,7 @@ from .lifecycle import (
 )
 from .models import Receivable
 from .payments import MAX_OUTRO, METODOS, PagamentoNaoExcluivel, balance, delete_payment, net_received, record_payment
-from .selectors import cash_view, competence_view
+from .selectors import caixa, competence_view
 
 
 #: Quantas formas cabem num registro de pagamento: a de sempre e mais três.
@@ -54,10 +55,18 @@ def _parse_period(request):
     # produto em America/Sao_Paulo. Das 21h a meia-noite o UTC ja esta no
     # dia seguinte, e o periodo padrao desta tela abria em 'amanha' --
     # no ultimo dia do mes, ja no mes que vem, com tudo zerado.
+    #
+    # Data que não se lê volta ao período padrão, em vez de erro 500
+    # (auditoria de 2026-11-11) -- como `tiss/views_lote.py::_data` já fazia.
     today = timezone.localdate()
-    start = request.GET.get('start') or str(today.replace(day=1))
-    end = request.GET.get('end') or str(today)
-    return datetime.date.fromisoformat(start), datetime.date.fromisoformat(end)
+
+    def _ler(valor, padrao):
+        try:
+            return datetime.date.fromisoformat(valor) if valor else padrao
+        except ValueError:
+            return padrao
+
+    return _ler(request.GET.get('start'), today.replace(day=1)), _ler(request.GET.get('end'), today)
 
 
 class FinanceOverviewView(TenantScopedView):
@@ -71,9 +80,9 @@ class FinanceOverviewView(TenantScopedView):
         start, end = _parse_period(request)
         tenant = _tenant(request.access_context.tenant_id)
         receivables = competence_view(tenant, start, end)
-        payments = cash_view(tenant, start, end)
+        movimentos = caixa(tenant, start, end)
         return render(request, 'finance/overview.html', {
-            'start': start, 'end': end, 'receivables': receivables, 'payments': payments,
+            'start': start, 'end': end, 'receivables': receivables, 'movimentos': movimentos,
             'can_manage_history': can_manage_financial_history(request.access_context),
         })
 
@@ -165,7 +174,7 @@ class CashExportView(_CSVExportView):
     columns = CASH_COLUMNS
 
     def rows(self, tenant, start, end):
-        return cash_rows(cash_view(tenant, start, end))
+        return caixa_rows(caixa(tenant, start, end))
 
 
 class MarkDoctorSharePaidView(FinancialHistoryManagerView):
@@ -305,7 +314,10 @@ class RecordPaymentView(TenantScopedView):
                         external_reference=form.cleaned_data['external_reference'],
                     )
         except ValueError as exc:
-            return HttpResponseForbidden(str(exc))
+            # Na tela da cobrança, e não numa página 403 crua: a recusa é
+            # para quem lançou (cobrança cancelada, por exemplo).
+            messages.error(request, str(exc))
+            return redirect('finance:receivable-detail', receivable_id=receivable.id)
         if len(linhas) > 1:
             messages.success(request, f'{len(linhas)} pagamentos registrados.')
         return redirect('finance:receivable-detail', receivable_id=receivable.id)
@@ -345,15 +357,25 @@ class ApplyAdjustmentView(TenantScopedView):
             messages.error(request, next(iter(form.errors.values()))[0])
             return redirect('finance:receivable-detail', receivable_id=receivable.id)
         payment = None
-        if request.POST.get('payment_id'):
+        payment_id = (request.POST.get('payment_id') or '').strip()
+        if payment_id:
             # O pagamento e buscado DENTRO do recebivel: um id de outro
-            # recebivel (ou de outra clinica) simplesmente nao casa.
-            payment = receivable.payments.filter(id=request.POST['payment_id']).first()
+            # recebivel (ou de outra clinica) simplesmente nao casa. E
+            # nao casar e recusa, e nao "sem pagamento": o estorno era
+            # gravado solto, sem aviso, e o id que nao era UUID dava 500.
+            try:
+                payment = receivable.payments.filter(id=uuid.UUID(payment_id)).first()
+            except ValueError:
+                payment = None
+            if payment is None:
+                messages.error(request, 'O pagamento indicado não é desta cobrança.')
+                return redirect('finance:receivable-detail', receivable_id=receivable.id)
         try:
             apply_adjustment(
                 receivable, form.cleaned_data['type'], form.cleaned_data['amount'],
                 form.cleaned_data['reason'], approved_by, payment=payment,
             )
         except ValueError as exc:
-            return HttpResponseForbidden(str(exc))
+            messages.error(request, str(exc))
+            return redirect('finance:receivable-detail', receivable_id=receivable.id)
         return redirect('finance:receivable-detail', receivable_id=receivable.id)

@@ -66,6 +66,22 @@ def _price_for(tenant, patient, physician, occurred_date, appointment_type=None,
     return fee_schedule
 
 
+def situacao_inicial(valor):
+    """A cobrança de valor zero nasce quitada.
+
+    O retorno sem custo (regra de honorário de R$ 0,00) gerava cobrança
+    "Em aberto" que nunca saía disso: não há pagamento de zero a lançar —
+    o formulário exige pelo menos R$ 0,01 —, e ela ficava na lista do que
+    falta receber, misturada com o que de fato falta. Pedido do Dr.
+    Fernando em 2026-11-12: o zero precisa existir, porque é ele que fecha
+    a conta do repasse do médico, mas não pode ficar pendurado.
+
+    Quitada pelo valor, e não por um pagamento inventado: o caixa continua
+    mostrando só o dinheiro que entrou.
+    """
+    return ReceivableStatus.PAID if valor == 0 else ReceivableStatus.PENDING
+
+
 def _create_receivable(*, tenant, patient, encounter, appointment, charge_kind,
                        fee_schedule, competence_date, actor_id, audit_object_type,
                        audit_object_id):
@@ -76,7 +92,7 @@ def _create_receivable(*, tenant, patient, encounter, appointment, charge_kind,
         charge_kind=charge_kind, fee_snapshot=snapshot,
         expected_amount=fee_schedule.gross_amount, charged_amount=fee_schedule.gross_amount,
         due_date=today + timedelta(days=DUE_DAYS), competence_date=competence_date,
-        status=ReceivableStatus.PENDING,
+        status=situacao_inicial(fee_schedule.gross_amount),
     )
     record_audit_event(
         actor_id, tenant.id, 'finance.receivable_created',
@@ -320,11 +336,15 @@ def create_receivable_for_exam(reserva, actor_id):
                 charge_kind=ChargeKind.PROCEDURE, fee_snapshot=snapshot_from_fee_schedule(regra),
                 expected_amount=regra.gross_amount, charged_amount=regra.gross_amount,
                 due_date=timezone.localdate() + timedelta(days=DUE_DAYS), competence_date=dia,
-                status=ReceivableStatus.PENDING,
+                status=situacao_inicial(regra.gross_amount),
             )
     except IntegrityError:
-        return Receivable.objects.get(tenant_id=reserva.tenant_id, reserva_exame=reserva,
-                                      charge_kind=ChargeKind.PROCEDURE)
+        # A viva, e não "a" cobrança da reserva: depois de trocar a forma de
+        # cobrança há uma cancelada ao lado, e o `.get()` sem filtro achava
+        # as duas (`MultipleObjectsReturned`, auditoria de 2026-11-11).
+        return Receivable.objects.exclude(status=ReceivableStatus.CANCELLED).get(
+            tenant_id=reserva.tenant_id, reserva_exame=reserva, charge_kind=ChargeKind.PROCEDURE,
+        )
     record_audit_event(
         actor_id, reserva.tenant_id, 'finance.receivable_created',
         object_type='receivable', object_id=receivable.id, outcome='success',

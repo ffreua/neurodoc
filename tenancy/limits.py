@@ -207,8 +207,31 @@ def doctor_status(tenant):
     return LimitStatus('doctors', doctor_usage(tenant), doctor_limit(tenant), plan_label(tenant.plan))
 
 
+def _travar_clinica(tenant):
+    """Trava a linha da clínica até o fim da transação de quem confere.
+
+    Sem a trava, duas requisições ao mesmo tempo contavam o mesmo número e
+    passavam as duas: dois aceites de convite de médico com uma vaga, ou
+    dois cadastros de paciente com uma, deixavam a clínica um acima do
+    limite do plano (auditoria de 2026-11-11). Com ela, a segunda espera a
+    primeira gravar e conta de novo.
+
+    Só dentro de transação: fora dela a trava se soltaria na mesma linha,
+    e `select_for_update` fora de transação é erro. A conferência que
+    aconselha antes (a do convite emitido, a da tela) segue sem trava; a
+    que decide — o aceite, o cadastro, a mudança de papel — roda dentro.
+    """
+    from django.db import transaction
+
+    from .models import Tenant
+
+    if transaction.get_connection().in_atomic_block:
+        Tenant.objects.select_for_update().filter(id=getattr(tenant, 'id', tenant)).first()
+
+
 def assert_can_add_patient(tenant):
     """Levanta `PlanLimitReached` se não há vaga para mais um paciente."""
+    _travar_clinica(tenant)
     status = patient_status(tenant)
     if status.blocked:
         raise PlanLimitReached('patients', status.usage, status.limit, status.plan_label)
@@ -222,6 +245,7 @@ def assert_can_add_doctor(tenant, extra=1):
     conferência na emissão, o convidado descobriria o problema depois de
     clicar no link — e quem pode resolvê-lo é o dono da clínica, não ele.
     """
+    _travar_clinica(tenant)
     status = doctor_status(tenant)
     if status.unlimited:
         return

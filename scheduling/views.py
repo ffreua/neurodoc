@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, time, timedelta
 
 from django.contrib import messages
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.http import Http404, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -60,10 +60,16 @@ class ScheduleConfigView(TenantScopedView):
 
 
 def _parse_date(value, default=None):
+    # Ano entre 2000 e 2100, como já fazia a tela de estatísticas: a semana
+    # de `0001-01-01` calculava a anterior e estourava em `OverflowError`,
+    # erro 500 por um endereço adulterado (auditoria de 2026-11-11).
     try:
-        return datetime.strptime(value, '%Y-%m-%d').date()
+        lida = datetime.strptime(value, '%Y-%m-%d').date()
     except (TypeError, ValueError):
         return default or timezone.localdate()
+    if not 2000 <= lida.year <= 2100:
+        return default or timezone.localdate()
+    return lida
 
 
 def _doctors(request):
@@ -429,7 +435,7 @@ class ScheduleSettingsView(ScheduleConfigView):
         # alguém rode um comando antes.
         publishing.ensure_national_holidays(
             request.access_context,
-            range(timezone.now().year, timezone.now().year + 3),
+            range(timezone.localdate().year, timezone.localdate().year + 3),
         )
         return render(request, 'scheduling/settings.html', self._context(request, doctor))
 
@@ -778,6 +784,7 @@ class QuickBookingView(TenantScopedView):
         if form.cleaned_data.get('espera_id'):
             return self._puxar_da_espera(request, doctor, form, starts_at, day)
 
+        patient = None
         if form.cleaned_data.get('patient_id'):
             patient = scope_to_tenant(
                 Patient.objects.all(), request.access_context,
@@ -785,31 +792,37 @@ class QuickBookingView(TenantScopedView):
             if patient is None:
                 messages.error(request, 'Paciente não encontrado nesta organização.')
                 return _agenda_redirect(request, doctor, day)
-        else:
-            # Pré-cadastro ao telefone também ocupa vaga do plano. A
-            # mensagem vem pronta de `PlanLimitReached` — escrevê-la aqui a
-            # faria divergir da do cadastro completo no primeiro ajuste.
-            try:
-                patient = services.quick_register_patient(
-                    request.access_context, form.cleaned_data['new_name'],
-                    form.cleaned_data.get('new_phone', ''),
-                    note=form.cleaned_data.get('note', ''),
-                    email=form.cleaned_data.get('new_email', ''),
-                    accepts_messages=form.cleaned_data.get('contact_accepts_messages', True),
-                )
-            except PlanLimitReached as limite:
-                messages.error(request, limite.message())
-                return _agenda_redirect(request, doctor, day)
 
+        # Pré-cadastro e reserva numa transação só (auditoria de
+        # 2026-11-11). Separados, a reserva recusada — horário ocupado,
+        # fora da grade, choque com outra pessoa — deixava o paciente
+        # pré-cadastrado sem horário, ocupando vaga do plano, e cada nova
+        # tentativa da secretária criava outro homônimo. A lista de espera
+        # já fazia assim.
         try:
-            appointment = services.reserve_from_grid(
-                request.access_context, patient, doctor, starts_at,
-                form.cleaned_data['appointment_type'],
-                is_overbook=form.cleaned_data.get('is_overbook') or False,
-                override_reason=form.cleaned_data.get('override_reason', ''),
-                override_by=_own_membership(request),
-                teleatendimento=form.cleaned_data.get('teleatendimento') or False,
-            )
+            with transaction.atomic():
+                if patient is None:
+                    # Pré-cadastro ao telefone também ocupa vaga do plano. A
+                    # mensagem vem pronta de `PlanLimitReached` — escrevê-la
+                    # aqui a faria divergir da do cadastro completo.
+                    patient = services.quick_register_patient(
+                        request.access_context, form.cleaned_data['new_name'],
+                        form.cleaned_data.get('new_phone', ''),
+                        note=form.cleaned_data.get('note', ''),
+                        email=form.cleaned_data.get('new_email', ''),
+                        accepts_messages=form.cleaned_data.get('contact_accepts_messages', True),
+                    )
+                appointment = services.reserve_from_grid(
+                    request.access_context, patient, doctor, starts_at,
+                    form.cleaned_data['appointment_type'],
+                    is_overbook=form.cleaned_data.get('is_overbook') or False,
+                    override_reason=form.cleaned_data.get('override_reason', ''),
+                    override_by=_own_membership(request),
+                    teleatendimento=form.cleaned_data.get('teleatendimento') or False,
+                )
+        except PlanLimitReached as limite:
+            messages.error(request, limite.message())
+            return _agenda_redirect(request, doctor, day)
         except services.SchedulingError as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
@@ -1338,8 +1351,6 @@ class RescheduleAppointmentView(TenantScopedView):
     def post(self, request, appointment_id):
         from django.forms.fields import DateTimeField
 
-        from .availability import fits
-
         appointment = self._appointment(request, appointment_id)
         doctor = appointment.physician_membership
         original_day = timezone.localtime(appointment.starts_at).date()
@@ -1380,13 +1391,12 @@ class RescheduleAppointmentView(TenantScopedView):
         day_param = timezone.localtime(new_start).date().isoformat()
         back = f'{reverse("scheduling:reschedule", args=[appointment.id])}?date={day_param}'
 
-        ok, reason = fits(doctor.id, new_start, new_end, ignorar=appointment.id)
-        if not ok:
-            messages.error(request, reason)
-            return redirect(back)
         try:
+            # A vaga é conferida dentro do serviço, depois da trava do dia;
+            # a recusa (`SlotUnavailable`) cai no `except` logo abaixo.
             appointment = services.reschedule_appointment(
                 request.access_context, appointment, new_start, new_end, request.user.id,
+                conferir_grade=True,
             )
         except services.SchedulingError as exc:
             # Cancelada ou mudada por outra pessoa enquanto esta tela
@@ -1454,8 +1464,14 @@ class ReserveAppointmentView(TenantScopedView):
                 override_reason=form.cleaned_data['override_reason'],
                 override_by=_own_membership(request),
             )
-        except Exception as exc:
+        except services.SchedulingError as exc:
             form.add_error(None, str(exc))
+            return render(request, 'scheduling/reserve.html', {'form': form})
+        except IntegrityError:
+            # Era `except Exception` com `str(exc)` na tela: o choque de
+            # duas reservas aparecia como o texto do PostgreSQL, em inglês e
+            # com o nome interno da restrição (auditoria de 2026-11-11).
+            form.add_error(None, 'Este horário acabou de ser ocupado por outra reserva. Escolha outro.')
             return render(request, 'scheduling/reserve.html', {'form': form})
         day = timezone.localtime(appointment.starts_at).date()
         messages.success(request, f'{patient.full_name} marcado.')

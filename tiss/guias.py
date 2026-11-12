@@ -688,6 +688,13 @@ def _original_fora_de_lote(guia_id):
     """
     from .models import LoteGuia
 
+    # A original travada antes de olhar os lotes (auditoria de 2026-11-11).
+    # A montagem do lote trava as guias que leva; sem esta trava, um lote
+    # montado ao mesmo tempo que a revisão fechava não era visto aqui, e a
+    # original seguia no lote enquanto a revisão entrava em outro — a mesma
+    # consulta duas vezes na operadora, o caso que esta função existe para
+    # fechar. Com ela, quem chega depois espera o outro terminar.
+    Guia.objects.select_for_update().filter(id=guia_id).first()
     no_lote = LoteGuia.objects.filter(guia_id=guia_id, ativo=True).select_related('lote').first()
     if no_lote is not None:
         raise GuiaRecusada(
@@ -812,6 +819,18 @@ def criar_guia_do_exame(context, user, reserva):
         ).exclude(status=ReceivableStatus.CANCELLED).first()
         if recebivel is not None and ItemGuia.objects.filter(recebivel=recebivel).exists():
             recebivel = None
+        # A mesma barreira da guia de consulta: cobrança particular não vai
+        # para a operadora. O exame realizado sem convênio cobrava o
+        # paciente; cadastrada a carteira depois, a guia levava a mesma
+        # cobrança à operadora — o exame cobrado duas vezes (auditoria de
+        # 2026-11-11).
+        from finance.models import PaymentCategory
+
+        if recebivel is not None and (recebivel.fee_snapshot or {}).get('payment_category') != PaymentCategory.INSURANCE:
+            raise GuiaRecusada(
+                'A cobrança deste exame é particular. Para faturar ao convênio, troque a forma de '
+                'cobrança do exame para convênio antes de gerar a guia.'
+            )
         try:
             descricao, release, _ = conferir_codigo('22', reserva.codigo_tuss, dia)
         except GuiaRecusada:

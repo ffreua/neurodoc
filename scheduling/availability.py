@@ -546,6 +546,20 @@ def fits(physician_membership_id, starts_at, ends_at, ignorar=None):
     if blocked:
         return False, blocked[0]['reason'] or 'Horário bloqueado na agenda.'
 
+    # Célula que já terminou (`past`, ou `done` quando houve atendimento).
+    # A grade a desenhava como passada e esta conferência a aceitava: com a
+    # semana aberta desde a manhã, o clique às 15h na célula das 14h marcava
+    # no passado, contava nas estatísticas e disparava o aviso de "marcado"
+    # (auditoria de 2026-11-11). A célula em andamento continua livre — o
+    # paciente que chega agora é marcado agora —, e o atendimento que já
+    # aconteceu se registra por encaixe, que não passa por aqui.
+    passadas = [c for c in covered if c['status'] in ('past', 'done')]
+    if passadas:
+        return False, (
+            'Este horário já passou. Para registrar um atendimento que já '
+            'aconteceu, marque como encaixe.'
+        )
+
     busy = [c for c in covered if c['status'] == 'busy']
     if busy:
         if busy[0] is covered[0]:

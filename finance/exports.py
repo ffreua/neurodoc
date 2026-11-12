@@ -43,14 +43,31 @@ def competence_rows(receivables):
 
 
 def cash_rows(payments):
+    from django.utils import timezone
+
     for payment in payments:
         yield {
             'patient': payment.receivable.patient.full_name,
-            'paid_at': payment.paid_at.isoformat(),
+            # Na hora de Brasília: em UTC, o pagamento das 21h30 aparecia na
+            # planilha com a data do dia seguinte (auditoria de 2026-11-11).
+            'paid_at': timezone.localtime(payment.paid_at).isoformat(),
             'amount': str(payment.amount),
             'method': rotulo_do_metodo(payment.method),
             'external_reference': payment.external_reference,
             'fiscal_document_number': payment.receivable.fiscal_document_number,
+        }
+
+
+def caixa_rows(movimentos):
+    """As linhas da planilha do caixa, com o estorno como saída negativa."""
+    for m in movimentos:
+        yield {
+            'patient': m['paciente'],
+            'paid_at': m['quando'].isoformat(),
+            'amount': str(m['valor']),
+            'method': m['metodo'],
+            'external_reference': m['referencia'],
+            'fiscal_document_number': m['nota'],
         }
 
 

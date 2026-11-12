@@ -15,8 +15,43 @@ def net_received(receivable):
     return quantize_brl(total_paid - total_refunded)
 
 
+def written_off(receivable):
+    """O que a clínica deu por perdido ("Baixa"): não entrou, e não se cobra mais."""
+    return sum(
+        (a.amount for a in receivable.adjustments.filter(type=AdjustmentType.WRITEOFF)),
+        start=quantize_brl(0),
+    )
+
+
 def balance(receivable):
-    return quantize_brl(receivable.charged_amount - net_received(receivable))
+    """Quanto ainda se cobra.
+
+    A baixa entra aqui e **não** em `net_received`: ela não é dinheiro que
+    entrou, é o que se deixou de cobrar. Até a auditoria de 2026-11-11 ela
+    não entrava em lugar nenhum — o ajuste era gravado, e o saldo e a
+    situação da cobrança continuavam os mesmos, como se a baixa não
+    existisse.
+    """
+    return quantize_brl(receivable.charged_amount - net_received(receivable) - written_off(receivable))
+
+
+def _travada(receivable):
+    """A cobrança relida com a linha travada, para quem vai mudar o saldo.
+
+    Sem a trava, dois pagamentos simultâneos que juntos quitavam a
+    cobrança viam cada um só o próprio e gravavam "Parcial"; dois
+    descontos partiam do mesmo valor, e o último apagava o primeiro
+    (auditoria de 2026-11-11). `delete_payment` já travava; estes não.
+    """
+    from .models import Receivable
+
+    return Receivable.objects.select_for_update().get(id=receivable.id)
+
+
+def _devolver(original, travada):
+    """O objeto de quem chamou volta com o que foi gravado."""
+    original.charged_amount = travada.charged_amount
+    original.status = travada.status
 
 
 def recompute_status(receivable):
@@ -39,11 +74,18 @@ def record_payment(receivable, amount, method, actor_id, paid_at=None, external_
     amount = quantize_brl(amount)
     if amount <= 0:
         raise ValueError('O valor do pagamento precisa ser maior que zero.')
+    original, receivable = receivable, _travada(receivable)
+    if receivable.status == ReceivableStatus.CANCELLED:
+        # A cobrança cancelada continua abrindo pela URL (a antiga do exame,
+        # trocada de forma de cobrança). O pagamento entrava no caixa, e a
+        # situação continuava "Cancelado".
+        raise ValueError('Esta cobrança foi cancelada e não recebe pagamento.')
     payment = Payment.objects.create(
         tenant=receivable.tenant, receivable=receivable, paid_at=paid_at or timezone.now(),
         amount=amount, method=method, external_reference=external_reference[:100],
     )
     recompute_status(receivable)
+    _devolver(original, receivable)
     record_audit_event(
         actor_id, receivable.tenant_id, 'finance.payment_recorded',
         object_type='payment', object_id=payment.id, outcome='success',

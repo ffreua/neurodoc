@@ -16,6 +16,7 @@ import logging
 from django.contrib import messages
 from django.conf import settings
 from django.core.mail import send_mail
+from django.db import transaction
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -361,19 +362,40 @@ class MembershipRolesView(OrgAdminView):
             return redirect('tenancy:team')
 
         previous = list(membership.roles or [])
-        # Ganhar o papel de médico ocupa vaga do plano; perdê-lo, libera.
-        # A conta é sobre o **ganho**: um vínculo que já era médico e está
-        # só trocando de secretaria para gestora não deve ser recusado por
-        # uma cota que ele próprio já ocupa.
-        if Role.DOCTOR in form.cleaned_data['roles'] and Role.DOCTOR not in previous:
-            try:
-                assert_can_add_doctor(self.tenant_id)
-            except PlanLimitReached as limite:
-                messages.error(request, limite.message())
-                return redirect('tenancy:team')
-        membership.roles = form.cleaned_data['roles']
-        membership.row_version += 1
-        membership.save(update_fields=['roles', 'row_version', 'updated_at'])
+        # Numa transação: a vaga do plano é conferida com a clínica travada
+        # (`limits._travar_clinica`) e a trava só vale até o fim dela.
+        with transaction.atomic():
+            # Ganhar o papel de médico ocupa vaga do plano; perdê-lo, libera.
+            # A conta é sobre o **ganho**: um vínculo que já era médico e está
+            # só trocando de secretaria para gestora não deve ser recusado por
+            # uma cota que ele próprio já ocupa.
+            if Role.DOCTOR in form.cleaned_data['roles'] and Role.DOCTOR not in previous:
+                try:
+                    assert_can_add_doctor(self.tenant_id)
+                except PlanLimitReached as limite:
+                    messages.error(request, limite.message())
+                    return redirect('tenancy:team')
+            # A clínica não fica sem responsável (auditoria de 2026-11-11). A
+            # tela de status já recusava mexer no próprio vínculo, "para a
+            # organização não ficar sem administração"; a de papéis deixava o
+            # único responsável tirar de si o papel — e então ninguém mais
+            # convidava, mudava papel ou exportava o acervo, e a saída era
+            # quem opera a instalação.
+            if Role.OWNER in previous and Role.OWNER not in form.cleaned_data['roles']:
+                outros = Membership.objects.select_for_update().filter(
+                    tenant_id=self.tenant_id, status=MembershipStatus.ACTIVE,
+                    roles__contains=[Role.OWNER],
+                ).exclude(id=membership.id)
+                if not outros.exists():
+                    messages.error(
+                        request,
+                        'A clínica precisa de pelo menos um responsável ativo. Dê o papel '
+                        'de responsável a outra pessoa antes de tirá-lo deste vínculo.',
+                    )
+                    return redirect('tenancy:team')
+            membership.roles = form.cleaned_data['roles']
+            membership.row_version += 1
+            membership.save(update_fields=['roles', 'row_version', 'updated_at'])
         record_audit_event(
             request.user, membership.tenant, 'tenancy.membership_roles_changed',
             object_type='membership', object_id=membership.id, outcome='success',
@@ -442,17 +464,18 @@ class MembershipStatusView(OrgAdminView):
         # Reativar um vínculo médico volta a ocupar vaga. Suspender libera
         # — é o que permite a clínica no limite acomodar quem volta de
         # férias sem revogar o vínculo de ninguém, que apagaria a trilha.
-        if target == MembershipStatus.ACTIVE and Role.DOCTOR in (membership.roles or []):
-            try:
-                assert_can_add_doctor(self.tenant_id)
-            except PlanLimitReached as limite:
-                messages.error(request, limite.message())
-                return redirect('tenancy:team')
-        membership.status = target
-        if target == MembershipStatus.ACTIVE and membership.activated_at is None:
-            membership.activated_at = timezone.now()
-        membership.row_version += 1
-        membership.save(update_fields=['status', 'activated_at', 'row_version', 'updated_at'])
+        with transaction.atomic():
+            if target == MembershipStatus.ACTIVE and Role.DOCTOR in (membership.roles or []):
+                try:
+                    assert_can_add_doctor(self.tenant_id)
+                except PlanLimitReached as limite:
+                    messages.error(request, limite.message())
+                    return redirect('tenancy:team')
+            membership.status = target
+            if target == MembershipStatus.ACTIVE and membership.activated_at is None:
+                membership.activated_at = timezone.now()
+            membership.row_version += 1
+            membership.save(update_fields=['status', 'activated_at', 'row_version', 'updated_at'])
         record_audit_event(
             request.user, membership.tenant, f'tenancy.membership_{action}d',
             object_type='membership', object_id=membership.id, outcome='success',

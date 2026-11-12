@@ -159,6 +159,17 @@ class FeeScheduleCloseView(FeeAdminView):
                 'termina antes de começar nunca se aplica a nada.',
             )
             return redirect('fees:list')
+        if regra.effective_to is not None and fim > regra.effective_to:
+            # Encerrar só encurta. Prorrogar por aqui gravava sem a
+            # conferência de sobreposição de `create_fee_schedule`, e a regra
+            # passava por cima da seguinte (auditoria de 2026-11-11).
+            messages.error(
+                request,
+                'Esta regra já termina em '
+                f'{regra.effective_to.strftime("%d/%m/%Y")}. Encerrar só antecipa o fim; '
+                'para valer depois disso, cadastre uma regra nova.',
+            )
+            return redirect('fees:list')
         anterior = regra.effective_to
         regra.effective_to = fim
         regra.row_version += 1

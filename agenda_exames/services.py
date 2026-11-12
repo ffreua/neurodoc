@@ -221,6 +221,11 @@ def remarcar(context, user, reserva, inicio, *, duracao=None, encaixe=False, mot
     duracao = int(duracao or (reserva.fim - reserva.inicio).total_seconds() // 60)
     antes = reserva.inicio
     fim = _conferir_tempo(reserva.recurso, inicio, duracao, encaixe, motivo_encaixe)
+    # O convênio na data **nova** (auditoria de 2026-11-11). A remarcação
+    # para depois do fim da vigência mantinha a cobertura vencida, e a guia
+    # saía para a operadora recusar. A consulta já conferia (revisão de
+    # 2026-11-02, T9); o exame recusa, como recusa ao marcar.
+    _conferir_cobranca(reserva.paciente, reserva.cobranca, reserva.cobertura, timezone.localtime(inicio).date())
     reserva.inicio, reserva.fim = inicio, fim
     reserva.ocupacao = _ocupacao(inicio, fim, reserva.recurso.intervalo)
     reserva.estado = EstadoReserva.AGENDADA
@@ -325,6 +330,26 @@ def mudar_estado(context, user, reserva, novo, motivo=''):
     return reserva
 
 
+def _cobranca_de_quem_ja_foi_realizado(reserva, user):
+    """Repetir "Realizar" devolve a cobrança que existe, e não cria outra.
+
+    Criava, quando o financeiro tinha cancelado a primeira — uma cortesia,
+    por exemplo: a unicidade do banco é "uma **viva** por reserva", e a
+    cancelada não conta. O duplo clique depois de recarregar, ou a aba
+    antiga, voltava a cobrar o que a clínica decidiu não cobrar (auditoria
+    de 2026-11-11). Só cria quando nunca houve cobrança — o honorário
+    cadastrado depois da realização.
+    """
+    from finance.models import Receivable, ReceivableStatus
+    from finance.receivables import create_receivable_for_exam
+
+    existentes = Receivable.objects.filter(tenant_id=reserva.tenant_id, reserva_exame=reserva)
+    viva = existentes.exclude(status=ReceivableStatus.CANCELLED).first()
+    if viva is not None or existentes.exists():
+        return viva
+    return create_receivable_for_exam(reserva, user.id)
+
+
 @transaction.atomic
 def realizar(context, user, reserva, executante):
     """O exame aconteceu: registra quem executou e cria a cobrança.
@@ -339,7 +364,7 @@ def realizar(context, user, reserva, executante):
     if executante is None or executante.tenant_id != context.tenant_id:
         raise ReservaRecusada('Informe quem executou o exame (cadastro de profissionais do TISS).')
     if reserva.estado == EstadoReserva.REALIZADA:
-        return reserva, create_receivable_for_exam(reserva, user.id)
+        return reserva, _cobranca_de_quem_ja_foi_realizado(reserva, user)
     if EstadoReserva.REALIZADA not in TRANSICOES.get(reserva.estado, set()):
         raise ReservaRecusada(f'Um exame {reserva.get_estado_display().lower()} não pode ser realizado.')
     if reserva.inicio > timezone.now():

@@ -23,6 +23,12 @@
     Repasse realizado em {{ receivable.doctor_share_paid_at|date:"d/m/Y H:i" }}.
 </div>
 {% endif %}
+{% if receivable.charged_amount == 0 and receivable.status == 'paid' %}
+<div class="alert alert-info" role="status">
+    Atendimento sem valor a cobrar (por exemplo, retorno sem custo): a cobrança já nasce quitada e não pede pagamento.
+    O repasse ao médico segue a regra de honorário, e pode ser marcado como realizado normalmente.
+</div>
+{% endif %}
 {% if receivable.archived_at %}
 <div class="alert alert-secondary" role="status">
     Esta cobrança está arquivada desde {{ receivable.archived_at|date:"d/m/Y H:i" }}.

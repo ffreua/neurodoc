@@ -36,8 +36,11 @@ def _lock_days(physician_membership_id, dates):
 
 
 def _days_spanned(starts_at, ends_at):
-    days = {starts_at.date(), ends_at.date()}
-    return list(days)
+    # O dia de Brasília, que é o de `remove_free_slot` e `block_free_slot`.
+    # Com `.date()` sobre o horário vindo do banco (UTC), a consulta das
+    # 21h travava a chave do dia seguinte e não se serializava com quem
+    # mexia no dia certo (auditoria de 2026-11-11).
+    return list({timezone.localtime(starts_at).date(), timezone.localtime(ends_at).date()})
 
 
 def _build_occupied_range(starts_at, ends_at, buffer_minutes=0):
@@ -96,8 +99,23 @@ REMARCAVEIS = (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED)
 
 
 @transaction.atomic
-def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, actor_id, buffer_minutes=0):
+def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, actor_id, buffer_minutes=0,
+                           conferir_grade=False):
+    """Muda o quando de um horário que ainda vai acontecer.
+
+    `conferir_grade` faz a conferência da vaga (`availability.fits`)
+    **dentro** da trava do dia. A tela a fazia antes de chamar, sem trava, e
+    a vaga podia mudar entre as duas (auditoria de 2026-11-11).
+    """
     _lock_days(appointment.physician_membership_id, _days_spanned(new_starts_at, new_ends_at))
+    if conferir_grade:
+        from .availability import fits
+
+        ok, reason = fits(
+            appointment.physician_membership_id, new_starts_at, new_ends_at, ignorar=appointment.id,
+        )
+        if not ok:
+            raise SlotUnavailable(reason)
     vista_versao = appointment.row_version
     appointment = _relida(appointment)
     if appointment.status not in REMARCAVEIS:
@@ -127,6 +145,12 @@ def reschedule_appointment(context, appointment, new_starts_at, new_ends_at, act
         appointment.billing_mode = ''
         appointment.coverage = None
     appointment.forma_de_cobranca_desfeita = forma_desfeita
+    # A confirmação era do horário antigo. Mantida, o balcão e a agenda por
+    # e-mail diziam ao médico "Confirmado" para um horário que o paciente
+    # nunca confirmou (auditoria de 2026-11-11). A agenda de exames já
+    # voltava a "agendada" ao remarcar.
+    if appointment.status == AppointmentStatus.CONFIRMED:
+        appointment.status = AppointmentStatus.SCHEDULED
     appointment.occupied_range = _build_occupied_range(new_starts_at, new_ends_at, buffer_minutes)
     appointment.row_version += 1
     appointment.full_clean()
@@ -242,6 +266,12 @@ def reserve_from_grid(
     minutes = duration_for(physician_membership.id, appointment_type)
     ends_at = starts_at + timedelta(minutes=minutes)
 
+    # A trava do dia **antes** de conferir a vaga (auditoria de 2026-11-11).
+    # Conferida sem ela, a vaga podia ser excluída ou bloqueada por outra
+    # pessoa entre a conferência e a gravação — e o paciente ficava marcado
+    # num horário que a agenda dizia excluído. `reserve_appointment` pega a
+    # mesma trava de novo, o que não custa nada na mesma transação.
+    _lock_days(physician_membership.id, _days_spanned(starts_at, ends_at))
     if not is_overbook:
         ok, reason = fits(physician_membership.id, starts_at, ends_at)
         if not ok:
@@ -414,6 +444,11 @@ def change_appointment_type(context, appointment, new_type, actor_id):
     from .availability import fits
     from .models import AppointmentType
 
+    # O dia antes da linha, na mesma ordem da remarcação. Na ordem inversa,
+    # remarcar e trocar o tipo da mesma consulta ao mesmo tempo podiam se
+    # travar um ao outro, e o PostgreSQL abortava um deles (auditoria de
+    # 2026-11-11). O início não muda com o tipo, então o dia é conhecido.
+    _lock_days(appointment.physician_membership_id, _days_spanned(appointment.starts_at, appointment.starts_at))
     appointment = _relida(appointment)
     if appointment.status not in (AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED):
         raise SchedulingError(
