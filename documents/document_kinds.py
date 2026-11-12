@@ -60,6 +60,9 @@ OPTIONAL_FIELDS = {
         'procedimentos', 'materiais', 'indicacao', 'cid', 'carater', 'regime',
         'dias_internacao', 'anestesia', 'lateralidade', 'uti', 'reserva_sangue', 'local',
         'observacoes', 'modelo',
+        # O guia de solicitação de cirurgia (2026-11-12).
+        'fornecedores', 'monitorizacao', 'materiais_hospitalares', 'equipe_anestesia',
+        'tempo_sala', 'dias_uti', 'hemo_ch', 'hemo_plasma', 'hemo_plaquetas',
     ),
 }
 

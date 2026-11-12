@@ -13,9 +13,12 @@ from django import forms
 from documents.pdf.prescription import FORMAT_CHOICES as FORMATOS_DE_RECEITA, SIMPLE
 
 from . import estrutura
+from django.utils.html import format_html, format_html_join
+
 from .estrutura import (
-    ANESTESIA, CARATER, CATEGORIAS, LATERALIDADE, MAX_NOME, MAX_TEXTO_CURTO, MAX_TEXTO_LONGO,
-    REGIME, ConteudoInvalido,
+    A_COMPLETAR, ANESTESIA, CARATER, CATEGORIAS, EQUIPE_ANESTESIA, FORNECEDORES_SUGERIDOS,
+    LATERALIDADE, MAX_NOME, MAX_TEXTO_CURTO, MAX_TEXTO_LONGO, QUANTIDADE_DE_FORNECEDORES, REGIME,
+    ConteudoInvalido,
 )
 
 AJUDA_EXAMES = ('Um exame por linha. O código TUSS, se houver, no começo da linha: '
@@ -24,6 +27,37 @@ AJUDA_PROCEDIMENTOS = ('Um procedimento por linha, com o código TUSS no começo
                        'de um, a quantidade no fim: "30715016 ARTRODESE DE COLUNA x2".')
 AJUDA_MATERIAIS = ('Um material por linha, com a quantidade no começo: '
                    '"4 x PARAFUSO PEDICULAR 6,5 x 45 mm".')
+AJUDA_LISTA = 'Um item por linha.'
+AJUDA_CIDS = ('Um por linha, "código — descrição". Aparecem para escolher na emissão, '
+              'ao lado das hipóteses do atendimento.')
+
+#: As caixas de lista que `static/modelos/linhas.js` mostra como linhas,
+#: cada uma com a caixa de quantidade e o botão de tirar. A caixa de texto
+#: continua sendo o que vai no envio: sem o script, ela funciona como antes.
+LINHAS_PROCEDIMENTO = {'data-nd-linhas': 'procedimento'}
+LINHAS_MATERIAL = {'data-nd-linhas': 'material'}
+LINHAS_LISTA = {'data-nd-linhas': 'lista'}
+
+
+class CampoComSugestoes(forms.TextInput):
+    """Campo livre com uma lista de sugestões (`<datalist>`).
+
+    O fornecedor de OPME é sugerido e não escolhido: o cirurgião indica a
+    empresa que quiser, e a lista só poupa a digitação das de sempre.
+    """
+
+    def __init__(self, sugestoes=(), attrs=None):
+        super().__init__(attrs)
+        self.sugestoes = tuple(sugestoes)
+
+    def render(self, name, value, attrs=None, renderer=None):
+        attrs = dict(attrs or {})
+        lista = f"{attrs.get('id') or name}-sugestoes"
+        attrs['list'] = lista
+        attrs.setdefault('autocomplete', 'off')
+        campo = super().render(name, value, attrs, renderer)
+        opcoes = format_html_join('', '<option value="{}"></option>', ((s,) for s in self.sugestoes))
+        return format_html('{}<datalist id="{}">{}</datalist>', campo, lista, opcoes)
 
 
 #: Marca a caixa onde a busca TUSS (`static/modelos/modelos.js`) insere o
@@ -102,26 +136,94 @@ class SecaoExamesForm(SecaoForm):
         return itens
 
 
+def _fornecedor(numero):
+    return forms.CharField(
+        label=f'Fornecedor de OPME {numero}', required=False, max_length=120,
+        widget=CampoComSugestoes(FORNECEDORES_SUGERIDOS),
+        help_text='O convênio cota o material com três empresas.' if numero == 1 else '',
+    )
+
+
+def _unidades(rotulo):
+    return forms.IntegerField(label=rotulo, required=False, min_value=0, max_value=50,
+                              help_text='Unidades. Vazio ou zero: não reservar.')
+
+
 class SecaoCirurgiaForm(SecaoForm):
+    """A solicitação de cirurgia, na ordem do guia do Dr. Fernando Freua
+    (2026-11-12): a justificativa (história, exame, neuroimagem), o CID, os
+    códigos, o OPME com os três fornecedores, a monitorização, os materiais
+    do hospital, os hemocomponentes e a logística da internação.
+
+    A reserva de hemoderivados deixou de ser uma caixa: ela é dita pelas
+    unidades de cada hemocomponente, que é o que o banco de sangue pede.
+    """
+
     tipo = estrutura.CIRURGIA
-    procedimentos = forms.CharField(label='Procedimentos', widget=_area(5, **ALVO_TUSS),
-                                    help_text=AJUDA_PROCEDIMENTOS)
-    materiais = forms.CharField(label='Materiais e OPME', required=False, widget=_area(6),
-                                help_text=AJUDA_MATERIAIS)
-    indicacao = forms.CharField(label='Indicação clínica / justificativa',
-                                max_length=MAX_TEXTO_CURTO, widget=_area(3))
+    indicacao = forms.CharField(
+        label='Justificativa (história, exame neurológico e neuroimagem)',
+        max_length=MAX_TEXTO_CURTO, widget=_area(6),
+        help_text=f'Substitua cada {A_COMPLETAR} pelo que é deste paciente.',
+    )
     cid = _cid()
+    procedimentos = forms.CharField(label='Códigos (procedimentos)',
+                                    widget=_area(5, **ALVO_TUSS, **LINHAS_PROCEDIMENTO),
+                                    help_text=AJUDA_PROCEDIMENTOS)
+    materiais = forms.CharField(label='Materiais de OPME', required=False,
+                                widget=_area(6, **LINHAS_MATERIAL), help_text=AJUDA_MATERIAIS)
+    fornecedor_1 = _fornecedor(1)
+    fornecedor_2 = _fornecedor(2)
+    fornecedor_3 = _fornecedor(3)
+    monitorizacao = forms.BooleanField(label='Monitorização neurofisiológica intraoperatória',
+                                       required=False)
+    materiais_hospitalares = forms.CharField(
+        label='Materiais hospitalares', required=False,
+        widget=_area(4, **LINHAS_LISTA), help_text=AJUDA_LISTA,
+    )
+    hemo_ch = _unidades('Concentrado de hemácias (CH)')
+    hemo_plasma = _unidades('Plasma')
+    hemo_plaquetas = _unidades('Plaquetas')
     carater = forms.ChoiceField(label='Caráter', choices=CARATER, initial='eletiva')
     regime = forms.ChoiceField(label='Regime', choices=REGIME, initial='internacao')
-    dias_internacao = forms.IntegerField(label='Dias de internação previstos', required=False,
-                                         min_value=0, max_value=365)
     anestesia = forms.ChoiceField(label='Anestesia', choices=ANESTESIA, required=False)
+    equipe_anestesia = forms.ChoiceField(label='Equipe de anestesia', choices=EQUIPE_ANESTESIA,
+                                         required=False)
     lateralidade = forms.ChoiceField(label='Lateralidade', choices=LATERALIDADE, required=False)
+    tempo_sala = forms.IntegerField(label='Tempo total de sala (minutos)', required=False,
+                                    min_value=0, max_value=1440)
     uti = forms.BooleanField(label='UTI no pós-operatório', required=False)
-    reserva_sangue = forms.BooleanField(label='Reserva de hemoderivados', required=False)
+    dias_uti = forms.IntegerField(label='Dias de UTI', required=False, min_value=0, max_value=365)
+    dias_internacao = forms.IntegerField(label='Tempo total de internação (dias)', required=False,
+                                         min_value=0, max_value=365)
     local = forms.CharField(label='Hospital / local', required=False, max_length=255)
     observacoes = forms.CharField(label='Observações', required=False,
                                   max_length=MAX_TEXTO_CURTO, widget=_area(2))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Os CIDs do modelo entram na escolha ao lado das hipóteses do
+        # atendimento — separados, para o cirurgião ver de onde veio cada um.
+        hipoteses = [c for c in self.fields['cid'].choices if c[0]]
+        ja = {c[0] for c in hipoteses}
+        do_modelo = [(c, c) for c in (self.initial.get('cids') or []) if c not in ja]
+        escolhas = [('', 'Não incluir CID no documento')]
+        if hipoteses:
+            escolhas.append(('Hipóteses deste atendimento', hipoteses))
+        if do_modelo:
+            escolhas.append(('CIDs compatíveis do modelo', do_modelo))
+        self.fields['cid'].choices = escolhas
+        self.fields['cid'].help_text = 'O CID só sai impresso se você escolher.'
+
+    def clean_indicacao(self):
+        texto = self.cleaned_data.get('indicacao') or ''
+        if A_COMPLETAR in texto:
+            raise forms.ValidationError(
+                f'Ainda há trechos {A_COMPLETAR} na justificativa. Escreva o que é deste paciente.'
+            )
+        return texto
+
+    def clean_materiais_hospitalares(self):
+        return _ler(estrutura.ler_lista, self.cleaned_data.get('materiais_hospitalares'))
 
     def clean_procedimentos(self):
         itens = _ler(estrutura.ler_procedimentos, self.cleaned_data.get('procedimentos'))
@@ -193,6 +295,15 @@ class ModeloForm(forms.Form):
                 novo = copy.deepcopy(campo)
                 novo.required = False
                 self.fields[nome] = novo
+                if nome == 'indicacao':
+                    novo.label = 'Justificativa padrão'
+                    novo.help_text = (f'Vem preenchida na emissão. Marque com {A_COMPLETAR} o que '
+                                      'o cirurgião precisa escrever para cada caso.')
+                    # Os CIDs logo depois da justificativa, como na emissão.
+                    self.fields['cids'] = forms.CharField(
+                        label='CIDs compatíveis', required=False,
+                        widget=_area(5, **LINHAS_LISTA), help_text=AJUDA_CIDS,
+                    )
         elif tipo == estrutura.RELATORIO:
             self.fields['texto'] = forms.CharField(
                 label='Texto do relatório', max_length=MAX_TEXTO_LONGO, widget=_area(12),
@@ -227,8 +338,14 @@ class ModeloForm(forms.Form):
                     'observacoes': dados.get('observacoes')}
         if self.tipo == estrutura.CIRURGIA:
             conteudo = {k: dados.get(k) for k in self.fields if k != 'nome'}
+            conteudo['fornecedores'] = [
+                conteudo.pop(f'fornecedor_{n}', None) or ''
+                for n in range(1, QUANTIDADE_DE_FORNECEDORES + 1)
+            ]
             for campo, funcao in (('procedimentos', estrutura.ler_procedimentos),
-                                  ('materiais', estrutura.ler_materiais)):
+                                  ('materiais', estrutura.ler_materiais),
+                                  ('materiais_hospitalares', estrutura.ler_lista),
+                                  ('cids', estrutura.ler_lista)):
                 try:
                     conteudo[campo] = funcao(dados.get(campo))
                 except ConteudoInvalido as exc:
@@ -249,10 +366,28 @@ def valores_iniciais_do_editor(tipo, conteudo, nome=''):
         iniciais.update(indicacao=conteudo.get('indicacao', ''),
                         observacoes=conteudo.get('observacoes', ''))
     elif tipo == estrutura.CIRURGIA:
-        iniciais.update({k: v for k, v in conteudo.items()
-                         if k not in ('procedimentos', 'materiais')})
-        iniciais['procedimentos'] = estrutura.texto_dos_procedimentos(conteudo.get('procedimentos'))
-        iniciais['materiais'] = estrutura.texto_dos_materiais(conteudo.get('materiais'))
+        iniciais.update(iniciais_da_cirurgia(conteudo))
+        iniciais['cids'] = '\n'.join(conteudo.get('cids') or [])
     else:
         iniciais.update(conteudo)
+    return iniciais
+
+
+def iniciais_da_cirurgia(conteudo):
+    """O conteúdo da solicitação de cirurgia como valores iniciais dos campos.
+
+    Uma função só para o editor do modelo e para a emissão: as listas viram
+    texto de uma linha por item, e os fornecedores, os três campos.
+    """
+    iniciais = {k: v for k, v in conteudo.items()
+                if k not in ('procedimentos', 'materiais', 'materiais_hospitalares', 'fornecedores')}
+    iniciais['procedimentos'] = estrutura.texto_dos_procedimentos(conteudo.get('procedimentos'))
+    iniciais['materiais'] = estrutura.texto_dos_materiais(conteudo.get('materiais'))
+    iniciais['materiais_hospitalares'] = '\n'.join(conteudo.get('materiais_hospitalares') or [])
+    fornecedores = list(conteudo.get('fornecedores') or [])
+    for n in range(1, QUANTIDADE_DE_FORNECEDORES + 1):
+        iniciais[f'fornecedor_{n}'] = fornecedores[n - 1] if len(fornecedores) >= n else ''
+    for campo in ('dias_internacao', 'tempo_sala', 'dias_uti', 'hemo_ch', 'hemo_plasma',
+                  'hemo_plaquetas'):
+        iniciais[campo] = conteudo.get(campo) or None
     return iniciais

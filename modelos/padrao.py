@@ -30,6 +30,7 @@ slug não volta a ser usado.
 """
 
 from .estrutura import EXAMES
+from .padrao_cirurgia import MODELOS as MODELOS_DE_CIRURGIA
 
 
 def _exames(*descricoes):
@@ -266,5 +267,9 @@ MODELOS = [
         'outros': PARANEOPLASICO_ENDOSCOPIA,
     }, indicacao='Rastreio de neoplasia oculta (investigação de síndrome paraneoplásica).'),
 ]
+
+# As solicitações de cirurgia moram no próprio arquivo: são cinquenta, e
+# cada uma traz códigos, CIDs e materiais (`modelos/padrao_cirurgia.py`).
+MODELOS += MODELOS_DE_CIRURGIA
 
 POR_SLUG = {m['slug']: m for m in MODELOS}

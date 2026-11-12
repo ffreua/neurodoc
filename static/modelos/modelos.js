@@ -25,6 +25,12 @@
         escopo.addEventListener('focusin', function (event) {
             var el = event.target;
             if (el && el.matches && el.matches('textarea[data-nd-tuss-alvo]')) { alvo = el; }
+            /* As linhas de `linhas.js` escrevem na caixa que elas escondem. */
+            var linhas = el && el.closest ? el.closest('[data-nd-linhas-de]') : null;
+            if (linhas) {
+                var caixa = document.getElementById(linhas.getAttribute('data-nd-linhas-de'));
+                if (caixa && caixa.matches('textarea[data-nd-tuss-alvo]')) { alvo = caixa; }
+            }
         });
 
         function limpar() {
@@ -43,6 +49,7 @@
             if (!alvo) { return; }
             var atual = alvo.value.replace(/\s+$/, '');
             alvo.value = atual ? atual + '\n' + linha : linha;
+            alvo.dispatchEvent(new Event('input', { bubbles: true }));
             alvo.focus();
             campo.value = '';
             limpar();

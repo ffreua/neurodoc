@@ -163,7 +163,9 @@ try:
         except estrutura.ConteudoInvalido as exc:
             invalidos.append(f"{m['slug']}: {exc}")
             continue
-        for cat, itens in normal['grupos'].items():
+        # As solicitações de cirurgia não têm grupos; o catálogo delas é
+        # conferido por `check_modelos_cirurgia`.
+        for cat, itens in (normal.get('grupos') or {}).items():
             nomes = [i['descricao'].casefold() for i in itens]
             if len(nomes) != len(set(nomes)):
                 repetidos.append(f"{m['slug']}/{cat}")

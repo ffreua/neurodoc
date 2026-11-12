@@ -103,6 +103,27 @@ LATERALIDADE = (
     ('esquerda', 'Esquerda'),
     ('bilateral', 'Bilateral'),
 )
+#: Quem anestesia: a equipe do hospital ou a do cirurgião. É o que o
+#: hospital pergunta para escalar a sala, e não o tipo de anestesia.
+EQUIPE_ANESTESIA = (
+    ('', 'A definir'),
+    ('casa', 'Da casa (do hospital)'),
+    ('particular', 'Particular'),
+)
+#: As empresas de OPME que o guia de solicitação de cirurgia lista. São
+#: **sugestões** dos campos de fornecedor, e não uma lista fechada: o
+#: convênio pede três cotações, e o cirurgião indica a que quiser.
+FORNECEDORES_SUGERIDOS = (
+    'Bioimports', 'Bonetch', 'Enemedical', 'HMS', 'Lifespine', 'Medical Euro',
+    'Orthoneuro', 'Promedon', 'Sinnergy', 'SPI', 'X-SAFE',
+)
+#: O convênio cota o OPME com três empresas; por isso são três campos.
+QUANTIDADE_DE_FORNECEDORES = 3
+#: Marca o trecho do modelo que o cirurgião precisa escrever para o caso. A
+#: emissão recusa o texto que ainda a tiver: o modelo traz o roteiro do
+#: guia (história, exame, neuroimagem), e o roteiro sem o caso não é
+#: justificativa que um auditor aceite.
+A_COMPLETAR = '[completar]'
 
 # ------------------------------------------------------------------- limites
 #
@@ -238,6 +259,34 @@ def _escolha(valor, opcoes, padrao=''):
     return valor if valor in validos else padrao
 
 
+def _inteiro(valor, maximo, rotulo):
+    """Número inteiro de 0 a `maximo`, guardado como texto ('' = não informado)."""
+    texto = str(valor if valor is not None else '').strip()
+    if texto and (not texto.isdigit() or int(texto) > maximo):
+        raise ConteudoInvalido(f'{rotulo} é um número de 0 a {maximo}.')
+    return texto
+
+
+def _lista_de_textos(valores, limite, rotulo, maximo=MAX_ITENS):
+    saida = []
+    for valor in valores or []:
+        valor = _texto(valor, limite, rotulo)
+        if valor and valor not in saida:
+            saida.append(valor)
+    return saida[:maximo]
+
+
+def ler_lista(texto):
+    """Uma linha por item, sem código nem quantidade (materiais hospitalares, CIDs)."""
+    itens = []
+    for numero, linha in enumerate(_linhas(texto), start=1):
+        _conferir_descricao(linha, numero)
+        if linha not in itens:
+            itens.append(linha)
+    _conferir_quantidade_de_itens(itens)
+    return itens
+
+
 def normalizar(tipo, conteudo):
     """O conteúdo na forma canônica do tipo, ou `ConteudoInvalido`.
 
@@ -270,6 +319,8 @@ def normalizar(tipo, conteudo):
         dias = str(conteudo.get('dias_internacao') or '').strip()
         if dias and (not dias.isdigit() or int(dias) > 365):
             raise ConteudoInvalido('Os dias de internação são um número de 0 a 365.')
+        # Os campos do guia de solicitação de cirurgia (2026-11-12). O modelo
+        # gravado antes deles não os tem, e por isso todos têm padrão vazio.
         return {
             'procedimentos': [
                 {'codigo': (p.get('codigo') or '').strip(),
@@ -292,6 +343,18 @@ def normalizar(tipo, conteudo):
             'reserva_sangue': bool(conteudo.get('reserva_sangue')),
             'local': _texto(conteudo.get('local'), 255, 'O local'),
             'observacoes': _texto(conteudo.get('observacoes'), MAX_TEXTO_CURTO, 'As observações'),
+            'cids': _lista_de_textos(conteudo.get('cids'), MAX_DESCRICAO, 'O CID'),
+            'materiais_hospitalares': _lista_de_textos(
+                conteudo.get('materiais_hospitalares'), MAX_DESCRICAO, 'O material hospitalar'),
+            'fornecedores': _lista_de_textos(
+                conteudo.get('fornecedores'), 120, 'O fornecedor', QUANTIDADE_DE_FORNECEDORES),
+            'monitorizacao': bool(conteudo.get('monitorizacao')),
+            'equipe_anestesia': _escolha(conteudo.get('equipe_anestesia'), EQUIPE_ANESTESIA),
+            'tempo_sala': _inteiro(conteudo.get('tempo_sala'), 1440, 'O tempo de sala (minutos)'),
+            'dias_uti': _inteiro(conteudo.get('dias_uti'), 365, 'Os dias de UTI'),
+            'hemo_ch': _inteiro(conteudo.get('hemo_ch'), 50, 'O concentrado de hemácias'),
+            'hemo_plasma': _inteiro(conteudo.get('hemo_plasma'), 50, 'O plasma'),
+            'hemo_plaquetas': _inteiro(conteudo.get('hemo_plaquetas'), 50, 'As plaquetas'),
         }
     if tipo == RELATORIO:
         return {'texto': _texto(conteudo.get('texto'), MAX_TEXTO_LONGO, 'O texto')}

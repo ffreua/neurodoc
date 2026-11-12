@@ -43,6 +43,24 @@
         <ul class="fs-13">
             {% for m in modelo.conteudo.materiais %}<li>{{ m.quantidade }} x {{ m.descricao }}</li>{% empty %}<li class="text-muted">Nenhum.</li>{% endfor %}
         </ul>
+        {% if modelo.conteudo.fornecedores %}
+        <p class="fs-12 mb-2"><strong>Fornecedores de OPME:</strong> {{ modelo.conteudo.fornecedores|join:", " }}</p>
+        {% endif %}
+        {% if modelo.conteudo.monitorizacao %}
+        <p class="fs-12 mb-2"><strong>Monitorização neurofisiológica intraoperatória.</strong></p>
+        {% endif %}
+        {% if modelo.conteudo.materiais_hospitalares %}
+        <h6 class="fw-bold text-dark">Materiais hospitalares</h6>
+        <ul class="fs-13">
+            {% for m in modelo.conteudo.materiais_hospitalares %}<li>{{ m }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+        {% if modelo.conteudo.cids %}
+        <h6 class="fw-bold text-dark">CIDs compatíveis</h6>
+        <ul class="fs-13">
+            {% for c in modelo.conteudo.cids %}<li>{{ c }}</li>{% endfor %}
+        </ul>
+        {% endif %}
         {% endif %}
         {% if modelo.conteudo.texto %}
         <div class="fs-13" style="white-space: pre-wrap">{{ modelo.conteudo.texto }}</div>
@@ -51,7 +69,7 @@
         <p class="fs-12 mt-2"><strong>Instruções:</strong> {{ modelo.conteudo.instrucoes }}</p>
         {% endif %}
         {% if modelo.conteudo.indicacao %}
-        <p class="fs-12 mt-3 mb-1"><strong>Indicação padrão:</strong> {{ modelo.conteudo.indicacao }}</p>
+        <p class="fs-12 mt-3 mb-1"><strong>Indicação padrão:</strong><br>{{ modelo.conteudo.indicacao|linebreaksbr }}</p>
         {% endif %}
         {% if modelo.conteudo.observacoes %}
         <p class="fs-12 mb-0"><strong>Observações:</strong> {{ modelo.conteudo.observacoes }}</p>

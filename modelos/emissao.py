@@ -38,7 +38,7 @@ from audit.services import record_audit_event
 from catalogs.cid import rotulo_da_hipotese
 
 from . import estrutura
-from .estrutura import CARATER, REGIME, ConteudoInvalido
+from .estrutura import CARATER, EQUIPE_ANESTESIA, REGIME, ConteudoInvalido
 
 #: O limite do campo de conduta (`Encounter.plan_text`).
 LIMITE_DA_CONDUTA = 20000
@@ -86,13 +86,12 @@ def secoes_iniciais(modelo):
             })
         return secoes
     if modelo.tipo == estrutura.CIRURGIA:
-        inicial = {k: v for k, v in conteudo.items() if k not in ('procedimentos', 'materiais')}
-        inicial.update(
-            emitir=True,
-            procedimentos=estrutura.texto_dos_procedimentos(conteudo.get('procedimentos')),
-            materiais=estrutura.texto_dos_materiais(conteudo.get('materiais')),
-            dias_internacao=conteudo.get('dias_internacao') or None,
-        )
+        from .forms import iniciais_da_cirurgia
+
+        # `cids` fica no inicial como lista: não é campo da tela, é a fonte
+        # das opções do CID (`SecaoCirurgiaForm`), e o inicial chega ao
+        # formulário também no envio.
+        inicial = {**iniciais_da_cirurgia(conteudo), 'emitir': True}
         return [{'tipo': modelo.tipo, 'titulo': 'Solicitação de cirurgia', 'inicial': inicial}]
     if modelo.tipo == estrutura.RELATORIO:
         return [{'tipo': modelo.tipo, 'titulo': 'Relatório',
@@ -156,13 +155,23 @@ def secao_validada(tipo, dados, chave_do_modelo):
         return Secao(tipo, MedicalDocumentKind.EXAM_REQUEST, titulo, conteudo, '\n'.join(partes))
 
     if tipo == estrutura.CIRURGIA:
+        numeros = ('dias_internacao', 'tempo_sala', 'dias_uti', 'hemo_ch', 'hemo_plasma',
+                   'hemo_plaquetas')
         try:
             conteudo = estrutura.normalizar(estrutura.CIRURGIA, {
-                **dados, 'dias_internacao': '' if dados.get('dias_internacao') is None
-                else str(dados['dias_internacao']),
+                **dados,
+                **{c: '' if dados.get(c) is None else str(dados[c]) for c in numeros},
+                'fornecedores': [dados.get(f'fornecedor_{n}') or ''
+                                 for n in range(1, estrutura.QUANTIDADE_DE_FORNECEDORES + 1)],
             })
         except ConteudoInvalido as exc:
             raise EmissaoRecusada(str(exc)) from exc
+        # A lista de CIDs do modelo serve à escolha; no documento vai só o
+        # escolhido, como nos outros pedidos.
+        conteudo.pop('cids', None)
+        conteudo['reserva_sangue'] = any(
+            int(conteudo[c] or 0) for c in ('hemo_ch', 'hemo_plasma', 'hemo_plaquetas')
+        )
         conteudo.update(cid=cid, modelo=chave_do_modelo)
         partes = [f"Indicação: {conteudo['indicacao']}"] if conteudo['indicacao'] else []
         if cid:
@@ -172,13 +181,27 @@ def secao_validada(tipo, dados, chave_do_modelo):
             partes.append('Materiais e OPME:\n' + '\n'.join(
                 f"- {m['quantidade']} x {m['descricao']}" for m in conteudo['materiais']
             ))
+        if conteudo['fornecedores']:
+            partes.append('Fornecedores de OPME: ' + ', '.join(conteudo['fornecedores']))
+        if conteudo['monitorizacao']:
+            partes.append('Monitorização neurofisiológica intraoperatória.')
+        if conteudo['materiais_hospitalares']:
+            partes.append('Materiais hospitalares:\n' + '\n'.join(
+                f'- {m}' for m in conteudo['materiais_hospitalares']
+            ))
+        hemo = hemocomponentes(conteudo)
+        if hemo:
+            partes.append('Hemocomponentes: ' + ', '.join(hemo))
         condicoes = [dict(CARATER)[conteudo['carater']], dict(REGIME)[conteudo['regime']]]
+        if conteudo['equipe_anestesia']:
+            condicoes.append(f"anestesia {dict(EQUIPE_ANESTESIA)[conteudo['equipe_anestesia']].lower()}")
+        if conteudo['tempo_sala']:
+            condicoes.append(f"{conteudo['tempo_sala']} min de sala")
         if conteudo['dias_internacao']:
             condicoes.append(f"{conteudo['dias_internacao']} dia(s) de internação")
         if conteudo['uti']:
-            condicoes.append('UTI no pós-operatório')
-        if conteudo['reserva_sangue']:
-            condicoes.append('reserva de hemoderivados')
+            condicoes.append(f"UTI por {conteudo['dias_uti']} dia(s)" if conteudo['dias_uti']
+                             else 'UTI no pós-operatório')
         partes.append('Condições: ' + ' · '.join(condicoes))
         if conteudo['local']:
             partes.append(f"Local: {conteudo['local']}")
@@ -298,3 +321,14 @@ def emitir(context, encounter, membership, usuario, secoes, modo, chave_do_model
             },
         )
     return documentos, destino
+
+
+def hemocomponentes(conteudo):
+    """As unidades pedidas de cada hemocomponente, como "2 CH", para o papel e a conduta."""
+    saida = []
+    for campo, nome in (('hemo_ch', 'CH'), ('hemo_plasma', 'plasma'),
+                        ('hemo_plaquetas', 'plaquetas')):
+        unidades = int(conteudo.get(campo) or 0)
+        if unidades:
+            saida.append(f'{unidades} {nome}')
+    return saida
