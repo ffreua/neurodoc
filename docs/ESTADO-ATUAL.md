@@ -466,7 +466,8 @@ ssh neurodoc-vps "cd /srv/neurodoc && git pull --ff-only \
   `docs/operations/capacidade.md`.
 - `rodar_roteiros` lê `checks/` **de dentro da imagem**: mudou roteiro,
   reconstrua (`docker compose build app`) ou empurre pela entrada padrão.
-- Migração roda sozinha na subida (`prepare_release`). **Nunca**
+- Migração roda sozinha em cada publicação, no serviço `migrate` da
+  pilha (desde 2026-11-11; o `app` não tem mais a senha do dono). **Nunca**
   `manage.py migrate` à mão: o papel da aplicação não tem permissão no
   schema.
 - O worker reinicia a cada deploy. Tarefa longa interrompida precisa

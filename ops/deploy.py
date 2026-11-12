@@ -240,10 +240,40 @@ def initialize_volumes(image):
          '--entrypoint', 'python', *mounts, image, '-c', program])
 
 
-def wait_for_stack(timeout):
+#: O serviço que migra o banco e termina (`replicated-job`). Não tem réplica
+#: viva para contar nem healthcheck: pronto é a tarefa desta publicação
+#: ter terminado (`Complete`). Falhou, o deploy para — o `app` novo ficaria
+#: esperando um esquema que não vem, e a mensagem diz onde olhar.
+MIGRATE_SERVICE = 'migrate'
+
+
+def migration_finished(rollout_id):
+    name = f'{STACK}_{MIGRATE_SERVICE}'
+    linhas = run(['docker', 'service', 'ps', name, '--no-trunc',
+                  '--format', '{{.ID}} {{.CurrentState}} {{.Error}}']).splitlines()
+    estados = []
+    for linha in linhas:
+        tarefa = linha.split(' ', 1)[0]
+        info = json.loads(run(['docker', 'inspect', tarefa]))[0]
+        env = info.get('Spec', {}).get('ContainerSpec', {}).get('Env') or []
+        if f'ROLLOUT_ID={rollout_id}' in env:
+            estados.append(info.get('Status', {}).get('State'))
+    if 'complete' in estados:
+        return True
+    if estados and all(e in {'failed', 'rejected', 'shutdown'} for e in estados) and len(estados) >= 3:
+        raise RuntimeError(
+            'A migracao do banco falhou (servico migrate). Nada mudou no app em uso. '
+            f'Veja: docker service logs {name}'
+        )
+    return False
+
+
+def wait_for_stack(timeout, rollout_id=None):
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         ready = True
+        if rollout_id and not migration_finished(rollout_id):
+            ready = False
         for service in SERVICES:
             name = f'{STACK}_{service}'
             data = json.loads(run(['docker', 'service', 'inspect', name]))[0]
@@ -351,7 +381,7 @@ def main():
     candidate.chmod(0o600)
     run(['docker', 'stack', 'deploy', '--with-registry-auth',
          '--resolve-image', 'always', '--compose-file', 'docker-stack.yml', STACK], env=command_env)
-    wait_for_stack(int(config['DEPLOY_TIMEOUT_SECONDS']))
+    wait_for_stack(int(config['DEPLOY_TIMEOUT_SECONDS']), params['ROLLOUT_ID'])
     if 'staging' not in config['ACME_DIRECTORY']:
         with buscar(config['PUBLIC_BASE_URL'] + '/health/', timeout=15) as response:
             if response.status != 200:

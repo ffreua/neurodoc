@@ -40,7 +40,6 @@ services:
     secrets:
       - NEURODOC_DJANGO_SECRET_KEY
       - NEURODOC_DB_APP_PASSWORD
-      - NEURODOC_DB_OWNER_PASSWORD
       - NEURODOC_RABBITMQ_PASSWORD
       - NEURODOC_REDIS_PASSWORD
       - NEURODOC_PFX_MASTER_KEY
@@ -91,6 +90,35 @@ services:
         traefik.http.services.neurodoc.loadbalancer.healthcheck.hostname: localhost
         traefik.http.services.neurodoc.loadbalancer.healthcheck.interval: 15s
         traefik.http.services.neurodoc.loadbalancer.healthcheck.timeout: 5s
+  # Migra o banco e termina. É a única entrada da pilha com a senha do
+  # dono do banco (`neurodoc_owner`), e só na rede interna: até a auditoria
+  # de 2026-11-11 quem migrava era o `app`, que guardava essa senha a vida
+  # inteira sendo o processo exposto à internet. `replicated-job` roda de
+  # novo a cada publicação (a imagem e o ROLLOUT_ID mudam), e o `app` e o
+  # worker esperam o esquema ficar pronto antes de atender.
+  migrate:
+    image: ${APP_IMAGE}
+    command: [migrate]
+    env_file: [.runtime/migrate.env]
+    environment: {RELEASE_ID: '${RELEASE_ID}', ROLLOUT_ID: '${ROLLOUT_ID}'}
+    read_only: true
+    volumes:  # forma longa por causa do Swarm -- ver o servico `app`
+      - {type: tmpfs, target: /tmp, tmpfs: {size: 67108864}}
+    secrets:
+      - NEURODOC_DJANGO_SECRET_KEY
+      - NEURODOC_DB_APP_PASSWORD
+      - NEURODOC_DB_OWNER_PASSWORD
+      - NEURODOC_RABBITMQ_PASSWORD
+      - NEURODOC_REDIS_PASSWORD
+    networks: [neurodoc_v1_internal]
+    deploy:
+      mode: replicated-job
+      placement: *placement
+      restart_policy: {condition: on-failure, delay: 10s, max_attempts: 3}
+      resources:
+        limits: {cpus: '1.0', memory: 512M}
+      labels:
+        com.neurodoc.platform: neurodoc_v1
   celery_worker:
     image: ${APP_IMAGE}
     command: [worker]

@@ -111,9 +111,14 @@ Release <sha> deployed; all services are healthy.
 8. Só então grava `.runtime/last-successful.json` (e guarda o anterior em
    `previous-successful.json`).
 
-**Quem migra o banco é o `app`, na subida** (`bootstrap_release` →
-`ops/runtime.py::prepare_release`), pela conexão `migrations`, sob trava do
-PostgreSQL — duas réplicas subindo juntas migram uma vez só. **Nunca rode
+**Quem migra o banco é o serviço `migrate`** (desde a auditoria de
+2026-11-11): uma tarefa da pilha (`replicated-job`) que sobe a cada
+publicação, migra pela conexão `migrations` sob trava do PostgreSQL
+(`ops/runtime.py::migrate_release`) e termina. É a única entrada com a
+senha do dono do banco; o `app` não a recebe mais e só espera o esquema
+ficar pronto (`bootstrap_release` → `prepare_release`). O `deploy.py`
+espera a tarefa terminar e para com a mensagem se ela falhar — o `app` em
+uso continua o de antes. O log fica em `docker service logs neurodoc_v1_migrate`. **Nunca rode
 `manage.py migrate` à mão**: a conexão padrão é `neurodoc_app`, sem DDL, e
 para em `permission denied for schema public`.
 

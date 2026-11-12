@@ -669,9 +669,9 @@ roteiros `check_tiss_{liberacao,versoes,guias,lotes}`; docs em `docs/tiss/`.
   - `wait_for_stack`;
   - GET em `/health/`.
 - **Processos por instalação** (2026-11-03). `ops/entrypoint.sh` lê `APP_WORKERS` (`uvicorn --workers`, 1–16) e `WORKER_CONCURRENCY` (`celery --concurrency`, 1–32) do `.env`, recusa valor inválido antes de subir, e cai em 2 e 2 quando vazio; `ops/make_runtime.py` entrega as duas chaves aos contêineres. Produção 4 e 6, com os limites do `docker-stack.yml` subidos junto (`app` 2 núcleos e 1,5 GiB, worker 2 núcleos). `check_processos.py`; ver `docs/operations/capacidade.md`.
-- **Migração na subida.** `ops/entrypoint.sh app` → `bootstrap_release` → `ops/runtime.prepare_release`:
+- **Migração no serviço `migrate`** (2026-11-11). `ops/entrypoint.sh migrate` → `migrar_banco` → `ops/runtime.migrate_release`; o `app` (`bootstrap_release` → `prepare_release`) espera o esquema e publica os estáticos:
   - advisory lock 72654001;
-  - `migrate --database=migrations`;
+  - `migrate --database=migrations` (só no `migrate`);
   - `collectstatic` atômico em `/static/<RELEASE_ID>/`;
   - `ensure_cid10`.
 - **Backup.** `ops/backup.py`:

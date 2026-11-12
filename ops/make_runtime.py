@@ -72,21 +72,26 @@ BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
 def prepare_runtime(config):
     runtime = ROOT / '.runtime'
     runtime.mkdir(mode=0o700, exist_ok=True)
-    for role in ['app', 'worker', 'beat']:
+    for role in ['app', 'worker', 'beat', 'migrate']:
         values = {key: config[key] for key in COMMON_KEYS}
         values.update({
             key: config[key] for key in OPTIONAL_KEYS
             if (config.get(key) or '').strip()
         })
         values['SERVICE_ROLE'] = role
-        values['RUN_MIGRATIONS'] = 'True' if role == 'app' else 'False'
+        values['RUN_MIGRATIONS'] = 'True' if role == 'migrate' else 'False'
         names = list(BASE_SECRETS)
         # `SECRETS_MASTER_KEY` vai ao app **e** ao worker. O app a usa para
         # gravar o que o gestor digita; o worker, para decifrar na hora de
         # enviar. Sem ela no worker, o botao de teste funcionava (sincrono,
         # no processo web) e o envio de verdade falhava com SecretUnavailable.
-        if role == 'app':
-            names += ['DB_OWNER_PASSWORD', 'PFX_MASTER_KEY', 'SECRETS_MASTER_KEY']
+        # A senha do dono do banco vai **só** ao `migrate`, que sobe, migra
+        # e termina; o `app`, exposto à internet, não a recebe mais
+        # (auditoria de 2026-11-11).
+        if role == 'migrate':
+            names += ['DB_OWNER_PASSWORD']
+        elif role == 'app':
+            names += ['PFX_MASTER_KEY', 'SECRETS_MASTER_KEY']
         elif role == 'worker':
             names += ['SMTP_PASSWORD', 'SMSDEV_API_KEY',
                       'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',

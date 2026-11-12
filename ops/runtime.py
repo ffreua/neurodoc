@@ -66,7 +66,16 @@ def wait_dependencies():
     wait_until(redis_ready, 'redis')
 
 
-def prepare_release():
+def migrate_release():
+    """Aplica as migrações, pela conexão do dono do banco, sob trava.
+
+    Roda **só** no serviço `migrate` da pilha, uma tarefa que sobe, migra e
+    termina (auditoria de 2026-11-11). Até ali quem migrava era o próprio
+    `app`, e por isso ele guardava a senha de `neurodoc_owner` a vida
+    inteira — o processo exposto à internet com a credencial capaz de
+    desligar a imutabilidade da trilha de auditoria. Agora o `app` só
+    espera o esquema ficar pronto (`prepare_release`).
+    """
     if 'migrations' not in settings.DATABASES:
         raise RuntimeError('Migration credential is unavailable')
     connection = connections['migrations']
@@ -85,6 +94,17 @@ def prepare_release():
         with connection.cursor() as cursor:
             cursor.execute('SELECT pg_advisory_unlock(%s)', [MIGRATION_LOCK])
         connection.close()
+
+
+def prepare_release():
+    """O que o `app` faz ao subir: espera o banco migrado e publica os estáticos.
+
+    Sem a credencial do dono, o `app` não migra — espera o serviço
+    `migrate` terminar, como o worker já esperava. Na atualização sem parada
+    (`start-first`) a cópia antiga continua atendendo enquanto isso, o mesmo
+    que acontecia quando a nova migrava.
+    """
+    wait_until(schema_ready, 'schema')
     prepare_staticfiles()
     # Catalogo clinico: a instalacao nova sobe com CID-10, e nao esperando
     # que alguem lembre de um comando. Guardado por estado -- se ja houver

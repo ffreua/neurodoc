@@ -123,13 +123,25 @@ ver quem segura a trava.
 
 ## Migrações
 
-Só o `app` migra (`RUN_MIGRATIONS=True` apenas no papel `app`), na
-subida: `bootstrap_release` → `ops/runtime.py::prepare_release`, pela
-conexão `migrations` (usuário `neurodoc_owner`), dentro de
-`pg_try_advisory_lock`. Com duas réplicas subindo juntas, uma migra e a
-outra espera a trava. Em seguida coleta os estáticos da release e garante o
-CID-10. Worker e beat esperam o esquema ficar sem migration pendente antes
-de começar (`wait_for_dependencies`).
+Só o serviço `migrate` migra (`RUN_MIGRATIONS=True` apenas no papel
+`migrate`, desde a auditoria de 2026-11-11). Ele é um `replicated-job` da
+pilha: sobe a cada publicação, roda `migrar_banco` →
+`ops/runtime.py::migrate_release` pela conexão `migrations` (usuário
+`neurodoc_owner`) dentro de `pg_try_advisory_lock`, e termina. É a única
+entrada que recebe `NEURODOC_DB_OWNER_PASSWORD`, e só na rede interna.
+
+O `app` sobe com `bootstrap_release` → `prepare_release`: espera o esquema
+ficar sem migração pendente, coleta os estáticos da release e garante o
+CID-10 e a CID-11. Worker e beat esperam o mesmo (`wait_for_dependencies`).
+`ops/deploy.py::wait_for_stack` só dá a publicação por pronta com a tarefa
+`migrate` desta publicação concluída; falhou, o deploy para e diz onde ler
+o log. Voltar versão (`docs/operations/rollback.md`) não envolve o
+`migrate`: migração não se desfaz por rollback de serviço.
+
+Por que saiu do `app`: o processo exposto à internet guardava, a vida
+inteira, a senha capaz de desligar a imutabilidade da trilha de auditoria
+(`ALTER TABLE ... DISABLE TRIGGER`). Sem ela, o `app` lê e grava, e o banco
+recusa (`must be owner`) qualquer mudança de estrutura.
 
 ## Publicação e HTTPS
 

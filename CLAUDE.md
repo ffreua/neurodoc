@@ -327,9 +327,11 @@ docker compose exec app python manage.py import_portaria344
 
 **Não rode `manage.py migrate` à mão.** A conexão padrão é o usuário
 `neurodoc_app`, que não tem DDL — num banco vazio isso para em
-`permission denied for schema public`. Quem migra é o próprio `app` ao
-subir (`bootstrap_release` → `ops/runtime.py::prepare_release`), pela
-conexão `migrations`, que usa `neurodoc_owner` e segura uma trava. O
+`permission denied for schema public`. Quem migra é o serviço `migrate`
+(desde 2026-11-11), que sobe antes do `app`, migra pela conexão
+`migrations` (`neurodoc_owner`, sob trava, `ops/runtime.py::migrate_release`)
+e termina; é a única entrada com a senha do dono, e o `app` só espera o
+esquema ficar pronto. O
 `setup_deploy.sh` diz o mesmo em letras garrafais; este arquivo mandava o
 contrário, e só não doía porque num banco já migrado o comando é um
 no-op.

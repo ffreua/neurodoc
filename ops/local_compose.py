@@ -119,13 +119,18 @@ for name, service in stack['services'].items():
     service['restart'] = 'on-failure:10'
     service['image'] = images.get(name, 'neurodoc:dev')
     service['networks'] = ['local']
-    if name in ['app', 'celery_worker', 'celery_beat']:
+    if name in ['app', 'celery_worker', 'celery_beat', 'migrate']:
         service['environment'] = {'RELEASE_ID': 'dev', 'ROLLOUT_ID': 'dev'}
+    if name == 'migrate':
+        # Roda uma vez a cada subida e termina; o `app` só sobe depois.
+        service['restart'] = 'no'
+        service['depends_on'] = {'db': {'condition': 'service_started'}}
     if name == 'app':
         service['build'] = {'context': '.', 'args': {
             'PYTHON_IMAGE': config['PYTHON_IMAGE'], 'RELEASE_ID': 'dev',
         }}
         service['ports'] = [f'{BIND}:8000:8000']
+        service['depends_on'] = {'migrate': {'condition': 'service_completed_successfully'}}
         service['volumes'] = [item for item in service['volumes'] if isinstance(item, str)]
         service.setdefault('tmpfs', []).append(
             '/run/neurodoc-signing:size=16m,uid=10001,gid=10001,mode=0700',

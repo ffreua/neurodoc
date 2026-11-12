@@ -31,6 +31,13 @@ case "${1:-app}" in
       --workers "$ND_APP_WORKERS" --no-access-log --timeout-keep-alive 30 \
       --no-proxy-headers
     ;;
+  migrate)
+    # A unica entrada que recebe a senha do dono do banco: sobe, migra e
+    # termina. O `app` espera o esquema ficar pronto (auditoria de
+    # 2026-11-11 -- ver `ops/runtime.py::migrate_release`).
+    python manage.py wait_for_db
+    exec python manage.py migrar_banco
+    ;;
   worker)
     ND_WORKER_CONCURRENCY="${WORKER_CONCURRENCY:-2}"
     numero_entre "$ND_WORKER_CONCURRENCY" 32 WORKER_CONCURRENCY

@@ -16,7 +16,6 @@ services:
     secrets:
     - NEURODOC_DJANGO_SECRET_KEY
     - NEURODOC_DB_APP_PASSWORD
-    - NEURODOC_DB_OWNER_PASSWORD
     - NEURODOC_RABBITMQ_PASSWORD
     - NEURODOC_REDIS_PASSWORD
     - NEURODOC_PFX_MASTER_KEY
@@ -44,6 +43,34 @@ services:
         RELEASE_ID: dev
     ports:
     - 0.0.0.0:8000:8000
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+  migrate:
+    image: neurodoc:dev
+    command:
+    - migrate
+    env_file:
+    - .runtime/migrate.env
+    environment:
+      RELEASE_ID: dev
+      ROLLOUT_ID: dev
+    read_only: true
+    volumes: []
+    secrets:
+    - NEURODOC_DJANGO_SECRET_KEY
+    - NEURODOC_DB_APP_PASSWORD
+    - NEURODOC_DB_OWNER_PASSWORD
+    - NEURODOC_RABBITMQ_PASSWORD
+    - NEURODOC_REDIS_PASSWORD
+    networks:
+    - local
+    tmpfs:
+    - /tmp:size=67108864,mode=1777
+    restart: 'no'
+    depends_on:
+      db:
+        condition: service_started
   celery_worker:
     image: neurodoc:dev
     command:

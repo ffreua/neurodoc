@@ -3,7 +3,7 @@ from ops.runtime import prepare_release
 
 
 class Command(BaseCommand):
-    help = 'Migrate under an advisory lock and publish release static files.'
+    help = 'Espera o banco migrado (serviço migrate) e publica os estáticos da versão.'
 
     def handle(self, *args, **options):
         prepare_release()
