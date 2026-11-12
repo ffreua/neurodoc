@@ -145,6 +145,24 @@ recusa (`must be owner`) qualquer mudança de estrutura.
 
 ## Publicação e HTTPS
 
+**O Traefik não monta o socket do Docker** (desde a auditoria de
+2026-11-11). Ele consulta a API pelo serviço `docker_proxy`
+(`tecnativa/docker-socket-proxy`, versão fixada em `DOCKER_PROXY_IMAGE`),
+numa rede interna só dos dois (`docker_api`), e o proxy só deixa passar as
+leituras do provedor `swarm` — serviços, tarefas, redes, nós, versão. Os
+contêineres, os segredos, as configurações e qualquer escrita recebem 403.
+O `:ro` que havia antes não limitava nada: a API aceitava comandos pelo
+socket montado só para leitura.
+
+**Se depois de uma publicação o site responder 404** (o Traefik de pé, mas
+sem as rotas), o primeiro suspeito é ele não estar lendo o Docker. A volta
+é um comando, e restaura a definição anterior, com o socket:
+
+    docker service rollback neurodoc_v1_traefik
+
+O `docker_proxy` pode ficar no ar; sem o Traefik apontando para ele, não
+faz nada. `check_traefik_sem_socket` impede o socket de voltar ao Traefik.
+
 O roteador do Traefik (`docker-stack.yml`) atende `neurodoc.app.br` e o
 curinga `*.neurodoc.app.br` com `certresolver: cloudflare`. O resolvedor
 (`ops/make_runtime.py::make_traefik`) é ACME com **desafio de DNS** pelo

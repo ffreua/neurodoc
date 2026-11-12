@@ -50,7 +50,7 @@ entryPoints:
     address: :8082
 providers:
   swarm:
-    endpoint: unix:///var/run/docker.sock
+    endpoint: tcp://docker_proxy:2375
     exposedByDefault: false
     network: traefik_public
     constraints: Label(`com.neurodoc.platform`, `neurodoc_v1`)

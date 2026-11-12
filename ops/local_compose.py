@@ -113,6 +113,10 @@ def tmpfs_para_o_compose(service):
         curtas.append(f'{m["target"]}:size={tamanho},mode=1777' if tamanho else m['target'])
 
 
+# O Traefik local lê um arquivo (`ops/traefik-local.yml`), e não o Docker:
+# o proxy da API do Docker só existe na produção.
+stack['services'].pop('docker_proxy', None)
+
 for name, service in stack['services'].items():
     tmpfs_para_o_compose(service)
     service.pop('deploy', None)

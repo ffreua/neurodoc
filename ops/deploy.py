@@ -35,7 +35,8 @@ APP_UID = 10001
 #: sem tocar no codigo versionado.
 DEFAULT_REGISTRY = 'ghcr.io/pycodebr/scsi_v1'
 SERVICES = ['app', 'celery_worker', 'celery_beat', 'db', 'rabbitmq', 'redis', 'traefik']
-IMAGE_KEYS = ['PYTHON_IMAGE', 'POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE']
+IMAGE_KEYS = ['PYTHON_IMAGE', 'POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE',
+              'DOCKER_PROXY_IMAGE']
 
 
 def run(args, env=None, input_text=None):
@@ -334,7 +335,9 @@ def main():
     images = {key: resolve_image(config[key]) for key in IMAGE_KEYS}
     if previous:
         for key in IMAGE_KEYS[1:]:
-            if previous[key] != images[key]:
+            # Imagem que a publicação anterior não tinha é serviço novo, e
+            # não troca de versão de infraestrutura.
+            if key in previous and previous[key] != images[key]:
                 raise RuntimeError('Infrastructure image changed: use a planned maintenance upgrade')
     if args.skip_build:
         if not previous:

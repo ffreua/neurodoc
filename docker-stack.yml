@@ -285,12 +285,12 @@ services:
     volumes:  # forma longa por causa do Swarm -- ver o servico `app`
       - {type: tmpfs, target: /tmp, tmpfs: {size: 33554432}}
       - letsencrypt:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     configs:
       - source: traefik_settings
         target: /etc/traefik/traefik.yml
     secrets: [CLOUDFLARE_DNS_API_TOKEN]
-    networks: [traefik_public]
+    # O Docker é consultado pelo `docker_proxy`, e não pelo socket: ver lá.
+    networks: [traefik_public, docker_api]
     healthcheck:
       test: [CMD, traefik, healthcheck, '--ping']
       interval: 15s
@@ -306,7 +306,37 @@ services:
         limits: {cpus: '0.5', memory: 256M}
         reservations: {cpus: '0.1', memory: 64M}
       update_config: {parallelism: 1, order: stop-first, failure_action: rollback}
+  # O Traefik lia o socket do Docker direto (`/var/run/docker.sock:ro`), e o
+  # `:ro` não limita a API — só impede apagar o arquivo. Ele é o único
+  # serviço com porta aberta à internet: uma falha nele virava controle do
+  # Docker, e do servidor inteiro (auditoria de 2026-11-11). Este proxy só
+  # deixa passar as leituras de que o provedor `swarm` do Traefik precisa
+  # (serviços, tarefas, redes, nós, versão) e recusa todo o resto — os
+  # contêineres, os segredos, as configurações e qualquer verbo de escrita
+  # (`POST` desligado). Conferido na VPS antes de entrar na pilha.
+  docker_proxy:
+    image: ${DOCKER_PROXY_IMAGE}
+    environment:
+      SERVICES: '1'
+      TASKS: '1'
+      NETWORKS: '1'
+      NODES: '1'
+      INFO: '1'
+      POST: '0'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [docker_api]
+    deploy:
+      replicas: 1
+      placement:
+        constraints: ['node.role == manager']
+      restart_policy: *restart
+      resources:
+        limits: {cpus: '0.25', memory: 64M}
 networks:
+  # Só o Traefik e o proxy do Docker, e sem saída: ninguém mais alcança a
+  # API do Docker, nem pelo proxy.
+  docker_api: {driver: overlay, internal: true}
   traefik_public: {external: true, name: traefik_public}
   neurodoc_v1_internal: {external: true, name: neurodoc_v1_internal}
   neurodoc_v1_egress: {external: true, name: neurodoc_v1_egress}

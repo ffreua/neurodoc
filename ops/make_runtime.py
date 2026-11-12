@@ -130,7 +130,8 @@ def make_traefik(config, cidrs):
             'ping': {'address': ':8082'},
         },
         'providers': {'swarm': {
-            'endpoint': 'unix:///var/run/docker.sock',
+            # Pelo proxy que só deixa ler (`docker_proxy` no docker-stack.yml).
+            'endpoint': 'tcp://docker_proxy:2375',
             'exposedByDefault': False,
             'network': 'traefik_public',
             'constraints': 'Label(`com.neurodoc.platform`, `neurodoc_v1`)',
