@@ -97,6 +97,12 @@ def sync_tuss_task(table=None):
         )
         return {'ok': True, **resultado}
 
+    if resultado.get('recusada'):
+        # A tabela chegou ao fim bem menor que a ativa e foi descartada
+        # (`tuss._descartar_se_encolheu`). Reagendar recomeçaria do zero e
+        # provavelmente pararia no mesmo lugar; o timer semanal tenta.
+        return {'ok': False, **resultado}
+
     if resultado['paginas']:
         logger.info(
             'sync_tuss: %s paginas nesta rodada, %s procedimentos ate agora; retomando',

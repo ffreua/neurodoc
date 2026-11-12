@@ -174,6 +174,9 @@ sai com código 1 listando as falhas quando não passa.
 | `check_consultas_fixas` | Documentos do paciente e agenda do mês fazem o mesmo número de consultas com 2 e com 8 linhas |
 | `check_contato_em_portugues` | As recusas do cadastro de contato saem em português e uma vez cada, pelo formulário de verdade |
 | `check_sms_sem_repeticao` | A nova tentativa do worker não repete a confirmação de horário nem mata o link do reenvio de documento quando a falha vem depois do envio |
+| `check_entrega_tenta_de_novo` | A entrega que falha no transporte (SMTP ou SMS fora) faz o consumidor levantar para ser repetido, a repetição manda só o que ficou na fila, e na última tentativa a entrega vira "Falhou" e não "Na fila" |
+| `check_quarentena_retomada` | O anexo esquecido em quarentena (antivírus fora no envio) volta para o antivírus pela varredura periódica; o recém-enviado, o apagado, o liberado e o sem arquivo, não |
+| `check_chat_preso` | A resposta do chat presa em "transmitindo" é encerrada pela varredura e não conta no limite de três; a cancelada na fila não chama o provedor, e o fim da tarefa não desfaz o cancelamento |
 | `check_tuss_uma_rodada` | Uma sincronização da TUSS por vez, e a trava sempre solta |
 | `check_semana_em_lote` | A agenda da semana em lote desenha a mesma grade que `day_grid` dia a dia, com número fixo de consultas |
 | `check_rotulos` | Todo campo de formulário escrito à mão tem nome para o leitor de tela |

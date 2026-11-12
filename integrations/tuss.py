@@ -342,11 +342,17 @@ def sync_incremental(table=DEFAULT_TABLE, orcamento_segundos=None):
     release = _rascunho_da_rodada(table)
     versao = release.version
 
-    ja_tem = ProcedureCode.objects.filter(release=release).count()
+    from django.db import transaction
+
+    from catalogs.models import CatalogRelease
+
     vistos = set(
         ProcedureCode.objects.filter(release=release).values_list('code', flat=True)
     )
-    pagina = ja_tem // PAGE_SIZE + 1
+    # A página guardada no rascunho, e não a deduzida da contagem: ver
+    # `CatalogRelease.proxima_pagina`. A dedução fica só para o rascunho
+    # aberto antes de a coluna existir.
+    pagina = release.proxima_pagina or (len(vistos) // PAGE_SIZE + 1)
 
     inicio = time.monotonic()
     paginas_feitas = 0
@@ -365,21 +371,72 @@ def sync_incremental(table=DEFAULT_TABLE, orcamento_segundos=None):
             # avança: a tabela acabou.
             completo = True
             break
-        ProcedureCode.objects.bulk_create(
-            [_codigo(release, e, normalize_for_search) for e in novos],
-            batch_size=1000,
-        )
+        # Os códigos e a página seguinte numa transação só: o worker morto
+        # entre os dois deixaria a página gravada e o marcador para trás, e
+        # a próxima rodada a rebaixaria sem código novo — o "fim" falso.
+        with transaction.atomic():
+            ProcedureCode.objects.bulk_create(
+                [_codigo(release, e, normalize_for_search) for e in novos],
+                batch_size=1000,
+            )
+            CatalogRelease.objects.filter(id=release.id).update(proxima_pagina=pagina + 1)
         vistos.update(e.code for e in novos)
         pagina += 1
         time.sleep(PAGE_PAUSE_SECONDS)
 
     total = ProcedureCode.objects.filter(release=release).count()
+    recusada = False
     if completo and total:
-        versao = _publicar_rascunho(release)
+        recusada = _descartar_se_encolheu(release, total)
+        if recusada:
+            completo = False
+        else:
+            versao = _publicar_rascunho(release)
     return {
         'completo': completo, 'paginas': paginas_feitas,
-        'total': total, 'versao': versao,
+        'total': total, 'versao': versao, 'recusada': recusada,
     }
+
+
+#: Quanto da ativa a tabela nova precisa ter para ser publicada.
+#:
+#: A TUSS cresce ou troca termos por resolução normativa; ela não perde
+#: um décimo dos procedimentos de uma semana para a outra. Uma tabela que
+#: chega bem menor é rodada que parou antes da hora — paginação que a ANS
+#: devolveu errada, ou um defeito daqui —, e publicá-la aposentaria a
+#: completa e deixaria a busca e a guia sem os códigos que faltaram. A
+#: mesma conferência que a lista de e-mail descartável e as operadoras da
+#: ANS já fazem antes de valer.
+FRACAO_MINIMA_DA_ATIVA = 0.9
+
+
+def _descartar_se_encolheu(release, total):
+    """Descarta o rascunho que encolheu demais diante da ativa.
+
+    Descartar, e não guardar: o rascunho que fica é retomado de hora em
+    hora (`retomar_tuss_incompleta`), e voltaria a ser recusado para
+    sempre. Sem ele, a rodada semanal começa do zero, com a ativa
+    intocada no meio-tempo. Devolve se descartou.
+    """
+    from catalogs.models import CatalogRelease, CatalogReleaseStatus, CatalogSystem, ProcedureCode
+
+    ativa = (
+        CatalogRelease.objects
+        .filter(system=CatalogSystem.TUSS, status=CatalogReleaseStatus.ACTIVE)
+        .order_by('-imported_at').first()
+    )
+    if ativa is None:
+        return False
+    na_ativa = ProcedureCode.objects.filter(release=ativa).count()
+    if total >= na_ativa * FRACAO_MINIMA_DA_ATIVA:
+        return False
+    logger.error(
+        'TUSS: rascunho %s com %s procedimentos contra %s da ativa %s; descartado sem publicar',
+        release.version, total, na_ativa, ativa.version,
+    )
+    ProcedureCode.objects.filter(release=release).delete()
+    release.delete()
+    return True
 
 
 def _codigo(release, entrada, normalize_for_search):
@@ -514,54 +571,49 @@ def _publicar_rascunho(release):
 
 
 def sync(table=DEFAULT_TABLE, actor=None):
-    """Baixa a tabela e publica uma release nova do catálogo local.
+    """Baixa a tabela inteira de uma vez e publica — o comando manual.
 
-    Usa a mesma maquinaria do CID-10 (`CatalogRelease` + `ProcedureCode`),
-    e por isso herda o comportamento que importa: a release anterior vira
-    `superseded` em vez de sumir, e o registro clínico que apontou para ela
-    continua legível. Um pedido emitido no ano passado guarda o código e a
-    descrição daquele momento — é isso que o prontuário precisa provar.
+    Constrói ao lado e publica por `_publicar_rascunho`, o mesmo caminho da
+    rodada semanal: a ativa só é trocada numa transação, conteúdo igual não
+    cria release, e a tabela que chega bem menor que a ativa é recusada.
 
-    Devolve a release criada.
+    **O que este comando fazia até a auditoria de 2026-11-11.** Nomeava a
+    versão pelo dia em UTC e a buscava com `get_or_create`: rodado duas
+    vezes no mesmo dia, recebia de volta a release **ativa** e apagava os
+    códigos dela — com um honorário apontando para um (PROTECT), o comando
+    estourava; entre 21h e meia-noite, a versão saía com a data de amanhã.
+
+    Devolve a release que ficou ativa.
     """
+    import uuid
+
     from django.db import transaction
     from django.utils import timezone
 
-    from catalogs.models import (
-        CatalogRelease, CatalogReleaseStatus, CatalogSystem, ProcedureCode,
-    )
+    from catalogs.models import CatalogRelease, CatalogReleaseStatus, CatalogSystem, ProcedureCode
     from catalogs.importers import normalize_for_search
 
     entradas = fetch_table(table)
-    versao = f'ANS-{table}-{timezone.now():%Y%m%d}'
 
     with transaction.atomic():
-        anterior = CatalogRelease.objects.filter(
-            system=CatalogSystem.TUSS, status=CatalogReleaseStatus.ACTIVE,
+        release = CatalogRelease.objects.create(
+            system=CatalogSystem.TUSS,
+            version=f'ANS-{table}-{timezone.localtime():%Y%m%d%H%M}-{uuid.uuid4().hex[:4]}',
+            status=CatalogReleaseStatus.DRAFT,
+            license_note=(
+                'Tabela TUSS da ANS, obtida do serviço público de consulta OCL '
+                f'({BASE_URL}). Sincronizada pelo comando manual.'
+            ),
         )
-        release, _ = CatalogRelease.objects.get_or_create(
-            system=CatalogSystem.TUSS, version=versao,
-            defaults={
-                'status': CatalogReleaseStatus.DRAFT,
-                'license_note': (
-                    'Tabela TUSS da ANS, obtida do serviço público de consulta OCL '
-                    f'({BASE_URL}). Sincronizada automaticamente.'
-                ),
-            },
-        )
-        # Idempotente: re-sincronizar no mesmo dia substitui o conteudo em
-        # vez de duplicar. Sem isto, duas execucoes deixariam a release com
-        # o dobro das linhas e a contagem da tela mentiria.
-        ProcedureCode.objects.filter(release=release).delete()
         ProcedureCode.objects.bulk_create(
             [_codigo(release, e, normalize_for_search) for e in entradas],
             batch_size=1000,
         )
+        if _descartar_se_encolheu(release, len(entradas)):
+            raise TussUnavailable(
+                f'A ANS devolveu {len(entradas)} procedimentos, bem menos que a tabela ativa. '
+                'Nada foi publicado; a ativa continua valendo.'
+            )
+        versao = _publicar_rascunho(release)
 
-        anterior.exclude(id=release.id).update(status=CatalogReleaseStatus.SUPERSEDED)
-        release.status = CatalogReleaseStatus.ACTIVE
-        release.imported_at = timezone.now()
-        release.content_sha256 = assinatura_do_conteudo(release)
-        release.save(update_fields=['status', 'imported_at', 'content_sha256', 'updated_at'])
-
-    return release
+    return CatalogRelease.objects.get(system=CatalogSystem.TUSS, version=versao)

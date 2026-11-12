@@ -103,17 +103,19 @@ def deliver_document_task(self, document_id, force_new_link=False):
     """
     from documents.models import MedicalDocument
 
-    from .services import deliver_document
+    from .services import deliver_document, tentar_de_novo_se_o_transporte_falhar
 
     document = MedicalDocument.objects.filter(id=document_id).first()
     if document is None:
         return 0
     # O id da tarefa é o mesmo em cada nova tentativa: é com ele que a
     # repetição reconhece o que a volta anterior já mandou (ver
-    # `deliver_document`).
-    return len(deliver_document(
-        document, force_new_link=force_new_link, envio_id=self.request.id,
-    ))
+    # `deliver_document`). A falha de transporte levanta, e o
+    # `autoretry_for` tenta de novo; na última, a entrega vira "Falhou".
+    with tentar_de_novo_se_o_transporte_falhar(self.request.retries >= self.max_retries):
+        return len(deliver_document(
+            document, force_new_link=force_new_link, envio_id=self.request.id,
+        ))
 
 
 @shared_task(

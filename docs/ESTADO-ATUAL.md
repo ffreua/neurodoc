@@ -329,9 +329,10 @@ são tags, e tag é alvo móvel.
   Cloudflare foi desligada no mesmo dia, e as páginas chegam como o
   servidor as monta.
 - **P-09** — enquadramento regulatório do apoio diagnóstico. Bloqueia M3.
-- **TUSS incompleta**: ~3.200 de ~5.900 procedimentos. Ela se retoma
-  sozinha de hora em hora desde 02/10; antes disso o laço morria a cada
-  deploy.
+- ~~**TUSS incompleta**: ~3.200 de ~5.900 procedimentos~~ — completa: a
+  release ativa tem 5.969 procedimentos desde 08/11 (conferido em produção
+  em 2026-11-12). A auditoria de 2026-11-11 achou e fechou o caminho pelo
+  qual ela podia ser publicada cortada (`CatalogRelease.proxima_pagina`).
 - O `CLAUDE.md` lista parte dos roteiros ("os mais relevantes"), de
   propósito. A lista completa, com uma linha por roteiro, passou a ser a de
   `checks/README.md` (completada em 2026-10-18, eram 44 de 108), e a fonte

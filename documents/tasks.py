@@ -24,6 +24,48 @@ def scan_attachment(attachment_id):
     return {'status': 'available'}
 
 
+#: Há quanto tempo o anexo precisa estar em quarentena para a varredura
+#: pegá-lo de novo. Acima do `expires` de `scan_attachment` (10 min), para
+#: não disputar o arquivo com a verificação do envio, que ainda pode rodar.
+QUARENTENA_ESQUECIDA_MINUTOS = 15
+
+#: Quantos por rodada: a varredura não pode ocupar a fila `documents`
+#: inteira se o antivírus ficou horas fora e voltou.
+QUARENTENA_POR_RODADA = 50
+
+
+@shared_task(name='documents.tasks.reprocessar_quarentena', expires=600)
+def reprocessar_quarentena():
+    """Verifica de novo o anexo que ficou em quarentena.
+
+    **Até a auditoria de 2026-11-11, quarentena podia ser para sempre.**
+    `scan_attachment` é disparada uma vez, no envio, e tem `expires`: com o
+    ClamAV fora do ar naquela hora (`ScanUnavailable`) ela só anotava o
+    erro, e com a fila `documents` atrasada mais de dez minutos ela
+    expirava sem rodar. Nada voltava ao anexo. O laudo que o paciente
+    mandou pelo portal acendia o alerta no prontuário e nunca abria.
+
+    Reenfileira a mesma tarefa, e não a reimplementa: ela já confere que o
+    anexo continua em quarentena antes de mexer, e publicar ou rejeitar
+    continua num lugar só. Enquanto o antivírus estiver fora, o anexo
+    segue fechado — falhar fechado é a regra, e esta varredura só garante
+    que a resposta vem quando ele voltar.
+    """
+    from django.utils import timezone
+
+    limite = timezone.now() - timezone.timedelta(minutes=QUARENTENA_ESQUECIDA_MINUTOS)
+    ids = list(
+        Attachment.objects.filter(
+            scan_status=AttachmentScanStatus.QUARANTINED, deleted_at__isnull=True,
+            created_at__lt=limite,
+        ).exclude(storage_key='').order_by('created_at')
+        .values_list('id', flat=True)[:QUARENTENA_POR_RODADA]
+    )
+    for attachment_id in ids:
+        scan_attachment.delay(str(attachment_id))
+    return {'reenfileirados': len(ids)}
+
+
 @shared_task(name='documents.tasks.update_clamav_definitions', expires=3600)
 def update_clamav_definitions():
     """Runs every 6h from Celery beat (see CELERY_BEAT_SCHEDULE); a failure

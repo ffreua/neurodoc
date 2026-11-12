@@ -1,4 +1,4 @@
-from communications.services import deliver_appointment_reminder
+from communications.services import deliver_appointment_reminder, no_consumidor
 from events.models import OutboxEvent
 
 from .models import Appointment
@@ -27,4 +27,5 @@ def handle_appointment_reminder(event):
         return
     if _substituido(event):
         return
-    deliver_appointment_reminder(appointment, event.event_version)
+    with no_consumidor(event):
+        deliver_appointment_reminder(appointment, event.event_version)

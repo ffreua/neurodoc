@@ -241,6 +241,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'documents.tasks.compact_archive',
         'schedule': crontab(minute=0, hour=3, day_of_month=1, month_of_year='1,4,7,10'),
     },
+    # Anexo esquecido em quarentena (antivírus fora do ar no envio, ou a
+    # verificação expirada na fila). Ver `documents/tasks.py::reprocessar_quarentena`.
+    'documents-reprocessar-quarentena': {
+        'task': 'documents.tasks.reprocessar_quarentena',
+        'schedule': 10 * 60,
+    },
     'documents-update-clamav-definitions': {
         'task': 'documents.tasks.update_clamav_definitions',
         'schedule': 6 * 60 * 60,
@@ -254,6 +260,12 @@ CELERY_BEAT_SCHEDULE = {
     # job perdido. Ver `ai.tasks.retomar_jobs_parados`.
     'ai-retomar-jobs-parados': {
         'task': 'ai.tasks.retomar_jobs_parados',
+        'schedule': 600,
+    },
+    # A resposta do chat presa em "transmitindo". Ver
+    # `ai.tasks.encerrar_respostas_presas`.
+    'ai-encerrar-respostas-presas': {
+        'task': 'ai.tasks.encerrar_respostas_presas',
         'schedule': 600,
     },
     # A IA da instalação conferida de hora em hora, com e-mail ao

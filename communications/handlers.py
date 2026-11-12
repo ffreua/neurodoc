@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from documents.models import MedicalDocument
 
-from .services import deliver_document
+from .services import deliver_document, no_consumidor
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +14,8 @@ def handle_document_issued(event):
     document = MedicalDocument.objects.filter(id=event.payload_minimal['medical_document_id']).first()
     if document is None:
         return
-    deliver_document(document)
+    with no_consumidor(event):
+        deliver_document(document)
 
 
 #: Idade máxima de um evento para ele ainda virar aviso ao paciente.
@@ -74,7 +75,8 @@ def _aviso(event, motivo):
     ).select_related('tenant', 'patient', 'physician_membership__user').first()
     if appointment is None:
         return
-    deliver_appointment_notice(appointment, motivo, event.event_version)
+    with no_consumidor(event):
+        deliver_appointment_notice(appointment, motivo, event.event_version)
 
 
 def handle_appointment_booked(event):

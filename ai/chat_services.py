@@ -66,17 +66,22 @@ def finalize_assistant_message(message, final_text, source_refs=None):
     stream afterward (TTL expiry, restart) never loses the result itself
     -- only live incremental replay to a still-open SSE connection.
     """
-    message.content = final_text
-    message.source_refs = source_refs or []
-    message.state = ChatMessageState.COMPLETE
-    message.save(update_fields=['content', 'source_refs', 'state'])
-    message.session.last_message_at = timezone.now()
-    message.session.save(update_fields=['last_message_at'])
+    # Só a que ainda está transmitindo (auditoria de 2026-11-11): a
+    # cancelada pelo médico no meio voltava a "concluída" quando o worker
+    # terminava, e a varrida por `encerrar_respostas_presas` também.
+    gravou = type(message).objects.filter(pk=message.pk, state=ChatMessageState.STREAMING).update(
+        content=final_text, source_refs=source_refs or [], state=ChatMessageState.COMPLETE,
+    )
+    message.refresh_from_db(fields=['content', 'source_refs', 'state'])
+    if gravou:
+        message.session.last_message_at = timezone.now()
+        message.session.save(update_fields=['last_message_at'])
     return message
 
 
 def fail_assistant_message(message, reason):
-    message.state = ChatMessageState.FAILED
-    message.content = ''
-    message.save(update_fields=['content', 'state'])
+    type(message).objects.filter(pk=message.pk, state=ChatMessageState.STREAMING).update(
+        content='', state=ChatMessageState.FAILED,
+    )
+    message.refresh_from_db(fields=['content', 'state'])
     return message

@@ -27,6 +27,16 @@ class CatalogRelease(TimestampedModel):
     content_sha256 = models.CharField(max_length=64, blank=True)
     license_note = models.TextField(max_length=2000, blank=True)
     status = models.CharField(max_length=40, choices=CatalogReleaseStatus.choices, default=CatalogReleaseStatus.DRAFT)
+    #: A próxima página a baixar, só no rascunho da TUSS (`integrations.tuss`).
+    #:
+    #: Até a auditoria de 2026-11-11 a página era deduzida de "códigos
+    #: gravados ÷ 25", e qualquer item descartado (malformado, repetido entre
+    #: páginas) deixava a conta uma página para trás: a rodada seguinte
+    #: rebaixava uma página já gravada, não achava código novo, lia isso como
+    #: fim da tabela e publicava a tabela cortada como completa. Gravada na
+    #: mesma transação que os códigos da página, ela não diverge deles.
+    #: Nulo nos outros catálogos e nos rascunhos anteriores a ela.
+    proxima_pagina = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         constraints = [

@@ -1,7 +1,7 @@
 from celery import shared_task
 import logging
 
-from .chat_models import ChatMessage
+from .chat_models import ChatMessage, ChatMessageState
 from .chat_services import fail_assistant_message, finalize_assistant_message
 from .models import AIJob, AIJobKind, AIJobStatus
 from .context import AIAuthorizationDenied
@@ -178,6 +178,54 @@ def _membership_id_of(session):
     return vinculo.id
 
 
+#: A cada quantos pedaços da resposta o worker confere se o médico a
+#: cancelou. Cada conferência é uma consulta ao banco; vinte pedaços são
+#: uma ou duas frases.
+PEDACOS_ENTRE_CONFERENCIAS = 20
+
+
+class _RespostaCancelada(Exception):
+    pass
+
+
+def _foi_cancelada(message_id):
+    """O médico cancelou esta resposta?
+
+    **Cancelar não interrompia nada até a auditoria de 2026-11-11.** O
+    botão gravava "cancelada" e o worker seguia chamando o provedor — que
+    cobra — até o fim, e então gravava "concluída" por cima.
+    """
+    return ChatMessage.objects.filter(id=message_id, state=ChatMessageState.CANCELLED).exists()
+
+
+@shared_task(name='ai.tasks.encerrar_respostas_presas', expires=600)
+def encerrar_respostas_presas():
+    """Encerra a resposta do chat que ficou "transmitindo" para sempre.
+
+    A mensagem do assistente nasce "transmitindo" antes de entrar na fila,
+    e só a tarefa a tira desse estado. Fila atrasada além do `expires`,
+    worker reiniciado no deploy ou Redis fora no meio deixavam a mensagem
+    ali indefinidamente — e três delas bloqueavam o chat do médico pelo
+    limite de respostas simultâneas (auditoria de 2026-11-11). Os jobs de
+    IA tinham `retomar_jobs_parados`; o chat não tinha nada.
+
+    Encerra como "falhou", e não retoma: a pergunta continua na conversa,
+    e repeti-la é um clique de quem está olhando, não uma resposta que
+    chega sozinha meia hora depois.
+    """
+    from django.utils import timezone
+
+    from .cancellation import RESPOSTA_PERDIDA_MINUTOS
+
+    limite = timezone.now() - timezone.timedelta(minutes=RESPOSTA_PERDIDA_MINUTOS)
+    encerradas = ChatMessage.objects.filter(
+        state=ChatMessageState.STREAMING, created_at__lt=limite,
+    ).update(state=ChatMessageState.FAILED)
+    if encerradas:
+        logger.warning('chat: %s resposta(s) presas encerradas como falha', encerradas)
+    return {'encerradas': encerradas}
+
+
 @shared_task(name='ai.tasks.run_chat_turn', expires=600)
 def run_chat_turn(message_id, user_message_id):
     """Streams the reply token-by-token into the Redis Stream keyed by
@@ -202,6 +250,11 @@ def run_chat_turn(message_id, user_message_id):
     message = ChatMessage.objects.select_related('session', 'session__patient').get(id=message_id)
     session = message.session
     tenant_id, user_id, job_id = session.tenant_id, session.owner_user_id, str(message.id)
+    if message.state != ChatMessageState.STREAMING:
+        # Cancelada enquanto esperava na fila (ou já encerrada pela
+        # varredura): chamar o provedor agora seria pagar por uma resposta
+        # que ninguém vai ler.
+        return {'status': 'skipped', 'state': message.state}
     # A pergunta vem do banco pelo id, e não pelo broker: ver o comentário
     # em `ai/chat_views.py`. O filtro por sessão é o de sempre -- um id de
     # mensagem de outra conversa não busca nada aqui.
@@ -238,17 +291,36 @@ def run_chat_turn(message_id, user_message_id):
     accumulated = []
 
     def transmitir(modelo):
-        for chunk in modelo.stream(prompt):
+        for numero, chunk in enumerate(modelo.stream(prompt), start=1):
             text = chunk.content if hasattr(chunk, 'content') else str(chunk)
             if not text:
                 continue
             accumulated.append(text)
             publish_event(tenant_id, user_id, session.id, job_id, 'delta', {'text': text})
+            if numero % PEDACOS_ENTRE_CONFERENCIAS == 0 and _foi_cancelada(message.id):
+                raise _RespostaCancelada
 
     def falhar(exc):
-        publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': str(exc)})
-        fail_assistant_message(message, str(exc))
-        return {'status': 'failed', 'reason': str(exc)}
+        # A frase de `_falha_do_provedor`, e não `str(exc)`: o texto da
+        # exceção do SDK traz o corpo da resposta do provedor, em inglês e
+        # às vezes ecoando o pedido (auditoria de 2026-11-11). O motivo
+        # técnico vai para o log, pela mesma função.
+        from types import SimpleNamespace
+
+        from .services import _falha_do_provedor
+
+        aviso, _diagnostico = _falha_do_provedor(exc, SimpleNamespace(id=message.id))
+        fail_assistant_message(message, aviso)
+        try:
+            publish_event(tenant_id, user_id, session.id, job_id, 'error', {'message': aviso})
+        except Exception:                                        # noqa: BLE001
+            # O Redis fora do ar não pode derrubar a tarefa depois de a
+            # mensagem já estar gravada como falha: a tela a lê do banco.
+            logger.warning('chat: aviso de falha não publicado (canal indisponível)')
+        return {'status': 'failed', 'reason': type(exc).__name__}
+
+    def cancelada():
+        return {'status': 'cancelled'}
 
     try:
         # `tenant_id` para o chat usar o provedor **daquela** clínica: a
@@ -262,6 +334,8 @@ def run_chat_turn(message_id, user_message_id):
         falha_principal = None
         try:
             transmitir(chat_model)
+        except _RespostaCancelada:
+            return cancelada()
         except Exception as exc:
             falha_principal = exc
 
@@ -274,6 +348,8 @@ def run_chat_turn(message_id, user_message_id):
             return falhar(falha_principal)
         try:
             transmitir(installation_reserve_model())
+        except _RespostaCancelada:
+            return cancelada()
         except Exception as exc_reserva:
             if accumulated:
                 return falhar(exc_reserva)

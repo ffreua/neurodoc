@@ -152,6 +152,49 @@ try:
         conferir('outra release ativa', terceira.id != nova.id)
         conferir('com o termo novo', ProcedureCode.objects.filter(release=terceira, code='90000004').exists())
 
+        # Auditoria de 2026-11-11: a página seguinte era deduzida de
+        # "códigos ÷ 25". Com um item descartado na página 1, a rodada
+        # seguinte rebaixava a página 1, não achava código novo e publicava
+        # a tabela cortada como completa.
+        GRANDE = [entrada(f'9100{n:04d}', f'PROCEDIMENTO GRANDE {n} ROTEIRO') for n in range(60)]
+
+        def ans_paginada(paginas):
+            def _pagina(http, table, pagina):
+                return list(paginas[pagina - 1]) if pagina <= len(paginas) else []
+            return _pagina
+
+        def rodar_paginas(paginas):
+            with patch.object(tuss, '_fetch_page', side_effect=ans_paginada(paginas)), \
+                 patch.object(tuss.time, 'sleep'):
+                return tuss.sync_incremental('tuss-roteiro')
+
+        print('=== 9. A página seguinte é a guardada, não a deduzida ===')
+        rodar_paginas([GRANDE[:25], GRANDE[25:50], GRANDE[50:]])
+        ativa_grande = active_release(CatalogSystem.TUSS)
+        conferir('a tabela de 60 ficou ativa', ativa_grande.procedure_codes.count() == 60,
+                 str(ativa_grande.procedure_codes.count()))
+        # O rascunho de uma rodada interrompida depois da página 1, em que um
+        # item da página veio malformado e foi descartado: 24 códigos.
+        MAIS = GRANDE + [entrada('91009999', 'TERMO NOVO DEPOIS DO CORTE ROTEIRO')]
+        meio = tuss._rascunho_da_rodada('tuss-roteiro')
+        ProcedureCode.objects.bulk_create([tuss._codigo(meio, e, lambda t: t) for e in MAIS[:24]])
+        CatalogRelease.objects.filter(id=meio.id).update(proxima_pagina=2)
+        r9 = rodar_paginas([MAIS[:25], MAIS[25:50], MAIS[50:]])
+        nova_ativa = active_release(CatalogSystem.TUSS)
+        conferir('a rodada retomada termina completa', r9['completo'], str(r9))
+        conferir('e publica a tabela inteira, não os 24 da primeira página',
+                 nova_ativa.procedure_codes.count() == 60
+                 and nova_ativa.procedure_codes.filter(code='91009999').exists(),
+                 str(nova_ativa.procedure_codes.count()))
+
+        print('=== 10. Tabela bem menor que a ativa não é publicada ===')
+        r10 = rodar_paginas([MAIS[:10]])
+        conferir('a rodada é recusada', r10.get('recusada') and not r10['completo'], str(r10))
+        conferir('a ativa continua a mesma', active_release(CatalogSystem.TUSS).id == nova_ativa.id)
+        conferir('e o rascunho encolhido foi descartado',
+                 not CatalogRelease.objects.filter(system=CatalogSystem.TUSS,
+                                                   status=CatalogReleaseStatus.DRAFT).exists())
+
         print('=== 8. O rascunho da 1.29 (nome sem data) é retomado, não abandonado ===')
         legado = CatalogRelease.objects.create(
             system=CatalogSystem.TUSS, version='ANS-tuss-roteiro',

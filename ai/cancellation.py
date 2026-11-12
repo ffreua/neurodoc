@@ -8,16 +8,26 @@ from .streaming import publish_event
 
 MAX_CONCURRENT_STREAMS_PER_USER = 3
 
+#: Depois disto, "transmitindo" é resposta perdida, e não em andamento: a
+#: tarefa do chat morre em seis minutos (`CELERY_TASK_TIME_LIMIT`).
+#: `ai.tasks.encerrar_respostas_presas` a encerra; até lá, ela não conta
+#: no limite acima — senão três respostas perdidas (fila atrasada, worker
+#: reiniciado no deploy, Redis fora) deixavam o médico sem chat.
+RESPOSTA_PERDIDA_MINUTOS = 15
+
 
 class ConcurrencyLimitExceeded(Exception):
     pass
 
 
 def check_concurrency_limit(tenant_id, user_id):
+    from django.utils import timezone
+
     from .chat_models import ChatMessage
 
     active = ChatMessage.objects.filter(
         session__tenant_id=tenant_id, session__owner_user_id=user_id, state=ChatMessageState.STREAMING,
+        created_at__gte=timezone.now() - timezone.timedelta(minutes=RESPOSTA_PERDIDA_MINUTOS),
     ).count()
     if active >= MAX_CONCURRENT_STREAMS_PER_USER:
         raise ConcurrencyLimitExceeded(

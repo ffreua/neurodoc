@@ -17,7 +17,7 @@ As perguntas são:
   7. as três portas — agenda, busca rápida e lista — respondem igual?
 """
 import datetime
-import uuid
+import secrets
 
 from django.conf import settings
 from django.test import Client
@@ -46,11 +46,12 @@ if secretaria is None:
     print('PULADO: demonstração sem secretária')
     raise SystemExit(0)
 
-# Sempre com uma letra: uma marca só de dígitos (uma vez em dez, com hex) a
-# busca lê como número de prontuário e tira do filtro de palavras
-# (`patients/selectors.py`) — e a fronteira da seção 6 reprovava por acaso,
-# achando outro JOSÉ CONCEIÇÃO da mesma clínica.
-marca = 'K' + uuid.uuid4().hex[:4].upper()
+# Só letras. Uma marca só de dígitos a busca lê como número de prontuário
+# e tira do filtro de palavras (`patients/selectors.py`); e mesmo com o "K"
+# na frente, os dígitos do resto ("K0003") eram comparados ao número do
+# prontuário e achavam outro paciente da clínica — a fronteira da seção 6
+# reprovava por acaso, uma vez em sete (visto em 2026-11-11).
+marca = 'K' + ''.join(secrets.choice('ABCDEFGHJKLMNPQRSTUVWXYZ') for _ in range(5))
 criados = []
 
 

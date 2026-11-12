@@ -57,7 +57,7 @@ def cancelar_todos(reserva):
 
 
 def tratar_lembrete(evento):
-    from communications.services import deliver_exam_reminder
+    from communications.services import deliver_exam_reminder, no_consumidor
 
     from .models import Reserva
 
@@ -66,4 +66,5 @@ def tratar_lembrete(evento):
     ).first()
     if reserva is None:
         return
-    deliver_exam_reminder(reserva, evento.event_version)
+    with no_consumidor(evento):
+        deliver_exam_reminder(reserva, evento.event_version)

@@ -1,6 +1,8 @@
+import contextvars
 import hashlib
 import logging
 import secrets
+from contextlib import contextmanager
 from urllib.parse import quote_plus
 
 from django.conf import settings
@@ -162,6 +164,71 @@ def _record_attempt(delivery, outcome, provider_code='', sanitized_error=''):
     )
 
 
+#: As entregas que a rodada atual devolveu à fila por falha de transporte.
+#: `None` fora de `tentar_de_novo_se_o_transporte_falhar`.
+_ADIADAS = contextvars.ContextVar('communications_entregas_adiadas', default=None)
+
+
+class EntregaAdiada(Exception):
+    """O transporte falhou e a entrega voltou à fila: tente o consumidor de novo."""
+
+
+@contextmanager
+def tentar_de_novo_se_o_transporte_falhar(ultima_tentativa):
+    """Faz a falha de transporte chegar a quem sabe tentar de novo.
+
+    **Até a auditoria de 2026-11-11 ela não chegava.** O SMTP fora por um
+    minuto, ou o SMSDEV respondendo 500, devolvia a entrega a "Na fila" e
+    `_send` retornava em silêncio; o consumidor terminava sem erro, o
+    despachante dava o evento por concluído, e nada voltava a olhar a
+    entrega. O paciente ficava sem o lembrete ou sem o link, e a tela
+    dizia "Na fila" — que promete um envio que nunca vinha.
+
+    Em volta do consumidor, isto levanta `EntregaAdiada` quando alguma
+    entrega desta rodada continua na fila: o despachante (ou o Celery, no
+    reenvio pela tela) tenta de novo com espera crescente. Repetir é
+    seguro porque todo caminho de envio reenvia só o que está na fila — a
+    entrega aceita não sai duas vezes (a posse `PENDING→SENDING` e a chave
+    de idempotência). Na **última** tentativa a entrega passa a "Falhou",
+    e não "Na fila": é o estado que a tela mostra para alguém reenviar.
+
+    Recusada: uma tarefa periódica que reenviasse as entregas na fila. Ela
+    teria de remontar a mensagem de cada tipo de entrega fora do caminho
+    que a escreve, e duas cópias do texto envelhecem separadas.
+    """
+    adiadas = []
+    marca = _ADIADAS.set(adiadas)
+    try:
+        yield
+    finally:
+        _ADIADAS.reset(marca)
+    if not adiadas:
+        return
+    na_fila = list(
+        Delivery.objects.filter(id__in=adiadas, status=DeliveryStatus.PENDING)
+        .values_list('id', flat=True)
+    )
+    if not na_fila:
+        return
+    if ultima_tentativa:
+        Delivery.objects.filter(id__in=na_fila, status=DeliveryStatus.PENDING).update(
+            status=DeliveryStatus.FAILED,
+        )
+        logger.error(
+            'communications: %s entrega(s) falharam no transporte em todas as tentativas',
+            len(na_fila),
+        )
+        return
+    raise EntregaAdiada(f'{len(na_fila)} entrega(s) de volta à fila por falha de transporte')
+
+
+def no_consumidor(event):
+    """O bloco acima, para um consumidor do despachante de eventos."""
+    from events.dispatcher import MAX_ATTEMPTS
+
+    return tentar_de_novo_se_o_transporte_falhar(getattr(event, 'attempts', 0) >= MAX_ATTEMPTS)
+
+
 def _send(delivery, message, subject='Notificação NeuroDoc', physician_membership=None):
     # Clínica desligada não fala com paciente em nome dela.
     #
@@ -226,6 +293,9 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
         delivery.status = DeliveryStatus.PENDING
         delivery.save(update_fields=['status'])
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error=exc.__class__.__name__)
+        adiadas = _ADIADAS.get()
+        if adiadas is not None:
+            adiadas.append(delivery.id)
         return
     except Exception as exc:
         # Rede final, e ela existe por um caso concreto: a mensagem de
