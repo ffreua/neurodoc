@@ -113,7 +113,9 @@ class Command(BaseCommand):
                 if not seco:
                     setattr(linha, campo_meta, novo_meta)
                     linha.save(update_fields=[campo_meta])
-                self.stdout.write(f'  {descricao} — {linha.tenant_id}')
+                # `InstallationSettings` não tem clínica: a chave da reserva
+                # de IA é da instalação (auditoria de 2026-11-11).
+                self.stdout.write(f'  {descricao} — {getattr(linha, "tenant_id", None) or "instalação"}')
 
         prefixo = '(simulação) ' if seco else ''
         self.stdout.write('')

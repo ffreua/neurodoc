@@ -83,7 +83,15 @@ async def inbox_stream_view(request):
         # da caixa — ver `streaming.tail_id`. Com o cabeçalho, retoma de
         # onde parou, que é o que o `EventSource` do navegador manda
         # sozinho ao reconectar.
-        atual = last_id or await sync_to_async(streaming.tail_id)(tenant_id, user_id)
+        #
+        # Pedido de antes da retenção recomeça do fim, também (auditoria de
+        # 2026-11-11): `last_event_id=0` devolvia tudo o que a caixa ainda
+        # tivesse, inclusive o que o banco já tinha apagado por vencido.
+        from .services import limite_de_retencao
+
+        atual = last_id
+        if not atual or streaming.id_anterior_a(atual, limite_de_retencao()):
+            atual = await sync_to_async(streaming.tail_id)(tenant_id, user_id)
         ultimo_heartbeat = time.monotonic()
         ultima_presenca = 0.0
         ultima_autorizacao = 0.0

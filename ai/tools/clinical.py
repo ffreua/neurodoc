@@ -1,3 +1,5 @@
+from django.utils import timezone
+
 from clinical.models import (
     DiagnosisCertainty, Encounter, EncounterDiagnosis, ExaminationFinding, ExamResult,
     Medication,
@@ -76,7 +78,12 @@ def get_patient_timeline(authorization, limit=MAX_ENCOUNTERS, max_chars_por_camp
     linhas = []
     for e in encounters:
         linha = {
-            'encounter_id': str(e.id), 'occurred_at': e.occurred_at.isoformat(), 'status': e.status,
+            # Na hora de Brasília (auditoria de 2026-11-11): o chat e o
+            # relatório cortam os dez primeiros caracteres como a data, e em
+            # UTC o atendimento das 21h saía com a data do dia seguinte —
+            # inclusive no recorte "desde/até" que o médico lê ao assinar.
+            'encounter_id': str(e.id), 'occurred_at': timezone.localtime(e.occurred_at).isoformat(),
+            'status': e.status,
             'kind': e.kind,
         }
         for campo in _CAMPOS_NARRATIVOS:
@@ -227,12 +234,16 @@ def get_patient_diagnoses(authorization, limit=MAX_DIAGNOSES):
             registro['descricao'] = linha['description_snapshot']
 
     vigentes, refutados = [], []
-    for registro in list(por_codigo.values())[:limit]:
+    # Os mais recentes primeiro, e só então o corte (auditoria de
+    # 2026-11-11): em ordem de primeiro registro, um paciente com mais de
+    # `limit` códigos perdia justamente os diagnósticos mais novos.
+    recentes = sorted(por_codigo.values(), key=lambda r: r['ultimo_registro'], reverse=True)
+    for registro in recentes[:limit]:
         saida = {
             'codigo': registro['codigo'], 'descricao': registro['descricao'],
             'certeza': dict(DiagnosisCertainty.choices).get(registro['certeza'], registro['certeza']),
-            'registrado_desde': registro['primeiro_registro'].date().isoformat(),
-            'ultima_mencao': registro['ultimo_registro'].date().isoformat(),
+            'registrado_desde': timezone.localtime(registro['primeiro_registro']).date().isoformat(),
+            'ultima_mencao': timezone.localtime(registro['ultimo_registro']).date().isoformat(),
         }
         if registro['certeza'] == DiagnosisCertainty.REFUTED:
             refutados.append(saida)
@@ -266,7 +277,7 @@ def get_patient_medications(authorization, limit=MAX_MEDICATIONS):
         anterior = por_nome.get(chave)
         desde = anterior['desde'] if anterior else (
             m.started_on.isoformat() if m.started_on
-            else m.encounter.occurred_at.date().isoformat()
+            else timezone.localtime(m.encounter.occurred_at).date().isoformat()
         )
         por_nome[chave] = {
             'nome': m.name, 'dose': m.dose, 'via': m.get_route_display(),

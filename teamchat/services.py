@@ -244,6 +244,7 @@ def apagar_conversa(tenant_id, conversation_id, user_id):
         tenant_id=tenant_id, conversation_id=conversation_id, user_id=user_id,
     ).update(cleared_at=agora, unread_count=0, last_read_at=agora)
     if atualizados:
+        streaming.esquecer_conversa(tenant_id, user_id, conversation_id)
         record_audit_event(
             user_id, tenant_id, 'teamchat.conversation_cleared',
             object_type='conversation', object_id=conversation_id, outcome='success',
@@ -294,7 +295,10 @@ def apagar_vencidas():
         )
         ConversationMember.objects.filter(conversation_id__in=vazias).delete()
         conversas, _ = Conversation.objects.filter(id__in=vazias).delete()
-    return {'mensagens': apagadas, 'contadores': corrigidos, 'conversas': conversas}
+    # E das caixas do Redis, onde o texto também está (ver
+    # `streaming.aparar_vencidos`). Fora da transação: não é banco.
+    eventos = streaming.aparar_vencidos(limite)
+    return {'mensagens': apagadas, 'contadores': corrigidos, 'conversas': conversas, 'eventos': eventos}
 
 
 def unread_total(tenant_id, user_id):

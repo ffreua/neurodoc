@@ -21,7 +21,7 @@ from . import finalization, selectors
 from .cranial_nerves import upsert_cranial_nerve_finding
 from exams.models import ExamScale
 from exams.recording import (
-    mark_group_normal, record_scale, save_axis, undo_group_normal,
+    ValorInvalido, mark_group_normal, record_scale, save_axis, undo_group_normal,
 )
 from exams.selectors import build_tree, resolve_template
 
@@ -637,7 +637,10 @@ class ExamAxisSaveView(TenantScopedView):
                 request, encounter,
                 'Nenhum roteiro de exame publicado nesta organização.', anchor='tab-exame',
             )
-        saved, removed = save_axis(request.access_context, encounter, template, axis, request.POST)
+        try:
+            saved, removed = save_axis(request.access_context, encounter, template, axis, request.POST)
+        except ValorInvalido as exc:
+            return _blocked(request, encounter, str(exc), anchor='tab-exame')
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.exam_axis_saved',
             object_type='encounter', object_id=encounter.id, outcome='success',
@@ -716,7 +719,10 @@ class ScaleRecordView(TenantScopedView):
         ancora = 'escalas' if encounter.kind == EncounterKind.FREE_TEXT else 'tab-exame'
         if not encounter.is_editable():
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor=ancora)
-        finding, removed = record_scale(request.access_context, encounter, scale, request.POST)
+        try:
+            finding, removed = record_scale(request.access_context, encounter, scale, request.POST)
+        except ValorInvalido as exc:
+            return _blocked(request, encounter, str(exc), anchor=ancora)
         if finding is None:
             messages.success(request, f'{scale.name} removida do atendimento.')
             detail = {'scale': scale.code, 'removed': removed}

@@ -112,12 +112,22 @@ def _build_chat_messages(session, user_text, pergunta_id=None):
     from .chat_prompt import build_chat_prompt
     from .context import build_ai_authorization
 
+    from tenancy import degustacao
+
+    # Com ou sem paciente (auditoria de 2026-11-11). A conversa sem paciente
+    # pulava as duas conferências: a pergunta enfileirada antes de o plano
+    # ser rebaixado, de o papel médico ser retirado ou de a degustação
+    # vencer chegava ao provedor mesmo assim — e o texto digitado pode
+    # trazer nome de paciente. A degustação vencida é encerrada aqui antes,
+    # para o plano lido em `_membership_id_of` já ser o Gratuito.
+    degustacao.encerrar_se_vencida(session.tenant_id)
+    membership_id = _membership_id_of(session)
     autorizacao = None
     if session.patient_id:
         contexto = SimpleNamespace(
             tenant_id=session.tenant_id,
             user_id=session.owner_user_id,
-            membership_id=_membership_id_of(session),
+            membership_id=membership_id,
         )
         autorizacao = build_ai_authorization(contexto, patient_id=session.patient_id)
 

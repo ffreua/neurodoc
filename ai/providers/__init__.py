@@ -103,6 +103,18 @@ def _model_from_tenant_settings(row):
         # credencial e reportar o erro dele em vez do erro real.
         raise ProviderUnavailable(f'Chave de IA da clínica indisponível: {exc}') from exc
 
+    if row.base_url:
+        # Conferido de novo na hora de usar, como a reserva já fazia
+        # (auditoria de 2026-11-11): o endereço retirado da lista de
+        # liberados continuava sendo chamado pela clínica que o tinha
+        # gravado antes — e é a rede do servidor que a chamada alcança.
+        from .catalog import ProviderProbeFailed, assert_endereco_permitido
+
+        try:
+            assert_endereco_permitido(row.base_url)
+        except ProviderProbeFailed as exc:
+            raise ProviderUnavailable(f'Endereço da IA da clínica recusado: {exc}') from exc
+
     return _build(row.provider, row.model, api_key, row.base_url)
 
 

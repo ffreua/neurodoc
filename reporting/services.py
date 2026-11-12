@@ -198,15 +198,23 @@ def request_export(access_context, membership, report_name, parameters,
     # depois de o estrago estar feito, e o limite não protegia de nada.
     # Agora um `COUNT` decide, e o relatório grande nunca chega a ser lido
     # aqui: quem o monta é o worker.
-    cabe_na_requisicao = False
-    if count_fn is not None:
-        cabe_na_requisicao = count_fn(access_context.tenant_id, **parameters) <= SYNC_ROW_LIMIT
+    # A parte síncrona falhando marca a exportação como falha, e não a deixa
+    # "Processando" para sempre (auditoria de 2026-11-11).
+    try:
+        cabe_na_requisicao = False
+        if count_fn is not None:
+            cabe_na_requisicao = count_fn(access_context.tenant_id, **parameters) <= SYNC_ROW_LIMIT
+
+        if cabe_na_requisicao:
+            started = time.monotonic()
+            rows = rows_fn(access_context.tenant_id, **parameters)
+            elapsed = time.monotonic() - started
+            _write_export_file(export, rows, fieldnames, registro['markdown_fn'])
+    except Exception:
+        ReportExport.objects.filter(id=export.id).update(status=ReportExportStatus.FAILED)
+        raise
 
     if cabe_na_requisicao:
-        started = time.monotonic()
-        rows = rows_fn(access_context.tenant_id, **parameters)
-        elapsed = time.monotonic() - started
-        _write_export_file(export, rows, fieldnames, registro['markdown_fn'])
         record_audit_event(
             access_context.user_id, access_context.tenant_id, 'reporting.export_completed_sync',
             object_type='report_export', object_id=export.id, outcome='success',

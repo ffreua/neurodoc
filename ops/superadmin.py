@@ -947,6 +947,39 @@ class InstallationAIReserveView(SuperAdminView):
         return redirect('superadmin:operations')
 
 
+def _hosts_do_texto(texto):
+    """Os hosts da lista como `InstallationSettings.hosts_de_ia` os lê."""
+    return {
+        linha.strip().lower().rstrip('/')
+        for linha in (texto or '').splitlines()
+        if linha.strip()
+    }
+
+
+#: Nunca é provedor de IA: os serviços da própria pilha e o próprio
+#: servidor. A rede privada continua liberável — é onde mora o Ollama da
+#: clínica, o caso de uso desta lista.
+_SERVICOS_INTERNOS = frozenset({
+    'db', 'redis', 'rabbitmq', 'traefik', 'app', 'celery_worker', 'celery_beat', 'mailpit',
+    'localhost',
+})
+
+
+def _host_de_metadados_ou_interno(entrada):
+    """O host desta linha é da pilha, do próprio servidor ou de metadados?"""
+    import ipaddress
+    from urllib.parse import urlsplit
+
+    host = (urlsplit(entrada if '://' in entrada else f'//{entrada}').hostname or '').lower()
+    if host in _SERVICOS_INTERNOS or host.startswith('neurodoc_'):
+        return True
+    try:
+        ip = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return ip.is_loopback or ip.is_link_local or ip.is_unspecified
+
+
 class AIAllowlistView(SuperAdminView):
     """Grava a lista de enderecos de API liberados."""
 
@@ -956,7 +989,25 @@ class AIAllowlistView(SuperAdminView):
 
         config = InstallationSettings.carregar()
         antes = sorted(config.hosts_de_ia())
-        config.ai_base_url_allowlist = (request.POST.get('allowlist') or '').strip()
+        novo = (request.POST.get('allowlist') or '').strip()
+        # Ampliar pede o código de novo, e o endereço interno é recusado
+        # (auditoria de 2026-11-11). Liberar um host abre caminho para uma
+        # clínica mandar prontuário a um endereço qualquer — é a direção que
+        # expõe; encolher a lista continua um clique.
+        acrescentados = _hosts_do_texto(novo) - set(antes)
+        if acrescentados:
+            pedido = _pede_codigo_de_novo(request, 'superadmin:operations')
+            if pedido is not None:
+                return pedido
+            proibido = next((h for h in acrescentados if _host_de_metadados_ou_interno(h)), None)
+            if proibido:
+                messages.error(
+                    request,
+                    f'O endereço {proibido} é da rede interna do servidor ou de metadados da nuvem, '
+                    'e não pode ser liberado.',
+                )
+                return redirect('superadmin:operations')
+        config.ai_base_url_allowlist = novo
         config.updated_by = request.user
         config.full_clean()
         config.save(update_fields=['ai_base_url_allowlist', 'updated_by', 'updated_at'])

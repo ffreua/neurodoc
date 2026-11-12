@@ -284,8 +284,12 @@ class RelatorioAprovarView(RelatorioView):
         from . import relatorio
         from .review import edit_artifact
 
+        # Só o relatório do paciente (auditoria de 2026-11-11): buscado só
+        # pela clínica, o POST com o id de um resumo transformava o resumo
+        # num documento de relatório e sobrescrevia o resultado dele.
         artifact = get_object_or_404(
             scope_to_tenant(AIArtifact.objects.all(), request.access_context), id=artifact_id,
+            job__kind=AIJobKind.PATIENT_REPORT,
         )
         reviewer = self._membership(request)
         texto = (request.POST.get('texto') or '').strip()
@@ -370,8 +374,12 @@ class RelatorioRejeitarView(RelatorioView):
         from . import relatorio
 
         patient = self._paciente(request, request.POST.get('patient_id'))
+        # Só o relatório, e só deste paciente (auditoria de 2026-11-11). O POST
+        # com o id de um resumo aprovado — ou de outro médico — apagava o job
+        # e o artefato, e com eles a evidência da revisão.
         artifact = AIArtifact.objects.filter(
             tenant_id=request.access_context.tenant_id, id=artifact_id,
+            job__kind=AIJobKind.PATIENT_REPORT, job__patient_id=patient.id,
         ).select_related('job').first()
         if artifact is None:
             # Já foi apagado: o segundo clique, ou o botão de voltar do

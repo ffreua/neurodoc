@@ -1,3 +1,4 @@
+import functools
 import json
 
 import redis
@@ -7,7 +8,13 @@ TTL_SECONDS = 3600
 TERMINAL_EVENT_TYPES = frozenset({'complete', 'error', 'cancelled'})
 
 
+@functools.lru_cache(maxsize=1)
 def _client():
+    # Um cliente por processo, com o pool dele (auditoria de 2026-11-11).
+    # `from_url` a cada chamada criava um pool novo por pedaço da resposta
+    # e por volta do stream — centenas de conexões por resposta, fechadas
+    # quando o coletor de lixo quisesse. O cliente do redis-py é seguro
+    # entre threads.
     return redis.Redis.from_url(settings.AI_EVENTS_REDIS_URL, decode_responses=True)
 
 

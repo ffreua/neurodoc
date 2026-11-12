@@ -98,5 +98,61 @@ def read_after(tenant_id, user_id, last_id='0'):
         return []
 
 
+def aparar_vencidos(limite):
+    """Tira das caixas os eventos de antes de `limite` (um `datetime`).
+
+    **A retenção de 72 horas não valia aqui** (auditoria de 2026-11-11).
+    A caixa só expirava uma hora depois do **último** evento, e quem recebe
+    mensagem todo dia a mantinha viva com até 500 eventos — o texto inteiro
+    de cada um —, por tempo indefinido; reconectar pedindo
+    `last_event_id=0` devolvia tudo, inclusive o que o banco já tinha
+    apagado. `XTRIM MINID` corta pelo instante embutido no id do evento.
+    """
+    minimo = int(limite.timestamp() * 1000)
+    aparadas = 0
+    try:
+        client = _client()
+        for chave in client.scan_iter(match='teamchat:inbox:*', count=200):
+            # Exato, e não o `~` padrão do redis-py: o aproximado só corta
+            # blocos internos inteiros, e numa caixa pequena não corta nada.
+            aparadas += client.xtrim(chave, minid=minimo, approximate=False) or 0
+    except redis.RedisError:
+        logger.warning('teamchat: caixas nao aparadas (redis indisponivel)')
+    return aparadas
+
+
+def esquecer_conversa(tenant_id, user_id, conversation_id):
+    """Tira da caixa desta pessoa os eventos de uma conversa que ela apagou.
+
+    "Apagar conversa" sumia com a conversa da janela e deixava o texto na
+    caixa do Redis, de onde uma reconexão o trazia de volta.
+    """
+    try:
+        client = _client()
+        chave = inbox_key(tenant_id, user_id)
+        alvo = str(conversation_id)
+        ids = []
+        for entry_id, campos in client.xrange(chave, min='-', max='+'):
+            try:
+                if json.loads(campos.get('data') or '{}').get('conversa') == alvo:
+                    ids.append(entry_id)
+            except ValueError:
+                continue
+        if ids:
+            client.xdel(chave, *ids)
+        return len(ids)
+    except redis.RedisError:
+        logger.warning('teamchat: conversa nao esquecida na caixa (redis indisponivel)')
+        return 0
+
+
+def id_anterior_a(entry_id, limite):
+    """O id de evento é de antes de `limite`? Id que não se lê conta como sim."""
+    try:
+        return int(str(entry_id).split('-')[0]) < int(limite.timestamp() * 1000)
+    except ValueError:
+        return True
+
+
 def _client():
     return redis.Redis.from_url(settings.TEAMCHAT_REDIS_URL, decode_responses=True)

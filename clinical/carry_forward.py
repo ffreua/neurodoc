@@ -185,8 +185,14 @@ def review_carry_forward_item(item, action, actor_membership_id):
     """
     from django.utils import timezone
 
-    from .models import EncounterDiagnosis, Medication, MedicationRoute, ReviewAction
+    from .models import Encounter, EncounterDiagnosis, Medication, MedicationRoute, ReviewAction
 
+    # O atendimento relido **com trava** antes de conferir (auditoria de
+    # 2026-11-11). Conferido na instância que a tela carregou, a finalização
+    # que terminasse entre a conferência e a gravação deixava o texto entrar
+    # num atendimento já finalizado — `content_hash` sem bater e nenhum
+    # adendo. Travado, quem chega depois espera e lê o estado de verdade.
+    item.target_encounter = Encounter.objects.select_for_update().get(pk=item.target_encounter_id)
     if not item.target_encounter.is_editable():
         raise CarryForwardBlocked(
             'Atendimento finalizado: a revisão da consulta anterior não pode '
@@ -211,7 +217,12 @@ def review_carry_forward_item(item, action, actor_membership_id):
     # teve antes.
     if item.field_path in FIELD_LABELS:
         setattr(encounter, item.field_path, value.get('text', ''))
-        encounter.save(update_fields=[item.field_path])
+        # A versão sobe junto (auditoria de 2026-11-11). Sem isso, o
+        # salvamento automático de outra aba aberta na conduta passava na
+        # conferência de versão — ela não tinha mudado — e gravava o texto
+        # antigo por cima do que acabara de ser trazido, sem erro nenhum.
+        encounter.row_version += 1
+        encounter.save(update_fields=[item.field_path, 'row_version', 'updated_at'])
     elif item.field_path.startswith('medication:'):
         # `get_or_create` pela identidade que o olho usa — nome e dose. Aceitar
         # duas vezes (a tela recarregada, o clique repetido) não pode deixar o

@@ -683,7 +683,12 @@ class CampaignTestView(ManagerRequiredView):
             send_email(destino, f'[TESTE] {campaign.subject}', corpo,
                        tenant_id=campaign.tenant_id, require_own_server=True)
         except EmailSendFailed as exc:
-            messages.error(request, f'O envio de teste falhou: {exc}')
+            # A causa provável, e não o texto do `smtplib` (auditoria de
+            # 2026-11-11): o teste de campanha era a única porta que ainda
+            # mostrava a resposta do servidor remoto, em inglês.
+            from .email import _mensagem_para_a_tela
+
+            messages.error(request, f'O envio de teste falhou: {_mensagem_para_a_tela(exc)}')
             return redirect('messaging:campaign-detail', campaign_id=campaign.id)
         messages.success(
             request,

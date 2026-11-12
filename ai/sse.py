@@ -1,7 +1,9 @@
 import asyncio
 import time
+import uuid
 
 from asgiref.sync import sync_to_async
+from django.db import close_old_connections
 from django.http import Http404, HttpResponseForbidden, StreamingHttpResponse
 
 from tenancy.models import Membership, MembershipStatus
@@ -13,12 +15,40 @@ from .chat_models import ChatSession
 
 HEARTBEAT_SECONDS = 15
 POLL_INTERVAL_SECONDS = 0.5
+#: De quanto em quanto tempo o vínculo e a resposta são conferidos no banco.
+#: Eram a cada meia volta (duas consultas por segundo, por aba aberta, por
+#: até uma hora); quinze segundos ainda cortam o stream de quem perdeu o
+#: papel antes de o próximo parágrafo chegar (auditoria de 2026-11-11).
+CONFERENCIA_SEGUNDOS = 15
 MAX_ITERATIONS_SAFETY = 7200  # ~1h at the poll interval above; a real connection is closed by the client
 
 
 @sync_to_async
 def _session_or_none(tenant_id, user_id, session_id):
-    return ChatSession.objects.filter(tenant_id=tenant_id, owner_user_id=user_id, id=session_id).first()
+    try:
+        return ChatSession.objects.filter(tenant_id=tenant_id, owner_user_id=user_id, id=session_id).first()
+    finally:
+        close_old_connections()
+
+
+@sync_to_async
+def _resposta_em_andamento(session_id, job_id):
+    """A resposta deste stream ainda está sendo escrita?
+
+    Sem isto, o stream de uma resposta que nunca chegaria ao fim — tarefa
+    descartada na fila, worker reiniciado — ficava aberto por uma hora,
+    consultando o banco (auditoria de 2026-11-11).
+    """
+    from django.db.models import Q
+
+    from .chat_models import ChatMessage, ChatMessageState
+
+    try:
+        return ChatMessage.objects.filter(
+            Q(id=job_id) | Q(ai_job_id=job_id), session_id=session_id, state=ChatMessageState.STREAMING,
+        ).exists()
+    finally:
+        close_old_connections()
 
 
 @sync_to_async
@@ -41,6 +71,7 @@ def _membership_still_authorized(membership_id, tenant_id):
         .filter(id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE)
         .first()
     )
+    close_old_connections()
     if membership is None:
         return False
     return Capability.CLINICAL_AI in capabilities_for(
@@ -71,19 +102,35 @@ async def chat_stream_view(request, session_id, job_id):
 
     last_id = request.headers.get('Last-Event-ID') or request.GET.get('last_event_id') or '0'
 
+    try:
+        uuid.UUID(str(job_id))
+    except ValueError:
+        # Qualquer texto na rota abria um laço de uma hora sobre uma chave
+        # que nunca receberia evento.
+        raise Http404
+
     async def event_generator():
         current_last_id = last_id
         last_heartbeat = time.monotonic()
+        proxima_conferencia = 0.0
         for _ in range(MAX_ITERATIONS_SAFETY):
-            if not await _membership_still_authorized(membership_id, tenant_id):
-                yield 'event: revoked\ndata: {}\n\n'
-                return
+            conferir = time.monotonic() >= proxima_conferencia
+            if conferir:
+                proxima_conferencia = time.monotonic() + CONFERENCIA_SEGUNDOS
+                if not await _membership_still_authorized(membership_id, tenant_id):
+                    yield 'event: revoked\ndata: {}\n\n'
+                    return
             entries = await sync_to_async(streaming.read_after)(tenant_id, user_id, session_id, job_id, current_last_id)
             for entry_id, fields in entries:
                 current_last_id = entry_id
                 yield f'id: {entry_id}\nevent: {fields["type"]}\ndata: {fields["data"]}\n\n'
                 if fields['type'] in streaming.TERMINAL_EVENT_TYPES:
                     return
+            if conferir and not entries and not await _resposta_em_andamento(session_id, job_id):
+                # Encerrada sem evento final no canal (varrida como presa, ou
+                # o Redis perdeu o fim): a tela relê do banco.
+                yield 'event: error\ndata: {"message": "A resposta foi interrompida. Recarregue a conversa."}\n\n'
+                return
             if time.monotonic() - last_heartbeat > HEARTBEAT_SECONDS:
                 yield ': heartbeat\n\n'
                 last_heartbeat = time.monotonic()

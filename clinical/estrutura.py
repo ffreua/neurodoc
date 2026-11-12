@@ -27,6 +27,7 @@ troca para primeira consulta na própria aba, enquanto nada foi escrito
 """
 from datetime import timedelta
 
+from django.db import transaction
 from django.utils import timezone
 
 from .models import Encounter, EncounterKind, EncounterStatus, EstruturaDoAtendimento
@@ -101,6 +102,7 @@ class TrocaRecusada(Exception):
     """A troca esconderia texto já escrito, ou o atendimento está fechado."""
 
 
+@transaction.atomic
 def trocar_estrutura(encounter, destino):
     """Troca primeira consulta ↔ seguimento enquanto nada se perde de vista.
 
@@ -110,7 +112,14 @@ def trocar_estrutura(encounter, destino):
     invisível numa primeira consulta (foi assim que as impressões, gravadas
     e não desenhadas, ficaram ocultas antes da 1.20). Com texto, a recusa
     diz o que fazer.
+
+    Relido com trava (auditoria de 2026-11-11): conferido na instância da
+    tela, o salvamento automático que gravasse a história no meio deixava a
+    troca para seguimento passar — e a história ficava escondida, o que a
+    recusa existe para impedir. A versão também subia sobre o valor velho.
     """
+    original = encounter
+    encounter = Encounter.objects.select_for_update().get(pk=original.pk)
     if not encounter.is_editable():
         raise TrocaRecusada('Atendimento finalizado: o tipo não muda mais.')
     if encounter.kind != EncounterKind.STRUCTURED:
@@ -134,4 +143,5 @@ def trocar_estrutura(encounter, destino):
     encounter.estrutura = destino
     encounter.row_version += 1
     encounter.save(update_fields=['estrutura', 'row_version', 'updated_at'])
+    original.estrutura, original.row_version = encounter.estrutura, encounter.row_version
     return True

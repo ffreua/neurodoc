@@ -23,6 +23,8 @@ conhecido de sujar investigação.
 """
 import json
 import logging
+import re
+from urllib.parse import urlsplit
 
 from django.core.cache import cache
 from django.http import HttpResponse, HttpResponseForbidden
@@ -53,6 +55,26 @@ CAMPOS = ('violated-directive', 'effective-directive', 'blocked-uri', 'document-
 MAX_CAMPO = 200
 
 
+#: Rotas com segredo no caminho: o token do link do documento e o da
+#: verificação pública.
+_TOKEN_NA_ROTA = re.compile(r'/(d|verificar)/[^/?#]+')
+
+
+def _sem_dado(campo, valor):
+    """A URI sem consulta e sem token (auditoria de 2026-11-11).
+
+    O navegador manda `document-uri` com a query string, e extensões que
+    injetam script geram violação em toda página: `/app/patients/?q=MARIA
+    SILVA` terminava no log. E `/d/<token>/` levava o link do documento.
+    Para entender a violação bastam esquema, host e caminho.
+    """
+    if not campo.endswith('-uri') or '://' not in valor:
+        return valor
+    partes = urlsplit(valor)
+    caminho = _TOKEN_NA_ROTA.sub(lambda m: f'/{m.group(1)}/[token]', partes.path)
+    return f'{partes.scheme}://{partes.netloc}{caminho}'
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class CspReportView(View):
     """Recebe `application/csp-report`. Responde 204 sempre que aceita."""
@@ -74,7 +96,7 @@ class CspReportView(View):
             return HttpResponseForbidden()
 
         resumo = {
-            campo: str(relatorio.get(campo, ''))[:MAX_CAMPO]
+            campo: _sem_dado(campo, str(relatorio.get(campo, '')))[:MAX_CAMPO]
             for campo in CAMPOS
             if relatorio.get(campo)
         }

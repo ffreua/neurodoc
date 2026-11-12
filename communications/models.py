@@ -4,6 +4,19 @@ from django.db.models import Q
 from base.models import TenantModel
 
 
+def _remetente(nome, endereco):
+    """`"Nome" <endereco>`, com o nome entre aspas.
+
+    Concatenado sem aspas (auditoria de 2026-11-11), um nome com vírgula ou
+    aspas — "Clínica X, Neurologia" — era lido como dois endereços ou como
+    um inválido, e todo e-mail daquele remetente falhava. Aspas e barra
+    invertida do próprio nome são escapadas; o acento fica, e quem o
+    codifica para o cabeçalho é o Django, como sempre fez.
+    """
+    seguro = nome.replace('\\', '\\\\').replace('"', '\\"')
+    return f'"{seguro}" <{endereco}>'
+
+
 class DeliveryChannel(models.TextChoices):
     EMAIL = 'email', 'E-mail'
     SMS = 'sms', 'SMS'
@@ -246,7 +259,7 @@ class MessagingSettings(TenantModel):
 
     def sender_header(self):
         if self.email_from_name and self.email_from_address:
-            return f'{self.email_from_name} <{self.email_from_address}>'
+            return _remetente(self.email_from_name, self.email_from_address)
         return self.email_from_address
 
     def api_key(self):
@@ -330,7 +343,7 @@ class DoctorEmailSettings(TenantModel):
 
     def sender_header(self):
         if self.from_name and self.from_email:
-            return f'{self.from_name} <{self.from_email}>'
+            return _remetente(self.from_name, self.from_email)
         return self.from_email
 
     def __str__(self):

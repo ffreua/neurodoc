@@ -188,6 +188,11 @@ CELERY_TASK_SEND_SENT_EVENT = False
 CELERY_WORKER_SEND_TASK_EVENTS = False
 CELERY_TIMEZONE = TIME_ZONE
 CELERY_TASK_SOFT_TIME_LIMIT = 300
+# O worker usa o `LOGGING` do Django, e não o do Celery (auditoria de
+# 2026-11-11). Por padrão o Celery assume o logger raiz e descarta o
+# handler com `RedactSensitiveDataFilter`: o filtro que tira senha e token
+# do log valia no `app` e não no worker nem no beat.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_TASK_TIME_LIMIT = 360
 # Domain tasks register routes and periodic entries during their sprints.
 CELERY_TASK_ROUTES = {

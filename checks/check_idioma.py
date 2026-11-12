@@ -104,7 +104,7 @@ EXCECOES_NA_TELA = {
     'PagamentoNaoExcluivel',
     # A troca entre primeira consulta e seguimento (clinical/estrutura.py,
     # 1.41): as recusas dizem em português o que fazer com o texto escrito.
-    'TrocaRecusada',
+    'TrocaRecusada', 'ValorInvalido',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o

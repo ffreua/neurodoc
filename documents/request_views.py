@@ -249,11 +249,24 @@ class DocumentRequestActionView(ClinicalDocumentView):
                             'não será atendido: ele fica registrado, e a clínica o usa '
                             'para avisar o paciente.',
             ), status=400)
-        pedido.status = DocumentRequestStatus.DECLINED
-        pedido.review_note = motivo[:500]
-        pedido.reviewed_by = physician
-        pedido.reviewed_at = timezone.now()
-        pedido.save(update_fields=['status', 'review_note', 'reviewed_by', 'reviewed_at'])
+        # Só se ainda estiver aberto, num `UPDATE` condicional (auditoria de
+        # 2026-11-11). Gravado a partir do pedido lido no começo da
+        # requisição, a recusa de uma tela aberta desde antes passava por
+        # cima do pedido que outro médico acabara de atender: ele ficava
+        # "recusado" com o documento ainda ligado. `marcar_atendido` já
+        # relia sob trava; a recusa é o mesmo cuidado do outro lado.
+        from .models import DocumentRequest
+
+        recusou = DocumentRequest.objects.filter(
+            id=pedido.id,
+            status__in=(DocumentRequestStatus.RECEIVED, DocumentRequestStatus.IN_REVIEW),
+        ).update(
+            status=DocumentRequestStatus.DECLINED, review_note=motivo[:500],
+            reviewed_by=physician, reviewed_at=timezone.now(),
+        )
+        if not recusou:
+            messages.error(request, 'Este pedido acabou de ser respondido por outra pessoa.')
+            return redirect('documents:request-detail', request_id=pedido.id)
         record_audit_event(
             request.user, pedido.tenant_id, 'documents.portal_request_declined',
             object_type='document_request', object_id=pedido.id, outcome='success',

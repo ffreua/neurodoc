@@ -268,9 +268,15 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
 
     try:
         if delivery.channel == DeliveryChannel.EMAIL:
+            # A clínica da entrega, sempre (auditoria de 2026-11-11). Sem
+            # ela, quem não passava o vínculo do médico — o link do
+            # documento, o lembrete de exame — saía pelo servidor e com o
+            # remetente da instalação, mesmo com a clínica tendo o próprio:
+            # a cadeia médico → clínica → instalação (CLAUDE.md §7-G)
+            # pulava a clínica.
             send_email(
                 delivery.contact.email, subject, message,
-                physician_membership=physician_membership,
+                physician_membership=physician_membership, tenant_id=delivery.tenant_id,
             )
         else:
             result = send_sms(
@@ -426,7 +432,10 @@ def deliver_document(document, force_new_link=False, envio_id=None):
                     token, raw_token = access.create_access_token(document, contact)
             if raw_token is not None:
                 link = f'{settings.PUBLIC_BASE_URL}/d/{raw_token}/'
-                _send(delivery, _document_message(document, link, delivery.channel))
+                _send(
+                    delivery, _document_message(document, link, delivery.channel),
+                    physician_membership=document.physician,
+                )
             deliveries.append(delivery)
     return deliveries
 

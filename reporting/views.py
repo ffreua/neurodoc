@@ -206,12 +206,33 @@ class AcervoView(CapabilityRequiredView):
 
 class ExportRequestView(TenantScopedView):
     def post(self, request):
+        from django.contrib import messages
+
         from tenancy.models import Membership
+
+        from .services import ReportNotAllowed, ReportNotFound
 
         membership = Membership.objects.filter(id=request.access_context.membership_id).first()
         report_name = request.POST.get('report_name')
-        parameters = {'start': request.POST.get('start'), 'end': request.POST.get('end')}
-        export = request_export(request.access_context, membership, report_name, parameters, kind=ReportExportKind.CSV)
+        # Datas lidas aqui (auditoria de 2026-11-11): vazias ou ilegíveis,
+        # elas estouravam dentro do relatório **depois** de a exportação ter
+        # sido criada como "Processando" — erro 500, e a linha presa nesse
+        # estado para sempre. Relatório desconhecido, ou num formato que ele
+        # não tem, é 404, como na tela do acervo.
+        try:
+            parameters = {
+                'start': datetime.date.fromisoformat(request.POST.get('start') or '').isoformat(),
+                'end': datetime.date.fromisoformat(request.POST.get('end') or '').isoformat(),
+            }
+        except ValueError:
+            messages.error(request, 'Informe as datas de início e fim do período.')
+            return redirect('reporting:dashboard')
+        try:
+            export = request_export(
+                request.access_context, membership, report_name, parameters, kind=ReportExportKind.CSV,
+            )
+        except (ReportNotAllowed, ReportNotFound):
+            raise Http404
         return redirect('reporting:export-detail', export_id=export.id)
 
 

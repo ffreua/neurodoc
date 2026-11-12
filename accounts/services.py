@@ -79,6 +79,14 @@ def confirm_email_verification(token):
 
 @transaction.atomic
 def switch_tenant(request, tenant_id):
+    # Identificador que não é UUID é recusa, e não erro 500 (auditoria de
+    # 2026-11-11): o filtro do ORM levantava `ValidationError` com ele.
+    import uuid
+
+    try:
+        uuid.UUID(str(tenant_id))
+    except ValueError:
+        return False
     membership = active_membership_for(request.user, tenant_id)
     if membership is None:
         return False

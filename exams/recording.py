@@ -5,6 +5,8 @@ deixado em branco não cria linha, e por isso nunca aparece como normal.
 Item que já tinha valor e foi esvaziado é apagado — é assim que o médico
 desfaz um registro feito por engano.
 """
+import math
+
 from django.db import transaction
 
 from clinical.models import ExaminationFinding, ExaminationState, Side
@@ -43,6 +45,11 @@ def _extract(node, data, prefix):
             number = float(raw.replace(',', '.'))
         except ValueError:
             return None
+        # Finito e dentro da coluna (`numeric(6,2)`) (auditoria de
+        # 2026-11-11): "nan" e "inf" passavam pelo `float` e o valor acima
+        # de 9999,99 estourava no banco — erro 500 com o eixo meio gravado.
+        if not math.isfinite(number) or abs(number) >= 10000:
+            raise ValorInvalido(f'"{node.label}": o número precisa ficar entre -9999,99 e 9999,99.')
         return {
             'value_json': {'number': number, 'unit': node.unit},
             'qualifier': f'{raw}{" " + node.unit if node.unit else ""}'[:255],
@@ -85,6 +92,24 @@ def _extract(node, data, prefix):
     }
 
 
+class ValorInvalido(ValueError):
+    """O valor enviado não cabe no item; a mensagem é para a tela."""
+
+
+def _e_opcao(item, raw):
+    try:
+        valor = float(str(raw).replace(',', '.'))
+    except ValueError:
+        return False
+    validos = set()
+    for opcao in item.options or []:
+        try:
+            validos.add(float(opcao.get('value')))
+        except (TypeError, ValueError, AttributeError):
+            continue
+    return valor in validos
+
+
 def extract_scale(scale, data, prefix):
     """Lê os itens de uma escala do POST e pontua. None se nada foi marcado.
 
@@ -99,6 +124,11 @@ def extract_scale(scale, data, prefix):
     for item in items:
         raw = (data.get(f'{prefix}__{item.code}') or '').strip()
         if raw != '':
+            # Só a pontuação que o item oferece (auditoria de 2026-11-11). Um
+            # "40" num item de 0 a 3 virava "40/24" e entrava no gráfico de
+            # evolução e no que vai à IA; "nan" e "inf" derrubavam a tela.
+            if not _e_opcao(item, raw):
+                raise ValorInvalido(f'"{item.label}": valor fora das opções da escala {scale.name}.')
             values[item.code] = raw
     if not values:
         return None
