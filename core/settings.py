@@ -340,6 +340,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'scheduling.tasks.avisar_retornos',
         'schedule': crontab(hour=6, minute=0),
     },
+    # A lista de espera que antecipa consulta marcada (2026-11-12): chegado
+    # o dia da consulta, a espera se encerra sozinha (`scheduling/espera.py`).
+    'scheduling-encerrar-esperas-do-dia': {
+        'task': 'scheduling.tasks.encerrar_esperas_do_dia',
+        'schedule': crontab(hour=0, minute=10),
+    },
     # Chat da equipe: mensagem vive 72 horas (teamchat/services.py). De
     # hora em hora, para o prazo prometido na janela ser o prazo cumprido.
     # Degustação do Completo: o oitavo dia e o aviso de véspera

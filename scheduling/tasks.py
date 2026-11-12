@@ -61,3 +61,15 @@ def enviar_agenda_de_amanha_task():
     resultado = rodada()
     logging.getLogger(__name__).info('agenda por e-mail: %s', resultado)
     return resultado
+
+
+@shared_task(name='scheduling.tasks.encerrar_esperas_do_dia')
+def encerrar_esperas_do_dia_task():
+    """Tira da lista de espera quem chegou ao dia da consulta que queria antecipar.
+
+    Ver `scheduling.espera.encerrar_no_dia_da_consulta`. Logo depois da
+    meia-noite de Brasília, para a lista da manhã já sair sem esses nomes.
+    """
+    from .espera import encerrar_no_dia_da_consulta
+
+    return {'encerradas': encerrar_no_dia_da_consulta()}

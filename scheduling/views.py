@@ -893,7 +893,7 @@ class QuickBookingView(TenantScopedView):
                     override_by=ator,
                     teleatendimento=form.cleaned_data.get('teleatendimento') or False,
                 )
-                espera.marcar_agendada(ctx, entrada, appointment, ator=ator)
+                desmarcada = espera.marcar_agendada(ctx, entrada, appointment, ator=ator)
         except (espera.EsperaError, services.SchedulingError) as exc:
             messages.error(request, str(exc))
             return _agenda_redirect(request, doctor, day)
@@ -905,11 +905,87 @@ class QuickBookingView(TenantScopedView):
             return _agenda_redirect(request, doctor, day)
 
         local = timezone.localtime(appointment.starts_at)
+        antiga = ''
+        if desmarcada is not None:
+            antiga = (' A consulta de '
+                      f'{timezone.localtime(desmarcada.starts_at).strftime("%d/%m/%Y às %H:%M")}'
+                      ' foi desmarcada: ele foi antecipado.')
         messages.success(
             request,
             f'{patient.full_name} marcado para {local.strftime("%d/%m/%Y às %H:%M")} '
-            f'({appointment.get_type_display()}) e retirado da lista de espera.',
+            f'({appointment.get_type_display()}) e retirado da lista de espera.{antiga}',
         )
+        return _agenda_redirect(request, doctor, day)
+
+
+class AppointmentEsperaView(TenantScopedView):
+    """Pôr ou tirar da lista de espera o paciente deste horário (2026-11-12).
+
+    É o caminho de quem marca o paciente numa data e quer antecipá-lo: a
+    espera nasce apontando esta consulta, com o médico e o tipo dela. `GET`
+    diz ao modal o estado de agora (buscado ao abrir, e não desenhado com a
+    grade — a grade da semana tem número de consultas medido, e a lista
+    muda durante o dia). `POST` inclui ou retira.
+    """
+
+    def _appointment(self, request, appointment_id):
+        from .models import Appointment
+
+        return get_object_or_404(
+            scope_to_tenant(
+                Appointment.objects.select_related('patient', 'physician_membership'),
+                request.access_context,
+            ),
+            id=appointment_id,
+        )
+
+    def get(self, request, appointment_id):
+        from . import espera
+
+        appointment = self._appointment(request, appointment_id)
+        entrada = espera.da_consulta(request.access_context.tenant_id, appointment)
+        hoje = timezone.localdate()
+        pode = (appointment.status in espera.SITUACOES_A_ANTECIPAR
+                and timezone.localtime(appointment.starts_at).date() > hoje)
+        return JsonResponse({
+            'na_lista': entrada is not None,
+            'posicao': entrada.posicao if entrada else None,
+            # Na lista por esta consulta, ou por outro caminho (a espera de
+            # sempre, sem horário): o modal diz qual.
+            'por_esta_consulta': bool(entrada and entrada.consulta_marcada_id == appointment.id),
+            'pode_incluir': pode and entrada is None,
+        })
+
+    def post(self, request, appointment_id):
+        from . import espera
+
+        appointment = self._appointment(request, appointment_id)
+        day = timezone.localtime(appointment.starts_at).date()
+        doctor = appointment.physician_membership
+        ctx = request.access_context
+        nome = appointment.patient.full_name
+        try:
+            if request.POST.get('acao') == 'retirar':
+                entrada = espera.da_consulta(ctx.tenant_id, appointment)
+                if entrada is None:
+                    raise espera.EsperaError(f'{nome} não está na lista de espera.')
+                espera.retirar(ctx, entrada, motivo='Retirado pela agenda.',
+                               ator=_own_membership(request))
+                messages.success(request, f'{nome} saiu da lista de espera.')
+            else:
+                entrada = espera.incluir(
+                    ctx, appointment.patient, physician_membership=doctor,
+                    appointment_type=appointment.type, ator=_own_membership(request),
+                    observacao=f'Antecipar a consulta de {day.strftime("%d/%m/%Y")}.',
+                    consulta_marcada=appointment,
+                )
+                messages.success(
+                    request,
+                    f'{nome} entrou na lista de espera ({entrada.posicao}º), para antecipar a consulta '
+                    f'de {day.strftime("%d/%m/%Y")}. No dia dela, sem antecipação, sai da lista sozinho.',
+                )
+        except espera.EsperaError as exc:
+            messages.error(request, str(exc))
         return _agenda_redirect(request, doctor, day)
 
 

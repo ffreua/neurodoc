@@ -429,6 +429,8 @@
                 teleOffForm.hidden = !tele || !teleEditavel;
             }
 
+            carregarEspera(id);
+
             changePanel.hidden = true;
             cancelPanel.hidden = true;
             if (typePanel) typePanel.hidden = true;
@@ -438,6 +440,41 @@
             changeSearch.value = '';
             window.NeuroDoc.openModal(slotModal);
         });
+
+        /* Lista de espera pela agenda: o estado de agora vem do servidor, e
+         * só então o botão aparece — incluir quem não está, retirar quem
+         * está. Um horário aberto depois do outro descarta a resposta que
+         * chegar atrasada (`esperaPedido`). */
+        var esperaForm = document.getElementById('slot-espera-form');
+        var esperaAcao = document.getElementById('slot-espera-acao');
+        var esperaBotao = document.getElementById('slot-espera-botao');
+        var esperaDica = document.getElementById('slot-espera-dica');
+        var esperaPedido = null;
+        function carregarEspera(id) {
+            if (!esperaForm) return;
+            esperaForm.hidden = true;
+            esperaPedido = id;
+            var url = '/app/scheduling/' + id + '/lista-de-espera/';
+            esperaForm.action = url;
+            fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (dados) {
+                    if (!dados || esperaPedido !== id) return;
+                    if (dados.na_lista) {
+                        esperaAcao.value = 'retirar';
+                        esperaBotao.textContent = 'Retirar da lista de espera';
+                        esperaDica.textContent = (dados.posicao ? dados.posicao + 'º da lista' : 'Na lista') +
+                            (dados.por_esta_consulta ? ', para antecipar esta consulta.' : ', sem horário ligado a ela.');
+                        esperaForm.hidden = false;
+                    } else if (dados.pode_incluir) {
+                        esperaAcao.value = 'incluir';
+                        esperaBotao.textContent = 'Incluir na lista de espera';
+                        esperaDica.textContent = 'Para antecipar esta consulta se abrir vaga antes. No dia dela, sai da lista sozinho.';
+                        esperaForm.hidden = false;
+                    }
+                })
+                .catch(function () { /* sem resposta, o botão fica escondido */ });
+        }
 
         function toggleTypePanel() {
             if (!typePanel || slotType.disabled) return;

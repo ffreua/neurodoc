@@ -355,6 +355,19 @@ clicado diz qual horário e qual paciente.
                             Retirar a marca de teleatendimento
                         </button>
                     </form>
+                    {% comment %}Lista de espera pela agenda (2026-11-12): para
+                    antecipar quem já tem horário. O estado vem do servidor ao
+                    abrir o modal (`agenda.js`), e o JS mostra incluir ou
+                    retirar; sem resposta, os dois ficam escondidos.{% endcomment %}
+                    <form method="post" id="slot-espera-form" hidden>
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <input type="hidden" name="acao" id="slot-espera-acao" value="incluir">
+                        <button type="submit" class="btn btn-light btn-sm w-100" id="slot-espera-botao" data-nd-busy>
+                            Incluir na lista de espera
+                        </button>
+                        <span class="d-block fs-11 text-muted mt-1" id="slot-espera-dica"></span>
+                    </form>
                     <button type="button" class="btn btn-light btn-sm" id="slot-change-open">
                         Trocar o paciente deste horário
                     </button>

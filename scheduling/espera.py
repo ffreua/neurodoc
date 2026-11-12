@@ -15,6 +15,18 @@ uma lista que a pessoa não está vendo.
 Quem sai da lista (agendado ou retirado) perde a posição, e as de baixo
 sobem: a secretária lê "3º" como "o terceiro a ser chamado", e um buraco ali
 seria um nome que não existe.
+
+**Antecipar uma consulta já marcada** (2026-11-12). A recepção marca o
+paciente na data possível e o põe na lista **pela agenda**, para chamá-lo
+se abrir vaga antes. A espera guarda essa consulta (`consulta_marcada`), e
+duas regras saem dela:
+
+- puxado para um horário **anterior**, a consulta antiga é desmarcada na
+  mesma transação, com o motivo — o paciente não fica com duas, e a vaga
+  antiga volta à grade;
+- chegado o dia da consulta sem antecipação, a espera se encerra sozinha
+  (`encerrar_no_dia_da_consulta`, tarefa diária): ninguém mais precisa
+  chamar quem já está sendo atendido.
 """
 
 from django.db import connection, transaction
@@ -79,7 +91,7 @@ def lista(tenant_id, physician_membership_id=None, incluir_encerradas=False):
     consulta = (
         PacienteEmEspera.objects
         .filter(tenant_id=tenant_id)
-        .select_related('patient', 'physician_membership__user', 'appointment')
+        .select_related('patient', 'physician_membership__user', 'appointment', 'consulta_marcada')
         .prefetch_related('patient__contacts')
     )
     if physician_membership_id:
@@ -98,11 +110,27 @@ def lista(tenant_id, physician_membership_id=None, incluir_encerradas=False):
                 .order_by('posicao', 'created_at', 'id'))
 
 
+#: Situações em que a consulta marcada ainda é uma consulta a antecipar.
+SITUACOES_A_ANTECIPAR = ('scheduled', 'confirmed')
+
+
 @transaction.atomic
 def incluir(context, patient, physician_membership=None, appointment_type='',
-            observacao='', ator=None):
-    """Põe o paciente no fim da lista."""
+            observacao='', ator=None, consulta_marcada=None):
+    """Põe o paciente no fim da lista.
+
+    Com `consulta_marcada`, é a inclusão pela agenda: o paciente já tem
+    aquela consulta e espera uma vaga **antes** dela.
+    """
     _travar(context.tenant_id)
+    if consulta_marcada is not None:
+        if (consulta_marcada.tenant_id != context.tenant_id
+                or consulta_marcada.patient_id != patient.id):
+            raise EsperaError('Consulta não encontrada para este paciente.')
+        if consulta_marcada.status not in SITUACOES_A_ANTECIPAR:
+            raise EsperaError('Só a consulta agendada ou confirmada pode ir para a lista de espera.')
+        if timezone.localtime(consulta_marcada.starts_at).date() <= timezone.localdate():
+            raise EsperaError('A consulta é hoje ou já passou: não há o que antecipar.')
     if patient.tenant_id != context.tenant_id:
         raise EsperaError('Paciente não encontrado nesta organização.')
     if physician_membership is not None and physician_membership.tenant_id != context.tenant_id:
@@ -118,7 +146,7 @@ def incluir(context, patient, physician_membership=None, appointment_type='',
         physician_membership=physician_membership,
         appointment_type=appointment_type or '',
         observacao=(observacao or '').strip()[:255],
-        posicao=ultima + 1, criado_por=ator,
+        posicao=ultima + 1, criado_por=ator, consulta_marcada=consulta_marcada,
     )
     entrada.full_clean()
     entrada.save()
@@ -246,7 +274,23 @@ def para_puxar(context, espera_id, physician_membership):
 
 
 def marcar_agendada(context, entrada, appointment, ator=None):
-    """Encerra a espera puxada, ligada à consulta. Dentro da transação da reserva."""
+    """Encerra a espera puxada, ligada à consulta. Dentro da transação da reserva.
+
+    Se a espera era para antecipar uma consulta marcada e o horário novo vem
+    **antes** dela, a antiga é desmarcada aqui mesmo — na transação da
+    reserva, então ou as duas coisas acontecem, ou nenhuma. Devolve a
+    consulta desmarcada (ou None), para a tela dizer o que fez.
+    """
+    from .services import cancel_appointment
+
+    desmarcada = None
+    antiga = entrada.consulta_marcada
+    if (antiga is not None and antiga.status in SITUACOES_A_ANTECIPAR
+            and antiga.id != appointment.id and appointment.starts_at < antiga.starts_at):
+        quando = timezone.localtime(appointment.starts_at).strftime('%d/%m/%Y às %H:%M')
+        desmarcada = cancel_appointment(
+            antiga, context.user_id, reason=f'Antecipada pela lista de espera para {quando}.',
+        )
     entrada.status = EsperaStatus.AGENDADO
     entrada.appointment = appointment
     entrada.resolvido_em = timezone.now()
@@ -255,8 +299,9 @@ def marcar_agendada(context, entrada, appointment, ator=None):
     entrada.full_clean()
     entrada.save()
     _renumerar(context.tenant_id)
-    _auditar(context, 'agendada', entrada)
-    return entrada
+    _auditar(context, 'agendada', entrada,
+             **({'consulta_desmarcada': str(desmarcada.id)} if desmarcada else {}))
+    return desmarcada
 
 
 def opcoes_do_modal(tenant_id, physician_membership_id):
@@ -323,3 +368,50 @@ def por_na_lista_ao_cancelar(context, appointment, ator=None):
         context, appointment.patient, physician_membership=appointment.physician_membership,
         appointment_type=appointment.type, observacao='Consulta cancelada.', ator=ator,
     ), 'incluida'
+
+
+def da_consulta(tenant_id, appointment):
+    """A espera em aberto do paciente deste horário, se houver — para o modal da agenda."""
+    return (
+        _aguardando(tenant_id).filter(patient_id=appointment.patient_id)
+        .select_related('consulta_marcada').first()
+    )
+
+
+def encerrar_no_dia_da_consulta(hoje=None):
+    """Tira da lista quem chegou ao dia da consulta que queria antecipar.
+
+    Roda todo dia de madrugada (`scheduling.tasks.encerrar_esperas_do_dia`),
+    em todas as clínicas — inclusive nos dias sem agenda, o que não muda
+    nada: a regra é "a data da consulta chegou", e a consulta de sábado
+    encerra a espera no sábado. A consulta desmarcada por outro caminho
+    deixa a espera de pé: aí o paciente voltou a não ter horário, e é
+    exatamente quem a lista existe para chamar.
+
+    Devolve quantas esperas encerrou.
+    """
+    from types import SimpleNamespace
+
+    hoje = hoje or timezone.localdate()
+    vencidas = (
+        PacienteEmEspera.objects
+        .filter(status=EsperaStatus.AGUARDANDO, consulta_marcada__isnull=False,
+                consulta_marcada__status__in=SITUACOES_A_ANTECIPAR)
+        .select_related('consulta_marcada')
+    )
+    encerradas = 0
+    for entrada in vencidas:
+        dia = timezone.localtime(entrada.consulta_marcada.starts_at).date()
+        if dia > hoje:
+            continue
+        contexto = SimpleNamespace(user_id=None, tenant_id=entrada.tenant_id)
+        try:
+            retirar(
+                contexto, entrada,
+                motivo=f'Chegou o dia da consulta marcada ({dia.strftime("%d/%m/%Y")}) sem antecipação.',
+            )
+            encerradas += 1
+        except EsperaError:
+            # Outra pessoa a tirou da lista agora mesmo; nada a fazer.
+            continue
+    return encerradas

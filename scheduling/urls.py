@@ -118,6 +118,12 @@ urlpatterns = [
         '<uuid:appointment_id>/confirmar-por/<str:channel>/',
         views.SendConfirmationView.as_view(), name='send-confirmation',
     ),
+    # Pôr e tirar da lista de espera pela agenda (2026-11-12), antes da rota
+    # genérica pelo mesmo motivo.
+    path(
+        '<uuid:appointment_id>/lista-de-espera/',
+        views.AppointmentEsperaView.as_view(), name='appointment-espera',
+    ),
     # O WhatsApp da recepção (1.39), antes da rota genérica pelo mesmo motivo.
     path(
         '<uuid:appointment_id>/whatsapp/',

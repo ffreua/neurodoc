@@ -61,7 +61,8 @@ duas portas.{% endcomment %}
                             A seta indica a coluna e o sentido em vigor;
                             clicar na coluna já ordenada inverte.{% endcomment %}
                             <tr class="border-b">
-                                <th class="ps-4" scope="col"
+                                <th class="ps-4" scope="col">Ações</th>
+                                <th scope="col"
                                     {% if ordenar == 'abertura' %}aria-sort="{% if decrescente %}descending{% else %}ascending{% endif %}"{% endif %}>
                                     <a class="text-dark text-decoration-none"
                                        href="?ordenar=abertura&amp;desc={% if ordenar == 'abertura' and decrescente %}0{% else %}1{% endif %}">
@@ -81,13 +82,34 @@ duas portas.{% endcomment %}
                                 <th scope="col">Consulta</th>
                                 <th scope="col">Médico</th>
                                 <th scope="col">Status</th>
-                                <th class="text-end pe-4" scope="col">Ações</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for encounter in encounters %}
                             <tr>
-                                <td class="ps-4 fw-semibold text-dark">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</td>
+                                {% comment %}Ações na primeira coluna (2026-11-12): com as pastilhas do tipo
+                                mais longas, o botão no fim da linha exigia rolar a tabela
+                                para o lado — no celular e no computador.{% endcomment %}
+                                <td class="ps-4 text-nowrap">
+                                    <div class="d-inline-flex gap-1">
+                                        <a class="btn btn-sm btn-light-primary" href="{% url 'clinical:detail' encounter.id %}">Abrir atendimento</a>
+                                        <a class="btn btn-sm btn-light" href="{% url 'clinical:summary' encounter.id %}"
+                                           target="_blank" rel="noopener">Resumo</a>
+                                        {% comment %}Descartar aparece aqui porque é daqui que se vê
+                                        o atendimento aberto por engano — sem precisar entrar nele.
+                                        Só para não finalizado.{% endcomment %}
+                                        {% if encounter.status != 'finalized' %}
+                                        <button type="button" class="btn btn-icon btn-sm btn-light-danger"
+                                                data-nd-discard
+                                                data-nd-url="{% url 'clinical:discard' encounter.id %}"
+                                                data-nd-label="{{ encounter.occurred_at|date:'d/m/Y H:i' }}"
+                                                aria-label="Descartar atendimento de {{ encounter.occurred_at|date:'d/m/Y H:i' }}">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                        </button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td class="fw-semibold text-dark">{{ encounter.occurred_at|date:"d/m/Y H:i" }}</td>
                                 <td>
                                     {% if encounter.migrado %}
                                     <span class="badge bg-soft-secondary text-secondary" title="{{ encounter.finalization_justification }}">migrado do iClin</span>
@@ -107,25 +129,6 @@ duas portas.{% endcomment %}
                                 <td><span class="fs-12 text-muted">{{ encounter.physician_membership.user.get_full_name }}</span></td>
                                 <td>
                                     <span class="badge bg-soft-{{ encounter.status|nd_tone }} text-{{ encounter.status|nd_tone }}">{{ encounter.get_status_display }}</span>
-                                </td>
-                                <td class="text-end pe-4">
-                                    <div class="d-inline-flex gap-1">
-                                        <a class="btn btn-sm btn-light-primary" href="{% url 'clinical:detail' encounter.id %}">Abrir atendimento</a>
-                                        <a class="btn btn-sm btn-light" href="{% url 'clinical:summary' encounter.id %}"
-                                           target="_blank" rel="noopener">Resumo</a>
-                                        {% comment %}Descartar aparece aqui porque é daqui que se vê
-                                        o atendimento aberto por engano — sem precisar entrar nele.
-                                        Só para não finalizado.{% endcomment %}
-                                        {% if encounter.status != 'finalized' %}
-                                        <button type="button" class="btn btn-icon btn-sm btn-light-danger"
-                                                data-nd-discard
-                                                data-nd-url="{% url 'clinical:discard' encounter.id %}"
-                                                data-nd-label="{{ encounter.occurred_at|date:'d/m/Y H:i' }}"
-                                                aria-label="Descartar atendimento de {{ encounter.occurred_at|date:'d/m/Y H:i' }}">
-                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                        </button>
-                                        {% endif %}
-                                    </div>
                                 </td>
                             </tr>
                             {% empty %}

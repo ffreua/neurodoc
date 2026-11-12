@@ -211,7 +211,11 @@ não lê prontuário.
                             {% if registro.observacao %}
                             <span class="d-block fs-11 text-muted fst-italic">{{ registro.observacao }}</span>
                             {% endif %}
-                            {% if registro.status == 'aguardando' and registro.proximo_horario %}
+                            {% if registro.status == 'aguardando' and registro.consulta_marcada %}
+                            {% comment %}Posto na lista pela agenda para antecipar esta consulta
+                            (2026-11-12): sai sozinho no dia dela.{% endcomment %}
+                            <span class="badge bg-soft-warning text-warning fs-10 mt-1">Antecipar a consulta de {{ registro.consulta_marcada.starts_at|date:"d/m H:i" }} — sai da lista no dia dela</span>
+                            {% elif registro.status == 'aguardando' and registro.proximo_horario %}
                             <span class="badge bg-soft-info text-info fs-10 mt-1">Já tem horário em {{ registro.proximo_horario|date:"d/m H:i" }}</span>
                             {% endif %}
                             {% if registro.status == 'agendado' and registro.appointment %}

@@ -589,6 +589,18 @@ class PacienteEmEspera(TenantModel):
     #: Por que saiu da lista sem horário. Sem isso, quem abre o histórico
     #: não distingue "desistiu" de "foi engano".
     motivo_saida = models.CharField(max_length=255, blank=True)
+    #: A consulta que o paciente **já tem** e quer antecipar (2026-11-12): a
+    #: recepção marca o paciente na data possível e o põe na lista pela
+    #: agenda, para chamá-lo se abrir vaga antes. Puxado para um horário
+    #: anterior, esta é desmarcada (`espera.marcar_agendada`); chegado o dia
+    #: dela sem antecipação, a espera se encerra sozinha
+    #: (`espera.encerrar_no_dia_da_consulta`). Vazio é a espera de sempre,
+    #: de quem não tem horário nenhum. `SET_NULL`: a consulta não se apaga,
+    #: mas se sair, a espera continua — vira a de quem não tem horário.
+    consulta_marcada = models.ForeignKey(
+        'scheduling.Appointment', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='esperas_para_antecipar',
+    )
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
