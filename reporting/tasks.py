@@ -3,7 +3,9 @@ from celery import shared_task
 from .models import ReportExport, ReportExportStatus
 
 
-@shared_task(name='reporting.tasks.run_export', expires=3600)
+# Limite próprio (auditoria de 2026-11-11): o global de seis minutos
+# (`CELERY_TASK_TIME_LIMIT`) matava esta tarefa no meio com volume real.
+@shared_task(name='reporting.tasks.run_export', expires=3600, soft_time_limit=25 * 60, time_limit=26 * 60)
 def run_export(export_id):
     from .services import _REGISTRY, _write_export_file
 

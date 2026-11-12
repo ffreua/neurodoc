@@ -40,7 +40,15 @@ class DocumentAccessLandingView(View):
 
     Só uma sessão que já acertou a conferência **para este token** recebe
     os bytes do PDF.
+
+    A página fica fora do cache do navegador, como o PDF já ficava
+    (auditoria de 2026-11-11): ela mostra o documento e o médico.
     """
+
+    def dispatch(self, request, *args, **kwargs):
+        response = super().dispatch(request, *args, **kwargs)
+        response['Cache-Control'] = 'private, no-store, max-age=0'
+        return response
 
     def get(self, request, raw_token):
         token = access.resolve_token(raw_token)

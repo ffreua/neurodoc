@@ -153,7 +153,10 @@ def retomar_tuss_incompleta():
     return {'retomada': True, 'versao': rascunho.version}
 
 
-@shared_task(name='catalogs.tasks.importar_operadoras_ans', expires=3600)
+# Limite próprio (auditoria de 2026-11-11): o global de seis minutos
+# (`CELERY_TASK_TIME_LIMIT`) matava esta tarefa no meio com volume real.
+@shared_task(name='catalogs.tasks.importar_operadoras_ans', expires=3600, soft_time_limit=15 * 60,
+             time_limit=16 * 60)
 def importar_operadoras_ans():
     """Atualiza a lista de operadoras ativas da ANS (1.30), toda semana.
 
@@ -177,7 +180,10 @@ def importar_operadoras_ans():
     return {'ok': True, **resultado}
 
 
-@shared_task(name='catalogs.tasks.sincronizar_dominios_descartaveis', expires=3600)
+# Limite próprio (auditoria de 2026-11-11): o global de seis minutos
+# (`CELERY_TASK_TIME_LIMIT`) matava esta tarefa no meio com volume real.
+@shared_task(name='catalogs.tasks.sincronizar_dominios_descartaveis', expires=3600, soft_time_limit=15 * 60,
+             time_limit=16 * 60)
 def sincronizar_dominios_descartaveis():
     """A lista de e-mail descartável, toda semana (2026-11).
 

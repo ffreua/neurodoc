@@ -121,6 +121,7 @@ def garbage_collect(dry_run=True):
             | set(MedicalDocument.objects.exclude(signed_pdf_attachment=None)
                   .values_list('signed_pdf_attachment_id', flat=True))
         )
+        eliminaveis = {}
         for attachment in candidates:
             if not attachment.storage_key:
                 continue
@@ -131,10 +132,22 @@ def garbage_collect(dry_run=True):
                                         agora=agora, _cache=cache_guarda):
                 retidos.append(attachment.id)
                 continue
-            still_referenced = Attachment.objects.filter(
-                storage_key=attachment.storage_key, deleted_at__isnull=True,
-            ).exclude(id=attachment.id).exists()
-            if still_referenced:
+            eliminaveis[attachment.id] = attachment
+
+        # O arquivo é guardado uma vez por conteúdo e nome (`storage.py`):
+        # várias linhas podem apontar para ele. Só sai quando **toda** linha
+        # que aponta pode sair. Até a auditoria de 2026-11-11 conferia-se só
+        # as vivas — e o anexo clínico, também apagado na tela mas retido
+        # pela guarda de 20 anos, perdia os bytes quando o mesmo PDF,
+        # anexado como administrativo a outro paciente, era coletado.
+        chaves = {a.storage_key for a in eliminaveis.values()}
+        protegidas = set(
+            Attachment.objects.filter(storage_key__in=chaves)
+            .exclude(id__in=list(eliminaveis))
+            .values_list('storage_key', flat=True)
+        )
+        for attachment in eliminaveis.values():
+            if attachment.storage_key in protegidas:
                 continue
             removed.append(attachment.id)
             if not dry_run:

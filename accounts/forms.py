@@ -16,8 +16,6 @@ class ThrottledAuthenticationForm(AuthenticationForm):
         email = self.cleaned_data.get('username')
         if email and throttling.is_throttled(email, self._client_ip):
             raise ValidationError('Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.', code='throttled')
-        if email:
-            throttling.apply_progressive_delay(email, self._client_ip)
         try:
             return super().clean()
         except ValidationError:

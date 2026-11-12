@@ -79,6 +79,12 @@ PROIBIDAS = [
     (r'datetime\.date\.today\(\)', 'datetime.date.today()'),
     (r'(?<![\w.])datetime\.now\(\)', 'datetime.now()'),
     (r'(?<![\w.])datetime\.today\(\)', 'datetime.today()'),
+    # O ano, o mês e o dia do instante em UTC, e a data formatada dele
+    # (auditoria de 2026-11-11): o número do documento assinado em 31/12
+    # depois das 21h saía com o ano seguinte, e a versão da TUSS do comando
+    # manual, com a data de amanhã. As duas passavam por esta varredura.
+    (r'timezone\.now\(\)\.(?:year|month|day)\b', 'timezone.now().year/.month/.day'),
+    (r'timezone\.now\(\):%', 'timezone.now() formatado com %'),
 ]
 
 #: Pastas que nao servem requisicao nem tarefa, e cujo relogio nao decide

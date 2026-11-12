@@ -13,6 +13,12 @@ from ops.deploy import configuration, run
 from ops.env import ROOT
 from ops.locks import BACKUP_LOCK
 
+#: Quanto o backup espera pela trava do arquivo, dividida com a compactação
+#: do arquivo morto e a coleta semanal. Era um minuto, e o backup desistia
+#: do dia inteiro quando uma delas estava rodando (auditoria de
+#: 2026-11-11). Quarenta e cinco, como a espera pela trava do deploy.
+BACKUP_LOCK_WAIT_SECONDS = 45 * 60
+
 
 def container_for(service):
     ids = run(['docker', 'ps', '-q', '--filter',
@@ -64,7 +70,7 @@ def main():
     locked = False
     try:
         keeper.stdin.write("SET statement_timeout = '10s';\n")
-        deadline = time.monotonic() + 60
+        deadline = time.monotonic() + BACKUP_LOCK_WAIT_SECONDS
         while time.monotonic() < deadline:
             keeper.stdin.write(f'SELECT pg_try_advisory_lock({BACKUP_LOCK});\n')
             keeper.stdin.flush()

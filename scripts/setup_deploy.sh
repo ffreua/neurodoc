@@ -1120,7 +1120,7 @@ SSHCFG
   ajustes="s#/srv/neurodoc#${proj_real}#g"
   ajustes="${ajustes}; s#^User=neurodocops#User=${usuario_ops}#"
   ajustes="${ajustes}; s#^Group=neurodocops#Group=${usuario_ops}#"
-  for unidade in neurodoc-backup neurodoc-signing-cleanup; do
+  for unidade in neurodoc-backup neurodoc-signing-cleanup neurodoc-backup-vigia; do
     sudo sed "$ajustes" "ops/${unidade}.service" |
       sudo tee "/etc/systemd/system/${unidade}.service" >/dev/null
     sudo cp "ops/${unidade}.timer" "/etc/systemd/system/${unidade}.timer"
@@ -1130,8 +1130,8 @@ SSHCFG
   sudo sed "$ajustes" "ops/neurodoc-backup-falhou.service" |
     sudo tee "/etc/systemd/system/neurodoc-backup-falhou.service" >/dev/null
   sudo systemctl daemon-reload
-  sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer >>"$LOG_FILE" 2>&1
-  ok "Timers instalados e ligados (backup às 03:00, limpeza a cada 5 min)"
+  sudo systemctl enable --now neurodoc-backup.timer neurodoc-signing-cleanup.timer neurodoc-backup-vigia.timer >>"$LOG_FILE" 2>&1
+  ok "Timers instalados e ligados (backup às 03:00, vigia do backup às 08:00, limpeza a cada 5 min)"
 
   # A pasta de destino, antes de o primeiro backup tentar cria-la. Ela mora
   # em /srv, que e do root, e o backup roda como o usuario de operacao:

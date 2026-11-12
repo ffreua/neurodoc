@@ -1,4 +1,5 @@
 import os
+import re
 import unicodedata
 import uuid
 from pathlib import Path
@@ -49,12 +50,41 @@ def _load_pkcs12(pfx_bytes, password):
     return private_key, certificate
 
 
+#: Palavras do nome que não identificam ninguém: partículas e títulos.
+_PALAVRAS_NEUTRAS = frozenset({'da', 'das', 'de', 'do', 'dos', 'e', 'dr', 'dra'})
+
+
+def _palavras(texto):
+    return [p for p in re.findall(r'[a-z]+', _normalize(texto)) if p not in _PALAVRAS_NEUTRAS]
+
+
 def _check_title_holder(certificate, professional_name):
-    subject_cn = certificate.subject.rfc4514_string()
-    if _normalize(professional_name) not in _normalize(subject_cn) and \
-            not any(_normalize(part) in _normalize(subject_cn) for part in professional_name.split()):
+    """O titular do certificado é o médico cadastrado?
+
+    **Comparado com o nome do titular (CN), palavra por palavra, e com duas
+    palavras no mínimo** (auditoria de 2026-11-11). Até aqui bastava
+    **uma** palavra do nome aparecer em **qualquer** ponto do subject
+    inteiro — organização e unidade incluídas, e como pedaço de palavra:
+    "da", "Silva" ou o nome da clínica passavam com o certificado de outra
+    pessoa. O e-CPF da ICP-Brasil traz o nome completo no CN
+    ("NOME COMPLETO:CPF"); o nome profissional costuma ser um recorte dele,
+    por isso a regra é "as palavras dele estão no CN", e não o nome inteiro.
+
+    Continua heurística (P-05): a conferência de verdade é a da cadeia
+    ICP-Brasil e do CPF, que não está modelada aqui.
+    """
+    from cryptography.x509.oid import NameOID
+
+    nomes = certificate.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    titular = nomes[0].value if nomes else ''
+    do_certificado = set(_palavras(titular))
+    do_medico = _palavras(professional_name)
+    exigidas = min(2, len(do_medico))
+    casadas = sum(1 for p in do_medico if p in do_certificado)
+    if not do_medico or casadas < exigidas:
         raise CredentialTitleMismatch(
-            f'O titular do certificado ({subject_cn}) não parece ser o médico cadastrado ({professional_name}).',
+            f'O titular do certificado ({titular or "sem nome"}) não parece ser o médico '
+            f'cadastrado ({professional_name}).',
         )
 
 

@@ -1,0 +1,22 @@
+# Molde. O `scripts/setup_deploy.sh` instala este arquivo substituindo o
+# caminho e o usuario pelos que a instalacao realmente usa; os valores
+# abaixo sao os padroes (`/srv/neurodoc`, `neurodocops`).
+#
+# Confere se houve backup completo nas ultimas 26 horas. Existe porque o
+# aviso de falha so cobria o backup que roda e falha: timer desligado ou
+# unidade nao reinstalada nao e falha do servico, e nada avisava
+# (auditoria de 2026-11-11). Saindo com erro, avisa pelo mesmo e-mail.
+[Unit]
+Description=Confere se o backup do NeuroDoc rodou nas ultimas 26 horas
+Requires=docker.service
+After=docker.service
+OnFailure=neurodoc-backup-falhou.service
+
+[Service]
+Type=oneshot
+User=neurodocops
+Group=neurodocops
+WorkingDirectory=/srv/neurodoc
+ExecStart=/bin/sh /srv/neurodoc/scripts/vigiar_backup.sh
+TimeoutStartSec=2min
+NoNewPrivileges=true

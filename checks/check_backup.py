@@ -127,7 +127,8 @@ confere(devolvida, 'o bloco devolve a trava mesmo levantando excecao')
 print('=== 5. as unidades do systemd conseguem rodar ===')
 for unidade, script in [('neurodoc-backup', 'backup.sh'),
                         ('neurodoc-signing-cleanup', 'cleanup_signing_keys.sh'),
-                        ('neurodoc-backup-falhou', 'avisar_falha_backup.sh')]:
+                        ('neurodoc-backup-falhou', 'avisar_falha_backup.sh'),
+                        ('neurodoc-backup-vigia', 'vigiar_backup.sh')]:
     linhas = (ROOT / f'ops/{unidade}.service').read_text(encoding='utf-8').splitlines()
     exec_start = next(l for l in linhas if l.startswith('ExecStart='))
     caminho = next(l for l in linhas if l.startswith('WorkingDirectory=')).split('=', 1)[1]
@@ -235,6 +236,20 @@ finally:
 confere(len(_enviados_fw) == 1 and 'Cloudflare' in _enviados_fw[0].subject
         and 'journalctl -u neurodoc-cloudflare-fw.service' in _enviados_fw[0].body,
         'o comando manda o e-mail e diz onde ver o motivo', [m.subject for m in _enviados_fw])
+
+print('=== 5-C. o backup que nao roda tambem avisa ===')
+# Auditoria de 2026-11-11: o aviso so cobria o backup que roda e falha.
+_vigia = (ROOT / 'ops/neurodoc-backup-vigia.service').read_text(encoding='utf-8')
+confere('OnFailure=neurodoc-backup-falhou.service' in _vigia,
+        'o vigia, saindo com erro, manda o mesmo e-mail do backup que falhou')
+confere((ROOT / 'ops/neurodoc-backup-vigia.timer').is_file()
+        and 'neurodoc-backup-vigia.timer' in setup,
+        'o vigia tem timer proprio, e o instalador o liga')
+from ops import vigiar_backup as _vb
+
+confere(_vb.IDADE_MAXIMA_HORAS == 26, 'o limite e de 26 horas', _vb.IDADE_MAXIMA_HORAS)
+confere((ROOT / 'ops/backup.py').read_text(encoding='utf-8').count('BACKUP_LOCK_WAIT_SECONDS') >= 2,
+        'o backup espera a trava do arquivo pelo prazo declarado, e nao um minuto')
 
 print('=== 6. os scripts do timer usam o Python com as dependencias ===')
 for script in ['backup.sh', 'cleanup_signing_keys.sh', 'deploy.sh']:

@@ -73,14 +73,20 @@ def eligible_contacts(tenant_id):
 
     from patients.models import PatientContact
 
+    from patients.models import PatientStatus
+
     agora = timezone.now()
     ainda_valido = Q(valid_until__isnull=True) | Q(valid_until__gt=agora)
+    # Só paciente ativo (auditoria de 2026-11-11). A ficha arquivada — e o
+    # motivo do arquivamento é texto livre, pode ser óbito — seguia
+    # recebendo divulgação.
     return (
         PatientContact.objects
         .filter(
             tenant_id=tenant_id,
             marketing_opt_in_at__isnull=False,
             marketing_opt_out_at__isnull=True,
+            patient__status=PatientStatus.ACTIVE,
         )
         .exclude(email='')
         .filter(ainda_valido)
@@ -122,7 +128,19 @@ def build_recipients(campaign):
     enviado.
     """
     criados = 0
+    # Um destinatário por endereço (auditoria de 2026-11-11): a mãe
+    # cadastrada como contato de três filhos recebia três cópias, cada uma
+    # com seu link de descadastro. Vale o contato mais antigo daquele
+    # endereço, pela ordem de `eligible_contacts`.
+    enderecos = set(
+        campaign.recipients.values_list('email', flat=True)
+    )
+    enderecos = {(e or '').strip().lower() for e in enderecos}
     for contact in eligible_contacts(campaign.tenant_id):
+        endereco = contact.email.strip().lower()
+        if endereco in enderecos:
+            continue
+        enderecos.add(endereco)
         _, created = MarketingRecipient.objects.get_or_create(
             tenant_id=campaign.tenant_id, campaign=campaign, contact=contact,
             defaults={'email': contact.email},
@@ -263,7 +281,7 @@ def _enviar_fatia(campaign, limit):
 
     pendentes = (
         campaign.recipients.filter(status=RecipientStatus.PENDING)
-        .select_related('contact')[:limit]
+        .select_related('contact__patient')[:limit]
     )
 
     enviados = falhas = pulados = 0
@@ -271,16 +289,21 @@ def _enviar_fatia(campaign, limit):
         contact = recipient.contact
         # Reconferência no instante do envio: a lista foi congelada antes,
         # e o consentimento pode ter sido revogado desde então.
-        if not contact.accepts_marketing:
+        if not contact.accepts_marketing or contact.patient.status != 'active':
             recipient.status = RecipientStatus.SKIPPED
             recipient.detail = 'Consentimento revogado ou contato sem e-mail válido.'
             recipient.save(update_fields=['status', 'detail'])
             pulados += 1
             continue
         try:
+            # `List-Unsubscribe`: o descadastro que o próprio leitor de
+            # e-mail oferece, além do link no rodapé. Sem ele o Gmail e o
+            # Yahoo tratam a mensagem em massa com mais desconfiança — e o
+            # servidor é o da própria clínica.
             send_email(
                 contact.email, campaign.subject, _body_with_footer(campaign, contact),
                 tenant_id=campaign.tenant_id, require_own_server=True,
+                headers={'List-Unsubscribe': f'<{unsubscribe_url(contact)}>'},
             )
         except OwnServerRequired:
             # O servidor sumiu no meio da fatia. O destinatário fica
@@ -349,12 +372,33 @@ def unsubscribe(contact, source='link'):
     apagaria também a prova de que ele existiu, e é justamente essa prova
     que sustenta o que já foi enviado.
     """
+    from patients.models import PatientContact
+
+    agora = timezone.now()
     if contact.marketing_opt_out_at is None:
-        contact.marketing_opt_out_at = timezone.now()
+        contact.marketing_opt_out_at = agora
         contact.save(update_fields=['marketing_opt_out_at'])
         record_audit_event(
             None, contact.tenant_id, 'communications.marketing_unsubscribed',
             object_type='patient_contact', object_id=contact.id, outcome='success',
             integrity_metadata={'source': source},
         )
+    # O endereço sai da clínica inteira (auditoria de 2026-11-11). Clicar
+    # no link revogava só aquele contato, e as próximas campanhas seguiam
+    # chegando ao mesmo e-mail pelos outros contatos com ele — quem pediu
+    # para sair continuava recebendo (LGPD, art. 8º, § 5º).
+    if contact.email:
+        outros = (
+            PatientContact.objects
+            .filter(tenant_id=contact.tenant_id, email__iexact=contact.email.strip(),
+                    marketing_opt_out_at__isnull=True)
+            .exclude(id=contact.id)
+            .update(marketing_opt_out_at=agora)
+        )
+        if outros:
+            record_audit_event(
+                None, contact.tenant_id, 'communications.marketing_unsubscribed',
+                object_type='patient_contact', object_id=contact.id, outcome='success',
+                integrity_metadata={'source': source, 'outros_contatos_do_endereco': outros},
+            )
     return contact

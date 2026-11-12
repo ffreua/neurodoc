@@ -1,0 +1,13 @@
+# Uma vez por dia, de manha: o backup das 03h00 ja terminou, e o aviso
+# chega no horario em que alguem le e-mail. Timer proprio, e nao o do
+# backup: o vigia tem de sobreviver ao timer que vigia.
+[Unit]
+Description=Confere diariamente se o backup do NeuroDoc rodou
+
+[Timer]
+OnCalendar=*-*-* 08:00:00 America/Sao_Paulo
+Persistent=true
+Unit=neurodoc-backup-vigia.service
+
+[Install]
+WantedBy=timers.target

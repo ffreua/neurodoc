@@ -176,7 +176,7 @@ def _lock_document_number(tenant_id, year):
 
 @transaction.atomic
 def _next_document_number(tenant_id, kind):
-    year = timezone.now().year
+    year = timezone.localdate().year
     _lock_document_number(tenant_id, year)
     prefix = document_kinds.NUMBER_PREFIX[kind]
     count = MedicalDocument.objects.filter(

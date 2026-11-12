@@ -141,12 +141,33 @@ database = {
     'NAME': 'neurodoc', 'CONN_MAX_AGE': 0, 'CONN_HEALTH_CHECKS': True,
     'OPTIONS': {'connect_timeout': 5},
 }
+# Tempos limite no banco (auditoria de 2026-11-11). Não havia nenhum: uma
+# sessão parada no meio de uma transação segurava travas para sempre, e uma
+# consulta presa não tinha fim. Cada conexão leva o **seu** `OPTIONS` — o
+# `dict(database, ...)` copia só o primeiro nível, e mexer num mexeria no
+# outro.
+#
+# - `statement_timeout` de dois minutos: nenhuma tela nem tarefa faz uma
+#   consulta só que dure isso; as longas (exportação, catálogos) são muitas
+#   consultas curtas;
+# - `idle_in_transaction_session_timeout` de dez minutos: acima dos ~4,5
+#   minutos em que o job de IA segura a transação esperando o provedor;
+# - na conexão das migrações, `lock_timeout` de trinta segundos e nenhum
+#   limite de consulta: o `ALTER TABLE` que espera a trava atrás de uma
+#   consulta longa enfileirava todas as consultas seguintes à tabela — o
+#   site parado durante o deploy. Com o limite, a migração falha, o deploy
+#   para, e a versão anterior segue no ar (`start-first`).
 DATABASES = {'default': dict(
     database, USER='neurodoc_app', PASSWORD=secret('DB_APP_PASSWORD'),
+    OPTIONS={
+        'connect_timeout': 5,
+        'options': '-c statement_timeout=120000 -c idle_in_transaction_session_timeout=600000',
+    },
 )}
 if env.bool('RUN_MIGRATIONS', default=False):
     DATABASES['migrations'] = dict(
         database, USER='neurodoc_owner', PASSWORD=secret('DB_OWNER_PASSWORD'),
+        OPTIONS={'connect_timeout': 5, 'options': '-c lock_timeout=30000'},
     )
 redis_password = quote(secret('REDIS_PASSWORD'), safe='')
 rabbit_password = quote(secret('RABBITMQ_PASSWORD'), safe='')
@@ -237,9 +258,14 @@ CELERY_BEAT_SCHEDULE = {
     # a partir do último reinício do beat cairia em qualquer hora do dia —
     # e isto é trabalho de disco que não deve disputar E/S com o
     # atendimento.
+    #
+    # 00h30, e não 03h00 (auditoria de 2026-11-11): às 03h00 ela segurava a
+    # trava do arquivo (`BACKUP_LOCK`) na hora exata do backup diário, que
+    # desistia depois de um minuto — e o primeiro dia de cada trimestre
+    # ficava sem cópia.
     'documents-compact-archive': {
         'task': 'documents.tasks.compact_archive',
-        'schedule': crontab(minute=0, hour=3, day_of_month=1, month_of_year='1,4,7,10'),
+        'schedule': crontab(minute=30, hour=0, day_of_month=1, month_of_year='1,4,7,10'),
     },
     # Anexo esquecido em quarentena (antivírus fora do ar no envio, ou a
     # verificação expirada na fila). Ver `documents/tasks.py::reprocessar_quarentena`.
@@ -251,9 +277,14 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'documents.tasks.update_clamav_definitions',
         'schedule': 6 * 60 * 60,
     },
+    # `expires` (auditoria de 2026-11-11): com o worker fora do ar, o beat
+    # seguia enfileirando um despacho a cada cinco segundos — dezessete mil
+    # por dia —, e todos rodavam de uma vez na volta. Um despacho que não
+    # rodou em um minuto é substituído pelo seguinte.
     'events-dispatch-outbox': {
         'task': 'events.tasks.dispatch_outbox',
         'schedule': 5,
+        'options': {'expires': 60},
     },
     # Job de IA que ficou "na fila" sem chegar ao worker. Dez minutos
     # porque o corte e de vinte: ninguem espera mais que meia hora por um

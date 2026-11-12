@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.http import Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.utils.cache import add_never_cache_headers
 from django.views import View
 
 from audit.services import record_audit_event
@@ -35,7 +36,15 @@ class PortalBaseView(View):
         if self.tenant is None:
             raise Http404
         self.slug = slug
-        return super().dispatch(request, slug, *args, **kwargs)
+        response = super().dispatch(request, slug, *args, **kwargs)
+        # Fora do cache do navegador (auditoria de 2026-11-11). O padrão
+        # `no-store` do `TenantMiddleware` vale só em `/app/`, e estas
+        # páginas mostram "Paciente identificado: NOME": no computador da
+        # recepção, da farmácia ou da lan house, o Voltar reexibia o nome
+        # depois de "Encerrar identificação".
+        add_never_cache_headers(response)
+        response['Cache-Control'] = 'private, no-store, max-age=0'
+        return response
 
     def _bloqueado(self, request, impedimento, patient):
         """A tela da janela de retorno, com a porta do envio de exames.

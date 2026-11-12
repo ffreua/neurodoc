@@ -66,7 +66,10 @@ def reprocessar_quarentena():
     return {'reenfileirados': len(ids)}
 
 
-@shared_task(name='documents.tasks.update_clamav_definitions', expires=3600)
+# Limite próprio (auditoria de 2026-11-11): o global de seis minutos
+# (`CELERY_TASK_TIME_LIMIT`) matava esta tarefa no meio com volume real.
+@shared_task(name='documents.tasks.update_clamav_definitions', expires=3600, soft_time_limit=15 * 60,
+             time_limit=16 * 60)
 def update_clamav_definitions():
     """Runs every 6h from Celery beat (see CELERY_BEAT_SCHEDULE); a failure
     here just leaves the existing definitions in place — scan_attachment
@@ -80,7 +83,10 @@ def update_clamav_definitions():
     return {'status': 'updated'}
 
 
-@shared_task(name='documents.tasks.compact_archive', expires=6 * 60 * 60)
+# Limite próprio (auditoria de 2026-11-11): o global de seis minutos
+# (`CELERY_TASK_TIME_LIMIT`) matava esta tarefa no meio com volume real.
+@shared_task(name='documents.tasks.compact_archive', expires=6 * 60 * 60, soft_time_limit=40 * 60,
+             time_limit=41 * 60)
 def compact_archive_task():
     """Compactação trimestral do arquivo morto.
 
@@ -102,7 +108,10 @@ def compact_archive_task():
         return {'skipped': True, 'reason': str(exc)}
 
 
-@shared_task(name='documents.tasks.garbage_collect', expires=6 * 60 * 60)
+# Limite próprio (auditoria de 2026-11-11): o global de seis minutos
+# (`CELERY_TASK_TIME_LIMIT`) matava esta tarefa no meio com volume real.
+@shared_task(name='documents.tasks.garbage_collect', expires=6 * 60 * 60, soft_time_limit=40 * 60,
+             time_limit=41 * 60)
 def garbage_collect_task():
     """Coleta semanal do arquivo de anexo ja apagado pelo usuario.
 

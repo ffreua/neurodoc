@@ -199,7 +199,7 @@ def _connection_for(sender):
 
 
 def send_email(to_email, subject, body_text, physician_membership=None, tenant_id=None,
-               html_body=None, require_own_server=False):
+               html_body=None, require_own_server=False, headers=None):
     """Envia e-mail pelo framework nativo do Django.
 
     O remetente sai de `resolve_sender` — médico, senão clínica, senão
@@ -229,13 +229,13 @@ def send_email(to_email, subject, body_text, physician_membership=None, tenant_i
         # descarta, ainda entregam a mensagem legível.
         message = EmailMultiAlternatives(
             subject=subject, body=body_text, from_email=from_email, to=[to_email],
-            reply_to=reply_to,
+            reply_to=reply_to, headers=headers,
         )
         message.attach_alternative(html_body, 'text/html')
     else:
         message = EmailMessage(
             subject=subject, body=body_text, from_email=from_email, to=[to_email],
-            reply_to=reply_to,
+            reply_to=reply_to, headers=headers,
         )
 
     connection = _connection_for(sender)

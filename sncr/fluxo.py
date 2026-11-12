@@ -252,6 +252,19 @@ def concluir(request, session_id):
         if timezone.now() - pedido.created_at > PRAZO_DO_LOGIN:
             _encerrar(pedido, EstadoPedido.EXPIRADO, 'O login no Gov.br demorou mais de 5 minutos. Peça de novo.')
             return pedido
+        # A conferência de novo, com o médico travado (auditoria de
+        # 2026-11-11). `iniciar` confere, mas o pedido que espera o login do
+        # Gov.br não barra outro: do computador e do celular, em duas
+        # sessões, os dois passavam, e os dois iam à Anvisa — dois blocos e
+        # dois dos três pedidos do mês, ou dois lotes da cota da Vigilância.
+        # Travado o médico, o segundo espera o primeiro marcar "enviando" e
+        # é recusado aqui, antes de qualquer chamada.
+        from accounts.models import PhysicianProfile
+
+        medico = PhysicianProfile.objects.select_for_update().get(pk=pedido.medico_id)
+        motivos = conferir(Configuracao.carregar(), medico, pedido.tipo)
+        if motivos:
+            return _encerrar(pedido, EstadoPedido.RECUSADO, ' '.join(motivos))
         pedido.estado = EstadoPedido.ENVIANDO
         pedido.enviado_em = timezone.now()
         pedido.save(update_fields=['estado', 'enviado_em', 'updated_at'])
