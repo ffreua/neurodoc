@@ -67,10 +67,18 @@ from django.utils.safestring import mark_safe
 #: OpenRouter; e os aceites 1.x valendo até novo aceite expresso (2.4).
 #: Nenhuma clínica tinha aceitado a 2.0, e por isso não é versão nova.
 #: O que mudou está em `docs/governance/contrato-2.0-pendencias.md`.
-VERSAO = '2.0'
+#:
+#: **A 2.1** (2026-11-13) é a 2.0 com o pagamento pelo site: a cláusula 4.3
+#: passa a prever a Asaas (PIX ou cartão, e as parcelas semestrais e
+#: trimestrais no cartão até o fim dos 12 meses, sem renovação), a Asaas
+#: entra no Anexo II e no item 5 do Aviso de Privacidade. Minuta em
+#: `docs/governance/contrato-2.1-minuta.md`, autorizada pela Dra. Karina.
+#: Nada mais mudou; quem aceitou a 2.0 continua nela. É a versão que o
+#: console exige para ligar o checkout (`contratacao/console.py`).
+VERSAO = '2.1'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-11-10'
+VIGENCIA_DESDE = '2026-11-13'
 
 ARQUIVO = Path(__file__).resolve().parent / 'contrato' / f'contrato-{VERSAO}.md'
 

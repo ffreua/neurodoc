@@ -1,5 +1,10 @@
 # Contrato 2.1 — minuta do que muda (para a Dra. Karina conferir)
 
+> **Autorizada pela Dra. Karina e publicada em 2026-11-13** como
+> `tenancy/contrato/contrato-2.1.md`, com a redação sugerida abaixo, sem
+> alteração. As perguntas da seção 4 foram dadas por respondidas pela
+> autorização.
+
 **Motivo:** a partir da 1.46 o Básico e o Completo podem ser contratados e
 pagos na própria página de vendas, pelo **checkout da Asaas** (Asaas Gestão
 Financeira Instituição de Pagamento S.A.), contratado pela ProntDoc. A 2.0

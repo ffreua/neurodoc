@@ -155,6 +155,10 @@ obrigatorias = [
     ('versoes anteriores nao mudam', r'sem altera[cç][aã]o retroativa'),
     ('foro', r'fica eleito o foro'),
     ('declaracao de aceite', r'DECLARA[CÇ][AÃ]O DE ACEITE'),
+    # Redacao 2.1 (2026-11-13): o pagamento pelo site, que o checkout cobra.
+    ('pagamento pelo site pela Asaas', r'institui[cç][aã]o de pagamento Asaas'),
+    ('parcelas no cartao sem renovacao', r'at[eé] o fim da vig[eê]ncia de 12 meses, sem renova[cç][aã]o autom[aá]tica'),
+    ('Asaas no Anexo II', r'Asaas Gest[aã]o Financeira'),
 ]
 presentes = 0
 for rotulo, padrao in obrigatorias:

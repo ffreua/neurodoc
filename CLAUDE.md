@@ -292,7 +292,9 @@ lido e renderizado como veio (título, parágrafo, tabela, negrito), e não
 mais transcrito em listas Python: quadro-resumo, vinte cláusulas, os
 **Anexos I a V e o Aviso de Privacidade**, todos na mesma página
 `/contrato/` com âncora (`#anexo-i`… `#aviso-de-privacidade`) e todos no
-texto aceito — o hash cobre os sete. O arquivo dela dizia "Versão 2.2"
+texto aceito — o hash cobre os sete. **A 2.1 (2026-11-13)** é a 2.0 com o pagamento pelo site — cláusula 4.3, a
+Asaas no Anexo II e no Aviso —, em `contrato-2.1.md`; é a que o console exige
+para ligar o checkout (§4, `contratacao`). O arquivo dela dizia "Versão 2.2"
 (numeração das minutas); publicou-se como **2.0**, sucessora da 1.2.
 `VERSAO` identifica a redação, e **nunca se edita uma versão já
 aceita**: texto novo é versão nova. Os aceites 1.x ficam com a cópia
