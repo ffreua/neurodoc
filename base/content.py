@@ -332,11 +332,15 @@ ESPECIALIDADES = {
              'médico, qualquer que seja a especialidade.',
 }
 
-def _resposta_pagamento():
+def _resposta_pagamento(checkout=False):
     """A regra de pagamento, com os números de `tenancy/plans.py`.
 
     Montada, e não escrita: a resposta cita percentuais e valores, e uma
     cópia à mão diria "20%" no dia em que o anual passasse a 15%.
+
+    `checkout` é a chave do checkout da Asaas (1.46): ligada, a resposta
+    diz como se contrata pela página; desligada, continua dizendo que não há
+    pagamento on-line. Quem decide é `faq()`, lendo a chave a cada página.
     """
     from tenancy.plans import PERIODICIDADES, PLANS, PlanCode, preco_na_periodicidade
 
@@ -352,15 +356,29 @@ def _resposta_pagamento():
 
     anual = PERIODICIDADES['anual']['desconto']
     semestral = PERIODICIDADES['semestral']['desconto']
+    if checkout:
+        como = (
+            'O Gratuito não tem cobrança, e o Personalizado é combinado. O Básico e o '
+            'Completo podem ser contratados na própria página, pela Asaas: o anual por Pix '
+            'ou cartão, o semestral e o trimestral no cartão, cobrados a cada período e '
+            'encerrados ao fim dos 12 meses, sem renovação automática. Pago, o link para '
+            'criar a clínica chega na hora. Também dá para combinar conosco e receber um '
+            'código de convite; nos dois casos, plano e forma de pagamento ficam '
+            'registrados no aceite do contrato.'
+        )
+    else:
+        como = (
+            'O Gratuito não tem cobrança, e o Personalizado é combinado. Não há pagamento '
+            'on-line: o acesso é liberado por um código de convite com o plano e a forma de '
+            'pagamento combinados, que ficam registrados no aceite do contrato.'
+        )
     return (
         'O contrato é de 12 meses, e você escolhe como pagar: de uma vez por ano, '
         f'com {anual}% de desconto de lançamento; por semestre, com {semestral}% de '
         'desconto; ou por trimestre, pelo preço cheio. Os descontos valem só para a '
         'forma de pagamento em que estão escritos. '
         f'No Básico: {valores(PlanCode.BASIC)}. No Completo: {valores(PlanCode.COMPLETE)}. '
-        'O Gratuito não tem cobrança, e o Personalizado é combinado. Não há pagamento '
-        'on-line: o acesso é liberado por um código de convite com o plano e a forma de '
-        'pagamento combinados, que ficam registrados no aceite do contrato.'
+        + como
     )
 
 
@@ -507,3 +525,33 @@ FAQ = [
                     'fazem parte desta versão.',
     },
 ]
+
+
+def faq():
+    """O FAQ como a página deve dizê-lo agora — com a chave do checkout lida.
+
+    Duas respostas dependem de o checkout da Asaas estar ligado no console
+    (1.46): a do pagamento e a do que ainda não existe. A chave muda sem
+    deploy, e `FAQ` é montado na importação; por isso as três portas que o
+    publicam — a página de vendas, o JSON-LD e o `llms-full.txt` — leem
+    daqui, e não da lista. Sem banco (a chave não pode ser lida), vale a
+    redação de chave desligada: é a que nunca promete o que não há.
+    """
+    try:
+        from contratacao.views import checkout_ligado
+
+        ligado = checkout_ligado()
+    except Exception:  # noqa: BLE001
+        ligado = False
+    if not ligado:
+        return FAQ
+    itens = []
+    for item in FAQ:
+        if item['pergunta'] == 'Como funciona o pagamento dos planos?':
+            item = dict(item, resposta=_resposta_pagamento(checkout=True))
+        elif item['pergunta'] == 'O que ainda não existe?':
+            item = dict(item, resposta='Teleconsulta, integração com PACS/DICOM e o envio '
+                                       'automático do lote TISS ao webservice das operadoras '
+                                       'não fazem parte desta versão.')
+        itens.append(item)
+    return itens

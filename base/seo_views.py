@@ -200,7 +200,7 @@ def _absolutos(texto):
 
 
 def _texto_para_modelo(completo):
-    from base.content import FAQ, INSTAGRAM, RECURSOS
+    from base.content import INSTAGRAM, RECURSOS, faq
     from base.help_content import ARTICLES, FAQ_USO
     from tenancy.plans import PUBLIC_ORDER, PLANS, pricing
 
@@ -247,7 +247,7 @@ def _texto_para_modelo(completo):
         '',
         '## Perguntas frequentes',
         '',
-        *[f"- **{f['pergunta']}** {f['resposta']}" for f in FAQ],
+        *[f"- **{f['pergunta']}** {f['resposta']}" for f in faq()],
         '',
         '## Páginas',
         '',

@@ -15,7 +15,7 @@ from tenancy.services import (
     EmailAlreadyRegistered, EmailDescartavel, InvalidInvitation, accept_platform_invitation,
 )
 
-from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, FAQ, INSTAGRAM, NOVIDADE, NOVIDADES, RECURSOS
+from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, INSTAGRAM, NOVIDADE, NOVIDADES, RECURSOS, faq
 from .help_content import ARTICLES as HELP_ARTICLES, article_by_slug
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
@@ -185,9 +185,15 @@ class LandingView(View):
             preco_inicio_de_carreira, public_plans,
         )
 
+        from contratacao.views import checkout_ligado, plano_contratavel
+
         planos = public_plans()
+        # O checkout da Asaas (1.46): ligado no console, o plano pago de
+        # tabela ganha o botão de contratar; desligado, nada muda na página.
+        checkout = checkout_ligado()
         for plano in planos:
             plano['carreira'] = preco_inicio_de_carreira(plano['code'])
+            plano['contratavel'] = checkout and plano_contratavel(plano['code'])
         context = {
             'form': InvitationCodeForm(),
             'lead_form': LeadForm(),
@@ -218,6 +224,7 @@ class LandingView(View):
             # com o preço de cada plano lido de `tenancy.plans` como os demais.
             'promo_carreira': PROMOCAO_INICIO_DE_CARREIRA,
             'degustacao': _degustacao_na_vitrine(),
+            'checkout_ativo': checkout,
             'promo_carreira_precos': [
                 preco_inicio_de_carreira(c) for c in PROMOCAO_INICIO_DE_CARREIRA['planos']
             ],
@@ -232,7 +239,7 @@ class LandingView(View):
             # conferivel contra o que o produto faz, e dentro do HTML a
             # conferencia viraria uma busca por substring no markup.
             'especialidades': ESPECIALIDADES,
-            'faq': FAQ,
+            'faq': faq(),
             # Quatro artigos do manual, para a pagina mostrar que ele existe
             # sem virar um indice dentro da pagina de vendas. Por slug, e nao
             # por posicao: era `[1:5]`, e o "Primeiros passos" entrando no

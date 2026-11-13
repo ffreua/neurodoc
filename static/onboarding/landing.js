@@ -100,6 +100,10 @@
 
     function escolher(periodo) {
         secao.setAttribute('data-periodo', periodo);
+        // O "Contratar agora" leva a forma escolhida até a tela de pagamento.
+        secao.querySelectorAll('[data-nd-contratar]').forEach(function (link) {
+            link.setAttribute('href', link.getAttribute('href').split('?')[0] + '?periodo=' + encodeURIComponent(periodo));
+        });
         botoes.forEach(function (b) {
             b.setAttribute('aria-pressed', b.getAttribute('data-nd-periodo') === periodo ? 'true' : 'false');
         });

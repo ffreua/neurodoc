@@ -18,6 +18,8 @@ SECRET_MAP = {
     'OPENAI_API_KEY': 'NEURODOC_OPENAI_API_KEY',
     'ANTHROPIC_API_KEY': 'NEURODOC_ANTHROPIC_API_KEY',
     'NVIDIA_API_KEY': 'NEURODOC_NVIDIA_API_KEY',
+    'ASAAS_API_KEY': 'NEURODOC_ASAAS_API_KEY',
+    'ASAAS_WEBHOOK_TOKEN': 'NEURODOC_ASAAS_WEBHOOK_TOKEN',
     'PFX_MASTER_KEY': 'NEURODOC_PFX_MASTER_KEY',
     'SECRETS_MASTER_KEY': 'NEURODOC_SECRETS_MASTER_KEY',
 }
@@ -64,7 +66,10 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  'SEGUNDO_FATOR_OBRIGATORIO_DESDE',
                  # Processos do `app` e tarefas simultâneas do worker
                  # (`ops/entrypoint.sh`). Opcionais: sem elas, 2 e 2.
-                 'APP_WORKERS', 'WORKER_CONCURRENCY']
+                 'APP_WORKERS', 'WORKER_CONCURRENCY',
+                 # O endereço da API da Asaas (1.46). Vazio = produção; só o
+                 # sandbox o declara.
+                 'ASAAS_BASE_URL']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 
@@ -91,11 +96,11 @@ def prepare_runtime(config):
         if role == 'migrate':
             names += ['DB_OWNER_PASSWORD']
         elif role == 'app':
-            names += ['PFX_MASTER_KEY', 'SECRETS_MASTER_KEY']
+            names += ['PFX_MASTER_KEY', 'SECRETS_MASTER_KEY', 'ASAAS_WEBHOOK_TOKEN']
         elif role == 'worker':
             names += ['SMTP_PASSWORD', 'SMSDEV_API_KEY',
                       'OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY',
-                      'NVIDIA_API_KEY',
+                      'NVIDIA_API_KEY', 'ASAAS_API_KEY', 'ASAAS_WEBHOOK_TOKEN',
                       'SECRETS_MASTER_KEY']
         for name in names:
             values[f'{name}_FILE'] = f'/run/secrets/{SECRET_MAP[name]}'

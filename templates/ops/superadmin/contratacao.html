@@ -1,0 +1,147 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Contratação — NeuroDoc{% endblock %}
+{% block page_title %}Contratação pela página (Asaas){% endblock %}
+{% block super_section %}Contratação{% endblock %}
+{% block super_content %}
+{% comment %}O checkout da Asaas (1.46, `contratacao/`). A chave decide se a
+vitrine oferece o pagamento; os avisos da Asaas são recebidos com ela ligada
+ou não. Pagamento emite convite — não muda plano de clínica nenhuma —, e
+estorno, contestação e atraso chegam aqui e por e-mail, sem suspender nada
+sozinhos.{% endcomment %}
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">Checkout na página de vendas</h5>
+                {% if config.ativo %}
+                <span class="badge bg-soft-success text-success">Ligado</span>
+                {% else %}
+                <span class="badge bg-soft-primary text-primary">Desligado</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    Ligado, os planos Básico e Completo da página de vendas abrem o pagamento pela
+                    Asaas; pago, o convite do plano é emitido e o link de cadastro vai ao e-mail de quem
+                    pagou. Desligado, a página volta ao formulário de contato. Os avisos da Asaas
+                    continuam sendo recebidos com ele desligado.
+                </p>
+                <div class="row g-3 fs-12 mb-3">
+                    <div class="col-sm-4"><span class="d-block text-muted">Contrato publicado</span>
+                        <strong>{{ contrato_versao }}</strong>
+                        {% if not contrato_permite %}<span class="d-block text-danger">ligar exige a {{ contrato_minimo }}</span>{% endif %}
+                    </div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Token do webhook no app</span>
+                        <strong>{% if token_configurado %}configurado{% else %}<span class="text-danger">ausente</span>{% endif %}</strong>
+                    </div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Pedidos pagos</span><strong>{{ pagos }}</strong></div>
+                    <div class="col-12"><span class="d-block text-muted">Endereço do webhook</span><code>{{ webhook_url }}</code></div>
+                </div>
+                {% if config.ativo %}
+                <form method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="desligar">
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Desligar agora</button>
+                </form>
+                {% else %}
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="ligar">
+                    <div class="col-md-6">
+                        <label class="form-label fs-12" for="checkout-motivo">Por que ligar?</label>
+                        <input type="text" class="form-control form-control-sm" id="checkout-motivo"
+                               name="motivo" maxlength="255" placeholder="Ex.: contrato 2.1 publicado">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fs-12" for="checkout-confirmacao">Digite <code>{{ confirmacao }}</code></label>
+                        <input type="text" class="form-control form-control-sm" id="checkout-confirmacao"
+                               name="confirmacao" autocomplete="off">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-danger btn-sm w-100" data-nd-busy>Ligar o checkout</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if eventos_com_erro %}
+    <div class="col-12">
+        <div class="alert alert-warning" role="alert">
+            <strong>{{ eventos_com_erro|length }} aviso(s) da Asaas com erro de processamento.</strong>
+            A varredura tenta de novo a cada cinco minutos.
+            <ul class="mb-0 mt-2 fs-12">
+                {% for e in eventos_com_erro %}<li><code>{{ e.tipo }}</code> {{ e.event_id }} — {{ e.tentativas }} tentativa(s): {{ e.erro|truncatechars:160 }}</li>{% endfor %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Pedidos</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-gray-100">
+                            <tr class="border-b">
+                                <th class="ps-4" scope="col">Quem</th>
+                                <th scope="col">Plano</th>
+                                <th scope="col">Situação</th>
+                                <th scope="col">Cobranças</th>
+                                <th class="pe-4" scope="col">Feito em</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in pedidos %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="fw-semibold text-dark d-block">{{ p.nome }}</span>
+                                    <a class="fs-11" href="mailto:{{ p.email }}">{{ p.email }}</a>
+                                    <span class="fs-11 text-muted d-block">{{ p.id }}</span>
+                                </td>
+                                <td class="fs-12">{{ p.plano }} · {{ p.periodicidade }}<span class="d-block text-muted">{{ p.cobrancas_previstas }} × {{ p.valor_pagamento_brl }}</span></td>
+                                <td class="fs-12">
+                                    <span class="badge {% if p.status == 'pago' %}bg-soft-success text-success{% elif p.status == 'falhou' %}bg-soft-danger text-danger{% else %}bg-gray-200 text-dark{% endif %}">{{ p.get_status_display }}</span>
+                                    {% if p.convite %}<span class="d-block fs-11 text-muted">convite {% if p.convite.consumed_at %}usado em {{ p.convite.consumed_at|date:"d/m/Y" }}{% else %}não usado{% endif %}</span>{% endif %}
+                                    {% if p.status == 'pago' and not p.email_enviado_em %}<span class="d-block fs-11 text-warning">e-mail do link não saiu</span>{% endif %}
+                                    {% if p.falha %}<span class="d-block fs-11 text-danger">{{ p.falha|truncatechars:120 }}</span>{% endif %}
+                                </td>
+                                <td class="fs-11">
+                                    {% for c in p.cobrancas.all %}<span class="d-block">{{ c.vencimento|date:"d/m/Y"|default:"—" }} · R$ {{ c.valor|default:"—" }} · {{ c.status }}</span>{% empty %}<span class="text-muted">—</span>{% endfor %}
+                                </td>
+                                <td class="pe-4 fs-12 text-muted">{{ p.created_at|date:"d/m/Y H:i" }}{% if p.pago_em %}<span class="d-block">pago {{ p.pago_em|date:"d/m/Y H:i" }}</span>{% endif %}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="ps-4 py-4 text-muted fs-12">Nenhum pedido ainda.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Últimos avisos da Asaas</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0 fs-12">
+                        <thead class="bg-gray-100"><tr class="border-b"><th class="ps-4" scope="col">Tipo</th><th scope="col">Recebido</th><th class="pe-4" scope="col">Processado</th></tr></thead>
+                        <tbody>
+                            {% for e in eventos_recentes %}
+                            <tr><td class="ps-4"><code>{{ e.tipo }}</code></td><td>{{ e.recebido_em|date:"d/m/Y H:i:s" }}</td>
+                                <td class="pe-4">{% if e.processado_em %}{{ e.processado_em|date:"d/m/Y H:i:s" }}{% if e.erro %} <span class="text-muted">({{ e.erro|truncatechars:80 }})</span>{% endif %}{% else %}<span class="text-warning">pendente</span>{% endif %}</td></tr>
+                            {% empty %}
+                            <tr><td colspan="3" class="ps-4 py-4 text-muted">Nenhum aviso recebido ainda.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

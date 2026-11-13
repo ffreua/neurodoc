@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     'catalogs', 'clinical', 'scheduling', 'documents', 'communications',
     'finance', 'ai', 'notifications', 'audit', 'reporting',
     'integrations', 'events', 'exams', 'teamchat', 'sncr', 'modelos', 'tiss', 'agenda_exames',
+    'contratacao',
 ]
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',
@@ -208,6 +209,12 @@ CELERY_TASK_ROUTES = {
 AGENDA_POR_EMAIL_HORA = 19
 
 CELERY_BEAT_SCHEDULE = {
+    # Contratação (1.46): aviso da Asaas que ficou sem processar (a fila caiu
+    # entre gravar e enfileirar) e pedido parado. Só banco.
+    'contratacao-varredura': {
+        'task': 'contratacao.tasks.varrer_contratacao',
+        'schedule': 300,
+    },
     # SNCR: pedido de numeração parado em "enviando" (o app caiu no meio
     # da chamada) vira incerto. Não fala com a Anvisa; só banco.
     # TISS (1.30): lote em "gerando" cuja mensagem se perdeu é reenviado.
@@ -549,6 +556,15 @@ DEFAULT_EXCEPTION_REPORTER = 'base.logging.NoQueryStringExceptionReporter'
 # endereco, e o dominio pagaria a reputacao.
 LEADS_EMAIL = env('LEADS_EMAIL', default='contato@neurodoc.app.br')
 SMS_ENABLED = env.bool('SMS_ENABLED', default=False)
+# Checkout da Asaas (1.46, `contratacao/`). A chave da API é de egresso e
+# vai **só** ao worker (§2 do CLAUDE.md); o token do webhook vai ao app,
+# que confere o aviso, e ao worker, que o grava na Asaas
+# (`manage.py asaas_webhook`). `DISABLED` ou ausente = checkout sem chave: o
+# pedido falha com a explicação, e a chave do console é que decide se a
+# vitrine oferece o checkout. `ASAAS_BASE_URL` só muda para o sandbox.
+ASAAS_API_KEY = secret('ASAAS_API_KEY', required=False)
+ASAAS_WEBHOOK_TOKEN = secret('ASAAS_WEBHOOK_TOKEN', required=False)
+ASAAS_BASE_URL = env('ASAAS_BASE_URL', default='https://api.asaas.com/v3')
 SMSDEV_API_KEY = secret('SMSDEV_API_KEY', required=(SMS_ENABLED and env('SERVICE_ROLE', default='app') == 'worker'))
 AI_ENABLED = env.bool('AI_ENABLED', default=False)
 AI_PROVIDER = env('AI_PROVIDER', default='nvidia')

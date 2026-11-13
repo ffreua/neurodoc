@@ -13,6 +13,8 @@ telas apontam.
 """
 from django.urls import path
 
+from contratacao.console import ContratacaoView
+
 from . import superadmin
 
 app_name = 'superadmin'
@@ -42,6 +44,8 @@ urlpatterns = [
         superadmin.InvitationRevokeView.as_view(), name='revoke-invitation',
     ),
     path('leads/', superadmin.LeadsView.as_view(), name='leads'),
+    # Checkout da Asaas (1.46): a chave, os pedidos e os avisos.
+    path('contratacao/', ContratacaoView.as_view(), name='contratacao'),
     path(
         'mensagens/',
         superadmin.ClinicMessagesView.as_view(), name='clinic-messages',

@@ -259,8 +259,13 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                 pagamento e o <strong>total do ano</strong> mudam juntos.
             </p>
             <p class="fs-12 text-muted mb-4">
+                {% if checkout_ativo %}
+                Contrate o Básico ou o Completo aqui mesmo, por Pix ou cartão: pago, o link para criar a
+                clínica chega na hora. O plano <strong>Gratuito</strong> não tem prazo nem cartão.
+                {% else %}
                 Não há pagamento on-line: o acesso é liberado por um código de convite com o plano
                 e a forma de pagamento combinados. O plano <strong>Gratuito</strong> não tem prazo nem cartão.
+                {% endif %}
             </p>
             <div class="nd-periodo" role="group" aria-label="Forma de pagamento">
                 {% for p in periodicidades %}
@@ -406,9 +411,24 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                                 Sem cartão. Depois, vira Gratuito — nada é apagado
                             </span>
                         </form>
+                        {% if plan.contratavel %}
+                        <a class="btn btn-outline-secondary mt-2" data-nd-contratar
+                           href="{% url 'contratacao:contratar' plan.code %}?periodo={{ periodo_padrao }}">
+                            Contratar agora
+                        </a>
+                        {% else %}
                         <a class="btn btn-outline-secondary mt-2" href="#contato" data-nd-plan="{{ plan.code }}">
                             Quero este plano
                         </a>
+                        {% endif %}
+                        {% elif plan.contratavel %}
+                        {% comment %}Checkout da Asaas (1.46): o botão leva à forma de pagamento
+                        escolhida no seletor acima (`data-nd-contratar`, em `landing.js`).{% endcomment %}
+                        <a class="btn {% if plan.highlight %}btn-primary{% else %}btn-outline-secondary{% endif %} mt-auto"
+                           data-nd-contratar href="{% url 'contratacao:contratar' plan.code %}?periodo={{ periodo_padrao }}">
+                            Contratar agora
+                        </a>
+                        <span class="d-block fs-11 text-muted text-center mt-2">Pix ou cartão, pela Asaas</span>
                         {% else %}
                         <a class="btn {% if plan.highlight %}btn-primary{% else %}btn-outline-secondary{% endif %} mt-auto"
                            href="#contato" data-nd-plan="{{ plan.code }}">

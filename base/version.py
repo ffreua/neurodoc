@@ -279,12 +279,16 @@ carimbá-la na publicação.
 #: A **1.45**: o contrato de adesão 2.0 da Dra. Karina, com os Anexos I a V
 #: e o Aviso de Privacidade, lido do arquivo dela (`tenancy/contrato/`).
 #: Sem migração.
-VERSION = '1.45'
+#: A **1.46**: o checkout da Asaas -- o Básico e o Completo contratados e
+#: pagos na página de vendas, o convite emitido pelo aviso de pagamento.
+#: Publicada desligada; liga com o contrato 2.1. Migração só de expansão
+#: (app novo `contratacao`).
+VERSION = '1.46'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
 #: para cada correção é ruído.
-CODENAME = 'contrato 2.0'
+CODENAME = 'checkout'
 
 
 def version_display():

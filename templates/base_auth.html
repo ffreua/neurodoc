@@ -9,6 +9,7 @@ no header — the Duralux auth card layout instead.{% endcomment %}
     `{% include %}`, e enquanto o titulo morou la nenhuma pagina conseguiu
     declarar o proprio. O padrao vem do catalogo de `base/seo.py`.{% endcomment %}
     <title>{% block title %}{{ nd_seo.titulo }}{% endblock %}</title>
+    {% block head_extra %}{% endblock %}
 </head>
 <body class="auth-container">
 <div class="nd-auth-shell">

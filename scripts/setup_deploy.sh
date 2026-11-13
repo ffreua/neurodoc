@@ -580,10 +580,10 @@ segredos_do_stack() {
 # **url-safe** (44 caracteres). O `-base64 48` das outras seis produz 64
 # caracteres, o Fernet recusa, e a recusa não aparece no deploy — aparece
 # semanas depois, quando alguém salva uma senha de SMTP de clínica.
-SEGREDOS_ALEATORIOS="NEURODOC_DJANGO_SECRET_KEY NEURODOC_DB_ADMIN_PASSWORD NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD NEURODOC_RABBITMQ_PASSWORD NEURODOC_REDIS_PASSWORD"
+SEGREDOS_ALEATORIOS="NEURODOC_DJANGO_SECRET_KEY NEURODOC_DB_ADMIN_PASSWORD NEURODOC_DB_OWNER_PASSWORD NEURODOC_DB_APP_PASSWORD NEURODOC_RABBITMQ_PASSWORD NEURODOC_REDIS_PASSWORD NEURODOC_ASAAS_WEBHOOK_TOKEN"
 SEGREDOS_FERNET="NEURODOC_PFX_MASTER_KEY NEURODOC_SECRETS_MASTER_KEY"
 SEGREDOS_FORNECIDOS="CLOUDFLARE_DNS_API_TOKEN NEURODOC_SMTP_PASSWORD NEURODOC_SMSDEV_API_KEY NEURODOC_NVIDIA_API_KEY"
-SEGREDOS_DESLIGADOS="NEURODOC_OPENROUTER_API_KEY NEURODOC_OPENAI_API_KEY NEURODOC_ANTHROPIC_API_KEY"
+SEGREDOS_DESLIGADOS="NEURODOC_OPENROUTER_API_KEY NEURODOC_OPENAI_API_KEY NEURODOC_ANTHROPIC_API_KEY NEURODOC_ASAAS_API_KEY"
 
 segredo_existe() { docker secret inspect "$1" >/dev/null 2>&1; }
 
@@ -893,7 +893,7 @@ SSHCFG
   for n in $SEGREDOS_DESLIGADOS; do
     if segredo_existe "$n"; then pulado "Segredo ${n}"; continue; fi
     criar_segredo "$n" 'DISABLED'
-    ok "${n} criado como DISABLED (provedor de IA que esta instalação não usa)"
+    ok "${n} criado como DISABLED (serviço que esta instalação não usa: provedor de IA alternativo ou checkout da Asaas)"
   done
 
   faltando=""

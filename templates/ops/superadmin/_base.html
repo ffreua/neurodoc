@@ -49,6 +49,10 @@ resolvido.{% endcomment %}
            href="{% url 'superadmin:leads' %}">Leads</a>
     </li>
     <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'contratacao' %}active{% endif %}"
+           href="{% url 'superadmin:contratacao' %}">Contratação</a>
+    </li>
+    <li class="nav-item">
         {% comment %}Separada de "Leads": lead é quem ainda não é cliente, e
         mensagem é de quem já é. Quem opera a instalação lê as duas com
         prioridade diferente.{% endcomment %}

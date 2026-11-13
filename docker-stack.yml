@@ -44,6 +44,9 @@ services:
       - NEURODOC_REDIS_PASSWORD
       - NEURODOC_PFX_MASTER_KEY
       - NEURODOC_SECRETS_MASTER_KEY
+      # Confere o aviso da Asaas (`/asaas/webhook/`). Não é credencial de
+      # saída: a chave da API da Asaas vai só ao worker.
+      - NEURODOC_ASAAS_WEBHOOK_TOKEN
     networks: [traefik_public, neurodoc_v1_internal]
     healthcheck:
       test: [CMD, python, /app/ops/http_health.py]
@@ -141,6 +144,8 @@ services:
       - NEURODOC_OPENAI_API_KEY
       - NEURODOC_ANTHROPIC_API_KEY
       - NEURODOC_NVIDIA_API_KEY
+      - NEURODOC_ASAAS_API_KEY
+      - NEURODOC_ASAAS_WEBHOOK_TOKEN
     networks: [neurodoc_v1_internal, neurodoc_v1_egress]
     healthcheck:
       test: [CMD, python, /app/ops/celery_health.py, worker]
@@ -367,6 +372,8 @@ secrets:
   NEURODOC_OPENAI_API_KEY: {external: true}
   NEURODOC_ANTHROPIC_API_KEY: {external: true}
   NEURODOC_NVIDIA_API_KEY: {external: true}
+  NEURODOC_ASAAS_API_KEY: {external: true}
+  NEURODOC_ASAAS_WEBHOOK_TOKEN: {external: true}
   NEURODOC_PFX_MASTER_KEY: {external: true}
   NEURODOC_SECRETS_MASTER_KEY: {external: true}
   CLOUDFLARE_DNS_API_TOKEN: {external: true}

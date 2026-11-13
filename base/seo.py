@@ -241,13 +241,13 @@ def _trilha(itens):
 
 
 def dados_da_raiz():
-    from .content import FAQ
+    from .content import faq
 
     return [
         {'@type': 'WebSite', '@id': _id('site'), 'name': 'NeuroDoc',
          'url': absoluta('/'), 'inLanguage': 'pt-BR',
          'publisher': {'@id': _id('organizacao')}},
-        organizacao(), autor(), produto(), _faq(FAQ),
+        organizacao(), autor(), produto(), _faq(faq()),
     ]
 
 

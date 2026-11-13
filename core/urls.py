@@ -29,6 +29,8 @@ urlpatterns = [
     # Onde o navegador deposita o que a política teria bloqueado. Fora de
     # `/app/` e sem sessão porque é o navegador que manda, sozinho.
     path('csp-report/', CspReportView.as_view(), name='csp-report'),
+    # Contratar plano pago pela página de vendas e o aviso da Asaas (1.46).
+    path('', include('contratacao.urls')),
     path('accounts/', include('accounts.urls')),
     path('', include('tenancy.urls')),
     path('app/patients/', include('patients.urls')),

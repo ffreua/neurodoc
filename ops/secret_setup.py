@@ -16,6 +16,8 @@ GENERATED = {
     'NEURODOC_DJANGO_SECRET_KEY', 'NEURODOC_DB_ADMIN_PASSWORD',
     'NEURODOC_DB_OWNER_PASSWORD', 'NEURODOC_DB_APP_PASSWORD',
     'NEURODOC_RABBITMQ_PASSWORD', 'NEURODOC_REDIS_PASSWORD',
+    # Confere o aviso da Asaas (1.46); 64 caracteres, sem espaço, como ela pede.
+    'NEURODOC_ASAAS_WEBHOOK_TOKEN',
 }
 
 #: Chaves-mestras. Formato Fernet (32 bytes em base64 urlsafe), geradas —

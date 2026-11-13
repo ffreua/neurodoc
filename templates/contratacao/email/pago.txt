@@ -1,0 +1,16 @@
+{% autoescape off %}Olá, {{ pedido.nome }}.
+
+Recebemos o pagamento do plano {{ plano }} do NeuroDoc ({{ periodicidade }}, {{ valor }} por cobrança).
+
+Falta criar a sua clínica. É nesse passo que você informa o CNPJ (ou CPF) e aceita o contrato de adesão:
+
+{{ link }}
+
+O link vale {{ dias }} dias e serve uma vez só. Quem criar a clínica por ele será o responsável pela conta.
+
+Você pode desistir em até 7 dias depois de criar a clínica, com a devolução de tudo o que pagou (cláusula 13.1 do contrato de adesão: {{ contrato_url }}).
+
+Se não foi você quem fez este pagamento, responda a este e-mail.
+
+Equipe NeuroDoc
+{% endautoescape %}
