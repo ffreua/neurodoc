@@ -22,12 +22,13 @@ saber o que está contratando antes de pagar (`contratacao/servicos.py`).{% endc
         <p class="mb-2">
             Cada período — 12, 6 ou 3 meses — é <strong class="text-dark">pago de uma vez</strong>, por
             Pix ou cartão, e vale até o fim dele — e
-            <strong class="text-dark">não há renovação automática</strong>: perto do fim, avisamos no sistema e por e-mail, e você renova ali mesmo,
-            escolhendo de novo o período.
+            <strong class="text-dark">não há renovação automática</strong>: trinta e quinze dias antes do fim, avisamos no sistema e por e-mail,
+            e você renova ali mesmo, escolhendo de novo o período e aceitando de novo o contrato. Sem renovação, quinze dias
+            depois do fim a clínica passa ao plano Gratuito, sem perder nada do que foi registrado.
         </p>
         <p class="mb-0">
             Você pode desistir em até 7 dias depois de criar a clínica, com a devolução de tudo o que
-            pagou (cláusula 13.1 do <a href="{% url 'onboarding:contrato' %}" target="_blank" rel="noopener">contrato de adesão, versão {{ contrato_versao }}</a>).
+            pagou; nas renovações, esse prazo não se aplica (cláusula 13.1 do <a href="{% url 'onboarding:contrato' %}" target="_blank" rel="noopener">contrato de adesão, versão {{ contrato_versao }}</a>).
             Residente ou recém-formado? O desconto de início de carreira é pelo
             <a href="{% url 'onboarding:landing' %}#contato">formulário de contato</a>, com a comprovação.
         </p>

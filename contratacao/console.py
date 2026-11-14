@@ -156,6 +156,8 @@ class ContratacaoView(SuperAdminView):
         erro = None
         if tenant is None:
             erro = 'Escolha a clínica.'
+        elif tenant.id not in {c.id for c in _clinicas_com_plano_pago()}:
+            erro = 'Esta clínica está no Gratuito: troque o plano antes de registrar o período.'
         elif periodicidade not in Periodicidade.values:
             erro = 'Escolha o período.'
         elif inicio is None:
@@ -210,5 +212,11 @@ def _ultimas_vigencias():
 def _clinicas_com_plano_pago():
     from tenancy.models import Tenant, TenantStatus
 
-    return list(Tenant.objects.exclude(plan='free').exclude(status=TenantStatus.CLOSED)
+    from django.db.models import Q
+
+    # E as que passaram ao Gratuito por não renovar: registrar o período delas
+    # é devolver o plano (`vigencias.registrar_no_console`).
+    rebaixadas = Vigencia.objects.filter(rebaixada_em__isnull=False).values('tenant_id')
+    return list(Tenant.objects.filter(~Q(plan='free') | Q(id__in=rebaixadas))
+                .exclude(status=TenantStatus.CLOSED)
                 .order_by('trade_name', 'legal_name').only('id', 'trade_name', 'legal_name', 'plan'))

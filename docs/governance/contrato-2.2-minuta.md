@@ -1,10 +1,9 @@
 # Contrato 2.2 — minuta do que muda (para a Dra. Karina conferir)
 
-> **Rascunho de 2026-11-13, ainda não enviado.** A redação final é dela.
-> O código da 1.47 está pronto na branch `vigencia-por-periodo` e **não**
-> será publicado antes de ela devolver a 2.2: o console recusa ligar o
-> checkout com o contrato 2.1, e a página de vendas da branch já descreve o
-> período de 3 ou 6 meses, que a 2.1 não admite.
+> **Devolvida pela Dra. Karina em 2026-11-14, com as decisões da seção 6.**
+> O texto aplicado está em `tenancy/contrato/contrato-2.2.md` (a 2.1 com os
+> trechos abaixo, já na redação das decisões); `tenancy/contract.py::VERSAO`
+> é `'2.2'`. O que segue é o registro da minuta como foi enviada.
 
 **Motivo:** decisão do Dr. Fernando (2026-11-13). O semestral e o trimestral
 deixam de ser parcelas de um contrato de 12 meses e passam a ser **períodos
@@ -142,13 +141,37 @@ Abaixo, o texto atual (2.1) e uma sugestão de redação.
    dele?
 5. **Título e data** passam a 2.2; o Aviso de Privacidade não muda.
 
+## 7. Decisões da Dra. Karina (2026-11-14)
+
+1. **Renovação com novo "li e aceito".** Cláusula 3.2: o CONTRATANTE
+   "manifesta novo aceite eletrônico deste contrato na versão então
+   vigente". No sistema, as duas caixas do cadastro na tela de renovar,
+   gravadas no pedido com versão, hash e texto inteiro.
+2. **Sem arrependimento na renovação, escrito no contrato.** Cláusula 13.1:
+   o prazo de sete dias "vale para a contratação inicial e não se aplica às
+   renovações". A caixa de aceite da renovação diz isso.
+3. **Reajuste a critério, sem índice.** Cláusula 4.5 reescrita: preços de
+   tabela alterados pela PRONTDOC a seu critério, sem índice; não atinge o
+   período pago; vale para contratações e renovações posteriores, com o
+   preço mostrado antes do aceite. O IPCA saiu.
+4. **Avisos com 30 e com 15 dias.** Cláusula 3.2.
+5. **Clínicas atuais não mudam.** Cláusula 2.4 (quem aceitou versão anterior
+   continua nela) e, no sistema, nenhuma clínica ganha período por migração.
+6. **Vencido e não pago em 15 dias, Gratuito.** Nova cláusula 3.4 (a antiga
+   3.4 passou a 3.5): a conta passa ao Gratuito com os limites dele, nada é
+   apagado, os vínculos médicos além do limite perdem o papel (fica o mais
+   antigo), a renovação depois devolve plano e papéis; os avisos valem como
+   o aviso prévio da 5.2.
+
+**A conferir com ela na leitura final:** a redação da 3.4 (sobretudo a
+retirada do papel médico, que é regra do sistema desde a degustação) e da
+4.5 foi escrita aqui a partir das decisões; o 4.1 trocou "valor e
+vencimento de cada parcela" por "valor e vencimento do pagamento".
+
 ## Depois da conferência
 
-1. O arquivo dela entra como `tenancy/contrato/contrato-2.2.md`, e
-   `tenancy/contract.py::VERSAO` passa a `'2.2'`; `check_contrato` é
-   atualizado para a 2.2.
+1. ~~O arquivo entra como `tenancy/contrato/contrato-2.2.md`, `VERSAO` passa
+   a `'2.2'` e `check_contrato` cobra a 2.2~~ — feito em 2026-11-14.
 2. A branch `vigencia-por-periodo` é mesclada e publicada (1.47).
-3. No console (`/instalacao/contratacao/`), registram-se os períodos das
-   clínicas pagantes anteriores à 1.47, que não ganham período por
-   migração.
+3. As clínicas anteriores à 1.47 **não** recebem período (decisão 5).
 4. Liga-se o checkout no console, que agora exige a 2.2.

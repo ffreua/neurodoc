@@ -285,9 +285,10 @@ carimbá-la na publicação.
 #: (app novo `contratacao`).
 #: A **1.47**: a forma de pagamento vira o período -- trimestral, semestral
 #: e anual valem 3, 6 e 12 meses, cada um pago de uma vez --, e a renovação
-#: pelo sistema (Organização -> Plano e renovação), com o aviso quinze dias
-#: antes. Sem renovação automática. Exige o contrato 2.2. Migração só de
-#: expansão (`contratacao.0002`).
+#: pelo sistema (Organização -> Plano e renovação), com avisos de 30 e 15
+#: dias e novo aceite. Sem renovação automática; quinze dias depois do fim
+#: sem pagamento, o Gratuito. Contrato 2.2. Migração só de expansão
+#: (`contratacao.0002`).
 VERSION = '1.47'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de

@@ -1019,18 +1019,25 @@ class PlanoView(OrgAdminView):
         from contratacao.models import Vigencia
         from contratacao.views import checkout_ligado, plano_contratavel
 
+        from . import contract
         from .plans import plan_config
 
+        estado = vigencias.situacao(tenant)
+        # O plano que se renova é o do último período — o mesmo depois da
+        # passagem ao Gratuito, que a renovação desfaz.
+        plano = estado['plano'] if estado else tenant.plan
         return {
             'tenant': tenant, 'plano': plan_config(tenant.plan),
-            'estado': vigencias.situacao(tenant),
+            'plano_renovado': plan_config(plano),
+            'estado': estado,
             'historico': Vigencia.objects.filter(tenant=tenant).order_by('-fim')[:20],
-            'plano_de_tabela': plano_contratavel(tenant.plan),
+            'plano_de_tabela': plano_contratavel(plano),
             'checkout_ligado': checkout_ligado(),
             'pode_renovar': vigencias.renovacao_disponivel(tenant),
             'pedido_em_aberto': vigencias.pedido_em_aberto(tenant.id),
             'janela_dias': vigencias.JANELA_DIAS,
-            'form': form or RenovarForm(plano=tenant.plan),
+            'contrato_versao': contract.VERSAO,
+            'form': form or RenovarForm(plano=plano),
         }
 
     def get(self, request):
@@ -1052,18 +1059,23 @@ class PlanoView(OrgAdminView):
             # Dois cliques, ou duas abas: o mesmo pagamento, e não dois.
             self._lembrar(request, aberto)
             return redirect('contratacao:pedido', pedido_id=aberto.id)
-        form = RenovarForm(request.POST, plano=tenant.plan)
+        estado = vigencias.situacao(tenant)
+        form = RenovarForm(request.POST, plano=estado['plano'] if estado else tenant.plan)
         if not form.is_valid():
             return render(request, 'tenancy/plano.html', self._contexto(tenant, form), status=400)
         pedido = vigencias.criar_pedido_de_renovacao(
             tenant, request.user, form.cleaned_data['periodicidade'], ip=client_ip(request),
+            user_agent=request.META.get('HTTP_USER_AGENT', ''),
+            poderes_declarados=form.cleaned_data['poderes'],
         )
         self._lembrar(request, pedido)
         record_audit_event(
             request.user, tenant.id, 'contratacao.renovacao_pedida',
             object_type='pedido_contratacao', object_id=pedido.id, outcome='success',
             origin_ip=client_ip(request),
-            integrity_metadata={'plano': pedido.plano, 'periodicidade': pedido.periodicidade},
+            integrity_metadata={'plano': pedido.plano, 'periodicidade': pedido.periodicidade,
+                                'contrato_versao': pedido.contrato_versao,
+                                'contrato_sha256': pedido.aceite_sha256},
         )
         return redirect('contratacao:pedido', pedido_id=pedido.id)
 

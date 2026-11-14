@@ -83,10 +83,12 @@ def preco_do_pedido(plano, periodicidade):
     return preco['pagamento'], preco['ano'], 1
 
 
-def criar_pedido(plano, periodicidade, nome, email, ip=None, tenant=None, usuario=None):
+def criar_pedido(plano, periodicidade, nome, email, ip=None, tenant=None, usuario=None,
+                 **aceite):
     """Grava o pedido e pede o checkout ao worker depois do commit.
 
-    Com `tenant`, é a renovação de uma clínica que já existe (`vigencias`).
+    Com `tenant`, é a renovação de uma clínica que já existe (`vigencias`), e
+    `aceite` traz o "li e aceito" dela (`aceite_em`, `aceite_sha256`, …).
     """
     from tenancy import contract
 
@@ -96,7 +98,7 @@ def criar_pedido(plano, periodicidade, nome, email, ip=None, tenant=None, usuari
         valor_pagamento_centavos=pagamento, valor_ano_centavos=ano,
         cobrancas_previstas=cobrancas, nome=nome.strip()[:150],
         email=email.strip().lower(), contrato_versao=contract.VERSAO, origem_ip=ip,
-        tenant=tenant, solicitado_por=usuario,
+        tenant=tenant, solicitado_por=usuario, **aceite,
     )
     transaction.on_commit(lambda: _enfileirar_checkout(pedido.id))
     return pedido

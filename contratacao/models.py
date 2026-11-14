@@ -90,6 +90,18 @@ class Pedido(TimestampedModel):
     #: lido. O aceite formal continua sendo o do cadastro da clínica.
     contrato_versao = models.CharField(max_length=16)
     origem_ip = models.GenericIPAddressField(null=True, blank=True)
+    #: O aceite da renovação (contrato 2.2, cláusula 3.2): a renovação pede
+    #: "li e aceito" de novo, e a prova fica aqui, no ato de quem clicou —
+    #: e não num segundo `ContractAcceptance`, que é um por clínica e por
+    #: versão (a clínica que renova duas vezes na 2.2 aceitaria a mesma
+    #: versão duas vezes). O texto inteiro, como no aceite do cadastro
+    #: (cláusula 2.2). Vazio no pedido da página de vendas, cujo aceite formal
+    #: é o do cadastro da clínica.
+    aceite_em = models.DateTimeField(null=True, blank=True)
+    aceite_sha256 = models.CharField(max_length=64, blank=True)
+    aceite_texto = models.TextField(blank=True)
+    aceite_user_agent = models.CharField(max_length=255, blank=True)
+    poderes_declarados = models.BooleanField(default=False)
 
     checkout_id = models.CharField(max_length=64, unique=True, null=True, blank=True)
     checkout_link = models.URLField(max_length=500, blank=True)
@@ -139,11 +151,11 @@ class Vigencia(TenantModel):
     ter resposta. Aqui cada período é uma linha que não muda depois de gravada,
     menos os dois carimbos de aviso.
 
-    **A vigência não liga nem desliga nada.** Quem decide o que a clínica pode
-    é `Tenant.plan`, como sempre; isto é o registro do que foi pago e a base
-    do aviso de vencimento. Vencer sem renovar avisa o responsável e o console,
-    e **não** rebaixa nem suspende sozinho — a cláusula 5 do contrato pede
-    aviso antes de restringir, e essa decisão é de gente.
+    **A vigência não diz o que a clínica pode.** Quem decide é `Tenant.plan`,
+    como sempre; isto é o registro do que foi pago e a base dos avisos. Ela só
+    **muda** o plano uma vez, e por contrato: quinze dias depois do fim sem
+    renovação, a clínica passa ao Gratuito (cláusula 3.4 da 2.2,
+    `vigencias.rebaixar`), e a renovação paga depois a devolve.
 
     **Só existe para quem tem período.** O Gratuito não vence, o Personalizado
     é combinado, e as clínicas anteriores à 1.47 não ganham vigência por
@@ -178,9 +190,16 @@ class Vigencia(TenantModel):
     registrado_por = models.ForeignKey('accounts.User', null=True, blank=True,
                                        on_delete=models.SET_NULL, related_name='+')
     nota = models.CharField(max_length=255, blank=True)
-    #: Os dois avisos por e-mail, uma vez cada (`vigencias.avisar`).
-    aviso_antes_em = models.DateTimeField(null=True, blank=True)
+    #: Os avisos por e-mail, uma vez cada (`vigencias.avisar`): trinta e
+    #: quinze dias antes do fim (contrato 2.2, cláusula 3.2) e no fim.
+    aviso_30_em = models.DateTimeField(null=True, blank=True)
+    aviso_15_em = models.DateTimeField(null=True, blank=True)
     aviso_vencido_em = models.DateTimeField(null=True, blank=True)
+    #: Quando a clínica passou ao Gratuito por não renovar (cláusula 3.4), e
+    #: os vínculos que perderam o papel médico nisso — devolvidos pela
+    #: renovação paga depois, como a conversão da degustação.
+    rebaixada_em = models.DateTimeField(null=True, blank=True)
+    medicos_retirados = models.JSONField(default=list, blank=True)
 
     @property
     def ultimo_dia(self):

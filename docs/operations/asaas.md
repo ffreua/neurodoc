@@ -98,15 +98,18 @@ pedido nasce com a clínica (`Pedido.tenant`) e o `CHECKOUT_PAID` abre o
 período seguinte em vez de emitir convite. Nada muda no webhook nem nos
 segredos.
 
-- **Clínicas anteriores à 1.47** não têm período: registre o de cada
-  pagante em `/instalacao/contratacao/` → Vigências (clínica, período,
-  início, valor, de onde vem). Sem período registrado, a clínica não recebe
-  aviso nem vê o botão Renovar.
+- **Clínicas anteriores à 1.47** não têm período e **não mudam** (decisão
+  de 2026-11-14): sem período, não recebem aviso, não veem o botão Renovar e
+  nunca passam ao Gratuito sozinhas. Registrar o período de uma delas em
+  `/instalacao/contratacao/` → Vigências a põe na regra inteira.
 - **Quem pagou por Pix ou transferência** fora do site: registre o período
   do mesmo jeito.
 - **Vencida sem renovação**: chega e-mail "Vigência vencida sem renovação".
-  Nada foi bloqueado; decida no console (trocar o plano, suspender ou
-  esperar), com o aviso da cláusula 5.
+  O plano continua por 15 dias; depois, a tarefa das 08h15 passa a clínica
+  ao Gratuito (cláusula 3.4 da 2.2) e chega "Clínica passou ao Gratuito por
+  não renovar". Médicos além do limite perdem o papel e voltam na renovação.
+- **Pagou por Pix depois de ir ao Gratuito**: registre o período no console;
+  isso devolve o plano e os médicos.
 - **Renovação paga com o plano trocado no meio**: o e-mail "Renovação paga"
   traz o aviso; o período foi aberto com o plano pago, e o plano da clínica
   não foi mexido.

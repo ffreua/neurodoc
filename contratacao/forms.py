@@ -19,14 +19,35 @@ def opcoes_de_periodo(plano):
 
 
 class RenovarForm(forms.Form):
-    """Renovar: só o período. O plano é o da clínica; nome e e-mail, de quem clicou."""
+    """Renovar: o período e o aceite. O plano é o do último período; nome e e-mail, de quem clicou.
+
+    As duas caixas são as do cadastro (cláusulas 2.2 e 2.3), porque a
+    renovação pede aceite novo (cláusula 3.2 da 2.2). A primeira diz também
+    que não há arrependimento: a 13.1 o reserva à contratação inicial, e quem
+    renova tem de ler isso antes de pagar, e não depois.
+    """
 
     periodicidade = forms.ChoiceField(label='Período da renovação', widget=forms.RadioSelect,
                                       initial=str(Periodicidade.ANUAL))
+    aceite = forms.BooleanField(
+        required=True,
+        error_messages={'required': 'Para renovar, é preciso aceitar o contrato de adesão.'},
+    )
+    poderes = forms.BooleanField(
+        required=True,
+        label='Tenho poderes para contratar em nome desta clínica.',
+        error_messages={'required': 'Confirme que tem poderes para contratar pela clínica.'},
+    )
 
     def __init__(self, *args, plano, **kwargs):
+        from tenancy import contract
+
         super().__init__(*args, **kwargs)
         self.fields['periodicidade'].choices = opcoes_de_periodo(plano)
+        self.fields['aceite'].label = (
+            f'Li e aceito o contrato de adesão (versão {contract.VERSAO}) e seus anexos. '
+            'Sei que na renovação não há prazo de arrependimento (cláusula 13.1).'
+        )
 
 
 class ContratarForm(forms.Form):

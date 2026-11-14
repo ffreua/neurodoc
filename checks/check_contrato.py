@@ -127,10 +127,15 @@ obrigatorias = [
     ('sem restituicao automatica na denuncia imotivada',
      r'n[aã]o haver[aá] restitui[cç][aã]o autom[aá]tica'),
     ('restituicao proporcional por falha da contratada', r'restitui[cç][aã]o proporcional do servi[cç]o pago'),
-    ('vigencia de 12 meses', r'vig[eê]ncia de 12 meses'),
-    ('parcelas sao do mesmo periodo, nao prazos diferentes',
-     r'n[aã]o prazos contratuais diferentes'),
-    ('renovacao so se informada, com 30 dias de aviso', r'anteced[eê]ncia m[ií]nima de 30 dias'),
+    # Redacao 2.2 (2026-11-13): o periodo e a forma de pagamento, e a
+    # renovacao e ato do contratante, com aceite novo (decisoes da Dra. Karina).
+    ('periodos de 12, 6 e 3 meses', r'12 meses \(anual\), 6 meses \(semestral\) ou 3 meses \(trimestral\)'),
+    ('sem renovacao automatica', r'N[aã]o h[aá] renova[cç][aã]o autom[aá]tica'),
+    ('avisos com 30 e 15 dias', r'com 30 dias e com 15 dias de anteced[eê]ncia'),
+    ('renovacao com novo aceite', r'manifesta novo aceite eletr[oô]nico'),
+    ('sem arrependimento na renovacao', r'n[aã]o se aplica [aà]s renova[cç][oõ]es'),
+    ('volta ao Gratuito 15 dias depois', r'passa automaticamente ao plano Gratuito'),
+    ('preco a criterio, sem indice', r'sem vincula[cç][aã]o a [ií]ndice de reajuste'),
     ('clinica e a controladora', r'como controlador'),
     ('ProntDoc e a operadora', r'PRONTDOC atua em regra como operadora'),
     ('qualificacao material prevalece', r'qualifica[cç][aã]o material prevalece'),
@@ -157,7 +162,7 @@ obrigatorias = [
     ('declaracao de aceite', r'DECLARA[CÇ][AÃ]O DE ACEITE'),
     # Redacao 2.1 (2026-11-13): o pagamento pelo site, que o checkout cobra.
     ('pagamento pelo site pela Asaas', r'institui[cç][aã]o de pagamento Asaas'),
-    ('parcelas no cartao sem renovacao', r'at[eé] o fim da vig[eê]ncia de 12 meses, sem renova[cç][aã]o autom[aá]tica'),
+    ('pagamento unico, sem cartao guardado', r'pago integralmente de uma vez'),
     ('Asaas no Anexo II', r'Asaas Gest[aã]o Financeira'),
 ]
 presentes = 0

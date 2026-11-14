@@ -204,11 +204,74 @@ def encerrar_se_vencida(tenant_or_id):
     return tenant
 
 
-def _medico_que_fica(tenant, medicos):
-    escolhido = next((m for m in medicos if m.id == tenant.degustacao_medico_mantido_id), None)
-    if escolhido is not None:
-        return escolhido
-    return medicos[0] if medicos else None
+def retirar_medicos_excedentes(tenant, plano, preferido_id=None):
+    """Tira o papel médico de quem passa do limite de `plano`. Dentro de transação.
+
+    Fica o vínculo `preferido_id`, se for médico ativo, ou o mais antigo.
+    Quem fica sem papel nenhum tem o vínculo suspenso. Devolve a lista para
+    `devolver_medicos`. Usado pelo oitavo dia da degustação e pela passagem ao
+    Gratuito de quem não renovou (`contratacao.vigencias.rebaixar`).
+    """
+    from .models import Membership, MembershipStatus, Role
+    from .plans import max_doctors
+
+    limite = max_doctors(plano)
+    medicos = list(
+        Membership.objects.select_for_update()
+        .filter(tenant_id=tenant.id, status=MembershipStatus.ACTIVE, roles__contains=[Role.DOCTOR])
+        .order_by('activated_at', 'created_at')
+    )
+    if limite is None:
+        return []
+    ficam = []
+    if medicos and limite:
+        primeiro = next((m for m in medicos if m.id == preferido_id), medicos[0])
+        ficam = [primeiro] + [m for m in medicos if m.id != primeiro.id][:limite - 1]
+    retirados = []
+    for vinculo in medicos:
+        if vinculo in ficam:
+            continue
+        vinculo.roles = [r for r in vinculo.roles if r != Role.DOCTOR]
+        suspenso = not vinculo.roles
+        campos = ['roles', 'row_version', 'updated_at']
+        if suspenso:
+            vinculo.status = MembershipStatus.SUSPENDED
+            campos.append('status')
+        vinculo.row_version = F('row_version') + 1
+        vinculo.save(update_fields=campos)
+        retirados.append({'membership': str(vinculo.id), 'suspenso': suspenso})
+    return retirados
+
+
+def devolver_medicos(tenant, retirados):
+    """Devolve o papel médico a quem `retirar_medicos_excedentes` tirou, até o limite.
+
+    O vínculo revogado depois não volta, nem o suspenso que alguém já
+    reativou por outro caminho. Dentro de transação; devolve quantos voltaram.
+    """
+    from .limits import PlanLimitReached, assert_can_add_doctor
+    from .models import Membership, MembershipStatus, Role
+
+    devolvidos = 0
+    for item in retirados or []:
+        vinculo = Membership.objects.select_for_update().filter(
+            id=item.get('membership'), tenant_id=tenant.id,
+        ).first()
+        if vinculo is None or vinculo.status == MembershipStatus.REVOKED:
+            continue
+        if item.get('suspenso') and vinculo.status != MembershipStatus.SUSPENDED:
+            continue
+        try:
+            assert_can_add_doctor(tenant)
+        except PlanLimitReached:
+            break
+        if Role.DOCTOR not in vinculo.roles:
+            vinculo.roles = list(vinculo.roles) + [Role.DOCTOR]
+        vinculo.status = MembershipStatus.ACTIVE
+        vinculo.row_version = F('row_version') + 1
+        vinculo.save(update_fields=['roles', 'status', 'row_version', 'updated_at'])
+        devolvidos += 1
+    return devolvidos
 
 
 def encerrar(tenant_id, agora=None):
@@ -220,39 +283,15 @@ def encerrar(tenant_id, agora=None):
     """
     from audit.services import record_audit_event
 
-    from .models import Membership, MembershipStatus, Role, Tenant
-    from .plans import max_doctors
+    from .models import Tenant
 
     agora = agora or timezone.now()
     with transaction.atomic():
         tenant = Tenant.objects.select_for_update().filter(id=tenant_id).first()
         if tenant is None or not vencida(tenant, agora):
             return False
-        limite = max_doctors(PLANO_DEPOIS)
-        medicos = list(
-            Membership.objects.select_for_update()
-            .filter(tenant_id=tenant.id, status=MembershipStatus.ACTIVE, roles__contains=[Role.DOCTOR])
-            .order_by('activated_at', 'created_at')
-        )
-        ficam = []
-        if limite is None:
-            ficam = medicos
-        elif medicos and limite:
-            primeiro = _medico_que_fica(tenant, medicos)
-            ficam = [primeiro] + [m for m in medicos if m.id != primeiro.id][:limite - 1]
-        retirados = []
-        for vinculo in medicos:
-            if vinculo in ficam:
-                continue
-            vinculo.roles = [r for r in vinculo.roles if r != Role.DOCTOR]
-            suspenso = not vinculo.roles
-            campos = ['roles', 'row_version', 'updated_at']
-            if suspenso:
-                vinculo.status = MembershipStatus.SUSPENDED
-                campos.append('status')
-            vinculo.row_version = F('row_version') + 1
-            vinculo.save(update_fields=campos)
-            retirados.append({'membership': str(vinculo.id), 'suspenso': suspenso})
+        retirados = retirar_medicos_excedentes(tenant, PLANO_DEPOIS,
+                                               tenant.degustacao_medico_mantido_id)
         anterior = tenant.plan
         tenant.plan = PLANO_DEPOIS
         tenant.degustacao_encerrada_em = agora
@@ -283,31 +322,10 @@ def converter(tenant, por=None):
     """
     from audit.services import record_audit_event
 
-    from .limits import PlanLimitReached, assert_can_add_doctor
-    from .models import Membership, MembershipStatus, Role
-
     if not tenant.degustacao_ate:
         return 0
-    devolvidos = 0
     with transaction.atomic():
-        for item in tenant.degustacao_retirados or []:
-            vinculo = Membership.objects.select_for_update().filter(
-                id=item.get('membership'), tenant_id=tenant.id,
-            ).first()
-            if vinculo is None or vinculo.status == MembershipStatus.REVOKED:
-                continue
-            if item.get('suspenso') and vinculo.status != MembershipStatus.SUSPENDED:
-                continue
-            try:
-                assert_can_add_doctor(tenant)
-            except PlanLimitReached:
-                break
-            if Role.DOCTOR not in vinculo.roles:
-                vinculo.roles = list(vinculo.roles) + [Role.DOCTOR]
-            vinculo.status = MembershipStatus.ACTIVE
-            vinculo.row_version = F('row_version') + 1
-            vinculo.save(update_fields=['roles', 'status', 'row_version', 'updated_at'])
-            devolvidos += 1
+        devolvidos = devolver_medicos(tenant, tenant.degustacao_retirados)
         tenant.degustacao_ate = None
         tenant.degustacao_retirados = []
         tenant.degustacao_medico_mantido = None

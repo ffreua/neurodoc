@@ -362,16 +362,21 @@ def _resposta_pagamento(checkout=False):
             'Completo podem ser contratados na própria página, pela Asaas, por Pix ou '
             'cartão. Pago, o link para criar a clínica chega na hora. Também dá para '
             'combinar conosco e receber um código de convite; nos dois casos, plano e '
-            'período ficam registrados no aceite do contrato. Perto do fim do período, o '
-            'responsável pela clínica é avisado no sistema e por e-mail, e renova ali '
-            'mesmo, escolhendo de novo o período.'
+            'período ficam registrados no aceite do contrato. Trinta e quinze dias antes '
+            'do fim do período, o responsável pela clínica é avisado no sistema e por '
+            'e-mail, e renova ali mesmo, escolhendo de novo o período e aceitando de novo '
+            'o contrato. '
         )
     else:
         como = (
             'O Gratuito não tem cobrança, e o Personalizado é combinado. Não há pagamento '
             'on-line: o acesso é liberado por um código de convite com o plano e o período '
-            'combinados, que ficam registrados no aceite do contrato.'
+            'combinados, que ficam registrados no aceite do contrato. '
         )
+    como += (
+        'Sem renovação, quinze dias depois do fim do período a clínica passa ao plano '
+        'Gratuito: nada é apagado, e renovar devolve o plano.'
+    )
     return (
         'Você escolhe o período, e cada um é pago de uma vez, sem renovação '
         f'automática: 12 meses, com {anual}% de desconto de lançamento; 6 meses, com '

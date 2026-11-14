@@ -83,10 +83,12 @@ sozinhos.{% endcomment %}
             <div class="card-header"><h5 class="card-title mb-0">Vigências</h5></div>
             <div class="card-body">
                 <p class="fs-12 text-muted">
-                    O último período pago de cada clínica (1.47). O responsável vê o aviso 15 dias antes do
-                    fim e renova pelo sistema; vencer sem renovar avisa aqui e por e-mail, e <strong>não</strong>
-                    rebaixa nem suspende nada. Clínica anterior à 1.47 ou que pagou por Pix/transferência não tem
-                    período até ser registrada abaixo.
+                    O último período pago de cada clínica (1.47, contrato 2.2). O responsável recebe aviso 30 e
+                    15 dias antes do fim e renova pelo sistema, com novo aceite; vencer sem renovar avisa aqui e por
+                    e-mail, e <strong>quinze dias depois a clínica passa ao Gratuito</strong> (cláusula 3.4), com os
+                    médicos além do limite sem o papel. Registrar um período abaixo para uma clínica que passou ao
+                    Gratuito devolve o plano e os médicos. Clínica anterior à 1.47 ou que pagou por Pix/transferência
+                    não tem período — nem aviso, nem passagem ao Gratuito — até ser registrada abaixo.
                 </p>
                 <div class="table-responsive mb-3">
                     <table class="table align-middle mb-0 fs-12">
@@ -99,7 +101,7 @@ sozinhos.{% endcomment %}
                                 <td>{{ v.get_periodicidade_display }}{% if v.valor_centavos %} · {{ v.valor_brl }}{% endif %}</td>
                                 <td>{{ v.ultimo_dia|date:"d/m/Y" }}</td>
                                 <td>{{ v.get_origem_display }}{% if v.nota %}<span class="d-block text-muted">{{ v.nota|truncatechars:80 }}</span>{% endif %}</td>
-                                <td class="text-muted">{% if v.aviso_vencido_em %}vencida avisada {{ v.aviso_vencido_em|date:"d/m" }}{% elif v.aviso_antes_em %}aviso {{ v.aviso_antes_em|date:"d/m" }}{% else %}—{% endif %}</td>
+                                <td class="text-muted">{% if v.rebaixada_em %}Gratuito desde {{ v.rebaixada_em|date:"d/m" }}{% elif v.aviso_vencido_em %}vencida avisada {{ v.aviso_vencido_em|date:"d/m" }}{% elif v.aviso_15_em %}aviso de 15 dias {{ v.aviso_15_em|date:"d/m" }}{% elif v.aviso_30_em %}aviso de 30 dias {{ v.aviso_30_em|date:"d/m" }}{% else %}—{% endif %}</td>
                             </tr>
                             {% empty %}
                             <tr><td colspan="6" class="py-3 text-muted">Nenhuma clínica com período registrado.</td></tr>

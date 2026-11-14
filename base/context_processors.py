@@ -174,13 +174,14 @@ def shell(request):
         # está na mão — nenhuma consulta para quem não veio da degustação.
         data['nd_degustacao'] = _degustacao(data['nd_tenant'], context)
         # Vigência do plano pago (1.47, `contratacao/vigencias.py`): a faixa
-        # aparece quinze dias antes do fim e fica depois de vencido, só para o
-        # responsável — quem renova. Uma consulta, e só para quem administra.
+        # aparece trinta dias antes do fim, fica depois de vencido e por um
+        # tempo depois da passagem ao Gratuito, só para o responsável — quem
+        # renova. Uma consulta, e só para quem administra.
         if context.can(Capability.MANAGE_ORGANIZATION):
             from contratacao.vigencias import situacao
 
             estado = situacao(data['nd_tenant'])
-            if estado and (estado['vencida'] or estado['vence_em_breve']):
+            if estado and estado['faixa']:
                 data['nd_vigencia'] = estado
     # Segundo fator obrigatório que ainda não chegou ao prazo: o aviso diz o
     # dia e leva à configuração (`accounts/mfa.py`).

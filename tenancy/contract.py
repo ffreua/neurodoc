@@ -74,11 +74,22 @@ from django.utils.safestring import mark_safe
 #: entra no Anexo II e no item 5 do Aviso de Privacidade. Minuta em
 #: `docs/governance/contrato-2.1-minuta.md`, autorizada pela Dra. Karina.
 #: Nada mais mudou; quem aceitou a 2.0 continua nela. É a versão que o
-#: console exige para ligar o checkout (`contratacao/console.py`).
-VERSAO = '2.1'
+#: console exigia para ligar o checkout até a 1.47.
+#:
+#: **A 2.2** (2026-11-14) é a 2.1 com o período como forma de pagamento,
+#: nas decisões da Dra. Karina sobre a minuta
+#: (`docs/governance/contrato-2.2-minuta.md`): 12, 6 ou 3 meses pagos de uma
+#: vez (quadro-resumo, 3.1, 4.3, 4.4); sem renovação automática, com aviso
+#: de 30 e de 15 dias e **novo aceite** a cada renovação (3.2); quinze dias
+#: depois do fim sem pagamento, o Gratuito (3.4); preço de tabela a critério
+#: da PRONTDOC, sem índice (4.5); arrependimento só na contratação inicial
+#: (13.1); e a frase das parcelas fora da 13.2 e do Anexo II. Quem aceitou a
+#: 2.1 ou antes continua nelas (2.4). É a versão que o console exige para
+#: ligar o checkout (`contratacao/console.py`).
+VERSAO = '2.2'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-11-13'
+VIGENCIA_DESDE = '2026-11-14'
 
 ARQUIVO = Path(__file__).resolve().parent / 'contrato' / f'contrato-{VERSAO}.md'
 

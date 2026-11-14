@@ -1,6 +1,7 @@
 """Vigência do plano pago e renovação pelo sistema (1.47, contrato 2.2).
 
-Só acrescenta: duas colunas nulas no pedido e a tabela de vigências. Nenhuma
+Só acrescenta: colunas no pedido (a clínica que renova e o aceite da
+renovação) e a tabela de vigências. Nenhuma
 clínica ganha período por esta migração — de propósito (ver o docstring de
 `Vigencia`): entre as anteriores à 1.47 há cortesia e condição combinada, e o
 console as registra uma a uma.
@@ -34,6 +35,16 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL,
                                     related_name='+', to=settings.AUTH_USER_MODEL),
         ),
+        migrations.AddField(model_name='pedido', name='aceite_em',
+                            field=models.DateTimeField(blank=True, null=True)),
+        migrations.AddField(model_name='pedido', name='aceite_sha256',
+                            field=models.CharField(blank=True, max_length=64)),
+        migrations.AddField(model_name='pedido', name='aceite_texto',
+                            field=models.TextField(blank=True)),
+        migrations.AddField(model_name='pedido', name='aceite_user_agent',
+                            field=models.CharField(blank=True, max_length=255)),
+        migrations.AddField(model_name='pedido', name='poderes_declarados',
+                            field=models.BooleanField(default=False)),
         migrations.CreateModel(
             name='Vigencia',
             fields=[
@@ -54,8 +65,11 @@ class Migration(migrations.Migration):
                     ('console', 'Registrada no console'),
                 ], max_length=12)),
                 ('nota', models.CharField(blank=True, max_length=255)),
-                ('aviso_antes_em', models.DateTimeField(blank=True, null=True)),
+                ('aviso_30_em', models.DateTimeField(blank=True, null=True)),
+                ('aviso_15_em', models.DateTimeField(blank=True, null=True)),
                 ('aviso_vencido_em', models.DateTimeField(blank=True, null=True)),
+                ('rebaixada_em', models.DateTimeField(blank=True, null=True)),
+                ('medicos_retirados', models.JSONField(blank=True, default=list)),
                 ('aceite', models.OneToOneField(blank=True, null=True,
                                                 on_delete=django.db.models.deletion.SET_NULL,
                                                 related_name='vigencia', to='tenancy.contractacceptance')),
