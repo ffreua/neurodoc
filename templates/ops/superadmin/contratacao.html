@@ -50,7 +50,7 @@ sozinhos.{% endcomment %}
                     <div class="col-md-6">
                         <label class="form-label fs-12" for="checkout-motivo">Por que ligar?</label>
                         <input type="text" class="form-control form-control-sm" id="checkout-motivo"
-                               name="motivo" maxlength="255" placeholder="Ex.: contrato 2.1 publicado">
+                               name="motivo" maxlength="255" placeholder="Ex.: contrato 2.2 publicado">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label fs-12" for="checkout-confirmacao">Digite <code>{{ confirmacao }}</code></label>
@@ -80,6 +80,71 @@ sozinhos.{% endcomment %}
 
     <div class="col-12">
         <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Vigências</h5></div>
+            <div class="card-body">
+                <p class="fs-12 text-muted">
+                    O último período pago de cada clínica (1.47). O responsável vê o aviso 15 dias antes do
+                    fim e renova pelo sistema; vencer sem renovar avisa aqui e por e-mail, e <strong>não</strong>
+                    rebaixa nem suspende nada. Clínica anterior à 1.47 ou que pagou por Pix/transferência não tem
+                    período até ser registrada abaixo.
+                </p>
+                <div class="table-responsive mb-3">
+                    <table class="table align-middle mb-0 fs-12">
+                        <thead class="bg-gray-100"><tr class="border-b"><th scope="col">Clínica</th><th scope="col">Plano</th><th scope="col">Período</th><th scope="col">Até</th><th scope="col">Origem</th><th scope="col">Avisos</th></tr></thead>
+                        <tbody>
+                            {% for v in vigencias %}
+                            <tr>
+                                <td>{{ v.tenant.trade_name|default:v.tenant.legal_name }}{% if v.plano != v.tenant.plan %}<span class="d-block text-warning">plano atual: {{ v.tenant.plan }}</span>{% endif %}</td>
+                                <td>{{ v.plano }}</td>
+                                <td>{{ v.get_periodicidade_display }}{% if v.valor_centavos %} · {{ v.valor_brl }}{% endif %}</td>
+                                <td>{{ v.ultimo_dia|date:"d/m/Y" }}</td>
+                                <td>{{ v.get_origem_display }}{% if v.nota %}<span class="d-block text-muted">{{ v.nota|truncatechars:80 }}</span>{% endif %}</td>
+                                <td class="text-muted">{% if v.aviso_vencido_em %}vencida avisada {{ v.aviso_vencido_em|date:"d/m" }}{% elif v.aviso_antes_em %}aviso {{ v.aviso_antes_em|date:"d/m" }}{% else %}—{% endif %}</td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="6" class="py-3 text-muted">Nenhuma clínica com período registrado.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <form method="post" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="registrar_vigencia">
+                    <div class="col-md-3">
+                        <label class="form-label fs-12" for="vig-tenant">Clínica</label>
+                        <select class="form-select form-select-sm" id="vig-tenant" name="tenant">
+                            <option value="">—</option>
+                            {% for t in clinicas_pagas %}<option value="{{ t.id }}">{{ t.trade_name|default:t.legal_name }} ({{ t.plan }})</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fs-12" for="vig-periodo">Período</label>
+                        <select class="form-select form-select-sm" id="vig-periodo" name="periodicidade">
+                            {% for codigo, rotulo in periodicidades %}<option value="{{ codigo }}">{{ rotulo }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label fs-12" for="vig-inicio">Início</label>
+                        <input type="date" class="form-control form-control-sm" id="vig-inicio" name="inicio">
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label fs-12" for="vig-valor">Valor (R$)</label>
+                        <input type="text" class="form-control form-control-sm" id="vig-valor" name="valor" inputmode="decimal">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fs-12" for="vig-nota">De onde vem</label>
+                        <input type="text" class="form-control form-control-sm" id="vig-nota" name="nota" maxlength="255" placeholder="Ex.: Pix recebido em 10/11">
+                    </div>
+                    <div class="col-md-1">
+                        <button type="submit" class="btn btn-primary btn-sm w-100" data-nd-busy>Registrar</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card">
             <div class="card-header"><h5 class="card-title mb-0">Pedidos</h5></div>
             <div class="card-body p-0">
                 <div class="table-responsive">
@@ -101,7 +166,7 @@ sozinhos.{% endcomment %}
                                     <a class="fs-11" href="mailto:{{ p.email }}">{{ p.email }}</a>
                                     <span class="fs-11 text-muted d-block">{{ p.id }}</span>
                                 </td>
-                                <td class="fs-12">{{ p.plano }} · {{ p.periodicidade }}<span class="d-block text-muted">{{ p.cobrancas_previstas }} × {{ p.valor_pagamento_brl }}</span></td>
+                                <td class="fs-12">{% if p.tenant_id %}<span class="badge bg-soft-primary text-primary fs-10">renovação</span> {% endif %}{{ p.plano }} · {{ p.periodicidade }}<span class="d-block text-muted">{{ p.cobrancas_previstas }} × {{ p.valor_pagamento_brl }}</span></td>
                                 <td class="fs-12">
                                     <span class="badge {% if p.status == 'pago' %}bg-soft-success text-success{% elif p.status == 'falhou' %}bg-soft-danger text-danger{% else %}bg-gray-200 text-dark{% endif %}">{{ p.get_status_display }}</span>
                                     {% if p.convite %}<span class="d-block fs-11 text-muted">convite {% if p.convite.consumed_at %}usado em {{ p.convite.consumed_at|date:"d/m/Y" }}{% else %}não usado{% endif %}</span>{% endif %}

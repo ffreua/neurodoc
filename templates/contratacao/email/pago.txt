@@ -1,6 +1,6 @@
 {% autoescape off %}Olá, {{ pedido.nome }}.
 
-Recebemos o pagamento do plano {{ plano }} do NeuroDoc ({{ periodicidade }}, {{ valor }} por cobrança).
+Recebemos o pagamento do plano {{ plano }} do NeuroDoc ({{ periodicidade }}, {{ valor }}, pagamento único). O período começa quando a clínica for criada, e não há renovação automática.
 
 Falta criar a sua clínica. É nesse passo que você informa o CNPJ (ou CPF) e aceita o contrato de adesão:
 

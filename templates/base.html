@@ -107,6 +107,27 @@ vinculo em clinica nenhuma.{% endcomment %}
                 </span>
             </div>
             {% endif %}
+            {% comment %}Vigência do plano pago (1.47, `contratacao/vigencias.py`): quinze
+            dias antes do fim, e depois de vencido. Só o responsável a recebe — é
+            quem renova. Nada renova sozinho, e vencer não bloqueia nada.{% endcomment %}
+            {% if nd_vigencia %}
+            <div class="alert {% if nd_vigencia.vencida %}alert-soft-danger{% else %}alert-soft-warning{% endif %} d-flex align-items-start gap-2 fs-13" role="status" data-nd-aviso="vigencia">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0 mt-1" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                <span>
+                    {% if nd_vigencia.vencida %}
+                    <strong>O plano da clínica venceu em {{ nd_vigencia.ultimo_dia|date:"d/m/Y" }}.</strong>
+                    Nada foi apagado nem bloqueado.
+                    {% elif nd_vigencia.dias == 0 %}
+                    <strong>Hoje é o último dia do plano da clínica.</strong>
+                    {% else %}
+                    <strong>O plano da clínica vence em {{ nd_vigencia.ultimo_dia|date:"d/m/Y" }}</strong>
+                    (falta{{ nd_vigencia.dias|pluralize }} {{ nd_vigencia.dias }} dia{{ nd_vigencia.dias|pluralize }}).
+                    {% endif %}
+                    Não há renovação automática.
+                    <a href="{% url 'tenancy:plano' %}" class="fw-semibold">Renovar</a>
+                </span>
+            </div>
+            {% endif %}
             {% comment %}Degustação do Completo (`tenancy/degustacao.py`). Os números
             saem do processador de contexto, que os lê do mesmo lugar que os cobra.{% endcomment %}
             {% if nd_degustacao %}

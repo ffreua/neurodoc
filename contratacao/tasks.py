@@ -35,3 +35,10 @@ def processar_evento_task(evento_id):
 @shared_task
 def varrer_contratacao():
     return servicos.varrer()
+
+
+@shared_task
+def avisar_vigencias():
+    from . import vigencias
+
+    return vigencias.avisar()

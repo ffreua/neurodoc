@@ -1254,8 +1254,16 @@ body.nd-no-shell .nxl-content {
     --bs-alert-bg: #eef1fc;
     --bs-alert-border-color: #c2ccf1;
 }
+/* `alert-soft-danger` (1.47): o plano vencido, na faixa de `base.html` e em
+ * Plano e renovacao. Vermelho do tema no tom "soft", como os dois acima. */
+.alert.alert-soft-danger {
+    --bs-alert-color: #8a1c1c;
+    --bs-alert-bg: #fdeeee;
+    --bs-alert-border-color: #f5c2c2;
+}
 .alert.alert-soft-warning a,
-.alert.alert-soft-primary a {
+.alert.alert-soft-primary a,
+.alert.alert-soft-danger a {
     color: inherit;
     text-decoration: underline;
 }

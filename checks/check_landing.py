@@ -314,9 +314,14 @@ if 'de desconto no pagamento anual' not in corpo_landing:
     falhas.append('a pagina nao diz que os 20% sao do pagamento anual')
 if 'preço cheio' not in corpo_landing:
     falhas.append('a pagina nao diz que o trimestral e o preco cheio')
-if 'Total em 12 meses' not in corpo_landing:
-    falhas.append('o cartao nao mostra o total de 12 meses')
-if 'Compare as formas de pagamento' not in corpo_landing:
+# Desde a 1.47 (contrato 2.2) cada forma e um periodo pago de uma vez: o
+# cartao mostra o pagamento unico e a vigencia, e a tabela compara o
+# equivalente em 12 meses.
+if 'Pagamento único' not in corpo_landing or 'Vale 3 meses' not in corpo_landing:
+    falhas.append('o cartao nao mostra o pagamento unico e a vigencia do periodo')
+if 'Equivale em 12 meses' not in corpo_landing:
+    falhas.append('a tabela nao compara o equivalente em 12 meses')
+if 'Compare os períodos' not in corpo_landing:
     falhas.append('a tabela comparativa sumiu: sem JavaScript, ela e o unico lugar das tres formas')
 
 # Gratuito e Personalizado sao os dois casos que nao sao "um preco".
@@ -331,10 +336,10 @@ if 'Sob medida' not in corpo_landing:
     falhas.append('a pagina nao diz que o Personalizado tem valores a combinar')
 
 # A regra de cobranca precisa estar escrita onde o preco e lido.
-for trecho in ['Contrato de 12 meses', 'plano Gratuito', 'TISS (convênios)', 'Agenda de exames']:
+for trecho in ['sem renovação automática', 'plano Gratuito', 'TISS (convênios)', 'Agenda de exames']:
     if trecho not in corpo_landing:
         falhas.append(f'a pagina nao explica: {trecho!r}')
-print(f'  explica o contrato de 12 meses={"Contrato de 12 meses" in corpo_landing}  '
+print(f'  explica que nao renova sozinho={"sem renovação automática" in corpo_landing}  '
       f'convida ao gratuito={"plano Gratuito" in corpo_landing}')
 
 print('=== 9b-ter. a promocao de inicio de carreira (2026-10-31) ===')

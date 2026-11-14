@@ -999,3 +999,78 @@ def _uuid_valido(valor):
     except (TypeError, ValueError):
         return False
     return True
+
+
+class PlanoView(OrgAdminView):
+    """Organização → Plano e renovação: o período pago e o botão Renovar (1.47).
+
+    Do responsável, e só dele (`MANAGE_ORGANIZATION`): renovar é pagar pela
+    clínica, e quem paga é quem a contratou. A renovação não muda o plano —
+    trocar de plano continua sendo conversa, pelo formulário de contato.
+
+    O POST grava o pedido e leva à página do pedido, a mesma da contratação:
+    ela espera o worker abrir o checkout e manda o navegador à Asaas. Nada
+    aqui fala com a Asaas (CLAUDE.md §2).
+    """
+
+    def _contexto(self, tenant, form=None):
+        from contratacao import vigencias
+        from contratacao.forms import RenovarForm
+        from contratacao.models import Vigencia
+        from contratacao.views import checkout_ligado, plano_contratavel
+
+        from .plans import plan_config
+
+        return {
+            'tenant': tenant, 'plano': plan_config(tenant.plan),
+            'estado': vigencias.situacao(tenant),
+            'historico': Vigencia.objects.filter(tenant=tenant).order_by('-fim')[:20],
+            'plano_de_tabela': plano_contratavel(tenant.plan),
+            'checkout_ligado': checkout_ligado(),
+            'pode_renovar': vigencias.renovacao_disponivel(tenant),
+            'pedido_em_aberto': vigencias.pedido_em_aberto(tenant.id),
+            'janela_dias': vigencias.JANELA_DIAS,
+            'form': form or RenovarForm(plano=tenant.plan),
+        }
+
+    def get(self, request):
+        tenant = self.membership.tenant
+        return render(request, 'tenancy/plano.html', self._contexto(tenant))
+
+    def post(self, request):
+        from base.net import client_ip
+        from contratacao import vigencias
+        from contratacao.forms import RenovarForm
+
+        tenant = Tenant.objects.get(id=self.tenant_id)
+        if not vigencias.renovacao_disponivel(tenant):
+            messages.error(request, 'A renovação pelo sistema não está disponível agora. '
+                                    'Nada foi cobrado.')
+            return redirect('tenancy:plano')
+        aberto = vigencias.pedido_em_aberto(tenant.id)
+        if aberto is not None:
+            # Dois cliques, ou duas abas: o mesmo pagamento, e não dois.
+            self._lembrar(request, aberto)
+            return redirect('contratacao:pedido', pedido_id=aberto.id)
+        form = RenovarForm(request.POST, plano=tenant.plan)
+        if not form.is_valid():
+            return render(request, 'tenancy/plano.html', self._contexto(tenant, form), status=400)
+        pedido = vigencias.criar_pedido_de_renovacao(
+            tenant, request.user, form.cleaned_data['periodicidade'], ip=client_ip(request),
+        )
+        self._lembrar(request, pedido)
+        record_audit_event(
+            request.user, tenant.id, 'contratacao.renovacao_pedida',
+            object_type='pedido_contratacao', object_id=pedido.id, outcome='success',
+            origin_ip=client_ip(request),
+            integrity_metadata={'plano': pedido.plano, 'periodicidade': pedido.periodicidade},
+        )
+        return redirect('contratacao:pedido', pedido_id=pedido.id)
+
+    @staticmethod
+    def _lembrar(request, pedido):
+        from contratacao.views import CHAVE_DA_SESSAO
+
+        meus = list(request.session.get(CHAVE_DA_SESSAO, []))[-9:]
+        if str(pedido.id) not in meus:
+            request.session[CHAVE_DA_SESSAO] = meus + [str(pedido.id)]

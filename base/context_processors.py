@@ -111,6 +111,7 @@ def shell(request):
         'nd_sem_medico': False,
         'nd_segundo_fator_prazo': None,
         'nd_degustacao': None,
+        'nd_vigencia': None,
     }
     if context is None:
         return data
@@ -172,6 +173,15 @@ def shell(request):
         # lembra o responsável de que dá para contratar. Lido da linha que já
         # está na mão — nenhuma consulta para quem não veio da degustação.
         data['nd_degustacao'] = _degustacao(data['nd_tenant'], context)
+        # Vigência do plano pago (1.47, `contratacao/vigencias.py`): a faixa
+        # aparece quinze dias antes do fim e fica depois de vencido, só para o
+        # responsável — quem renova. Uma consulta, e só para quem administra.
+        if context.can(Capability.MANAGE_ORGANIZATION):
+            from contratacao.vigencias import situacao
+
+            estado = situacao(data['nd_tenant'])
+            if estado and (estado['vencida'] or estado['vence_em_breve']):
+                data['nd_vigencia'] = estado
     # Segundo fator obrigatório que ainda não chegou ao prazo: o aviso diz o
     # dia e leva à configuração (`accounts/mfa.py`).
     from accounts import mfa

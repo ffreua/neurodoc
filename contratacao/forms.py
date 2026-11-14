@@ -3,6 +3,32 @@ from django import forms
 from tenancy.plans import PERIODICIDADES, Periodicidade, brl, preco_na_periodicidade
 
 
+def opcoes_de_periodo(plano):
+    """As três vigências, com o pagamento único de cada uma, do catálogo.
+
+    O equivalente em 12 meses vai junto só para comparar: desde a 1.47 o
+    semestral e o trimestral não obrigam a um ano (contrato 2.2).
+    """
+    opcoes = []
+    for codigo, regra in PERIODICIDADES.items():
+        preco = preco_na_periodicidade(plano, codigo)
+        desconto = f', {regra["desconto"]}% de desconto' if regra['desconto'] else ', preço cheio'
+        opcoes.append((str(codigo), f'{codigo.label}: {brl(preco["pagamento"])} por '
+                                    f'{regra["vigencia"]} (Pix ou cartão, pagamento único{desconto})'))
+    return opcoes
+
+
+class RenovarForm(forms.Form):
+    """Renovar: só o período. O plano é o da clínica; nome e e-mail, de quem clicou."""
+
+    periodicidade = forms.ChoiceField(label='Período da renovação', widget=forms.RadioSelect,
+                                      initial=str(Periodicidade.ANUAL))
+
+    def __init__(self, *args, plano, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['periodicidade'].choices = opcoes_de_periodo(plano)
+
+
 class ContratarForm(forms.Form):
     """O mínimo para abrir o pagamento: forma de pagamento, nome e e-mail.
 
@@ -18,7 +44,7 @@ class ContratarForm(forms.Form):
     """
 
     website = forms.CharField(required=False, widget=forms.HiddenInput())
-    periodicidade = forms.ChoiceField(label='Forma de pagamento', widget=forms.RadioSelect)
+    periodicidade = forms.ChoiceField(label='Período e pagamento', widget=forms.RadioSelect)
     nome = forms.CharField(
         label='Seu nome', max_length=150,
         widget=forms.TextInput(attrs={'autocomplete': 'name', 'placeholder': 'Ex.: Dra. Ana Souza'}),
@@ -36,16 +62,7 @@ class ContratarForm(forms.Form):
     def __init__(self, *args, plano, **kwargs):
         super().__init__(*args, **kwargs)
         self.plano = plano
-        opcoes = []
-        for codigo, regra in PERIODICIDADES.items():
-            preco = preco_na_periodicidade(plano, codigo)
-            if codigo == Periodicidade.ANUAL:
-                como = 'Pix ou cartão, pagamento único'
-            else:
-                como = f'{regra["pagamento"]} no cartão de crédito'
-            opcoes.append((str(codigo), f'{codigo.label}: {brl(preco["pagamento"])} {regra["por"]} '
-                                        f'({como}; total do ano {brl(preco["ano"])})'))
-        self.fields['periodicidade'].choices = opcoes
+        self.fields['periodicidade'].choices = opcoes_de_periodo(plano)
 
     def clean_email(self):
         from accounts.models import User

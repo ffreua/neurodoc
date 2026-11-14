@@ -27,15 +27,18 @@ MESES_NO_ANO = 12
 
 
 class Periodicidade(models.TextChoices):
-    """De quanto em quanto tempo a clínica paga — dentro do contrato de 12 meses.
+    """O período contratado: doze, seis ou três meses, pago de uma vez.
 
-    O contrato de adesão fixa a vigência em 12 meses e o valor "anual e
-    devido integralmente na contratação, **salvo condição comercial
-    expressamente registrada**" (`tenancy/contract.py`, versão 1.2). Pagar
-    por semestre ou por trimestre é essa condição: ela vai no convite e fica
-    gravada no aceite (`ContractAcceptance.periodicidade`). Um contrato de
-    seis ou três meses seria outra coisa — mudaria a cláusula de vigência,
-    e redação de contrato passa pela advogada.
+    Desde a 1.47 (contrato de adesão 2.2) a forma de pagamento **é** a
+    vigência: o trimestral vale três meses e é pago uma vez, o semestral
+    seis, o anual doze. Até a 2.1 o contrato era sempre de 12 meses, e o
+    semestral e o trimestral eram parcelas desse ano — o que deixava quem
+    queria experimentar por três meses preso a um ano.
+
+    Não há renovação automática: perto do fim, o responsável recebe o aviso
+    e renova pelo próprio sistema, escolhendo de novo o período
+    (`contratacao/vigencias.py`). A periodicidade vai no convite e fica
+    gravada no aceite, com o fim do período (`ContractAcceptance.expires_at`).
     """
 
     ANUAL = 'anual', 'Anual'
@@ -49,15 +52,19 @@ class Periodicidade(models.TextChoices):
 #: escrito — a página não pode dar a entender 20% para quem paga por
 #: trimestre.
 #:
-#: `meses` é quantos meses cada pagamento cobre; `lancamento` marca o
-#: desconto que é promoção (e que um dia acaba), para a tela dizê-lo.
+#: `meses` é a vigência do período e o que o pagamento único cobre (1.47);
+#: `lancamento` marca o desconto que é promoção (e que um dia acaba), para a
+#: tela dizê-lo.
 PERIODICIDADES = {
     Periodicidade.ANUAL: {'meses': 12, 'desconto': 20, 'lancamento': True,
-                          'por': 'por ano', 'pagamento': 'pagamento único anual'},
+                          'por': 'por ano', 'pagamento': 'pagamento único, vale 12 meses',
+                          'vigencia': '12 meses'},
     Periodicidade.SEMESTRAL: {'meses': 6, 'desconto': 5, 'lancamento': False,
-                              'por': 'por semestre', 'pagamento': '2 pagamentos semestrais'},
+                              'por': 'por semestre', 'pagamento': 'pagamento único, vale 6 meses',
+                              'vigencia': '6 meses'},
     Periodicidade.TRIMESTRAL: {'meses': 3, 'desconto': 0, 'lancamento': False,
-                               'por': 'por trimestre', 'pagamento': '4 pagamentos trimestrais'},
+                               'por': 'por trimestre', 'pagamento': 'pagamento único, vale 3 meses',
+                               'vigencia': '3 meses'},
 }
 
 #: A primeira que a vitrine mostra, e a do convite que não disser outra.
@@ -350,8 +357,10 @@ def has_tiss(code):
 def preco_na_periodicidade(code, periodicidade=PERIODICIDADE_PADRAO):
     """O que o plano custa numa periodicidade, em centavos. `None` se não há preço.
 
-    `mensal` é o equivalente por mês, `pagamento` o valor de cada cobrança
-    (12, 6 ou 3 meses), `ano` o total de doze meses. Grátis devolve zeros.
+    `mensal` é o equivalente por mês, `pagamento` o valor único do período
+    (12, 6 ou 3 meses), `ano` o equivalente em doze meses — só para comparar
+    as formas, porque o semestral e o trimestral não obrigam a um ano (1.47).
+    Grátis devolve zeros.
     """
     cheio = plan_config(code).get('price_monthly')
     if cheio is None:
@@ -372,9 +381,9 @@ def pricing(code):
     preço (as três periodicidades, em `periodos`) e sem preço (`None` — o
     Personalizado, combinado caso a caso).
 
-    Em cada periodicidade: o mensal equivalente, o valor de cada pagamento
-    e **sempre** o total de um ano, que é o número que permite comparar as
-    três. Tudo derivado do preço cheio por `preco_na_periodicidade`.
+    Em cada periodicidade: o mensal equivalente, o pagamento único do
+    período e **sempre** o equivalente em um ano, que é o número que permite
+    comparar as três. Tudo derivado do preço cheio por `preco_na_periodicidade`.
 
     `monthly` e `annual` (os da periodicidade padrão, a anual) continuam
     existindo para quem precisa de um número só: o menu do formulário, o
@@ -399,7 +408,7 @@ def pricing(code):
         periodos.append({
             'code': str(codigo), 'label': codigo.label, 'desconto': v['desconto'],
             'lancamento': regra['lancamento'], 'por': regra['por'],
-            'pagamento_rotulo': regra['pagamento'],
+            'pagamento_rotulo': regra['pagamento'], 'vigencia': regra['vigencia'],
             'mensal': brl(v['mensal']), 'pagamento': brl(v['pagamento']), 'ano': brl(v['ano']),
             'cheio': brl(v['cheio']), 'cheio_ano': brl(v['cheio'] * MESES_NO_ANO),
             'economia_ano': brl(v['economia_ano']),
@@ -410,7 +419,7 @@ def pricing(code):
         'free': False, 'quoted': True, 'promo': any(p['desconto'] for p in periodos),
         'periodos': periodos, 'full_monthly': brl(centavos),
         'monthly': padrao['mensal'], 'annual': padrao['ano'], 'discount': padrao['desconto'],
-        'note': 'Contrato de 12 meses, pago por ano, semestre ou trimestre.',
+        'note': 'Vigência de 12, 6 ou 3 meses, paga de uma vez, sem renovação automática.',
     }
 
 
@@ -442,3 +451,11 @@ def plan_choices():
             rotulo += ' — valores a combinar'
         opcoes.append((str(code), rotulo))
     return opcoes
+
+
+def meses_da_periodicidade(periodicidade):
+    """Quantos meses o período vale. Desconhecida cai no anual, o padrão."""
+    try:
+        return PERIODICIDADES[Periodicidade(periodicidade)]['meses']
+    except ValueError:
+        return PERIODICIDADES[PERIODICIDADE_PADRAO]['meses']

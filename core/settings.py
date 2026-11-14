@@ -215,6 +215,13 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'contratacao.tasks.varrer_contratacao',
         'schedule': 300,
     },
+    # Vigência do plano pago (1.47): o e-mail de quinze dias antes do fim e o
+    # de vencida, uma vez cada por período. De manhã, em Brasília, para o
+    # responsável ler no começo do dia. Só banco e SMTP.
+    'contratacao-avisos-de-vigencia': {
+        'task': 'contratacao.tasks.avisar_vigencias',
+        'schedule': crontab(hour=8, minute=15),
+    },
     # SNCR: pedido de numeração parado em "enviando" (o app caiu no meio
     # da chamada) vira incerto. Não fala com a Anvisa; só banco.
     # TISS (1.30): lote em "gerando" cuja mensagem se perdeu é reenviado.

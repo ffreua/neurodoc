@@ -7,10 +7,17 @@
     <meta http-equiv="refresh" content="3">
 {% endif %}{% endblock %}
 {% block heading %}{% if pedido.status == 'pago' %}Pagamento confirmado{% elif atualizar %}Um momento…{% elif esperando_sem_recarregar %}Aguardando a confirmação{% elif pedido.status == 'aguardando' and retorno == 'expirado' %}O link de pagamento venceu{% elif pedido.status == 'aguardando' and retorno == 'cancelado' %}Pagamento não concluído{% elif pedido.status == 'aguardando' %}Pagamento em aberto{% elif pedido.status == 'falhou' %}O pagamento não abriu{% else %}Este pedido não vale mais{% endif %}{% endblock %}
-{% block subheading %}Plano {{ plano }}, {{ periodicidade }}: {{ valor }} por cobrança ({{ ano }} em 12 meses).{% endblock %}
+{% block subheading %}{% if pedido.e_renovacao %}Renovação do plano{% else %}Plano{% endif %} {{ plano }}, {{ periodicidade }}: {{ valor }}, pagamento único, vale {{ vigencia_rotulo }}.{% endblock %}
 {% block card_width %}wd-700{% endblock %}
 {% block content %}
-{% if pedido.status == 'pago' %}
+{% if pedido.status == 'pago' and pedido.e_renovacao %}
+    {% if pedido.vigencia %}
+    <p class="fs-13">Renovação confirmada. O novo período vai de {{ pedido.vigencia.inicio|date:"d/m/Y" }} a <strong>{{ pedido.vigencia.ultimo_dia|date:"d/m/Y" }}</strong>.</p>
+    {% else %}
+    <p class="fs-13">Recebemos o pagamento e vamos conferi-lo. Entraremos em contato por {{ email_mascarado }}.</p>
+    {% endif %}
+    <a class="btn btn-primary w-100" href="{% url 'tenancy:plano' %}">Voltar ao NeuroDoc</a>
+{% elif pedido.status == 'pago' %}
     {% if link_cadastro %}
     <p class="fs-13">Falta só criar a sua clínica: é nesse passo que você informa o CNPJ (ou CPF) e aceita o contrato de adesão.</p>
     <a class="btn btn-primary w-100" href="{{ link_cadastro }}">Criar minha clínica</a>
@@ -28,22 +35,22 @@
         <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
         <p class="fs-13 mb-0">{% if pedido.status == 'preparando' %}Preparando a página de pagamento segura da Asaas.{% else %}Aguardando a confirmação do pagamento pela Asaas. Pelo Pix costuma ser imediato; no cartão, alguns segundos.{% endif %}</p>
     </div>
-    <p class="fs-12 text-muted mt-3 mb-0">Esta página se atualiza sozinha. Se preferir fechá-la, o link para criar a clínica chega a {{ email_mascarado }} assim que o pagamento for confirmado.</p>
+    <p class="fs-12 text-muted mt-3 mb-0">Esta página se atualiza sozinha. Se preferir fechá-la, {% if pedido.e_renovacao %}a confirmação da renovação chega{% else %}o link para criar a clínica chega{% endif %} a {{ email_mascarado }} assim que o pagamento for confirmado.</p>
 {% elif esperando_sem_recarregar %}
-    <p class="fs-13 mb-0">A confirmação do pagamento ainda não chegou. Assim que chegar, o link para criar a clínica vai para {{ email_mascarado }}. Se o valor foi cobrado e nada chegar em algumas horas, fale conosco pelo <a href="{% url 'onboarding:landing' %}#contato">formulário de contato</a>.</p>
+    <p class="fs-13 mb-0">A confirmação do pagamento ainda não chegou. Assim que chegar, {% if pedido.e_renovacao %}a renovação aparece em Plano e renovação e a confirmação vai{% else %}o link para criar a clínica vai{% endif %} para {{ email_mascarado }}. Se o valor foi cobrado e nada chegar em algumas horas, fale conosco pelo <a href="{% url 'onboarding:landing' %}#contato">formulário de contato</a>.</p>
 {% elif pedido.status == 'aguardando' and retorno == 'expirado' %}
     <p class="fs-13">O link de pagamento venceu antes de o pagamento ser concluído. Nada foi cobrado.</p>
-    <a class="btn btn-primary w-100" href="{% url 'contratacao:contratar' pedido.plano %}?periodo={{ pedido.periodicidade }}">Fazer um novo pedido</a>
+    <a class="btn btn-primary w-100" href="{{ novo_pedido_url }}">Fazer um novo pedido</a>
 {% elif pedido.status == 'aguardando' %}
     <p class="fs-13">{% if retorno == 'cancelado' %}Você saiu da página de pagamento antes de concluir. Nada foi cobrado.{% else %}O pagamento deste pedido ainda não foi confirmado.{% endif %}</p>
     <a class="btn btn-primary w-100" href="{% url 'contratacao:pedido' pedido.id %}">Voltar ao pagamento</a>
-    <a class="btn btn-light w-100 mt-2" href="{% url 'contratacao:contratar' pedido.plano %}?periodo={{ pedido.periodicidade }}">Escolher outra forma de pagamento</a>
+    <a class="btn btn-light w-100 mt-2" href="{{ novo_pedido_url }}">Escolher outra forma de pagamento</a>
 {% elif pedido.status == 'falhou' %}
     <p class="fs-13">Não conseguimos abrir a página de pagamento agora. Nada foi cobrado. Tente de novo em alguns minutos ou fale conosco.</p>
-    <a class="btn btn-primary w-100" href="{% url 'contratacao:contratar' pedido.plano %}?periodo={{ pedido.periodicidade }}">Tentar de novo</a>
+    <a class="btn btn-primary w-100" href="{{ novo_pedido_url }}">Tentar de novo</a>
     <a class="btn btn-light w-100 mt-2" href="{% url 'onboarding:landing' %}#contato">Falar com a gente</a>
 {% else %}
     <p class="fs-13">O link de pagamento deste pedido {% if pedido.status == 'expirado' %}venceu{% else %}foi cancelado{% endif %}. Nada foi cobrado.</p>
-    <a class="btn btn-primary w-100" href="{% url 'contratacao:contratar' pedido.plano %}?periodo={{ pedido.periodicidade }}">Fazer um novo pedido</a>
+    <a class="btn btn-primary w-100" href="{{ novo_pedido_url }}">Fazer um novo pedido</a>
 {% endif %}
 {% endblock %}

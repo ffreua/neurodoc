@@ -1,7 +1,7 @@
 {% extends "base_auth.html" %}
 {% block title %}Contratar o plano {{ plano.label }} — NeuroDoc{% endblock %}
 {% block heading %}Contratar o plano {{ plano.label }}{% endblock %}
-{% block subheading %}Até {{ plano.max_patients }} pacientes ativos e {{ plano.max_doctors }} médico{{ plano.max_doctors|pluralize }}. Contrato de 12 meses.{% endblock %}
+{% block subheading %}Até {{ plano.max_patients }} pacientes ativos e {{ plano.max_doctors }} médico{{ plano.max_doctors|pluralize }}. Período de 12, 6 ou 3 meses.{% endblock %}
 {% block card_width %}wd-700{% endblock %}
 {% block content %}
 {% comment %}O pagamento vem **antes** da clínica: pago, o link de cadastro chega
@@ -20,9 +20,10 @@ saber o que está contratando antes de pagar (`contratacao/servicos.py`).{% endc
             CPF) e aceita o contrato.
         </p>
         <p class="mb-2">
-            O anual é um pagamento único, por Pix ou cartão. O semestral e o trimestral são cobrados no
-            cartão de crédito, a cada período, e <strong class="text-dark">param sozinhos ao fim dos
-            12 meses</strong>: não há renovação automática.
+            Cada período — 12, 6 ou 3 meses — é <strong class="text-dark">pago de uma vez</strong>, por
+            Pix ou cartão, e vale até o fim dele — e
+            <strong class="text-dark">não há renovação automática</strong>: perto do fim, avisamos no sistema e por e-mail, e você renova ali mesmo,
+            escolhendo de novo o período.
         </p>
         <p class="mb-0">
             Você pode desistir em até 7 dias depois de criar a clínica, com a devolução de tudo o que

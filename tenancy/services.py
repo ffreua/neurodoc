@@ -128,6 +128,12 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
             ip=contract_ip, user_agent=contract_user_agent,
             poderes_declarados=contract_powers, periodicidade=invitation.periodicidade,
         )
+        # O primeiro período pago (1.47): é dele que sai o aviso de
+        # vencimento e a renovação. Só no plano com preço; o pedido é o da
+        # página de vendas, quando a clínica nasceu de um pagamento.
+        from contratacao.vigencias import abrir_do_aceite
+
+        abrir_do_aceite(aceite, pedido=getattr(invitation, 'pedido_asaas', None))
     # A clínica nasce pronta para atender: sem isto, o primeiro exame
     # neurológico abre num aviso pedindo um comando de terminal.
     ensure_default_template(tenant.id)

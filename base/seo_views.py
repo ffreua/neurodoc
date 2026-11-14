@@ -218,8 +218,8 @@ def _texto_para_modelo(completo):
             valor = 'Valores combinados caso a caso'
         else:
             valor = 'Pagamento ' + '; '.join(
-                f"{p['label'].lower()}: {p['mensal']}/mês ({p['pagamento']} {p['por']}, "
-                f"{p['ano']} em 12 meses{', ' + str(p['desconto']) + '% de desconto' if p['desconto'] else ', preço cheio'})"
+                f"{p['label'].lower()}: {p['mensal']}/mês ({p['pagamento']} em pagamento único "
+                f"por {p['vigencia']}{', ' + str(p['desconto']) + '% de desconto' if p['desconto'] else ', preço cheio'})"
                 for p in preco['periodos']
             )
         return f"- **{plano['label']}** — {limites}. {valor}."
@@ -240,8 +240,9 @@ def _texto_para_modelo(completo):
         '',
         '## Planos e preços',
         '',
-        'Contrato de 12 meses. Nos planos pagos, o pagamento pode ser anual '
-        '(desconto de lançamento), semestral (5% de desconto) ou trimestral (preço cheio).',
+        'Nos planos pagos, o período é de 12 meses (desconto de lançamento), 6 meses '
+        '(5% de desconto) ou 3 meses (preço cheio), cada um pago de uma vez, sem '
+        'renovação automática.',
         '',
         *[linha_do_plano(code) for code in PUBLIC_ORDER],
         '',

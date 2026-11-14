@@ -13,10 +13,15 @@ O caminho, e quem faz cada passo:
    Daí em diante é o cadastro de sempre, com o aceite do contrato de sempre.
 
 **O pagamento não muda plano de clínica nenhuma.** Ele emite um convite, e é o
-convite que cria a clínica no plano pago. Estorno, contestação e atraso das
-cobranças seguintes chegam ao console e por e-mail aos superadministradores,
-e **não** suspendem nada sozinhos: a cláusula 5 do contrato pede aviso antes
-de restringir, e essa decisão é de gente.
+convite que cria a clínica no plano pago. Estorno e contestação chegam ao
+console e por e-mail aos superadministradores, e **não** suspendem nada
+sozinhos: a cláusula 5 do contrato pede aviso antes de restringir, e essa
+decisão é de gente.
+
+**A renovação (1.47) é o mesmo caminho com a clínica no pedido.** O
+responsável clica em Renovar (`contratacao/vigencias.py`), o pedido nasce com
+`tenant`, e no passo 4 o pagamento abre o período seguinte em vez de emitir
+convite. Não muda o plano: renova o que a clínica tem.
 """
 
 import logging
@@ -68,17 +73,21 @@ EVENTOS_DA_CHAVE = {
 # ------------------------------------------------------------------ pedido
 
 def preco_do_pedido(plano, periodicidade):
-    """Valor de cada cobrança, total do ano e quantas cobranças — do catálogo."""
+    """O pagamento único do período, o equivalente no ano e quantas cobranças (1)."""
     from tenancy.plans import preco_na_periodicidade
 
     preco = preco_na_periodicidade(plano, periodicidade)
     if not preco or not preco['pagamento']:
         raise ValueError('Plano sem preço de tabela não se contrata pela página.')
-    return preco['pagamento'], preco['ano'], 12 // preco['meses']
+    # Uma cobrança: desde a 1.47 o período é pago de uma vez (contrato 2.2).
+    return preco['pagamento'], preco['ano'], 1
 
 
-def criar_pedido(plano, periodicidade, nome, email, ip=None):
-    """Grava o pedido e pede o checkout ao worker depois do commit."""
+def criar_pedido(plano, periodicidade, nome, email, ip=None, tenant=None, usuario=None):
+    """Grava o pedido e pede o checkout ao worker depois do commit.
+
+    Com `tenant`, é a renovação de uma clínica que já existe (`vigencias`).
+    """
     from tenancy import contract
 
     pagamento, ano, cobrancas = preco_do_pedido(plano, periodicidade)
@@ -87,6 +96,7 @@ def criar_pedido(plano, periodicidade, nome, email, ip=None):
         valor_pagamento_centavos=pagamento, valor_ano_centavos=ano,
         cobrancas_previstas=cobrancas, nome=nome.strip()[:150],
         email=email.strip().lower(), contrato_versao=contract.VERSAO, origem_ip=ip,
+        tenant=tenant, solicitado_por=usuario,
     )
     transaction.on_commit(lambda: _enfileirar_checkout(pedido.id))
     return pedido
@@ -272,11 +282,14 @@ def _pago(pedido, checkout):
         pedido.falha = f'Valor pago {total} diferente do pedido {esperado}.'
         pedido.save(update_fields=['status', 'pago_em', 'cliente_asaas_id', 'falha', 'updated_at'])
         texto = (f'O pedido {pedido.id} foi pago com valor diferente do combinado '
-                 f'({total} contra {esperado}). Nenhum convite foi emitido; confira na Asaas.')
+                 f'({total} contra {esperado}). Nenhum convite foi emitido nem período '
+                 'aberto; confira na Asaas.')
         transaction.on_commit(lambda: avisar_superadmins(
             'Pagamento com valor diferente do pedido', texto,
         ))
         return 'pago com valor divergente: sem convite'
+    if pedido.tenant_id:
+        return _renovacao_paga(pedido)
     convite, token = issue_invitation(
         purpose=InvitationPurpose.PLATFORM, plan=pedido.plano,
         periodicidade=pedido.periodicidade, email_binding=pedido.email,
@@ -296,11 +309,31 @@ def _pago(pedido, checkout):
         },
     )
     pedido_id = pedido.id
-    texto = (f'Plano {pedido.plano}, {pedido.periodicidade}, {esperado} por cobrança '
-             f'({pedido.cobrancas_previstas} no ano). Pedido {pedido.id}.\n\n'
+    texto = (f'Plano {pedido.plano}, {pedido.periodicidade}, {esperado} em pagamento único. '
+             f'Pedido {pedido.id}.\n\n'
              'O convite foi emitido e o link de cadastro foi ao e-mail de quem pagou.')
     transaction.on_commit(lambda: enviar_link_de_cadastro(pedido_id, token))
     transaction.on_commit(lambda: avisar_superadmins('Novo plano pago pela página', texto))
+    return ''
+
+
+def _renovacao_paga(pedido):
+    """O pagamento de uma renovação: o período seguinte, o e-mail e o aviso ao console."""
+    from . import vigencias
+
+    pedido.save(update_fields=['status', 'pago_em', 'cliente_asaas_id', 'updated_at'])
+    vigencia = vigencias.abrir_da_renovacao(pedido)
+    tenant = vigencia.tenant
+    nome = tenant.trade_name or tenant.legal_name
+    texto = (f'A clínica {nome} renovou o plano {pedido.plano} ({pedido.periodicidade}, '
+             f'{asaas.reais(pedido.valor_pagamento_centavos)}). Novo período até '
+             f'{vigencias.ultimo_dia(vigencia.fim):%d/%m/%Y}. Pedido {pedido.id}.')
+    if pedido.plano != tenant.plan:
+        texto += (f'\n\nATENÇÃO: o plano da clínica hoje é {tenant.plan}, e o pago foi '
+                  f'{pedido.plano}. O plano não foi alterado; confira no console.')
+    pedido_id = pedido.id
+    transaction.on_commit(lambda: vigencias.avisar_renovacao_paga(pedido_id))
+    transaction.on_commit(lambda: avisar_superadmins('Renovação paga', texto))
     return ''
 
 
@@ -359,8 +392,9 @@ def _evento_de_cobranca(tipo, pagamento):
 
 def _alertar(tipo, pedido, referencia):
     titulo = EVENTOS_DE_ALERTA[tipo]
+    renovacao = ', renovação' if pedido.tenant_id else ''
     texto = (f'{titulo} (Asaas: {referencia}) no pedido {pedido.id} — plano {pedido.plano}, '
-             f'{pedido.periodicidade}.\n\nNada foi suspenso nem alterado na clínica: a cláusula 5 '
+             f'{pedido.periodicidade}{renovacao}.\n\nNada foi suspenso nem alterado na clínica: a cláusula 5 '
              'do contrato pede aviso antes de restringir. Confira na Asaas e decida no console.')
     transaction.on_commit(lambda: avisar_superadmins(titulo, texto))
 

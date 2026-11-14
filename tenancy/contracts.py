@@ -28,8 +28,9 @@ from .models import ContractAcceptance
 #: redigiu o contrato é exatamente o que torna a cláusula discutível.
 PRAZO_ARREPENDIMENTO_DIAS = 7
 
-#: Vigência do período contratado, em meses. O contrato é anual e vence na
-#: data de aniversário do aceite (cláusula 2.2).
+#: Vigência de quem não tem período pago — o Gratuito, o Personalizado e a
+#: degustação —, em meses. O plano pago vence pelo período escolhido (1.47,
+#: `plans.meses_da_periodicidade`): 12, 6 ou 3 meses depois do aceite.
 VIGENCIA_MESES = 12
 
 
@@ -42,18 +43,35 @@ def sha_do_texto():
     return hashlib.sha256(contract.texto_simples().encode('utf-8')).hexdigest()
 
 
-def _somar_um_ano(momento):
-    """Mesma data, ano seguinte. Cuidando do 29 de fevereiro.
+def somar_meses(momento, meses):
+    """Mesmo dia, `meses` adiante. Dia que não existe vira o último do mês.
 
-    `timedelta(days=365)` erraria por um dia toda vez que houvesse 29 de
-    fevereiro no meio, e o vencimento de um contrato anual não pode andar
-    sozinho. Quem assina em 29/02 vence em 28/02 — a regra do Código Civil
-    para prazos que caem em data inexistente.
+    `timedelta(days=…)` erraria por um dia a cada mês de 31 ou fevereiro no
+    meio, e o vencimento de um contrato não pode andar sozinho. Quem assina
+    em 31/08 por seis meses vence em 28/02 (ou 29/02) — a regra do Código
+    Civil para prazos que caem em data inexistente. Vale também para o
+    `datetime` consciente de fuso: só a data muda, a hora fica.
     """
-    try:
-        return momento.replace(year=momento.year + 1)
-    except ValueError:
-        return momento.replace(year=momento.year + 1, month=2, day=28)
+    import calendar
+
+    total = momento.month - 1 + meses
+    ano, mes = momento.year + total // 12, total % 12 + 1
+    return momento.replace(year=ano, month=mes,
+                           day=min(momento.day, calendar.monthrange(ano, mes)[1]))
+
+
+def _somar_um_ano(momento):
+    """Mesma data, ano seguinte; 29/02 vira 28/02."""
+    return somar_meses(momento, 12)
+
+
+def meses_de_vigencia(plan, periodicidade=None):
+    """Meses que o aceite vale: o período, no plano pago; 12 nos demais."""
+    from .plans import meses_da_periodicidade
+
+    if preco_do_pagamento_centavos(plan, periodicidade):
+        return meses_da_periodicidade(periodicidade or 'anual')
+    return VIGENCIA_MESES
 
 
 def preco_anual_centavos(plan, periodicidade=None):
@@ -112,7 +130,10 @@ def registrar_aceite(tenant, user, plan, ip=None, user_agent='', versao=None,
         source_ip=ip,
         user_agent=(user_agent or '')[:255],
         withdrawal_deadline=agora + timezone.timedelta(days=PRAZO_ARREPENDIMENTO_DIAS),
-        expires_at=_somar_um_ano(agora),
+        # O período pago (1.47): 3, 6 ou 12 meses. A degustação adere ao
+        # Gratuito, que não tem preço, e fica nos 12 de sempre.
+        expires_at=somar_meses(agora, meses_de_vigencia(
+            '' if degustacao_plano else plan, periodicidade)),
     )
 
 
@@ -140,11 +161,10 @@ def _corpo(aceite):
         f'Plano contratado:   {plan_label(aceite.plan)}',
         # O preco do dia, e nao o de hoje: e a "condicao comercial" que a
         # clausula 2.2, "h" manda registrar, e ela nao acompanha reajuste.
-        f'Valor em 12 meses:  {brl(aceite.price_annual_cents)}'
-        if aceite.price_annual_cents else 'Valor anual:        sem cobrança ou combinado à parte',
-        *([f'Pagamento:          {aceite.get_periodicidade_display()} — '
-           f'{brl(aceite.price_payment_cents)} por vez']
-          if aceite.price_payment_cents and aceite.periodicidade else []),
+        *([f'Período contratado: {aceite.get_periodicidade_display()} — '
+           f'{brl(aceite.price_payment_cents)}, pagamento único, sem renovação automática']
+          if aceite.price_payment_cents and aceite.periodicidade else
+          ['Valor:              sem cobrança ou combinado à parte']),
         *([f'Condição comercial: degustação do plano {plan_label(aceite.degustacao_plano)} '
            f'até {(timezone.localtime(aceite.degustacao_ate) - timezone.timedelta(days=1)):%d/%m/%Y} '
            f'(último dia); depois, plano {plan_label(aceite.plan)}']

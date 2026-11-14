@@ -1564,7 +1564,7 @@ class InvitationsView(SuperAdminView):
             ],
             'emitido': emitido,
             'periodicidades': [
-                {'code': str(c), 'label': c.label, 'desconto': r['desconto']}
+                {'code': str(c), 'label': c.label, 'desconto': r['desconto'], 'vigencia': r['vigencia']}
                 for c, r in PERIODICIDADES.items()
             ],
         })
@@ -1606,7 +1606,7 @@ class InvitationsView(SuperAdminView):
 
         periodicidade = request.POST.get('periodicidade') or 'anual'
         if periodicidade not in Periodicidade.values:
-            messages.error(request, 'Escolha a periodicidade do pagamento.')
+            messages.error(request, 'Escolha o período contratado.')
             return redirect('superadmin:invitations')
         invitation, raw_token = issue_invitation(
             InvitationPurpose.PLATFORM, issued_by=request.user,

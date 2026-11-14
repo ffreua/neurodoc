@@ -91,7 +91,10 @@ def apagar_organizacoes(cnpjs, emails):
     # PROTECT, como todo `TenantModel`, e a organizacao criada pelo
     # caminho do cliente agora nasce com um. Sai so das que somem -- a
     # organizacao que fica precisa continuar com o contrato que aceitou.
+    from contratacao.models import Vigencia
     from tenancy.models import ContractAcceptance
+    # A vigência (1.47) também segura a organização pelo `TenantModel`.
+    Vigencia.objects.filter(tenant_id__in=ids).delete()
     ContractAcceptance.objects.filter(tenant_id__in=ids).delete()
     # Ordem importa: no depende de template, item depende de escala.
     ExamNode.objects.filter(tenant_id__in=ids).delete()

@@ -1,16 +1,18 @@
-"""Forma de pagamento: anual, semestral, trimestral (1.30, decisão de 2026-10-30).
+"""Período contratado: anual, semestral, trimestral (1.30; vigência por período na 1.47).
 
-O contrato de adesão fixa a vigência em 12 meses e o pagamento anual
-"salvo condição comercial expressamente registrada". A periodicidade é
-essa condição, e este roteiro tenta quebrar o caminho dela:
+Desde o contrato 2.2 a periodicidade **é** a vigência: doze, seis ou três
+meses, cada período pago de uma vez e sem renovação automática. Ela vai do
+convite ao aceite, e este roteiro tenta quebrar o caminho dela:
 
 - **o catálogo**: 20% só no anual (de lançamento), 5% no semestral, preço
   cheio no trimestral — e as contas em centavos, sem um centavo perdido;
 - **o convite**: carrega a periodicidade; uma desconhecida é recusada; o
   de colaborador não muda nada;
-- **o aceite**: grava a periodicidade, o total de 12 meses e o valor de
-  cada pagamento **daquela** forma — e a via por e-mail diz os dois;
-- **o Gratuito**: sem periodicidade nem valor no aceite;
+- **o aceite**: grava a periodicidade, o equivalente em 12 meses e o
+  pagamento único do período, **vence** ao fim do período (3, 6 ou 12 meses,
+  sem estourar o fim do mês) e abre a primeira `Vigencia` — e a via por
+  e-mail diz o período e o valor;
+- **o Gratuito**: sem periodicidade nem valor no aceite, sem vigência, 12 meses;
 - **o que já existe**: aceite antigo, sem periodicidade, continua legível.
 
 Tudo numa transação desfeita.
@@ -21,7 +23,8 @@ import uuid
 
 from django.db import transaction
 
-from tenancy.contracts import _corpo, preco_anual_centavos, preco_do_pagamento_centavos
+from contratacao.models import Vigencia
+from tenancy.contracts import _corpo, preco_anual_centavos, preco_do_pagamento_centavos, somar_meses
 from tenancy.invitations import issue_invitation
 from tenancy.models import ContractAcceptance, Invitation, InvitationPurpose
 from tenancy.plans import PERIODICIDADES, PlanCode, brl, preco_na_periodicidade
@@ -94,19 +97,36 @@ try:
                  aceite.price_annual_cents)
         conferir('e cada pagamento, R$ 484,50', aceite.price_payment_cents == 48450, aceite.price_payment_cents)
         via = _corpo(aceite)
-        conferir('a via por e-mail diz o total e a forma de pagamento',
-                 'R$ 969,00' in via and 'Semestral' in via and 'R$ 484,50' in via)
+        conferir('a via por e-mail diz o período, o valor e que é pagamento único',
+                 'Semestral' in via and 'R$ 484,50' in via and 'pagamento único' in via
+                 and 'sem renovação automática' in via, via[:600])
+        conferir('o semestral vence em seis meses', aceite.expires_at.date() == somar_meses(aceite.created_at, 6).date(),
+                 aceite.expires_at)
+        vig = Vigencia.objects.filter(aceite=aceite).first()
+        conferir('e abre o primeiro período, com o valor do semestre',
+                 vig is not None and vig.fim == aceite.expires_at and vig.valor_centavos == 48450
+                 and vig.origem == 'aceite' and vig.pedido_id is None)
         _, aceite_c = contratar(PlanCode.COMPLETE, 'trimestral', base='778899010001')
-        conferir('Completo trimestral: R$ 2.100,00 no ano, R$ 525,00 por trimestre',
+        conferir('Completo trimestral: R$ 525,00 por trimestre (R$ 2.100,00 no ano, para comparar)',
                  (aceite_c.price_annual_cents, aceite_c.price_payment_cents) == (210000, 52500))
+        conferir('o trimestral vence em três meses', aceite_c.expires_at.date() == somar_meses(aceite_c.created_at, 3).date())
         _, aceite_a = contratar(PlanCode.COMPLETE, 'anual', base='778899020001')
         conferir('Completo anual: R$ 1.680,00 de uma vez',
                  (aceite_a.price_annual_cents, aceite_a.price_payment_cents) == (168000, 168000))
+        conferir('o anual vence em doze meses', aceite_a.expires_at.date() == somar_meses(aceite_a.created_at, 12).date())
+        from datetime import datetime, timezone as tz
+        conferir('31/08 mais seis meses é 28/02 (ou 29), sem estourar o mês',
+                 somar_meses(datetime(2026, 8, 31, 15, tzinfo=tz.utc), 6) == datetime(2027, 2, 28, 15, tzinfo=tz.utc)
+                 and somar_meses(datetime(2027, 8, 31, 15, tzinfo=tz.utc), 6) == datetime(2028, 2, 29, 15, tzinfo=tz.utc)
+                 and somar_meses(datetime(2028, 2, 29, 9, tzinfo=tz.utc), 12) == datetime(2029, 2, 28, 9, tzinfo=tz.utc))
 
         print('=== 4. O Gratuito e o que já existia ===')
         _, gratis = contratar(PlanCode.FREE, 'semestral', base='778899030001')
         conferir('Gratuito: sem periodicidade nem valor', not gratis.periodicidade
                  and gratis.price_annual_cents in (None, 0) and gratis.price_payment_cents in (None, 0))
+        conferir('Gratuito: sem vigência, e o aceite nos 12 meses de sempre',
+                 not Vigencia.objects.filter(aceite=gratis).exists()
+                 and gratis.expires_at.date() == somar_meses(gratis.created_at, 12).date())
         conferir('Personalizado: valor combinado, nada calculado',
                  preco_anual_centavos(PlanCode.CUSTOM) is None
                  and preco_do_pagamento_centavos(PlanCode.CUSTOM, 'semestral') is None)
@@ -121,5 +141,5 @@ except Desfazer:
 
 if falhas:
     raise SystemExit(f'FALHA: {len(falhas)} verificação(ões): ' + '; '.join(falhas))
-print('OK: a forma de pagamento vai do convite ao aceite, com o total de 12 meses e o valor de\n'
-      '    cada pagamento daquela forma, e o desconto só onde ele vale.')
+print('OK: o período vai do convite ao aceite, com o pagamento único e o vencimento dele,\n'
+      '    abre a primeira vigência, e o desconto só onde ele vale.')

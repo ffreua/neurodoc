@@ -33,13 +33,6 @@ TIMEOUT_SEGUNDOS = 20
 #: cartão na bolsa ou abrir o aplicativo do banco para o Pix.
 MINUTOS_PARA_EXPIRAR = 60
 
-#: O ciclo da assinatura na Asaas para cada periodicidade que cobra mais de
-#: uma vez. A anual é cobrança avulsa.
-CICLO = {
-    Periodicidade.SEMESTRAL: 'SEMIANNUALLY',
-    Periodicidade.TRIMESTRAL: 'QUARTERLY',
-}
-
 #: Os eventos que o webhook assina. A ordem não importa; a lista é a que o
 #: comando `asaas_webhook` grava na Asaas. `CHECKOUT_CREATED` não muda nada
 #: aqui dentro, e está na lista por isso: criar e cancelar um checkout de
@@ -109,25 +102,23 @@ def reais(centavos):
     return (Decimal(int(centavos)) / 100).quantize(Decimal('0.01'))
 
 
-def montar_checkout(pedido, url_do_pedido, hoje):
+def montar_checkout(pedido, url_do_pedido, hoje=None):
     """O corpo do `POST /v3/checkouts` de um pedido. Função pura, para o roteiro.
 
-    Anual: cobrança avulsa por Pix ou cartão. Semestral e trimestral:
-    assinatura no cartão com `endDate` onze meses depois da primeira — duas ou
-    quatro cobranças, e **nenhuma** depois do 12º mês. Renovar sozinho exigiria
-    o aviso de 30 dias da cláusula 3.2 do contrato; aqui a assinatura termina.
-    """
-    from scheduling.returns import _somar_meses
+    Desde a 1.47 (contrato 2.2) as três formas são **pagamento único** do
+    período — doze, seis ou três meses —, por Pix ou cartão, e nenhuma cria
+    assinatura: nada se cobra sozinho depois. Até a 1.46 o semestral e o
+    trimestral eram assinatura no cartão com `endDate` aos 12 meses; nenhuma
+    chegou a ser aberta, porque o checkout nunca foi ligado com elas.
 
+    `hoje` ficou na assinatura por compatibilidade com quem chama; não é usado.
+    """
     periodicidade = Periodicidade(pedido.periodicidade)
     rotulo = plan_label(pedido.plano)
-    regra = PERIODICIDADES[periodicidade]
-    if periodicidade == Periodicidade.ANUAL:
-        descricao = f'Plano {rotulo}, pagamento anual. Contrato de 12 meses.'
-    else:
-        descricao = (f'Plano {rotulo}, {regra["pagamento"]} no cartão. '
-                     'Contrato de 12 meses, sem renovação automática.')
-    corpo = {
+    vigencia = PERIODICIDADES[periodicidade]['vigencia']
+    acao = 'Renovação do plano' if getattr(pedido, 'tenant_id', None) else 'Plano'
+    descricao = f'{acao} {rotulo}, vigência de {vigencia}. Pagamento único, sem renovação automática.'
+    return {
         'chargeTypes': ['DETACHED'],
         'billingTypes': ['PIX', 'CREDIT_CARD'],
         'minutesToExpire': MINUTOS_PARA_EXPIRAR,
@@ -145,15 +136,6 @@ def montar_checkout(pedido, url_do_pedido, hoje):
             'externalReference': f'{pedido.plano}:{pedido.periodicidade}',
         }],
     }
-    if periodicidade in CICLO:
-        corpo['chargeTypes'] = ['RECURRENT']
-        corpo['billingTypes'] = ['CREDIT_CARD']
-        corpo['subscription'] = {
-            'cycle': CICLO[periodicidade],
-            'nextDueDate': hoje.isoformat(),
-            'endDate': _somar_meses(hoje, 11).isoformat(),
-        }
-    return corpo
 
 
 def criar_checkout(corpo):

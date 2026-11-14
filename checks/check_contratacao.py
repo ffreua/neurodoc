@@ -6,9 +6,9 @@ O que a API real respondeu está anotado em `contratacao/asaas.py`.
 
 O que este roteiro cobra:
 
-- **o corpo do checkout** de cada forma de pagamento: anual avulso por Pix ou
-  cartão; semestral e trimestral em assinatura no cartão que **termina** em 12
-  meses (`endDate`), sem renovação; o valor de cada cobrança vindo do catálogo;
+- **o corpo do checkout** de cada período (1.47, contrato 2.2): os três em
+  pagamento único por Pix ou cartão, **nenhum** com assinatura, a vigência na
+  descrição e o valor do período vindo do catálogo;
 - **a página de contratar**: desligada devolve aos planos; Gratuito e
   Personalizado não se contratam; sem a declaração de leitura, com e-mail
   descartável, com e-mail que já tem conta e pelo campo-armadilha, nenhum
@@ -25,12 +25,13 @@ O que este roteiro cobra:
   pediu** —, o aviso aos superadministradores, e a clínica criada pelo
   convite no plano pago com a forma de pagamento no aceite; o segundo aviso
   de pagamento não emite segundo convite; valor divergente não emite convite;
-  pago depois de expirado vale;
+  pago depois de expirado vale; a clínica nasce com o primeiro período
+  (`Vigencia`) ligado ao pedido, de três meses no trimestral;
 - **cobranças seguintes**: assinatura ligada ao pedido, atraso e estorno
   gravados e avisados, nada suspenso; cobrança de outra origem ignorada;
 - **falha no processamento** registrada e retomada pela varredura;
-- **o console**: ligar exige contrato que preveja a Asaas, a palavra e o
-  motivo; desligar é um clique;
+- **o console**: ligar exige contrato que preveja a Asaas e o período (2.2),
+  a palavra e o motivo; desligar é um clique;
 - **a vitrine**: com a chave desligada, nada muda; ligada, "Contratar agora"
   nos planos pagos de tabela;
 - **a chave da API só no worker**, e o token do webhook no app.
@@ -129,16 +130,15 @@ def pedido_pago(cliente, plano='complete', periodicidade='anual', email=None):
     return r, pedido
 
 
-print('=== 1. o corpo do checkout de cada forma de pagamento ===')
+print('=== 1. o corpo do checkout de cada período ===')
 hoje = timezone.localdate()
-for periodicidade, ciclo, cobrancas in (('anual', None, 1), ('semestral', 'SEMIANNUALLY', 2),
-                                         ('trimestral', 'QUARTERLY', 4)):
+for periodicidade, vigencia in (('anual', '12 meses'), ('semestral', '6 meses'), ('trimestral', '3 meses')):
     preco = preco_na_periodicidade('complete', periodicidade)
     falso = Pedido(plano='complete', periodicidade=periodicidade,
                    valor_pagamento_centavos=preco['pagamento'], valor_ano_centavos=preco['ano'])
     corpo = asaas.montar_checkout(falso, 'https://neurodoc.app.br/contratar/pedido/x/', hoje)
     item = corpo['items'][0]
-    conferir(f'{periodicidade}: valor do item = cada pagamento do catálogo',
+    conferir(f'{periodicidade}: valor do item = o pagamento único do período',
              item['value'] == preco['pagamento'] / 100, item['value'])
     conferir(f'{periodicidade}: nome até 30 e descrição até 150 caracteres',
              len(item['name']) <= 30 and len(item['description']) <= 150)
@@ -147,25 +147,12 @@ for periodicidade, ciclo, cobrancas in (('anual', None, 1), ('semestral', 'SEMIA
              and corpo['callback']['cancelUrl'].endswith('?retorno=cancelado')
              and corpo['callback']['expiredUrl'].endswith('?retorno=expirado'))
     conferir(f'{periodicidade}: sem dados do cliente (a Asaas os pede inteiros)', 'customerData' not in corpo)
-    if ciclo is None:
-        conferir('anual: avulso, por Pix ou cartão',
-                 corpo['chargeTypes'] == ['DETACHED'] and set(corpo['billingTypes']) == {'PIX', 'CREDIT_CARD'}
-                 and 'subscription' not in corpo)
-    else:
-        sub = corpo['subscription']
-        from scheduling.returns import _somar_meses
-        conferir(f'{periodicidade}: assinatura {ciclo} só no cartão',
-                 corpo['chargeTypes'] == ['RECURRENT'] and corpo['billingTypes'] == ['CREDIT_CARD']
-                 and sub['cycle'] == ciclo)
-        conferir(f'{periodicidade}: termina 11 meses depois da primeira ({cobrancas} cobranças, sem renovar)',
-                 sub['nextDueDate'] == hoje.isoformat()
-                 and sub['endDate'] == _somar_meses(hoje, 11).isoformat())
-from datetime import date
-corpo = asaas.montar_checkout(Pedido(plano='basic', periodicidade='trimestral',
-                                     valor_pagamento_centavos=1, valor_ano_centavos=4),
-                              'https://x/', date(2027, 3, 31))
-conferir('31/03 mais 11 meses é 29/02/2028, sem estourar o mês',
-         corpo['subscription']['endDate'] == '2028-02-29', corpo['subscription']['endDate'])
+    conferir(f'{periodicidade}: avulso, por Pix ou cartão, sem assinatura (nada se cobra sozinho)',
+             corpo['chargeTypes'] == ['DETACHED'] and set(corpo['billingTypes']) == {'PIX', 'CREDIT_CARD'}
+             and 'subscription' not in corpo)
+    conferir(f'{periodicidade}: a descrição diz a vigência e que não renova',
+             vigencia in item['description'] and 'sem renovação automática' in item['description'],
+             item['description'])
 
 try:
     with transaction.atomic(), \
@@ -223,9 +210,9 @@ try:
         preco = preco_na_periodicidade('complete', 'trimestral')
         conferir('pedido válido: redireciona à página do pedido',
                  r.status_code == 302 and r['Location'] == f'/contratar/pedido/{pedido.id}/', r.get('Location'))
-        conferir('o preço gravado é o do catálogo (cada cobrança, ano, 4 cobranças)',
+        conferir('o preço gravado é o do catálogo (pagamento único do trimestre, uma cobrança)',
                  (pedido.valor_pagamento_centavos, pedido.valor_ano_centavos, pedido.cobrancas_previstas)
-                 == (preco['pagamento'], preco['ano'], 4))
+                 == (preco['pagamento'], preco['ano'], 1))
         conferir('a versão do contrato lida fica no pedido', pedido.contrato_versao == contract.VERSAO)
         conferir('o checkout é pedido ao worker, e não aberto na requisição',
                  delay_checkout.call_count == 1 and criar.call_count == 0)
@@ -352,6 +339,15 @@ try:
         conferir('o convite cria a clínica no plano pago', tenant.plan == 'complete')
         conferir('e o aceite grava a forma de pagamento do pedido',
                  aceite.periodicidade == 'trimestral' and aceite.plan == 'complete')
+        from contratacao.models import Vigencia
+        from tenancy.contracts import somar_meses
+        vig = Vigencia.objects.filter(tenant=tenant).first()
+        conferir('o aceite trimestral vence em três meses, e não em doze',
+                 aceite.expires_at.date() == somar_meses(aceite.created_at, 3).date(), aceite.expires_at)
+        conferir('a clínica nasce com o primeiro período, ligado ao pedido e ao aceite',
+                 vig is not None and vig.pedido_id == pedido.id and vig.aceite_id == aceite.id
+                 and vig.fim == aceite.expires_at and vig.valor_centavos == pedido.valor_pagamento_centavos,
+                 vig and (vig.pedido_id, vig.fim))
         r = cliente.get(f'/contratar/pedido/{pedido.id}/')
         conferir('depois do cadastro, a página diz que a clínica já existe', 'já foi criada' in r.content.decode())
 
@@ -459,12 +455,16 @@ try:
             s.post('/instalacao/contratacao/', {'acao': 'ligar', 'confirmacao': 'LIGAR', 'motivo': 'roteiro'})
             conferir('com o contrato 2.0, não liga (a cláusula 4.3 não prevê a Asaas)', not Configuracao.carregar().ativo)
         with mock.patch.object(contract, 'VERSAO', '2.1'):
+            s.post('/instalacao/contratacao/', {'acao': 'ligar', 'confirmacao': 'LIGAR', 'motivo': 'roteiro'})
+            conferir('com o contrato 2.1, não liga (a vigência ainda é sempre de 12 meses)',
+                     not Configuracao.carregar().ativo)
+        with mock.patch.object(contract, 'VERSAO', '2.2'):
             s.post('/instalacao/contratacao/', {'acao': 'ligar', 'confirmacao': 'ligar', 'motivo': 'roteiro'})
             conferir('sem a palavra exata, não liga', not Configuracao.carregar().ativo)
             s.post('/instalacao/contratacao/', {'acao': 'ligar', 'confirmacao': 'LIGAR', 'motivo': ''})
             conferir('sem motivo, não liga', not Configuracao.carregar().ativo)
             s.post('/instalacao/contratacao/', {'acao': 'ligar', 'confirmacao': 'LIGAR', 'motivo': 'roteiro'})
-            conferir('com a 2.1, a palavra e o motivo, liga', Configuracao.carregar().ativo)
+            conferir('com a 2.2, a palavra e o motivo, liga', Configuracao.carregar().ativo)
         conferir('as mudanças na trilha', AuditEvent.objects.filter(
             actor=su, action__in=['ops.checkout_enabled', 'ops.checkout_disabled']).count() == 2)
 

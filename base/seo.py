@@ -187,7 +187,7 @@ def produto():
                 'name': f'Plano {plano["label"]} — pagamento {periodicidade.label.lower()}',
                 'price': _reais(valor['pagamento']),
                 'priceCurrency': 'BRL',
-                'category': f'Contrato de 12 meses, pagamento {periodicidade.label.lower()}',
+                'category': f'Vigência de {regra["vigencia"]}, pagamento único',
                 'priceSpecification': {
                     '@type': 'UnitPriceSpecification',
                     'price': _reais(valor['pagamento']),

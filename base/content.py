@@ -359,24 +359,24 @@ def _resposta_pagamento(checkout=False):
     if checkout:
         como = (
             'O Gratuito não tem cobrança, e o Personalizado é combinado. O Básico e o '
-            'Completo podem ser contratados na própria página, pela Asaas: o anual por Pix '
-            'ou cartão, o semestral e o trimestral no cartão, cobrados a cada período e '
-            'encerrados ao fim dos 12 meses, sem renovação automática. Pago, o link para '
-            'criar a clínica chega na hora. Também dá para combinar conosco e receber um '
-            'código de convite; nos dois casos, plano e forma de pagamento ficam '
-            'registrados no aceite do contrato.'
+            'Completo podem ser contratados na própria página, pela Asaas, por Pix ou '
+            'cartão. Pago, o link para criar a clínica chega na hora. Também dá para '
+            'combinar conosco e receber um código de convite; nos dois casos, plano e '
+            'período ficam registrados no aceite do contrato. Perto do fim do período, o '
+            'responsável pela clínica é avisado no sistema e por e-mail, e renova ali '
+            'mesmo, escolhendo de novo o período.'
         )
     else:
         como = (
             'O Gratuito não tem cobrança, e o Personalizado é combinado. Não há pagamento '
-            'on-line: o acesso é liberado por um código de convite com o plano e a forma de '
-            'pagamento combinados, que ficam registrados no aceite do contrato.'
+            'on-line: o acesso é liberado por um código de convite com o plano e o período '
+            'combinados, que ficam registrados no aceite do contrato.'
         )
     return (
-        'O contrato é de 12 meses, e você escolhe como pagar: de uma vez por ano, '
-        f'com {anual}% de desconto de lançamento; por semestre, com {semestral}% de '
-        'desconto; ou por trimestre, pelo preço cheio. Os descontos valem só para a '
-        'forma de pagamento em que estão escritos. '
+        'Você escolhe o período, e cada um é pago de uma vez, sem renovação '
+        f'automática: 12 meses, com {anual}% de desconto de lançamento; 6 meses, com '
+        f'{semestral}% de desconto; ou 3 meses, pelo preço cheio. Os descontos valem só '
+        'para o período em que estão escritos. '
         f'No Básico: {valores(PlanCode.BASIC)}. No Completo: {valores(PlanCode.COMPLETE)}. '
         + como
     )

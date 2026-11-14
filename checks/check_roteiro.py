@@ -74,6 +74,9 @@ def limpar_residuo():
 
     velhas = list(Tenant.objects.filter(cnpj=_cnpj('987654320001')))
     if velhas:
+        # A vigência (1.47) também segura a clínica, e sai antes dela.
+        from contratacao.models import Vigencia
+        Vigencia.objects.filter(tenant__in=velhas).delete()
         ContractAcceptance.objects.filter(tenant__in=velhas).delete()
         for velha in velhas:
             ExamNode.objects.filter(tenant=velha).delete()
@@ -158,7 +161,9 @@ if repetido is not None or depois != antes:
 # O aceite de contrato sai antes de tudo: `ContractAcceptance.tenant` e
 # PROTECT, como todo `TenantModel`, e a clinica criada pelo caminho do
 # cliente agora nasce com um.
+from contratacao.models import Vigencia
 from tenancy.models import ContractAcceptance
+Vigencia.objects.filter(tenant=nova).delete()
 ContractAcceptance.objects.filter(tenant=nova).delete()
 ExamNode.objects.filter(tenant=nova).delete()
 ExamTemplate.objects.filter(tenant=nova).delete()

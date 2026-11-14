@@ -49,6 +49,8 @@ urlpatterns = [
         admin_views.ClinicMessageView.as_view(), name='clinic-message',
     ),
     path('app/org/clinica/', admin_views.ClinicProfileView.as_view(), name='clinic'),
+    # Plano e renovação (1.47): o período pago e o botão Renovar.
+    path('app/org/plano/', admin_views.PlanoView.as_view(), name='plano'),
     path('app/org/clinica/portal/', admin_views.ClinicPortalView.as_view(), name='clinic-portal'),
     path('app/org/clinica/logotipo/', admin_views.ClinicLogoView.as_view(), name='clinic-logo'),
     path(

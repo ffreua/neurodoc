@@ -21,7 +21,9 @@ from django.views.decorators.csrf import csrf_exempt
 from audit.services import record_audit_event
 from base.net import client_ip
 from tenancy import contract
-from tenancy.plans import PLANS, Periodicidade, brl, plan_config, preco_na_periodicidade
+from tenancy.plans import (
+    PERIODICIDADES, PLANS, Periodicidade, brl, plan_config, preco_na_periodicidade,
+)
 
 from . import servicos
 from .forms import ContratarForm
@@ -145,6 +147,12 @@ class PedidoView(View):
             'plano': plan_config(pedido.plano)['label'],
             'periodicidade': Periodicidade(pedido.periodicidade).label.lower(),
             'valor': brl(pedido.valor_pagamento_centavos), 'ano': brl(pedido.valor_ano_centavos),
+            'vigencia_rotulo': PERIODICIDADES[Periodicidade(pedido.periodicidade)]['vigencia'],
+            # A renovação volta à tela do plano (que exige estar logado como
+            # responsável); a contratação, à escolha do plano na página.
+            'novo_pedido_url': (reverse('tenancy:plano') if pedido.e_renovacao else
+                                reverse('contratacao:contratar', args=[pedido.plano])
+                                + f'?periodo={pedido.periodicidade}'),
             'email_mascarado': _mascarar(pedido.email),
             'Status': StatusPedido,
         }

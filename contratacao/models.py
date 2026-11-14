@@ -3,7 +3,10 @@
 **O pedido é da instalação, e não de uma clínica.** Quem paga ainda não tem
 clínica: ela nasce depois, pelo convite que o pagamento emite
 (`tenancy.invitations`), pelo mesmo cadastro e pelo mesmo aceite do contrato
-de quem recebe o código à mão. Por isso nada aqui herda de `TenantModel`.
+de quem recebe o código à mão. Por isso o pedido não herda de `TenantModel`.
+A exceção é a renovação (1.47): quem renova já tem clínica, e o pedido aponta
+para ela (`Pedido.tenant`). E a `Vigencia` é da clínica — o período pago que
+ela tem —, e essa sim é `TenantModel`.
 
 **O aviso da Asaas é gravado antes de ser entendido.** `EventoAsaas` guarda o
 corpo inteiro com o `id` do evento como chave única: a Asaas entrega "pelo
@@ -13,7 +16,7 @@ convites. Gravar e responder 200 é o que a porta faz; entender é do worker.
 
 from django.db import models
 
-from base.models import TimestampedModel
+from base.models import TenantModel, TimestampedModel
 
 
 class Configuracao(TimestampedModel):
@@ -64,11 +67,22 @@ class Pedido(TimestampedModel):
 
     plano = models.CharField(max_length=16)
     periodicidade = models.CharField(max_length=12)
-    #: Valor de cada cobrança e o total de 12 meses, em centavos.
+    #: O valor do pagamento único do período e o equivalente em 12 meses
+    #: (só para comparar as formas), em centavos.
     valor_pagamento_centavos = models.PositiveIntegerField()
     valor_ano_centavos = models.PositiveIntegerField()
-    #: Quantas cobranças cabem nos 12 meses: 1, 2 ou 4.
+    #: Quantas cobranças o pedido gera. Desde a 1.47 sempre 1: cada período é
+    #: pago de uma vez. Os pedidos da 1.46 (assinatura de 2 ou 4) nunca foram
+    #: abertos em produção — o checkout nasceu desligado —, e a coluna fica.
     cobrancas_previstas = models.PositiveSmallIntegerField(default=1)
+    #: A clínica que renova (1.47). Vazio no pedido da página de vendas, em
+    #: que a clínica ainda não existe: ali o pagamento emite convite; aqui ele
+    #: abre o período seguinte (`Vigencia`).
+    tenant = models.ForeignKey('tenancy.Tenant', null=True, blank=True, on_delete=models.PROTECT,
+                               related_name='pedidos_de_renovacao')
+    #: Quem clicou em Renovar.
+    solicitado_por = models.ForeignKey('accounts.User', null=True, blank=True,
+                                       on_delete=models.SET_NULL, related_name='+')
 
     nome = models.CharField(max_length=150)
     email = models.EmailField(max_length=254)
@@ -99,10 +113,95 @@ class Pedido(TimestampedModel):
 
         return brl(self.valor_pagamento_centavos)
 
+    @property
+    def e_renovacao(self):
+        return self.tenant_id is not None
+
     class Meta:
         ordering = ['-created_at']
         verbose_name = 'pedido de contratação'
         verbose_name_plural = 'pedidos de contratação'
+
+
+class OrigemVigencia(models.TextChoices):
+    ACEITE = 'aceite', 'Contratação (aceite do contrato)'
+    RENOVACAO = 'renovacao', 'Renovação paga pelo sistema'
+    CONSOLE = 'console', 'Registrada no console'
+
+
+class Vigencia(TenantModel):
+    """Um período pago de um plano: de quando a quando, quanto e de onde veio.
+
+    **Por que uma tabela, e não uma data no `Tenant`.** Desde a 1.47 (contrato
+    2.2) o período é o que se paga — três, seis ou doze meses —, e a clínica
+    renova quantas vezes quiser. Uma data só seria sobrescrita a cada
+    renovação, e a pergunta "o que esta clínica pagou, e quando?" deixaria de
+    ter resposta. Aqui cada período é uma linha que não muda depois de gravada,
+    menos os dois carimbos de aviso.
+
+    **A vigência não liga nem desliga nada.** Quem decide o que a clínica pode
+    é `Tenant.plan`, como sempre; isto é o registro do que foi pago e a base
+    do aviso de vencimento. Vencer sem renovar avisa o responsável e o console,
+    e **não** rebaixa nem suspende sozinho — a cláusula 5 do contrato pede
+    aviso antes de restringir, e essa decisão é de gente.
+
+    **Só existe para quem tem período.** O Gratuito não vence, o Personalizado
+    é combinado, e as clínicas anteriores à 1.47 não ganham vigência por
+    migração: entre elas há cortesia e condição combinada, e um aviso de
+    "renove" na tela de quem não paga seria pior que nenhum. O console as
+    registra uma a uma (`origem=console`).
+    """
+
+    plano = models.CharField(max_length=16)
+    periodicidade = models.CharField(
+        max_length=12,
+        choices=[('anual', 'Anual'), ('semestral', 'Semestral'), ('trimestral', 'Trimestral')],
+    )
+    #: Início e fim do período. O fim é o instante em que deixa de valer —
+    #: a meia-noite de Brasília do dia seguinte ao último dia, como o
+    #: vencimento do aceite.
+    inicio = models.DateTimeField()
+    fim = models.DateTimeField(db_index=True)
+    #: O que foi pago pelo período, em centavos. Nulo quando foi combinado à
+    #: parte e registrado no console sem valor.
+    valor_centavos = models.PositiveIntegerField(null=True, blank=True)
+    origem = models.CharField(max_length=12, choices=OrigemVigencia.choices)
+    #: Um pedido pago abre **um** período, pela restrição do banco: o mesmo
+    #: aviso de pagamento chegando duas vezes não dá dois períodos.
+    pedido = models.OneToOneField(Pedido, null=True, blank=True, on_delete=models.PROTECT,
+                                  related_name='vigencia')
+    #: `SET_NULL`, e não `PROTECT`: o período guarda as próprias datas e o
+    #: valor, e o aceite é só de onde ele veio — prender o aceite aqui
+    #: impediria a limpeza dos roteiros, que aposentam clínicas apagando-o.
+    aceite = models.OneToOneField('tenancy.ContractAcceptance', null=True, blank=True,
+                                  on_delete=models.SET_NULL, related_name='vigencia')
+    registrado_por = models.ForeignKey('accounts.User', null=True, blank=True,
+                                       on_delete=models.SET_NULL, related_name='+')
+    nota = models.CharField(max_length=255, blank=True)
+    #: Os dois avisos por e-mail, uma vez cada (`vigencias.avisar`).
+    aviso_antes_em = models.DateTimeField(null=True, blank=True)
+    aviso_vencido_em = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def ultimo_dia(self):
+        from .vigencias import ultimo_dia
+
+        return ultimo_dia(self.fim)
+
+    @property
+    def valor_brl(self):
+        from tenancy.plans import brl
+
+        return brl(self.valor_centavos)
+
+    class Meta(TenantModel.Meta):
+        ordering = ['-fim']
+        constraints = TenantModel.Meta.constraints + [
+            models.CheckConstraint(condition=models.Q(fim__gt=models.F('inicio')),
+                                   name='contratacao_vigencia_fim_depois_do_inicio'),
+        ]
+        verbose_name = 'vigência'
+        verbose_name_plural = 'vigências'
 
 
 class Cobranca(models.Model):

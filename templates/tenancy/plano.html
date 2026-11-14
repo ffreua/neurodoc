@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Plano e renovação — NeuroDoc{% endblock %}
+{% block page_title %}Plano e renovação{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'tenancy:team' %}">Organização</a></li>
+<li class="breadcrumb-item">Plano e renovação</li>
+{% endblock %}
+{% block content %}
+{% comment %}O período pago e a renovação (1.47, `contratacao/vigencias.py`). Não
+há renovação automática: quem renova é o responsável, por aqui, escolhendo o
+período de novo. A renovação mantém o plano; trocar de plano é conversa.{% endcomment %}
+<div class="row g-4">
+    <div class="col-xxl-5 col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Plano {{ plano.label }}</h5>
+            </div>
+            <div class="card-body fs-13">
+                {% if estado %}
+                <p class="mb-2">
+                    Período atual: <strong>{{ estado.vigencia.get_periodicidade_display }}</strong>,
+                    de {{ estado.vigencia.inicio|date:"d/m/Y" }} a <strong>{{ estado.ultimo_dia|date:"d/m/Y" }}</strong>.
+                </p>
+                {% if estado.vencida %}
+                <div class="alert alert-soft-danger fs-13 mb-0" role="status">
+                    O plano venceu em {{ estado.ultimo_dia|date:"d/m/Y" }}. Nada foi apagado nem bloqueado;
+                    renove para continuar no plano.
+                </div>
+                {% elif estado.vence_em_breve %}
+                <div class="alert alert-soft-warning fs-13 mb-0" role="status">
+                    {% if estado.dias == 0 %}Hoje é o último dia do período.{% else %}Faltam {{ estado.dias }} dia{{ estado.dias|pluralize }} para o fim do período.{% endif %}
+                    Não há renovação automática.
+                </div>
+                {% else %}
+                <p class="text-muted mb-0">
+                    A renovação abre {{ janela_dias }} dias antes do fim do período, quando avisamos aqui e por e-mail.
+                    Não há renovação automática.
+                </p>
+                {% endif %}
+                {% elif plano_de_tabela %}
+                <p class="text-muted mb-0">
+                    O período pago desta clínica não está registrado no sistema. Se você contratou
+                    combinando conosco, a renovação também é combinada: fale conosco por
+                    <a href="{% url 'tenancy:clinic-message' 'support' %}">Fale com a NeuroDoc</a>.
+                </p>
+                {% else %}
+                <p class="text-muted mb-0">
+                    {% if plano.price_monthly == 0 %}O plano Gratuito não vence e não tem cobrança.{% else %}As condições deste plano são combinadas conosco, e a renovação também.{% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-7 col-lg-6">
+        <div class="card stretch stretch-full">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Renovar</h5>
+            </div>
+            <div class="card-body fs-13">
+                {% if pode_renovar %}
+                {% if pedido_em_aberto %}
+                <p>Há um pagamento de renovação em aberto. <a href="{% url 'contratacao:pedido' pedido_em_aberto.id %}" class="fw-semibold">Voltar a ele</a>.</p>
+                {% endif %}
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_fields.html" %}
+                    <p class="fs-12 text-muted">
+                        Plano {{ plano.label }}, pelo preço de tabela de hoje. O pagamento é único, por Pix ou
+                        cartão, numa página segura da Asaas. O novo período começa no dia seguinte ao fim do
+                        atual{% if estado.vencida %} — ou hoje, já que o atual venceu{% endif %}: renovar antes
+                        não encurta nada. Tem uma condição combinada conosco (residência, valor especial)?
+                        Fale conosco em vez de pagar aqui.
+                    </p>
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Ir para o pagamento</button>
+                </form>
+                {% elif estado and not estado.renovavel %}
+                <p class="text-muted mb-0">Disponível a partir de {{ janela_dias }} dias antes de {{ estado.ultimo_dia|date:"d/m/Y" }}.</p>
+                {% elif estado and plano_de_tabela and not checkout_ligado %}
+                <p class="text-muted mb-0">A renovação pelo sistema está fora do ar agora. Fale conosco por
+                    <a href="{% url 'tenancy:clinic-message' 'support' %}">Fale com a NeuroDoc</a> e combinamos o pagamento.</p>
+                {% else %}
+                <p class="text-muted mb-0">Para mudar de plano ou combinar a renovação, fale conosco por
+                    <a href="{% url 'tenancy:clinic-message' 'support' %}">Fale com a NeuroDoc</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if historico %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Períodos</h5></div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 fs-13">
+                        <thead><tr><th>Período</th><th>De</th><th>Até</th><th>Valor</th><th>Origem</th></tr></thead>
+                        <tbody>
+                        {% for v in historico %}
+                        <tr>
+                            <td>{{ v.get_periodicidade_display }}</td>
+                            <td>{{ v.inicio|date:"d/m/Y" }}</td>
+                            <td>{{ v.ultimo_dia|date:"d/m/Y" }}</td>
+                            <td>{% if v.valor_centavos %}{{ v.valor_brl }}{% else %}—{% endif %}</td>
+                            <td>{{ v.get_origem_display }}</td>
+                        </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -52,9 +52,9 @@ revoga-se e emite-se outro — que é mais barato que a alternativa.
                 </select>
             </div>
             <div class="col-lg-2 col-md-6">
-                <label class="form-label" for="periodicidade">Pagamento</label>
+                <label class="form-label" for="periodicidade">Período</label>
                 <select class="form-select" id="periodicidade" name="periodicidade">
-                    {% for p in periodicidades %}<option value="{{ p.code }}">{{ p.label }}{% if p.desconto %} (−{{ p.desconto }}%){% endif %}</option>{% endfor %}
+                    {% for p in periodicidades %}<option value="{{ p.code }}">{{ p.label }} ({{ p.vigencia }}{% if p.desconto %}, −{{ p.desconto }}%{% endif %})</option>{% endfor %}
                 </select>
             </div>
             <div class="col-lg-2 col-md-3">
