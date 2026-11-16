@@ -1,5 +1,13 @@
 # NeuroDoc — mapa do sistema
 
+> **Intercâmbio com o ProntDoc: `docs/intercambio/`.** O ProntDoc nasceu
+> deste código (1.46, `02c7e483`) e os dois continuam parecidos: todo achado
+> e toda mudança de um lado é registrado lá, e o outro avalia e registra a
+> conclusão em `avaliacoes/`. Antes de mexer em algo, veja se o ProntDoc já
+> achou o mesmo (`INDICE.md`). Este repositório é público: achado de
+> segurança só entra depois de corrigido nos dois. Protocolo no `README.md`
+> da pasta.
+
 Prontuário eletrônico e gestão para consultório de **neurologia e
 neurocirurgia**, multi-inquilino (uma instalação, várias clínicas). Django
 monolítico modular, SSR com Django Templates, PostgreSQL como fonte de
