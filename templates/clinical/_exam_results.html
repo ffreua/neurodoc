@@ -11,7 +11,7 @@ mais na consulta (`docs/homologation/leitura-de-laudo-por-ia.md`).
 {% endcomment %}
 <div class="card-body">
     {% if encounter.status != 'finalized' %}
-    <form method="post" action="{% url 'clinical:add-exam-result' encounter.id %}" novalidate
+    <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:add-exam-result' encounter.id %}" novalidate
           enctype="multipart/form-data" class="border rounded-3 p-3 bg-gray-100 mb-4">
         {% csrf_token %}
         <h6 class="fw-bold text-dark mb-3">Incluir resultado de exame</h6>
@@ -56,7 +56,7 @@ mais na consulta (`docs/homologation/leitura-de-laudo-por-ia.md`).
                 </a>
                 {% endif %}
                 {% if encounter.status != 'finalized' %}
-                <form method="post" action="{% url 'clinical:delete-exam-result' encounter.id result.id %}">
+                <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:delete-exam-result' encounter.id result.id %}">
                     {% csrf_token %}
                     <button type="submit" class="btn btn-icon btn-sm btn-light-danger" data-nd-busy
                             aria-label="Remover {{ result.name }}">
@@ -132,7 +132,7 @@ mais na consulta (`docs/homologation/leitura-de-laudo-por-ia.md`).
             irmãos com dois layouts.{% endcomment %}
             <details class="mt-3">
                 <summary class="fs-12 text-muted">Lançar analito à mão</summary>
-                <form method="post" action="{% url 'clinical:add-lab-value' encounter.id result.id %}" novalidate
+                <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:add-lab-value' encounter.id result.id %}" novalidate
                       class="border rounded-3 p-3 bg-gray-100 mt-2">
                     {% csrf_token %}
                     <h6 class="fw-bold text-dark mb-3">Lançar analito</h6>

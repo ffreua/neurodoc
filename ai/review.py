@@ -27,12 +27,12 @@ def is_stale(artifact):
     return artifact.stale or encounter is None or encounter.row_version != job.source_version
 
 
-def _guard(artifact):
+def _guard(artifact, conferir_versao=True):
     if artifact.review_state != AIReviewState.PENDING:
         raise AlreadyReviewed(
             f'Este rascunho já foi revisado ({artifact.get_review_state_display().lower()}).'
         )
-    if is_stale(artifact):
+    if conferir_versao and is_stale(artifact):
         if not artifact.stale:
             artifact.stale = True
             artifact.save(update_fields=['stale'])
@@ -79,7 +79,13 @@ def edit_artifact(artifact, reviewer_membership, edited_result):
 
 @transaction.atomic
 def reject_artifact(artifact, reviewer_membership, reason):
-    _guard(artifact)
+    # Recusar não confere a versão do atendimento, só aprovar. A conferência
+    # existe para que um texto velho não entre no prontuário; recusar não
+    # põe nada lá. Com ela, o salvamento automático — que muda a versão a
+    # cada frase — tornava a recusa impossível: o médico recusava e recebia
+    # "o prontuário mudou" (achado PD-2026-11-15-06 do ProntDoc,
+    # `docs/intercambio/`).
+    _guard(artifact, conferir_versao=False)
     artifact.review_state = AIReviewState.REJECTED
     artifact.reviewer = reviewer_membership
     artifact.reviewed_at = timezone.now()

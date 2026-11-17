@@ -27,12 +27,17 @@ que faz a lista ser discutível em vez de aceita.
                 {{ support_job.get_status_display }}
             </span>
             {% endif %}
-            <form method="post" action="{% url 'clinical:request-diagnostic-support' encounter.id %}">
+            {% comment %}Sem análise nova no finalizado: o servidor recusa
+            (`DiagnosticSupportRequestView`), e a última fica para leitura.{% endcomment %}
+            {% if encounter.status != 'finalized' %}
+            <form method="post" action="{% url 'clinical:request-diagnostic-support' encounter.id %}"
+                  data-nd-save-encounter-before-submit>
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-light-primary" data-nd-busy>
                     {% if support_artifact %}Analisar de novo{% else %}Analisar o caso{% endif %}
                 </button>
             </form>
+            {% endif %}
         </div>
     </div>
 
@@ -102,7 +107,8 @@ que faz a lista ser discutível em vez de aceita.
                     {% endif %}
 
                     {% if encounter.status != 'finalized' %}
-                    <form method="post" action="{% url 'clinical:add-diagnosis-from-ai' encounter.id %}" class="mt-2">
+                    <form method="post" action="{% url 'clinical:add-diagnosis-from-ai' encounter.id %}" class="mt-2"
+                          data-nd-save-encounter-before-submit>
                         {% csrf_token %}
                         <input type="hidden" name="label" value="{{ item.label }}">
                         <button type="submit" class="btn btn-sm btn-light" data-nd-busy>

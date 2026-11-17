@@ -21,14 +21,20 @@ openssl rand -hex 32 | tr -d '\r\n' | docker secret create NEURODOC_ASAAS_WEBHOO
 printf '%s' '$aact_prod_...' | docker secret create NEURODOC_ASAAS_API_KEY -
 ```
 
-**Trocar a chave da API.** Segredo do Swarm não se edita: cria-se um com
-outro nome e se aponta o serviço para ele, ou se remove o serviço do stack
-antes de recriar o segredo. O caminho mais simples, numa janela calma:
+**Trocar a chave da API.** Segredo do Swarm não se edita, e o worker não
+sobe sem ele: tirar o segredo com o worker rodando falha e o Swarm desfaz a
+mudança sozinho ("rolled back"), deixando o segredo preso — e `docker secret
+rm` responde "in use". Por isso o worker para antes (as tarefas esperam na
+fila do RabbitMQ) e volta pelo deploy, já com a chave nova. O passo que
+estava escrito aqui não funcionava; quem descobriu foi o ProntDoc, na
+primeira troca dele (achado PD-2026-11-15-15, `docs/intercambio/`):
 
 ```bash
+docker service scale neurodoc_v1_celery_worker=0
 docker service update --secret-rm NEURODOC_ASAAS_API_KEY neurodoc_v1_celery_worker
 docker secret rm NEURODOC_ASAAS_API_KEY
-printf '%s' '$aact_prod_NOVA' | docker secret create NEURODOC_ASAAS_API_KEY -
+# a chave é colada no prompt, sem eco e sem ficar no histórico do shell
+read -rs -p "Chave Asaas: " K; printf '%s' "$K" | docker secret create NEURODOC_ASAAS_API_KEY -; unset K
 bash scripts/deploy.sh --skip-build
 ```
 

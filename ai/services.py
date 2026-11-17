@@ -104,6 +104,14 @@ def create_job(access_context, kind, purpose, patient_id=None, encounter_id=None
     else:
         source_version = encounter.row_version if encounter else 0
         target = authorization.encounter_id or authorization.patient_id
+        # O apoio diagnóstico lê também hipóteses, medicações, exames e
+        # achados do exame, que não sobem a versão do atendimento: sem isto,
+        # registrar uma hipótese ou incluir um exame e pedir de novo
+        # devolvia a análise antiga com "o caso não mudou" (achado
+        # PD-2026-11-15-11 do ProntDoc, `docs/intercambio/`). `ref` é o
+        # resumo disso (`_assinatura_do_caso`).
+        if target_ref.get('ref'):
+            target = f"{target}:{target_ref['ref']}"
     idempotency_key = f'{kind}:{target}:{source_version}'[:150]
     # O teto da degustação conta pedido **novo**: pedir de novo o mesmo
     # resumo devolve o job que já existe e não gasta cota.
@@ -570,6 +578,39 @@ def run_job(job_id):
     return artifact
 
 
+def _assinatura_do_caso(encounter):
+    """O que, além do texto, muda o caso que a análise lê — numa linha curta.
+
+    Hipóteses, medicações, exames, analitos e achados do exame estruturado
+    (contagem e última alteração), e as análises já recusadas: recusar a
+    análise e pedir outra tem de produzir outra, e não devolver a recusada.
+    A contagem pega a remoção, que não deixa `updated_at` para trás.
+    """
+    import hashlib
+
+    from clinical.models import (
+        EncounterDiagnosis, ExaminationFinding, ExamResult, LabValue, Medication,
+    )
+
+    partes = []
+    for modelo, filtro in (
+        (EncounterDiagnosis, {'encounter_id': encounter.id}),
+        (Medication, {'encounter_id': encounter.id}),
+        (ExamResult, {'encounter_id': encounter.id}),
+        (LabValue, {'exam_result__encounter_id': encounter.id}),
+        (ExaminationFinding, {'encounter_id': encounter.id}),
+    ):
+        qs = modelo.objects.filter(**filtro)
+        ultima = qs.order_by('-updated_at').values_list('updated_at', flat=True).first()
+        partes.append(f'{qs.count()}@{ultima.isoformat() if ultima else "-"}')
+    recusadas = AIArtifact.objects.filter(
+        job__encounter_id=encounter.id, job__kind=AIJobKind.DIAGNOSTIC_SUPPORT,
+        review_state=AIReviewState.REJECTED,
+    ).count()
+    partes.append(f'r{recusadas}')
+    return hashlib.sha256('|'.join(partes).encode()).hexdigest()[:16]
+
+
 def request_diagnostic_support(access_context, encounter, purpose='Apoio ao raciocínio diagnóstico',
                                risco_confirmado=False):
     """Pede a análise do caso para apoio às hipóteses (RF-11.05).
@@ -585,6 +626,7 @@ def request_diagnostic_support(access_context, encounter, purpose='Apoio ao raci
     job = create_job(
         access_context, AIJobKind.DIAGNOSTIC_SUPPORT, purpose,
         patient_id=encounter.patient_id, encounter_id=encounter.id,
+        target_ref={'ref': _assinatura_do_caso(encounter)},
     )
     if risco_confirmado and job.status == AIJobStatus.BLOCKED_PRIVACY:
         # O mesmo pedido (a chave é a versão do atendimento): reabre a linha

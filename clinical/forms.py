@@ -238,6 +238,17 @@ class DiagnosisForm(forms.Form):
                 'description_snapshot',
                 'Escolha um código na CID-10 ou na CID-11, ou escreva a hipótese.',
             )
+        # O id vem de um campo oculto que o autocomplete preenche. Um id que
+        # não está no catálogo — forjado, ou de uma carga que trocou — virava
+        # erro 500 na chave estrangeira (achado PD-2026-11-15-09 do ProntDoc,
+        # `docs/intercambio/`). Sem ele, a hipótese entra pelo código e pela
+        # descrição digitados, como a escrita à mão.
+        codigo_id = cleaned.get('diagnosis_code_id')
+        if codigo_id:
+            from catalogs.models import DiagnosisCode
+
+            if not DiagnosisCode.objects.filter(id=codigo_id).exists():
+                cleaned['diagnosis_code_id'] = None
         return cleaned
 
 

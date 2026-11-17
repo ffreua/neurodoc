@@ -216,7 +216,21 @@ def review_carry_forward_item(item, action, actor_membership_id):
     # aceito sem nada ter sido copiado, que foi o defeito que a hipótese
     # teve antes.
     if item.field_path in FIELD_LABELS:
-        setattr(encounter, item.field_path, value.get('text', ''))
+        # Acrescenta, e não substitui, quando o campo de hoje já tem texto
+        # (revisão de 2026-11-15). Substituir apagava o que o médico já
+        # tinha escrito nesta consulta — e, na conduta, a linha que a emissão
+        # por modelo acrescenta ("[Pedido de exames · emitido …]"), deixando
+        # o documento emitido sem menção no registro. Campo vazio recebe o
+        # texto como antes; o mesmo texto já presente não se repete.
+        trazido = value.get('text', '') or ''
+        atual = getattr(encounter, item.field_path, '') or ''
+        if atual.strip() and trazido.strip() and trazido.strip() not in atual:
+            novo = f'{atual.rstrip()}\n\n{trazido}'
+        elif atual.strip():
+            novo = atual
+        else:
+            novo = trazido
+        setattr(encounter, item.field_path, novo)
         # A versão sobe junto (auditoria de 2026-11-11). Sem isso, o
         # salvamento automático de outra aba aberta na conduta passava na
         # conferência de versão — ela não tinha mudado — e gravava o texto

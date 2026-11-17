@@ -147,7 +147,7 @@ digitado em outra.{% endcomment %}
                 <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 nd-estrutura">
                     <span class="badge bg-soft-primary text-primary">{{ encounter.rotulo_do_tipo }}</span>
                     {% if encounter.status != 'finalized' %}
-                    <form method="post" action="{% url 'clinical:estrutura' encounter.id %}" class="d-flex align-items-center gap-2">
+                    <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:estrutura' encounter.id %}" class="d-flex align-items-center gap-2">
                         {% csrf_token %}
                         {% if encounter.eh_seguimento %}
                         <input type="hidden" name="estrutura" value="primeira">
@@ -291,7 +291,7 @@ digitado em outra.{% endcomment %}
                                     </span>
                                 </div>
                                 {% endif %}
-                                <form method="post"
+                                <form method="post" data-nd-save-encounter-before-submit
                                       action="{% url 'clinical:save-exam-axis' encounter.id axis.node.code %}">
                                     {% csrf_token %}
                                     {% for child in axis.children %}
@@ -410,7 +410,7 @@ digitado em outra.{% endcomment %}
                 {% if encounter.status != 'finalized' %}
                 <details class="mt-4">
                     <summary class="fs-12 text-muted">Registrar item fora do roteiro</summary>
-                    <form method="post" action="{% url 'clinical:add-finding' encounter.id %}" novalidate
+                    <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:add-finding' encounter.id %}" novalidate
                           class="border rounded-3 p-3 bg-gray-100 mt-2">
                         {% csrf_token %}
                         <div class="row g-3">
@@ -448,7 +448,7 @@ digitado em outra.{% endcomment %}
                 {% comment %}A busca na CID (10 ou 11, 1.44) vem antes do código e da descrição:
                 é o caminho normal. Escrever à mão continua valendo, e é o caso da
                 hipótese que ainda não tem código.{% endcomment %}
-                <form method="post" action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
+                <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:add-diagnosis' encounter.id %}" novalidate
                       class="border rounded-3 p-3 bg-gray-100 mb-4"
                       data-cid-url="{% url 'clinical:cid-lookup' %}">
                     {% csrf_token %}

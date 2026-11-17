@@ -26,8 +26,21 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 SCHEMA_VERSION = 'v1'
 
+#: O que a IA não pode escrever: **probabilidade em número**. O padrão
+#: antigo recusava qualquer "número %", e com isso a análise inteira era
+#: descartada porque o modelo escreveu "HbA1c acima de 6,5%" ou "saturação
+#: de 92%" — valor de exame, não chance de diagnóstico (achado
+#: PD-2026-11-15-08 do ProntDoc, `docs/intercambio/`). O percentual só é
+#: recusado agora quando vem junto de uma palavra de probabilidade, antes ou
+#: depois dele; o resto do padrão não mudou.
+_PALAVRAS_DE_PROBABILIDADE = (
+    r'(?:probabilidade|probabil\w*|chance|chances|certeza|confian[çc]a|'
+    r'prov[áa]vel|prov[áa]veis|possibilidade|risco\s+de\s+ser|acur[áa]cia|'
+    r'likelihood|probability|confidence)'
+)
 _NUMERIC_PROBABILITY_PATTERN = re.compile(
-    r'\d+(\.\d+)?\s*%'
+    r'\d+([.,]\d+)?\s*%\s*(?:\w+\s+){0,3}?' + _PALAVRAS_DE_PROBABILIDADE
+    + r'|' + _PALAVRAS_DE_PROBABILIDADE + r'\W+(?:\w+\W+){0,4}?\d+([.,]\d+)?\s*%'
     r'|\bprobabilidade\s+de\s+\d+'
     r'|\b\d+(\.\d+)?\s*(?:de|em)\s*\d+\s*(?:de\s*)?chance'
     r'|\bchance\s+de\s+\d+',

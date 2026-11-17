@@ -29,6 +29,10 @@
     }
 
     function carregar(serie) {
+        /* De novo a cada série: sem zerar, a rede de segurança abaixo só
+         * valia para a primeira, e a troca de série que não respondesse
+         * ficava em "Montando o gráfico…" para sempre. */
+        carregado = false;
         esperando();
         var url = serie ? base + '?serie=' + encodeURIComponent(serie) : base;
         /* Rede de seguranca: se a resposta nao vier, a tela diz isso em vez

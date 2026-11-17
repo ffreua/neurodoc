@@ -202,7 +202,9 @@ try:
     enxaqueca = vigentes[0]
     conferir('a data e a do registro mais antigo, nao a do ultimo',
              enxaqueca['registrado_desde'],
-             (agora - timedelta(days=300)).date().isoformat())
+             # O dia de Brasília, não o do UTC: depois das 21h o UTC já é amanhã
+             # e a conta errava por um (achado na bateria de 2026-11-15, à noite).
+             timezone.localtime(agora - timedelta(days=300)).date().isoformat())
 
     print(CHR + '4. Dois relatorios do mesmo paciente nao colidem')
     job_a = services.create_job(

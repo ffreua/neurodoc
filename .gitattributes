@@ -14,3 +14,12 @@ ops/postgres_init.sh text eol=lf
 # A redação 1.2 arquivada é prova: o SHA-256 dela é o dos aceites, e
 # trocar LF por CRLF no checkout do Windows mudaria os bytes.
 tenancy/contrato/contrato-1.2.txt -text
+
+# Os XSDs oficiais da TISS são conferidos por SHA-256 (tiss/xsd/MANIFESTO.json)
+# contra os bytes que a ANS publica — que têm CRLF. O git os guardava
+# normalizados com LF: no Windows o checkout devolvia CRLF e a conferência
+# passava por acaso; no clone da VPS (Linux) os 49 reprovavam, e com eles
+# todo lote XML. Sem conversão nenhuma, o blob é o arquivo oficial, byte a
+# byte (achado PD-2026-11-15-13 do ProntDoc, `docs/intercambio/`).
+# `MANIFESTO.json` fica de fora: é nosso, e o hash não o cobre.
+tiss/xsd/**/*.xsd -text

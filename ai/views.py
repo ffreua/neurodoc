@@ -1,3 +1,4 @@
+from django.contrib import messages
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -42,7 +43,10 @@ class EncounterSummaryRequestView(TenantScopedView):
                 purpose='Resumo solicitado manualmente', patient_id=encounter.patient_id, encounter_id=encounter.id,
             )
         except AIAuthorizationDenied as exc:
-            return HttpResponseForbidden(str(exc))
+            # Aviso na tela, e não página em branco com a frase solta
+            # (PD-2026-11-15-06): volta ao atendimento de onde veio o pedido.
+            messages.error(request, str(exc))
+            return redirect('clinical:detail', encounter_id=encounter.id)
         if job.status == 'queued':
             run_ai_job.delay(str(job.id))
         return redirect('ai:job-detail', job_id=job.id)
@@ -57,6 +61,26 @@ class AIJobDetailView(TenantScopedView):
         # estão no sino apontando para cá, e qualquer link antigo.
         if job.kind == AIJobKind.PATIENT_REPORT:
             return redirect('ai:relatorio-detalhe', job_id=job.id)
+        # O apoio diagnóstico também: esta tela lê `summary` e
+        # `qualitative_hypotheses`, que ele não tem, e o aviso do sino "a IA
+        # terminou" abria "Resumo" vazio e "Hipóteses: nenhuma" (achado
+        # PD-2026-11-15-07 do ProntDoc, `docs/intercambio/`). Pronto, vai ao
+        # cartão de hipóteses do atendimento estruturado, que é onde ele é
+        # desenhado; enquanto roda, ou se falhou (o diagnóstico da falha é
+        # desenhado aqui), fica nesta tela.
+        if (job.kind == AIJobKind.DIAGNOSTIC_SUPPORT and job.encounter_id
+                and job.status == 'succeeded'):
+            from django.urls import reverse
+
+            from clinical.models import Encounter, EncounterKind
+
+            encounter = Encounter.objects.filter(
+                tenant_id=job.tenant_id, id=job.encounter_id,
+            ).only('id', 'kind').first()
+            if encounter is not None and encounter.kind != EncounterKind.FREE_TEXT:
+                return redirect(
+                    reverse('clinical:detail', args=[encounter.id]) + '#tab-hipoteses'
+                )
         artifacts = job.artifacts.order_by('-created_at')
         return render(request, 'ai/job_detail.html', {'job': job, 'artifacts': artifacts})
 
@@ -75,7 +99,7 @@ class ArtifactAcceptView(TenantScopedView):
         try:
             accept_artifact(artifact, reviewer)
         except (ArtifactStale, AlreadyReviewed) as exc:
-            return HttpResponseForbidden(str(exc))
+            messages.error(request, str(exc))
         return redirect('ai:job-detail', job_id=artifact.job_id)
 
 
@@ -92,7 +116,9 @@ class ArtifactRejectView(TenantScopedView):
         try:
             reject_artifact(artifact, reviewer, request.POST.get('reason', ''))
         except (ArtifactStale, AlreadyReviewed) as exc:
-            return HttpResponseForbidden(str(exc))
+            messages.error(request, str(exc))
+        else:
+            messages.success(request, 'Rascunho da IA recusado.')
         return redirect('ai:job-detail', job_id=artifact.job_id)
 
 

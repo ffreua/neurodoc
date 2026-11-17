@@ -241,12 +241,13 @@ RECURSOS = [
         'texto': 'No plano Completo: uma agenda por equipamento, separada da dos '
                  'médicos e sem ocupar vaga de médico. A polissonografia que atravessa '
                  'a noite é um exame só, o equipamento nunca recebe dois pacientes no '
-                 'mesmo horário, e o exame realizado vira cobrança e guia.',
+                 'mesmo horário, e o exame realizado vira cobrança quando há '
+                 'honorário cadastrado para ele.',
     },
     {
-        'titulo': 'Guarda de vinte anos, e a trilha de quem viu o quê',
+        'titulo': 'Guarda de vinte anos, e a trilha de quem fez o quê',
         'texto': 'Prontuário finalizado não se reescreve: correção é adendo, com '
-                 'autor e data. Cada acesso e cada emissão ficam numa trilha que o '
+                 'autor e data. Cada alteração e cada emissão ficam numa trilha que o '
                  'próprio banco impede de alterar, e o backup é automático e '
                  'cifrado com uma chave que fica fora do servidor.',
     },
@@ -290,9 +291,9 @@ ESPECIALIDADES = {
          'Receita simples e de controle especial, esta em duas vias e com o '
          'quadro da Portaria 344/98.'),
         ('Documento assinado digitalmente',
-         'Laudo, atestado, declaração de comparecimento, pedido de exame e '
-         'encaminhamento, assinados em PAdES com o certificado do próprio '
-         'médico e verificáveis por QR.'),
+         'Receita, relatório, pedido de exame e encaminhamento, assinados em '
+         'PAdES com o certificado do próprio médico e verificáveis por QR. A '
+         'declaração de comparecimento sai impressa, sem diagnóstico.'),
         ('CID-10, CID-11 e TUSS completos',
          'O catálogo inteiro, não um recorte de neurologia: diagnóstico, '
          'procedimento e o espelho da TUSS atualizado toda semana.'),
@@ -422,8 +423,8 @@ FAQ = [
                     'prontuário do mercado registra. Quem atende fora da '
                     'neurologia evolui por ali. E todo o resto é de consultório '
                     'médico, não de neurologia: agenda por profissional, receita '
-                    'com as vinte e seis mil apresentações da Anvisa, laudo e '
-                    'atestado assinados digitalmente com verificação por QR, '
+                    'com as vinte e seis mil apresentações da Anvisa, relatório e '
+                    'pedido de exame assinados digitalmente com verificação por QR, '
                     'CID-10, CID-11 e TUSS completos, convênios, honorários e '
                     'recebíveis, portal para o paciente pedir receita e '
                     'enviar os laudos dos exames, '
@@ -477,7 +478,8 @@ FAQ = [
         'pergunta': 'Como faço backup?',
         'resposta': 'O backup é automático, cifrado com uma chave que fica fora do '
                     'servidor, e a restauração é um procedimento documentado e testado. '
-                    'A chave de recuperação é do responsável pela clínica.',
+                    'A chave que abre o backup fica sob a guarda da mantenedora, fora do '
+                    'servidor, e a exportação do acervo está sempre à mão do responsável.',
     },
     {
         'pergunta': 'Posso começar de graça?',
@@ -504,8 +506,9 @@ FAQ = [
         'resposta': 'Dá, e nada se perde na troca. Mudar de plano altera os limites '
                     'e libera o que o plano novo inclui; paciente, atendimento, '
                     'documento e agenda continuam exatamente onde estavam. Rebaixar '
-                    'também não apaga nada: o que passou do limite fica legível, e o '
-                    'sistema apenas deixa de aceitar cadastro novo.',
+                    'também não apaga nada: o que passou do limite fica legível, o '
+                    'sistema deixa de aceitar cadastro novo e, acima do limite de médicos, '
+                    'o perfil médico fica com quem o responsável escolher.',
     },
     {
         'pergunta': 'Como funciona o pagamento dos planos?',

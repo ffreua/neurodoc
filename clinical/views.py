@@ -129,6 +129,23 @@ def _blocked(request, encounter, message, anchor=''):
     url = reverse('clinical:detail', args=[encounter.id])
     return redirect(f'{url}#{anchor}' if anchor else url)
 
+
+def _formulario_da_tela(classe, encounter):
+    """O formulário do atendimento, só de leitura quando não é editável.
+
+    Finalizado é imutável e o servidor já recusava gravar, mas a caixa de
+    texto continuava aberta para digitar — e o rascunho local oferecia
+    "Restaurar" um texto que não tem para onde ir (achado PD-2026-11-15-05
+    do ProntDoc, `docs/intercambio/`). `readonly` e não `disabled`: o texto
+    continua selecionável e copiável.
+    """
+    form = classe(instance=encounter)
+    if not encounter.is_editable():
+        for campo in form.fields.values():
+            campo.widget.attrs['readonly'] = 'readonly'
+    return form
+
+
 class TenantScopedView(CapabilityRequiredView):
     """Base do prontuário: ler exige papel médico, escrever exige habilitação.
 
@@ -367,7 +384,7 @@ class EncounterDetailView(TenantScopedView):
         # `FreeTextEncounterForm`.
         FormularioDaTela = FreeTextEncounterForm if livre else EncounterForm
         return render(request, template_da_tela, {
-            'encounter': encounter, 'form': FormularioDaTela(instance=encounter),
+            'encounter': encounter, 'form': _formulario_da_tela(FormularioDaTela, encounter),
             'finding_form': FindingForm(), 'diagnosis_form': DiagnosisForm(),
             'amendment_form': AmendmentForm(), 'pending_carry_forward': pending_items,
             'findings': findings,
@@ -1305,6 +1322,15 @@ class DiagnosticSupportRequestView(TenantScopedView):
         from ai.services import request_diagnostic_support
 
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        # Depois de finalizado, uma análise nova leria as conclusões do
+        # próprio médico e nada dela poderia mais entrar no registro
+        # (achado PD-2026-11-15-12 do ProntDoc). A última fica para leitura.
+        if not encounter.is_editable():
+            return _blocked(
+                request, encounter,
+                'Atendimento finalizado: a última análise fica para leitura, e não se pede outra.',
+                anchor='tab-hipoteses',
+            )
         try:
             job = request_diagnostic_support(
                 request.access_context, encounter,

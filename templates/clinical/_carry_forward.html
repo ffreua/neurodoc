@@ -39,7 +39,7 @@ falando de um cartão que podia estar quatro telas abaixo.{% endcomment %}
             contador**, onde quem acabou de ler "10 aguardando revisão" está
             olhando.{% endcomment %}
             {% if encounter.status != 'finalized' %}
-            <form method="post"
+            <form method="post" data-nd-save-encounter-before-submit
                   action="{% url 'clinical:accept-all-carry-forward' encounter.id %}">
                 {% csrf_token %}
                 <button type="submit" class="btn btn-sm btn-success" data-nd-busy>
@@ -63,7 +63,7 @@ falando de um cartão que podia estar quatro telas abaixo.{% endcomment %}
                         <span class="d-block fs-11 text-muted mt-1">{{ item.described.detail }}</span>
                         {% endif %}
                     </div>
-                    <form method="post" action="{% url 'clinical:review-carry-forward' encounter.id item.id %}"
+                    <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:review-carry-forward' encounter.id item.id %}"
                           class="d-inline-flex gap-1 flex-shrink-0">
                         {% csrf_token %}
                         <button type="submit" name="action" value="accepted"

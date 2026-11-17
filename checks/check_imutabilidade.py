@@ -133,7 +133,9 @@ item_ok = CarryForwardItem.objects.create(
 criados['items'].append(item_ok.id)
 cf.review_carry_forward_item(item_ok, 'accepted', membership.id)
 aberto.refresh_from_db()
-confere(aberto.plan_text == 'conduta trazida',
+# Desde o intercâmbio com o ProntDoc (PD-2026-11-15-03) a conduta trazida é
+# ACRESCENTADA ao que já estava escrito, e não o substitui.
+confere(aberto.plan_text == 'rascunho\n\nconduta trazida',
         'em atendimento aberto a copia continua funcionando', repr(aberto.plan_text))
 
 print('=== 2. o admin nao oferece formulario para prontuario ===')

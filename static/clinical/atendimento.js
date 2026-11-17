@@ -144,106 +144,38 @@
         aviso.scrollIntoView({ block: 'nearest' });
     }
 
-    /* Medicação e hipótese têm formulários próprios e recarregam a página.
-     * Se houver texto ainda não salvo, grava primeiro o formulário do
-     * atendimento pelo endpoint que já protege versão e concorrência. O
-     * clique no formulário auxiliar é uma ação explícita do médico; deixar
-     * a nota para trás e obrigá-lo a restaurá-la na volta não é aceitável.
+    /* Grava no servidor o texto ainda não salvo, pelo endpoint que já
+     * protege versão e concorrência, e devolve a promessa da resposta.
      *
-     * O listener roda em captura para parar antes do spinner global, que
-     * desabilita o botão contando que a navegação comece imediatamente. */
-    raiz.addEventListener('submit', function (event) {
-        var auxiliar = event.target;
-        if (!auxiliar.matches || !auxiliar.matches('[data-nd-save-encounter-before-submit]')) {
-            return;
-        }
-        if (auxiliar.dataset.ndEncounterSaved === '1') {
-            delete auxiliar.dataset.ndEncounterSaved;
-            return;
-        }
-        var principal = document.getElementById('nd-atendimento-livre');
-        if (!principal || !haMudanca()) { return; }
-
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        guardar();
-        var botao = event.submitter;
-
-        window.fetch(principal.action, {
-            method: 'POST',
-            body: new FormData(principal),
-            credentials: 'same-origin',
-            headers: {
-                'Accept': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        }).then(function (response) {
-            return response.json().catch(function () { return {}; }).then(function (dados) {
-                if (!response.ok || !dados.ok) {
-                    throw new Error(dados.error || 'Não foi possível salvar o atendimento.');
-                }
-                return dados;
-            });
-        }).then(function (dados) {
-            var versao = principal.querySelector('[name="row_version"]');
-            if (versao) { versao.value = dados.row_version; }
+     * Vale para os **dois** tipos de atendimento. No texto livre o envio é
+     * o formulário único `nd-atendimento-livre`; no estruturado não existe
+     * formulário único — um por aba —, então o envio é montado aqui com os
+     * campos que mudaram, e o salvamento grava só os que chegam. Até o
+     * intercâmbio com o ProntDoc (2026-11-15) só o texto livre era
+     * protegido: no estruturado, incluir um exame ou finalizar com a
+     * conduta ainda não salva deixava o texto só no navegador. */
+    function gravarAtendimento() {
+        var livre = document.getElementById('nd-atendimento-livre');
+        var url, dados;
+        if (livre) {
+            url = livre.action;
+            dados = new FormData(livre);
+        } else {
+            var versao = raiz.querySelector('form [name="row_version"]');
+            url = versao && versao.form ? versao.form.action : null;
+            dados = new FormData();
+            var token = raiz.querySelector('[name="csrfmiddlewaretoken"]');
+            if (token) { dados.append('csrfmiddlewaretoken', token.value); }
+            if (versao) { dados.append('row_version', versao.value); }
             campos().forEach(function (campo) {
-                doServidor[campo.name] = campo.value || '';
+                if ((campo.value || '') !== valorGravado(campo)) {
+                    dados.append(campo.name, campo.value || '');
+                }
             });
-            limpar();
-            auxiliar.dataset.ndEncounterSaved = '1';
-            if (auxiliar.requestSubmit) {
-                auxiliar.requestSubmit(botao || undefined);
-            } else {
-                auxiliar.submit();
-            }
-        }).catch(function (error) {
-            mostrarFalhaAoPreservar(
-                (error && error.message ? error.message : 'Não foi possível salvar o atendimento.')
-                + ' A medicação ou hipótese não foi incluída; seu texto continua neste navegador.'
-            );
-        });
-    }, true);
-
-    /* Sair da página para emitir por modelo (`modelos/_na_conduta.html`).
-     *
-     * O mesmo cuidado do bloco acima, com duas diferenças. Vale nos **dois**
-     * tipos de atendimento — no estruturado não existe o formulário único
-     * `nd-atendimento-livre`, então o envio é montado aqui com os campos
-     * que mudaram, e o salvamento grava só os que chegam. E o motivo é mais
-     * forte: a emissão acrescenta o pedido à conduta no servidor; se o
-     * rascunho antigo ficasse no navegador, a volta ofereceria restaurá-lo,
-     * e restaurar apagaria o pedido da conduta.
-     *
-     * Atributo próprio, e não `data-nd-save-encounter-before-submit`: aquele
-     * é contado pelo roteiro do texto livre, e este é outro caminho. */
-    raiz.addEventListener('submit', function (event) {
-        var saida = event.target;
-        if (!saida.matches || !saida.matches('[data-nd-preservar-atendimento]')) {
-            return;
         }
-        if (saida.dataset.ndEncounterSaved === '1') {
-            delete saida.dataset.ndEncounterSaved;
-            return;
-        }
-        if (!editavel || !haMudanca()) { return; }
-
-        event.preventDefault();
-        event.stopImmediatePropagation();
+        if (!url) { return Promise.reject(new Error('Não foi possível salvar o atendimento.')); }
         guardar();
-
-        var dados = new FormData();
-        var token = raiz.querySelector('[name="csrfmiddlewaretoken"]');
-        var versao = raiz.querySelector('[name="row_version"]');
-        if (token) { dados.append('csrfmiddlewaretoken', token.value); }
-        if (versao) { dados.append('row_version', versao.value); }
-        campos().forEach(function (campo) {
-            if ((campo.value || '') !== valorGravado(campo)) {
-                dados.append(campo.name, campo.value || '');
-            }
-        });
-
-        window.fetch(saida.getAttribute('data-nd-preservar-atendimento'), {
+        return window.fetch(url, {
             method: 'POST',
             body: dados,
             credentials: 'same-origin',
@@ -259,19 +191,88 @@
                 return resposta;
             });
         }).then(function (resposta) {
-            raiz.querySelectorAll('[name="row_version"]').forEach(function (campo) {
+            document.querySelectorAll('[name="row_version"]').forEach(function (campo) {
                 campo.value = resposta.row_version;
             });
             campos().forEach(function (campo) {
                 doServidor[campo.name] = campo.value || '';
             });
             limpar();
-            saida.dataset.ndEncounterSaved = '1';
-            if (saida.requestSubmit) {
-                saida.requestSubmit();
-            } else {
-                saida.submit();
-            }
+            return resposta;
+        });
+    }
+
+    function reenviar(form, botao) {
+        form.dataset.ndEncounterSaved = '1';
+        if (form.requestSubmit) {
+            form.requestSubmit(botao || undefined);
+        } else {
+            form.submit();
+        }
+    }
+
+    /* Medicação, hipótese, exame, analito, escala, consulta anterior, apoio
+     * da IA, troca de tipo e finalizar têm formulários próprios e recarregam
+     * a página. Se houver texto ainda não salvo, grava primeiro. O clique no
+     * formulário auxiliar é uma ação explícita do médico; deixar a nota para
+     * trás e obrigá-lo a restaurá-la na volta não é aceitável.
+     *
+     * O listener roda em captura para parar antes do spinner global, que
+     * desabilita o botão contando que a navegação comece imediatamente.
+     *
+     * No `document`, e não na raiz: o modal de finalizar mora no bloco de
+     * modais, fora de `[data-nd-atendimento]`, e o envio dele nunca passava
+     * por aqui — finalizar selava a última versão salva e o que tinha sido
+     * digitado depois ficava só no navegador (achado PD-2026-11-15-01 do
+     * ProntDoc, `docs/intercambio/`). */
+    document.addEventListener('submit', function (event) {
+        var auxiliar = event.target;
+        if (!auxiliar.matches || !auxiliar.matches('[data-nd-save-encounter-before-submit]')) {
+            return;
+        }
+        if (auxiliar.dataset.ndEncounterSaved === '1') {
+            delete auxiliar.dataset.ndEncounterSaved;
+            return;
+        }
+        if (!editavel || !haMudanca()) { return; }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        var botao = event.submitter;
+        gravarAtendimento().then(function () {
+            reenviar(auxiliar, botao);
+        }).catch(function (error) {
+            mostrarFalhaAoPreservar(
+                (error && error.message ? error.message : 'Não foi possível salvar o atendimento.')
+                + ' A ação não foi feita; seu texto continua neste navegador.'
+            );
+        });
+    }, true);
+
+    /* Sair da página para emitir por modelo (`modelos/_na_conduta.html`).
+     *
+     * O mesmo cuidado do bloco acima. O motivo é mais forte: a emissão
+     * acrescenta o pedido à conduta no servidor; se o rascunho antigo
+     * ficasse no navegador, a volta ofereceria restaurá-lo, e restaurar
+     * apagaria o pedido da conduta.
+     *
+     * Atributo próprio, e não `data-nd-save-encounter-before-submit`: este
+     * é outro caminho (navegação, não salvamento), e o Ctrl+S o ignora. */
+    raiz.addEventListener('submit', function (event) {
+        var saida = event.target;
+        if (!saida.matches || !saida.matches('[data-nd-preservar-atendimento]')) {
+            return;
+        }
+        if (saida.dataset.ndEncounterSaved === '1') {
+            delete saida.dataset.ndEncounterSaved;
+            return;
+        }
+        if (!editavel || !haMudanca()) { return; }
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        gravarAtendimento().then(function () {
+            reenviar(saida);
         }).catch(function (error) {
             mostrarFalhaAoPreservar(
                 (error && error.message ? error.message : 'Não foi possível salvar o atendimento.')
@@ -348,18 +349,37 @@
                 && !foco.form.hasAttribute('data-nd-preservar-atendimento')) {
             return foco.form;
         }
+        /* Sem foco, o salvamento do atendimento — nunca "o primeiro
+         * formulário" da aba ou da página. Na aba História ele era "Mudar
+         * para seguimento"; na de hipóteses, "Analisar o caso" (um pedido à
+         * IA); na de medicações, incluir medicação em branco; e com
+         * consulta anterior pendente, "Trazer tudo", que copiava a conduta
+         * antiga por cima (achados ND-2026-11-15-01 e PD-2026-11-15-02,
+         * `docs/intercambio/`). Aba sem salvamento próprio: Ctrl+S não faz
+         * nada, que é melhor que fazer outra coisa. */
         var painel = raiz.querySelector('.tab-pane.active');
         if (painel) {
-            var form = painel.querySelector('form');
-            if (form) { return form; }
+            var versao = painel.querySelector('form [name="row_version"]');
+            return versao ? versao.form : null;
         }
-        return raiz.querySelector('form');
+        return document.getElementById('nd-atendimento-livre');
+    }
+
+    function botaoDe(form) {
+        /* No texto livre o botão de salvar fica fora do `<form>`, ligado
+         * pelo atributo `form=`; `form.querySelector` não o acha, e o
+         * Ctrl+S com o foco no texto não fazia nada. */
+        var dentro = form.querySelector('button[type="submit"]:not([disabled])');
+        if (dentro || !form.id) { return dentro; }
+        return document.querySelector(
+            'button[type="submit"][form="' + form.id + '"]:not([disabled])'
+        );
     }
 
     function salvar() {
         var form = formularioAtivo();
         if (!form) { return false; }
-        var botao = form.querySelector('button[type="submit"]:not([disabled])');
+        var botao = botaoDe(form);
         if (!botao) { return false; }
         /* `requestSubmit` no botão, e não `form.submit()`: o primeiro dispara
          * o evento `submit`, que é onde `app.js` desabilita o botão e mostra
@@ -506,10 +526,44 @@
 
     ligarBotoesDoRascunho();
     limparRascunhosObsoletos();
-    var achados = lerRascunhos();
+    /* Finalizado é imutável: oferecer "Restaurar" ali punha na tela um texto
+     * que não pode ser gravado (achado PD-2026-11-15-05). */
+    var achados = editavel ? lerRascunhos() : [];
     if (achados.length) { avisarRascunho(achados); }
 
     if (editavel) {
+        /* "Finalizar" com texto ainda não salvo: o modal calcula o que falta
+         * na renderização, e diria "falta a conduta" com a conduta digitada
+         * na tela — e, confirmado, selaria a versão anterior. Salva primeiro
+         * e volta com o modal aberto, com a lista refeita do que foi
+         * gravado (PD-2026-11-15-01). */
+        document.addEventListener('click', function (event) {
+            var gatilho = event.target.closest && event.target.closest('[data-bs-target="#finalize-modal"]');
+            if (!gatilho || !haMudanca()) { return; }
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            gravarAtendimento().then(function () {
+                var url = new URL(window.location.href);
+                url.searchParams.set('finalizar', '1');
+                url.hash = '';
+                window.location.assign(url.toString());
+            }).catch(function (error) {
+                mostrarFalhaAoPreservar(
+                    (error && error.message ? error.message : 'Não foi possível salvar o atendimento.')
+                    + ' O atendimento não foi finalizado; seu texto continua neste navegador.'
+                );
+            });
+        }, true);
+        if (new URL(window.location.href).searchParams.get('finalizar') === '1') {
+            var abrirFinalizar = document.querySelector('[data-bs-target="#finalize-modal"]');
+            if (abrirFinalizar) { window.setTimeout(function () { abrirFinalizar.click(); }, 0); }
+            /* Tira o parâmetro do endereço: recarregar a página depois não
+             * deve abrir o modal de novo. */
+            var semParametro = new URL(window.location.href);
+            semParametro.searchParams.delete('finalizar');
+            window.history.replaceState(null, '', semParametro.toString());
+        }
+
         window.setInterval(guardar, INTERVALO_MS);
         /* Sair da página é o momento em que o rascunho mais importa, e é
          * o único que o intervalo pode perder. */

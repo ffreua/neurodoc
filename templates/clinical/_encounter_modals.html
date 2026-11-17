@@ -3,7 +3,7 @@
      aria-labelledby="remove-finding-title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="post" id="remove-finding-form">
+            <form method="post" id="remove-finding-form" data-nd-save-encounter-before-submit>
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title" id="remove-finding-title">Remover item do exame</h5>
@@ -24,7 +24,7 @@
 <div class="modal fade" id="normal-modal" tabindex="-1" aria-hidden="true" aria-labelledby="normal-modal-title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="post" action="{% url 'clinical:exam-group-normal' encounter.id %}">
+            <form method="post" data-nd-save-encounter-before-submit action="{% url 'clinical:exam-group-normal' encounter.id %}">
                 {% csrf_token %}
                 <input type="hidden" name="path" id="normal-path">
                 <input type="hidden" name="undo" id="normal-undo" value="">
@@ -118,7 +118,8 @@ confirmar, e o log de auditoria guarda o que havia.{% endcomment %}
 <div class="modal fade" id="finalize-modal" tabindex="-1" aria-hidden="true" aria-labelledby="finalize-modal-title">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="post" action="{% url 'clinical:finalize' encounter.id %}">
+            <form method="post" action="{% url 'clinical:finalize' encounter.id %}"
+                  data-nd-save-encounter-before-submit>
                 {% csrf_token %}
                 <div class="modal-header">
                     <h5 class="modal-title" id="finalize-modal-title">Finalizar este atendimento?</h5>

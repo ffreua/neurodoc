@@ -112,6 +112,16 @@ hoje = timezone.localdate()
 try:
     with transaction.atomic():
         Tenant.objects.filter(id=clinica.id).update(plan=PlanCode.COMPLETE, tiss_liberado=True)
+        # Paciente próprio, criado aqui dentro e desfeito no fim. O primeiro da
+        # demonstração acumula atendimentos do dia deixados por outros
+        # roteiros, e com dois ou mais sem horário o check-in recusa criar a
+        # cobrança (`finance.receivables`: ambiguidade não vira cobrança) —
+        # o roteiro passava ou falhava conforme o que tinha rodado antes.
+        from patients.models import RegistrationStage
+        paciente = Patient.objects.create(
+            tenant=clinica, full_name=f'PACIENTE ROTEIRO GUIAS {uuid.uuid4().hex[:6].upper()}',
+            registration_stage=RegistrationStage.COMPLETE,
+        )
         config = Configuracao.carregar()
         Configuracao.objects.filter(id=config.id).update(ativo=True)
 

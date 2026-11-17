@@ -41,7 +41,7 @@ ainda não foi salvo.{% endcomment %}
         {% with finding=scale_values|nd_get:scale.code %}
         <form method="post" action="{% url 'clinical:record-scale' encounter.id scale.code %}"
               class="nd-scale-form" id="scale-{{ scale.code }}" hidden
-              {% if encounter.kind == 'free_text' %}data-nd-save-encounter-before-submit{% endif %}
+              data-nd-save-encounter-before-submit
               data-nd-scale="{{ scale.code }}"
               data-nd-max="{{ scale.max_score|default_if_none:'' }}"
               data-nd-bands="{{ scale.bands|nd_json }}">

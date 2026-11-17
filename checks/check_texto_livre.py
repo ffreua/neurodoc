@@ -300,14 +300,37 @@ if livre_form_attrs < 4:
 # Desde a 1.41 as escalas tambem estao nesta tela, e cada formulario de
 # escala salva o texto antes pelo mesmo contrato: o esperado e 2 (medicacao
 # e hipotese) mais um por escala.
+#
+# Desde o intercambio com o ProntDoc (PD-2026-11-15-01 e -04) a regra e
+# por formulario, e nao por contagem: **todo** formulario da tela que
+# recarrega a pagina salva o texto antes — exame, analito, consulta
+# anterior, apoio da IA, finalizar. Ficam de fora so o proprio salvamento,
+# o adendo (que so existe no finalizado) e o descarte (que joga fora de
+# proposito). A contagem antiga passava com um formulario novo sem o
+# atributo, desde que outro sobrasse.
+import re as _re
 escalas_na_tela = corpo.count('class="nd-scale-form"')
 salvamentos_auxiliares = corpo.count('data-nd-save-encounter-before-submit')
 print(f'  formularios que preservam o texto: {salvamentos_auxiliares} '
-      f'({2 + escalas_na_tela} esperados: medicacao, hipotese e {escalas_na_tela} escala(s))')
-if salvamentos_auxiliares != 2 + escalas_na_tela:
+      f'(ao menos {2 + escalas_na_tela}: medicacao, hipotese e {escalas_na_tela} escala(s))')
+if salvamentos_auxiliares < 2 + escalas_na_tela:
     failures.append(
         'medicacao e hipotese nao salvam o texto livre antes de recarregar a pagina'
     )
+_isentos = ('/autosave/', '/amendments/', '/discard/', '/descartar/', '/aditamento')
+_sem_preservar = []
+for _tag in _re.findall(r'<form[^>]*>', corpo, flags=_re.S):
+    _acao = _re.search(r'action="([^"]*)"', _tag)
+    _acao = _acao.group(1) if _acao else ''
+    if '/app/clinical/' not in _acao and 'remove-finding-form' not in _tag:
+        continue
+    if any(_x in _acao for _x in _isentos):
+        continue
+    if 'data-nd-save-encounter-before-submit' not in _tag:
+        _sem_preservar.append(_acao or _tag[:60])
+print(f'  formularios do atendimento sem salvar antes: {_sem_preservar or "nenhum"}')
+if _sem_preservar:
+    failures.append(f'formularios recarregam sem salvar o texto: {_sem_preservar}')
 
 print('=== 4. o que se digita e gravado ===')
 cliente.post(f'/app/clinical/{livre.id}/autosave/', {

@@ -364,7 +364,7 @@ PAGINAS = {
     'verify-document': Pagina(
         caminho='/verificar/',
         titulo='Verificar a autenticidade de um documento médico | NeuroDoc',
-        descricao='Confira se uma receita, um laudo ou um atestado emitido pelo '
+        descricao='Confira se uma receita, um relatório ou um pedido de exame emitido pelo '
                   'NeuroDoc é autêntico. Informe o código impresso no documento '
                   'ou leia o QR — sem precisar de conta.',
         prioridade='0.3', frequencia='yearly',
