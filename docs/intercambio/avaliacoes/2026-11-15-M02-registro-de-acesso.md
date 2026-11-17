@@ -4,7 +4,7 @@ data_do_registro: 2026-11-15
 tipo: mudança
 origem: prontdoc
 conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
-leitura_previa: avaliar     # o que o ProntDoc viu ao ler este repositório em 2640f2c
+leitura_previa: avaliar     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
 commit_aqui:
 roteiro_aqui:
 ---
