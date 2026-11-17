@@ -45,16 +45,43 @@ git show upstream/main:docs/intercambio/INDICE.md
 ```
 
 **Do NeuroDoc, ler o ProntDoc** — num clone de trabalho do NeuroDoc (nunca na
-VPS de produção), um remoto só de leitura:
+VPS de produção), um remoto só de leitura. Pelo HTTPS, com a credencial do
+`gh` (`gh auth status` mostra a conta; o ProntDoc é privado, e só ela lê):
 
 ```bash
-git remote add prontdoc git@github.com:ffreua/prontdoc.git
+git remote add prontdoc https://github.com/ffreua/prontdoc.git
 git remote set-url --push prontdoc DISABLED--leitura-apenas
-git fetch prontdoc main
+git fetch prontdoc
 git show prontdoc/main:docs/intercambio/INDICE.md
+git diff <commit-antes> <commit-depois> -- <arquivo>   # a correção do outro, para ler
+```
+
+Sem clone, pela API do GitHub — útil para conferir um arquivo do outro lado
+na hora da avaliação:
+
+```bash
+gh api repos/ffreua/prontdoc/contents/docs/intercambio/INDICE.md -H "Accept: application/vnd.github.raw"
+gh api repos/ffreua/neurodoc/contents/docs/intercambio/INDICE.md -H "Accept: application/vnd.github.raw"
+gh api "repos/ffreua/prontdoc/commits?path=docs/intercambio&per_page=5" --jq '.[].commit.message'
 ```
 
 O ProntDoc é privado: só quem tem acesso a ele lê o lado de cá.
+
+## Como um lado escreve no outro
+
+O remoto de leitura nunca empurra. Para **gravar** no intercâmbio do outro
+(a conversa), usa-se o clone de trabalho **dele** — `~/projects/prontdoc` e
+`~/projects/neurodoc` nesta máquina —, com três regras:
+
+1. **Só `docs/intercambio/`.** Código do outro nunca é alterado daqui: a
+   correção lá é feita pela avaliação de lá, adaptada.
+2. **O que se grava no outro é o que ele precisa saber:** o registro novo
+   deste lado como avaliação `pendente` em `avaliacoes/` dele, e a coluna "No
+   NeuroDoc"/"No ProntDoc" do `INDICE.md` dele (mais o `no_outro` do registro)
+   com a conclusão a que este lado chegou, apontando para o arquivo deste lado.
+3. **Commit próprio, só de documentação**, com a mensagem começando por
+   "Intercambio" — e só no ramo que o outro publica (`main` aqui; no ProntDoc,
+   `main` e `prontdoc/derivacao`, que andam juntos). Nunca na VPS.
 
 ## O ciclo de um achado
 

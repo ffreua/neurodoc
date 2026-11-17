@@ -5,8 +5,8 @@ tipo: mudança
 origem: prontdoc
 conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
 leitura_previa: avaliar     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
-commit_aqui:
-roteiro_aqui:
+commit_aqui: 
+roteiro_aqui: 
 ---
 
 # Quem abriu o prontuário: leitura na trilha e lista na ficha
@@ -25,6 +25,10 @@ NeuroDoc também a tela do estruturado, a aba de exame e as escalas abrem
 prontuário e precisariam da chamada. O NeuroDoc também anuncia trilha.
 
 ## Conclusão do NeuroDoc
-_Pendente._ Quem avaliar troca `conclusao`, explica aqui o porquê (muitas
-vezes é uma das diferenças do README) e, se corrigir ou adotar, registra
-commit e roteiro.
+Avaliado em 2026-11-17 sobre `main` (NeuroDoc 1.47).
+
+**Decisão do titular, ainda não tomada.** O NeuroDoc também não registra
+leitura de prontuário. Em vez de adotar a funcionalidade agora, a vitrine
+deixou de prometê-la (PD-16): o que se anuncia é o que existe. Se for
+adotada, entram também a tela do estruturado, a aba de exame e as escalas,
+que o ProntDoc não tem. LGPD art. 37 e Res. CFM 1.821/2007 a favorecem.

@@ -3,10 +3,10 @@ avalia: PD-2026-11-15-17
 data_do_registro: 2026-11-15
 tipo: achado
 origem: prontdoc
-conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
+conclusao: afetado          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
 leitura_previa: afetado-provavel     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
-commit_aqui:
-roteiro_aqui:
+commit_aqui: b26c256
+roteiro_aqui: checks/check_tiss_guias.py
 ---
 
 # `check_tiss_guias` falhava conforme o que tinha rodado antes
@@ -24,6 +24,7 @@ paciente por `order_by('created_at').first()`). A fragilidade é a mesma; só
 aparece em base de demonstração já usada no dia.
 
 ## Conclusão do NeuroDoc
-_Pendente._ Quem avaliar troca `conclusao`, explica aqui o porquê (muitas
-vezes é uma das diferenças do README) e, se corrigir ou adotar, registra
-commit e roteiro.
+Avaliado em 2026-11-17 sobre `main` (NeuroDoc 1.47).
+
+**Afetado** — o mesmo roteiro, a mesma escolha do paciente. Corrigido igual
+(paciente próprio dentro da transação desfeita).

@@ -3,10 +3,10 @@ avalia: PD-2026-11-15-12
 data_do_registro: 2026-11-15
 tipo: achado
 origem: prontdoc
-conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
+conclusao: afetado          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
 leitura_previa: afetado-confirmado     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
-commit_aqui:
-roteiro_aqui:
+commit_aqui: b26c256
+roteiro_aqui: checks/check_intercambio_prontdoc.py §7
 ---
 
 # Apoio diagnóstico pedido em atendimento já finalizado
@@ -23,6 +23,7 @@ Lido em `upstream/main` 2640f2c (NeuroDoc 1.47), lido só para leitura em 2026-1
 `clinical/views.py::DiagnosticSupportRequestView` sem a conferência.
 
 ## Conclusão do NeuroDoc
-_Pendente._ Quem avaliar troca `conclusao`, explica aqui o porquê (muitas
-vezes é uma das diferenças do README) e, se corrigir ou adotar, registra
-commit e roteiro.
+Avaliado em 2026-11-17 sobre `main` (NeuroDoc 1.47).
+
+**Afetado.** `DiagnosticSupportRequestView` recusa no finalizado, e o botão
+"Analisar de novo" some; a última análise fica para leitura.

@@ -3,10 +3,10 @@ avalia: PD-2026-11-15-03
 data_do_registro: 2026-11-15
 tipo: achado
 origem: prontdoc
-conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
+conclusao: afetado          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
 leitura_previa: afetado-confirmado     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
-commit_aqui:
-roteiro_aqui:
+commit_aqui: b26c256
+roteiro_aqui: checks/check_intercambio_prontdoc.py §1
 ---
 
 # Trazer a conduta anterior substituía a conduta de hoje
@@ -23,6 +23,8 @@ Lido em `upstream/main` 2640f2c (NeuroDoc 1.47), lido só para leitura em 2026-1
 `clinical/carry_forward.py:219`, a mesma linha. Vale também para os campos do estruturado que são texto.
 
 ## Conclusão do NeuroDoc
-_Pendente._ Quem avaliar troca `conclusao`, explica aqui o porquê (muitas
-vezes é uma das diferenças do README) e, se corrigir ou adotar, registra
-commit e roteiro.
+Avaliado em 2026-11-17 sobre `main` (NeuroDoc 1.47).
+
+**Afetado** — `clinical/carry_forward.py`, a mesma linha. Corrigido como
+no ProntDoc (acrescenta quando o campo de hoje tem texto, não repete o mesmo
+texto). Vale para todo campo de texto do estruturado que passa por ali.

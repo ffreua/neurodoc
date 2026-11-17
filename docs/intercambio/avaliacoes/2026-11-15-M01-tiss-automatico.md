@@ -5,8 +5,8 @@ tipo: mudança
 origem: prontdoc
 conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
 leitura_previa: avaliar     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
-commit_aqui:
-roteiro_aqui:
+commit_aqui: 
+roteiro_aqui: 
 ---
 
 # TISS e agenda de exames ligados automaticamente com o plano contratado
@@ -30,6 +30,11 @@ de cada produto: este registro diz o que o ProntDoc fez, não o que o
 NeuroDoc deve fazer.
 
 ## Conclusão do NeuroDoc
-_Pendente._ Quem avaliar troca `conclusao`, explica aqui o porquê (muitas
-vezes é uma das diferenças do README) e, se corrigir ou adotar, registra
-commit e roteiro.
+Avaliado em 2026-11-17 sobre `main` (NeuroDoc 1.47).
+
+**Decisão do titular, ainda não tomada.** O código é o mesmo, e a mudança
+seria pequena (`tenancy/services.py`, `ops/superadmin.py`). Mas TISS
+automático é decisão comercial, e no NeuroDoc o TISS ainda **não foi
+homologado com operadora real**: abrir para todo Completo antes disso seria
+oferecer faturamento não provado. Fica pendente até o titular decidir; o
+defeito que impedia ligá-lo (PD-13) já está corrigido.
