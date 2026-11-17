@@ -475,7 +475,10 @@ def run_job(job_id):
     # é o conselho certo.
     usou_reserva = False
     try:
-        chat_model = get_chat_model(tenant_id=job.tenant_id)
+        # O prazo de rede acompanha o da tarefa, com folga: quem decide quando
+        # desistir é `graphs._invoke_with_timeout`, e não o cliente HTTP
+        # (PD-2026-11-17-18).
+        chat_model = get_chat_model(tenant_id=job.tenant_id, timeout=limite + 15)
     except ProviderUnavailable as exc:
         chat_model, falha_principal = None, exc
     else:
@@ -502,7 +505,7 @@ def run_job(job_id):
         prazo_minimo = min(_PRAZO_MINIMO_DA_RESERVA, limite)
         if reserva_utilizavel(job.tenant_id) and prazo_reserva >= prazo_minimo:
             try:
-                chat_model = installation_reserve_model()
+                chat_model = installation_reserve_model(timeout=limite + 15)
                 result_state = executar(chat_model, prazo_reserva)
             except Exception as exc_reserva:
                 detalhe, diagnostico = _falha_do_provedor(exc_reserva, job)

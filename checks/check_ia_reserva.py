@@ -220,7 +220,7 @@ def novo_job(timeout=30):
 
 def rodar(principal, timeout=30):
     job = novo_job(timeout)
-    reserva = MagicMock(side_effect=lambda: Reserva())
+    reserva = MagicMock(side_effect=lambda **_: Reserva())
     with patch('ai.services.get_chat_model', return_value=principal), \
             patch('ai.services.installation_reserve_model', reserva):
         with transaction.atomic():
@@ -318,7 +318,7 @@ try:
             sessoes.append(sessao.id)
             pergunta = chat_services.post_user_message(sessao, 'Como bloqueio um horário?')
             resposta = chat_services.start_assistant_message(sessao)
-            reserva = MagicMock(side_effect=lambda: Reserva())
+            reserva = MagicMock(side_effect=lambda **_: Reserva())
             with patch('ai.tasks.get_chat_model', return_value=principal), \
                     patch('ai.tasks.installation_reserve_model', reserva), \
                     patch('ai.tasks.publish_event'):

@@ -264,6 +264,24 @@ try:
         conferir('não promete "quem viu o quê"', 'quem viu o quê' not in texto)
         conferir('não diz que a chave do backup é do responsável',
                  'chave de recuperação é do responsável' not in texto)
+        print('=== 11. o prazo de rede acompanha o da tarefa (PD-18) ===')
+        import inspect
+
+        from ai import providers, services as ai_services
+
+        capturado = {}
+        with mock.patch.object(providers, '_build', lambda *a, **k: capturado.update(k) or 'cliente'):
+            with mock.patch.object(providers, '_tenant_settings', lambda _t: mock.Mock(
+                api_key=lambda: 'k', base_url='', provider='openai', model='m',
+            )), mock.patch.object(dj_settings, 'AI_ENABLED', True):
+                providers.get_chat_model(tenant_id=tenant.id, timeout=255)
+        conferir('o prazo pedido chega ao cliente de rede', capturado.get('timeout') == 255, capturado)
+        codigo = inspect.getsource(ai_services.run_job)
+        conferir('a tarefa pede o próprio prazo, com folga',
+                 'get_chat_model(tenant_id=job.tenant_id, timeout=limite + 15)' in codigo
+                 and 'installation_reserve_model(timeout=limite + 15)' in codigo)
+        conferir('o relatório tem prazo maior que o de rede padrão',
+                 ai_services.REPORT_LIMITS['timeout_seconds'] > providers.REQUEST_TIMEOUT_SECONDS)
         raise Desfazer
 except Desfazer:
     print('=== transação desfeita: nada ficou na base ===')

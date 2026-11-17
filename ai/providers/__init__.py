@@ -21,6 +21,12 @@ from django.conf import settings
 from .base import ProviderUnavailable
 from .catalog import ANTHROPIC_NATIVE, PROVIDERS, provider_kind, resolve_base_url
 
+#: O prazo de rede **padrão** — o do chat, que transmite e não tem prazo de
+#: tarefa. As tarefas (resumo, apoio diagnóstico, relatório) passam o
+#: próprio prazo em `timeout`, com folga: antes todas eram cortadas aqui aos
+#: 60 s, e o relatório, que tem 240 s, nunca chegava ao prazo dele — a falha
+#: dizia "não respondeu em 240s" sobre uma chamada abandonada aos 60
+#: (achado PD-2026-11-17-18 do ProntDoc, `docs/intercambio/`).
 REQUEST_TIMEOUT_SECONDS = 60
 
 #: Limitação conhecida das rotas compatíveis com a API da OpenAI, e a razão
@@ -61,7 +67,7 @@ ROTEAMENTO_OPENROUTER_DA_INSTALACAO = {
 }
 
 
-def _build(provider, model, api_key, base_url='', *, da_instalacao=False):
+def _build(provider, model, api_key, base_url='', *, da_instalacao=False, timeout=None):
     """O cliente de chat, para qualquer provedor do catálogo.
 
     Quase todos expõem a API da OpenAI em outro endereço, o que permite um
@@ -73,7 +79,7 @@ def _build(provider, model, api_key, base_url='', *, da_instalacao=False):
         from langchain_anthropic import ChatAnthropic
 
         return ChatAnthropic(
-            model=model, api_key=api_key, timeout=REQUEST_TIMEOUT_SECONDS,
+            model=model, api_key=api_key, timeout=timeout or REQUEST_TIMEOUT_SECONDS,
         )
 
     from langchain_openai import ChatOpenAI
@@ -86,12 +92,12 @@ def _build(provider, model, api_key, base_url='', *, da_instalacao=False):
     return ChatOpenAI(
         model=model, api_key=api_key,
         base_url=resolve_base_url(provider, base_url),
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        timeout=timeout or REQUEST_TIMEOUT_SECONDS,
         **extras,
     )
 
 
-def _model_from_tenant_settings(row):
+def _model_from_tenant_settings(row, timeout=None):
     """Cliente montado com a configuração daquela clínica."""
     from base.crypto import SecretUnavailable
 
@@ -115,7 +121,7 @@ def _model_from_tenant_settings(row):
         except ProviderProbeFailed as exc:
             raise ProviderUnavailable(f'Endereço da IA da clínica recusado: {exc}') from exc
 
-    return _build(row.provider, row.model, api_key, row.base_url)
+    return _build(row.provider, row.model, api_key, row.base_url, timeout=timeout)
 
 
 def installation_secret_name(provider):
@@ -154,7 +160,7 @@ def installation_api_key(provider):
         return ''
 
 
-def _installation_model():
+def _installation_model(timeout=None):
     """O padrão da instalação: provedor, modelo e chave.
 
     Vale para toda clínica que não configurou a sua. **Provedor e modelo
@@ -192,10 +198,10 @@ def _installation_model():
             f'Nenhum modelo de IA escolhido para o provedor da instalação '
             f'({provider}). Escolha um em /instalacao/operacao/.'
         )
-    return _build(provider, model, api_key, base_url, da_instalacao=True)
+    return _build(provider, model, api_key, base_url, da_instalacao=True, timeout=timeout)
 
 
-def get_chat_model(provider=None, tenant_id=None):
+def get_chat_model(provider=None, tenant_id=None, timeout=None):
     """O modelo de chat a usar: o da clínica, se ela configurou o seu.
 
     A ordem é deliberada. A clínica que informou provedor, chave e modelo
@@ -214,7 +220,7 @@ def get_chat_model(provider=None, tenant_id=None):
         raise ProviderUnavailable('AI_ENABLED=False')
     row = _tenant_settings(tenant_id)
     if row is not None and provider is None:
-        return _model_from_tenant_settings(row)
+        return _model_from_tenant_settings(row, timeout=timeout)
     if provider is not None:
         # Provedor pedido explicitamente pelo chamador continua usando a
         # credencial da instalação: é assim que ele era atendido antes, e
@@ -224,7 +230,7 @@ def get_chat_model(provider=None, tenant_id=None):
                 f'Provedor {provider!r} pedido explicitamente, mas a instalação só '
                 f'tem credencial para {settings.AI_PROVIDER!r}.'
             )
-    return _installation_model()
+    return _installation_model(timeout=timeout)
 
 
 # --------------------------------------------------------------------
@@ -260,7 +266,7 @@ def reserva_utilizavel(tenant_id):
     return InstallationSettings.carregar().reserva_pronta
 
 
-def installation_reserve_model():
+def installation_reserve_model(timeout=None):
     """O cliente do provedor reserva, montado com a chave guardada no banco."""
     from base.crypto import SecretUnavailable
     from base.models import InstallationSettings
@@ -286,7 +292,8 @@ def installation_reserve_model():
         api_key = config.reserva_api_key()
     except SecretUnavailable as exc:
         raise ProviderUnavailable(f'A chave da reserva não abre: {exc}') from exc
-    return _build(provider, config.ai_reserva_model, api_key, base_url, da_instalacao=True)
+    return _build(provider, config.ai_reserva_model, api_key, base_url, da_instalacao=True,
+                  timeout=timeout)
 
 
 def descrever_falha(exc):
