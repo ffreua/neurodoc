@@ -387,7 +387,10 @@ try:
              and '000000100' not in folhas[1])
     conferir('o QR e a verificação em todas as folhas',
              all(f'/verificar/{emitido.validation_token}/' in f for f in folhas))
-    conferir('o registro da assinatura está no PDF', 'Assinado digitalmente por' in texto and 'ICP-Brasil' in texto)
+    # "certificado digital", e não "ICP-Brasil": a cadeia não é conferida no
+    # envio do certificado (2026-11-17, @meirakalile-ship-it).
+    conferir('o registro da assinatura está no PDF',
+             'Assinado digitalmente por' in texto and 'certificado digital' in texto and 'ICP-Brasil' not in texto)
     conferir('a verificação aponta para o NeuroDoc', f'/verificar/{emitido.validation_token}/' in texto)
     conferir('a assinada não diz rascunho', 'RASCUNHO' not in texto)
     validacao = validate_signed_pdf(assinado, a1x509.Certificate.load(certificado.public_bytes(serialization.Encoding.DER)))

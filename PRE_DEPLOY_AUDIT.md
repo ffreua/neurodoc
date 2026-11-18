@@ -764,6 +764,16 @@ desidentificação da IA que não remove data de nascimento nem endereço; o
 gatilho de imutabilidade não cobrir `TRUNCATE`; `ai/tools/administrative.py`
 como módulo morto; resíduo legado em `documents/storage.py`.
 
+> **2026-11-17 — dois destes confirmados e corrigidos**, reforçados por
+> @meirakalile-ship-it junto com seis achados de segurança novos (registro
+> em `docs/intercambio/mudancas/`, roteiro `check_revisao_2026_11_17`): o
+> `TRUNCATE` agora é recusado por gatilho de comando (`audit/migrations/
+> *_auditevent_sem_truncate.py`), e o texto livre do médico saiu da trilha
+> na retificação de documento e na recusa da IA (`motivo_retificacao`,
+> `motivo_recusa`). Continua aberto: hash encadeado para detectar
+> `DISABLE TRIGGER`; o motivo do descarte de atendimento e de rascunho da IA
+> segue na trilha porque o objeto é apagado e ela é o único registro.
+
 ### 25.2b · Achados que **refutei** ao verificar
 
 Registrados porque a refutação também é resultado — e porque quem repetir a

@@ -10,7 +10,9 @@ Somente leitura para o app inteiro, e não só para o que está finalizado:
 o rascunho tem a tela de atendimento, o finalizado tem o adendo
 (`clinical/finalization.py`), e nenhum dos dois precisa do admin para ser
 corrigido. O admin aqui serve para olhar quando alguém pergunta "o que
-está gravado nesta linha?".
+está gravado nesta linha?" — pela lista, que mostra a linha sem o texto.
+O registro aberto é recusado (`base.admin.SemConteudoClinicoAdmin`): ler
+prontuário exige vínculo clínico, e o admin não passa pela trilha.
 
 `ClinicalAmendment` entra na mesma regra pelo motivo mais forte de todos:
 é o registro que existe justamente para corrigir sem apagar. Um adendo
@@ -19,22 +21,15 @@ editável não corrige coisa nenhuma.
 
 from django.contrib import admin
 
+from base.admin import SemConteudoClinicoAdmin
+
 from .models import (
     CarryForwardItem, ClinicalAmendment, Encounter, EncounterDiagnosis, ExaminationFinding,
 )
 
 
-class SomenteLeituraAdmin(admin.ModelAdmin):
-    """Registro visível e imutável pelo admin."""
-
-    def has_add_permission(self, request):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-    def has_delete_permission(self, request, obj=None):
-        return False
+class SomenteLeituraAdmin(SemConteudoClinicoAdmin):
+    """Imutável pelo admin, e o registro aberto recusado."""
 
 
 @admin.register(Encounter)

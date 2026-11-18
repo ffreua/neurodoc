@@ -14,7 +14,7 @@ de S01-T01 e é atualizado sempre que uma pendência é resolvida ou uma decisã
 | DEC-04 / CR-04 | Timestamps em models próprios e relações intermediárias explícitas; tabelas internas de bibliotecas permanecem sob gestão delas | Exceção documentada |
 | DEC-05 / CR-05 | Papéis acumuláveis por vínculo; dono não recebe automaticamente permissões clínicas | Exige matriz de permissões |
 | DEC-06 / CR-06 | OpenRouter/GLM padrão; OpenAI/Anthropic selecionáveis por administrador técnico; sem fallback externo implícito | Qualquer provedor deve cumprir política de dados |
-| DEC-07 / CR-07 | Sessão de assinatura de 2/4/6/12 horas, sempre com ação médica por documento | A assinatura produzida não expira ao encerrar a sessão |
+| DEC-07 / CR-07 | Sessão de assinatura de 2/4 horas (eram 2/4/6/12 até 2026-11-17), sempre com ação médica por documento | A assinatura produzida não expira ao encerrar a sessão |
 | DEC-08 / CR-08 | Desidentificação local; reidentificação reversível continua sendo pseudonimização; envio externo bloqueado quando não satisfaz a política | IA externa pode ficar indisponível para certos casos |
 | DEC-09 / CR-09 | `collectstatic --clear` em staging por release; publicação atômica, retenção de releases e leitura dinâmica dos assets | Evitar limpeza de arquivos em uso |
 | DEC-10 / CR-10 | App migra com advisory lock; worker/beat aguardam dependências e migrations locais aplicadas | Não depender de depends_on no Swarm |

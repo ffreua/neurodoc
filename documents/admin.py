@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from base.admin import SemConteudoClinicoAdmin
+
 from .models import Attachment, AttachmentOcrPage, MedicalDocument, SigningCredential, SigningSession
 
 
@@ -12,12 +14,12 @@ class AttachmentAdmin(admin.ModelAdmin):
 
 
 @admin.register(AttachmentOcrPage)
-class AttachmentOcrPageAdmin(admin.ModelAdmin):
+class AttachmentOcrPageAdmin(SemConteudoClinicoAdmin):
     list_display = ['attachment', 'page_number', 'engine']
 
 
 @admin.register(MedicalDocument)
-class MedicalDocumentAdmin(admin.ModelAdmin):
+class MedicalDocumentAdmin(SemConteudoClinicoAdmin):
     list_display = ['document_number', 'kind', 'status', 'version', 'patient', 'physician', 'tenant']
     list_filter = ['kind', 'status', 'tenant']
     search_fields = ['document_number', 'patient__full_name']

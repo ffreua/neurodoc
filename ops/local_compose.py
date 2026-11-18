@@ -49,6 +49,14 @@ config.update(DEBUG='True', ALLOWED_HOSTS=','.join(hosts),
               PUBLIC_BASE_URL='http://localhost:8000',
               SMS_ENABLED='False', AI_ENABLED='False', NEURODOC_DEMO_ALLOWED='True')
 
+# O molde nasce seguro (CSP aplicada, segundo fator exigido, desde
+# 2026-11-17); o local nao, salvo se o `.env` disser outra coisa: a bateria
+# cria usuarios sem dispositivo, e o check_csp confere o modo de relatorio.
+_do_env_local = read_env(ROOT / '.env')
+for _chave, _valor in (('SEGUNDO_FATOR_OBRIGATORIO_DESDE', 'desligado'), ('CSP_ENFORCE', 'False')):
+    if _chave not in _do_env_local:
+        config[_chave] = _valor
+
 # ------------------------------------------------------------------- e-mail
 #
 # `EMAIL_ENABLED` deixou de ser fixado aqui: vem do `.env`, e o padrao do

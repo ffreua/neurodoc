@@ -89,10 +89,12 @@ def reject_artifact(artifact, reviewer_membership, reason):
     artifact.review_state = AIReviewState.REJECTED
     artifact.reviewer = reviewer_membership
     artifact.reviewed_at = timezone.now()
-    artifact.save(update_fields=['review_state', 'reviewer', 'reviewed_at'])
+    artifact.motivo_recusa = (reason or '').strip()
+    artifact.save(update_fields=['review_state', 'reviewer', 'reviewed_at', 'motivo_recusa'])
     record_audit_event(
         reviewer_membership.user_id, artifact.tenant_id, 'ai.artifact_rejected',
         object_type='ai_artifact', object_id=artifact.id, outcome='success',
-        integrity_metadata={'reason': reason[:255]},
+        # O motivo é texto livre sobre o caso: fica no rascunho, não na trilha.
+        integrity_metadata={'motivo_informado': bool((reason or '').strip())},
     )
     return artifact

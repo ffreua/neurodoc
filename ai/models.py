@@ -133,6 +133,11 @@ class AIArtifact(TenantModel):
         'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='superseded_by',
     )
     stale = models.BooleanField(default=False)
+    #: O motivo escrito ao recusar o rascunho. Morava na trilha
+    #: (`integrity_metadata`) até 2026-11-17; é texto livre do médico sobre o
+    #: caso, e a trilha não guarda texto clínico (ver
+    #: `documents.MedicalDocument.motivo_retificacao`).
+    motivo_recusa = models.TextField(blank=True, default='')
 
     def __str__(self):
         return f'artifact for job {self.job_id} ({self.review_state})'

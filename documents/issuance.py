@@ -231,18 +231,21 @@ def create_correction(original, actor_id, content_fields, reason=''):
         original.tenant, original.patient, original.encounter, original.physician, actor_id,
         original.kind, content_fields, version=original.version + 1, replaces_document=original,
     )
-    # O motivo vai para a trilha, e não para o documento.
+    # O motivo fica na nova versão, fora do conteúdo impresso.
     #
     # A tela pedia o motivo da correção e o descartava: o campo tinha o
     # mesmo nome do "Motivo" do encaminhamento e, nos demais tipos, não
-    # existia no conteúdo — o médico escrevia e nada era guardado. O motivo
-    # de uma retificação é registro de quem alterou o quê e por quê, e é na
-    # auditoria que ele responde a isso, não no papel entregue ao paciente.
+    # existia no conteúdo — o médico escrevia e nada era guardado. Depois
+    # ele foi para a trilha (`purpose`), que não guarda texto clínico; desde
+    # 2026-11-17 mora em `motivo_retificacao`, e a trilha registra só que
+    # houve motivo.
+    corrected.motivo_retificacao = (reason or '').strip()
+    corrected.save(update_fields=['motivo_retificacao'])
     record_audit_event(
         actor_id, original.tenant_id, 'documents.medicaldocument_corrected',
         object_type='medical_document', object_id=corrected.id, outcome='success',
-        purpose=(reason or '')[:255],
         integrity_metadata={
+            'motivo_informado': bool((reason or '').strip()),
             'replaces': str(original.id),
             'replaces_number': original.document_number,
             'version': corrected.version,

@@ -1,5 +1,7 @@
 from django.contrib import admin
 
+from base.admin import SemConteudoClinicoAdmin
+
 from .models import HealthPlan, Insurer, Observation, Patient, PatientContact, PatientCoverage
 
 
@@ -17,7 +19,7 @@ class PatientContactAdmin(admin.ModelAdmin):
 
 
 @admin.register(Observation)
-class ObservationAdmin(admin.ModelAdmin):
+class ObservationAdmin(SemConteudoClinicoAdmin):
     list_display = ['patient', 'kind', 'numeric_value', 'unit', 'observed_at']
     list_filter = ['kind', 'tenant']
 

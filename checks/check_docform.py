@@ -132,11 +132,18 @@ for kind, (inicial, corrigido) in CASOS.items():
             failures.append(
                 f'{kind}: campo {campo} nao foi corrigido '
                 f'({nova.content_snapshot.get(campo)!r} != {valor!r})')
-    # o motivo tem de estar na auditoria, e nao no conteudo
+    # o motivo fica na nova versao (fora do conteudo impresso) e a trilha
+    # registra so que houve motivo: texto livre do medico nao vai para a
+    # trilha (2026-11-17, @meirakalile-ship-it)
+    nova.refresh_from_db()
+    if f'retificacao de {kind}' not in (nova.motivo_retificacao or ''):
+        failures.append(f'{kind}: motivo da correcao nao foi guardado na nova versao')
     evento = AuditEvent.objects.filter(
         action='documents.medicaldocument_corrected', object_id=nova.id).first()
-    if evento is None or f'retificacao de {kind}' not in (evento.purpose or ''):
-        failures.append(f'{kind}: motivo da correcao nao foi registrado na auditoria')
+    if evento is None or not (evento.integrity_metadata or {}).get('motivo_informado'):
+        failures.append(f'{kind}: a trilha nao registrou que houve motivo')
+    elif f'retificacao de {kind}' in (evento.purpose or '') + str(evento.integrity_metadata):
+        failures.append(f'{kind}: o texto do motivo vazou para a trilha')
     if 'correction_reason' in nova.content_snapshot:
         failures.append(f'{kind}: motivo da correcao vazou para o conteudo do documento')
 

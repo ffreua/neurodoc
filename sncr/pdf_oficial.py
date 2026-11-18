@@ -680,14 +680,23 @@ def registro_de_assinatura(perfil, credencial, quando):
     """O texto de "Registro da assinatura digital e data", montado antes de assinar.
 
     O PDF é desenhado e **depois** assinado; o que o rodapé diz tem de ser
-    sabido antes. Nome, CRM, o certificado ICP-Brasil (número de série) e a
-    hora de Brasília. A assinatura em si fica no arquivo e se confere no
+    sabido antes. Nome, CRM, o certificado (número de série) e a hora de
+    Brasília. A assinatura em si fica no arquivo e se confere no
     validar.iti.gov.br, como o modelo manda.
+
+    **"Certificado digital", e não "certificado ICP-Brasil"** (2026-11-17,
+    achado de @meirakalile-ship-it). O envio do certificado confere o nome
+    do titular no CN, uma heurística (P-05), e a validação do PDF não monta
+    a cadeia até as raízes do ITI: um certificado autoassinado com o nome
+    certo passaria e sairia com o rodapé afirmando ICP-Brasil. O documento
+    não afirma o que o sistema não conferiu; quem confere a cadeia é o
+    validar.iti.gov.br. Voltar ao texto antigo só com a cadeia validada no
+    envio.
     """
     hora = timezone.localtime(quando).strftime('%d/%m/%Y %H:%M')
     serie = (credencial.certificate_serial or '')[:24]
     return (f'Assinado digitalmente por {perfil.professional_name} (CRM {perfil.crm_number}/{perfil.crm_state}) '
-            f'com certificado ICP-Brasil nº {serie}, em {hora} (horário de Brasília).')
+            f'com certificado digital nº {serie}, em {hora} (horário de Brasília).')
 
 
 __all__ = ['render', 'render_rce', 'render_ret', 'render_notificacao', 'registro_de_assinatura',

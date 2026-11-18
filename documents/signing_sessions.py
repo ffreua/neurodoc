@@ -15,7 +15,16 @@ from .credentials import credential_is_usable, decrypt_pfx_bytes
 from .models import SigningSession
 from .signing import InvalidPfxPassword, verify_pfx_password
 
-ALLOWED_DURATIONS_HOURS = (2, 4, 6, 12)
+#: **Até 4 horas** (eram 2, 4, 6 e 12 até 2026-11-17). Durante a sessão a
+#: senha do PFX fica no banco, cifrada por uma chave efêmera no tmpfs do
+#: mesmo host: quem tiver o host nesse intervalo tem o PFX, a chave-mestra e
+#: a senha juntos. A janela é o custo do risco, e meio expediente basta a
+#: um consultório (achado de @meirakalile-ship-it). Decisão DEC-07 revista.
+ALLOWED_DURATIONS_HOURS = (2, 4)
+
+#: Teto aplicado também às sessões abertas antes da mudança: uma sessão de
+#: 12 h aberta na véspera do deploy não sobrevive a ele por mais 12 h.
+TETO_HORAS = max(ALLOWED_DURATIONS_HOURS)
 
 
 class RecentMfaRequired(Exception):
@@ -83,8 +92,10 @@ def start_session(request, physician_membership, credential, password, duration_
 
 
 def get_active_session(request, physician_membership):
+    agora = timezone.now()
     session = SigningSession.objects.filter(
-        physician=physician_membership, revoked_at=None, expires_at__gt=timezone.now(),
+        physician=physician_membership, revoked_at=None, expires_at__gt=agora,
+        created_at__gt=agora - timedelta(hours=TETO_HORAS),
     ).order_by('-created_at').first()
     if session is None:
         return None
@@ -122,9 +133,11 @@ def cleanup_orphan_keys():
     root = Path(settings.SIGNING_SESSION_KEY_ROOT)
     if not root.exists():
         return 0
+    agora = timezone.now()
     active_ids = set(
         str(key_id) for key_id in SigningSession.objects.filter(
-            revoked_at=None, expires_at__gt=timezone.now(),
+            revoked_at=None, expires_at__gt=agora,
+            created_at__gt=agora - timedelta(hours=TETO_HORAS),
         ).values_list('ephemeral_key_id', flat=True)
     )
     removed = 0

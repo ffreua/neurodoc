@@ -24,7 +24,20 @@ Ordem correta:
 
 Idempotente: um segredo que já abre com a nova é pulado. Interromper no
 meio e rodar de novo é seguro.
+
+**A chave antiga nunca na linha de comando** (2026-11-17, achado de
+@meirakalile-ship-it). `--old-key VALOR` deixava a chave na lista de
+processos (`ps`, `/proc/*/cmdline`, legível por outros usuários do host) e
+no histórico do shell. O caminho padrão, pela `PFX_MASTER_KEY` do ambiente,
+é o seguro; para outra chave, `--old-key-stdin` a lê da entrada padrão:
+
+    docker exec -i <app> python manage.py rotate_secrets_master_key --old-key-stdin < arquivo
+
+`--old-key` continua aceito para não quebrar roteiro de operação antigo,
+com aviso.
 """
+
+import sys
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
@@ -60,7 +73,11 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             '--old-key', default=None,
-            help='Chave antiga. Omitida, usa a PFX_MASTER_KEY, que é a de onde se sai.',
+            help='OBSOLETO: expõe a chave em ps e no histórico. Use --old-key-stdin.',
+        )
+        parser.add_argument(
+            '--old-key-stdin', action='store_true',
+            help='Lê a chave antiga da entrada padrão. Sem esta opção, usa a PFX_MASTER_KEY.',
         )
         parser.add_argument(
             '--dry-run', action='store_true',
@@ -76,7 +93,13 @@ class Command(BaseCommand):
                 'SECRETS_MASTER_KEY não está definida. Gere a chave e monte-a antes — '
                 'sem ela não há para onde rotacionar.'
             )
-        antiga = options['old_key'] or getattr(settings, 'PFX_MASTER_KEY', '')
+        if options['old_key']:
+            self.stderr.write(self.style.WARNING(
+                'Aviso: --old-key deixa a chave na lista de processos e no histórico do '
+                'shell. Prefira --old-key-stdin, e limpe o histórico desta sessão.'
+            ))
+        lida = sys.stdin.readline().strip() if options['old_key_stdin'] else ''
+        antiga = lida or options['old_key'] or getattr(settings, 'PFX_MASTER_KEY', '')
         if not antiga:
             raise CommandError(
                 'Sem chave antiga: nem --old-key nem PFX_MASTER_KEY. Não há de onde sair.'

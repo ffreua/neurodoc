@@ -504,6 +504,21 @@ PR:
    presente;
 3. nunca inclua dado de paciente real em issue, commit ou captura de tela.
 
+**Falha de segurança:** não abra issue pública. Escreva para
+contato@neurodoc.app.br; a correção é feita aqui e no sistema derivado antes
+de qualquer detalhe ficar público.
+
+### Agradecimentos
+
+- **[@meirakalile-ship-it](https://github.com/meirakalile-ship-it)** leu o
+  código por conta própria e relatou, em novembro de 2026, seis pontos de
+  segurança — leitura de prontuário pelo admin sem trilha, certificado
+  revogado que continuava guardado, a janela da senha do certificado na
+  sessão de assinatura, o rodapé que afirmava ICP-Brasil sem conferir a
+  cadeia, o código de recuperação do segundo fator sem limite e o molde de
+  configuração que nascia inseguro. Todos procediam e foram corrigidos.
+  Obrigado.
+
 ---
 
 ## Licença

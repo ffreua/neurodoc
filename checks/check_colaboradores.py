@@ -104,7 +104,9 @@ with override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBack
         owner_device = TOTPDevice.objects.filter(user=owner.user, confirmed=True).first()
         if owner_device is None:
             owner_device = TOTPDevice.objects.create(user=owner.user, name="roteiro-owner", confirmed=True)
-        owner_recovery_raw = f"recovery-{uuid.uuid4().hex}"
+        # A forma real do código (`mfa.generate_recovery_codes`: dez hexadecimais);
+        # desde 2026-11-17 o que não tem essa forma é recusado sem derivar senha.
+        owner_recovery_raw = uuid.uuid4().hex[:10]
         owner_recovery = RecoveryCode.objects.create(
             user=owner.user, code_hash=make_password(owner_recovery_raw),
         )
@@ -137,7 +139,7 @@ with override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBack
         protected_device = TOTPDevice.objects.create(
             user=created_user, name="roteiro-inativo", confirmed=True,
         )
-        second_recovery_raw = f"recovery-{uuid.uuid4().hex}"
+        second_recovery_raw = uuid.uuid4().hex[:10]
         second_recovery = RecoveryCode.objects.create(
             user=owner.user, code_hash=make_password(second_recovery_raw),
         )

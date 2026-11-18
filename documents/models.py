@@ -150,6 +150,16 @@ class MedicalDocument(TenantModel):
     replaces_document = models.ForeignKey(
         'self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replaced_by',
     )
+    #: Por que esta versão substituiu a anterior, como o médico escreveu.
+    #:
+    #: Fora do `content_snapshot`, que é o que se imprime: o motivo é
+    #: registro de quem alterou e por quê, não papel entregue ao paciente. E
+    #: fora da trilha, onde morou até 2026-11-17 (`purpose`): é texto livre do
+    #: médico, que pode citar o caso, e `record_audit_event` promete nunca
+    #: guardar texto clínico (§25 do PRE_DEPLOY_AUDIT, reforçado por
+    #: @meirakalile-ship-it). A trilha guarda que houve motivo; o documento,
+    #: qual — e o documento tem o isolamento por clínica que a trilha não tem.
+    motivo_retificacao = models.TextField(blank=True, default='')
 
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [

@@ -1,8 +1,10 @@
 import base64
+import re
 import secrets
 from functools import wraps
 
 from django.contrib.auth.hashers import check_password, make_password
+from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -97,9 +99,43 @@ def generate_recovery_codes(user, count=RECOVERY_CODE_COUNT):
     return raw_codes
 
 
+#: Tentativas erradas de código de recuperação por conta, na janela do
+#: limitador de login (`throttling.WINDOW_SECONDS`).
+MAX_RECUPERACAO = 10
+
+_FORMATO_RECUPERACAO = re.compile(r'[0-9a-f]{10}')
+
+
+def _chave_recuperacao(user):
+    return f'mfa-recuperacao:{user.pk}'
+
+
 @transaction.atomic
 def consume_recovery_code(user, raw_code):
+    """Gasta um código de recuperação, com limite de tentativas.
+
+    **Sem limitador até 2026-11-17** (achado de @meirakalile-ship-it): o
+    TOTP passa pelo *throttling* do django-otp, mas cada código de
+    recuperação errado rodava até dez `check_password` — dez derivações de
+    senha por tentativa. Adivinhar 40 bits é inviável; o efeito era carga de
+    CPU, à vontade de quem tivesse a senha. Agora:
+
+    - o que não tem a forma do código (`token_hex(5)`: dez hexadecimais) é
+      recusado **sem** derivar nada — inclusive o TOTP de seis dígitos, que
+      chega aqui sempre que o aplicativo errou;
+    - os erros contam por conta, no Redis, e passado o teto a recusa é
+      imediata até a janela vencer. O TOTP continua valendo nesse intervalo:
+      o teto trava a adivinhação, não o dono da conta.
+    """
     from .models import RecoveryCode
+    from .throttling import WINDOW_SECONDS
+
+    codigo = re.sub(r'[\s-]', '', raw_code or '').lower()
+    if not _FORMATO_RECUPERACAO.fullmatch(codigo):
+        return False
+    chave = _chave_recuperacao(user)
+    if cache.get(chave, 0) >= MAX_RECUPERACAO:
+        return False
 
     candidates = (
         RecoveryCode.objects
@@ -107,10 +143,16 @@ def consume_recovery_code(user, raw_code):
         .filter(user=user, used_at=None)
     )
     for candidate in candidates:
-        if check_password(raw_code, candidate.code_hash):
+        if check_password(codigo, candidate.code_hash):
             candidate.used_at = timezone.now()
             candidate.save(update_fields=['used_at'])
+            cache.delete(chave)
             return True
+    cache.add(chave, 0, WINDOW_SECONDS)
+    try:
+        cache.incr(chave)
+    except ValueError:
+        cache.set(chave, 1, WINDOW_SECONDS)
     return False
 
 

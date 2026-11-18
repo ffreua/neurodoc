@@ -309,8 +309,10 @@ def _signature_footer(document):
         assinado = (timezone.localtime(document.issued_at).strftime('%d/%m/%Y às %H:%M')
                     if document.issued_at else '')
         left.append(Spacer(1, 0.15 * cm))
+        # "PAdES", sem "ICP-Brasil": a cadeia do certificado não é conferida
+        # contra as raízes do ITI no envio (ver `sncr.pdf_oficial.registro_de_assinatura`).
         left.append(Paragraph(
-            'Assinado digitalmente (PAdES/ICP-Brasil)'
+            'Assinado digitalmente (PAdES)'
             + (f' em {assinado}.' if assinado else '.'),
             SMALL_STYLE,
         ))

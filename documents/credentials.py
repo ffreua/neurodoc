@@ -130,9 +130,53 @@ def decrypt_pfx_bytes(credential):
     return Fernet(data_key).decrypt(ciphertext)
 
 
+#: O que fica em `wrapped_key_metadata` depois do descarte: só a data.
+DESCARTADA_EM = 'descartada_em'
+
+
+def credencial_descartada(credential):
+    return DESCARTADA_EM in (credential.wrapped_key_metadata or {})
+
+
+def descartar_material(credential):
+    """Apaga o PFX cifrado e a chave que o abre; ficam só os metadados.
+
+    **Revogar era só trocar o status** (achado de @meirakalile-ship-it,
+    2026-11-17): o `.pfx.enc` e a chave de dados embrulhada continuavam em
+    `/data/signing` e no banco, e o backup leva o volume inteiro. Quem
+    obtivesse a `PFX_MASTER_KEY` e uma cópia antiga abria um certificado que
+    o médico já tinha dado por encerrado — e a senha do PFX é a mesma que ele
+    usa no certificado novo, muitas vezes.
+
+    *Crypto-shredding*: sem a chave de dados, o arquivo cifrado não abre
+    nem com a mestra, e o que sobrar dele num backup antigo é ruído. Apagar
+    o arquivo é a segunda metade, para não guardar ruído. Série, impressão
+    digital, emissor e validade ficam — são o que responde, anos depois,
+    "com que certificado este documento foi assinado?".
+
+    Idempotente: o que já foi descartado é pulado.
+    """
+    if credencial_descartada(credential):
+        return False
+    caminho = credential.ciphertext_path
+    if caminho:
+        Path(caminho).unlink(missing_ok=True)
+    credential.wrapped_key_metadata = {DESCARTADA_EM: timezone.now().isoformat()}
+    credential.ciphertext_path = ''
+    credential.save(update_fields=['wrapped_key_metadata', 'ciphertext_path'])
+    return True
+
+
+@transaction.atomic
 def revoke_credential(credential):
+    from .signing_sessions import revoke_session
+
     credential.status = SigningCredentialStatus.REVOKED
     credential.save(update_fields=['status'])
+    # A sessão aberta guarda a senha deste certificado: encerrada junto.
+    for sessao in credential.sessions.filter(revoked_at=None):
+        revoke_session(sessao)
+    descartar_material(credential)
     return credential
 
 
