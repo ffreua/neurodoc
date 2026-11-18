@@ -82,6 +82,13 @@ com o manifesto; 2 o disco não está montado e nada foi copiado. Até
 agendador "SSD fora da tomada" ficava igual a backup que não confere. Em
 2026-11-17 a tarefa saiu com 1 e o `D:` não estava montado.
 
+**O buraco que isso escondeu (visto em 2026-11-18).** A última cópia no SSD
+era de 08/10: quarenta dias sem cópia externa, com a tarefa falhando todo
+dia e ninguém olhando. Como a VPS guarda 30 dias, os backups de 09/10 a
+~17/10 já não existem em lugar nenhum. Com o SSD plugado, a tarefa trouxe
+os 32 que faltavam (49 no disco). A conferência mensal da seção abaixo é
+o que pega isso — e o código 2 agora separa "plugue o SSD" de defeito.
+
 Retenção local: 60 pastas por padrão (`-Manter`), e **só apaga pasta
 verificada** — "abrir espaço" jogando fora uma cópia suspeita esconderia
 exatamente o problema que interessa ver.

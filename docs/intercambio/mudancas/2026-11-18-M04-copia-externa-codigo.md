@@ -26,6 +26,12 @@ Conferido: destino num disco inexistente → código 2, nada copiado.
 **No ProntDoc:** o script é o mesmo (só os caminhos mudam); corrigido e
 conferido na mesma rodada, com os códigos 2 e 0.
 
+**Cópia e prova de restauração (2026-11-18):** com o SSD plugado, a tarefa
+trouxe 32 backups (49 no disco), todos conferidos; a última cópia era de
+08/10. O backup de 17/11 foi restaurado num PostgreSQL descartável, sem
+erro e com as contagens da produção (`docs/operations/restore.md`,
+"Terceira prova").
+
 **Também conferido nesta rodada, sem mudança aqui:** HSTS
 (`max-age=31536000; includeSubDomains`) e CSP em modo bloqueio continuam
 ligados na produção do NeuroDoc, e `APP_WORKERS`/`WORKER_CONCURRENCY` estão

@@ -142,6 +142,21 @@ com ele a medição de RPO/RTO. **H-22 deixa de estar sem nenhuma evidência**:
 a metade que não dependia de chave-mestra está exercitada contra backup
 real gerado por timer real.
 
+## Terceira prova — 2026-11-18
+
+Feita no PC do controlador a partir da cópia no SSD, na mesma rodada da
+primeira prova do ProntDoc:
+
+- backup `20261117T060150Z-2da9b113` (17/11), com `VERIFICADO`;
+- `pg_restore --exit-on-error` num PostgreSQL descartável com a imagem do
+  manifesto, sem rede: **sem erro**, 119 tabelas, 172 migrações;
+- 15 clínicas, 2.355 pacientes, 7.755 atendimentos e 81 documentos — os
+  atendimentos são exatamente os que a produção tinha até a hora do
+  backup;
+- `media` (393 entradas), `signing` e `letsencrypt` decifram e listam.
+
+Banco e arquivos decifrados apagados ao fim.
+
 ## Segunda prova — 2026-10-02
 
 O backup de 01/10, gerado pelo timer na VPS, foi baixado, decifrado com a
