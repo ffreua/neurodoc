@@ -75,6 +75,13 @@ nome `.parcial` → **confere o SHA-256 e o tamanho de cada arquivo contra o
 presta. Cópia que não confere é descartada e contada como falha; o script
 sai com código 1 se houve qualquer uma.
 
+**Códigos de saída:** 0 tudo certo; 1 alguma cópia falhou ou não conferiu
+com o manifesto; 2 o disco não está montado e nada foi copiado. Até
+2026-11-18 o disco ausente também saía com 1 — o `Write-Error` sob
+`ErrorActionPreference = Stop` encerrava o script antes do `exit 2` —, e no
+agendador "SSD fora da tomada" ficava igual a backup que não confere. Em
+2026-11-17 a tarefa saiu com 1 e o `D:` não estava montado.
+
 Retenção local: 60 pastas por padrão (`-Manter`), e **só apaga pasta
 verificada** — "abrir espaço" jogando fora uma cópia suspeita esconderia
 exatamente o problema que interessa ver.

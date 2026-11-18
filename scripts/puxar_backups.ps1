@@ -49,7 +49,11 @@ function Registrar($texto) {
 # --- 1. O disco esta mesmo plugado? ---------------------------------------
 $raiz = [System.IO.Path]::GetPathRoot($Destino)
 if (-not (Test-Path $raiz)) {
-    Write-Error "O disco $raiz nao esta montado. Plugue o SSD e rode de novo. Nada foi copiado."
+    # Write-Host, e nao Write-Error: com $ErrorActionPreference = Stop o
+    # Write-Error encerra o script ali mesmo, com codigo 1 -- o mesmo de uma
+    # copia que falhou. No agendador as duas ficavam iguais, e "SSD fora da
+    # tomada" (resolve-se plugando) se confundia com backup que nao confere.
+    Write-Host "O disco $raiz nao esta montado. Plugue o SSD e rode de novo. Nada foi copiado."
     exit 2
 }
 if (-not (Test-Path $Destino)) { New-Item -ItemType Directory -Path $Destino -Force | Out-Null }

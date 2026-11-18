@@ -18,6 +18,7 @@ segurança só entra aqui depois de corrigido nos dois sistemas.
 | MD-2026-11-14-01 | [Vigência por período e renovação (1.47)](mudancas/2026-11-14-M01-vigencia-e-renovacao.md) | decisao-comercial | 18efed9, cb2c952 | pendente |
 | MD-2026-11-14-02 | [Contrato de adesão 2.2](mudancas/2026-11-14-M02-contrato-2-2.md) | texto | cb2c952 | pendente |
 | MD-2026-11-17-01 | [Rodada unificada: segurança (@meirakalile-ship-it), IA por tarefa, parcelamento sem juros (espera a 2.3), TISS ao contratar](mudancas/2026-11-17-M03-rodada-unificada.md) | seguranca + funcionalidade | rodada de 2026-11-17 | feito nos dois na mesma sessão |
+| MD-2026-11-18-01 | [Cópia externa: disco ausente sai com código 2](mudancas/2026-11-18-M04-copia-externa-codigo.md) | operação | rodada de 2026-11-18 | feito nos dois na mesma sessão |
 
 ## Avaliações de registros do ProntDoc
 
