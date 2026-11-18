@@ -1,18 +1,66 @@
-# Comunicado — os backups do NeuroDoc ganham uma cópia em nuvem (2026-11)
+# Comunicado às clínicas — cópia dos backups em nuvem (Cloudflare R2)
 
-Contrato 2.4, aprovado pela Dra. Karina em 2026-11-18. A cópia foi ligada no
-mesmo dia. Texto para enviar às clínicas ativas (e-mail do responsável):
+Contrato 2.4, aprovado pela Dra. Karina em 2026-11-18. A cópia foi ligada
+no mesmo dia. Cumpre a cláusula 10.1 (alteração material envolvendo dado
+sensível comunicada à CONTRATANTE) e lembra o direito da 10.2. O texto
+enviado é `comunicado-2026-11-r2.corpo.txt`, com o nome da clínica no lugar
+de `{clinica}`.
 
-> **Assunto: os backups do NeuroDoc ganham uma cópia em nuvem**
+**Enviado em 2026-11-18** de `contato@neurodoc.app.br`, pelo SMTP da instalação
+(Hostinger), pela fila do worker: um e-mail por responsável ativo (papel
+*owner*) das **10 clínicas ativas de terceiros**, com o nome de cada clínica
+na saudação, e uma cópia de registro para `contato@neurodoc.app.br`. Como no
+comunicado de 2026-10, as duas clínicas do próprio titular não receberam, e as
+encerradas ficaram de fora. Nenhuma falha ao enfileirar; o SMTP autenticou e
+não ficou tarefa em nova tentativa.
+
+---
+
+**Assunto:** NeuroDoc — os backups ganham uma cópia em nuvem (contrato 2.4)
+
+> Prezado(a) responsável pela clínica {clinica},
 >
-> A partir de 18/11/2026, os backups diários do NeuroDoc, que já são cifrados
-> no servidor e copiados para um disco externo, passam a ter também uma
-> cópia automática no armazenamento em nuvem da Cloudflare, empresa que
-> já protege o acesso ao sistema. A cópia sai cifrada do servidor, e a
-> Cloudflare não tem a chave para lê-la; ela fica na América do Norte, é
-> guardada por até 60 dias e não pode ser apagada antes do prazo, nem por
-> quem invadisse o servidor. O objetivo é que os seus dados possam ser
-> recuperados mesmo se o servidor inteiro se perder. O contrato de adesão
-> 2.4 descreve a mudança: https://neurodoc.app.br/contrato/
-
-**Enviado:** pendente (o titular envia).
+> Comunicamos, nos termos da cláusula 10 do Contrato de Adesão ao NeuroDoc, uma
+> melhoria na proteção dos backups do sistema.
+>
+> O QUE MUDOU
+> A partir de hoje, 18 de novembro de 2026, os backups diários do NeuroDoc, que já
+> eram cifrados no servidor e copiados para um disco externo, passam a ter
+> também uma cópia automática no armazenamento em nuvem da Cloudflare (R2). A
+> Cloudflare já faz parte da infraestrutura do NeuroDoc: é a empresa que protege o
+> acesso ao sistema desde outubro. O sistema, os seus dados e a forma de usar
+> continuam exatamente os mesmos.
+>
+> POR QUÊ
+> Para que os seus dados possam ser recuperados mesmo se o servidor inteiro se
+> perder. Até aqui, as cópias de segurança dependiam do próprio servidor e de
+> um disco externo; agora há uma terceira cópia, automática, em outra empresa.
+>
+> COMO A CÓPIA É PROTEGIDA
+> - Ela sai do servidor já cifrada, e a Cloudflare não tem a chave para lê-la.
+>   A chave fica com a PRONTDOC, fora do servidor e fora da Cloudflare.
+> - Cada cópia é guardada por até 60 dias e, nos primeiros 30, não pode ser
+>   apagada por ninguém, nem por quem invadisse o servidor.
+> - A cópia fica na América do Norte. O servidor do NeuroDoc já está nos Estados
+>   Unidos desde o início da operação, então não há país novo.
+>
+> CONTRATO
+> A versão 2.4 do Contrato de Adesão, publicada hoje, descreve a cópia
+> (cláusula 11.1, Anexos I a V e Aviso de Privacidade):
+> https://neurodoc.app.br/contrato/
+> O contrato que a clínica aceitou continua valendo; a versão 2.4 passa a
+> valer no próximo aceite, por exemplo na renovação. A relação dos
+> suboperadores, com a finalidade e a localização de cada um, está no Anexo II.
+>
+> SEUS DIREITOS
+> Se a clínica tiver objeção fundamentada a esta cópia, responda a este
+> e-mail. Avaliaremos uma alternativa e, não havendo alternativa razoável, a
+> clínica pode descontinuar o recurso ou rescindir sem multa o serviço
+> impactado, conforme a cláusula 10.2.
+>
+> Nenhuma ação é necessária da sua parte para continuar usando o sistema.
+>
+> Atenciosamente,
+>
+> Dr. Fernando Freua
+> NeuroDoc — contato@neurodoc.app.br
