@@ -53,3 +53,22 @@ if [ "$CODIGO" -ne 0 ]; then
     fi
     exit "$CODIGO"
 fi
+# Copia no Cloudflare R2 (`ops/nuvem.py`), fora do fornecedor da VPS. Fora
+# da trava de proposito: o envio so le pastas ja completas, e segurar o
+# `operation.lock` durante a rede atrasaria um deploy sem motivo.
+#
+# Falhar aqui sai com erro, e o `OnFailure=` manda o mesmo e-mail do backup
+# que falhou: o backup local existe, mas um dia sem copia fora da VPS
+# tambem precisa aparecer -- foi calado assim que o SSD ficou 40 dias
+# desconectado. A proxima execucao reenvia o que ficou pendente.
+# Com `BACKUP_R2_*` vazios no `.env` (o padrao), o passo diz que esta
+# desligado e sai com 0.
+set +e
+"$PYTHON" -m ops.nuvem enviar
+CODIGO=$?
+set -e
+if [ "$CODIGO" -ne 0 ]; then
+    echo "O BACKUP LOCAL FOI FEITO, mas a copia no R2 falhou (acima). Depois de corrigir:" >&2
+    echo "  $PYTHON -m ops.nuvem enviar" >&2
+    exit "$CODIGO"
+fi

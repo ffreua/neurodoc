@@ -139,13 +139,95 @@ Get-Content D:\neurodoc-backups\puxar_backups.log -Tail 20
 (Get-ChildItem D:\neurodoc-backups -Directory | Where-Object { Test-Path "$($_.FullName)\VERIFICADO" }).Count
 ```
 
-## O que isto ainda não cobre
+## Cópia no Cloudflare R2 (2026-11-18): pronta, desligada até o contrato
 
-O SSD, o PC e a chave privada ficam **na mesma sala**. Incêndio, roubo ou
-enchente levam os três. Fechar isso é uma terceira perna em storage
-externo (~4,6 MB/dia é centavos), com chave **só de escrita** e *object
-lock*, preservando a propriedade de não poder ser apagada de dentro da
-VPS. Fica registrado aqui como o próximo passo, não como feito.
+O SSD, o PC e a chave privada ficam **na mesma sala**: incêndio, roubo ou
+enchente levam os três. E o SSD só copia quando está plugado (em
+2026-11-18 o NeuroDoc descobriu 40 dias sem cópia, com o disco
+desconectado). Além disso, o servidor e os backups que ele guarda dependem
+de **um fornecedor só**: perder a conta leva produção e backups juntos. A terceira perna é o **Cloudflare R2**, outra empresa, com cópia
+automática todo dia.
+
+**Estado:** o código está pronto (`ops/nuvem.py`, chamado pelo
+`scripts/backup.sh` logo depois do backup; roteiro
+`checks/check_copia_nuvem.py`), e **desligado**: `BACKUP_R2_*` vazios no
+`.env`. Ligar depende do contrato de adesão descrever a cópia, porque o
+contrato vigente diz "até 30 dias no servidor e até 60 dias em SSD" e
+descreve a Cloudflare "sem armazenamento como serviço" — ver a minuta em
+`docs/governance/` (NeuroDoc 2.4, ProntDoc 1.3).
+
+**Como funciona.**
+
+- Envia cada pasta de backup **completa** que ainda não tem a marca
+  `NUVEM`, em ordem: os quatro arquivos cifrados, o `manifest.json` e o
+  `COMPLETE` por último. Os arquivos já saem cifrados pelo `age`; nem a
+  VPS nem o R2 têm a chave privada.
+- Cada envio é assinado com o SHA-256 real do arquivo (o R2 recusa corpo
+  diferente) e conferido depois pelo `ETag` (MD5 do que o R2 guardou).
+  Só então a pasta ganha a marca `NUVEM`, sem mudar a data que a
+  retenção do backup lê.
+- O que falhou é reenviado na execução seguinte; o que já está lá não é
+  reenviado. Objeto diferente já no R2, ou arquivo local que não confere
+  com o manifesto, é **erro**, nunca "copiado".
+- Falha sai com erro do `backup.service`, e o `OnFailure=` manda o mesmo
+  e-mail do backup que falhou. O vigia (`vigiar_backup.py`) cobra a marca
+  com menos de 26 horas quando a cópia está ligada.
+- Biblioteca padrão do Python, sem `boto3` nem `rclone`.
+
+**A trava é o que faz a cópia valer.** O balde tem *bucket lock*: objeto
+gravado não pode ser apagado nem sobrescrito por 30 dias, nem com a chave
+que a VPS guarda. Quem invadir a VPS consegue gravar, não destruir. Uma
+regra de ciclo de vida apaga com 60 dias, o prazo que o contrato fixa para
+as cópias externas.
+
+### Ligar (depois do contrato publicado)
+
+Na Cloudflare (uma vez, pelo titular):
+
+1. **R2 Object Storage** → criar o balde `neurodoc-backups` (e, no
+   ProntDoc, `prontdoc-backups` — **um balde e uma chave por sistema**, para
+   uma VPS invadida não alcançar os backups da outra). Localização:
+   América do Norte.
+2. No balde, **Settings → Bucket lock rules**: regra para todos os objetos,
+   **30 dias**.
+3. **Settings → Object lifecycle rules**: apagar objetos com **60 dias**.
+4. **Manage API tokens → Create API token**: permissão **Object Read &
+   Write**, só para aquele balde. Guardar o *Access Key ID* e o *Secret
+   Access Key* no gerenciador de senhas.
+
+Na VPS:
+
+```sh
+install -d -m 700 ~/.config/neurodoc
+install -m 600 /dev/null ~/.config/neurodoc/r2-backup.env
+# editar o arquivo com as duas linhas:
+#   R2_ACCESS_KEY_ID=...
+#   R2_SECRET_ACCESS_KEY=...
+# e no /srv/neurodoc/.env:
+#   BACKUP_R2_ENDPOINT=https://<id da conta>.r2.cloudflarestorage.com
+#   BACKUP_R2_BUCKET=neurodoc-backups
+#   BACKUP_R2_CREDENTIALS=/home/deploy/.config/neurodoc/r2-backup.env
+.venv-ops/bin/python -m ops.nuvem enviar   # primeira cópia (todo o acervo local)
+.venv-ops/bin/python -m ops.nuvem listar
+```
+
+(No ProntDoc, troque `neurodoc` por `prontdoc` nos caminhos e no balde; o
+ProntDoc recusa balde que mencione o NeuroDoc, e vice-versa.)
+
+### Restaurar a partir do R2
+
+Numa VPS (a de produção ou uma nova, com o repositório, o `.env` e o
+arquivo de credenciais):
+
+```sh
+.venv-ops/bin/python -m ops.nuvem listar
+.venv-ops/bin/python -m ops.nuvem baixar 20261118T060155Z-31b5a4b2 /tmp/restaurar
+```
+
+O `baixar` confere cada arquivo com o manifesto e só entrega a pasta
+inteira. Daí em diante é o `docs/operations/restore.md`, com a chave
+privada do `age`, que nunca vai para a VPS. Sem VPS nenhuma, o painel da
+Cloudflare baixa os arquivos um a um.
 
 E a regra que não muda: **refazer a prova de restauração depois de
 qualquer mudança no `BACKUP_AGE_RECIPIENT`** (`docs/operations/restore.md`).
