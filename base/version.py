@@ -296,7 +296,11 @@ carimbá-la na publicação.
 #: para apoio diagnóstico e relatório, parcelamento sem juros no cartão
 #: (contrato 2.3) e TISS liberado ao contratar. Migração só de expansão
 #: (`audit.0005`, `ai.0010`, `documents.0010`, `base.0004`).
-VERSION = '1.48'
+#: A **1.49** (2026-11-18, junto com o ProntDoc 1.4.0): contrato 2.4 (aprovado
+#: pela Dra. Karina) e a cópia diária dos backups cifrados no Cloudflare R2
+#: (`ops/nuvem.py`), ligada em produção com ele; o vigia avisa se a última
+#: cópia passar de 26 horas. Sem migração.
+VERSION = '1.49'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

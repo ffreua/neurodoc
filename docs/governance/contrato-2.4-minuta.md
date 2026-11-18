@@ -1,9 +1,11 @@
 # Contrato 2.4 — minuta do que muda (para a Dra. Karina conferir)
 
-> **Minuta, não publicada.** Enquanto a Dra. Karina não aprovar e a 2.4 não
-> for publicada, a cópia dos backups no Cloudflare R2 fica **desligada** em
-> produção (`BACKUP_R2_*` vazios no `.env`), embora o código esteja pronto
-> (`ops/nuvem.py`, `docs/operations/copia-externa.md`).
+> **Aprovada pela Dra. Karina em 2026-11-18** e publicada como
+> `tenancy/contrato/contrato-2.4.md` (`tenancy/contract.py::VERSAO = '2.4'`).
+> A cópia no R2 foi ligada em produção no mesmo dia, por decisão do
+> titular. O comunicado às clínicas está em
+> `docs/governance/comunicado-2026-11-r2.md`. O que segue é o registro da
+> minuta como foi enviada.
 
 **Motivo:** decisão do Dr. Fernando (2026-11-18). Os backups diários são
 cifrados na VPS e copiados para um SSD externo. Em 2026-11-18 viu-se que o

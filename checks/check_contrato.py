@@ -169,6 +169,13 @@ obrigatorias = [
     ('parcelamento sem juros para o contratante', r'sem juros para o CONTRATANTE'),
     ('sem cartao guardado', r'N[aã]o h[aá] armazenamento do cart[aã]o'),
     ('Asaas no Anexo II', r'Asaas Gest[aã]o Financeira'),
+    # 2.4 (2026-11-18, aprovada pela Dra. Karina): a cópia dos backups no
+    # R2 que `ops/nuvem.py` faz. Sem ela, ligar a cópia guardaria o acervo num
+    # lugar que o contrato aceito não descreve.
+    ('copia dos backups no R2, com bloqueio', r'armazenamento em nuvem da Cloudflare \(R2\), com bloqueio contra exclus[aã]o antecipada'),
+    ('chave do backup fora do servidor e da Cloudflare', r'n[aã]o [eé] armazenada no servidor nem entregue [aà] Cloudflare'),
+    ('R2 no Anexo II', r'Cloudflare — armazenamento de c[oó]pias de backup \(R2\)'),
+    ('60 dias em cada copia externa', r'at[eé] 60 dias em cada c[oó]pia externa'),
 ]
 presentes = 0
 for rotulo, padrao in obrigatorias:

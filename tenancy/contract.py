@@ -95,10 +95,19 @@ from django.utils.safestring import mark_safe
 #: dela que o checkout parcela (`tenancy.plans.CONTRATO_COM_PARCELAMENTO`).
 #: Quem aceitou a 2.2 ou antes continua nela; o console segue exigindo a 2.2
 #: como mínimo para ligar o checkout.
-VERSAO = '2.3'
+#:
+#: **A 2.4** (2026-11-18) é a 2.3 com a cópia dos backups no Cloudflare R2,
+#: aprovada pela Dra. Karina sobre a minuta (`docs/governance/contrato-2.4-minuta.md`):
+#: duas cópias externas (R2, com bloqueio contra exclusão antecipada, e SSD),
+#: até 60 dias em cada uma, cifradas antes de sair do servidor e sem a chave
+#: com a Cloudflare; linha própria da Cloudflare no Anexo II, porque a de
+#: borda dizia "sem armazenamento como serviço". É o que permite ligar
+#: `ops/nuvem.py` em produção. Quem aceitou a 2.3 ou antes continua nela;
+#: o console segue exigindo o mesmo mínimo para ligar o checkout.
+VERSAO = '2.4'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-11-17'
+VIGENCIA_DESDE = '2026-11-18'
 
 ARQUIVO = Path(__file__).resolve().parent / 'contrato' / f'contrato-{VERSAO}.md'
 

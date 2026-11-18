@@ -139,7 +139,7 @@ Get-Content D:\neurodoc-backups\puxar_backups.log -Tail 20
 (Get-ChildItem D:\neurodoc-backups -Directory | Where-Object { Test-Path "$($_.FullName)\VERIFICADO" }).Count
 ```
 
-## Cópia no Cloudflare R2 (2026-11-18): pronta, desligada até o contrato
+## Cópia no Cloudflare R2 (ligada em 2026-11-18, com o contrato 2.4)
 
 O SSD, o PC e a chave privada ficam **na mesma sala**: incêndio, roubo ou
 enchente levam os três. E o SSD só copia quando está plugado (em
@@ -148,13 +148,15 @@ desconectado). Além disso, o servidor e os backups que ele guarda dependem
 de **um fornecedor só**: perder a conta leva produção e backups juntos. A terceira perna é o **Cloudflare R2**, outra empresa, com cópia
 automática todo dia.
 
-**Estado:** o código está pronto (`ops/nuvem.py`, chamado pelo
+**Estado:** **ligada em produção em 2026-11-18**, com o contrato 2.4
+(aprovado pela Dra. Karina; minuta em `docs/governance/contrato-2.4-minuta.md`),
+que descreve a cópia no R2. O código é `ops/nuvem.py`, chamado pelo
 `scripts/backup.sh` logo depois do backup; roteiro
-`checks/check_copia_nuvem.py`), e **desligado**: `BACKUP_R2_*` vazios no
-`.env`. Ligar depende do contrato de adesão descrever a cópia, porque o
-contrato vigente diz "até 30 dias no servidor e até 60 dias em SSD" e
-descreve a Cloudflare "sem armazenamento como serviço" — ver a minuta em
-`docs/governance/` (NeuroDoc 2.4, ProntDoc 1.3).
+`checks/check_copia_nuvem.py`. Na VPS: `BACKUP_R2_*` no `.env` e a chave
+em `~/.config/neurodoc/r2-backup.env`. O `.env.example` continua com as três
+vazias: instalação nova não manda backup para lugar nenhum sem alguém
+escrever isso. Balde `neurodoc-backups`, ENAM, trava de 30 dias e ciclo de
+vida de 60, configurados no painel da Cloudflare.
 
 **Como funciona.**
 
