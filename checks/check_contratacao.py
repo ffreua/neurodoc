@@ -148,8 +148,8 @@ for periodicidade, vigencia in (('anual', '12 meses'), ('semestral', '6 meses'),
              and corpo['callback']['expiredUrl'].endswith('?retorno=expirado'))
     conferir(f'{periodicidade}: sem dados do cliente (a Asaas os pede inteiros)', 'customerData' not in corpo)
     conferir(f'{periodicidade}: avulso, por Pix ou cartão, sem assinatura (nada se cobra sozinho)',
-             corpo['chargeTypes'] == ['DETACHED'] and set(corpo['billingTypes']) == {'PIX', 'CREDIT_CARD'}
-             and 'subscription' not in corpo)
+             'DETACHED' in corpo['chargeTypes'] and 'RECURRENT' not in corpo['chargeTypes']
+             and set(corpo['billingTypes']) == {'PIX', 'CREDIT_CARD'} and 'subscription' not in corpo)
     conferir(f'{periodicidade}: a descrição diz a vigência e que não renova',
              vigencia in item['description'] and 'sem renovação automática' in item['description'],
              item['description'])

@@ -1,13 +1,9 @@
 # Contrato 2.3 — minuta do que muda (para a Dra. Karina conferir)
 
-> **Aguardando a Dra. Karina.** Enquanto `tenancy/contract.py::VERSAO` for
-> `'2.2'`, o checkout segue **à vista** (`tenancy/plans.py::parcelas_no_cartao`
-> só parcela a partir de `CONTRATO_COM_PARCELAMENTO = '2.3'`). Aprovada a
-> redação: gravar `tenancy/contrato/contrato-2.3.md` (a 2.2 com o trecho
-> abaixo), trocar `VERSAO` e `VIGENCIA_DESDE`, subir `CONTRATO_MINIMO` em
-> `contratacao/console.py` se quiser exigir a 2.3 para o checkout, e trocar
-> em `checks/check_contrato.py` o padrão "pago integralmente de uma vez" pelo
-> do parcelamento. A vitrine, o FAQ e o checkout passam a parcelar sozinhos.
+> **Aprovada pela Dra. Karina em 2026-11-17** e publicada como
+> `tenancy/contrato/contrato-2.3.md` (`tenancy/contract.py::VERSAO = '2.3'`).
+> O checkout, a vitrine e o FAQ passaram a parcelar. O que segue é o registro
+> da minuta como foi enviada.
 
 **Motivo:** decisão do Dr. Fernando (2026-11-17). Vender também com
 **parcelamento no cartão, sem juros para o cliente**, como o ProntDoc já faz

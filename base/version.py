@@ -289,7 +289,14 @@ carimbá-la na publicação.
 #: dias e novo aceite. Sem renovação automática; quinze dias depois do fim
 #: sem pagamento, o Gratuito. Contrato 2.2. Migração só de expansão
 #: (`contratacao.0002`).
-VERSION = '1.47'
+#: A **1.48** (2026-11-17): segurança relatada por @meirakalile-ship-it (admin
+#: sem leitura de prontuário, certificado revogado descartado, sessão de
+#: assinatura de até 4 h, rodapé sem "ICP-Brasil", limite no código de
+#: recuperação, trilha sem TRUNCATE nem texto do médico), modelo pesado da IA
+#: para apoio diagnóstico e relatório, parcelamento sem juros no cartão
+#: (contrato 2.3) e TISS liberado ao contratar. Migração só de expansão
+#: (`audit.0005`, `ai.0010`, `documents.0010`, `base.0004`).
+VERSION = '1.48'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

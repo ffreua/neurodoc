@@ -86,10 +86,19 @@ from django.utils.safestring import mark_safe
 #: (13.1); e a frase das parcelas fora da 13.2 e do Anexo II. Quem aceitou a
 #: 2.1 ou antes continua nelas (2.4). É a versão que o console exige para
 #: ligar o checkout (`contratacao/console.py`).
-VERSAO = '2.2'
+#:
+#: **A 2.3** (2026-11-17) é a 2.2 com o parcelamento no cartão, aprovado pela
+#: Dra. Karina sobre a minuta (`docs/governance/contrato-2.3-minuta.md`): na
+#: 4.3, o semestral em até 6x e o anual em até 12x, **sem juros para o
+#: CONTRATANTE** (o custo fica com a PRONTDOC), o período continuando
+#: quitado no início (4.4); a Asaas no Anexo II com o parcelamento. É a partir
+#: dela que o checkout parcela (`tenancy.plans.CONTRATO_COM_PARCELAMENTO`).
+#: Quem aceitou a 2.2 ou antes continua nela; o console segue exigindo a 2.2
+#: como mínimo para ligar o checkout.
+VERSAO = '2.3'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-11-14'
+VIGENCIA_DESDE = '2026-11-17'
 
 ARQUIVO = Path(__file__).resolve().parent / 'contrato' / f'contrato-{VERSAO}.md'
 

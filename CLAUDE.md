@@ -32,8 +32,8 @@
 > - **TISS liberado ao contratar** um plano com TISS, inclusive na conversão
 >   da degustação, com trilha (`tenancy.services.liberar_tiss_pelo_plano`).
 > - Roteiro: `checks/check_revisao_2026_11_17.py`.
-> - **Só no NeuroDoc:** o parcelamento espera o **contrato 2.3** (minuta em
->   `docs/governance/contrato-2.3-minuta.md`); com a 2.2 vigente, à vista.
+> - **Só no NeuroDoc:** o parcelamento veio com o **contrato 2.3** (aprovado
+>   pela Dra. Karina e publicado em 2026-11-17; quem aceitou a 2.2 continua nela).
 >   O TISS automático é a adoção da mudança PD-M01 do ProntDoc.
 
 Prontuário eletrônico e gestão para consultório de **neurologia e

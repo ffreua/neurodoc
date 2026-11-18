@@ -173,7 +173,7 @@ try:
                  vig.origem == 'aceite' and vig.aceite_id == aceite.id and vig.fim == aceite.expires_at
                  and vig.fim.date() == somar_meses(aceite.created_at, 3).date())
         conferir('o aceite do cadastro é o da 2.2, com os sete dias de arrependimento',
-                 aceite.version == contract.VERSAO == '2.2'
+                 aceite.version == contract.VERSAO
                  and round((aceite.withdrawal_deadline - aceite.created_at).total_seconds() / 86400) == 7)
         sec_user = User.objects.create_user(email=f'sec-{uuid.uuid4().hex[:6]}{SUFIXO}', password='Senha-forte-123!')
         sec_user.email_verified_at = timezone.now()
@@ -203,7 +203,7 @@ try:
                  'Ir para o pagamento' in html and html.count('name="periodicidade"') == 3
                  and 'name="aceite"' in html and 'name="poderes"' in html)
         conferir('o aceite aponta o contrato, diz a versão e que não há arrependimento',
-                 '/contrato/' in html and 'versão 2.2' in html and 'não há prazo de arrependimento' in html)
+                 '/contrato/' in html and f'versão {contract.VERSAO}' in html and 'não há prazo de arrependimento' in html)
         r = c_sec.get(reverse('reporting:dashboard'), follow=True)
         conferir('a secretária não vê a faixa', r.status_code == 200 and AVISO not in r.content.decode(),
                  r.status_code)
@@ -237,7 +237,7 @@ try:
                  and pedido.valor_pagamento_centavos == preco['pagamento'] and pedido.solicitado_por_id == dono.id
                  and pedido.email == dono.email)
         conferir('o aceite gravado no pedido: versão, hash, texto inteiro, hora, navegador e poderes',
-                 pedido.contrato_versao == '2.2' and pedido.aceite_sha256 == sha_do_texto()
+                 pedido.contrato_versao == contract.VERSAO and pedido.aceite_sha256 == sha_do_texto()
                  and pedido.aceite_texto == contract.texto_simples() and pedido.aceite_em is not None
                  and pedido.aceite_user_agent == 'RoteiroRenovacao/1.0' and pedido.poderes_declarados)
         conferir('o texto aceito diz que a renovação não tem arrependimento',
@@ -255,7 +255,8 @@ try:
         servicos.preparar_checkout(pedido.id)
         corpo = checkout_simulado.ultimo
         conferir('o checkout diz que é renovação, avulso, sem assinatura',
-                 'Renovação' in corpo['items'][0]['description'] and corpo['chargeTypes'] == ['DETACHED']
+                 'Renovação' in corpo['items'][0]['description'] and 'DETACHED' in corpo['chargeTypes']
+                 and 'RECURRENT' not in corpo['chargeTypes']
                  and 'subscription' not in corpo, corpo['items'][0]['description'])
         r = c_dono.get(f'/contratar/pedido/{pedido.id}/?retorno=pago')
         conferir('a página do pedido diz "Renovação" e espera', 'Renovação do plano' in r.content.decode()
@@ -275,7 +276,7 @@ try:
         conferir('o plano não mudou', clinica.plan == 'complete')
         confirmacao = [m for m in mail.outbox if dono.email in m.to and 'Renovação confirmada' in m.subject]
         conferir('e-mail a quem renovou, com a versão aceita e sem arrependimento, e ao console',
-                 len(confirmacao) == 1 and 'versão 2.2' in confirmacao[0].body
+                 len(confirmacao) == 1 and f'versão {contract.VERSAO}' in confirmacao[0].body
                  and 'não há prazo de arrependimento' in confirmacao[0].body
                  and any(su.email in m.to and 'Renovação paga' in m.subject for m in mail.outbox))
         conferir('a faixa some', AVISO not in c_dono.get('/app/org/plano/').content.decode())

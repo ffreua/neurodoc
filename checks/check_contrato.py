@@ -162,7 +162,12 @@ obrigatorias = [
     ('declaracao de aceite', r'DECLARA[CÇ][AÃ]O DE ACEITE'),
     # Redacao 2.1 (2026-11-13): o pagamento pelo site, que o checkout cobra.
     ('pagamento pelo site pela Asaas', r'institui[cç][aã]o de pagamento Asaas'),
-    ('pagamento unico, sem cartao guardado', r'pago integralmente de uma vez'),
+    # 2.3 (2026-11-17, aprovada pela Dra. Karina): o parcelamento que o
+    # checkout oferece (`plans.parcelas_no_cartao`) e o "sem juros" da vitrine.
+    ('periodo pago no inicio', r'cada per[ií]odo [eé] pago no in[ií]cio'),
+    ('parcelamento ate 6x e 12x', r'semestral e anual, parcelado em at[eé] 6 \(seis\) e 12 \(doze\) vezes'),
+    ('parcelamento sem juros para o contratante', r'sem juros para o CONTRATANTE'),
+    ('sem cartao guardado', r'N[aã]o h[aá] armazenamento do cart[aã]o'),
     ('Asaas no Anexo II', r'Asaas Gest[aã]o Financeira'),
 ]
 presentes = 0
