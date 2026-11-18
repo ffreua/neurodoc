@@ -119,3 +119,23 @@ segredos.
 - **Renovação paga com o plano trocado no meio**: o e-mail "Renovação paga"
   traz o aviso; o período foi aberto com o plano pago, e o plano da clínica
   não foi mexido.
+
+## Parcelamento no cartão (2026-11-17)
+
+O checkout oferece **à vista ou parcelado** no cartão — até 12x no anual, 6x
+no semestral; o trimestral e o Pix só à vista (`tenancy/plans.py`,
+`PERIODICIDADES['parcelas']`, montado em `contratacao/asaas.py` com
+`chargeTypes: ['DETACHED', 'INSTALLMENT']` e `installment.maxInstallmentCount`).
+**Só a partir do contrato 2.3** (`parcelas_no_cartao`): com a 2.2 vigente, o
+checkout continua à vista e a vitrine não fala em parcelas. Minuta em
+`docs/governance/contrato-2.3-minuta.md`.
+
+**Sem juros para o cliente.** Juros não são campo do checkout: no painel da
+Asaas (Configurações da conta → parcelamento), o repasse de juros ao
+comprador fica **desligado**; a taxa do parcelamento é da PRONTDOC. Conferir
+isso antes de publicar a 2.3 — com repasse ligado, a vitrine prometeria sem
+juros e o cliente pagaria juros.
+
+O pagamento parcelado chega como um `CHECKOUT_PAID` com o valor do período
+inteiro (o mesmo que o pedido grava), e os avisos `PAYMENT_*` de cada parcela
+viram linhas de `Cobranca` — o pedido não muda.

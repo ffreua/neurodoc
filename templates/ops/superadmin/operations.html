@@ -59,6 +59,17 @@ que o botão enfileira uma verificação em vez de perguntar na hora.
         </div>
         {% endif %}
 
+        {% if ia_pesado_fora_da_lista %}
+        <div class="alert alert-danger fade show fs-13" role="alert">
+            <strong>O modelo das tarefas pesadas não está na lista do provedor.</strong>
+            <span class="d-block fs-12 mt-1">
+                Apoio diagnóstico e relatório do paciente vão falhar para quem usa o
+                padrão da instalação. Escolha outro abaixo, ou deixe o campo vazio
+                para usar o modelo principal.
+            </span>
+        </div>
+        {% endif %}
+
         {% if config.ai_checked_at %}
         <p class="fs-12 {% if config.ai_check_ok %}text-muted{% else %}text-danger{% endif %} mb-3">
             Última verificação em {{ config.ai_checked_at|date:"d/m/Y H:i" }}:
@@ -110,6 +121,22 @@ que o botão enfileira uma verificação em vez de perguntar na hora.
                 <input class="form-control" id="id_base_url" name="base_url"
                        value="{{ ia_base_url }}" placeholder="só para provedor próprio">
                 <span class="fs-11 text-muted">Vazio = o endereço do catálogo.</span>
+            </div>
+            {% comment %}O modelo das tarefas pesadas (apoio diagnóstico e
+            relatório), no mesmo provedor e com a mesma chave. O de cima fica
+            com o chat e o resumo, que precisam ser rápidos. Ver
+            `base.models.InstallationSettings.ai_model_pesado`.{% endcomment %}
+            <div class="col-md-9">
+                <label class="form-label fs-12" for="id_modelo_pesado">Modelo das tarefas pesadas (apoio diagnóstico e relatório)</label>
+                <input class="form-control" id="id_modelo_pesado" name="modelo_pesado"
+                       {% if ia_modelos %}list="ia-modelos"{% endif %}
+                       value="{{ ia_modelo_pesado }}" autocomplete="off"
+                       placeholder="vazio = o modelo acima">
+                <span class="fs-11 text-muted">
+                    Mesmo provedor e mesma chave. O modelo acima continua com o chat e o
+                    resumo do atendimento, que precisam ser rápidos; o apoio diagnóstico tem
+                    150 s de prazo e o relatório, 240 s.
+                </span>
             </div>
             <div class="col-12 d-flex flex-wrap gap-2">
                 <button class="btn btn-primary" type="submit">Gravar padrão da instalação</button>

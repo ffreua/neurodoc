@@ -51,6 +51,21 @@ _REPETIR_NO_PRAZO = 90
 #: nenhum -- quem revisa nao tem como saber o que faltou.
 REPORT_LIMITS = {'timeout_seconds': 240, 'max_output_chars': 30000}
 
+#: O apoio diagnóstico vai ao modelo pesado (`TAREFAS_PESADAS`), que levou
+#: 72 s na medição D-3 do ProntDoc (2026-11-17) — no limite dos 75 s de
+#: antes, e qualquer cauda do provedor virava falha. 150 s cabem no
+#: orçamento do job (270 s) e deixam 120 s à reserva. Acima de
+#: `_REPETIR_NO_PRAZO`, perde a segunda chamada: com 150 s, a cauda de 94 s
+#: que a justificava já cabe na primeira.
+DIAGNOSTIC_LIMITS = {'timeout_seconds': 150, 'max_output_chars': 20000}
+
+#: As tarefas que vão ao modelo pesado da instalação
+#: (`InstallationSettings.ai_model_pesado`), quando houver um. Ficam de fora,
+#: no modelo rápido, o chat (que transmite e não pode esperar um minuto pela
+#: primeira palavra) e o resumo do atendimento (automático, a cada
+#: finalização, e curto).
+TAREFAS_PESADAS = frozenset({AIJobKind.DIAGNOSTIC_SUPPORT, AIJobKind.PATIENT_REPORT})
+
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +84,8 @@ class JobNotRunnable(Exception):
 def _limits_for(kind):
     if kind == AIJobKind.PATIENT_REPORT:
         return dict(REPORT_LIMITS)
+    if kind == AIJobKind.DIAGNOSTIC_SUPPORT:
+        return dict(DIAGNOSTIC_LIMITS)
     return dict(DEFAULT_LIMITS)
 
 
@@ -478,7 +495,9 @@ def run_job(job_id):
         # O prazo de rede acompanha o da tarefa, com folga: quem decide quando
         # desistir é `graphs._invoke_with_timeout`, e não o cliente HTTP
         # (PD-2026-11-17-18).
-        chat_model = get_chat_model(tenant_id=job.tenant_id, timeout=limite + 15)
+        chat_model = get_chat_model(
+            tenant_id=job.tenant_id, timeout=limite + 15, pesado=job.kind in TAREFAS_PESADAS,
+        )
     except ProviderUnavailable as exc:
         chat_model, falha_principal = None, exc
     else:

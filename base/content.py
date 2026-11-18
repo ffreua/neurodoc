@@ -343,7 +343,7 @@ def _resposta_pagamento(checkout=False):
     diz como se contrata pela página; desligada, continua dizendo que não há
     pagamento on-line. Quem decide é `faq()`, lendo a chave a cada página.
     """
-    from tenancy.plans import PERIODICIDADES, PLANS, PlanCode, preco_na_periodicidade
+    from tenancy.plans import PERIODICIDADES, PLANS, PlanCode, parcelas_no_cartao, preco_na_periodicidade
 
     def valores(code):
         partes = []
@@ -357,11 +357,18 @@ def _resposta_pagamento(checkout=False):
 
     anual = PERIODICIDADES['anual']['desconto']
     semestral = PERIODICIDADES['semestral']['desconto']
+    # O parcelamento só é dito quando o contrato vigente o prevê
+    # (`parcelas_no_cartao`): a vitrine não promete o que o checkout não faz.
+    p_anual, p_semestral = parcelas_no_cartao('anual'), parcelas_no_cartao('semestral')
+    parcelamento = (
+        'No cartão, o anual pode ser parcelado em até %dx sem juros e o semestral em '
+        'até %dx sem juros; o trimestral e o Pix são à vista. ' % (p_anual, p_semestral)
+    ) if p_anual > 1 else ''
     if checkout:
         como = (
             'O Gratuito não tem cobrança, e o Personalizado é combinado. O Básico e o '
             'Completo podem ser contratados na própria página, pela Asaas, por Pix ou '
-            'cartão. Pago, o link para criar a clínica chega na hora. Também dá para '
+            'cartão. ' + parcelamento + 'Pago, o link para criar a clínica chega na hora. Também dá para '
             'combinar conosco e receber um código de convite; nos dois casos, plano e '
             'período ficam registrados no aceite do contrato. Trinta e quinze dias antes '
             'do fim do período, o responsável pela clínica é avisado no sistema e por '

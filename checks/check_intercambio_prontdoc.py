@@ -278,7 +278,7 @@ try:
         conferir('o prazo pedido chega ao cliente de rede', capturado.get('timeout') == 255, capturado)
         codigo = inspect.getsource(ai_services.run_job)
         conferir('a tarefa pede o próprio prazo, com folga',
-                 'get_chat_model(tenant_id=job.tenant_id, timeout=limite + 15)' in codigo
+                 'timeout=limite + 15' in codigo.split('get_chat_model(', 1)[-1][:160]
                  and 'installation_reserve_model(timeout=limite + 15)' in codigo)
         conferir('o relatório tem prazo maior que o de rede padrão',
                  ai_services.REPORT_LIMITS['timeout_seconds'] > providers.REQUEST_TIMEOUT_SECONDS)

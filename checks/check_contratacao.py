@@ -154,6 +154,37 @@ for periodicidade, vigencia in (('anual', '12 meses'), ('semestral', '6 meses'),
              vigencia in item['description'] and 'sem renovação automática' in item['description'],
              item['description'])
 
+print('=== 1-A. parcelamento no cartão só com o contrato que o prevê (2.3) ===')
+# 2026-11-17: até 12x no anual e 6x no semestral, sem juros, vindo do
+# ProntDoc. A 2.2 diz "pago integralmente de uma vez" e versão aceita não se
+# edita: o pedido feito sob a 2.2 continua à vista, e publicar a 2.3 liga o
+# parcelamento sem outro deploy (`plans.parcelas_no_cartao`).
+from tenancy.plans import parcelas_no_cartao
+
+for periodicidade, maximo in (('anual', 12), ('semestral', 6), ('trimestral', 1)):
+    preco = preco_na_periodicidade('complete', periodicidade)
+    sob_22 = asaas.montar_checkout(Pedido(
+        plano='complete', periodicidade=periodicidade, contrato_versao='2.2',
+        valor_pagamento_centavos=preco['pagamento'], valor_ano_centavos=preco['ano'],
+    ), 'https://neurodoc.app.br/contratar/pedido/x/', hoje)
+    conferir(f'{periodicidade} sob a 2.2: só à vista',
+             sob_22['chargeTypes'] == ['DETACHED'] and 'installment' not in sob_22)
+    sob_23 = asaas.montar_checkout(Pedido(
+        plano='complete', periodicidade=periodicidade, contrato_versao='2.3',
+        valor_pagamento_centavos=preco['pagamento'], valor_ano_centavos=preco['ano'],
+    ), 'https://neurodoc.app.br/contratar/pedido/x/', hoje)
+    if maximo > 1:
+        conferir(f'{periodicidade} sob a 2.3: à vista ou em até {maximo}x',
+                 sob_23['chargeTypes'] == ['DETACHED', 'INSTALLMENT']
+                 and sob_23.get('installment') == {'maxInstallmentCount': maximo}, sob_23.get('installment'))
+    else:
+        conferir(f'{periodicidade} sob a 2.3: só à vista',
+                 sob_23['chargeTypes'] == ['DETACHED'] and 'installment' not in sob_23)
+    conferir(f'{periodicidade} sob a 2.3: o valor do item não muda (o período inteiro)',
+             sob_23['items'][0]['value'] == preco['pagamento'] / 100)
+conferir('a versão 2.10 vale mais que a 2.3 (comparação por número, não por texto)',
+         parcelas_no_cartao('anual', '2.10') == 12)
+
 try:
     with transaction.atomic(), \
             mock.patch('django.db.transaction.on_commit', imediato), \

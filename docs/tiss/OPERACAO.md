@@ -29,9 +29,14 @@ Pré-requisito: a versão publicada é a 1.30 ou posterior.
    segunda-feira, 05h).
 2. **Console → Operação → Faturamento TISS**: digitar `LIGAR` e o motivo.
    Esta chave vale para a instalação inteira e só para o faturamento.
-3. **Console → Organizações → a clínica** (plano Completo ou
-   Personalizado) → **TISS** → motivo → **Liberar TISS**. A liberação
-   abre também a **Agenda de exames** da clínica.
+3. **A clínica já vem liberada** quando contrata o Completo ou o
+   Personalizado (desde 2026-11-17: cadastro pelo convite, troca de plano no
+   console e conversão da degustação — `tenancy.services.liberar_tiss_pelo_plano`,
+   com trilha `tenancy.tiss_liberado_pelo_plano`). Para a clínica que já
+   estava no plano antes disso: **Console → Organizações → a clínica** →
+   **TISS** → motivo → **Liberar TISS**. O mesmo lugar **recolhe**. A
+   liberação abre também a **Agenda de exames**, que não tem chave de
+   instalação — ela aparece mesmo com o passo 2 desligado.
 4. Na clínica, o responsável ou o gestor:
    - **Convênios e planos**: as operadoras, com o registro ANS (pela busca
      da lista da ANS);

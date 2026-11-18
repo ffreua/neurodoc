@@ -83,6 +83,19 @@ class InstallationSettings(TimestampedModel):
     ai_provider = models.CharField(max_length=40, blank=True)
     ai_model = models.CharField(max_length=100, blank=True)
 
+    #: O modelo das **tarefas pesadas** (apoio diagnóstico e relatório do
+    #: paciente), no mesmo provedor e com a mesma chave do principal. Vazio =
+    #: o `ai_model`, que é como tudo andava até 2026-11-17.
+    #:
+    #: Existe pela medição D-3 do ProntDoc (2026-11-17, caso fictício, prompt
+    #: real): o modelo rápido respondeu o apoio diagnóstico em 6 s com uma
+    #: hipótese só; o de 120 bilhões, em 72 s com seis bem escolhidas. Nenhum
+    #: dos dois serve para tudo — o grande no chat faria o médico esperar um
+    #: minuto pela primeira palavra, o pequeno na análise entrega pouco.
+    #: Mesmo provedor de propósito: um segundo provedor pediria outra chave
+    #: no worker (deploy) e outro suboperador no contrato.
+    ai_model_pesado = models.CharField(max_length=100, blank=True)
+
     #: Endereco da API, para provedor proprio. Vazio = o do catalogo.
     ai_base_url = models.CharField(max_length=300, blank=True)
 
@@ -188,8 +201,11 @@ class InstallationSettings(TimestampedModel):
         )
         return linha
 
-    def ia_da_instalacao(self):
+    def ia_da_instalacao(self, pesado=False):
         """`(provedor, modelo, endereco)` em vigor para quem nao tem o seu.
+
+        `pesado=True` devolve o modelo das tarefas pesadas, quando houver
+        (`ai_model_pesado`); vazio, o mesmo de sempre.
 
         Cai no `.env` quando o campo esta vazio, e nao o contrario: e a
         regra desta tabela inteira -- **o `.env` semeia, o banco decide**.
@@ -198,11 +214,21 @@ class InstallationSettings(TimestampedModel):
         """
         from django.conf import settings
 
+        modelo = self.ai_model or getattr(settings, 'AI_MODEL', '')
+        if pesado and self.ai_model_pesado:
+            modelo = self.ai_model_pesado
         return (
             self.ai_provider or getattr(settings, 'AI_PROVIDER', ''),
-            self.ai_model or getattr(settings, 'AI_MODEL', ''),
+            modelo,
             self.ai_base_url or '',
         )
+
+    @property
+    def ia_modelo_pesado_fora_da_lista(self):
+        """O mesmo alarme do principal, para o modelo das tarefas pesadas."""
+        if not self.ai_model_pesado or not self.ai_available_models or not self.ai_checked_at:
+            return False
+        return self.ai_model_pesado not in self.ai_available_models
 
     @property
     def ia_modelo_fora_da_lista(self):

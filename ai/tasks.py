@@ -457,6 +457,14 @@ def verificar_provedor_da_instalacao():
         ))
 
     ok, detalhe, modelos = _conferir_provedor(provedor, modelo, base_url, chave)
+    # O modelo das tarefas pesadas é conferido junto, e reprova a
+    # verificação: aposentado sem ninguém ver, ele derrubaria todo apoio
+    # diagnóstico e todo relatório — o mesmo incidente dos quarenta dias,
+    # só que pela metade.
+    pesado = config.ai_model_pesado
+    if ok and pesado and pesado != modelo:
+        ok, detalhe_pesado, _ = _conferir_provedor(provedor, pesado, base_url, chave)
+        detalhe = f'{detalhe} Tarefas pesadas: {detalhe_pesado}'
     return gravar(ok, detalhe, modelos)
 
 

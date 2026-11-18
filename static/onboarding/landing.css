@@ -349,6 +349,44 @@
 
 .nd-periodo-cheio { color: var(--bs-secondary, #64748b); background: transparent; }
 
+/* Parcelamento sem juros (do ProntDoc 1.1.0): a faixa acima do seletor e a
+ * linha dentro de cada botão, no azul principal do tema. Só aparece com o
+ * contrato que prevê o parcelamento (`tenancy.plans.parcelas_no_cartao`). */
+.nd-parcelas {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: .35rem 1rem;
+    max-width: 46rem;
+    padding: .8rem 1.1rem;
+    border-radius: 14px;
+    border: 1px solid rgba(52, 84, 209, .28);
+    background: rgba(52, 84, 209, .06);
+    color: var(--bs-dark, #283c50);
+    font-size: .9rem;
+}
+.nd-parcelas-titulo {
+    font-weight: 700;
+    color: var(--bs-primary, #3454d1);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    font-size: .78rem;
+}
+.nd-parcelas-itens { display: flex; flex-wrap: wrap; justify-content: center; gap: .25rem 1rem; }
+.nd-parcelas-item { white-space: nowrap; }
+.nd-periodo-parc {
+    display: block;
+    margin-top: .1rem;
+    font-size: .68rem;
+    font-weight: 500;
+    opacity: .85;
+}
+@media (max-width: 575.98px) {
+    .nd-parcelas { flex-direction: column; text-align: center; }
+    .nd-parcelas-itens { flex-direction: column; gap: .15rem; }
+}
+
 .nd-planos [data-p] { display: none; }
 .nd-planos[data-periodo="anual"] [data-p="anual"],
 .nd-planos[data-periodo="semestral"] [data-p="semestral"],

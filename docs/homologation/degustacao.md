@@ -13,7 +13,7 @@ pontos em aberto:
 | --- | --- | --- |
 | 1 | Médicos além do limite do Gratuito no oitavo dia | **Perdem o papel médico** até a clínica contratar. Fica o que o responsável escolher; sem escolha, o mais antigo. Nada do que escreveram some |
 | 2 | Custo de IA e SMS da instalação | **Teto**: 30 pedidos de IA e 20 SMS durante a degustação. O e-mail não tem teto |
-| 3 | TISS e agenda de exames | **Não** vêm liberados: seguem pelo console, como em toda clínica do Completo |
+| 3 | TISS e agenda de exames | **Não** vêm liberados na degustação. Contratar o Completo os libera (desde 2026-11-17), inclusive a conversão da degustação pelo console |
 | 4 | Contrato | A pessoa **adere ao Gratuito**, e a degustação fica registrada no aceite como condição comercial. A advogada foi consultada e concorda |
 | 5 | Quem pode | **Qualquer pessoa pelo site**, como o Gratuito |
 

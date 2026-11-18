@@ -267,12 +267,31 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                 e a forma de pagamento combinados. O plano <strong>Gratuito</strong> não tem prazo nem cartão.
                 {% endif %}
             </p>
+            {% if checkout_ativo and periodicidades.0.parcelas > 1 %}
+            {% comment %}Parcelamento sem juros no cartão (do ProntDoc 1.1.0): em
+            destaque, e não no rodapé do cartão, porque decide o período que a
+            pessoa escolhe. Só aparece quando o contrato vigente o prevê
+            (`tenancy.plans.parcelas_no_cartao`, a partir da 2.3) e o checkout
+            está ligado; os números vêm de `PERIODICIDADES`.{% endcomment %}
+            <div class="nd-parcelas mx-auto mb-4" role="note">
+                <span class="nd-parcelas-titulo">Parcele sem juros no cartão</span>
+                <span class="nd-parcelas-itens">
+                    {% for p in periodicidades %}
+                    <span class="nd-parcelas-item">
+                        <strong>{{ p.label }}</strong>:
+                        {% if p.parcelas > 1 %}em até <strong>{{ p.parcelas }}x sem juros</strong>{% else %}à vista (Pix ou cartão){% endif %}
+                    </span>
+                    {% endfor %}
+                </span>
+            </div>
+            {% endif %}
             <div class="nd-periodo" role="group" aria-label="Período contratado">
                 {% for p in periodicidades %}
                 <button type="button" class="nd-periodo-btn" data-nd-periodo="{{ p.code }}"
                         aria-pressed="{% if p.code == periodo_padrao %}true{% else %}false{% endif %}">
                     {{ p.label }}
                     {% if p.desconto %}<span class="nd-periodo-off">−{{ p.desconto }}%</span>{% else %}<span class="nd-periodo-off nd-periodo-cheio">preço cheio</span>{% endif %}
+                    {% if checkout_ativo and periodicidades.0.parcelas > 1 %}<span class="nd-periodo-parc">{% if p.parcelas > 1 %}até {{ p.parcelas }}x sem juros{% else %}à vista{% endif %}</span>{% endif %}
                 </button>
                 {% endfor %}
             </div>
@@ -315,6 +334,9 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
                                 {% endif %}
                                 <span class="nd-preco">{{ per.mensal }}<small>/mês</small></span>
                                 <span class="d-block fs-13 text-dark mt-2">Pagamento único: <strong class="text-nowrap">{{ per.pagamento }}</strong></span>
+                                {% if checkout_ativo and per.parcelas > 1 %}
+                                <span class="d-block fs-13 fw-bold text-primary">ou em até {{ per.parcelas }}x sem juros no cartão</span>
+                                {% endif %}
                                 <span class="d-block fs-12 text-muted">Vale {{ per.vigencia }}, sem renovação automática</span>
                                 {% if per.desconto %}
                                 <span class="d-block fs-12 fw-bold text-success mt-1">Economia de <span class="text-nowrap">{{ per.economia_ano }}</span> no ano</span>

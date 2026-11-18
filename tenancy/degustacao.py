@@ -39,8 +39,9 @@ quinze minutos, que também manda os avisos. Só a tarefa deixaria uma clínica
 no Completo até quinze minutos depois do prazo; só o middleware deixaria o
 lembrete do worker saindo por SMS na madrugada do oitavo dia.
 
-TISS e agenda de exames **não** vêm na degustação (decisão 3): seguem
-dependendo da liberação no console, como em qualquer clínica do Completo.
+TISS e agenda de exames **não** vêm na degustação (decisão 3). Contratar o
+Completo os liga (`tenancy.services.liberar_tiss_pelo_plano`), inclusive na
+conversão da degustação pelo console; a degustação em si, não.
 """
 import logging
 from datetime import datetime, time, timedelta

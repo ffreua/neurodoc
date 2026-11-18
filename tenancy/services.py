@@ -42,6 +42,37 @@ class InvalidInvitation(Exception):
     pass
 
 
+#: A nota que a liberação automática deixa em `Tenant.tiss_nota`.
+NOTA_TISS_AUTOMATICO = 'Liberado automaticamente pelo plano contratado.'
+
+
+def liberar_tiss_pelo_plano(tenant):
+    """Abre o TISS (e a agenda de exames) da clínica que contratou um plano com ele.
+
+    Não grava: quem chama salva junto com o resto da mudança e registra a
+    trilha. Devolve se liberou. Nada a fazer quando o plano não tem TISS ou a
+    clínica já está liberada. O freio da instalação (`tiss.Configuracao.ativo`)
+    e o recolher por clínica no console continuam valendo.
+    """
+    from .plans import has_tiss
+
+    if not has_tiss(tenant.plan) or tenant.tiss_liberado:
+        return False
+    tenant.tiss_liberado = True
+    tenant.tiss_nota = NOTA_TISS_AUTOMATICO
+    return True
+
+
+def registrar_tiss_automatico(tenant, por, origem):
+    from audit.services import record_audit_event
+
+    record_audit_event(
+        por, tenant, 'tenancy.tiss_liberado_pelo_plano',
+        object_type='tenant', object_id=tenant.id, outcome='success',
+        integrity_metadata={'plano': tenant.plan, 'origem': origem},
+    )
+
+
 @transaction.atomic
 def accept_platform_invitation(token, email, password, legal_name, documento, trade_name='',
                                contract_ip=None, contract_user_agent='',
@@ -105,6 +136,17 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
         from . import degustacao
 
         degustacao.iniciar(tenant)
+        tiss_automatico = False
+    else:
+        # O TISS (e a agenda de exames, que vem no mesmo contrato) abre
+        # sozinho para quem **contratou** um plano que o inclui (2026-11-17,
+        # decisão do titular, vinda do ProntDoc 1.2.0 — mudança PD-M01 em
+        # `docs/intercambio/`). Até aqui a clínica do Completo pago via TISS
+        # e agenda de exames na vitrine e no contrato (2.2, cláusula 4.2) e
+        # não os achava no menu até alguém liberar no console. A degustação
+        # fica de fora: ela é o Completo de verdade em tudo, menos no
+        # faturamento.
+        tiss_automatico = liberar_tiss_pelo_plano(tenant)
     tenant.full_clean()
     tenant.save()
     membership = Membership.objects.create(
@@ -113,6 +155,8 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
     )
     invitation.consumed_by = user
     invitation.save(update_fields=['consumed_by'])
+    if tiss_automatico:
+        registrar_tiss_automatico(tenant, user, 'cadastro')
     if invitation.degustacao:
         from . import degustacao
 

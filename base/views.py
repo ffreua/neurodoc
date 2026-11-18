@@ -181,7 +181,7 @@ class LandingView(View):
 
     def _context(self, **overrides):
         from tenancy.plans import (
-            PERIODICIDADE_PADRAO, PERIODICIDADES, PROMOCAO_INICIO_DE_CARREIRA,
+            PERIODICIDADE_PADRAO, PERIODICIDADES, PROMOCAO_INICIO_DE_CARREIRA, parcelas_no_cartao,
             preco_inicio_de_carreira, public_plans,
         )
 
@@ -214,7 +214,8 @@ class LandingView(View):
             # As formas de pagamento do seletor, com o desconto de cada uma
             # ao lado do nome — lidas de `tenancy.plans`, como os preços.
             'periodicidades': [
-                {'code': str(c), 'label': c.label, 'desconto': r['desconto']}
+                {'code': str(c), 'label': c.label, 'desconto': r['desconto'],
+                 'parcelas': parcelas_no_cartao(c)}
                 for c, r in PERIODICIDADES.items()
             ],
             'periodo_padrao': str(PERIODICIDADE_PADRAO),

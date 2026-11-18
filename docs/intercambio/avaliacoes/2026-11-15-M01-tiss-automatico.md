@@ -3,7 +3,7 @@ avalia: PD-M-2026-11-15-01
 data_do_registro: 2026-11-15
 tipo: mudança
 origem: prontdoc
-conclusao: pendente          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
+conclusao: adotado          # afetado | nao_afetado | ja_corrigido | adotar | nao_adotar | pendente
 leitura_previa: avaliar     # o que o ProntDoc viu ao ler este repositório em 6b84ec5
 commit_aqui: 
 roteiro_aqui: 
@@ -38,3 +38,12 @@ automático é decisão comercial, e no NeuroDoc o TISS ainda **não foi
 homologado com operadora real**: abrir para todo Completo antes disso seria
 oferecer faturamento não provado. Fica pendente até o titular decidir; o
 defeito que impedia ligá-lo (PD-13) já está corrigido.
+
+## Decisão (2026-11-17)
+
+**Adotado** pelo titular, na sessão única com os dois repositórios: contratar
+um plano com TISS libera o TISS e a agenda de exames, no cadastro pelo
+convite e na troca de plano do console — e também na **conversão da
+degustação**, lacuna que o ProntDoc tinha e foi corrigida nos dois. A
+liberação fica na trilha (`tenancy.tiss_liberado_pelo_plano`). Registro em
+`mudancas/2026-11-17-M03-rodada-unificada.md`.

@@ -56,19 +56,57 @@ class Periodicidade(models.TextChoices):
 #: `lancamento` marca o desconto que é promoção (e que um dia acaba), para a
 #: tela dizê-lo.
 PERIODICIDADES = {
-    Periodicidade.ANUAL: {'meses': 12, 'desconto': 20, 'lancamento': True,
+    Periodicidade.ANUAL: {'meses': 12, 'desconto': 20, 'lancamento': True, 'parcelas': 12,
                           'por': 'por ano', 'pagamento': 'pagamento único, vale 12 meses',
                           'vigencia': '12 meses'},
-    Periodicidade.SEMESTRAL: {'meses': 6, 'desconto': 5, 'lancamento': False,
+    Periodicidade.SEMESTRAL: {'meses': 6, 'desconto': 5, 'lancamento': False, 'parcelas': 6,
                               'por': 'por semestre', 'pagamento': 'pagamento único, vale 6 meses',
                               'vigencia': '6 meses'},
-    Periodicidade.TRIMESTRAL: {'meses': 3, 'desconto': 0, 'lancamento': False,
+    Periodicidade.TRIMESTRAL: {'meses': 3, 'desconto': 0, 'lancamento': False, 'parcelas': 1,
                                'por': 'por trimestre', 'pagamento': 'pagamento único, vale 3 meses',
                                'vigencia': '3 meses'},
 }
 
+#: `parcelas` é o máximo no **cartão**, oferecido pela Asaas no checkout ao
+#: lado do à vista: até 12x no anual, 6x no semestral, à vista no
+#: trimestral, **sem juros para o cliente** (decisão do titular,
+#: 2026-11-17 — a taxa da Asaas fica com a PRONTDOC; a configuração da conta
+#: no painel não repassa juros, `docs/operations/asaas.md`). O período
+#: continua quitado no início (4.4): quem parcela é o cliente com a
+#: instituição. Pix é sempre à vista. Veio do ProntDoc 1.1.0
+#: (`docs/intercambio/`).
+#:
+#: **Só vale com o contrato que o prevê** (`parcelas_no_cartao`): a 2.2 diz
+#: "pago integralmente de uma vez", e versão aceita não se edita. A minuta
+#: da 2.3 está em `docs/governance/contrato-2.3-minuta.md`, com a Dra.
+#: Karina; publicada, o parcelamento liga sozinho.
+CONTRATO_COM_PARCELAMENTO = '2.3'
+
 #: A primeira que a vitrine mostra, e a do convite que não disser outra.
 PERIODICIDADE_PADRAO = Periodicidade.ANUAL
+
+
+def _versao(texto):
+    return tuple(int(p) for p in str(texto).split('.') if p.isdigit())
+
+
+def parcelas_no_cartao(periodicidade, versao_do_contrato=None):
+    """O máximo de parcelas no cartão para este período, **se o contrato permite**.
+
+    O teto está em `PERIODICIDADES['parcelas']`; o que decide se ele vale é
+    a redação do contrato em que a compra acontece (a do pedido, ou a
+    vigente): parcelar é condição comercial, e a cláusula 4.3 tem de dizê-lo
+    antes de o checkout oferecer. Abaixo de `CONTRATO_COM_PARCELAMENTO`, à
+    vista — e é assim que publicar a redação nova liga o parcelamento sem
+    outro deploy.
+    """
+    if versao_do_contrato is None:
+        from tenancy import contract
+
+        versao_do_contrato = contract.VERSAO
+    if _versao(versao_do_contrato) < _versao(CONTRATO_COM_PARCELAMENTO):
+        return 1
+    return PERIODICIDADES[Periodicidade(periodicidade)].get('parcelas', 1)
 
 
 def com_desconto(centavos, desconto):
@@ -409,6 +447,7 @@ def pricing(code):
             'code': str(codigo), 'label': codigo.label, 'desconto': v['desconto'],
             'lancamento': regra['lancamento'], 'por': regra['por'],
             'pagamento_rotulo': regra['pagamento'], 'vigencia': regra['vigencia'],
+            'parcelas': parcelas_no_cartao(codigo),
             'mensal': brl(v['mensal']), 'pagamento': brl(v['pagamento']), 'ano': brl(v['ano']),
             'cheio': brl(v['cheio']), 'cheio_ano': brl(v['cheio'] * MESES_NO_ANO),
             'economia_ano': brl(v['economia_ano']),

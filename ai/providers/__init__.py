@@ -160,7 +160,7 @@ def installation_api_key(provider):
         return ''
 
 
-def _installation_model(timeout=None):
+def _installation_model(timeout=None, pesado=False):
     """O padrão da instalação: provedor, modelo e chave.
 
     Vale para toda clínica que não configurou a sua. **Provedor e modelo
@@ -180,7 +180,7 @@ def _installation_model(timeout=None):
     """
     from base.models import InstallationSettings
 
-    provider, model, base_url = InstallationSettings.carregar().ia_da_instalacao()
+    provider, model, base_url = InstallationSettings.carregar().ia_da_instalacao(pesado=pesado)
     if provider not in PROVIDERS:
         conhecidos = ', '.join(sorted(PROVIDERS))
         raise ProviderUnavailable(
@@ -201,7 +201,7 @@ def _installation_model(timeout=None):
     return _build(provider, model, api_key, base_url, da_instalacao=True, timeout=timeout)
 
 
-def get_chat_model(provider=None, tenant_id=None, timeout=None):
+def get_chat_model(provider=None, tenant_id=None, timeout=None, pesado=False):
     """O modelo de chat a usar: o da clínica, se ela configurou o seu.
 
     A ordem é deliberada. A clínica que informou provedor, chave e modelo
@@ -230,7 +230,9 @@ def get_chat_model(provider=None, tenant_id=None, timeout=None):
                 f'Provedor {provider!r} pedido explicitamente, mas a instalação só '
                 f'tem credencial para {settings.AI_PROVIDER!r}.'
             )
-    return _installation_model(timeout=timeout)
+    # `pesado` só alcança o padrão da instalação: a clínica com IA própria
+    # escolheu um modelo só, e é ele que atende tudo dela.
+    return _installation_model(timeout=timeout, pesado=pesado)
 
 
 # --------------------------------------------------------------------

@@ -17,6 +17,7 @@ segurança só entra aqui depois de corrigido nos dois sistemas.
 | --- | --- | --- | --- | --- |
 | MD-2026-11-14-01 | [Vigência por período e renovação (1.47)](mudancas/2026-11-14-M01-vigencia-e-renovacao.md) | decisao-comercial | 18efed9, cb2c952 | pendente |
 | MD-2026-11-14-02 | [Contrato de adesão 2.2](mudancas/2026-11-14-M02-contrato-2-2.md) | texto | cb2c952 | pendente |
+| MD-2026-11-17-01 | [Rodada unificada: segurança (@meirakalile-ship-it), IA por tarefa, parcelamento sem juros (espera a 2.3), TISS ao contratar](mudancas/2026-11-17-M03-rodada-unificada.md) | seguranca + funcionalidade | rodada de 2026-11-17 | feito nos dois na mesma sessão |
 
 ## Avaliações de registros do ProntDoc
 
@@ -44,6 +45,6 @@ e foram corrigidos em `b26c256`, adaptados aos dois tipos de atendimento.
 | PD-2026-11-15-16 | [Promessas da página de vendas que o código não cumpre](avaliacoes/2026-11-15-16-promessas-da-vitrine.md) | achado | afetado-confirmado | afetado — corrigido | b26c256 |
 | PD-2026-11-15-17 | [`check_tiss_guias` falhava conforme o que tinha rodado antes](avaliacoes/2026-11-15-17-roteiro-guias-paciente-compartilhado.md) | achado | afetado-provavel | afetado — corrigido | b26c256 |
 | PD-2026-11-17-18 | [O prazo de rede (60 s) corta antes do prazo da tarefa de IA (75 s)](avaliacoes/2026-11-17-18-prazo-de-rede-menor-que-o-da-tarefa.md) | achado | afetado-provavel | afetado — corrigido | 3858ce4 |
-| PD-M-2026-11-15-01 | [TISS e agenda de exames ligados automaticamente com o plano contratado](avaliacoes/2026-11-15-M01-tiss-automatico.md) | mudança | avaliar | pendente (decisão do titular) | — |
+| PD-M-2026-11-15-01 | [TISS e agenda de exames ligados automaticamente com o plano contratado](avaliacoes/2026-11-15-M01-tiss-automatico.md) | mudança | avaliar | adotado (decisão do titular, 2026-11-17) | rodada de 2026-11-17 |
 | PD-M-2026-11-15-02 | [Quem abriu o prontuário: leitura na trilha e lista na ficha](avaliacoes/2026-11-15-M02-registro-de-acesso.md) | mudança | avaliar | pendente (decisão do titular) | — |
 | PD-M-2026-11-15-03 | [Apoio diagnóstico: o médico aceita ou recusa cada hipótese; prompt v4](avaliacoes/2026-11-15-M03-apoio-diagnostico-v4.md) | mudança | avaliar | não adotado (só a regra do %, em PD-08) | — |

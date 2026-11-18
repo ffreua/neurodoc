@@ -765,15 +765,15 @@ ARTICLES = [
         ],
     },
     # Faturamento TISS e agenda de exames (1.30). Nos planos que os incluem,
-    # depois de a clínica ser liberada pela equipe do NeuroDoc.
+    # ligados ao contratar (desde 2026-11-17; antes, liberados pela equipe).
     {
         'slug': 'faturamento-tiss',
         'title': 'Faturamento de convênio (TISS): guias e lotes',
         'summary': 'Guia de Consulta e SP/SADT, o arquivo XML do lote e o envio à operadora.',
         'audience': 'Recepção e gestor',
         'steps': [
-            ('**Quem tem.** O faturamento TISS vem nos planos ' + _planos_com(has_tiss) + ', e a clínica precisa ser '
-             'liberada pela equipe do NeuroDoc. Aparece no menu como **Faturamento TISS**. Por '
+            ('**Quem tem.** O faturamento TISS vem nos planos ' + _planos_com(has_tiss) + '. Ele já vem ligado '
+             'quando a clínica contrata um desses planos (na degustação gratuita, não). Aparece no menu como **Faturamento TISS**. Por '
              'segurança (padrão da ANS), a área pede o segundo fator de novo depois de dez '
              'minutos sem uso.',
              '', ''),

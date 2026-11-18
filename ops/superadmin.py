@@ -449,10 +449,29 @@ class TenantPlanView(SuperAdminView):
         tenant.patient_limit_override = pacientes
         tenant.doctor_limit_override = medicos
         tenant.plan_note = motivo[:255]
+        # Subir para um plano com TISS é contratá-lo: o faturamento abre junto,
+        # como no cadastro pelo convite (`tenancy.services.liberar_tiss_pelo_plano`).
+        # Só na **passagem** de um plano sem TISS para um com — quem o recolheu
+        # aqui na mão e só ajustou limites não o vê religado —, **ou** na
+        # conversão da degustação: durante ela o plano já é o Completo, e a
+        # passagem não aparecia, deixando a clínica que contratou sem TISS
+        # (lacuna do PD-M01, 2026-11-17).
+        from tenancy.plans import has_tiss
+        from tenancy.services import liberar_tiss_pelo_plano, registrar_tiss_automatico
+
+        veio_da_degustacao = bool(tenant.degustacao_ate)
+        campos_tiss, tiss_automatico = [], False
+        if not has_tiss(anterior['plan']) or veio_da_degustacao:
+            tiss_automatico = liberar_tiss_pelo_plano(tenant)
+            if tiss_automatico:
+                campos_tiss = ['tiss_liberado', 'tiss_nota']
         tenant.full_clean()
         tenant.save(update_fields=[
             'plan', 'patient_limit_override', 'doctor_limit_override', 'plan_note', 'updated_at',
+            *campos_tiss,
         ])
+        if tiss_automatico:
+            registrar_tiss_automatico(tenant, request.user, 'console')
         # Clínica que veio da degustação: trocar o plano no console é a
         # conversão em contrato. O prazo sai de cena e os médicos que
         # perderam o papel no oitavo dia voltam, até o limite do plano novo
@@ -659,6 +678,8 @@ class OperationsView(SuperAdminView):
             'ia_base_url': base_url,
             'ia_modelos': config.ai_available_models or [],
             'ia_fora_da_lista': config.ia_modelo_fora_da_lista,
+            'ia_modelo_pesado': config.ai_model_pesado,
+            'ia_pesado_fora_da_lista': config.ia_modelo_pesado_fora_da_lista,
             'reserva_modelos': config.ai_reserva_modelos or [],
             'sncr': sncr_resumo(),
             'tiss': tiss_resumo(),
@@ -709,6 +730,7 @@ class InstallationAIView(SuperAdminView):
 
         provedor = (request.POST.get('provedor') or '').strip()
         modelo = (request.POST.get('modelo') or '').strip()
+        modelo_pesado = (request.POST.get('modelo_pesado') or '').strip()
         base_url = (request.POST.get('base_url') or '').strip()
 
         if provedor not in PROVIDERS:
@@ -728,8 +750,15 @@ class InstallationAIView(SuperAdminView):
             return redirect('superadmin:operations')
 
         antes = config.ia_da_instalacao()
+        pesado_antes = config.ai_model_pesado
+        # O modelo pesado é do mesmo provedor: trocar de provedor e deixar o
+        # campo como estava o esvazia, para não mandar à NVIDIA um
+        # identificador da OpenRouter.
+        if provedor != antes[0] and modelo_pesado == pesado_antes:
+            modelo_pesado = ''
         config.ai_provider = provedor
         config.ai_model = modelo
+        config.ai_model_pesado = modelo_pesado
         config.ai_base_url = base_url
         # A verificacao anterior era sobre a escolha anterior: manter o
         # "respondeu, esta ativo" ao lado de um modelo novo seria dizer
@@ -742,7 +771,7 @@ class InstallationAIView(SuperAdminView):
         config.updated_by = request.user
         config.full_clean()
         config.save(update_fields=[
-            'ai_provider', 'ai_model', 'ai_base_url', 'ai_available_models',
+            'ai_provider', 'ai_model', 'ai_model_pesado', 'ai_base_url', 'ai_available_models',
             'ai_checked_at', 'ai_check_ok', 'ai_check_detail', 'updated_by', 'updated_at',
         ])
         record_audit_event(
@@ -752,8 +781,10 @@ class InstallationAIView(SuperAdminView):
             # exatamente o que se quer poder auditar depois: "desde
             # quando a instalacao fala com este provedor?".
             integrity_metadata={
-                'from': {'provider': antes[0], 'model': antes[1], 'base_url': antes[2]},
-                'to': {'provider': provedor, 'model': modelo, 'base_url': base_url},
+                'from': {'provider': antes[0], 'model': antes[1], 'base_url': antes[2],
+                         'model_pesado': pesado_antes},
+                'to': {'provider': provedor, 'model': modelo, 'base_url': base_url,
+                       'model_pesado': modelo_pesado},
             },
         )
 
@@ -762,9 +793,10 @@ class InstallationAIView(SuperAdminView):
         verificar_provedor_da_instalacao.delay()
         messages.success(
             request,
-            f'Padrão da instalação agora é {provedor} / {modelo}. Vale para toda clínica '
-            'que não configurou a sua. A verificação foi enfileirada — recarregue em '
-            'alguns segundos para ver se o provedor aceita o modelo.',
+            f'Padrão da instalação agora é {provedor} / {modelo}'
+            + (f' (tarefas pesadas: {modelo_pesado})' if modelo_pesado else '')
+            + '. Vale para toda clínica que não configurou a sua. A verificação foi '
+            'enfileirada — recarregue em alguns segundos para ver se o provedor aceita o modelo.',
         )
         return redirect('superadmin:operations')
 

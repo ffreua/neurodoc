@@ -25,7 +25,7 @@ import requests
 from django.conf import settings
 
 from base.version import VERSION
-from tenancy.plans import PERIODICIDADES, Periodicidade, plan_label
+from tenancy.plans import PERIODICIDADES, Periodicidade, parcelas_no_cartao, plan_label
 
 TIMEOUT_SEGUNDOS = 20
 
@@ -118,9 +118,19 @@ def montar_checkout(pedido, url_do_pedido, hoje=None):
     vigencia = PERIODICIDADES[periodicidade]['vigencia']
     acao = 'Renovação do plano' if getattr(pedido, 'tenant_id', None) else 'Plano'
     descricao = f'{acao} {rotulo}, vigência de {vigencia}. Pagamento único, sem renovação automática.'
+    # Parcelamento no cartão (cláusula 4.3): à vista **ou** parcelado no
+    # mesmo checkout, que é como a Asaas documenta oferecer os dois
+    # (`DETACHED` + `INSTALLMENT` + `installment.maxInstallmentCount`). O Pix
+    # só existe à vista. O valor do item continua o do período; sem juros
+    # para o cliente, pela configuração da conta (`docs/operations/asaas.md`).
+    # O teto depende da redação do contrato do pedido (`parcelas_no_cartao`).
+    parcelas = parcelas_no_cartao(periodicidade, getattr(pedido, 'contrato_versao', None) or None)
+    parcelado = {'chargeTypes': ['DETACHED', 'INSTALLMENT'],
+                 'installment': {'maxInstallmentCount': parcelas}} if parcelas > 1 else {}
     return {
         'chargeTypes': ['DETACHED'],
         'billingTypes': ['PIX', 'CREDIT_CARD'],
+        **parcelado,
         'minutesToExpire': MINUTOS_PARA_EXPIRAR,
         'externalReference': str(pedido.id),
         'callback': {
