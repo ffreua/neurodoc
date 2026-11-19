@@ -18,6 +18,7 @@ from tenancy.selectors import scope_to_tenant
 from . import carry_forward as cf
 from . import estrutura as estrutura_do_atendimento
 from . import finalization, selectors
+from .ordem import exames_em_ordem, medicacoes_em_ordem
 from .cranial_nerves import upsert_cranial_nerve_finding
 from exams.models import ExamScale
 from exams.recording import (
@@ -453,7 +454,7 @@ class EncounterDetailView(TenantScopedView):
         """
         from ai.services import latest_diagnostic_support, resumos_aprovados
 
-        medications = list(encounter.medications.all())
+        medications = list(medicacoes_em_ordem(encounter.medications.all()))
         # Um formulário de edição por linha, já preenchido. O prefixo é o
         # id da medicação: com dez linhas na tela, campos sem prefixo
         # repetiriam `id_dose` dez vezes, e o autocomplete preencheria a
@@ -462,9 +463,9 @@ class EncounterDetailView(TenantScopedView):
             medication.edit_form = MedicationForm(
                 instance=medication, prefix=_prefixo_da_medicacao(medication),
             )
-        exam_results = list(
+        exam_results = list(exames_em_ordem(
             encounter.exam_results.select_related('attachment').prefetch_related('lab_values')
-        )
+        ))
         for result in exam_results:
             values = list(result.lab_values.all())
             result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
@@ -1008,9 +1009,7 @@ class EncounterSummaryView(TenantScopedView):
             encounter.examination_findings.select_related('template_node')
             .order_by('domain', 'item_code', 'side')
         )
-        exam_results = list(
-            encounter.exam_results.prefetch_related('lab_values').order_by('-performed_on', 'name')
-        )
+        exam_results = list(exames_em_ordem(encounter.exam_results.prefetch_related('lab_values')))
         for result in exam_results:
             values = list(result.lab_values.all())
             result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
@@ -1024,7 +1023,7 @@ class EncounterSummaryView(TenantScopedView):
             'patient': encounter.patient,
             'findings_by_domain': group_findings_by_domain(findings),
             'findings_count': len(findings),
-            'medications': list(encounter.medications.all()),
+            'medications': list(medicacoes_em_ordem(encounter.medications.all())),
             'exam_results': exam_results,
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
@@ -1078,11 +1077,10 @@ class PatientSummaryView(TenantScopedView):
             ExaminationFinding.objects.filter(**do_paciente)
             .select_related('template_node').order_by('domain', 'item_code', 'side')
         )
-        medicacoes = agrupar(Medication.objects.filter(**do_paciente).order_by('name'))
-        resultados = list(
-            ExamResult.objects.filter(**do_paciente)
-            .prefetch_related('lab_values').order_by('-performed_on', 'name')
-        )
+        medicacoes = agrupar(medicacoes_em_ordem(Medication.objects.filter(**do_paciente)))
+        resultados = list(exames_em_ordem(
+            ExamResult.objects.filter(**do_paciente).prefetch_related('lab_values')
+        ))
         for result in resultados:
             values = list(result.lab_values.all())
             result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]

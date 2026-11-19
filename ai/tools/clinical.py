@@ -1,5 +1,6 @@
 from django.utils import timezone
 
+from clinical.ordem import exames_em_ordem, medicacoes_em_ordem
 from clinical.models import (
     DiagnosisCertainty, Encounter, EncounterDiagnosis, ExaminationFinding, ExamResult,
     Medication,
@@ -122,7 +123,8 @@ def get_medications(authorization, encounter_id, limit=MAX_MEDICATIONS):
     limit = min(int(limit), MAX_MEDICATIONS)
     medications = Medication.objects.filter(
         tenant_id=authorization.tenant_id, encounter=encounter,
-    ).order_by('name')[:limit]
+    )
+    medications = medicacoes_em_ordem(medications)[:limit]
     return [
         {
             'name': m.name, 'dose': m.dose, 'route': m.get_route_display(),
@@ -147,9 +149,11 @@ def get_exam_results(authorization, limit=MAX_EXAM_RESULTS):
     if authorization.patient_id is None:
         raise ToolScopeError('Authorization has no patient in scope')
     limit = min(int(limit), MAX_EXAM_RESULTS)
-    results = ExamResult.objects.filter(
+    # Sem data vai para o fim (`clinical.ordem`): antes, na ordem decrescente
+    # do PostgreSQL, o exame sem data ocupava as vagas dos mais recentes.
+    results = exames_em_ordem(ExamResult.objects.filter(
         tenant_id=authorization.tenant_id, patient_id=authorization.patient_id,
-    ).prefetch_related('lab_values').order_by('-performed_on')[:limit]
+    ).prefetch_related('lab_values'))[:limit]
 
     rows = []
     for result in results:

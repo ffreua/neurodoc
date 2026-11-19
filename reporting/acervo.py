@@ -179,6 +179,7 @@ def atendimentos_rows(tenant_id, **_parametros):
     """
     from django.db.models import Prefetch
 
+    from clinical.ordem import exames_em_ordem
     from clinical.models import (
         ClinicalAmendment, Encounter, EncounterDiagnosis, ExamResult, ExaminationFinding,
     )
@@ -199,7 +200,7 @@ def atendimentos_rows(tenant_id, **_parametros):
             ),
             Prefetch(
                 'exam_results',
-                queryset=ExamResult.objects.prefetch_related('lab_values').order_by('-performed_on', 'name'),
+                queryset=exames_em_ordem(ExamResult.objects.prefetch_related('lab_values')),
             ),
             Prefetch(
                 'amendments',
@@ -251,6 +252,7 @@ def _registros_do_atendimento(encontro):
     (`clinical.views.PatientSummaryView`).
     """
     from clinical.examination import group_findings_by_domain
+    from clinical.ordem import chave_da_medicacao
 
     exame = []
     for grupo in group_findings_by_domain(list(encontro.examination_findings.all())):
@@ -282,7 +284,7 @@ def _registros_do_atendimento(encontro):
                 'indicacao': _texto(m.indication), 'situacao': m.get_status_display(),
                 'prescritor': _texto(m.prescriber), 'observacao': _texto(m.notes),
             }
-            for m in sorted(encontro.medications.all(), key=lambda m: m.name)
+            for m in sorted(encontro.medications.all(), key=chave_da_medicacao)
         ],
         'exame_neurologico': exame,
         'resultados_de_exame': [

@@ -1,9 +1,10 @@
-from django.db.models import F
+from django.db.models import F, Prefetch
 from django.http import Http404
 
 from tenancy.selectors import scope_to_tenant
 
-from .models import Encounter
+from .models import Encounter, Medication
+from .ordem import medicacoes_em_ordem
 
 
 #: Como a grade de atendimentos pode ser ordenada.
@@ -69,7 +70,9 @@ def consulta_anterior(context, encounter):
         )
         .exclude(id=encounter.id)
         .select_related('physician_membership__user')
-        .prefetch_related('diagnoses', 'medications')
+        .prefetch_related('diagnoses', Prefetch(
+            'medications', queryset=medicacoes_em_ordem(Medication.objects.all()),
+        ))
         .order_by('-occurred_at')
         .first()
     )

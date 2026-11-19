@@ -26,6 +26,7 @@ segurança só entra aqui depois de corrigido nos dois sistemas.
 | MD-2026-11-18-06 | [Plano e renovação dava 500 para o plano Personalizado](mudancas/2026-11-18-M09-plano-personalizado-500.md) | defeito | rodada de 2026-11-18 | feito nos dois (PD-M-2026-11-18-07) |
 | MD-2026-11-19-01 | [Incluir horário fora da cadência deixava um período invisível e recusado](mudancas/2026-11-19-M01-horario-fora-da-cadencia.md) | defeito | rodada de 2026-11-19 | feito nos dois (PD-M-2026-11-19-01) |
 | MD-2026-11-19-02 | [Dashboard por clínica e por médico, e mailing com consentimento](mudancas/2026-11-19-M02-dashboard.md) | relatórios | rodada de 2026-11-19 | feito nos dois (PD-M-2026-11-19-02) |
+| MD-2026-11-19-03 | [Exames do mais recente ao mais antigo, e medicações agrupadas por situação](mudancas/2026-11-19-M03-ordem-exames-e-medicacoes.md) | prontuário | rodada de 2026-11-19 | feito nos dois (PD-M-2026-11-19-03) |
 
 ## Avaliações de registros do ProntDoc
 
