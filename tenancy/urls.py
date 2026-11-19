@@ -25,6 +25,10 @@ urlpatterns = [
         admin_views.MembershipPasswordResetView.as_view(), name='membership-password-reset',
     ),
     path(
+        'app/org/equipe/dispositivo-confiavel/',
+        admin_views.ClinicaDispositivoConfiavelView.as_view(), name='dispositivo-confiavel',
+    ),
+    path(
         'app/org/equipe/<uuid:membership_id>/resetar-mfa/',
         admin_views.MembershipMFAResetView.as_view(), name='membership-mfa-reset',
     ),

@@ -208,6 +208,64 @@ some da tela se ninguém olhar. A lista da equipe é estado; isto é pendência.
         </div>
     </div>
 </div>
+{% comment %}Dispositivo confiável (accounts/dispositivo_confiavel.py): a
+decisão é da clínica, e nasce proibida. Proibir é um clique; permitir pede
+ciência e o código recente.{% endcomment %}
+<div class="card mt-4">
+    <div class="card-header d-flex align-items-center justify-content-between">
+        <h5 class="card-title mb-0">Dispositivo confiável</h5>
+        {% if dispositivo_confiavel.permitido %}
+        <span class="badge bg-soft-warning text-warning">permitido</span>
+        {% else %}
+        <span class="badge bg-soft-success text-success">proibido</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <p class="fs-13 mb-2">
+            Permitido, cada pessoa da equipe pode marcar, ao digitar o código, que
+            confia no próprio dispositivo. Nele, o código do aplicativo deixa de ser
+            pedido ao entrar, <strong>sem prazo</strong>, até a pessoa revogar, trocar a
+            senha ou a clínica proibir. A senha continua sendo pedida, e o código
+            continua pedido em outro dispositivo e para assinar, certificados,
+            exportação e TISS. A pessoa aceita um termo, e cada entrada sem o código
+            fica na trilha de auditoria.
+        </p>
+        <p class="fs-13 mb-3">
+            O risco: quem usar aquele dispositivo e souber a senha entra na conta e vê
+            os prontuários que ela vê. Não convém em computador compartilhado, como o
+            da recepção. Para quem atende em mais de uma clínica, só vale se todas
+            permitirem.
+        </p>
+        {% if dispositivo_confiavel.permitido %}
+        {% if dispositivo_confiavel.em_uso %}
+        <p class="fs-12 text-muted mb-1">Em uso hoje:</p>
+        <ul class="fs-12 mb-3">
+            {% for p in dispositivo_confiavel.em_uso %}<li>{{ p.nome }} — {{ p.total }} dispositivo{{ p.total|pluralize }}</li>{% endfor %}
+        </ul>
+        {% else %}
+        <p class="fs-12 text-muted mb-3">Ninguém da equipe confiou em dispositivo até agora.</p>
+        {% endif %}
+        <form method="post" action="{% url 'tenancy:dispositivo-confiavel' %}"
+              data-nd-confirm="Proibir o dispositivo confiável? Os dispositivos da equipe são revogados agora, e o código volta a ser pedido em todos.">
+            {% csrf_token %}
+            <input type="hidden" name="permitir" value="nao">
+            <button type="submit" class="btn btn-light-danger btn-sm">Proibir e revogar os dispositivos da equipe</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'tenancy:dispositivo-confiavel' %}">
+            {% csrf_token %}
+            <input type="hidden" name="permitir" value="sim">
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="ciente" value="sim" id="dispositivo-ciente" required>
+                <label class="form-check-label fs-13" for="dispositivo-ciente">
+                    Li o que a opção significa e, como responsável pela clínica, permito que a equipe a use
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary btn-sm">Permitir (pede o código do aplicativo)</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}
 
 {% block modals %}

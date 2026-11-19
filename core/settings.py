@@ -477,6 +477,12 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 SESSION_COOKIE_AGE = 28800
+#: O nome que o aplicativo autenticador mostra ao lado do código. Sem ele
+#: (até 2026-11-18) a conta aparecia só pelo e-mail, sem dizer de qual
+#: sistema era -- e quem usa os dois sistemas ficava com duas linhas iguais.
+#: Muda só o QR e a URL de quem configura daqui em diante; o código gerado
+#: pelos dispositivos já confirmados é o mesmo.
+OTP_TOTP_ISSUER = 'NeuroDoc'
 CSRF_COOKIE_SECURE = not DEBUG
 CSRF_COOKIE_SAMESITE = 'Lax'
 #: A recusa por token CSRF tem tela propria (`base/csrf.py`).

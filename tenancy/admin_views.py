@@ -24,7 +24,7 @@ from django.utils import timezone
 from django.utils.cache import get_conditional_response
 from django.views import View
 
-from accounts import mfa
+from accounts import dispositivo_confiavel, mfa
 from accounts.models import PhysicianProfile, RecoveryCode
 from accounts.services import invalidate_user_sessions, revoke_membership, send_password_reset
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -164,9 +164,41 @@ class TeamView(OrgAdminView):
             'invite_form': CollaboratorInvitationForm(),
             'tenant': self.membership.tenant,
             'degustacao': self._degustacao(),
+            'dispositivo_confiavel': self._dispositivo_confiavel(),
         }
         context.update(overrides)
         return context
+
+    def _dispositivo_confiavel(self):
+        """A decisão da clínica e quem da equipe usa hoje (só contagem)."""
+        from django.db.models import Count
+
+        from accounts.models import DispositivoConfiavel
+
+        usuarios = list(
+            Membership.objects.filter(tenant_id=self.tenant_id, status=MembershipStatus.ACTIVE)
+            .values_list('user_id', flat=True)
+        )
+        em_uso = (
+            DispositivoConfiavel.objects.filter(user_id__in=usuarios, revogado_em=None)
+            .values('user_id').annotate(total=Count('id'))
+        )
+        pessoas = {
+            m.user_id: m.user for m in
+            Membership.objects.filter(tenant_id=self.tenant_id, user_id__in=[p['user_id'] for p in em_uso])
+            .select_related('user')
+        }
+        return {
+            'permitido': self.membership.tenant.dispositivo_confiavel_permitido,
+            'em_uso': sorted(
+                (
+                    {'nome': pessoas[p['user_id']].get_full_name() or pessoas[p['user_id']].email,
+                     'total': p['total']}
+                    for p in em_uso if p['user_id'] in pessoas
+                ),
+                key=lambda linha: linha['nome'].lower(),
+            ),
+        }
 
     def get(self, request):
         return render(request, 'tenancy/team.html', self._context(request))
@@ -330,6 +362,14 @@ class MembershipMFAResetView(OrgAdminView):
 
         TOTPDevice.objects.filter(user=membership.user).delete()
         RecoveryCode.objects.filter(user=membership.user).delete()
+        # O dispositivo confiável já deixaria de valer pelo segundo fator
+        # novo (`totp_device_id`); revogar aqui deixa o motivo certo na trilha.
+        from accounts.models import DispositivoConfiavel
+
+        dispositivo_confiavel.revogar_da_pessoa(
+            membership.user, DispositivoConfiavel.Motivo.MFA_RESETADO,
+            ator=request.user, tenant=membership.tenant, request=request,
+        )
         invalidate_user_sessions(membership.user)
         record_audit_event(
             request.user, membership.tenant, 'accounts.mfa_reset_by_owner',
@@ -347,6 +387,53 @@ class MembershipMFAResetView(OrgAdminView):
         )
         messages.success(request, f'MFA de {membership.user.email} resetado; sessões encerradas.')
         return redirect('tenancy:team')
+
+
+class ClinicaDispositivoConfiavelView(OrgAdminView):
+    """O responsável permite ou proíbe o dispositivo confiável na clínica.
+
+    A clínica é a controladora, e a decisão sobre a medida de segurança é
+    dela (`accounts/dispositivo_confiavel.py`). Nasce proibido.
+
+    **A assimetria é deliberada**, a mesma do console (`check_decisoes`):
+    proibir é um clique, porque é a direção segura e pode ser urgente (um
+    notebook perdido); permitir pede o código do segundo fator recente e a
+    caixa de ciência, e fica na trilha com quem e quando. Proibir revoga na
+    hora os dispositivos da equipe, para que um "permitir" futuro não os
+    ressuscite sem aceite novo.
+    """
+
+    def post(self, request):
+        tenant = Tenant.objects.get(id=self.tenant_id)
+        voltar = reverse('tenancy:team')
+        if request.POST.get('permitir') == 'sim':
+            if request.POST.get('ciente') != 'sim':
+                messages.error(request, 'Para permitir, marque que leu o que a opção significa.')
+                return redirect(voltar)
+            if not mfa.mfa_verified_recently(request):
+                return mfa.redirect_to_mfa_confirm(request, voltar)
+            if not tenant.dispositivo_confiavel_permitido:
+                Tenant.objects.filter(id=tenant.id).update(dispositivo_confiavel_permitido=True)
+                record_audit_event(
+                    request.user, tenant, 'tenancy.dispositivo_confiavel_permitido', outcome='success',
+                )
+            messages.success(
+                request,
+                'A equipe pode confiar em dispositivos. Cada pessoa decide e aceita o termo ao entrar.',
+            )
+            return redirect(voltar)
+        Tenant.objects.filter(id=tenant.id).update(dispositivo_confiavel_permitido=False)
+        revogados = dispositivo_confiavel.revogar_da_clinica(tenant, ator=request.user, request=request)
+        record_audit_event(
+            request.user, tenant, 'tenancy.dispositivo_confiavel_proibido', outcome='success',
+            integrity_metadata={'revogados': revogados},
+        )
+        messages.success(
+            request,
+            f'Dispositivo confiável proibido. {revogados} dispositivo(s) da equipe revogado(s); '
+            'o código volta a ser pedido em todos ao entrar.',
+        )
+        return redirect(voltar)
 
 
 class MembershipRolesView(OrgAdminView):

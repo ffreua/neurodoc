@@ -111,6 +111,12 @@ class Tenant(TimestampedModel):
     #: piloto primeiro. Nasce `False` em toda clínica, inclusive nas que já
     #: estão no Completo. Ver `docs/tiss/REVISAO_SPRINT1.md` §4.1.
     tiss_liberado = models.BooleanField(default=False)
+    #: Se a equipe desta clínica pode **confiar num dispositivo** e entrar
+    #: nele sem o código do segundo fator (`accounts/dispositivo_confiavel.py`).
+    #: Nasce `False`: a decisão é da controladora dos dados, e quem a toma é
+    #: o responsável, em Equipe. Para quem atende em várias clínicas, vale
+    #: só se **todas** permitirem.
+    dispositivo_confiavel_permitido = models.BooleanField(default=False, db_default=False)
     #: Por que foi liberado (ou recolhido). Mesmo motivo do `plan_note`.
     tiss_nota = models.CharField(max_length=255, blank=True)
 

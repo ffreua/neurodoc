@@ -300,7 +300,13 @@ carimbá-la na publicação.
 #: pela Dra. Karina) e a cópia diária dos backups cifrados no Cloudflare R2
 #: (`ops/nuvem.py`), ligada em produção com ele; o vigia avisa se a última
 #: cópia passar de 26 horas. Sem migração.
-VERSION = '1.49'
+#: A **1.50** (2026-11-18, junto com o ProntDoc 1.5.0): **dispositivo confiável** --
+#: entrar só com a senha no dispositivo em que a pessoa aceitou o termo, sem
+#: prazo, até revogar; nasce proibido em toda clínica e o responsável decide
+#: (`accounts/dispositivo_confiavel.py`); e a tela de configurar o segundo
+#: fator mostrando só a chave, com o nome do sistema no QR. Migração só de
+#: expansão (`accounts.0005`, `tenancy.0024`).
+VERSION = '1.50'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

@@ -122,6 +122,71 @@ class RecoveryCode(TimestampedModel):
     expires_at = models.DateTimeField(null=True, blank=True)
 
 
+class DispositivoConfiavel(TimestampedModel):
+    """Um navegador em que a pessoa dispensou o código ao entrar (2026-11-18).
+
+    A regra inteira está em `accounts/dispositivo_confiavel.py`; aqui fica o
+    que precisa sobreviver para ser conferido e auditado depois.
+
+    **Sem prazo, de propósito** (decisão do titular, autorizada pela Dra.
+    Karina): vale até ser revogado. O que o derruba é conferido a cada
+    entrada, e não guardado como data de validade: `senha_marca` deixa de
+    bater quando a senha muda (por qualquer caminho — redefinição, admin,
+    comando), e `totp_device_id` quando o segundo fator é refeito. Uma data
+    de validade aqui seria a regra que ninguém pediu e que o próximo a ler
+    acharia que é segurança.
+
+    O token do navegador não é guardado: só o SHA-256 dele. Quem lê o banco
+    não consegue fabricar o cookie.
+
+    O termo aceito vai **inteiro**, com versão e hash, como o contrato de
+    adesão (`ContractAcceptance`): a prova é do texto que a pessoa leu, e
+    não do texto que o arquivo tiver no dia da pergunta.
+    """
+
+    class Motivo(models.TextChoices):
+        PELA_PESSOA = 'pela_pessoa', 'Revogado pela própria pessoa'
+        TODOS_PELA_PESSOA = 'todos_pela_pessoa', 'Todos revogados pela própria pessoa'
+        SENHA_TROCADA = 'senha_trocada', 'A senha foi trocada'
+        SEGUNDO_FATOR_REFEITO = 'segundo_fator_refeito', 'O segundo fator foi refeito'
+        MFA_RESETADO = 'mfa_resetado', 'O responsável resetou o segundo fator'
+        CLINICA_PROIBIU = 'clinica_proibiu', 'A organização deixou de permitir'
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='dispositivos_confiaveis')
+    token_hash = models.CharField(max_length=64, unique=True)
+    senha_marca = models.CharField(max_length=64)
+    totp_device_id = models.BigIntegerField()
+    descricao = models.CharField(max_length=80)
+    user_agent = models.CharField(max_length=300, blank=True)
+    ip_protegido = models.CharField(max_length=64, blank=True)
+    termo_versao = models.CharField(max_length=10)
+    termo_sha256 = models.CharField(max_length=64)
+    termo_texto = models.TextField()
+    ultimo_uso_em = models.DateTimeField(null=True, blank=True)
+    revogado_em = models.DateTimeField(null=True, blank=True)
+    revogado_motivo = models.CharField(max_length=40, choices=Motivo.choices, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['user', 'revogado_em'], name='accounts_dispconf_user_idx'),
+        ]
+        constraints = [
+            # Revogado sem motivo (ou motivo sem revogação) é registro que
+            # não responde a pergunta da auditoria: por quê?
+            models.CheckConstraint(
+                condition=(
+                    models.Q(revogado_em__isnull=True, revogado_motivo='')
+                    | (models.Q(revogado_em__isnull=False) & ~models.Q(revogado_motivo=''))
+                ),
+                name='accounts_dispconf_revogado_com_motivo',
+            ),
+        ]
+
+    @property
+    def ativo(self):
+        return self.revogado_em is None
+
+
 class PhysicianProfile(TimestampedModel):
     class VerificationStatus(models.TextChoices):
         # Rótulos em português: aparecem na tela da equipe, onde o

@@ -58,6 +58,19 @@ def qr_code_data_uri(payload):
     return f'data:image/svg+xml;base64,{encoded}'
 
 
+def chave_para_digitar(device):
+    """A chave em base32, em grupos de quatro, para digitar no aplicativo.
+
+    A tela mostrava a URL `otpauth://` inteira como "chave" (até
+    2026-11-18): o aplicativo não a aceita no campo da chave, e a URL leva
+    junto o e-mail da conta. O que se digita é só o segredo; os demais
+    parâmetros (seis dígitos, trinta segundos, SHA1) são o padrão de todo
+    aplicativo, e a tela os diz por extenso.
+    """
+    chave = base64.b32encode(device.bin_key).decode('ascii').rstrip('=')
+    return ' '.join(chave[i:i + 4] for i in range(0, len(chave), 4))
+
+
 def get_confirmed_device(user):
     return TOTPDevice.objects.filter(user=user, confirmed=True).first()
 

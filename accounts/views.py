@@ -12,7 +12,7 @@ from django.views.generic import FormView
 
 from audit.services import record_audit_event
 
-from . import mfa, services, throttling
+from . import dispositivo_confiavel, mfa, services, throttling
 from .forms import MFAChallengeForm, ThrottledAuthenticationForm
 from .models import User
 from base.net import client_ip
@@ -30,6 +30,19 @@ class EmailLoginView(LoginView):
         ip_do_cliente = client_ip(self.request)
         throttling.clear_failures(user.email, ip_do_cliente)
         if mfa.user_has_confirmed_totp(user):
+            # Dispositivo confiável: a senha acabou de ser conferida, e o
+            # navegador traz a marca de um dispositivo desta pessoa, válido e
+            # permitido por todas as clínicas dela. Entra sem o código, mas
+            # **sem** `mark_recent_mfa`: o que pede código recente continua
+            # pedindo (`accounts/dispositivo_confiavel.py`).
+            dispositivo = dispositivo_confiavel.dispositivo_do_pedido(self.request, user)
+            if dispositivo is not None and dispositivo_confiavel.politica_permite(user):
+                auth_login(self.request, user)
+                django_otp_login(self.request, mfa.get_confirmed_device(user))
+                dispositivo_confiavel.registrar_uso(self.request, dispositivo)
+                resposta = HttpResponseRedirect(self.get_success_url())
+                dispositivo_confiavel.renovar_cookie(self.request, resposta)
+                return resposta
             self.request.session[PENDING_MFA_SESSION_KEY] = str(user.id)
             record_audit_event(
                 user, None, 'auth.login_password_ok_mfa_pending', outcome='success',
@@ -62,6 +75,15 @@ class MFAChallengeView(FormView):
             return None
         return User.objects.filter(id=user_id, is_active=True).first()
 
+    def get_context_data(self, **kwargs):
+        dados = super().get_context_data(**kwargs)
+        # A caixa só aparece para quem pode usá-la: oferecer e recusar
+        # depois seria pedir um aceite que não vale nada.
+        dados['pode_confiar'] = dispositivo_confiavel.politica_permite(self.pending_user)
+        dados['termo_texto'] = dispositivo_confiavel.TERMO_TEXTO
+        dados['termo_versao'] = dispositivo_confiavel.TERMO_VERSAO
+        return dados
+
     def form_valid(self, form):
         code = form.cleaned_data['code'].strip()
         user = self.pending_user
@@ -81,7 +103,19 @@ class MFAChallengeView(FormView):
         # acabou de provar o segundo fator para qualquer domínio escrito na
         # URL -- o golpe de phishing perfeito, porque começa no endereço
         # verdadeiro (auditoria de 2026-10-09, ND-1121-010).
-        return redirect(_safe_next(self.request) or 'accounts:tenant-picker')
+        resposta = redirect(_safe_next(self.request) or 'accounts:tenant-picker')
+        # A política é conferida de novo aqui, e não só na tela: a caixa
+        # marcada num POST forjado por quem a clínica não autorizou não cria
+        # nada.
+        if (self.request.POST.get('confiar_dispositivo') == 'sim'
+                and dispositivo_confiavel.politica_permite(user)):
+            dispositivo_confiavel.confiar(self.request, user, resposta)
+            messages.success(
+                self.request,
+                'Dispositivo confiável: neste navegador o código não será mais pedido ao entrar. '
+                'Revogue quando quiser em Minha conta.',
+            )
+        return resposta
 
 
 class VerifyEmailView(View):
@@ -269,14 +303,63 @@ class MinhaContaView(LoginRequiredMixin, View):
             'nome_em_uso': request.user.get_full_name(),
             'perfil_medico': getattr(request.user, 'physician_profile', None),
             'mfa_ativa': mfa.user_has_confirmed_totp(request.user),
+            'dispositivos': dispositivo_confiavel.ativos_da_pessoa(request.user),
+            'dispositivo_atual': dispositivo_confiavel.dispositivo_atual_id(request),
+            'dispositivo_permitido': dispositivo_confiavel.politica_permite(request.user),
         }
+
+
+class DispositivoRevogarView(LoginRequiredMixin, View):
+    """Revoga um dispositivo confiável da própria conta.
+
+    Sem `<id>` de pessoa na rota, como Minha conta: o dispositivo é buscado
+    entre os de `request.user`, e o de outra pessoa é 404 -- não há caminho
+    para revogar (nem descobrir) o de ninguém mais. Só POST.
+    """
+
+    def post(self, request, dispositivo_id):
+        from django.http import Http404
+
+        from .models import DispositivoConfiavel
+
+        dispositivo = DispositivoConfiavel.objects.filter(
+            id=dispositivo_id, user=request.user, revogado_em=None,
+        ).first()
+        if dispositivo is None:
+            raise Http404
+        dispositivo_confiavel.revogar(
+            dispositivo, DispositivoConfiavel.Motivo.PELA_PESSOA, ator=request.user, request=request,
+        )
+        messages.success(request, f'Dispositivo revogado: {dispositivo.descricao}. Nele, o código volta a ser pedido.')
+        resposta = redirect('accounts:minha-conta')
+        if dispositivo_confiavel.dispositivo_atual_id(request) == str(dispositivo.id):
+            dispositivo_confiavel.apagar_cookie(resposta)
+        return resposta
+
+
+class DispositivosRevogarTodosView(LoginRequiredMixin, View):
+    """Revoga todos os dispositivos confiáveis da própria conta."""
+
+    def post(self, request):
+        from .models import DispositivoConfiavel
+
+        total = dispositivo_confiavel.revogar_da_pessoa(
+            request.user, DispositivoConfiavel.Motivo.TODOS_PELA_PESSOA, ator=request.user, request=request,
+        )
+        messages.success(
+            request,
+            f'{total} dispositivo(s) revogado(s). O código volta a ser pedido em todos ao entrar.',
+        )
+        resposta = redirect('accounts:minha-conta')
+        dispositivo_confiavel.apagar_cookie(resposta)
+        return resposta
 
 
 class MFASetupView(LoginRequiredMixin, View):
     @staticmethod
     def _context(request, device, error=None):
         return {
-            'otpauth_url': device.config_url,
+            'chave_manual': mfa.chave_para_digitar(device),
             'qr_code_data_uri': mfa.qr_code_data_uri(device.config_url),
             'next': _safe_next(request),
             'error': error,

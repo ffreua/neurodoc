@@ -6,6 +6,21 @@
 <form method="post" novalidate>
     {% csrf_token %}
     {% include "partials/form_fields.html" %}
+    {% if pode_confiar %}
+    {% comment %}Dispositivo confiável (accounts/dispositivo_confiavel.py). Só
+    aparece quem todas as clínicas da pessoa permitem. O termo fica à vista,
+    e não recolhido: o aceite é de um texto que estava na tela.{% endcomment %}
+    <div class="border rounded-3 p-3 mb-3 bg-light">
+        <div class="fs-12 text-dark border rounded-2 bg-white p-2 mb-2" style="max-height: 11rem; overflow-y: auto; white-space: pre-line" tabindex="0" aria-label="Termo de confiança de dispositivo, versão {{ termo_versao }}">{{ termo_texto }}</div>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="confiar_dispositivo" value="sim" id="confiar-dispositivo">
+            <label class="form-check-label fs-13 fw-semibold" for="confiar-dispositivo">
+                Li e aceito o termo acima, e confio neste dispositivo
+            </label>
+        </div>
+        <p class="fs-11 text-muted mt-1 mb-0">Só em dispositivo de uso pessoal. Nele, o código deixa de ser pedido ao entrar até você revogar em Minha conta.</p>
+    </div>
+    {% endif %}
     <button type="submit" class="btn btn-primary w-100" data-nd-busy>Confirmar</button>
 </form>
 {% endblock %}

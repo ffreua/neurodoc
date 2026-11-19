@@ -18,10 +18,14 @@
     <img src="{{ qr_code_data_uri }}" alt="QR para configurar a autenticação em duas etapas"
          width="220" height="220" class="img-fluid border rounded-3">
 </div>
-<p class="fs-12 text-muted mb-2">Se não puder escanear, adicione esta chave manualmente:</p>
-<div class="bg-gray-100 border rounded-3 p-3 mb-4">
-    <code class="fs-11 text-break">{{ otpauth_url }}</code>
+<p class="fs-12 text-muted mb-2">Se não puder escanear, escolha no aplicativo
+<strong>inserir chave de configuração</strong> e digite:</p>
+<div class="bg-gray-100 border rounded-3 p-3 mb-2 text-center">
+    <code class="fs-14 fw-semibold text-dark user-select-all" style="letter-spacing: .05em">{{ chave_manual }}</code>
 </div>
+<p class="fs-11 text-muted mb-4">Nome da conta: NeuroDoc ({{ request.user.email }}).
+Tipo: baseada no tempo. Os espaços não importam. Não compartilhe esta chave
+nem tire foto dela: quem a tiver gera os seus códigos.</p>
 <form method="post" novalidate>
     {% csrf_token %}
     {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
