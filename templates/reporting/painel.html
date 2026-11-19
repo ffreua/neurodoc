@@ -1,0 +1,325 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Dashboard — NeuroDoc{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Dashboard</li>
+{% endblock %}
+{% block page_actions %}
+<div class="nd-painel-acoes d-flex gap-2">
+    <button type="button" class="btn btn-light-brand btn-sm" data-nd-print>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="me-1" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        <span>Imprimir</span>
+    </button>
+</div>
+{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{% static 'reporting/painel.css' %}">
+<div data-nd-painel>
+
+{# ------------------------------------------------------------- filtros #}
+<div class="card nd-painel-filtros mb-3">
+    <div class="card-body py-3">
+        <div class="row g-2 align-items-end">
+            {% if clinicas|length > 1 %}
+            <div class="col-lg-3 col-md-6">
+                <form method="post" action="{% url 'accounts:switch-tenant' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{% url 'reporting:painel' %}">
+                    <label class="form-label fs-12 text-muted mb-1" for="nd-painel-clinica">Clínica</label>
+                    <select class="form-select form-select-sm" id="nd-painel-clinica" name="tenant_id" data-nd-autosubmit>
+                        {% for c in clinicas %}
+                        <option value="{{ c.id }}" {% if c.id == tenant.id %}selected{% endif %}>{{ c.trade_name|default:c.legal_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <noscript><button class="btn btn-sm btn-light-primary mt-1" type="submit">Trocar</button></noscript>
+                </form>
+            </div>
+            {% endif %}
+            <form method="get" class="col row g-2 align-items-end m-0 p-0">
+                <div class="col-lg-4 col-md-6">
+                    <label class="form-label fs-12 text-muted mb-1" for="nd-painel-medico">Médico</label>
+                    {% if escopo.ve_clinica_inteira %}
+                    <select class="form-select form-select-sm" id="nd-painel-medico" name="medico" data-nd-autosubmit>
+                        <option value="">Todos os médicos da clínica</option>
+                        {% for m in escopo.medicos %}
+                        <option value="{{ m.id }}" {% if escopo.medico and m.id == escopo.medico.id %}selected{% endif %}>{{ m.user.get_full_name }}{% if m.status != 'active' %} (inativo){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    {% else %}
+                    <input class="form-control form-control-sm" id="nd-painel-medico" value="{{ escopo.medico.user.get_full_name|default:'—' }} (sua carteira)" readonly>
+                    {% endif %}
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label fs-12 text-muted mb-1" for="nd-painel-periodo">Período</label>
+                    <select class="form-select form-select-sm" id="nd-painel-periodo" name="periodo" data-nd-autosubmit>
+                        {% for codigo, rotulo in periodos.items %}
+                        <option value="{{ codigo }}" {% if escopo.periodo == codigo %}selected{% endif %}>{{ rotulo }}</option>
+                        {% endfor %}
+                        {% if escopo.periodo == 'personalizado' %}<option value="" selected>Personalizado</option>{% endif %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <noscript><button class="btn btn-sm btn-light-primary" type="submit">Filtrar</button></noscript>
+                </div>
+            </form>
+        </div>
+        <details class="mt-2">
+            <summary class="fs-12 text-primary">Escolher datas</summary>
+            <form method="get" class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                {% if escopo.ve_clinica_inteira and escopo.medico %}<input type="hidden" name="medico" value="{{ escopo.medico.id }}">{% endif %}
+                <label class="fs-12 text-muted" for="nd-painel-inicio">De</label>
+                <input type="date" class="form-control form-control-sm w-auto" id="nd-painel-inicio" name="inicio" value="{{ escopo.inicio|date:'Y-m-d' }}">
+                <label class="fs-12 text-muted" for="nd-painel-fim">até</label>
+                <input type="date" class="form-control form-control-sm w-auto" id="nd-painel-fim" name="fim" value="{{ escopo.fim|date:'Y-m-d' }}">
+                <button class="btn btn-sm btn-light-primary" type="submit">Aplicar</button>
+            </form>
+        </details>
+    </div>
+</div>
+
+<div class="alert alert-primary d-flex align-items-center gap-2 fs-12" role="status">
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="flex-shrink-0" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+    <span>
+        <strong>{{ tenant.trade_name|default:tenant.legal_name }}</strong> ·
+        {% if escopo.medico %}carteira de <strong>{{ escopo.medico.user.get_full_name }}</strong>{% else %}todos os médicos{% endif %} ·
+        de {{ escopo.inicio|date:"d/m/Y" }} a {{ escopo.fim|date:"d/m/Y" }}.
+        O perfil da carteira (idade, sexo, local, origem, pagamento) é dos pacientes ativos; atendimentos, novos e CID são do período.
+    </span>
+</div>
+
+{# ---------------------------------------------------------------- KPIs #}
+<div class="row g-3 mb-3">
+    {% with r=resumo %}
+    <div class="col-lg-4 col-sm-6">
+        <div class="card nd-painel-kpi h-100 mb-0"><div class="card-body d-flex gap-3 align-items-center">
+            <span class="nd-kpi-icone"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path></svg></span>
+            <div><div class="nd-kpi-numero">{{ r.carteira }}</div><div class="nd-kpi-rotulo">Carteira ativa</div></div>
+        </div></div>
+    </div>
+    <div class="col-lg-4 col-sm-6">
+        <div class="card nd-painel-kpi h-100 mb-0"><div class="card-body d-flex gap-3 align-items-center">
+            <span class="nd-kpi-icone"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+            <div><div class="nd-kpi-numero">{{ r.atendimentos }}</div><div class="nd-kpi-rotulo">Atendimentos finalizados</div></div>
+        </div></div>
+    </div>
+    <div class="col-lg-4 col-sm-6">
+        <div class="card nd-painel-kpi h-100 mb-0"><div class="card-body d-flex gap-3 align-items-center">
+            <span class="nd-kpi-icone"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg></span>
+            <div><div class="nd-kpi-numero">{{ r.pacientes_atendidos }}</div><div class="nd-kpi-rotulo">Pacientes atendidos</div></div>
+        </div></div>
+    </div>
+    <div class="col-lg-4 col-sm-6">
+        <div class="card nd-painel-kpi h-100 mb-0"><div class="card-body d-flex gap-3 align-items-center">
+            <span class="nd-kpi-icone"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg></span>
+            <div><div class="nd-kpi-numero">{{ r.novos }}</div><div class="nd-kpi-rotulo">Pacientes novos</div></div>
+        </div></div>
+    </div>
+    <div class="col-lg-4 col-sm-6">
+        <div class="card nd-painel-kpi h-100 mb-0"><div class="card-body d-flex gap-3 align-items-center">
+            <span class="nd-kpi-icone"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></span>
+            <div>
+                <div class="nd-kpi-numero">{% if r.falta.n %}{% widthratio r.falta.no_show r.falta.n 100 %}%{% else %}—{% endif %}</div>
+                <div class="nd-kpi-rotulo">Faltas ({{ r.falta.no_show }} de {{ r.falta.n }})</div>
+            </div>
+        </div></div>
+    </div>
+    <div class="col-lg-4 col-sm-6">
+        <div class="card nd-painel-kpi h-100 mb-0"><div class="card-body d-flex gap-3 align-items-center">
+            <span class="nd-kpi-icone"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg></span>
+            <div><div class="nd-kpi-numero">{{ r.mailing }}</div><div class="nd-kpi-rotulo">Contatos para mailing</div></div>
+        </div></div>
+    </div>
+    {% endwith %}
+</div>
+
+{# -------------------------------------------------------------- mensal #}
+<div class="row g-3 mb-3">
+    <div class="col-lg-6 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Atendimentos por mês</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=mensal">CSV</a>
+            </div>
+            <div class="card-body">
+                <div class="nd-colunas" role="img" aria-label="Atendimentos finalizados por mês; os valores estão na tabela abaixo">
+                    {% for m in mensal %}<div class="nd-coluna" tabindex="0" style="--h:{{ m.alt_atendimentos|stringformat:'s' }}%" data-nd-dica="{{ m.rotulo }}: {{ m.atendimentos }} atendimento{{ m.atendimentos|pluralize }}"><span class="nd-coluna-barra"></span></div>{% endfor %}
+                </div>
+                <div class="nd-colunas-rotulos{% if mensal|length > 12 %} nd-densos{% endif %}" aria-hidden="true">{% for m in mensal %}<span>{{ m.rotulo }}</span>{% endfor %}</div>
+                {% if mensal|length >= max_meses %}<p class="fs-11 text-muted mt-2 mb-0">O gráfico mostra os últimos {{ max_meses }} meses do período; o CSV traz o mesmo.</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Pacientes novos por mês</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=mensal">CSV</a>
+            </div>
+            <div class="card-body">
+                <div class="nd-colunas" role="img" aria-label="Pacientes novos por mês; os valores estão na tabela abaixo">
+                    {% for m in mensal %}<div class="nd-coluna" tabindex="0" style="--h:{{ m.alt_novos|stringformat:'s' }}%" data-nd-dica="{{ m.rotulo }}: {{ m.novos }} paciente{{ m.novos|pluralize }} novo{{ m.novos|pluralize }}"><span class="nd-coluna-barra"></span></div>{% endfor %}
+                </div>
+                <div class="nd-colunas-rotulos{% if mensal|length > 12 %} nd-densos{% endif %}" aria-hidden="true">{% for m in mensal %}<span>{{ m.rotulo }}</span>{% endfor %}</div>
+                <details class="nd-painel-tabela mt-3">
+                    <summary>Ver tabela mês a mês</summary>
+                    <div class="table-responsive mt-2">
+                        <table class="table table-sm mb-0">
+                            <thead><tr><th scope="col">Mês</th><th scope="col" class="text-end">Atendimentos</th><th scope="col" class="text-end">Pacientes novos</th></tr></thead>
+                            <tbody>{% for m in mensal %}<tr><td>{{ m.rotulo }}</td><td class="text-end">{{ m.atendimentos }}</td><td class="text-end">{{ m.novos }}</td></tr>{% endfor %}</tbody>
+                        </table>
+                    </div>
+                </details>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ---------------------------------------------------------- idade e sexo #}
+<div class="row g-3 mb-3">
+    <div class="col-lg-7 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Idade</h5>
+                <div class="d-flex align-items-center gap-2">
+                    {% if idade.mediana is not None %}<span class="badge bg-soft-primary text-primary">Mediana: {{ idade.mediana|floatformat:0 }} anos</span>{% endif %}
+                    <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=idade">CSV</a>
+                </div>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=idade.linhas unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}</div>
+        </div>
+    </div>
+    <div class="col-lg-5 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Sexo no cadastro</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=sexo">CSV</a>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=sexo unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}</div>
+        </div>
+    </div>
+</div>
+
+{# ---------------------------------------------------------- localização #}
+<div class="row g-3 mb-3">
+    <div class="col-lg-5 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Estado (UF)</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=uf">CSV</a>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=uf unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}</div>
+        </div>
+    </div>
+    <div class="col-lg-7 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Município</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=municipio">CSV</a>
+            </div>
+            <div class="card-body">
+                {% include "reporting/_barras.html" with linhas=municipio unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}
+                <p class="fs-11 text-muted mt-2 mb-0">Município com menos de {{ limiar }} pacientes entra em "Outros": a tabela pode ser enviada adiante, e uma cidade com um paciente só identifica a pessoa.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ------------------------------------------------ origem, pagamento, convênio #}
+<div class="row g-3 mb-3">
+    <div class="col-lg-4 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Como chegaram</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=origem">CSV</a>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=origem unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}</div>
+        </div>
+    </div>
+    <div class="col-lg-3 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Pagamento</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=pagamento">CSV</a>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=pagamento unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}</div>
+        </div>
+    </div>
+    <div class="col-lg-5 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Convênios vigentes</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=convenios">CSV</a>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=convenios unidade="pacientes" vazio="Nenhum convênio vigente na carteira." %}</div>
+        </div>
+    </div>
+</div>
+
+{# ------------------------------------------------------------------ CID #}
+{% if diagnosticos is None %}
+<div class="alert alert-soft-secondary fs-13 nd-revela" role="note">
+    <strong>Diagnósticos (CID):</strong> só para quem abre prontuário. O responsável que não é médico administra a clínica sem ler diagnóstico, e a distribuição de CID da carteira, ainda que somada, é informação clínica.
+</div>
+{% else %}
+<div class="row g-3 mb-3">
+    <div class="col-lg-6 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">CID confirmados no período</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=cid">CSV</a>
+            </div>
+            <div class="card-body">{% include "reporting/_barras.html" with linhas=diagnosticos.confirmados unidade="pacientes" vazio="Nenhum diagnóstico confirmado em atendimento finalizado no período." %}</div>
+        </div>
+    </div>
+    <div class="col-lg-6 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Hipóteses (suspeitas) no período</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=cid">CSV</a>
+            </div>
+            <div class="card-body">
+                {% include "reporting/_barras.html" with linhas=diagnosticos.suspeitos unidade="pacientes" vazio="Nenhuma hipótese em atendimento finalizado no período." %}
+                <p class="fs-11 text-muted mt-2 mb-0">Pacientes distintos, pela última palavra do médico sobre cada código no período: a hipótese refutada depois não conta, e confirmados e suspeitas nunca se somam. Os {{ topo }} mais frequentes; o CSV traz todos.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{# -------------------------------------------------------------- mailing #}
+<div class="card nd-painel-card mb-3 nd-revela" id="mailing">
+    <div class="card-header"><h5 class="card-title mb-0">Mailing: e-mails para campanha externa</h5></div>
+    <div class="card-body">
+        <p class="fs-13 mb-2">
+            <strong>{{ resumo.mailing }}</strong> contato{{ resumo.mailing|pluralize }} {% if escopo.medico %}da carteira de {{ escopo.medico.user.get_full_name }} {% endif %}aceita{{ resumo.mailing|pluralize:"m" }} receber comunicação da clínica.
+            Só entra quem deu o <strong>consentimento destacado</strong> no cadastro do contato e não o revogou, com paciente ativo.
+        </p>
+        <p class="fs-12 text-muted mb-3">
+            O arquivo traz nome do contato, e-mail, a data do consentimento e o <strong>link de descadastro</strong> de cada um — ponha o link em toda mensagem: é assim que a revogação chega ao cadastro e vale também para as campanhas do próprio sistema. Nada clínico vai junto. O arquivo vale 24 horas.
+        </p>
+        {% if escopo.pode_exportar_mailing %}
+        <form method="post" action="{% url 'reporting:painel-mailing' %}" class="d-flex flex-column gap-2">
+            {% csrf_token %}
+            {% if escopo.medico %}<input type="hidden" name="medico" value="{{ escopo.medico.id }}">{% endif %}
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="declaracao" value="sim" id="nd-mailing-declaracao" required>
+                <label class="form-check-label fs-13" for="nd-mailing-declaracao">
+                    Declaro que a lista será usada só para comunicação da clínica a quem consentiu, com o link de descadastro em cada mensagem, e que a ferramenta de envio age por conta da clínica.
+                </label>
+            </div>
+            <div><button type="submit" class="btn btn-primary btn-sm" data-nd-busy {% if not resumo.mailing %}disabled{% endif %}>Exportar mailing (CSV)</button></div>
+            <p class="fs-11 text-muted mb-0">Pede o código do celular, como a exportação do acervo, e fica registrado na trilha de auditoria.</p>
+        </form>
+        {% else %}
+        <p class="fs-12 text-muted mb-0">Só o responsável pela clínica exporta o mailing: a decisão de levar dados de pacientes a uma ferramenta externa é de quem contratou.</p>
+        {% endif %}
+    </div>
+</div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{% static 'reporting/painel.js' %}" defer></script>
+{% endblock %}

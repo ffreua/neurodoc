@@ -313,7 +313,17 @@ carimbá-la na publicação.
 #: (as outras especialidades vão ao ProntDoc), e **dezoito páginas de
 #: entrada da busca** (`base/paginas_seo.py`: nove áreas da neurologia e nove
 #: recursos) no sitemap, no JSON-LD e no `llms.txt`. Sem migração.
-VERSION = '1.51'
+#: A **1.52** (2026-11-19, junto com o ProntDoc 1.6.0): **Dashboard** no menu (`reporting/painel.py`,
+#: `/app/reporting/dashboard/`) -- o perfil da carteira e da atividade por
+#: clínica e por médico: idade, sexo, UF e município (célula pequena em
+#: "Outros"), origem, pagamento, convênio, atendimentos e pacientes novos por
+#: mês e CID (só para quem lê prontuário, pela última palavra do médico), cada
+#: tabela em CSV agregado; quem administra escolhe o médico, o médico vê a
+#: própria carteira. E o **mailing**: os e-mails de quem consentiu, com o link
+#: de descadastro de cada um, só pelo responsável, com a declaração de uso e o
+#: segundo fator recente. Junto, a correção da agenda: incluir horário fora da
+#: cadência deixava um período invisível e recusado. Sem migração.
+VERSION = '1.52'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

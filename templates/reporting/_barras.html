@@ -1,0 +1,19 @@
+{% comment %}Barras horizontais de uma tabela do Dashboard, com a tabela por baixo.
+
+Recebe `linhas` (cada uma com `rotulo`, `n`, `pct`, `largura`), `unidade`
+("pacientes") e `vazio` (o texto quando não há dado). O número está escrito
+ao lado de cada barra: a barra mostra a proporção, o texto diz o valor, e a
+cor nunca é a única pista.{% endcomment %}
+{% if linhas %}
+<ul class="nd-barras">
+    {% for l in linhas %}
+    <li class="nd-barra" tabindex="0" data-nd-dica="{{ l.n }} {{ unidade }} · {{ l.pct|floatformat:1 }}%">
+        <span class="nd-barra-rotulo" title="{{ l.rotulo }}">{{ l.rotulo }}</span>
+        <span class="nd-barra-trilho" aria-hidden="true"><span class="nd-barra-preenche" style="--w:{{ l.largura|stringformat:'s' }}%"></span></span>
+        <span class="nd-barra-valor">{{ l.n }} <small>({{ l.pct|floatformat:1 }}%)</small></span>
+    </li>
+    {% endfor %}
+</ul>
+{% else %}
+<p class="text-muted fs-13 mb-0">{{ vazio|default:"Nenhum dado no período." }}</p>
+{% endif %}

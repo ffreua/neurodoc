@@ -204,6 +204,158 @@ class AcervoView(CapabilityRequiredView):
         return redirect('reporting:export-detail', export_id=export.id)
 
 
+#: Os relatórios que o formulário da tela de Indicadores pede.
+RELATORIOS_DOS_INDICADORES = frozenset({'patients_seen_detail'})
+
+
+class PainelView(TenantScopedView):
+    """Dashboard: perfil da carteira e da atividade, por clínica e médico.
+
+    Mesma capacidade dos Indicadores (`MANAGERIAL_DASHBOARD`: responsável,
+    gestor e médico; a secretaria não). O escopo — clínica da sessão, médico
+    pelo papel — é decidido em `painel.resolver_escopo`, nunca aqui: esta
+    view só desenha o que ele devolve.
+
+    `?baixar=<seção>` devolve aquela tabela em CSV, agregada, sem linha de
+    paciente. Cabe na requisição (são dezenas de linhas) e fica na trilha
+    com a seção e o médico escolhido — sem números, que não são de quem
+    audita.
+    """
+
+    def get(self, request):
+        from audit.services import record_audit_event
+
+        from . import painel
+        from .exporters import export_csv
+
+        escopo = painel.resolver_escopo(request.access_context, request.GET)
+        secao = request.GET.get('baixar')
+        if secao:
+            if secao not in painel.SECOES_CSV:
+                raise Http404
+            resultado = painel.linhas_csv(escopo, secao)
+            if resultado is None:
+                raise Http404
+            colunas, linhas = resultado
+            record_audit_event(
+                request.access_context.user_id, request.access_context.tenant_id,
+                'reporting.painel_csv', object_type='painel', object_id=None,
+                integrity_metadata={
+                    'secao': secao, 'medico': escopo.medico_id,
+                    'inicio': escopo.inicio.isoformat(), 'fim': escopo.fim.isoformat(),
+                },
+            )
+            resposta = HttpResponse(
+                '﻿' + export_csv(linhas, colunas), content_type='text/csv; charset=utf-8',
+            )
+            resposta['Content-Disposition'] = (
+                f'attachment; filename="dashboard-{secao}-{escopo.inicio:%Y%m%d}-{escopo.fim:%Y%m%d}.csv"'
+            )
+            resposta['X-Content-Type-Options'] = 'nosniff'
+            resposta['Cache-Control'] = 'private, no-store'
+            return resposta
+
+        from tenancy.models import Membership, MembershipStatus
+
+        clinicas = (
+            Membership.objects.filter(user_id=request.user.id, status=MembershipStatus.ACTIVE)
+            .select_related('tenant').order_by('tenant__legal_name')
+        )
+        from django.utils.http import urlencode
+
+        tenant = Tenant.objects.get(id=escopo.tenant_id)
+        filtro = {'medico': escopo.medico_id} if escopo.ve_clinica_inteira and escopo.medico_id else {}
+        if escopo.periodo == 'personalizado':
+            filtro.update(inicio=escopo.inicio.isoformat(), fim=escopo.fim.isoformat())
+        else:
+            filtro['periodo'] = escopo.periodo
+        return render(request, 'reporting/painel.html', {
+            'escopo': escopo,
+            'qs': urlencode(filtro),
+            'tenant': tenant,
+            'clinicas': [m.tenant for m in clinicas],
+            'periodos': painel.PERIODOS,
+            'resumo': painel.resumo(escopo),
+            'mensal': painel.mensal(escopo),
+            'idade': painel.idade(escopo),
+            'sexo': painel.sexo(escopo),
+            'uf': painel.uf(escopo),
+            'municipio': painel.municipio(escopo, limite=painel.TOPO),
+            'origem': painel.origem(escopo),
+            'pagamento': painel.pagamento(escopo),
+            'convenios': painel.convenios(escopo, limite=painel.TOPO),
+            'diagnosticos': painel.diagnosticos(escopo, limite=painel.TOPO),
+            'max_meses': painel.MAX_MESES,
+            'topo': painel.TOPO,
+            'limiar': painel.SMALL_CELL_THRESHOLD,
+        })
+
+
+class MailingView(CapabilityRequiredView):
+    """Lista de e-mails para mailing externo: só de quem consentiu.
+
+    Só o responsável (`MANAGE_ORGANIZATION`): a clínica é a controladora, e
+    quem decide mandar dados de pacientes a uma ferramenta de terceiros é
+    quem responde por ela — o mesmo critério do acervo (cláusula 13.1).
+
+    Três travas antes de sair qualquer linha, e as três ficam na trilha pelo
+    motor de exportação:
+
+    - o **segundo fator confirmado há pouco**, como no acervo: a lista de
+      e-mails de uma clínica de neurologia é o arquivo que mais vale a quem
+      tiver só a senha de alguém;
+    - a **declaração de uso**, marcada a cada pedido e gravada nos
+      parâmetros da exportação — é a prova de que quem baixou foi avisado
+      de que a lista só serve a quem consentiu e que cada mensagem leva o
+      link de descadastro;
+    - o **escopo** reconferido no servidor: o médico escolhido tem de ser
+      desta clínica, senão a lista sai vazia (nunca a da clínica inteira).
+    """
+
+    required_capability = Capability.MANAGE_ORGANIZATION
+
+    def post(self, request):
+        from django.contrib import messages
+        from django.urls import reverse
+        from django.utils.http import urlencode
+
+        from accounts import mfa
+        from tenancy.models import Membership
+
+        from . import painel
+        from .services import ReportNotAllowed, ReportNotFound
+
+        escopo = painel.resolver_escopo(request.access_context, request.POST)
+        volta = reverse('reporting:painel')
+        if escopo.medico_id:
+            volta = f'{volta}?{urlencode({"medico": escopo.medico_id})}'
+        if request.POST.get('declaracao') != 'sim':
+            messages.error(
+                request,
+                'Para exportar o mailing, marque a declaração de uso: a lista é só para '
+                'quem consentiu, e cada mensagem precisa levar o link de descadastro.',
+            )
+            return redirect(volta)
+        if not mfa.user_has_confirmed_totp(request.user):
+            messages.warning(
+                request,
+                'Para exportar o mailing, configure antes o código do celular (segundo fator).',
+            )
+            return redirect(f'{reverse("accounts:mfa-setup")}?{urlencode({"next": volta})}')
+        if not mfa.mfa_verified_recently(request):
+            return mfa.redirect_to_mfa_confirm(request, destino=volta)
+
+        membership = Membership.objects.filter(id=request.access_context.membership_id).first()
+        try:
+            export = request_export(
+                request.access_context, membership, 'mailing_contatos',
+                {'medico': escopo.medico_id, 'declaracao': True}, kind=ReportExportKind.CSV,
+            )
+        except (ReportNotAllowed, ReportNotFound):
+            raise Http404
+        return redirect('reporting:export-detail', export_id=export.id)
+
+
 class ExportRequestView(TenantScopedView):
     def post(self, request):
         from django.contrib import messages
@@ -214,6 +366,12 @@ class ExportRequestView(TenantScopedView):
 
         membership = Membership.objects.filter(id=request.access_context.membership_id).first()
         report_name = request.POST.get('report_name')
+        # Esta porta é a dos indicadores por período, e só deles. O mailing
+        # do Dashboard tem a dele (`MailingView`), que exige o segundo fator
+        # recente e a declaração de uso; aceitar qualquer nome aqui deixaria
+        # o mesmo arquivo sair por esta, sem nenhuma das duas.
+        if report_name not in RELATORIOS_DOS_INDICADORES:
+            raise Http404
         # Datas lidas aqui (auditoria de 2026-11-11): vazias ou ilegíveis,
         # elas estouravam dentro do relatório **depois** de a exportação ter
         # sido criada como "Processando" — erro 500, e a linha presa nesse

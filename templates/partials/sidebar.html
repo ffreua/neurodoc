@@ -13,7 +13,18 @@
                     <label>Assistencial</label>
                 </li>
                 {% if nd_can.managerial_dashboard %}
-                <li class="nxl-item {% if nd_section == 'reporting' %}active{% endif %}">
+                {% comment %}Dashboard (2026-11-19) e Indicadores são do mesmo app,
+                e por isso a seção ativa é decidida pelo nome da rota: sem isso,
+                abrir um acende os dois.{% endcomment %}
+                <li class="nxl-item {% if nd_section == 'reporting' and nd_view == 'painel' %}active{% endif %}">
+                    <a class="nxl-link" href="{% url 'reporting:painel' %}">
+                        <span class="nxl-micon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"></rect><rect x="14" y="3" width="7" height="5" rx="1"></rect><rect x="14" y="12" width="7" height="9" rx="1"></rect><rect x="3" y="16" width="7" height="5" rx="1"></rect></svg>
+                        </span>
+                        <span class="nxl-mtext">Dashboard</span>
+                    </a>
+                </li>
+                <li class="nxl-item {% if nd_section == 'reporting' and nd_view != 'painel' %}active{% endif %}">
                     <a class="nxl-link" href="{% url 'reporting:dashboard' %}">
                         <span class="nxl-micon">
                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>

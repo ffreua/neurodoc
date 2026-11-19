@@ -7,7 +7,7 @@ class ReportingConfig(AppConfig):
     def ready(self):
         from tenancy.permissions import Capability
 
-        from . import acervo, patients
+        from . import acervo, painel, patients
         from .models import ReportExportKind
         from .services import register_report
 
@@ -48,4 +48,19 @@ class ReportingConfig(AppConfig):
             markdown_fn=acervo.atendimentos_markdown,
             capability=(Capability.MANAGE_ORGANIZATION, Capability.READ_CLINICAL),
             kinds=[ReportExportKind.MD, ReportExportKind.JSON],
+        )
+
+        # ------------------------------------------- mailing do Dashboard
+        #
+        # Os e-mails de quem consentiu receber comunicação, para a clínica
+        # levar a uma ferramenta de mailing externa. Só o responsável
+        # (`MANAGE_ORGANIZATION`), como o acervo: decidir mandar dados de
+        # paciente a um terceiro é da CONTRATANTE. CSV, que é o que toda
+        # ferramenta de mailing importa. A porta é `MailingView`, que exige
+        # o segundo fator recente e a declaração de uso antes de chegar aqui.
+        register_report(
+            'mailing_contatos', painel.mailing_rows, painel.MAILING_COLUNAS,
+            count_fn=painel.mailing_count,
+            capability=Capability.MANAGE_ORGANIZATION,
+            kinds=[ReportExportKind.CSV],
         )
