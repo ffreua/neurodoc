@@ -29,7 +29,9 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
             <span class="brand-name">NeuroDoc</span>
         </a>
         <div class="d-flex align-items-center gap-3">
-            <a class="fs-13 fw-semibold d-none d-lg-inline" href="{% url 'onboarding:landing' %}#novidades">Novidades</a>
+            <a class="fs-13 fw-semibold d-none d-xl-inline" href="{% url 'onboarding:landing' %}#ia">IA</a>
+            <a class="fs-13 fw-semibold d-none d-lg-inline" href="{% url 'onboarding:landing' %}#recursos">Recursos</a>
+            <a class="fs-13 fw-semibold d-none d-xl-inline" href="{% url 'onboarding:landing' %}#neurologia">Neurologia</a>
             <a class="fs-13 fw-semibold d-none d-md-inline" href="{% url 'onboarding:landing' %}#planos">Planos</a>
             <a class="fs-13 fw-semibold d-none d-md-inline" href="{% url 'onboarding:help' %}">Ajuda</a>
             <a class="btn btn-sm btn-outline-secondary" href="{% url 'accounts:login' %}">Entrar</a>
@@ -101,6 +103,23 @@ não tem conta, e `TenantMiddleware` não resolveu organização nenhuma.
                     <li><a href="{{ nd_instagram.url }}" target="_blank" rel="noopener noreferrer">Instagram {{ nd_instagram.usuario }}</a></li>
                     <li><a href="{% url 'accounts:login' %}">Entrar na minha clínica</a></li>
                 </ul>
+            </div>
+        </div>
+        {% comment %}As páginas de entrada da busca em toda página pública
+        (2026-11-18): é pelos links internos que o rastreador chega a todas, e
+        quem caiu numa área descobre as outras. E o ProntDoc, para quem não é
+        da neurologia.{% endcomment %}
+        <div class="row g-4 mt-1">
+            <div class="col-md-6">
+                <h6 class="fs-12 fw-bold text-dark text-uppercase">Prontuário por área da neurologia</h6>
+                <p class="fs-12 mb-0">{% for p in nd_paginas_areas %}<a href="{% url 'onboarding:area' p.slug %}">{{ p.nome }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+            </div>
+            <div class="col-md-6">
+                <h6 class="fs-12 fw-bold text-dark text-uppercase">Recursos</h6>
+                <p class="fs-12 mb-0">{% for p in nd_paginas_recursos %}<a href="{% url 'onboarding:recurso' p.slug %}">{{ p.nome }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</p>
+            </div>
+            <div class="col-12">
+                <p class="fs-12 text-muted mb-0">Outras especialidades: <a href="https://prontdoc.app.br/" rel="noopener">ProntDoc, o prontuário eletrônico do mesmo time para qualquer especialidade</a>.</p>
             </div>
         </div>
         <hr class="my-4">

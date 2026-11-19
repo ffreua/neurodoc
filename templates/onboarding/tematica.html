@@ -1,0 +1,118 @@
+{% extends "base_public.html" %}
+{% load static %}
+{% comment %}Página de entrada da busca — uma área da neurologia ou um recurso
+(`base/paginas_seo.py`, trazida do ProntDoc em 2026-11-18). Título, descrição,
+canônica e JSON-LD saem de `base/seo.py`; aqui só o conteúdo visível. As
+perguntas ficam **na página**, abertas, porque o JSON-LD as marca como FAQ e o
+Google só aceita marcar o que o leitor vê. Os links para as outras páginas são
+o que leva o rastreador a todas elas.{% endcomment %}
+{% block content %}
+<div class="nd-leitura" data-nd-leitura aria-hidden="true"><span></span></div>
+
+<section class="nd-section nd-hero nd-hero-v2 nd-hero-animado nd-tematica-hero">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9 text-center">
+                <nav aria-label="Trilha" class="fs-12 mb-3">
+                    <a href="{% url 'onboarding:landing' %}">Início</a>
+                    <span class="text-muted mx-1">/</span>
+                    <a href="{% url 'onboarding:landing' %}{% if tipo == 'area' %}#neurologia{% else %}#recursos{% endif %}">{% if tipo == 'area' %}Neurologia{% else %}Recursos{% endif %}</a>
+                </nav>
+                <span class="nd-eyebrow nd-entra"><span class="nd-pulso" aria-hidden="true"></span>{{ item.nome }}</span>
+                <h1 class="fw-bold text-dark mt-2 nd-tematica-titulo nd-entra" style="--nd-atraso: 80ms">{{ item.h1 }}</h1>
+                <p class="fs-17 text-dark mt-3 mb-4 mx-auto nd-largura-texto nd-entra" style="--nd-atraso: 160ms">{{ item.chamada }}</p>
+                <div class="d-flex flex-wrap justify-content-center gap-2 nd-entra" style="--nd-atraso: 240ms">
+                    <a class="btn btn-primary btn-lg nd-btn-brilho" href="{% url 'onboarding:landing' %}#planos">Começar grátis agora</a>
+                    <a class="btn btn-light btn-lg" href="{% url 'onboarding:landing' %}#recursos">Ver tudo o que o NeuroDoc faz</a>
+                </div>
+                <p class="fs-12 text-muted mt-3 mb-0">Plano Gratuito sem prazo e sem cartão · teste o Completo por 7 dias, com IA</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="nd-section bg-white">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                {% for paragrafo in item.intro %}
+                <p class="fs-15 text-dark mb-3 nd-reveal">{{ paragrafo }}</p>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="row g-4 mt-2">
+            {% for titulo, texto in item.destaques %}
+            <div class="col-lg-3 col-md-6 nd-reveal" data-nd-atraso="{% cycle 0 1 2 3 %}">
+                <div class="card h-100 nd-lift nd-spot">
+                    <div class="card-body">
+                        <span class="nd-recurso-icone">{% include "onboarding/_icone.html" with nome="check" %}</span>
+                        <h2 class="fs-15 fw-bold text-dark mt-3">{{ titulo }}</h2>
+                        <p class="fs-13 text-muted mb-0">{{ texto }}</p>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</section>
+
+<section class="nd-section">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <h2 class="fw-bold text-dark mb-4 text-center">Perguntas frequentes</h2>
+                {% for pergunta, resposta in item.perguntas %}
+                <div class="card mb-3 nd-reveal">
+                    <div class="card-body">
+                        <h3 class="fs-15 fw-bold text-dark">{{ pergunta }}</h3>
+                        <p class="fs-14 text-muted mb-0">{{ resposta }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="nd-section nd-section-compacta bg-white">
+    <div class="container">
+        <div class="nd-cta-final nd-reveal">
+            <h2 class="fw-bold text-white">Seu consultório de neurologia, sem papel e sem retrabalho</h2>
+            <p class="fs-15 mx-auto nd-largura-texto">
+                Comece no Gratuito agora, sem cartão, ou teste o Completo — com IA, TISS e
+                agenda de exames — por 7 dias.
+            </p>
+            <a class="btn btn-light btn-lg nd-btn-brilho" href="{% url 'onboarding:landing' %}#planos">Ver planos e começar</a>
+        </div>
+    </div>
+</section>
+
+<section class="nd-section nd-section-compacta">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <h2 class="fs-16 fw-bold text-dark">Prontuário por área da neurologia</h2>
+                <ul class="list-unstyled fs-14 mb-0">
+                    {% for p in areas %}
+                    <li class="mb-1"><a href="{% url 'onboarding:area' p.slug %}">{{ p.h1 }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h2 class="fs-16 fw-bold text-dark">Recursos do NeuroDoc</h2>
+                <ul class="list-unstyled fs-14 mb-0">
+                    {% for p in recursos %}
+                    <li class="mb-1"><a href="{% url 'onboarding:recurso' p.slug %}">{{ p.h1 }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        <p class="fs-13 text-muted mt-4 mb-0 border-start border-3 ps-3">
+            Atende outra especialidade? O <a href="https://prontdoc.app.br/" rel="noopener">ProntDoc</a>
+            é o prontuário eletrônico do mesmo time para qualquer especialidade.
+        </p>
+    </div>
+</section>
+
+<script src="{% static 'onboarding/landing.js' %}"></script>
+{% endblock %}

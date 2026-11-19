@@ -306,7 +306,14 @@ carimbá-la na publicação.
 #: (`accounts/dispositivo_confiavel.py`); e a tela de configurar o segundo
 #: fator mostrando só a chave, com o nome do sistema no QR. Migração só de
 #: expansão (`accounts.0005`, `tenancy.0024`).
-VERSION = '1.50'
+#: A **1.51** (2026-11-18): a **vitrine repaginada** sobre a do ProntDoc —
+#: efeitos de rolagem e de cursor, copy de vendas, a IA, o portal com o
+#: WhatsApp, o SNCR, o TISS e o estruturado ou texto livre em destaque, o
+#: código aberto citado de leve —, o NeuroDoc como produto de neurologia
+#: (as outras especialidades vão ao ProntDoc), e **dezoito páginas de
+#: entrada da busca** (`base/paginas_seo.py`: nove áreas da neurologia e nove
+#: recursos) no sitemap, no JSON-LD e no `llms.txt`. Sem migração.
+VERSION = '1.51'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

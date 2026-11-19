@@ -12,6 +12,9 @@ urlpatterns = [
     # contrato que so aparece na hora de clicar em "aceito" e um contrato
     # que ninguem teve como avaliar.
     path('contrato/', views.ContractView.as_view(), name='contrato'),
+    # Páginas de entrada da busca (2026-11-18, `base/paginas_seo.py`).
+    path('neurologia/<slug:slug>/', views.TematicaView.as_view(tipo='area'), name='area'),
+    path('recursos/<slug:slug>/', views.TematicaView.as_view(tipo='recurso'), name='recurso'),
     # Plano Gratuito sem intermediário: o botão do cartão posta aqui, o
     # convite é emitido na hora e a pessoa segue para `signup`. Os planos
     # pagos continuam indo ao formulário de contato, onde a conversa

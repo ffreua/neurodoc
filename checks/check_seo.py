@@ -36,12 +36,14 @@ O que este roteiro cobra, e onde da errado:
 - **os icones respondem na raiz**, com os bytes certos: o `.ico` e um ICO
   de verdade e o cartao do Open Graph mede 1200x630 -- o tamanho que o
   WhatsApp e o LinkedIn esperam;
-- **a pagina diz que serve a outras especialidades, e diz por onde.** E a
-  secao que impede um ortopedista de ir embora na primeira tela; a linha
-  de fecho e a que responde "e eu, como uso isto?" -- texto livre. A
-  mesma resposta tem de estar no FAQ e no JSON-LD da raiz, que e o que o
-  Google mostra a quem procura "prontuario eletronico" sem dizer
-  especialidade nenhuma.
+- **o NeuroDoc e de neurologia, e a pagina diz para onde vai quem nao e**
+  (2026-11-18). Ate aqui este roteiro cobrava "serve a qualquer
+  especialidade"; por decisao do titular, as outras especialidades vao ao
+  ProntDoc, e a mesma resposta tem de estar no FAQ e no JSON-LD da raiz,
+  que e o que o Google mostra a quem procura "prontuario eletronico";
+- **as paginas de entrada da busca** (`base/paginas_seo.py`) estao no
+  sitemap, ligadas da raiz e no `llms.txt` -- e, como toda URL do sitemap,
+  passam pelas conferencias da secao 13 (200, indexavel, canonica, um H1).
 """
 import json
 import re
@@ -56,7 +58,8 @@ from django.test import Client
 from django.urls import reverse
 
 from base import seo
-from base.content import ESPECIALIDADES, FAQ
+from base.content import ESPECIALIDADES, FAQ, PRONTDOC
+from base.paginas_seo import AREAS, RECURSOS as PAGINAS_RECURSOS
 from base.help_content import ARTICLES
 from tenancy.models import Membership, MembershipStatus, Tenant
 from tenancy.plans import PERIODICIDADES, PLANS, PUBLIC_ORDER, preco_na_periodicidade
@@ -319,30 +322,44 @@ conferir('o atalho instalado abre o aplicativo, nao a pagina de vendas',
 conferir('a pagina declara o manifesto', 'rel="manifest"' in html, True)
 conferir('e o icone vetorial', 'href="/neurodoc-mark.svg"' in html, True)
 
-print('\n9. A pagina responde "isto serve para a minha especialidade?"')
-conferir('a secao existe', ESPECIALIDADES['titulo'] in html, True)
-conferir('o selo do topo nao fecha a porta',
-         'qualquer especialidade' in html.split('<h1')[0], True)
+print('\n9. A pagina e de neurologia, e encaminha as outras especialidades ao ProntDoc')
+conferir('a secao das areas existe', ESPECIALIDADES['titulo'] in html, True)
+conferir('o topo nao promete servir a qualquer especialidade',
+         'qualquer especialidade' in html.split('<h1')[0], False)
+conferir('a pagina nao diz mais que o NeuroDoc serve a todas',
+         any(f in html for f in ('Funciona em qualquer consultório', 'Serve a qualquer especialidade')), False)
 conferir('o H1 diz "prontuario eletronico" por extenso',
          'prontuário eletrônico' in re.search(r'<h1[^>]*>(.*?)</h1>', html, re.S).group(1).lower(),
          True)
-faltando = [t for t, _ in ESPECIALIDADES['comum'] if t not in html]
-conferir('todo item do catalogo que serve a qualquer especialidade esta na pagina',
-         faltando, [])
-conferir('a linha de fecho tambem -- e ela que diz por onde o outro medico entra',
-         ESPECIALIDADES['fecho'][:60] in html, True)
-# A pergunta de encaixe tem de estar no FAQ **e** nos dados estruturados:
-# e ela que o Google mostra a quem procura "prontuario eletronico" sem
-# dizer especialidade nenhuma.
+conferir('o ProntDoc esta na pagina, com o endereco', f'href="{PRONTDOC["url"]}"' in html, True)
+conferir('a linha de fecho das areas tambem', ESPECIALIDADES['fecho'][:60] in html, True)
+sem_link = [a['slug'] for a in AREAS if f'/neurologia/{a["slug"]}/' not in html]
+conferir('a raiz liga cada area da neurologia', sem_link, [])
+sem_link = [p['slug'] for p in PAGINAS_RECURSOS if f'/recursos/{p["slug"]}/' not in html]
+conferir('e cada pagina de recurso', sem_link, [])
 encaixe = [f for f in FAQ if 'outras especialidades' in f['pergunta']]
-conferir('o FAQ responde como o sistema serve a outra especialidade',
-         len(encaixe), 1)
-conferir('e a resposta diz que se evolui em texto livre',
-         'texto livre' in encaixe[0]['resposta'], True)
+conferir('o FAQ responde sobre outras especialidades', len(encaixe), 1)
+conferir('e a resposta encaminha ao ProntDoc, com o endereco',
+         'ProntDoc' in encaixe[0]['resposta'] and 'prontdoc.app.br' in encaixe[0]['resposta'], True)
 conferir('e esta tambem no JSON-LD da raiz',
          encaixe[0]['pergunta'] in [q['name'] for q in perguntas['mainEntity']], True)
-conferir('a descricao do catalogo diz o mesmo',
-         'qualquer especialidade' in seo.RESUMO, True)
+conferir('a descricao do catalogo nao promete qualquer especialidade',
+         'qualquer especialidade' in seo.RESUMO, False)
+conferir('e diz neurologia', 'neurologia' in seo.RESUMO, True)
+# A pagina de entrada da busca, por dentro: area e recurso abrem, com a
+# trilha, as perguntas visiveis (que o JSON-LD marca como FAQ) e o
+# encaminhamento ao ProntDoc no pe.
+for caminho, item in ((f'/neurologia/{AREAS[0]["slug"]}/', AREAS[0]),
+                      (f'/recursos/{PAGINAS_RECURSOS[0]["slug"]}/', PAGINAS_RECURSOS[0])):
+    r = anonimo.get(caminho)
+    corpo = r.content.decode()
+    conferir(f'{caminho} abre', r.status_code, 200)
+    conferir(f'{caminho}: o H1 e o da busca', item['h1'] in corpo, True)
+    conferir(f'{caminho}: as perguntas estao visiveis', all(p in corpo for p, _ in item['perguntas']), True)
+    conferir(f'{caminho}: FAQPage no JSON-LD', '"FAQPage"' in corpo, True)
+    conferir(f'{caminho}: encaminha ao ProntDoc', 'prontdoc.app.br' in corpo, True)
+conferir('slug inexistente e 404', anonimo.get('/neurologia/nao-existe/').status_code, 404)
+conferir('recurso inexistente e 404', anonimo.get('/recursos/nao-existe/').status_code, 404)
 
 print('\n10. Verificacao do Google Search Console')
 tag = '<meta name="google-site-verification"'
@@ -418,6 +435,11 @@ conferir('comeca pelo titulo, como pede llmstxt.org', curto.startswith('# NeuroD
 conferir('traz todos os recursos da vitrine',
          [r['titulo'] for r in RECURSOS if r['titulo'] not in curto], [])
 conferir('e diz o que nao emite (decisao D9)', 'talidomida' in curto, True)
+conferir('encaminha as outras especialidades ao ProntDoc', 'prontdoc.app.br' in curto, True)
+conferir('lista as paginas de area e de recurso',
+         all(f'/neurologia/{a["slug"]}/' in curto for a in AREAS)
+         and all(f'/recursos/{p["slug"]}/' in curto for p in PAGINAS_RECURSOS), True)
+conferir('nao diz que os dados ficam no Brasil (o servidor e nos EUA)', 'ficam no Brasil' in curto, False)
 conferir('traz o FAQ da vitrine', [f['pergunta'] for f in FAQ if f['pergunta'] not in curto], [])
 conferir('o preco do Basico e o do catalogo',
          pricing('basic')['periodos'][0]['mensal'] in curto, True)

@@ -5,131 +5,221 @@ mesma pagina. Dois lugares para o mesmo texto e um deles envelhecendo.{% endcomm
 {% block content %}
 
 {% comment %}
-Página de vendas.
+Página de vendas, repaginada em 2026-11-18 sobre a do ProntDoc: barra de
+leitura, herói com a prévia desenhada da tela, faixa das áreas da neurologia,
+passos que enchem com a rolagem, os cinco trunfos (a IA primeiro), recursos
+com brilho que segue o cursor e a faixa escura de segurança. Todo movimento
+cede a `prefers-reduced-motion` (`static/onboarding/landing.css`), e a página
+está inteira sem JavaScript.
 
-**Sem depoimento e sem estatística inventados**, de propósito. Depoimento
-fabricado de médico é falso testemunho sobre produto de saúde, e um
-contador em zero anuncia que não há clientes. Quando houver clínicas no
-piloto, os números entram medidos.
+**Copy de vendas, sem inventar.** Sem depoimento e sem estatística: depoimento
+fabricado de médico é falso testemunho sobre produto de saúde, e um contador em
+zero anuncia que não há clientes. Os números que aparecem — 387 itens, 14
+escalas, sete versões do TISS — são do produto, e os textos moram em
+`base/content.py` e `base/paginas_seo.py`, onde os roteiros os conferem.
 
 Os limites **e os preços** dos planos vêm de `tenancy.plans`, pela view —
-nunca escritos aqui. Isso inclui o valor riscado da promoção e o
-percentual de desconto: são derivados do preço cobrado, e não um segundo
-número guardado ao lado dele. Anunciar "até 500 pacientes" enquanto o
-servidor corta em 400 seria descoberto pelo cliente, no dia em que ele
-batesse o limite.
+nunca escritos aqui. Anunciar "até 500 pacientes" enquanto o servidor corta em
+400 seria descoberto pelo cliente, no dia em que ele batesse o limite.
+
+O NeuroDoc é de neurologia e neurocirurgia; a página encaminha as outras
+especialidades ao ProntDoc (`content.PRONTDOC`), em vez de prometer servir a
+todas.
 {% endcomment %}
+<div class="nd-leitura" data-nd-leitura aria-hidden="true"><span></span></div>
 
 <!-- ------------------------------------------------------------- hero -->
-<section class="nd-hero nd-hero-animado">
+<section class="nd-hero nd-hero-v2 nd-hero-animado">
     <div class="container">
         {% comment %}`g-lg-5` e nao `g-5`: a calha de 3rem vira margem negativa
         de 24px de cada lado da `row`, e a folga do `container` e de 12px —
         num celular de 390px a linha passava 12px da tela e a pagina de
-        vendas rolava na horizontal. Abaixo de `lg` as colunas empilham, e
-        calha horizontal ali nao separa nada.{% endcomment %}
+        vendas rolava na horizontal.{% endcomment %}
         <div class="row align-items-center g-4 g-lg-5">
             <div class="col-lg-6">
-                <div class="d-flex flex-wrap gap-2 mb-3">
-                    <span class="badge bg-soft-primary text-primary">Neurologia, neurocirurgia — e qualquer especialidade</span>
-                    <a class="badge bg-soft-success text-success text-decoration-none" href="#novidades">Novo: faturamento TISS e agenda de exames</a>
-                    <a class="badge bg-soft-warning text-warning text-decoration-none" href="#residentes">Residentes e recém-formados: {{ promo_carreira.desconto }}% de desconto</a>
-                </div>
-                {% comment %}O H1 diz "prontuario eletronico" por extenso de proposito: e o
-                termo pelo qual se procura este produto, e era a unica palavra que
-                faltava numa frase que ja estava certa. Um H1 que nao contem o nome
-                da coisa obriga o buscador a adivinhar do resto da pagina.
-                {% endcomment %}
-                <h1 class="nd-hero-title">O prontuário eletrônico que entende o exame neurológico.</h1>
-                <p class="nd-hero-lead">
-                    Agenda, prontuário estruturado, roteiro de exame em árvore, escalas,
-                    receita digital com a numeração da Anvisa, faturamento de convênio no
-                    padrão TISS e documentos assinados. Feito por um neurologista para o
-                    consultório de neurologia.
+                <span class="nd-eyebrow nd-entra"><span class="nd-pulso" aria-hidden="true"></span>Neurologia e neurocirurgia · com IA</span>
+                {% comment %}O H1 diz "prontuário eletrônico" por extenso de propósito: é o
+                termo pelo qual se procura este produto (e `check_seo` o cobra).{% endcomment %}
+                <h1 class="nd-hero-title nd-entra" style="--nd-atraso: 80ms">O prontuário eletrônico de neurologia que <span class="nd-grifo">trabalha por você</span>.</h1>
+                <p class="nd-hero-lead nd-entra" style="--nd-atraso: 160ms">
+                    A IA redige, o portal atende o paciente, o WhatsApp sai num clique, a receita
+                    controlada vai pelo SNCR e o convênio fatura no TISS. Você examina, decide e
+                    assina — no estruturado ou no texto livre, do jeito que já escreve.
                 </p>
-                <div class="d-flex flex-wrap gap-2">
-                    <a class="btn btn-primary btn-lg" href="#planos">Ver os planos</a>
-                    <a class="btn btn-outline-secondary btn-lg" href="#contato">Falar com a gente</a>
+                <div class="d-flex flex-wrap gap-2 nd-entra" style="--nd-atraso: 240ms">
+                    <a class="btn btn-primary btn-lg nd-btn-brilho" href="#planos">Começar grátis agora</a>
+                    <a class="btn btn-outline-secondary btn-lg" href="#ia">Ver a IA trabalhando</a>
                 </div>
-                <p class="fs-12 text-muted mt-3 mb-0">
-                    O plano gratuito não pede cartão de crédito.
+                <p class="fs-12 text-muted mt-3 mb-3 nd-entra" style="--nd-atraso: 300ms">
+                    Plano Gratuito sem cartão e sem prazo · Completo com IA por {{ degustacao.dias }} dias, de graça
                 </p>
+                <ul class="nd-selos list-unstyled d-flex flex-wrap gap-2 mb-0 nd-entra" style="--nd-atraso: 360ms">
+                    <li>{% include "onboarding/_icone.html" with nome="ia" %}IA clínica</li>
+                    <li>{% include "onboarding/_icone.html" with nome="receita" %}Receita no SNCR da Anvisa</li>
+                    <li>{% include "onboarding/_icone.html" with nome="tiss" %}Padrão TISS da ANS</li>
+                    <li>{% include "onboarding/_icone.html" with nome="assinatura" %}Assinatura digital</li>
+                    <li>{% include "onboarding/_icone.html" with nome="escudo" %}LGPD</li>
+                </ul>
             </div>
             <div class="col-lg-6">
-                <div class="card nd-hero-card nd-lift">
-                    <div class="card-body">
-                        <h6 class="fw-bold text-dark mb-3">O que o sistema faz hoje</h6>
-                        <ul class="nd-tick list-unstyled mb-0">
-                            <li>Roteiro de exame neurológico com 387 itens e 14 escalas pontuadas</li>
-                            <li>Assinatura digital PAdES com QR de verificação pública</li>
-                            <li>Agenda por médico, com confirmação por e-mail e SMS</li>
-                            <li>Portal onde o paciente pede receita sem criar conta</li>
-                            <li>Receita controlada e Notificação A, B e B2 eletrônicas, com a numeração da Anvisa (SNCR)</li>
-                            <li>Guias TISS e lotes XML para os convênios, e agenda de exames</li>
-                            <li>Apoio de IA que o médico revisa antes de aceitar</li>
-                        </ul>
+                {% comment %}Prévia desenhada, e não captura: uma captura envelhece a cada
+                versão e carregaria dado de demonstração; o desenho mostra a ideia —
+                abas do atendimento, escala calculada, receita assinada.{% endcomment %}
+                <div class="nd-mock-palco" data-nd-parallax aria-hidden="true">
+                    <div class="nd-mock">
+                        <div class="nd-mock-barra"><i></i><i></i><i></i><span>Atendimento · seguimento</span></div>
+                        <div class="nd-mock-corpo">
+                            <div class="nd-mock-abas">
+                                <span>Evolução</span><span class="ativa">Exame</span><span>Escalas</span><span>Conduta</span><span>IA</span>
+                            </div>
+                            <div class="nd-mock-rotulo">Exame neurológico · motor</div>
+                            <span class="nd-mock-linha nd-mock-digitando" style="--l: 64%"></span>
+                            <span class="nd-mock-linha" style="--l: 88%"></span>
+                            <div class="nd-mock-grade">
+                                <div><b>Escalas</b><span class="nd-mock-chip">NIHSS 4</span><span class="nd-mock-chip">mRS 2</span><span class="nd-mock-chip">Barthel 85</span></div>
+                                <div><b>Hipóteses</b><span class="nd-mock-chip">CID-10</span><span class="nd-mock-chip">CID-11</span></div>
+                            </div>
+                            <div class="nd-mock-rodape"><span class="nd-mock-linha" style="--l: 46%"></span><span class="nd-mock-botao">Finalizar e assinar</span></div>
+                        </div>
                     </div>
+                    <div class="nd-mock-flutua nd-mock-flutua-a">{% include "onboarding/_icone.html" with nome="receita" %}<div><b>Receita SNCR assinada</b><small>número da Anvisa · certificado digital</small></div></div>
+                    <div class="nd-mock-flutua nd-mock-flutua-b">{% include "onboarding/_icone.html" with nome="ia" %}<div><b>Resumo pronto</b><small>aguardando a sua revisão</small></div></div>
                 </div>
             </div>
         </div>
     </div>
 </section>
 
-<!-- --------------------------------------------------------- novidades -->
-{% comment %}O que entrou por último, em três cartões que levam ao manual.
-Logo depois do hero porque é o que traz quem já conhecia a página de volta,
-e porque "tem TISS?" é a primeira pergunta de quem atende convênio.{% endcomment %}
-<section class="nd-section nd-section-compacta" id="novidades">
+<!-- ---------------------------------------------- faixa das áreas -->
+{% comment %}As áreas correm numa faixa, cada uma levando à página de entrada da
+busca dela (`base/paginas_seo.py::AREAS`). A segunda cópia da lista é só para o
+trilho girar sem emenda, e sai para o leitor de tela.{% endcomment %}
+<div class="nd-faixa" aria-label="Áreas da neurologia">
+    <div class="nd-faixa-trilho">
+        <ul class="list-unstyled">{% for a in areas %}<li><a href="{% url 'onboarding:area' a.slug %}">{{ a.nome }}</a></li>{% endfor %}</ul>
+        <ul class="list-unstyled" aria-hidden="true">{% for a in areas %}<li><a href="{% url 'onboarding:area' a.slug %}" tabindex="-1">{{ a.nome }}</a></li>{% endfor %}</ul>
+    </div>
+</div>
+
+<!-- -------------------------------------------------------- passos -->
+<section class="nd-section bg-white" id="como-funciona">
     <div class="container">
-        <div class="text-center mb-4 nd-reveal">
-            <span class="fs-11 fw-bold text-uppercase text-primary">Novo no NeuroDoc</span>
-            <h2 class="fw-bold text-dark mt-1">Do consultório ao faturamento, no mesmo lugar</h2>
+        <div class="text-center mb-5 nd-reveal">
+            <span class="nd-kicker">Como funciona</span>
+            <h2 class="fw-bold text-dark mt-1">Do horário marcado ao convênio faturado, sem trocar de sistema</h2>
         </div>
-        <div class="row g-4">
-            {% for item in novidades %}
-            <div class="col-lg-4 nd-reveal">
-                <a class="card h-100 text-decoration-none nd-lift nd-novo-card" href="{{ item.link }}">
-                    <div class="card-body">
-                        <span class="nd-novo-icone" aria-hidden="true">{{ item.icone }}</span>
-                        <h3 class="fs-16 fw-bold text-dark mt-3">{{ item.titulo }}</h3>
-                        <p class="fs-13 text-muted mb-2">{{ item.texto }}</p>
-                        <span class="fs-12 fw-semibold text-primary">{{ item.rotulo }} →</span>
-                    </div>
-                </a>
-            </div>
-            {% endfor %}
-        </div>
+        <ol class="nd-passos list-unstyled" data-nd-passos>
+            <li class="nd-reveal" data-nd-atraso="0">
+                <span class="nd-passo-icone">{% include "onboarding/_icone.html" with nome="agenda" %}</span>
+                <h3 class="fs-15 fw-bold text-dark">Agenda e lembrete</h3>
+                <p class="fs-13 text-muted mb-0">Grade por médico, lista de espera e o lembrete pelo WhatsApp da clínica num clique.</p>
+            </li>
+            <li class="nd-reveal" data-nd-atraso="1">
+                <span class="nd-passo-icone">{% include "onboarding/_icone.html" with nome="cerebro" %}</span>
+                <h3 class="fs-15 fw-bold text-dark">Atendimento do seu jeito</h3>
+                <p class="fs-13 text-muted mb-0">Exame estruturado ou texto livre, com as 14 escalas calculadas nos dois.</p>
+            </li>
+            <li class="nd-reveal" data-nd-atraso="2">
+                <span class="nd-passo-icone">{% include "onboarding/_icone.html" with nome="ia" %}</span>
+                <h3 class="fs-15 fw-bold text-dark">IA e documento assinado</h3>
+                <p class="fs-13 text-muted mb-0">Resumo e relatório pela IA, receita do SNCR e laudo com o seu certificado.</p>
+            </li>
+            <li class="nd-reveal" data-nd-atraso="3">
+                <span class="nd-passo-icone">{% include "onboarding/_icone.html" with nome="tiss" %}</span>
+                <h3 class="fs-15 fw-bold text-dark">Faturamento</h3>
+                <p class="fs-13 text-muted mb-0">Guia TISS pronta, lote em XML validado e o particular nos recebíveis.</p>
+            </li>
+        </ol>
     </div>
 </section>
 
-<!-- -------------------------------------------------- problema e solução -->
+<!-- --------------------------------------------------------- trunfos -->
+{% comment %}Os cinco trunfos (`content.TRUNFOS`), alternando o lado da prévia.
+A IA vem primeiro, num painel escuro: é o que o titular quer em evidência, e o
+botão "Ver a IA trabalhando" do herói desce até aqui.{% endcomment %}
+<section class="nd-section" id="ia">
+    <div class="container">
+        <div class="text-center mb-5 nd-reveal">
+            <span class="nd-kicker">Por que o NeuroDoc</span>
+            <h2 class="fw-bold text-dark mt-1">Cinco motivos para o seu consultório nunca mais voltar ao papel</h2>
+        </div>
+        {% for t in trunfos %}
+        <div class="row align-items-center g-4 g-lg-5 nd-trunfo nd-trunfo-{{ t.chave }}">
+            <div class="col-lg-6 {% if forloop.counter|divisibleby:2 %}order-lg-2{% endif %} nd-reveal" data-nd-de="{% if forloop.counter|divisibleby:2 %}direita{% else %}esquerda{% endif %}">
+                <span class="badge bg-soft-primary text-primary fs-11 mb-2">{{ t.selo }}</span>
+                <h3 class="fs-24 fw-bold text-dark">{{ t.titulo }}</h3>
+                <p class="fs-15 text-muted">{{ t.texto }}</p>
+                <ul class="nd-trunfo-lista list-unstyled mb-3">
+                    {% for item in t.itens %}<li>{% include "onboarding/_icone.html" with nome="check" %}<span>{{ item }}</span></li>{% endfor %}
+                </ul>
+                <a class="fw-semibold nd-link-seta" href="{{ t.link }}">{{ t.rotulo }} {% include "onboarding/_icone.html" with nome="seta" %}</a>
+            </div>
+            <div class="col-lg-6 nd-reveal" data-nd-de="{% if forloop.counter|divisibleby:2 %}esquerda{% else %}direita{% endif %}">
+                <div class="nd-trunfo-painel" aria-hidden="true">
+                    {% if t.chave == 'ia' %}
+                    <span class="nd-selo-escuro mb-3">IA · revisão médica obrigatória</span>
+                    <div class="nd-chat-bolha nd-chat-medico mt-3">Resuma o caso e redija o relatório para a família.</div>
+                    <div class="nd-chat-bolha nd-chat-ia"><b>Resumo:</b> déficit motor à direita em melhora, NIHSS de 8 para 4 em três meses, mRS 2…</div>
+                    <div class="nd-chat-bolha nd-chat-ia"><b>Relatório:</b> rascunho pronto. Revise, edite e assine.</div>
+                    <span class="nd-selo-escuro mt-2">sem nome nem documento no texto enviado</span>
+                    {% elif t.chave == 'portal' %}
+                    <div class="d-flex align-items-center gap-3 mb-3"><span class="nd-recurso-icone">{% include "onboarding/_icone.html" with nome="portal" %}</span><b class="fs-15 text-dark">Pedido pelo portal</b></div>
+                    <span class="nd-mock-chip">Renovação de receita</span><span class="nd-mock-chip">Relatório</span><span class="nd-mock-chip">Laudo em PDF</span>
+                    <div class="d-flex align-items-center gap-3 mt-4 mb-2"><span class="nd-recurso-icone">{% include "onboarding/_icone.html" with nome="mensagem" %}</span><b class="fs-15 text-dark">WhatsApp da clínica</b></div>
+                    <span class="nd-mock-linha" style="--l: 92%"></span><span class="nd-mock-linha" style="--l: 70%"></span>
+                    <span class="nd-mock-botao d-inline-block mt-2">Abrir no WhatsApp</span>
+                    {% elif t.chave == 'receita' %}
+                    <div class="nd-numero-grande">SNCR</div>
+                    <p class="fs-13 text-muted mt-2 mb-2">Receita de Controle Especial · Notificação A, B e B2</p>
+                    <span class="nd-mock-chip">Portaria 344 conferida</span><span class="nd-mock-chip">Número SNCR</span><span class="nd-mock-chip">Assinada</span>
+                    {% elif t.chave == 'tiss' %}
+                    <div class="nd-numero-grande">TISS</div>
+                    <p class="fs-13 text-muted mt-2 mb-2">Consulta e SP/SADT · lote XML validado no XSD da ANS</p>
+                    <span class="nd-mock-chip">3.04</span><span class="nd-mock-chip">4.00</span><span class="nd-mock-chip">4.01</span><span class="nd-mock-chip">4.03</span>
+                    {% else %}
+                    <div class="nd-numero-grande">14</div>
+                    <p class="fs-13 text-muted mt-2 mb-2">escalas com escore calculado, no estruturado e no texto livre</p>
+                    <span class="nd-mock-chip">NIHSS</span><span class="nd-mock-chip">Glasgow</span><span class="nd-mock-chip">Hoehn e Yahr</span><span class="nd-mock-chip">MEEM</span><span class="nd-mock-chip">ALSFRS-R</span><span class="nd-mock-chip">SARA</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+
+<!-- ------------------------------------------------- antes e depois -->
 <section class="nd-section bg-white">
     <div class="container">
-        <div class="row g-4">
-            <div class="col-lg-6">
-                <div class="card h-100 border-0 bg-gray-100">
+        <div class="text-center mb-4 nd-reveal">
+            <span class="nd-kicker">O que muda amanhã</span>
+            <h2 class="fw-bold text-dark mt-1">Menos retrabalho, mais neurologia</h2>
+        </div>
+        <div class="row g-4 nd-antes-depois">
+            <div class="col-lg-6 nd-reveal" data-nd-de="esquerda">
+                <div class="card h-100 border-0 nd-antes">
                     <div class="card-body">
-                        <h5 class="fw-bold text-dark mb-3">Como costuma ser</h5>
+                        <h3 class="fs-16 fw-bold text-dark mb-3">Hoje</h3>
                         <ul class="nd-cross list-unstyled mb-0 fs-13">
-                            <li>O exame neurológico vira um parágrafo de texto corrido que ninguém relê</li>
-                            <li>A receita sai do Word, é impressa e assinada à caneta</li>
-                            <li>O paciente liga para pedir a segunda via, e alguém procura na pasta</li>
-                            <li>Cada médico tem a própria planilha de agenda</li>
-                            <li>O que foi perguntado na consulta passada se perde até a próxima</li>
+                            <li>O exame vira um parágrafo de texto corrido que ninguém relê</li>
+                            <li>A receita controlada sai do talonário, à caneta</li>
+                            <li>O WhatsApp da recepção lota de pedido de receita</li>
+                            <li>O escore da escala se perde num texto antigo</li>
+                            <li>A guia do convênio é redigitada no portal da operadora</li>
                         </ul>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-6">
-                <div class="card h-100 border-0" style="background: var(--bs-primary-bg-subtle, #eef2ff);">
+            <div class="col-lg-6 nd-reveal" data-nd-de="direita">
+                <div class="card h-100 border-0 nd-depois">
                     <div class="card-body">
-                        <h5 class="fw-bold text-dark mb-3">Como fica</h5>
+                        <h3 class="fs-16 fw-bold text-dark mb-3">Com o NeuroDoc</h3>
                         <ul class="nd-tick list-unstyled mb-0 fs-13">
-                            <li>Exame estruturado por eixo, com "tudo normal" por grupo e achado destacado</li>
-                            <li>Documento assinado digitalmente, com verificação pública por QR</li>
-                            <li>O paciente pede pelo portal; o médico revisa e emite</li>
-                            <li>Uma agenda só, com grade por médico e bloqueio de sobreposição</li>
-                            <li>O atendimento anterior vem junto, para revisar em vez de redigitar</li>
+                            <li>Exame por eixo, com o achado anormal em destaque — ou texto livre, se preferir</li>
+                            <li>Receita controlada eletrônica, numerada pela Anvisa e assinada</li>
+                            <li>O paciente pede pelo portal; o lembrete sai num clique</li>
+                            <li>Escalas calculadas e a evolução em gráfico</li>
+                            <li>Guia TISS preenchida e lote em XML validado</li>
                         </ul>
                     </div>
                 </div>
@@ -138,102 +228,88 @@ e porque "tem TISS?" é a primeira pergunta de quem atende convênio.{% endcomme
     </div>
 </section>
 
-<!-- ----------------------------------------------------- funcionalidades -->
-<section class="nd-section">
+<!-- ------------------------------------------------------- recursos -->
+<section class="nd-section" id="recursos">
     <div class="container">
-        <div class="text-center mb-5">
-{% comment %}O título anterior era "O que está pronto", com o subtítulo
-"Tudo abaixo existe no produto e foi homologado. Nada aqui é promessa" —
-uma resposta a uma acusação que o visitante não fez. A regra continua
-valendo para quem escreve o texto (está no topo de `base/content.py`); ela
-só não precisa estar na página, onde lia como defesa.{% endcomment %}
-            <h2 class="fw-bold text-dark">Construído para a complexidade da neurologia</h2>
-            <p class="text-muted fs-14 mb-0 mx-auto" style="max-width: 46rem;">
-                O exame que você já faz de cabeça, registrado com a mesma precisão —
-                e transformado em documento claro, rápido de reler e com valor
-                jurídico no dia em que ele for preciso.
+        <div class="text-center mb-5 nd-reveal">
+            <span class="nd-kicker">Tudo o que vem junto</span>
+            <h2 class="fw-bold text-dark mt-1">Construído para a complexidade da neurologia</h2>
+            <p class="text-muted fs-14 mb-0 mx-auto nd-largura-texto">
+                O exame que você já faz de cabeça, registrado com a mesma precisão — e
+                transformado em documento claro, rápido de reler e com valor jurídico.
             </p>
         </div>
         <div class="row g-4">
             {% for item in recursos %}
-            <div class="col-lg-4 col-md-6 nd-reveal">
-                <div class="card h-100 nd-lift">
+            <div class="col-lg-4 col-md-6 nd-reveal" data-nd-atraso="{% cycle 0 1 2 %}">
+                <div class="card h-100 nd-lift nd-spot">
                     <div class="card-body">
-                        <h6 class="fw-bold text-dark">{{ item.titulo }}</h6>
+                        <span class="nd-recurso-icone">{% cycle "cerebro" "escala" "ia" "portal" "mensagem" "receita" "tiss" "exames" "assinatura" "historico" "agenda" "cofre" as icone silent %}{% include "onboarding/_icone.html" with nome=icone %}</span>
+                        <h3 class="fs-15 fw-bold text-dark mt-3">{{ item.titulo }}</h3>
                         <p class="fs-13 text-muted mb-0">{{ item.texto }}</p>
                     </div>
                 </div>
             </div>
             {% endfor %}
         </div>
+        <p class="text-center fs-13 mt-4 mb-0">
+            Em detalhe:
+            {% for p in recursos_paginas %}<a href="{% url 'onboarding:recurso' p.slug %}">{{ p.nome }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}
+        </p>
     </div>
 </section>
 
-<!-- ------------------------------------------------ outras especialidades -->
-{% comment %}Esta seção entra **depois** da lista de recursos e **antes** dos
-planos, e a posição é a decisão.
-
-A lista acima fala de pares cranianos, NIHSS e Hoehn e Yahr. Um clínico, um
-ortopedista ou um psiquiatra que chegou aqui por busca lê aquilo e conclui,
-em dez segundos, que o produto não é para ele — e vai embora antes de ver o
-preço. A resposta tem de vir no lugar exato em que a objeção nasce.
-
-Depois dos planos seria tarde; antes da lista seria responder antes da
-pergunta, e soaria como quem se desculpa pela própria especialidade.
-
-A linha de fecho responde a pergunta que as duas colunas deixam em pé: "e
-eu, como uso isto?". Sem ela, quem lê que o roteiro de exame é de
-neurologia fica sem saber por onde entra -- e a resposta, texto livre, e o
-modo como quase todo prontuario do mercado funciona.{% endcomment %}
-<section class="nd-section" id="especialidades">
+<!-- ------------------------------------------------------ neurologia -->
+<section class="nd-section bg-white" id="neurologia">
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-lg-9 text-center mb-5">
-                <h2 class="fw-bold text-dark">{{ especialidades.titulo }}</h2>
-                <p class="text-muted fs-14 mb-0 mx-auto" style="max-width: 46rem;">
-                    {{ especialidades.texto }}
-                </p>
+            <div class="col-lg-9 text-center mb-5 nd-reveal">
+                <span class="nd-kicker">Áreas da neurologia</span>
+                <h2 class="fw-bold text-dark mt-1">{{ especialidades.titulo }}</h2>
+                <p class="text-muted fs-14 mb-0 mx-auto nd-largura-texto">{{ especialidades.texto }}</p>
             </div>
         </div>
-        <div class="row g-4">
-            <div class="col-lg-8">
-                <div class="card h-100 border-0 bg-white">
+        <div class="row g-3">
+            {% for a in areas %}
+            <div class="col-lg-4 col-md-6 nd-reveal" data-nd-atraso="{% cycle 0 1 2 %}">
+                <a class="card h-100 text-decoration-none nd-especialidade" href="{% url 'onboarding:area' a.slug %}">
                     <div class="card-body">
-                        <h5 class="fw-bold text-dark mb-1">Serve a qualquer especialidade</h5>
-                        <p class="fs-12 text-muted mb-4">
-                            Sem configuração, sem módulo à parte e sem outra versão do produto.
-                        </p>
-                        <div class="row g-3">
-                            {% for titulo, texto in especialidades.comum %}
-                            <div class="col-md-6">
-                                <h6 class="fw-bold text-dark fs-13 mb-1">{{ titulo }}</h6>
-                                <p class="fs-12 text-muted mb-0">{{ texto }}</p>
-                            </div>
-                            {% endfor %}
-                        </div>
+                        <span class="nd-especialidade-check">{% include "onboarding/_icone.html" with nome="check" %}</span>
+                        <h3 class="fs-15 fw-bold text-dark mb-1">{{ a.nome }}</h3>
+                        <p class="fs-12 text-muted mb-2">{{ a.descricao }}</p>
+                        <span class="fs-12 fw-semibold text-primary nd-link-seta">Ver a página {% include "onboarding/_icone.html" with nome="seta" %}</span>
                     </div>
-                </div>
+                </a>
             </div>
-            <div class="col-lg-4">
-                <div class="card h-100 border-0" style="background: var(--bs-primary-bg-subtle, #eef2ff);">
-                    <div class="card-body">
-                        <h5 class="fw-bold text-dark mb-1">O que é de neurologia</h5>
-                        <p class="fs-12 text-muted mb-4">
-                            O que existe aqui e não existe num prontuário genérico.
-                        </p>
-                        {% for titulo, texto in especialidades.neuro %}
-                        <h6 class="fw-bold text-dark fs-13 mb-1">{{ titulo }}</h6>
-                        <p class="fs-12 text-muted mb-3">{{ texto }}</p>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
+            {% endfor %}
         </div>
-        <div class="row justify-content-center mt-4">
-            <div class="col-lg-9">
-                <p class="fs-12 text-muted mb-0 border-start border-3 ps-3">
-                    {{ especialidades.fecho }}
+        <p class="fs-13 text-muted mt-4 mb-0 border-start border-3 ps-3">
+            {{ especialidades.fecho }}
+            <a href="{{ prontdoc.url }}" rel="noopener">{{ prontdoc.rotulo }}</a>
+        </p>
+    </div>
+</section>
+
+<!-- ------------------------------------------------------- segurança -->
+<section class="nd-section nd-seguranca" id="seguranca">
+    <div class="container">
+        <div class="row align-items-center g-4 g-lg-5">
+            <div class="col-lg-5 nd-reveal">
+                <span class="nd-kicker nd-kicker-claro">Segurança</span>
+                <h2 class="fw-bold text-white mt-1">Dado clínico tratado como dado clínico</h2>
+                <p class="nd-seguranca-texto fs-14 mb-0">
+                    Prontuário finalizado não se reescreve, a IA não vê o nome do paciente e o
+                    backup sai cifrado todo dia, com cópias fora do servidor. Quem opera o
+                    sistema não abre prontuário.
                 </p>
+            </div>
+            <div class="col-lg-7">
+                <div class="row g-3">
+                    <div class="col-sm-6 nd-reveal" data-nd-atraso="0"><div class="nd-seg-item">{% include "onboarding/_icone.html" with nome="chave" %}<div><b>Segundo fator obrigatório</b><span>Para o responsável e para o médico, com códigos de recuperação.</span></div></div></div>
+                    <div class="col-sm-6 nd-reveal" data-nd-atraso="1"><div class="nd-seg-item">{% include "onboarding/_icone.html" with nome="historico" %}<div><b>Trilha que não se apaga</b><span>Quem escreveu, finalizou e emitiu o quê, numa trilha que o próprio banco protege.</span></div></div></div>
+                    <div class="col-sm-6 nd-reveal" data-nd-atraso="2"><div class="nd-seg-item">{% include "onboarding/_icone.html" with nome="olho" %}<div><b>IA desidentificada</b><span>O texto vai sem nome nem documento, e nada entra sem o médico aceitar.</span></div></div></div>
+                    <div class="col-sm-6 nd-reveal" data-nd-atraso="3"><div class="nd-seg-item">{% include "onboarding/_icone.html" with nome="banco" %}<div><b>Backup cifrado e diário</b><span>Com cópias fora do servidor e a chave de leitura guardada fora dele.</span></div></div></div>
+                </div>
             </div>
         </div>
     </div>
@@ -608,17 +684,17 @@ modo como quase todo prontuario do mercado funciona.{% endcomment %}
 <!-- --------------------------------------------------------- manual -->
 {% comment %}O manual entra **antes** do FAQ e antes do contato: quem está
 decidindo quer ver o sistema funcionando, e um manual público com as telas
-reais responde isso melhor do que qualquer parágrafo de venda. Também serve
-a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
+reais responde isso melhor do que qualquer parágrafo de venda.{% endcomment %}
 <section class="nd-section bg-white">
     <div class="container">
         <div class="row align-items-center g-4 g-lg-5">
-            <div class="col-lg-6">
-                <h2 class="fw-bold text-dark">Veja o sistema por dentro antes de decidir</h2>
+            <div class="col-lg-6 nd-reveal" data-nd-de="esquerda">
+                <span class="nd-kicker">Sem surpresa</span>
+                <h2 class="fw-bold text-dark mt-1">Veja o sistema por dentro antes de decidir</h2>
                 <p class="fs-14 text-muted">
-                    O manual de uso é público: cada processo explicado passo a passo, com as
-                    telas reais ao lado — cadastrar paciente, marcar na agenda, escrever o
-                    prontuário, emitir e assinar um documento, entregar ao paciente.
+                    O manual de uso é público: cada processo passo a passo, com as telas reais
+                    ao lado — cadastrar paciente, marcar na agenda, escrever o prontuário,
+                    emitir e assinar um documento, entregar ao paciente.
                 </p>
                 <div class="d-flex flex-wrap gap-2">
                     <a class="btn btn-primary" href="{% url 'onboarding:help' %}">Abrir o manual</a>
@@ -630,18 +706,14 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
                     </a>
                 </div>
             </div>
-            <div class="col-lg-6">
+            <div class="col-lg-6 nd-reveal" data-nd-de="direita">
                 <div class="row g-3">
-                    {% comment %}O cartão dos primeiros passos ocupa a linha
-                    inteira, acima dos outros: é a resposta a "acabei de
-                    cadastrar a clínica, e agora?", que é a pergunta de quem
-                    chega aqui vindo do e-mail de boas-vindas.{% endcomment %}
                     <div class="col-12">
                         <a class="card h-100 text-decoration-none nd-help-card border-primary"
                            href="{% url 'onboarding:help-article' primeiros_passos.slug %}">
                             <div class="card-body py-3">
                                 <span class="badge bg-soft-primary text-primary fs-11 mb-1">Comece aqui</span>
-                                <h6 class="fw-bold text-dark fs-13 mb-1">{{ primeiros_passos.title }}</h6>
+                                <h3 class="fw-bold text-dark fs-13 mb-1">{{ primeiros_passos.title }}</h3>
                                 <p class="fs-11 text-muted mb-0">{{ primeiros_passos.summary }}</p>
                             </div>
                         </a>
@@ -651,7 +723,7 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
                         <a class="card h-100 text-decoration-none nd-help-card"
                            href="{% url 'onboarding:help-article' item.slug %}">
                             <div class="card-body py-3">
-                                <h6 class="fw-bold text-dark fs-13 mb-1">{{ item.title }}</h6>
+                                <h3 class="fw-bold text-dark fs-13 mb-1">{{ item.title }}</h3>
                                 <p class="fs-11 text-muted mb-0">{{ item.summary|truncatechars:64 }}</p>
                             </div>
                         </a>
@@ -664,24 +736,17 @@ a quem já é cliente e chegou aqui procurando ajuda.{% endcomment %}
 </section>
 
 <!-- ------------------------------------------------------------- autor -->
-{% comment %}A única seção que fala de pessoa, e ela vem depois dos planos
-de propósito.
-
-Quem leu preço e limites já decidiu se o produto serve; o que falta é
-decidir se confia. Prontuário é a coisa mais sensível que um médico entrega
-a um fornecedor, e a pergunta seguinte é sempre "quem está do outro lado".
-Pôr isto antes dos planos responderia a pergunta antes de ela existir.
-
-A foto é grande e o currículo é longo por escolha: a alternativa seria um
-parágrafo genérico de "fundado por médicos", que é o que todo mundo
-escreve e ninguém verifica.{% endcomment %}
-<section class="nd-section bg-white" id="autor">
+{% comment %}A única seção que fala de pessoa, depois dos planos: quem leu preço
+e limites já decidiu se o produto serve; falta decidir se confia. O código
+aberto entra aqui, numa linha discreta ao pé (decisão de 2026-11-18): é
+argumento de confiança, não de venda.{% endcomment %}
+<section class="nd-section" id="autor">
     <div class="container">
         <div class="row justify-content-center align-items-center g-4 g-lg-5">
-            <div class="col-lg-4 text-center">
+            <div class="col-lg-4 text-center nd-reveal" data-nd-de="esquerda">
                 <img src="{% static autor.foto %}" alt="{{ autor.nome }}"
                      class="img-fluid rounded-4 shadow-sm nd-autor-foto">
-                <h5 class="fw-bold text-dark mt-4 mb-1">{{ autor.nome }}</h5>
+                <h3 class="fs-18 fw-bold text-dark mt-4 mb-1">{{ autor.nome }}</h3>
                 <p class="fs-12 text-muted mb-3">Neurologista · HC-FMUSP</p>
                 <div class="d-flex flex-wrap justify-content-center gap-2">
                     {% for linguagem in autor.linguagens %}
@@ -689,53 +754,37 @@ escreve e ninguém verifica.{% endcomment %}
                     {% endfor %}
                 </div>
             </div>
-            <div class="col-lg-7">
-                {% comment %}A frase de impacto é um blockquote e não um h2: ela
-                é uma afirmação de quem assina, não um título de seção. O
-                título da seção é a linha discreta acima dela.{% endcomment %}
-                <span class="fs-11 fw-bold text-uppercase text-primary">Quem fez o sistema</span>
+            <div class="col-lg-7 nd-reveal" data-nd-de="direita">
+                <span class="nd-kicker">Quem fez o sistema</span>
                 <blockquote class="nd-autor-frase fs-20 fw-bold text-dark mt-2 mb-4">
                     “{{ autor.frase }}”
                 </blockquote>
                 <p class="fs-14 text-muted">{{ autor.resumo }}</p>
-                {% comment %}O repositório é público desde 2026-10-19. O pedido a
-                quem usa é o de quem dá o código: a estrela, e uma contribuição
-                se quiser. A chave PIX vem com o botão de copiar do nd-inline.js
-                (data-nd-copy), porque digitar e-mail de cabeça é onde a
-                contribuição se perde.{% endcomment %}
-                <div class="alert alert-primary fs-13" role="note" id="codigo-aberto">
-                    <strong>Open Source — licença {{ codigo_aberto.licenca }}.</strong>
-                    O código-fonte do NeuroDoc é público no GitHub:
-                    <a href="{{ codigo_aberto.repositorio }}" target="_blank"
-                       rel="noopener noreferrer">{{ codigo_aberto.repositorio_rotulo }}</a>.
-                    Se o projeto for útil para você, deixe uma
-                    <strong>estrela</strong> no repositório — é o que mostra a
-                    outros médicos que ele existe e é usado.
-                    <div class="mt-2">
-                        Contribuição de qualquer valor ajuda a manter o
-                        desenvolvimento. PIX:
-                        <strong id="nd-pix">{{ codigo_aberto.pix }}</strong>
-                        <button type="button" class="btn btn-sm btn-light d-inline-flex align-middle ms-1 py-0"
-                                data-nd-copy="nd-pix">Copiar</button>
-                    </div>
-                </div>
                 <ul class="nd-tick list-unstyled fs-12 text-muted mb-4">
                     {% for credencial in autor.credenciais %}<li>{{ credencial }}</li>{% endfor %}
                 </ul>
                 {% comment %}`d-inline-flex`: o Duralux põe `.btn{display:flex}`, e
-                o botão virava uma barra da largura da coluna no computador (no
-                celular a coluna é estreita e ninguém notava).{% endcomment %}
+                o botão virava uma barra da largura da coluna no computador.{% endcomment %}
                 <a class="btn btn-outline-secondary btn-sm d-inline-flex" href="{{ autor.site.url }}"
                    target="_blank" rel="noopener noreferrer">
                     {{ autor.site.rotulo }}
                 </a>
+                <p class="nd-codigo-aberto mt-4 mb-0" id="codigo-aberto">
+                    Open Source — licença {{ codigo_aberto.licenca }}: o código é público em
+                    <a href="{{ codigo_aberto.repositorio }}" target="_blank"
+                       rel="noopener noreferrer">{{ codigo_aberto.repositorio_rotulo }}</a>.
+                    Gostou? Deixe uma estrela no repositório, ou contribua com qualquer valor
+                    pelo PIX <strong id="nd-pix">{{ codigo_aberto.pix }}</strong>
+                    <button type="button" class="btn btn-sm btn-light d-inline-flex align-middle ms-1 py-0"
+                            data-nd-copy="nd-pix">Copiar</button>
+                </p>
             </div>
         </div>
     </div>
 </section>
 
 <!-- --------------------------------------------------------------- FAQ -->
-<section class="nd-section" id="faq">
+<section class="nd-section bg-white" id="faq">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -743,13 +792,13 @@ escreve e ninguém verifica.{% endcomment %}
                 <div class="accordion" id="nd-faq">
                     {% for item in faq %}
                     <div class="accordion-item">
-                        <h2 class="accordion-header">
+                        <h3 class="accordion-header">
                             <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
                                     type="button" data-bs-toggle="collapse"
                                     data-bs-target="#faq-{{ forloop.counter }}">
                                 {{ item.pergunta }}
                             </button>
-                        </h2>
+                        </h3>
                         <div id="faq-{{ forloop.counter }}"
                              class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
                              data-bs-parent="#nd-faq">
@@ -763,15 +812,30 @@ escreve e ninguém verifica.{% endcomment %}
     </div>
 </section>
 
+<!-- --------------------------------------------------------- ProntDoc -->
+{% comment %}O produto irmão (`content.PRONTDOC`): quem chegou até aqui sem ser
+da neurologia sai com o endereço certo, e não com um prontuário que não foi
+feito para ele.{% endcomment %}
+<section class="nd-section nd-section-compacta" id="prontdoc">
+    <div class="container">
+        <div class="nd-prontdoc nd-reveal">
+            <div class="flex-grow-1">
+                <span class="nd-kicker nd-kicker-claro">Outras especialidades</span>
+                <h2 class="fw-bold text-white mt-1 mb-2">{{ prontdoc.titulo }}</h2>
+                <p class="nd-prontdoc-texto fs-14 mb-0">{{ prontdoc.texto }}</p>
+            </div>
+            <a class="btn btn-light btn-lg flex-shrink-0 d-inline-flex nd-link-seta" href="{{ prontdoc.url }}"
+               rel="noopener">{{ prontdoc.cta }} {% include "onboarding/_icone.html" with nome="seta" %}</a>
+        </div>
+    </div>
+</section>
+
 <!-- --------------------------------------------------------- instagram -->
-{% comment %}Entre as perguntas e o formulário: quem leu até aqui e ainda não
-decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
-`base.content.INSTAGRAM`, o mesmo do rodapé e do JSON-LD.{% endcomment %}
 <section class="nd-section pt-0" id="instagram">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-8">
-                <div class="card border-0 shadow-sm">
+                <div class="card border-0 shadow-sm nd-lift">
                     <div class="card-body d-flex flex-column flex-md-row align-items-md-center gap-3">
                         <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none"
                              stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
@@ -796,6 +860,20 @@ decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
     </div>
 </section>
 
+<!-- ----------------------------------------------------- chamada final -->
+<section class="nd-section nd-section-compacta pt-0">
+    <div class="container">
+        <div class="nd-cta-final nd-reveal">
+            <h2 class="fw-bold text-white">Comece hoje. Atenda melhor amanhã.</h2>
+            <p class="fs-15 mx-auto nd-largura-texto">
+                Gratuito para sempre, sem cartão — ou o Completo com IA, TISS e agenda de
+                exames por {{ degustacao.dias }} dias, de graça. Nada é apagado se você mudar de ideia.
+            </p>
+            <a class="btn btn-light btn-lg nd-btn-brilho" href="#planos">Escolher meu plano</a>
+        </div>
+    </div>
+</section>
+
 <!-- ----------------------------------------------------------- contato -->
 <section class="nd-section bg-white" id="contato">
     <div class="container">
@@ -804,7 +882,7 @@ decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
                 {% if enviado %}
                 <div class="card border border-success">
                     <div class="card-body text-center py-5">
-                        <h4 class="fw-bold text-dark">Recebemos, {{ lead_nome }}.</h4>
+                        <h3 class="fs-20 fw-bold text-dark">Recebemos, {{ lead_nome }}.</h3>
                         <p class="fs-14 text-muted mb-0">
                             Seu pedido foi registrado e vamos responder no e-mail que você
                             informou. Se preferir adiantar, escreva para
@@ -833,8 +911,7 @@ decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
                             {% comment %}Campo-armadilha: invisível para pessoa, preenchido
                             por robô que completa tudo. `aria-hidden` e `tabindex="-1"`
                             para que leitor de tela e navegação por teclado também o
-                            pulem — senão ele deixa de ser invisível justamente para
-                            quem depende deles.{% endcomment %}
+                            pulem.{% endcomment %}
                             <div class="d-none" aria-hidden="true">
                                 <label for="website">Não preencha este campo</label>
                                 <input type="text" id="website" name="website" tabindex="-1" autocomplete="off">
@@ -845,11 +922,6 @@ decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
                                 {% include "partials/field.html" with field=lead_form.email col="col-md-6" %}
                                 {% include "partials/field.html" with field=lead_form.phone col="col-md-6" %}
                                 {% include "partials/field.html" with field=lead_form.clinic_name col="col-md-6" %}
-                                {% comment %}O plano deixou de ser campo oculto. Escondido,
-                                ele só era preenchido por quem chegava pelo botão de um
-                                cartão; quem rolava a página até aqui mandava o pedido sem
-                                dizer o que queria, e a resposta começava por uma pergunta
-                                que a tela podia ter feito.{% endcomment %}
                                 {% include "partials/field.html" with field=lead_form.plan col="col-md-6" %}
                                 {% include "partials/field.html" with field=lead_form.message col="col-12" %}
                             </div>
@@ -879,7 +951,7 @@ decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
             <div class="col-lg-5">
                 <div class="card">
                     <div class="card-body">
-                        <h5 class="fw-bold text-dark">Já tenho um código</h5>
+                        <h3 class="fs-16 fw-bold text-dark">Já tenho um código</h3>
                         <p class="fs-12 text-muted">
                             Recebeu um código de convite? Ele cria sua clínica já no plano
                             combinado.
@@ -906,8 +978,7 @@ decidiu é quem mais ganha acompanhando o produto de perto. O endereço vem de
 {% if novidade %}
 {% comment %}O aviso da novidade (base/content.py::NOVIDADE). Nasce escondido e
 o landing.js o mostra só a quem ainda não o fechou: sem JavaScript, ou com o
-armazenamento do navegador bloqueado, a página segue sem ele, que é o
-comportamento seguro para um aviso.{% endcomment %}
+armazenamento do navegador bloqueado, a página segue sem ele.{% endcomment %}
 <aside class="nd-novidade card shadow" data-nd-novidade="{{ novidade.chave }}" role="dialog"
        aria-labelledby="nd-novidade-titulo" hidden
        style="position: fixed; right: 16px; bottom: 16px; max-width: 380px; width: calc(100% - 32px); z-index: 1080;">
@@ -924,7 +995,6 @@ comportamento seguro para um aviso.{% endcomment %}
 {% endif %}
 <script src="{% static 'onboarding/landing.js' %}"></script>
 {% comment %}O base_public.html não carrega o nd-inline.js (é dele o botão de
-copiar a chave PIX). Só esta página o pede, e aqui ele não tem o que mais
-fazer: não há confirmação nem outro data-nd-* do nd-inline nela.{% endcomment %}
+copiar a chave PIX). Só esta página o pede.{% endcomment %}
 <script src="{% static 'duralux/nd-inline.js' %}" defer></script>
 {% endblock %}

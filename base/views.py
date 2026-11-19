@@ -15,8 +15,11 @@ from tenancy.services import (
     EmailAlreadyRegistered, EmailDescartavel, InvalidInvitation, accept_platform_invitation,
 )
 
-from .content import AUTOR, CODIGO_ABERTO, ESPECIALIDADES, INSTAGRAM, NOVIDADE, NOVIDADES, RECURSOS, faq
+from .content import (
+    AUTOR, CODIGO_ABERTO, ESPECIALIDADES, INSTAGRAM, NOVIDADE, NOVIDADES, PRONTDOC, RECURSOS, TRUNFOS, faq,
+)
 from .help_content import ARTICLES as HELP_ARTICLES, article_by_slug
+from .paginas_seo import AREAS as PAGINAS_AREAS, RECURSOS as PAGINAS_RECURSOS
 from .forms import InvitationCodeForm, LeadForm, OrganizationSignupForm
 from base.net import client_ip
 from tenancy.boas_vindas import enviar_boas_vindas
@@ -235,11 +238,15 @@ class LandingView(View):
             'codigo_aberto': CODIGO_ABERTO,
             'instagram': INSTAGRAM,
             'recursos': RECURSOS,
-            # O que, neste sistema, nao e de neurologia. Vem do catalogo
-            # como o resto do texto desta pagina: a lista precisa ser
-            # conferivel contra o que o produto faz, e dentro do HTML a
-            # conferencia viraria uma busca por substring no markup.
+            # Para quem o NeuroDoc e (as areas da neurologia) e para onde
+            # vai quem nao e (o ProntDoc). Do catalogo, como o resto do texto.
             'especialidades': ESPECIALIDADES,
+            'trunfos': TRUNFOS,
+            'prontdoc': PRONTDOC,
+            # As paginas de entrada da busca (`base/paginas_seo.py`): a faixa,
+            # os cartoes das areas e os links "em detalhe" levam a elas.
+            'areas': PAGINAS_AREAS,
+            'recursos_paginas': PAGINAS_RECURSOS,
             'faq': faq(),
             # Quatro artigos do manual, para a pagina mostrar que ele existe
             # sem virar um indice dentro da pagina de vendas. Por slug, e nao
@@ -504,3 +511,31 @@ class OrganizationSignupView(View):
         auth_login(request, user)
         send_email_verification(user, request)
         return render(request, 'accounts/email_verification_sent.html')
+
+
+class TematicaView(View):
+    """Página de entrada da busca: uma área da neurologia ou um recurso.
+
+    O conteúdo e o SEO saem de `base/paginas_seo.py` (via `base/seo.py`); a
+    view só escolhe o item e as outras páginas do mesmo tipo, para os links
+    internos — é por eles que o rastreador chega a todas, e o leitor que
+    caiu numa área descobre as outras. Trazida do ProntDoc (lá, por
+    especialidade); aqui, por área da neurologia.
+    """
+
+    tipo = 'area'
+
+    def get(self, request, slug):
+        from django.http import Http404
+
+        from .paginas_seo import AREAS, RECURSOS, area, recurso
+
+        item = area(slug) if self.tipo == 'area' else recurso(slug)
+        if item is None:
+            raise Http404
+        return render(request, 'onboarding/tematica.html', {
+            'item': item,
+            'tipo': self.tipo,
+            'areas': [p for p in AREAS if p['slug'] != slug],
+            'recursos': [p for p in RECURSOS if p['slug'] != slug],
+        })

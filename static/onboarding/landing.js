@@ -156,3 +156,61 @@
         }
     });
 }());
+
+/* Repaginação (trazida do ProntDoc, 2026-11-18): a barra de leitura, a linha dos passos que enche
+ * com a rolagem, o leve paralaxe da prévia do herói e o brilho que segue o
+ * cursor nos cartões de recurso. Tudo é enfeite sobre uma página que já
+ * está inteira sem script: sem ele a barra fica vazia, a linha cheia e o
+ * cartão só levanta. Quem pediu menos movimento recebe só a barra (que não
+ * anima nada, só mostra onde se está). */
+(function () {
+    'use strict';
+
+    var calmo = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var barra = document.querySelector('[data-nd-leitura]');
+    var passos = document.querySelector('[data-nd-passos]');
+    var palco = document.querySelector('[data-nd-parallax]');
+    var pedido = false;
+
+    function atualizar() {
+        pedido = false;
+        var raiz = document.documentElement;
+        var rolavel = raiz.scrollHeight - window.innerHeight;
+        if (barra) {
+            barra.style.setProperty('--nd-lido', rolavel > 0 ? Math.min(1, window.scrollY / rolavel) : 0);
+        }
+        if (calmo) { return; }
+        if (passos) {
+            var caixa = passos.getBoundingClientRect();
+            var alto = window.innerHeight;
+            /* 0 quando o topo dos passos entra por baixo; 1 quando chega a
+             * 40% da tela. */
+            var p = (alto - caixa.top) / (alto * 0.6);
+            passos.style.setProperty('--nd-progresso', Math.max(0, Math.min(1, p)).toFixed(3));
+        }
+        if (palco && window.scrollY < window.innerHeight) {
+            palco.style.setProperty('--nd-paralaxe', (window.scrollY * -0.08).toFixed(1) + 'px');
+        }
+    }
+
+    function agendar() {
+        if (!pedido) {
+            pedido = true;
+            window.requestAnimationFrame(atualizar);
+        }
+    }
+
+    if (passos && !calmo) { passos.style.setProperty('--nd-progresso', '0'); }
+    window.addEventListener('scroll', agendar, { passive: true });
+    window.addEventListener('resize', agendar, { passive: true });
+    atualizar();
+
+    if (calmo || !window.matchMedia('(hover: hover)').matches) { return; }
+    document.querySelectorAll('.nd-spot').forEach(function (cartao) {
+        cartao.addEventListener('pointermove', function (evento) {
+            var r = cartao.getBoundingClientRect();
+            cartao.style.setProperty('--nd-x', (evento.clientX - r.left) + 'px');
+            cartao.style.setProperty('--nd-y', (evento.clientY - r.top) + 'px');
+        });
+    });
+}());

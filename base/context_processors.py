@@ -12,6 +12,7 @@ from django.urls import Resolver404, resolve
 from tenancy.contract import CONTRATADO
 
 from .content import INSTAGRAM
+from .paginas_seo import AREAS as PAGINAS_AREAS, RECURSOS as PAGINAS_RECURSOS
 from tenancy.permissions import Capability
 
 from .version import VERSION
@@ -95,6 +96,10 @@ def shell(request):
         # um segundo texto escrito à mão divergiria dele no primeiro ajuste.
         'nd_mantenedora': CONTRATADO,
         'nd_instagram': INSTAGRAM,
+        # As páginas de entrada da busca, para o rodapé público. Listas de
+        # módulo, sem consulta: este processador roda em toda requisição.
+        'nd_paginas_areas': PAGINAS_AREAS,
+        'nd_paginas_recursos': PAGINAS_RECURSOS,
         'nd_section': _section(request),
         'nd_view': _view_name(request),
         'nd_portal_requests': 0,

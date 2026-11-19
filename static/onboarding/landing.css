@@ -478,3 +478,375 @@
     .nd-novidade p { display: none; }
     .nd-novidade h2 { font-size: .875rem !important; }
 }
+
+/* ------------------------------------------------ repaginação (1.0.0) --
+ *
+ * Trazida do ProntDoc (2026-11-18), no azul do NeuroDoc: herói com a prévia desenhada da tela, faixa de
+ * especialidades, passos ligados por uma linha que enche com a rolagem,
+ * recursos em grade de tamanhos variados com brilho que segue o cursor, e
+ * uma faixa escura de segurança. Mesma regra de antes: as cores são as do
+ * tema (`--bs-*`) e da marca (`#3454d1`), e todo
+ * movimento cede a `prefers-reduced-motion` (bloco no fim).
+ */
+:root {
+    --nd-m: #3454d1;
+    --nd-m-escura: #1b2a78;
+    --nd-m-suave: rgba(52, 84, 209, .1);
+    --nd-curva: cubic-bezier(.2, .7, .2, 1);
+    --nd-verde-prontdoc: #0e8c84;
+}
+
+.nd-leitura {
+    position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 1100;
+    pointer-events: none;
+}
+.nd-leitura span {
+    display: block; height: 100%; width: 100%;
+    transform-origin: 0 50%; transform: scaleX(var(--nd-lido, 0));
+    background: linear-gradient(90deg, var(--nd-m), var(--bs-primary, #3454d1));
+}
+
+.nd-kicker {
+    display: inline-block; font-size: .72rem; font-weight: 700;
+    letter-spacing: .08em; text-transform: uppercase; color: var(--nd-m);
+}
+.nd-kicker-claro { color: #9fb3ff; }
+.nd-largura-texto { max-width: 46rem; }
+
+/* Herói */
+.nd-hero-v2 { padding-top: 5rem; padding-bottom: 4.5rem; }
+.nd-hero-v2.nd-hero-animado::before {
+    background: radial-gradient(circle, rgba(52, 84, 209, .45), transparent 70%);
+}
+.nd-hero-v2.nd-hero-animado::after {
+    background: radial-gradient(circle, rgba(52, 84, 209, .3), transparent 70%);
+}
+.nd-eyebrow {
+    display: inline-flex; align-items: center; gap: .5rem;
+    padding: .35rem .8rem; margin-bottom: 1.1rem; border-radius: 999px;
+    background: var(--nd-m-suave); color: var(--nd-m-escura);
+    font-size: .78rem; font-weight: 600;
+}
+.nd-pulso {
+    width: .5rem; height: .5rem; border-radius: 50%; background: var(--nd-m);
+    box-shadow: 0 0 0 0 rgba(52, 84, 209, .5); animation: nd-pulso 2.2s infinite;
+}
+@keyframes nd-pulso {
+    0% { box-shadow: 0 0 0 0 rgba(52, 84, 209, .5); }
+    70% { box-shadow: 0 0 0 .6rem rgba(52, 84, 209, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(52, 84, 209, 0); }
+}
+.nd-grifo {
+    background: linear-gradient(transparent 62%, rgba(52, 84, 209, .22) 62%);
+    background-size: 0 100%; background-repeat: no-repeat;
+    animation: nd-grifa 1.1s .6s var(--nd-curva) forwards;
+}
+@keyframes nd-grifa { to { background-size: 100% 100%; } }
+
+.nd-entra { animation: nd-sobe .7s var(--nd-curva) both; animation-delay: var(--nd-atraso, 0ms); }
+@keyframes nd-sobe { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+.nd-btn-brilho { position: relative; overflow: hidden; }
+.nd-btn-brilho::after {
+    content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
+    transition: transform .7s ease;
+}
+.nd-btn-brilho:hover::after, .nd-btn-brilho:focus-visible::after { transform: translateX(120%); }
+
+.nd-selos li {
+    display: inline-flex; align-items: center; gap: .4rem;
+    padding: .35rem .7rem; border-radius: .6rem; font-size: .75rem; font-weight: 600;
+    color: var(--bs-gray-700, #495057); background: #fff;
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    transition: border-color .2s ease, transform .2s ease;
+}
+.nd-selos li:hover { border-color: var(--nd-m); transform: translateY(-2px); }
+.nd-selos .nd-ico { width: 1rem; height: 1rem; color: var(--nd-m); }
+
+.nd-ico { width: 1.25rem; height: 1.25rem; flex-shrink: 0; }
+
+/* Prévia desenhada da tela */
+.nd-mock-palco {
+    position: relative; padding: 1.5rem 1rem 2.5rem;
+    transform: translate3d(0, var(--nd-paralaxe, 0), 0);
+    will-change: transform;
+}
+.nd-mock {
+    background: #fff; border-radius: 1rem; overflow: hidden;
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    box-shadow: 0 30px 60px rgba(20, 32, 92, .14), 0 8px 18px rgba(20, 32, 92, .06);
+    transform: perspective(1400px) rotateY(-6deg) rotateX(3deg);
+    transition: transform .6s var(--nd-curva);
+}
+.nd-mock-palco:hover .nd-mock { transform: perspective(1400px) rotateY(0) rotateX(0); }
+.nd-mock-barra {
+    display: flex; align-items: center; gap: .35rem; padding: .6rem .9rem;
+    background: var(--bs-gray-100, #f8f9fa); border-bottom: 1px solid var(--bs-gray-200, #e9ecef);
+}
+.nd-mock-barra i { width: .6rem; height: .6rem; border-radius: 50%; background: var(--bs-gray-300, #dee2e6); }
+.nd-mock-barra span { margin-left: .5rem; font-size: .72rem; font-weight: 600; color: var(--bs-gray-600, #6c757d); }
+.nd-mock-corpo { padding: 1.1rem 1.2rem 1.2rem; }
+.nd-mock-abas { display: flex; gap: .35rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.nd-mock-abas span {
+    font-size: .7rem; font-weight: 600; padding: .3rem .65rem; border-radius: 999px;
+    background: var(--bs-gray-100, #f1f3f5); color: var(--bs-gray-600, #6c757d);
+}
+.nd-mock-abas .ativa { background: var(--nd-m); color: #fff; }
+.nd-mock-rotulo { font-size: .68rem; font-weight: 700; text-transform: uppercase; color: var(--bs-gray-500, #adb5bd); margin-bottom: .5rem; }
+.nd-mock-linha {
+    display: block; height: .5rem; width: var(--l, 80%); margin-bottom: .45rem; border-radius: 999px;
+    background: linear-gradient(90deg, var(--bs-gray-200, #e9ecef), var(--bs-gray-100, #f1f3f5));
+}
+.nd-mock-digitando { animation: nd-digita 3.2s steps(24) infinite; }
+@keyframes nd-digita { 0% { width: 6%; } 60%, 100% { width: var(--l, 54%); } }
+.nd-mock-grade { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; margin: 1rem 0; }
+.nd-mock-grade > div { padding: .7rem; border-radius: .6rem; border: 1px dashed var(--bs-gray-300, #dee2e6); }
+.nd-mock-grade b { display: block; font-size: .68rem; color: var(--bs-gray-700, #495057); margin-bottom: .45rem; }
+.nd-mock-chip {
+    display: inline-block; margin: 0 .25rem .25rem 0; padding: .15rem .45rem; border-radius: .4rem;
+    font-size: .64rem; font-weight: 700; background: var(--nd-m-suave); color: var(--nd-m-escura);
+}
+.nd-mock-rodape { display: flex; align-items: center; gap: .8rem; }
+.nd-mock-rodape .nd-mock-linha { margin: 0; }
+.nd-mock-botao {
+    font-size: .7rem; font-weight: 700; color: #fff; padding: .35rem .8rem; border-radius: .45rem;
+    background: var(--bs-primary, #3454d1);
+}
+.nd-mock-flutua {
+    position: absolute; display: flex; align-items: center; gap: .6rem;
+    padding: .6rem .8rem; border-radius: .8rem; background: #fff;
+    box-shadow: 0 14px 30px rgba(20, 32, 92, .16); border: 1px solid var(--bs-gray-200, #e9ecef);
+    animation: nd-flutua 6s ease-in-out infinite;
+}
+.nd-mock-flutua .nd-ico { color: var(--nd-m); width: 1.4rem; height: 1.4rem; }
+.nd-mock-flutua b { display: block; font-size: .75rem; color: var(--bs-gray-800, #343a40); }
+.nd-mock-flutua small { font-size: .66rem; color: var(--bs-gray-600, #6c757d); }
+.nd-mock-flutua-a { left: -.5rem; bottom: .6rem; }
+.nd-mock-flutua-b { right: -.25rem; top: .2rem; animation-delay: -3s; }
+@keyframes nd-flutua { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+/* Faixa de especialidades */
+.nd-faixa {
+    overflow: hidden; padding: 1rem 0; background: #fff;
+    border-top: 1px solid var(--bs-gray-200, #e9ecef); border-bottom: 1px solid var(--bs-gray-200, #e9ecef);
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.nd-faixa-trilho { display: flex; width: max-content; animation: nd-corre 48s linear infinite; }
+.nd-faixa:hover .nd-faixa-trilho { animation-play-state: paused; }
+.nd-faixa ul { display: flex; margin: 0; }
+.nd-faixa li {
+    padding: 0 1.4rem; white-space: nowrap; font-size: .9rem; font-weight: 600;
+    color: var(--bs-gray-500, #adb5bd); transition: color .2s ease;
+}
+.nd-faixa li::before { content: "•"; margin-right: 1.4rem; color: var(--nd-m); }
+.nd-faixa li:hover { color: var(--nd-m-escura); }
+@keyframes nd-corre { to { transform: translateX(-50%); } }
+
+/* Passos */
+.nd-passos { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin: 0; }
+.nd-passos::before, .nd-passos::after {
+    content: ""; position: absolute; top: 1.75rem; left: 12.5%; right: 12.5%; height: 2px; border-radius: 2px;
+}
+.nd-passos::before { background: var(--bs-gray-200, #e9ecef); }
+.nd-passos::after {
+    background: linear-gradient(90deg, var(--nd-m), var(--bs-primary, #3454d1));
+    transform-origin: 0 50%; transform: scaleX(var(--nd-progresso, 1));
+    transition: transform .2s linear;
+}
+.nd-passos li { position: relative; z-index: 1; text-align: center; padding: 0 .5rem; }
+.nd-passo-icone {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 3.5rem; height: 3.5rem; margin-bottom: 1rem; border-radius: 1rem;
+    background: #fff; color: var(--nd-m); border: 2px solid var(--nd-m-suave);
+    box-shadow: 0 8px 20px rgba(20, 32, 92, .08);
+    transition: transform .3s var(--nd-curva), background .3s ease, color .3s ease;
+}
+.nd-passos li:hover .nd-passo-icone { transform: translateY(-4px) rotate(-6deg); background: var(--nd-m); color: #fff; }
+
+/* Tipos de atendimento */
+.nd-tipos { display: grid; gap: 1rem; }
+.nd-tipo {
+    display: flex; gap: 1.1rem; align-items: flex-start; padding: 1.2rem 1.4rem;
+    border-radius: 1rem; background: var(--bs-gray-100, #f8f9fa); border: 1px solid transparent;
+    transition: transform .3s var(--nd-curva), border-color .3s ease, background .3s ease, box-shadow .3s ease;
+}
+.nd-tipo:hover {
+    transform: translateX(8px); background: #fff; border-color: var(--nd-m);
+    box-shadow: 0 14px 30px rgba(20, 32, 92, .1);
+}
+.nd-tipo-num {
+    font-size: 1.6rem; font-weight: 800; line-height: 1; color: transparent;
+    -webkit-text-stroke: 1.5px var(--nd-m); transition: color .3s ease;
+}
+.nd-tipo:hover .nd-tipo-num { color: var(--nd-m); }
+.nd-link-seta { display: inline-flex; align-items: center; gap: .35rem; }
+.nd-link-seta .nd-ico { width: 1rem; height: 1rem; transition: transform .2s ease; }
+.nd-link-seta:hover .nd-ico, a:hover .nd-link-seta .nd-ico { transform: translateX(4px); }
+
+/* Recursos: brilho que segue o cursor */
+.nd-spot { position: relative; overflow: hidden; isolation: isolate; }
+.nd-spot::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0;
+    background: radial-gradient(320px circle at var(--nd-x, 50%) var(--nd-y, 50%), rgba(52, 84, 209, .12), transparent 60%);
+    transition: opacity .3s ease;
+}
+.nd-spot:hover::before { opacity: 1; }
+.nd-spot:hover { border-color: rgba(52, 84, 209, .35); }
+.nd-spot-destaque { background: linear-gradient(135deg, #fff 55%, rgba(52, 84, 209, .07)); }
+.nd-recurso-icone {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.75rem; height: 2.75rem; border-radius: .8rem;
+    background: var(--nd-m-suave); color: var(--nd-m);
+    transition: transform .35s var(--nd-curva), background .3s ease, color .3s ease;
+}
+.nd-spot:hover .nd-recurso-icone { transform: scale(1.1) rotate(-8deg); background: var(--nd-m); color: #fff; }
+
+/* Antes e depois */
+.nd-antes { background: var(--bs-gray-100, #f8f9fa); transition: filter .3s ease; }
+.nd-depois {
+    background: linear-gradient(135deg, rgba(52, 84, 209, .1), rgba(52, 84, 209, .06));
+    transition: transform .3s var(--nd-curva), box-shadow .3s ease;
+}
+.nd-antes-depois:hover .nd-antes { filter: grayscale(1) opacity(.75); }
+.nd-antes-depois:hover .nd-depois { transform: translateY(-4px); box-shadow: 0 18px 40px rgba(20, 32, 92, .12); }
+
+/* Especialidades */
+.nd-especialidade {
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    transition: transform .25s var(--nd-curva), border-color .25s ease, box-shadow .25s ease;
+}
+.nd-especialidade:hover { transform: translateY(-4px); border-color: var(--nd-m); box-shadow: 0 12px 28px rgba(20, 32, 92, .1); }
+.nd-especialidade-check {
+    display: inline-flex; align-items: center; justify-content: center; width: 1.8rem; height: 1.8rem;
+    margin-bottom: .6rem; border-radius: 50%; background: var(--nd-m-suave); color: var(--nd-m);
+    transition: background .25s ease, color .25s ease;
+}
+.nd-especialidade-check .nd-ico { width: 1rem; height: 1rem; }
+.nd-especialidade:hover .nd-especialidade-check { background: var(--nd-m); color: #fff; }
+
+/* Segurança e NeuroDoc: as duas faixas escuras, no tom escuro da marca */
+.nd-seguranca {
+    position: relative; overflow: hidden; color: #fff;
+    background: radial-gradient(circle at 85% 10%, rgba(52, 84, 209, .45), transparent 45%), var(--nd-m-escura);
+}
+.nd-seguranca-texto, .nd-prontdoc-texto { color: rgba(255, 255, 255, .8); }
+.nd-seg-item {
+    display: flex; gap: .9rem; height: 100%; padding: 1.1rem 1.2rem; border-radius: .9rem;
+    background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .12);
+    transition: background .25s ease, transform .25s var(--nd-curva), border-color .25s ease;
+}
+.nd-seg-item:hover { background: rgba(255, 255, 255, .12); border-color: rgba(159, 179, 255, .6); transform: translateY(-3px); }
+.nd-seg-item .nd-ico { color: #9fb3ff; width: 1.5rem; height: 1.5rem; margin-top: .1rem; }
+.nd-seg-item b { display: block; font-size: .9rem; margin-bottom: .2rem; }
+.nd-seg-item span { display: block; font-size: .8rem; color: rgba(255, 255, 255, .75); }
+
+.nd-prontdoc {
+    position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 1.25rem;
+    padding: 2rem; border-radius: 1.25rem;
+    /* O ProntDoc é verde e o NeuroDoc, azul: o cartão do outro produto
+     * termina no verde dele. */
+    background: linear-gradient(120deg, var(--nd-m-escura), var(--nd-verde-prontdoc));
+    box-shadow: 0 24px 50px rgba(20, 32, 92, .2);
+}
+.nd-prontdoc::after {
+    content: ""; position: absolute; width: 18rem; height: 18rem; right: -6rem; top: -8rem; border-radius: 50%;
+    background: radial-gradient(circle, rgba(159, 179, 255, .35), transparent 70%);
+    transition: transform .8s var(--nd-curva); pointer-events: none;
+}
+.nd-prontdoc:hover::after { transform: translate(-3rem, 3rem) scale(1.2); }
+.nd-prontdoc .btn { position: relative; z-index: 1; }
+@media (min-width: 768px) {
+    .nd-prontdoc { flex-direction: row; align-items: center; padding: 2.5rem 3rem; }
+}
+
+/* Entrada pela rolagem: direções e escalonamento (o landing.js põe a classe
+ * pendente só abaixo da dobra; ver o bloco de 1.30 acima). */
+.nd-reveal-pendente[data-nd-de="esquerda"] { transform: translateX(-28px); }
+.nd-reveal-pendente[data-nd-de="direita"] { transform: translateX(28px); }
+.nd-reveal-visivel[data-nd-atraso="1"] { transition-delay: .08s; }
+.nd-reveal-visivel[data-nd-atraso="2"] { transition-delay: .16s; }
+.nd-reveal-visivel[data-nd-atraso="3"] { transition-delay: .24s; }
+
+/* Tablet e celular: os passos em grade, sem a linha; a prévia sem giro. */
+@media (max-width: 991.98px) {
+    .nd-passos { grid-template-columns: 1fr 1fr; }
+    .nd-passos::before, .nd-passos::after { display: none; }
+    .nd-mock { transform: none; }
+}
+@media (max-width: 575.98px) {
+    .nd-hero-v2 { padding-top: 3rem; }
+    .nd-passos { grid-template-columns: 1fr; }
+    .nd-passos li { text-align: left; display: grid; grid-template-columns: 3.5rem 1fr; column-gap: 1rem; }
+    .nd-passos li .nd-passo-icone { grid-row: span 2; margin-bottom: 0; }
+    .nd-mock-palco { padding: 1rem 0 2.5rem; }
+    .nd-mock-flutua-a { left: 0; }
+    .nd-mock-flutua-b { display: none; }
+    .nd-mock-grade { grid-template-columns: 1fr; }
+    .nd-prontdoc { padding: 1.5rem; }
+    .nd-tipo:hover { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .nd-entra, .nd-grifo, .nd-pulso, .nd-mock-flutua, .nd-mock-digitando { animation: none; }
+    .nd-grifo { background-size: 100% 100%; }
+    .nd-faixa-trilho { animation: none; width: auto; justify-content: center; }
+    .nd-faixa ul[aria-hidden] { display: none; }
+    .nd-faixa ul { flex-wrap: wrap; justify-content: center; }
+    .nd-faixa { -webkit-mask-image: none; mask-image: none; }
+    .nd-mock-palco, .nd-mock, .nd-mock-palco:hover .nd-mock { transform: none; }
+    .nd-tipo, .nd-tipo:hover, .nd-especialidade:hover, .nd-seg-item:hover,
+    .nd-antes-depois:hover .nd-depois, .nd-passos li:hover .nd-passo-icone,
+    .nd-spot:hover .nd-recurso-icone, .nd-selos li:hover { transform: none; }
+    .nd-btn-brilho::after { display: none; }
+    .nd-prontdoc:hover::after { transform: none; }
+    .nd-reveal-visivel[data-nd-atraso] { transition-delay: 0s; }
+}
+
+/* Páginas de entrada da busca (templates/onboarding/tematica.html). */
+.nd-tematica-hero { padding-top: 3.5rem; }
+.nd-tematica-titulo { font-size: clamp(1.75rem, 4vw, 2.75rem); line-height: 1.15; }
+
+/* Faixa de áreas da neurologia com link (o trilho do ProntDoc não tinha). */
+.nd-faixa a { color: inherit; text-decoration: none; }
+.nd-faixa a:hover { color: var(--nd-m-escura); }
+
+/* Os trunfos: blocos alternados com a prévia ao lado. */
+.nd-trunfo + .nd-trunfo { margin-top: 4.5rem; }
+.nd-trunfo-lista li { display: flex; gap: .6rem; align-items: flex-start; margin-bottom: .55rem; font-size: .9rem; }
+.nd-trunfo-lista .nd-ico { color: var(--nd-m); margin-top: .15rem; }
+.nd-trunfo-painel {
+    position: relative; border-radius: 1.25rem; padding: 1.6rem;
+    background: linear-gradient(135deg, #fff 40%, var(--nd-m-suave));
+    border: 1px solid var(--bs-gray-200, #e9ecef);
+    box-shadow: 0 24px 50px rgba(20, 32, 92, .1);
+    transition: transform .4s var(--nd-curva), box-shadow .4s ease;
+}
+.nd-trunfo-painel:hover { transform: translateY(-6px) rotate(-.4deg); box-shadow: 0 30px 60px rgba(20, 32, 92, .16); }
+.nd-trunfo-ia .nd-trunfo-painel { background: linear-gradient(135deg, #10184a, #1b2a78 55%, #3454d1); color: #fff; border-color: transparent; }
+.nd-chat-bolha { border-radius: 1rem; padding: .7rem .9rem; font-size: .82rem; margin-bottom: .6rem; max-width: 92%; }
+.nd-chat-medico { background: rgba(255, 255, 255, .14); margin-left: auto; }
+.nd-chat-ia { background: #fff; color: #1b2a78; }
+.nd-chat-ia b { color: #3454d1; }
+.nd-selo-escuro { display: inline-block; font-size: .7rem; font-weight: 700; padding: .25rem .6rem; border-radius: 999px; background: rgba(159, 179, 255, .2); color: #c7d3ff; }
+.nd-numero-grande { font-size: clamp(2.2rem, 5vw, 3.2rem); font-weight: 800; line-height: 1; color: var(--nd-m); }
+.nd-cta-final {
+    border-radius: 1.5rem; padding: 3rem 1.5rem; color: #fff; text-align: center;
+    background: radial-gradient(circle at 20% 10%, rgba(159, 179, 255, .35), transparent 45%), linear-gradient(120deg, #10184a, #3454d1);
+}
+.nd-cta-final p { color: rgba(255, 255, 255, .85); }
+.nd-codigo-aberto { font-size: .8rem; color: var(--bs-gray-600, #6c757d); border-top: 1px dashed var(--bs-gray-300, #dee2e6); padding-top: 1rem; }
+@media (prefers-reduced-motion: reduce) {
+    .nd-trunfo-painel:hover { transform: none; }
+}
+
+/* A entrada de lado (`data-nd-de`) desloca o bloco 28px antes de aparecer, e
+ * no celular isso passava da tela: a página rolava na horizontal (2026-11-18,
+ * medido a 390px). Abaixo de `lg`, o bloco entra de baixo; e a seção corta a
+ * sobra horizontal em qualquer largura, sem criar rolagem própria. */
+.nd-section { overflow-x: clip; }
+@media (max-width: 991.98px) {
+    .nd-reveal-pendente[data-nd-de="esquerda"],
+    .nd-reveal-pendente[data-nd-de="direita"] { transform: translateY(14px); }
+}

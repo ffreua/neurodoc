@@ -18,11 +18,15 @@ falso testemunho sobre produto de saúde; um contador em zero anuncia que
 não há clientes. Quando houver clínicas no piloto, os números entram
 medidos.
 
-**O tom é de especialista para especialista.** Quem lê isto examina
-pacientes com queixa neurológica e sabe o que é um reflexo assimétrico.
-Não há por que explicar o que ele faz melhor do que nós, nem adjetivar o
-que o produto faz: o ganho aparece quando se diz exatamente o que
-acontece na tela e o que deixa de acontecer na rotina.
+**O tom é de vendas, e direto** (2026-11-18, pedido do titular): a página
+existe para converter, e diz isso sem pudor — o ganho na rotina, em verbo de
+ação, e o chamado para começar. O que não muda é o de cima: chamativo é dizer
+sem rodeio o que o produto faz, nunca aumentar o que ele faz. Quem lê
+examina pacientes com queixa neurológica e reconhece exagero de longe.
+
+**O NeuroDoc é de neurologia e neurocirurgia.** Até 2026-11-18 a página dizia
+que ele servia a qualquer especialidade; para isso existe o ProntDoc, do mesmo
+time (`PRONTDOC`), e a página aponta para ele.
 """
 
 #: Quem escreveu o sistema.
@@ -79,6 +83,11 @@ AUTOR = {
 #: se copia e se confere a olho; um QR numa página que qualquer um pode
 #: imitar pede confiança no desenho.
 #:
+#: Desde 2026-11-18 a página cita o código aberto numa linha discreta, na
+#: seção do autor, e não num destaque: quem chega para comprar quer saber o
+#: que o sistema faz por ele, e a licença é argumento de confiança, não de
+#: venda (pedido do titular).
+#:
 #: Aqui, e não no template, pela razão do resto do módulo — e porque o
 #: README repete os mesmos dois endereços, e `check_landing` confere que a
 #: página mostra exatamente estes.
@@ -121,9 +130,105 @@ NOVIDADE = {
     'link_rotulo': 'Como funciona',
 }
 
-#: Os três cartões de "Novo no NeuroDoc", logo abaixo do hero. Cada um leva
-#: ao artigo do manual que mostra a função — a regra do topo deste módulo:
-#: só o que existe, e conferível.
+#: O produto irmão, para as outras especialidades (2026-11-18). O NeuroDoc é
+#: de neurologia e neurocirurgia; quem chega aqui de outra especialidade é
+#: encaminhado, e não convencido a usar um prontuário que não foi feito para
+#: ele. A vitrine, as páginas de entrada da busca e o `llms.txt` leem daqui.
+PRONTDOC = {
+    'nome': 'ProntDoc',
+    'url': 'https://prontdoc.app.br/',
+    'rotulo': 'prontdoc.app.br',
+    'titulo': 'Não é da neurologia? Conheça o ProntDoc.',
+    'texto': 'O mesmo time, a mesma segurança, para qualquer especialidade: prontuário '
+             'em texto livre, receita controlada no SNCR, TISS, portal do paciente e IA. '
+             'O NeuroDoc continua sendo o especialista em neurologia e neurocirurgia.',
+    'cta': 'Conhecer o ProntDoc',
+}
+
+#: Os cinco trunfos da página (2026-11-18): o que mais vende, cada um com a
+#: prévia ao lado. A ordem é a decisão do titular — a IA primeiro.
+TRUNFOS = [
+    {
+        'chave': 'ia',
+        'selo': 'IA clínica · plano Completo',
+        'titulo': 'Uma IA que escreve o rascunho. Você só revisa e assina.',
+        'texto': 'Resumo do atendimento, relatório para o paciente, apoio diagnóstico e '
+                 'conversa sobre o caso — em segundos. O texto sai sem nome nem documento, '
+                 'e nada entra no prontuário sem a sua revisão.',
+        'itens': [
+            'Resumo do atendimento pronto para aprovar',
+            'Relatório do paciente redigido, revisado e assinado por você',
+            'Apoio diagnóstico com hipóteses para você avaliar',
+            'Chat do caso com o prontuário como fonte — e que ensina a usar o sistema',
+            'Desidentificação antes de sair; provedor e chave próprios, se a clínica quiser',
+        ],
+        'link': '/recursos/inteligencia-artificial/', 'rotulo': 'Ver a IA em detalhe',
+    },
+    {
+        'chave': 'portal',
+        'selo': 'Portal do paciente + WhatsApp',
+        'titulo': 'Recepção desafogada: menos telefone, menos WhatsApp.',
+        'texto': 'O paciente pede a receita pelo portal, sem conta e sem ligar. A '
+                 'secretária manda o lembrete pelo WhatsApp da clínica com um clique, a '
+                 'mensagem já escrita.',
+        'itens': [
+            'Pedido de receita, relatório e exame pelo portal, sem conta',
+            'Laudos em PDF direto no prontuário, com aviso ao médico',
+            'Botão WhatsApp na agenda e no balcão, com o lembrete pronto',
+            'Confirmação por e-mail e, nos planos pagos, por SMS',
+            'Regra dos 180 dias do CFM, se a clínica quiser exigir',
+        ],
+        'link': '/recursos/portal-do-paciente/', 'rotulo': 'Ver o portal',
+    },
+    {
+        'chave': 'receita',
+        'selo': 'SNCR · Anvisa',
+        'titulo': 'Receita controlada eletrônica, com a numeração da Anvisa.',
+        'texto': 'Receita de Controle Especial e Notificação de Receita A, B e B2 '
+                 'eletrônicas, no modelo oficial do SNCR. Sem talonário, sem caneta.',
+        'itens': [
+            'Os números do médico, pedidos pelo Gov.br',
+            'Portaria 344 conferida na hora: o tipo certo de receita apontado',
+            'Uma folha e um número por medicamento',
+            'Assinada com o seu certificado digital',
+            'Vinte e seis mil apresentações da CMED na busca',
+        ],
+        'link': '/recursos/receita-controlada-sncr/', 'rotulo': 'Como funciona',
+    },
+    {
+        'chave': 'tiss',
+        'selo': 'TISS · ANS · plano Completo',
+        'titulo': 'Convênio faturado no padrão TISS, sem redigitar nada.',
+        'texto': 'Guias de Consulta e SP/SADT preenchidas com o que o sistema já sabe, e '
+                 'lotes em XML validados no esquema da ANS, na versão que cada operadora aceita.',
+        'itens': [
+            'Da versão 3.04 à 4.03, validadas no XSD oficial',
+            'Consulta do check-in vinculada, sem cobrança duplicada',
+            'Agenda de EEG, ENMG e polissonografia por equipamento',
+            'Exame realizado vira cobrança e guia SP/SADT',
+        ],
+        'link': '/recursos/faturamento-tiss/', 'rotulo': 'Ver o TISS',
+    },
+    {
+        'chave': 'registro',
+        'selo': 'Estruturado ou texto livre',
+        'titulo': 'Do seu jeito: exame estruturado ou texto livre — e 14 escalas.',
+        'texto': 'Gosta de estrutura? 387 itens por eixo, com "tudo normal" por grupo. '
+                 'Prefere escrever? Folha em branco com a consulta anterior ao lado. As '
+                 'escalas valem nos dois, e viram gráfico.',
+        'itens': [
+            'Primeira consulta, seguimento e texto livre no mesmo editor',
+            'NIHSS, Glasgow, Rankin, Hoehn e Yahr, MEEM, ALSFRS-R, SARA e mais',
+            'Escore e interpretação calculados, evolução em gráfico',
+            'Consulta anterior a um clique, aceita item a item',
+        ],
+        'link': '/recursos/escalas-neurologicas/', 'rotulo': 'Ver as 14 escalas',
+    },
+]
+
+#: Os três cartões de "Novo no NeuroDoc". Cada um leva ao artigo do manual
+#: que mostra a função — a regra do topo deste módulo: só o que existe, e
+#: conferível.
 NOVIDADES = [
     {
         'icone': 'TISS',
@@ -143,7 +248,8 @@ NOVIDADES = [
         'icone': '℞',
         'titulo': 'Receita digital com numeração da Anvisa',
         'texto': 'Receita de Controle Especial, de Retenção e Notificação de Receita A, B e '
-                 'B2 eletrônicas no modelo do SNCR, com os números do médico e assinatura ICP-Brasil.',
+                 'B2 eletrônicas no modelo do SNCR, com os números do médico e o seu '
+                 'certificado digital.',
         'link': '/ajuda/receita-sncr/', 'rotulo': 'Como emitir',
     },
 ]
@@ -152,50 +258,17 @@ NOVIDADES = [
 RECURSOS = [
     {
         'titulo': 'Exame neurológico estruturado em árvore',
-        'texto': 'Trezentos e oitenta e sete itens organizados por eixo — pares '
-                 'cranianos, motor, sensibilidade, coordenação, marcha —, com '
-                 '"tudo normal" por grupo para o que veio sem alteração. O achado '
-                 'anormal fica destacado no registro, em vez de se diluir num '
-                 'parágrafo de texto corrido que ninguém relê daqui a um ano.',
+        'texto': 'Trezentos e oitenta e sete itens por eixo — pares cranianos, motor, '
+                 'sensibilidade, coordenação, marcha —, com "tudo normal" por grupo. O '
+                 'achado anormal salta aos olhos, em vez de se perder num parágrafo que '
+                 'ninguém relê daqui a um ano. Prefere escrever? O texto livre está a um clique.',
     },
     {
         'titulo': 'Quatorze escalas com pontuação automática',
-        'texto': 'NIHSS, Rankin, Hoehn e Yahr, MEEG e outras dez, aplicadas dentro '
-                 'do atendimento. O escore e a faixa de interpretação saem '
-                 'calculados, e ficam na história do paciente — a comparação entre '
-                 'a consulta de hoje e a de seis meses atrás deixa de depender de '
-                 'procurar o número num texto antigo.',
-    },
-    {
-        'titulo': 'Receita e laudo assinados com PAdES',
-        'texto': 'Receita, laudo, pedido de exame e encaminhamento assinados com o '
-                 'certificado do próprio médico, no padrão PAdES, e com QR de '
-                 'verificação pública: a farmácia confere tipo, número, CRM e data '
-                 'sem ter conta no sistema. Controle especial sai em duas vias, com '
-                 'o quadro da Portaria 344/98.',
-    },
-    {
-        'titulo': 'A consulta anterior a um toque de distância',
-        'texto': 'Conduta, impressões, hipóteses e medicação em uso da última '
-                 'consulta aparecem para revisão item a item, e cada um entra no '
-                 'registro de hoje só se o médico aceitar. Retorno de seguimento '
-                 'deixa de começar pela releitura do prontuário inteiro.',
-    },
-    {
-        'titulo': 'Agenda por médico, sem sobreposição',
-        'texto': 'Grade própria por profissional, com duração por tipo de '
-                 'atendimento, bloqueio de horário sobreposto, remarcação visual e '
-                 'confirmação por e-mail ou SMS. A recepção marca sem precisar '
-                 'perguntar se o horário cabe.',
-    },
-    {
-        'titulo': 'Portal do paciente: pedidos e envio de exames',
-        'texto': 'O paciente pede receita, relatório ou pedido de exames sem criar '
-                 'conta e sem ligar para a recepção — o pedido entra numa fila que '
-                 'só o médico revisa, e quem decide o que será emitido continua '
-                 'sendo ele. Pelo mesmo portal, o paciente envia em PDF os laudos '
-                 'dos exames que já fez: eles entram direto no prontuário, e o '
-                 'médico é avisado até marcar que viu.',
+        'texto': 'NIHSS, Glasgow, FOUR, RASS, Rankin, Barthel, Hoehn e Yahr, MEEM, '
+                 'Pfeffer, Epworth, SARA, ALSFRS-R, MG-ADL e Ashworth, aplicadas no '
+                 'atendimento estruturado ou em texto livre. Escore e interpretação '
+                 'calculados, e a evolução em gráfico.',
     },
     {
         'titulo': 'Inteligência artificial como copiloto, nunca como autor',
@@ -205,12 +278,23 @@ RECURSOS = [
         # descobriria a diferenca depois de pagar. E a mesma divergencia
         # que `plans.has_clinical_ai` corrige do lado do servidor.
         'texto': 'A partir do plano Completo: resumo do atendimento, relatório para o '
-                 'paciente e conversa sobre o caso — e um chat que também tira dúvidas '
-                 'sobre o uso do sistema —, sempre com revisão médica antes de '
-                 'qualquer coisa entrar no prontuário. O texto é desidentificado '
-                 'antes de sair, e o envio é recusado quando não satisfaz a política '
-                 'de privacidade — a clínica pode usar o próprio provedor e a '
-                 'própria chave.',
+                 'paciente, apoio diagnóstico e conversa sobre o caso — e um chat que '
+                 'também ensina a usar o sistema —, sempre com revisão médica antes de '
+                 'qualquer coisa entrar no prontuário. O texto é desidentificado antes de '
+                 'sair, e a clínica pode usar o próprio provedor e a própria chave.',
+    },
+    {
+        'titulo': 'Portal do paciente que desafoga a recepção',
+        'texto': 'O paciente pede receita, relatório ou pedido de exames sem criar conta e '
+                 'sem ligar — o pedido entra numa fila que só o médico revisa, e quem '
+                 'decide o que será emitido continua sendo ele. Pelo mesmo portal, ele '
+                 'envia em PDF os laudos dos exames que já fez, direto para o prontuário.',
+    },
+    {
+        'titulo': 'Lembrete pelo WhatsApp da clínica, em um clique',
+        'texto': 'Na agenda e no balcão, o botão WhatsApp abre a conversa no número da '
+                 'própria clínica com o lembrete já escrito — nome, data, horário, médico '
+                 'e endereço. A secretária confere e envia. Em todos os planos.',
     },
     {
         'titulo': 'Receita controlada com a numeração da Anvisa',
@@ -221,9 +305,8 @@ RECURSOS = [
         'texto': 'Integrado ao SNCR (RDC 1.000/2025): o médico pede os próprios números '
                  'com o Gov.br e emite a Receita de Controle Especial, a de Retenção e a '
                  'Notificação de Receita A, B e B2 eletrônicas no modelo oficial, uma folha '
-                 'por medicamento, com assinatura ICP-Brasil e a lista da Portaria 344 '
-                 'conferida na hora. A Notificação usa a numeração eletrônica que a '
-                 'Vigilância Sanitária libera ao médico. As Notificações de retinoide e de '
+                 'por medicamento, assinadas com o seu certificado digital e com a lista da '
+                 'Portaria 344 conferida na hora. As Notificações de retinoide e de '
                  'talidomida não são emitidas pelo NeuroDoc.',
     },
     {
@@ -241,96 +324,51 @@ RECURSOS = [
         'texto': 'No plano Completo: uma agenda por equipamento, separada da dos '
                  'médicos e sem ocupar vaga de médico. A polissonografia que atravessa '
                  'a noite é um exame só, o equipamento nunca recebe dois pacientes no '
-                 'mesmo horário, e o exame realizado vira cobrança quando há '
-                 'honorário cadastrado para ele.',
+                 'mesmo horário, e o exame realizado vira cobrança quando há honorário.',
+    },
+    {
+        'titulo': 'Receita e laudo assinados, com QR de verificação',
+        'texto': 'Receita, laudo, pedido de exame e encaminhamento assinados em PAdES com o '
+                 'certificado digital do próprio médico, e com QR de verificação pública: a '
+                 'farmácia confere tipo, número, CRM e data sem ter conta no sistema.',
+    },
+    {
+        'titulo': 'A consulta anterior a um toque de distância',
+        'texto': 'Conduta, impressões, hipóteses e medicação em uso da última consulta '
+                 'aparecem para revisão item a item, e cada um entra no registro de hoje só '
+                 'se o médico aceitar. Retorno deixa de começar pela releitura do prontuário.',
+    },
+    {
+        'titulo': 'Agenda por médico, sem sobreposição',
+        'texto': 'Grade própria por profissional, com duração por tipo de atendimento, '
+                 'bloqueio de horário sobreposto, lista de espera, remarcação visual e '
+                 'confirmação por e-mail ou SMS. A recepção marca sem perguntar se cabe.',
     },
     {
         'titulo': 'Guarda de vinte anos, e a trilha de quem fez o quê',
-        'texto': 'Prontuário finalizado não se reescreve: correção é adendo, com '
-                 'autor e data. Cada alteração e cada emissão ficam numa trilha que o '
-                 'próprio banco impede de alterar, e o backup é automático e '
-                 'cifrado com uma chave que fica fora do servidor.',
+        'texto': 'Prontuário finalizado não se reescreve: correção é adendo, com autor e '
+                 'data. Cada alteração e cada emissão ficam numa trilha que o próprio banco '
+                 'impede de alterar, e o backup é diário, cifrado e copiado para fora do '
+                 'servidor.',
     },
 ]
 
-#: O que, neste sistema, não é de neurologia.
+#: Para quem o NeuroDoc é, e para onde vai quem não é (2026-11-18).
 #:
-#: Existe por uma razão medida em visitante perdido: a página inteira fala
-#: de neurologia, e um clínico, um ortopedista ou um psiquiatra que chegue
-#: aqui por busca conclui em dez segundos que o produto não é para ele — e
-#: vai embora sem procurar a resposta. A resposta é sim, e é conferível:
-#: atendimento em texto livre, agenda, receita com a lista da Anvisa,
-#: assinatura, portal e financeiro não sabem o que é um reflexo.
-#:
-#: **Sem prometer o que não existe**, que é a regra do topo deste módulo.
-#: Não há roteiro de exame de outra especialidade, e nada aqui sugere que
-#: haja: a coluna da direita diz que o roteiro é da neurologia, e o
-#: `fecho` diz por onde o médico de outra especialidade entra — texto
-#: livre, que é como quase todo prontuário do mercado registra. A
-#: diferença entre dizer isso e omitir é o ortopedista descobrir agora,
-#: ou depois de migrar o cadastro.
+#: Até aqui esta seção dizia "Nasceu na neurologia. Funciona em qualquer
+#: consultório", e convencia o clínico e o ortopedista a ficar. Decisão do
+#: titular: o NeuroDoc é de neurologia e neurocirurgia, e quem é de outra
+#: especialidade vai para o ProntDoc (`PRONTDOC`), feito para ele. `areas`
+#: são as páginas de entrada da busca (`base/paginas_seo.py::AREAS`), lidas
+#: de lá para a lista não divergir.
 ESPECIALIDADES = {
-    'titulo': 'Nasceu na neurologia. Funciona em qualquer consultório.',
-    'texto': 'A neurologia é a especialidade mais exigente em registro de exame '
-             'físico — são trezentos e oitenta e sete verificações, catorze '
-             'escalas e um seguimento que dura anos. Um prontuário que dá conta '
-             'disso dá conta do resto com folga. Tudo que não é o roteiro '
-             'neurológico serve a qualquer especialidade, sem configuração e sem '
-             'versão diferente do produto.',
-    'comum': [
-        ('Atendimento em texto livre',
-         'O prontuário tem dois tipos, e o segundo é uma folha em branco com a '
-         'consulta anterior ao lado. É como a maior parte das especialidades '
-         'registra, e é o padrão de quem não usa o roteiro.'),
-        ('Agenda por profissional',
-         'Grade própria por médico, duração por tipo de atendimento, bloqueio de '
-         'horário sobreposto, feriado, retorno programado e confirmação por '
-         'e-mail ou SMS.'),
-        ('Receita com a lista inteira da Anvisa',
-         'Vinte e seis mil apresentações da CMED, com a tarja de cada uma. '
-         'Receita simples e de controle especial, esta em duas vias e com o '
-         'quadro da Portaria 344/98.'),
-        ('Documento assinado digitalmente',
-         'Receita, relatório, pedido de exame e encaminhamento, assinados em '
-         'PAdES com o certificado do próprio médico e verificáveis por QR. A '
-         'declaração de comparecimento sai impressa, sem diagnóstico.'),
-        ('CID-10, CID-11 e TUSS completos',
-         'O catálogo inteiro, não um recorte de neurologia: diagnóstico, '
-         'procedimento e o espelho da TUSS atualizado toda semana.'),
-        ('Convênio, honorário e recebível',
-         'Tabela de honorários com vigência, convênios por paciente, '
-         'recebíveis, pagamentos e ajustes — tudo em centavos, sem ponto '
-         'flutuante.'),
-        ('Portal do paciente e entrega por link',
-         'O paciente pede receita, relatório ou exame sem criar conta, envia os '
-         'laudos dos exames que fez direto para o prontuário, e recebe o '
-         'documento por link com código de acesso.'),
-        ('IA que redige, médico que assina',
-         'Resumo do atendimento, relatório para o paciente e um chat que também '
-         'responde sobre o uso do sistema. '
-         'O texto sai desidentificado e nada entra no prontuário sem o médico '
-         'aceitar — o que vale para qualquer especialidade.'),
-    ],
-    'neuro': [
-        ('Roteiro de exame neurológico em árvore',
-         'Trezentos e oitenta e sete itens por eixo, com "tudo normal" por grupo '
-         'e o achado anormal destacado.'),
-        ('Catorze escalas com pontuação automática',
-         'NIHSS, Rankin, Hoehn e Yahr, MEEM e outras dez, com escore e faixa de '
-         'interpretação calculados dentro do atendimento.'),
-    ],
-    # A linha de fecho da seção: diz, em uma frase, por onde o médico de
-    # outra especialidade entra. Ela existe porque as duas colunas acima
-    # descrevem o produto e não respondem "e eu, como uso isto?" — e essa
-    # é a pergunta de quem acabou de ler que o roteiro de exame é de
-    # neurologia.
-    'fecho': 'Quem atende fora da neurologia evolui em texto livre — a folha em '
-             'branco com a consulta anterior ao lado, que é como quase todo '
-             'prontuário do mercado registra — e usa o resto inteiro: agenda, '
-             'receita com a lista da Anvisa, documento assinado, portal do '
-             'paciente, convênios e financeiro. O roteiro de exame é o que há a '
-             'mais para a neurologia; todo o resto foi feito para consultório '
-             'médico, qualquer que seja a especialidade.',
+    'titulo': 'Feito para a neurologia. Inteiro.',
+    'texto': 'Do pronto atendimento ao ambulatório de subespecialidade: escalas, exame '
+             'por eixo, agenda de EEG, ENMG e polissonografia, receita controlada e o '
+             'seguimento de anos. Escolha a sua área.',
+    'fecho': 'Atende outra especialidade? O ProntDoc é o prontuário eletrônico do mesmo '
+             'time para qualquer especialidade — com texto livre, receita controlada no '
+             'SNCR, TISS, portal do paciente e IA.',
 }
 
 def _resposta_pagamento(checkout=False):
@@ -415,6 +453,10 @@ def _resposta_residentes():
 #: respostas dizem o que o sistema faz — inclusive quando a resposta é
 #: desconfortável, como a do item sobre o que ainda não existe.
 from tenancy import degustacao as _degustacao  # noqa: E402
+from tenancy.plans import PLANS as _PLANS, PlanCode as _PlanCode  # noqa: E402
+
+#: Os limites do Gratuito, lidos do catálogo: a resposta dizia "até 50" à mão.
+_GRATUITO = _PLANS[_PlanCode.FREE]
 
 FAQ = [
     # Esta vem primeiro porque é a pergunta que decide se as outras
@@ -423,22 +465,22 @@ FAQ = [
     # sistema serve ao consultório dele, nenhuma resposta sobre sigilo ou
     # assinatura muda coisa alguma.
     {
-        'pergunta': 'Como o NeuroDoc serve para outras especialidades?',
-        'resposta': 'O atendimento tem dois tipos, e o de texto livre não é de '
-                    'especialidade nenhuma: é a folha em branco com a consulta '
-                    'anterior ao lado para revisar, que é como quase todo '
-                    'prontuário do mercado registra. Quem atende fora da '
-                    'neurologia evolui por ali. E todo o resto é de consultório '
-                    'médico, não de neurologia: agenda por profissional, receita '
-                    'com as vinte e seis mil apresentações da Anvisa, relatório e '
-                    'pedido de exame assinados digitalmente com verificação por QR, '
-                    'CID-10, CID-11 e TUSS completos, convênios, honorários e '
-                    'recebíveis, portal para o paciente pedir receita e '
-                    'enviar os laudos dos exames, '
-                    'exportação do acervo e o apoio de inteligência artificial. '
-                    'O roteiro de exame com trezentos e oitenta e sete itens e '
-                    'as catorze escalas pontuadas são o que há a mais para a '
-                    'neurologia — não uma condição para usar o resto.',
+        'pergunta': 'O NeuroDoc serve para outras especialidades?',
+        'resposta': 'O NeuroDoc é feito para neurologia e neurocirurgia: roteiro de exame '
+                    'neurológico com trezentos e oitenta e sete itens, catorze escalas '
+                    'pontuadas e agenda de EEG, ENMG e polissonografia. Para as outras '
+                    'especialidades existe o ProntDoc (prontdoc.app.br), do mesmo time, com '
+                    'prontuário em texto livre, receita controlada no SNCR, TISS, portal do '
+                    'paciente e inteligência artificial.',
+    },
+    {
+        'pergunta': 'Dá para reduzir as ligações e o WhatsApp da recepção?',
+        'resposta': 'Dá. Pelo portal, o paciente pede receita, relatório ou pedido de exame e '
+                    'envia os laudos em PDF, sem criar conta e sem ligar — o pedido chega numa '
+                    'fila que só o médico revisa. E o lembrete de consulta sai pelo WhatsApp '
+                    'da própria clínica num clique, com a mensagem já escrita; quem envia é a '
+                    'recepção, do número que o paciente conhece. A confirmação automática sai '
+                    'por e-mail e, nos planos pagos, por SMS.',
     },
     {
         'pergunta': 'Quem consegue ler o prontuário dos meus pacientes?',
@@ -454,8 +496,7 @@ FAQ = [
                     'brasileiro, aplicada com o certificado do próprio médico. Cada '
                     'documento sai com um código de verificação pública: qualquer '
                     'farmácia confere tipo, número, médico, CRM e data sem ter conta '
-                    'no sistema. A emissão com certificado ICP-Brasil real depende de '
-                    'você cadastrar o seu.',
+                    'no sistema. Para assinar, basta cadastrar o seu certificado digital.',
     },
     {
         'pergunta': 'E se eu passar do limite de pacientes do plano?',
@@ -490,8 +531,8 @@ FAQ = [
     },
     {
         'pergunta': 'Posso começar de graça?',
-        'resposta': 'Pode, e agora mesmo. O plano Gratuito atende até 50 pacientes e '
-                    'um médico, sem cartão de crédito e sem prazo para acabar. Clique '
+        'resposta': f'Pode, e agora mesmo. O plano Gratuito atende até {_GRATUITO["max_patients"]} '
+                    f'pacientes e {_GRATUITO["max_doctors"]} médico, sem cartão de crédito e sem prazo para acabar. Clique '
                     'em "Começar agora" no cartão do plano e você cai direto na tela '
                     'de criação da clínica — nenhum contato comercial no caminho.',
     },

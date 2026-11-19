@@ -200,7 +200,8 @@ def _absolutos(texto):
 
 
 def _texto_para_modelo(completo):
-    from base.content import INSTAGRAM, RECURSOS, faq
+    from base.content import INSTAGRAM, PRONTDOC, RECURSOS, TRUNFOS, faq
+    from base.paginas_seo import AREAS, RECURSOS as PAGINAS_RECURSOS
     from base.help_content import ARTICLES, FAQ_USO
     from tenancy.plans import PUBLIC_ORDER, PLANS, pricing
 
@@ -230,9 +231,19 @@ def _texto_para_modelo(completo):
         '',
         '> ' + seo.RESUMO,
         '',
+        # "os dados ficam no Brasil" estava aqui até 2026-11-18, e não era
+        # verdade: o servidor fica nos Estados Unidos, como o contrato de
+        # adesão diz (Anexo III). Texto para robô também é promessa.
         'Prontuário eletrônico e gestão de consultório em português, feito por um '
-        'neurologista para neurologia e neurocirurgia e utilizável por qualquer '
-        'especialidade. Funciona no navegador; os dados ficam no Brasil, sob a LGPD.',
+        'neurologista para neurologia e neurocirurgia. Funciona no navegador, sem '
+        'instalação, sob a LGPD.',
+        '',
+        f"Para outras especialidades, o mesmo time mantém o {PRONTDOC['nome']} "
+        f"({PRONTDOC['url']}): {PRONTDOC['texto']}",
+        '',
+        '## Destaques',
+        '',
+        *[f"- **{t['titulo']}** {t['texto']}" for t in TRUNFOS],
         '',
         '## Recursos',
         '',
@@ -257,6 +268,15 @@ def _texto_para_modelo(completo):
         f'- [Perguntas de uso]({base}/ajuda/perguntas/): as dúvidas de quem usa o sistema',
         f'- [Contrato de adesão]({base}/contrato/): o texto em vigor',
         f'- [Verificar documento]({base}/verificar/): conferir receita ou laudo assinado pelo QR',
+        f"- [{PRONTDOC['nome']}]({PRONTDOC['url']}): prontuário eletrônico do mesmo time para outras especialidades",
+        '',
+        '## Por área da neurologia',
+        '',
+        *[f"- [{p['h1']}]({base}/neurologia/{p['slug']}/): {p['descricao']}" for p in AREAS],
+        '',
+        '## Recursos em detalhe',
+        '',
+        *[f"- [{p['h1']}]({base}/recursos/{p['slug']}/): {p['descricao']}" for p in PAGINAS_RECURSOS],
         f"- [Instagram {INSTAGRAM['usuario']}]({INSTAGRAM['url']}): novidades de cada versão e dicas de uso",
         '',
     ]

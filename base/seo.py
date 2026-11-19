@@ -44,13 +44,16 @@ from tenancy.contract import CONTRATADO
 #: sitemap. À mão de propósito: `localdate()` faria toda página parecer
 #: atualizada em toda publicação, o rastreador aprenderia que o sinal não
 #: significa nada e passaria a ignorá-lo. Mexer no texto é mexer aqui.
-ATUALIZADO = date(2026, 11, 4)
+ATUALIZADO = date(2026, 11, 18)
 
 #: O que o produto responde quando perguntam "isso é o quê". Entra na
 #: descrição da raiz, no JSON-LD e no cartão de compartilhamento.
+#:
+#: Até 2026-11-18 terminava em "Serve a qualquer especialidade"; o NeuroDoc é
+#: de neurologia e neurocirurgia, e as outras especialidades vão ao ProntDoc.
 RESUMO = (
-    'Prontuário eletrônico com exame neurológico estruturado, receita digital '
-    'da Anvisa, faturamento TISS e agenda de exames. Serve a qualquer especialidade.'
+    'Prontuário eletrônico de neurologia com IA, exame estruturado ou texto livre, '
+    '14 escalas, receita controlada no SNCR, TISS e portal do paciente.'
 )
 
 #: `max-snippet:-1` e `max-image-preview:large` pedem ao Google o trecho e
@@ -319,7 +322,7 @@ def dados_da_verificacao():
 PAGINAS = {
     'onboarding:landing': Pagina(
         caminho='/',
-        titulo='Prontuário para Neurologia com TISS e Receita Digital | NeuroDoc',
+        titulo='Prontuário Eletrônico de Neurologia com IA e TISS | NeuroDoc',
         descricao=RESUMO,
         prioridade='1.0', frequencia='weekly',
         dados=dados_da_raiz,
@@ -402,14 +405,62 @@ def pagina_do_artigo(slug):
     )
 
 
+def dados_da_tematica(item, caminho, secao, rotulo_secao):
+    """Área ou recurso: trilha, a página e as perguntas dela.
+
+    As perguntas viram `FAQPage` porque estão **visíveis** na página — a
+    regra do Google para o resultado rico é marcar só o que o leitor vê.
+    """
+    return [
+        _trilha([('Início', '/'), (rotulo_secao, secao), (item['nome'], caminho)]),
+        {'@type': 'WebPage', 'name': item['h1'], 'url': absoluta(caminho),
+         'description': item['descricao'], 'inLanguage': 'pt-BR',
+         'isPartOf': {'@id': _id('site')}, 'about': {'@id': _id('produto')},
+         'publisher': {'@id': _id('organizacao')}},
+        _faq([{'pergunta': p, 'resposta': r} for p, r in item['perguntas']]),
+        organizacao(),
+    ]
+
+
+def _pagina_tematica(item, caminho, secao, rotulo_secao):
+    return Pagina(
+        caminho=caminho, titulo=item['titulo'], descricao=item['descricao'],
+        prioridade='0.8', frequencia='monthly',
+        dados=lambda: dados_da_tematica(item, caminho, secao, rotulo_secao),
+    )
+
+
+def pagina_da_area(slug):
+    from .paginas_seo import area
+
+    item = area(slug)
+    if item is None:
+        return None
+    return _pagina_tematica(item, '/neurologia/%s/' % slug, '/#neurologia', 'Neurologia')
+
+
+def pagina_do_recurso(slug):
+    from .paginas_seo import recurso
+
+    item = recurso(slug)
+    if item is None:
+        return None
+    return _pagina_tematica(item, '/recursos/%s/' % slug, '/#recursos', 'Recursos')
+
+
+#: Rota dinâmica -> construtor da página a partir do `slug`.
+_DINAMICAS = {
+    'onboarding:help-article': pagina_do_artigo,
+    'onboarding:area': pagina_da_area,
+    'onboarding:recurso': pagina_do_recurso,
+}
+
+
 def pagina_de(rota, kwargs):
     """A página do catálogo para esta rota, ou `None` se ela não é pública."""
-    pagina = PAGINAS.get(rota)
-    if pagina is None:
-        return None
-    if pagina.dinamica:
-        return pagina_do_artigo(kwargs.get('slug', ''))
-    return pagina
+    if rota in _DINAMICAS:
+        return _DINAMICAS[rota](kwargs.get('slug', ''))
+    return PAGINAS.get(rota)
 
 
 def paginas_do_sitemap():
@@ -419,11 +470,14 @@ def paginas_do_sitemap():
     como aparecer aqui, porque nem está em `PAGINAS`.
     """
     from .help_content import ARTICLES
+    from .paginas_seo import AREAS, RECURSOS
 
     paginas = []
     for rota, pagina in PAGINAS.items():
         if not pagina.dinamica:
             paginas.append(pagina)
+    paginas += [pagina_do_recurso(p['slug']) for p in RECURSOS]
+    paginas += [pagina_da_area(p['slug']) for p in AREAS]
     for artigo in ARTICLES:
         paginas.append(pagina_do_artigo(artigo['slug']))
     return paginas

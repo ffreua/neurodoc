@@ -22,6 +22,7 @@ segurança só entra aqui depois de corrigido nos dois sistemas.
 | MD-2026-11-18-02 | [Cópia diária dos backups no Cloudflare R2 (desligada até o contrato 2.4)](mudancas/2026-11-18-M05-copia-no-r2.md) | operação + texto | rodada de 2026-11-18 | feito nos dois na mesma sessão |
 | MD-2026-11-18-03 | [Contrato 2.4 publicado e cópia dos backups no R2 ligada (trava conferida)](mudancas/2026-11-18-M06-r2-ligado.md) | operação + texto | rodada de 2026-11-18 | feito nos dois (PD-M-2026-11-18-04) |
 | MD-2026-11-18-04 | [Dispositivo confiável (sem prazo, a clínica decide) e a chave do segundo fator sem a URL](mudancas/2026-11-18-M07-dispositivo-confiavel.md) | funcionalidade + segurança | rodada de 2026-11-18 | feito nos dois (PD-M-2026-11-18-05) |
+| MD-2026-11-18-05 | [Vitrine de vendas, NeuroDoc só de neurologia (ProntDoc para as outras) e 18 páginas de busca](mudancas/2026-11-18-M08-vitrine-de-vendas.md) | vitrine + SEO | rodada de 2026-11-18 | feito nos dois (PD-M-2026-11-18-06) |
 
 ## Avaliações de registros do ProntDoc
 
