@@ -76,7 +76,7 @@ pedindo o código. O termo **não** afasta o dever de segurança da PRONTDOC
 nem os direitos dos pacientes, que não são parte dele; é prova de que a
 pessoa foi informada e escolheu.
 
-**Para a Dra. Karina conferir:** o texto do termo (versão 1.0) foi
-redigido aqui, sobre a autorização da opção. Ajuste de redação é versão
-nova do termo, e os dispositivos já confiados guardam o texto que
+**Texto do termo aprovado pela Dra. Karina em 2026-11-18** (versão 1.0,
+como está em `accounts/dispositivo_confiavel.py`). Ajuste de redação é
+versão nova do termo, e os dispositivos já confiados guardam o texto que
 aceitaram.
