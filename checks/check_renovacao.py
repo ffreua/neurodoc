@@ -432,6 +432,16 @@ try:
         clinica_b.plan = PlanCode.BASIC
         clinica_b.save(update_fields=['status', 'plan'])
         conferir('clínica encerrada não é rebaixada', vigencias.rebaixar(vig_b.id, agora) is False)
+        # Plano sem preço de tabela e sem período: a página abre, sem o
+        # formulário de renovação (até a 1.51 o Personalizado dava 500).
+        for plano_sem_tabela in (PlanCode.CUSTOM, PlanCode.FREE):
+            clinica_h.plan = plano_sem_tabela
+            clinica_h.save(update_fields=['plan'])
+            resposta = entrar(dono_h, clinica_h).get('/app/org/plano/')
+            conferir(f'plano {plano_sem_tabela.label}: Plano e renovação abre, sem Renovar',
+                     resposta.status_code == 200
+                     and 'name="periodicidade"' not in resposta.content.decode(),
+                     resposta.status_code)
 
         print('=== 8. o console ===')
         dispositivo = TOTPDevice.objects.create(user=su, name='roteiro-renovacao', confirmed=True)

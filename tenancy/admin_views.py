@@ -1124,7 +1124,10 @@ class PlanoView(OrgAdminView):
             'pedido_em_aberto': vigencias.pedido_em_aberto(tenant.id),
             'janela_dias': vigencias.JANELA_DIAS,
             'contrato_versao': contract.VERSAO,
-            'form': form or RenovarForm(plano=plano),
+            # Só plano de tabela tem preço por período: montar o formulário
+            # para o Personalizado (sem preço) derrubava a página inteira com
+            # 500, embora o botão Renovar nem apareça para ele.
+            'form': form or (RenovarForm(plano=plano) if plano_contratavel(plano) else None),
         }
 
     def get(self, request):
