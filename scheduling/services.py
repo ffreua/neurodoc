@@ -704,13 +704,29 @@ def include_extra_hours(context, physician_membership, day, start_time, cells, r
         b for b in blocks
         if b.kind == ScheduleBlockKind.REMOVED_SLOT and b.start_at < fim and inicio < b.end_at
     ]
-    # O que já é atendimento **e está valendo**: a janela declarada dentro
-    # do pedido, menos o que foi excluído (e que agora será reaberto).
-    vigente = [(max(c, inicio), min(t, fim)) for c, t in declarado if c < fim and inicio < t]
-    for b in removidos:
-        vigente = _subtract(vigente, b.start_at, b.end_at)
-    if vigente:
-        comeco, termino = min(vigente)
+    # O que já é atendimento **e está na agenda**: as células que a grade
+    # desenha hoje e que o pedido tocaria. É a grade que responde, e não a
+    # janela declarada menos os excluídos (2026-11-19).
+    #
+    # A conta pela janela tomava como "atendimento" o período aberto que não
+    # tem célula nenhuma — o que sobra quando se exclui duas células e se
+    # inclui um horário entre elas, fora da cadência. Esse período não
+    # aparece na agenda, ninguém marca nele, e mesmo assim todo "Incluir
+    # horário" ali era recusado: a secretária via um dia vazio e não
+    # conseguia abrir um horário nele.
+    #
+    # A célula fechada por bloqueio de data tem a recusa própria logo abaixo;
+    # a do almoço não recusa — o extra vence a pausa (`open_intervals`).
+    from .availability import day_grid
+
+    conflito = [
+        c for c in day_grid(physician_membership.id, day)
+        if c['status'] in ('free', 'busy', 'past', 'done')
+        and c['start'] < fim and inicio < c['end']
+    ]
+    if conflito:
+        comeco = min(c['start'] for c in conflito)
+        termino = max(c['end'] for c in conflito)
         raise SchedulingError(
             f'Das {_hhmm(comeco)} às {_hhmm(termino)} já é horário de atendimento '
             'neste dia. Escolha um início fora desse período.'
@@ -746,6 +762,32 @@ def include_extra_hours(context, physician_membership, day, start_time, cells, r
     novo = [(inicio, fim)]
     for comeco, termino in declarado:
         novo = _subtract(novo, comeco, termino)
+
+    # O pedido tem de virar célula **no lugar pedido**. Reabrir o excluído e
+    # estender a janela bastam quando o início cai na cadência da semana;
+    # fora dela (14h30 numa grade que anda de 13h30 em 45 min) as células da
+    # semana não começam ali, e o período ficaria aberto e invisível. Então
+    # o pedido inteiro vira atendimento extra, que a grade desenha primeiro
+    # (`day_grid`). Conferido pela própria grade, montada com os blocos que
+    # seriam gravados — e não por aritmética de cadência: é ela que a
+    # secretária vê.
+    from .models import ScheduleBlock
+
+    simulados = [
+        ScheduleBlock(start_at=comeco, end_at=termino, kind=ScheduleBlockKind.EXTRA_AVAILABILITY)
+        for comeco, termino in novo
+    ]
+    esperadas = {
+        (inicio + timedelta(minutes=step * i), inicio + timedelta(minutes=step * (i + 1)))
+        for i in range(cells)
+    }
+    desenhadas = {
+        (c['start'], c['end']) for c in day_grid(
+            physician_membership.id, day, blocks=blocks_on(physician_membership.id, day) + simulados,
+        )
+    }
+    if not esperadas <= desenhadas:
+        novo = [(inicio, fim)]
     extra = None
     for comeco, termino in novo:
         extra = create_block(

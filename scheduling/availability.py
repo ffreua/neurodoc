@@ -283,8 +283,18 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
         declared = _subtract(
             declared, _combine(day, pausa.local_start), _combine(day, pausa.local_end),
         )
-    for block in extra:
-        declared.append((block.start_at, block.end_at))
+    # **O horário incluído à mão vence a cadência da semana** (2026-11-19).
+    # As janelas de atendimento extra são desenhadas primeiro, e a célula da
+    # regra semanal que se sobrepõe a uma célula já desenhada não entra.
+    #
+    # Antes as janelas iam por ordem de início, e a única proteção era não
+    # repetir o mesmo início. Um extra fora da cadência (14h30 numa grade de
+    # 13h30 com células de 45 min) ou não aparecia ou aparecia por cima da
+    # célula da semana. Foi o que travou a agenda de uma clínica em produção:
+    # excluir 14h15 e 15h e incluir 14h30 deixou o período 14h30–15h15 aberto
+    # e sem célula nenhuma, invisível, e todo novo "Incluir horário" ali era
+    # recusado como "já é horário de atendimento".
+    janelas = sorted((b.start_at, b.end_at) for b in extra) + sorted(declared)
 
     # O horário excluído fecha como bloqueio (`open_intervals` já o
     # desconta), mas não vira célula "blocked": a tela não o desenha.
@@ -301,15 +311,17 @@ def day_grid(physician_membership_id, day, appointments=None, include_cancelled=
     realizados = list(historico or [])
 
     cells = []
-    seen = set()
-    for window_start, window_end in sorted(declared):
+    desenhadas = []
+    for window_start, window_end in janelas:
         cursor = window_start
         while cursor + timedelta(minutes=step) <= window_end:
             cell_end = cursor + timedelta(minutes=step)
-            if cursor in seen:
+            # Célula que se sobrepõe a outra já desenhada não entra: duas
+            # células no mesmo minuto são duas consultas no mesmo minuto.
+            if any(inicio < cell_end and cursor < fim for inicio, fim in desenhadas):
                 cursor = cell_end
                 continue
-            seen.add(cursor)
+            desenhadas.append((cursor, cell_end))
 
             appointment = next(
                 (a for a in occupying if a.starts_at < cell_end and a.ends_at > cursor), None,
