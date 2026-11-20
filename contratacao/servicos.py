@@ -206,7 +206,16 @@ def processar_evento(evento_id):
             return evento
         evento.processado_em = timezone.now()
         evento.erro = nota[:2000]
-        evento.save(update_fields=['processado_em', 'erro'])
+        campos = ['processado_em', 'erro']
+        # A conta Asaas é a mesma dos dois produtos, e cada um recebe os
+        # avisos do outro. O aviso alheio é ignorado, mas o conteúdo dele
+        # (nome, documento e e-mail de cliente do outro produto) ficava
+        # guardado aqui sem finalidade (auditoria externa de 2026-11-20).
+        # Fica a linha, com o id e o tipo; o conteúdo sai.
+        if nota.startswith(NOTA_DE_OUTRO_PRODUTO):
+            evento.payload = {}
+            campos.append('payload')
+        evento.save(update_fields=campos)
     return evento
 
 
@@ -231,7 +240,15 @@ def _despachar(evento):
     return 'ignorado: tipo sem tratamento'
 
 
+NOTA_DE_OUTRO_PRODUTO = 'ignorado: externalReference de outro produto'
+
+
 def _evento_de_checkout(tipo, checkout):
+    # O ProntDoc, na mesma conta Asaas, marca as referências dele com
+    # `prontdoc:`; o aviso dele é recusado antes de tocar o banco (a mesma
+    # trava do lado de lá, PAY-03). O id local continua sendo a segunda.
+    if asaas.referencia_alheia(checkout):
+        return NOTA_DE_OUTRO_PRODUTO
     checkout_id = str(checkout.get('id') or '')
     pedido = None
     if checkout_id:
@@ -369,6 +386,8 @@ def _pedido_da_cobranca(pagamento):
 
 
 def _evento_de_cobranca(tipo, pagamento):
+    if asaas.referencia_alheia(pagamento):
+        return NOTA_DE_OUTRO_PRODUTO
     payment_id = str(pagamento.get('id') or '')[:64]
     pedido = _pedido_da_cobranca(pagamento)
     if not payment_id or pedido is None:

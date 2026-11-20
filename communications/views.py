@@ -9,7 +9,9 @@ compartilhado.
 
 from django.http import HttpResponse
 from django.shortcuts import redirect, render
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 
 from audit.services import record_audit_event
 from documents.models import AttachmentScanStatus
@@ -96,6 +98,11 @@ class DocumentAccessLandingView(View):
         return redirect('communications:document-access', raw_token=raw_token)
 
 
+# O PDF é lido dentro de um `<iframe>` da própria página de acesso, e o
+# `X-Frame-Options: DENY` global o recusava: a moldura saía em branco para o
+# paciente (auditoria externa de 2026-11-20). `SAMEORIGIN` só aqui — a tela
+# de acesso continua `DENY`, e outro site continua sem poder emoldurar.
+@method_decorator(xframe_options_sameorigin, name='dispatch')
 class DocumentAccessFileView(View):
     """Serve o PDF a quem já passou pela conferência.
 

@@ -149,6 +149,15 @@ def delete_payment(payment, actor_id):
         raise PagamentoNaoExcluivel(
             'Há um ajuste ligado a este pagamento. Ele não pode ser apagado sozinho.'
         )
+    # O estorno feito pela tela não fica ligado a um pagamento, e a regra de
+    # cima nunca disparava por ele: pagar 100, estornar 100 e apagar o
+    # pagamento deixava o recebido em -100 e o saldo inflado (auditoria
+    # externa de 2026-11-20). A conta que importa é a da cobrança inteira.
+    if net_received(receivable) - payment.amount < 0:
+        raise PagamentoNaoExcluivel(
+            'Há estorno lançado nesta cobrança que ficaria maior do que o valor pago sem '
+            'este pagamento. Ele não pode ser apagado sozinho.'
+        )
     dados = {
         'amount': str(payment.amount), 'method': payment.method[:40],
         'paid_at': payment.paid_at.isoformat(), 'receivable_id': str(receivable.id),

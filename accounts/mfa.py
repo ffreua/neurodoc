@@ -86,12 +86,28 @@ def get_or_create_pending_device(user):
     return device
 
 
-def confirm_device(device, token):
-    if device.verify_token(token):
-        device.confirmed = True
-        device.save(update_fields=['confirmed'])
-        return True
-    return False
+def confirmar_aparelho(user, device, token):
+    """Confirma o aparelho pendente e **aposenta** o anterior, numa transação.
+
+    Devolve `(confirmou, trocou)`. Até 2026-11-20 a confirmação só ligava o
+    aparelho novo, e quem já tinha um ficava com dois: o login continuava
+    usando o primeiro (`get_confirmed_device` pega o mais antigo), então a
+    "troca de celular" nunca trocou nada — e quem chegasse à tela com a
+    sessão de outra pessoa ganhava um segundo fator próprio na conta dela.
+    Agora o aparelho confirmado é um só: os outros saem na mesma transação,
+    com as linhas travadas para dois envios simultâneos não confirmarem dois.
+    """
+    with transaction.atomic():
+        aparelhos = list(TOTPDevice.objects.select_for_update().filter(user=user).order_by('pk'))
+        novo = next((a for a in aparelhos if a.pk == device.pk and not a.confirmed), None)
+        if novo is None or not novo.verify_token(token):
+            return False, False
+        anteriores = [a.pk for a in aparelhos if a.confirmed]
+        if anteriores:
+            TOTPDevice.objects.filter(pk__in=anteriores).delete()
+        novo.confirmed = True
+        novo.save(update_fields=['confirmed'])
+    return True, bool(anteriores)
 
 
 def verify_totp_token(user, token):

@@ -13,6 +13,10 @@ from . import operations, patients
 from .models import ReportExport, ReportExportKind, ReportExportStatus
 from .services import EXPORT_TTL_HOURS, pode_ver_export, request_export
 
+#: Os arquivos que saem com o prontuário ou com dados de contato de toda a
+#: carteira: baixados só por quem pediu, e com o código recente.
+RELATORIOS_SENSIVEIS = frozenset({'acervo_pacientes', 'acervo_atendimentos', 'mailing_contatos'})
+
 
 class TenantScopedView(CapabilityRequiredView):
     """Indicadores agregados: faturamento, repasse, falta, perfil da carteira.
@@ -146,8 +150,13 @@ class AcervoView(CapabilityRequiredView):
             nome for nome in ('acervo_pacientes', 'acervo_atendimentos')
             if pode_ver_export(request.access_context, nome)
         ]
+        # E só o que **esta pessoa** pediu: desde 2026-11-20 o acervo é
+        # baixado só por quem o pediu (`RELATORIOS_SENSIVEIS`), e listar o
+        # do colega seria oferecer um link que dá 404.
         recentes = scope_to_tenant(
-            ReportExport.objects.filter(report_name__in=permitidos),
+            ReportExport.objects.filter(
+                report_name__in=permitidos, requested_by_id=request.access_context.membership_id,
+            ),
             request.access_context,
         ).order_by('-created_at')[:10]
         return render(request, 'reporting/acervo.html', {
@@ -421,6 +430,19 @@ class ExportDownloadView(TenantScopedView):
             raise Http404
         if export.status != ReportExportStatus.READY or not export.storage_key:
             raise Http404
+        # O acervo e o mailing pedem o código no **pedido**; o download não
+        # pedia, nem conferia quem pediu, nem deixava rastro. Nas 24 h do
+        # arquivo, quem tivesse a senha e um navegador confiável de outro
+        # responsável baixava o prontuário inteiro sem código e sem trilha
+        # (auditoria externa de 2026-11-20). Agora o arquivo sensível é de
+        # quem o pediu, sai com o código recente, e todo download é anotado.
+        from accounts import mfa
+
+        if export.report_name in RELATORIOS_SENSIVEIS:
+            if export.requested_by_id != request.access_context.membership_id:
+                raise Http404
+            if not mfa.mfa_verified_recently(request):
+                return mfa.redirect_to_mfa_confirm(request)
         # O prazo vale na hora do download, e não quando a limpeza passar.
         # Dependia de `expire_exports`: com o beat atrasado ou o worker
         # parado, o arquivo do acervo -- o prontuário da clínica inteira --
@@ -448,4 +470,11 @@ class ExportDownloadView(TenantScopedView):
         # adivinhe o tipo pode decidir renderizar em vez de baixar.
         response['X-Content-Type-Options'] = 'nosniff'
         response['Cache-Control'] = 'private, no-store'
+        from audit.services import record_audit_event
+
+        record_audit_event(
+            request.access_context.user_id, request.access_context.tenant_id,
+            'reporting.export_downloaded', object_type='report_export', object_id=export.id,
+            outcome='success', integrity_metadata={'report': export.report_name, 'kind': export.kind},
+        )
         return response

@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from audit.acesso import acessos_do_paciente, registrar_leitura
 from audit.services import record_audit_event
 # A lista de atendimentos da ficha usa o MESMO seletor do prontuario, com a
 # mesma tabela fechada de ordenacao: duas consultas paralelas divergiriam, e
@@ -299,6 +300,11 @@ def _detail_context(request, patient, **overrides):
 
     context = {
         'patient': patient,
+        # Quem abriu este prontuário, só para o responsável pela clínica — é
+        # ele quem responde ao paciente que pergunta (adotado do ProntDoc,
+        # PD-M02, em 2026-11-20).
+        'acessos': (acessos_do_paciente(request.access_context.tenant_id, patient.id)
+                    if request.access_context.can(Capability.MANAGE_ORGANIZATION) else None),
         'bmi': compute_bmi(patient),
         'age': age_at(patient.birth_date),
         'recebe_documento': bool(_eligible_document_contacts(patient)),
@@ -338,6 +344,7 @@ def _detail_context(request, patient, **overrides):
 class PatientDetailView(TenantScopedView):
     def get(self, request, patient_id):
         patient = selectors.get_patient_or_404(request.access_context, patient_id)
+        registrar_leitura(request, patient.id, 'ficha')
         return render(request, 'patients/detail.html', _detail_context(request, patient))
 
 

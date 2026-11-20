@@ -129,6 +129,39 @@ def read_manifest(folder, registry_esperado):
     return record
 
 
+#: Imagens de infraestrutura que a restauração sobe a partir do manifesto.
+IMAGENS_DE_INFRA = ('POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE')
+
+
+def _repositorio(referencia):
+    """`postgres:17.11-bookworm` e `postgres@sha256:...` dão `postgres`."""
+    ref = referencia.split('@', 1)[0]
+    for prefixo in ('docker.io/', 'library/'):
+        if ref.startswith(prefixo):
+            ref = ref[len(prefixo):]
+    cabeca, _, cauda = ref.rpartition('/')
+    cauda = cauda.split(':', 1)[0]
+    return f'{cabeca}/{cauda}' if cabeca else cauda
+
+
+def conferir_imagens(record, config):
+    """A imagem que sobe vem do repositório que a instalação declara.
+
+    O manifesto do backup confere só a si mesmo, e a imagem do banco saía
+    dele sem restrição: um manifesto adulterado subia **qualquer** imagem na
+    rede interna, com os três segredos de senha do banco montados (achado
+    ao conferir a auditoria externa de 2026-11-20). A da aplicação já era
+    presa ao `REGISTRY`; as de infraestrutura passam a ser presas ao
+    repositório que o `.env` desta instalação escreve.
+    """
+    for chave in IMAGENS_DE_INFRA:
+        gravada, esperada = record.get(chave), config.get(chave)
+        if not gravada:
+            continue
+        if not esperada or _repositorio(gravada) != _repositorio(esperada):
+            raise RuntimeError(f'Unexpected image repository for {chave}')
+
+
 def prepare_data(folder, identity, record):
     if not identity:
         raise RuntimeError('--identity is required for data restoration')
@@ -264,7 +297,9 @@ def main():
     parser.add_argument('--identity')
     args = parser.parse_args()
     folder = Path(args.backup_dir).resolve()
-    record = read_manifest(folder, registry(configuration()))
+    config = configuration()
+    record = read_manifest(folder, registry(config))
+    conferir_imagens(record, config)
     if args.prepare_data:
         prepare_data(folder, args.identity, record)
     else:

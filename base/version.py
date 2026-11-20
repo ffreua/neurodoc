@@ -323,7 +323,17 @@ carimbá-la na publicação.
 #: de descadastro de cada um, só pelo responsável, com a declaração de uso e o
 #: segundo fator recente. Junto, a correção da agenda: incluir horário fora da
 #: cadência deixava um período invisível e recusado. Sem migração.
-VERSION = '1.52'
+#: A **1.53** (2026-11-20, junto com o ProntDoc 1.7.0): a **auditoria externa**
+#: conferida e corrigida -- segundo fator só se troca com o código atual (e a
+#: troca de celular passou a trocar de verdade), o `/admin/login/` vai ao
+#: login que pede o código, acervo e mailing baixados só por quem pediu e com
+#: o código, convite pago preso ao e-mail, imagem da restauração presa ao
+#: `.env`, pagamento estornado que não se apaga, reticências no TISS,
+#: campanha pausada com a clínica inativa, PDF do paciente no quadro, a
+#: corrida ao finalizar travada, trilha sem nome de medicamento e de exame,
+#: teto de 40 MB no corpo da requisição; e **quem abriu o prontuário**, na
+#: trilha e na ficha (adoção do PD-M02 do ProntDoc). Sem migração.
+VERSION = '1.53'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

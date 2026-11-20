@@ -154,5 +154,17 @@ def id_anterior_a(entry_id, limite):
         return True
 
 
+#: Um pool por processo, criado na primeira vez. `Redis.from_url` a cada
+#: chamada abria um pool e uma conexão TCP novos — no SSE, um por segundo
+#: para cada pessoa on-line —, fechados logo depois pelo coletor: não
+#: vazava, mas era latência e soquete em TIME_WAIT à toa (auditoria
+#: externa de 2026-11-20). O pool do redis-py é seguro entre threads e
+#: refaz as conexões depois de um fork.
+_POOL = None
+
+
 def _client():
-    return redis.Redis.from_url(settings.TEAMCHAT_REDIS_URL, decode_responses=True)
+    global _POOL
+    if _POOL is None:
+        _POOL = redis.ConnectionPool.from_url(settings.TEAMCHAT_REDIS_URL, decode_responses=True)
+    return redis.Redis(connection_pool=_POOL)

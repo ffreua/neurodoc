@@ -105,7 +105,10 @@ try:
     conferir('a configuracao abre', resposta.status_code, 200)
     conferir('ha uma imagem QR embutida', qr_na_tela is not None, True)
     conferir('a imagem explica o que contem', 'QR para configurar' in corpo, True)
-    conferir('a URL manual continua disponivel', 'otpauth://' in corpo, True)
+    # A alternativa manual é a chave em grupos de quatro (2026-11-18): a URL
+    # `otpauth://` inteira saía como "chave" e não se digita em aplicativo.
+    conferir('a chave manual continua disponivel', 'inserir chave de configuração' in corpo, True)
+    conferir('e a URL otpauth nao aparece', 'otpauth://' in corpo, False)
 
     print('\n3. Sem MFA, o certificado oferece a configuracao, nao um POST fadado ao 403')
     resposta = cliente.get('/app/documents/signing/credentials/')

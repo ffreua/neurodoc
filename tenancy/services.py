@@ -104,6 +104,14 @@ def accept_platform_invitation(token, email, password, legal_name, documento, tr
         raise InvalidInvitation(token)
 
     email = email.strip().lower()
+    # O convite pago pelo site sai preso ao e-mail de quem pagou
+    # (`email_binding`), e só os convites de equipe conferiam. Aqui não: quem
+    # pegasse o link — e-mail encaminhado, histórico do navegador — abria a
+    # própria clínica no plano que outra pessoa pagou, e o aceite do
+    # contrato ficava em nome de quem não contratou (auditoria externa de
+    # 2026-11-20). A exceção desfaz a transação e o convite não é gasto.
+    if invitation.email_binding and invitation.email_binding.strip().lower() != email:
+        raise InvitationEmailMismatch(token)
     if User.objects.filter(email=email).exists():
         raise EmailAlreadyRegistered(email)
     if e_descartavel(email):

@@ -356,6 +356,30 @@ class DispositivosRevogarTodosView(LoginRequiredMixin, View):
 
 
 class MFASetupView(LoginRequiredMixin, View):
+    """Configurar o segundo fator — ou trocar o celular dele.
+
+    Até 2026-11-20 bastava estar logado, e isso era uma porta: quem tinha
+    só a senha (entrando pelo `/admin/login/`, que não pede código) ou a
+    senha e um navegador marcado como confiável chegava aqui, cadastrava o
+    **próprio** celular, saía com a sessão verificada e com código recente —
+    o que abre console, acervo, TISS e assinatura — e ainda levava códigos
+    de recuperação novos, apagando os da vítima (auditoria externa de
+    2026-11-20). Agora, para quem já tem segundo fator, a tela vira troca de
+    aparelho e só abre depois de confirmar o código do aparelho atual (ou um
+    código de recuperação) nesta sessão.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if (request.user.is_authenticated and mfa.user_has_confirmed_totp(request.user)
+                and not mfa.mfa_verified_recently(request)):
+            messages.info(
+                request,
+                'Para trocar o celular do segundo fator, confirme antes o código do '
+                'aparelho atual — ou use um código de recuperação.',
+            )
+            return mfa.redirect_to_mfa_confirm(request, destino=request.get_full_path())
+        return super().dispatch(request, *args, **kwargs)
+
     @staticmethod
     def _context(request, device, error=None):
         return {
@@ -363,6 +387,7 @@ class MFASetupView(LoginRequiredMixin, View):
             'qr_code_data_uri': mfa.qr_code_data_uri(device.config_url),
             'next': _safe_next(request),
             'error': error,
+            'trocando': mfa.user_has_confirmed_totp(request.user),
         }
 
     def get(self, request):
@@ -372,7 +397,19 @@ class MFASetupView(LoginRequiredMixin, View):
     def post(self, request):
         device = mfa.get_or_create_pending_device(request.user)
         code = request.POST.get('code', '').strip()
-        if mfa.confirm_device(device, code):
+        confirmou, trocou = mfa.confirmar_aparelho(request.user, device, code)
+        if confirmou:
+            if trocou:
+                # O aparelho antigo saiu; os navegadores confiados com ele
+                # saem junto, agora, e não só na próxima entrada.
+                from .models import DispositivoConfiavel
+
+                for d in DispositivoConfiavel.objects.filter(user=request.user, revogado_em=None):
+                    dispositivo_confiavel.revogar(
+                        d, DispositivoConfiavel.Motivo.SEGUNDO_FATOR_REFEITO,
+                        ator=request.user, request=request,
+                    )
+                record_audit_event(request.user, None, 'accounts.mfa_trocado', outcome='success')
             codes = mfa.generate_recovery_codes(request.user)
             # A sessão passa a valer como verificada aqui mesmo.
             #

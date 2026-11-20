@@ -228,6 +228,8 @@ def guard(campaign):
         raise CampaignBlocked('Assunto e texto são obrigatórios.')
     if not has_own_server(campaign.tenant_id):
         raise CampaignBlocked(SEM_SERVIDOR_PROPRIO)
+    if not _clinica_ativa(campaign.tenant_id):
+        raise CampaignBlocked('A organização não está ativa: campanhas não são enviadas.')
     if not campaign.recipients.filter(status=RecipientStatus.PENDING).exists():
         raise CampaignBlocked('Nenhum destinatário na fila.')
 
@@ -272,7 +274,37 @@ def _pausar_sem_servidor(campaign):
         )
 
 
+def _pausar_clinica_inativa(campaign):
+    """Para a campanha da clínica suspensa ou encerrada.
+
+    A tarefa olhava só o estado da campanha: a clínica suspensa no meio de
+    um envio seguia mandando — e nem conseguia pausar, porque a suspensão
+    recusa o POST —, e a encerrada seguia tratando dado de paciente para
+    divulgação depois do fim do contrato (auditoria externa de 2026-11-20).
+    Pausar, e não cancelar: reativada a clínica, "retomar" continua.
+    """
+    if campaign.status == CampaignStatus.SENDING:
+        campaign.status = CampaignStatus.PAUSED
+        campaign.save(update_fields=['status'])
+        record_audit_event(
+            None, campaign.tenant_id, 'communications.campaign_paused',
+            object_type='marketing_campaign', object_id=campaign.id, outcome='success',
+            integrity_metadata={'motivo': 'clinica_inativa'},
+        )
+
+
+def _clinica_ativa(tenant_id):
+    from tenancy.models import Tenant, TenantStatus
+
+    return Tenant.objects.filter(id=tenant_id, status=TenantStatus.ACTIVE).exists()
+
+
 def _enviar_fatia(campaign, limit):
+    if not _clinica_ativa(campaign.tenant_id):
+        _pausar_clinica_inativa(campaign)
+        restantes = campaign.recipients.filter(status=RecipientStatus.PENDING).count()
+        return {'enviados': 0, 'falhas': 0, 'pulados': 0, 'restantes': restantes,
+                'clinica_inativa': True}
     if not has_own_server(campaign.tenant_id):
         _pausar_sem_servidor(campaign)
         restantes = campaign.recipients.filter(status=RecipientStatus.PENDING).count()

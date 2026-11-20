@@ -22,6 +22,26 @@ class TechnicalAdminSite(admin.AdminSite):
 
         return ThrottledAdminAuthenticationForm
 
+    def login(self, request, extra_context=None):
+        """O admin entra pela porta que pede o código, e só por ela.
+
+        O `AdminSite.login` do Django confere a senha e chama `auth_login`
+        sem segundo fator. O conteúdo do admin continuava fechado
+        (`has_permission` exige `is_verified()`), mas a sessão só com a
+        senha valia no resto do sistema — e, somada à tela de configurar o
+        segundo fator, virava o console inteiro (auditoria externa de
+        2026-11-20). Agora o endereço do admin manda ao login do produto.
+        """
+        from django.shortcuts import redirect
+        from django.urls import reverse
+        from django.utils.http import url_has_allowed_host_and_scheme, urlencode
+
+        destino = request.GET.get('next') or reverse('admin:index')
+        if not url_has_allowed_host_and_scheme(destino, allowed_hosts={request.get_host()},
+                                               require_https=request.is_secure()):
+            destino = reverse('admin:index')
+        return redirect(f'{reverse("accounts:login")}?{urlencode({"next": destino})}')
+
     def has_permission(self, request):
         user = request.user
         return bool(

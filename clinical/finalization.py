@@ -220,6 +220,15 @@ def discard_encounter(context, encounter, actor_membership, reason=''):
     - registra no log de auditoria **o que havia** no momento do descarte,
       com a justificativa. A linha desaparece do prontuário, não do log.
     """
+    # O estado é relido com a linha travada. A instância vinha da view, lida
+    # sem trava: "Descartar" e "Finalizar" ao mesmo tempo deixavam o DELETE
+    # esperar a finalização e apagar o atendimento recém-finalizado
+    # (auditoria externa de 2026-11-20). `finalize_encounter` trava a mesma
+    # linha, então um dos dois espera o outro e vê o estado certo.
+    encounter.status = (
+        type(encounter).objects.select_for_update()
+        .values_list('status', flat=True).get(pk=encounter.pk)
+    )
     if encounter.status == EncounterStatus.FINALIZED:
         raise FinalizationError(
             'Atendimento finalizado não pode ser descartado: o registro é imutável. '

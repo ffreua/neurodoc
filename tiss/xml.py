@@ -72,16 +72,22 @@ _TROCAS = {
 }
 
 
+_TABELA_DE_TROCAS = str.maketrans(_TROCAS)
+
+
 class XmlInvalido(Exception):
     """A guia não cabe na versão. Mensagem em português, com a guia e o campo."""
 
 
 def latin1(texto):
     """O texto como a mensagem pode levar: ISO-8859-1, espaços simples."""
-    texto = ' '.join(str(texto or '').split())
+    # A troca vem antes do laço, no texto inteiro: `…` vira `...`, três
+    # caracteres, e trocá-lo dentro do laço entregava a string inteira a
+    # `unicodedata.category`, que só aceita um — `TypeError`, e o lote
+    # falhava sem dizer a guia (auditoria externa de 2026-11-20).
+    texto = ' '.join(str(texto or '').translate(_TABELA_DE_TROCAS).split())
     saida = []
     for c in texto:
-        c = _TROCAS.get(c, c)
         # Caractere de controle (colado de outro sistema, invisível na tela)
         # não existe em XML 1.0: o lxml recusava a guia inteira com
         # "All strings must be XML compatible", e o lote falhava sem dizer

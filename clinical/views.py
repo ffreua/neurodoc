@@ -3,12 +3,14 @@ from datetime import timedelta
 
 from django.contrib import messages
 from django.db import transaction
+from django.utils.decorators import method_decorator
 from django.forms import modelform_factory
 from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
+from audit.acesso import registrar_leitura
 from audit.services import record_audit_event
 from patients.models import Patient
 from scheduling.returns import INTERVALOS_MESES, agendar_retorno
@@ -147,6 +149,26 @@ def _formulario_da_tela(classe, encounter):
     return form
 
 
+def _travar_editavel(encounter):
+    """Confere se o atendimento aceita escrita **com a linha travada**.
+
+    As telas que acrescentam diagnóstico, medicação, exame, escala ou achado
+    conferiam `is_editable()` numa instância lida sem trava, fora de
+    transação: uma escrita que chegasse junto com "Finalizar" gravava num
+    atendimento já finalizado, sem mudar o hash (auditoria externa de
+    2026-11-20). Agora a conferência trava a linha — o `post` dessas telas
+    roda numa transação só (`@method_decorator(transaction.atomic)`) — e a
+    finalização, que também trava, espera a escrita terminar, ou a escrita
+    espera a finalização e é recusada. Fora de transação, o
+    `select_for_update` levanta erro, o que impede esquecer o decorador.
+    """
+    from .models import Encounter
+
+    status = Encounter.objects.select_for_update().values_list('status', flat=True).get(pk=encounter.pk)
+    encounter.status = status
+    return encounter.is_editable()
+
+
 class TenantScopedView(CapabilityRequiredView):
     """Base do prontuário: ler exige papel médico, escrever exige habilitação.
 
@@ -202,6 +224,7 @@ class PatientEvolutionView(TenantScopedView):
         patient = get_object_or_404(
             scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id,
         )
+        registrar_leitura(request, patient.id, 'grafico')
         disponiveis = series_mod.series_do_paciente(request.access_context, patient)
         escolhida = None
         pedida = request.GET.get('serie')
@@ -288,6 +311,7 @@ class DiagnosisLookupView(TenantScopedView):
 class TimelineView(TenantScopedView):
     def get(self, request, patient_id):
         patient = get_object_or_404(scope_to_tenant(Patient.objects.all(), request.access_context), id=patient_id)
+        registrar_leitura(request, patient.id, 'linha_do_tempo')
         # A ordem vem da URL e é validada no selector; o que chega aqui é só
         # repassado, nunca interpolado numa consulta.
         ordenar = request.GET.get('ordenar', selectors.ORDEM_PADRAO)
@@ -346,6 +370,7 @@ class EncounterCreateView(TenantScopedView):
 class EncounterDetailView(TenantScopedView):
     def get(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        registrar_leitura(request, encounter.patient_id, 'atendimento', encounter.id)
         pending_items = list(
             encounter.carry_forward_items.filter(review_action='pending')
             .select_related('source_encounter')
@@ -608,10 +633,11 @@ class EncounterAutosaveView(TenantScopedView):
         return redirect(_detalhe(updated, _aba_pedida(request)))
 
 
+@method_decorator(transaction.atomic, name='post')
 class FindingUpsertView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.')
         form = FindingForm(request.POST)
         if not form.is_valid():
@@ -635,6 +661,7 @@ class FindingUpsertView(TenantScopedView):
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
 
+@method_decorator(transaction.atomic, name='post')
 class ExamAxisSaveView(TenantScopedView):
     """Grava um eixo inteiro do roteiro de exame.
 
@@ -645,7 +672,7 @@ class ExamAxisSaveView(TenantScopedView):
 
     def post(self, request, encounter_id, axis):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exame')
         template = resolve_template(
             request.access_context.tenant_id, request.access_context.membership_id,
@@ -668,6 +695,7 @@ class ExamAxisSaveView(TenantScopedView):
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
 
+@method_decorator(transaction.atomic, name='post')
 class ExamGroupNormalView(TenantScopedView):
     """Marca (ou desfaz) "tudo normal" num grupo do roteiro.
 
@@ -679,7 +707,7 @@ class ExamGroupNormalView(TenantScopedView):
 
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exame')
         template = resolve_template(
             request.access_context.tenant_id, request.access_context.membership_id,
@@ -718,6 +746,7 @@ class ExamGroupNormalView(TenantScopedView):
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')
 
 
+@method_decorator(transaction.atomic, name='post')
 class ScaleRecordView(TenantScopedView):
     """Aplica uma escala funcional ao atendimento.
 
@@ -735,7 +764,7 @@ class ScaleRecordView(TenantScopedView):
         # próprio no texto livre (1.41); voltar para a âncora do outro tipo
         # deixaria a página no topo, longe do escore recém-gravado.
         ancora = 'escalas' if encounter.kind == EncounterKind.FREE_TEXT else 'tab-exame'
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor=ancora)
         try:
             finding, removed = record_scale(request.access_context, encounter, scale, request.POST)
@@ -749,7 +778,6 @@ class ScaleRecordView(TenantScopedView):
             messages.success(request, summary)
             detail = {
                 'scale': scale.code,
-                'total': finding.value_json.get('total'),
                 'complete': finding.value_json.get('complete'),
             }
         record_audit_event(
@@ -790,10 +818,11 @@ class EncounterStructureChangeView(TenantScopedView):
         return redirect(_detalhe(encounter, 'tab-historia'))
 
 
+@method_decorator(transaction.atomic, name='post')
 class DiagnosisCreateView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.')
         form = DiagnosisForm(request.POST)
         if not form.is_valid():
@@ -815,10 +844,11 @@ class DiagnosisCreateView(TenantScopedView):
         return redirect(_detalhe(encounter, 'tab-hipoteses'))
 
 
+@method_decorator(transaction.atomic, name='post')
 class CarryForwardReviewView(TenantScopedView):
     def post(self, request, encounter_id, item_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(
                 request, encounter,
                 'Atendimento finalizado: o registro não pode mais ser alterado. '
@@ -844,6 +874,7 @@ class CarryForwardReviewView(TenantScopedView):
         return redirect(_detalhe(encounter, 'carry-forward'))
 
 
+@method_decorator(transaction.atomic, name='post')
 class CarryForwardAcceptAllView(TenantScopedView):
     """Traz de uma vez tudo o que a consulta anterior ofereceu.
 
@@ -872,7 +903,7 @@ class CarryForwardAcceptAllView(TenantScopedView):
 
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(
                 request, encounter,
                 'Atendimento finalizado: o registro não pode mais ser alterado. '
@@ -1005,6 +1036,7 @@ class EncounterSummaryView(TenantScopedView):
 
     def get(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        registrar_leitura(request, encounter.patient_id, 'resumo', encounter.id)
         findings = list(
             encounter.examination_findings.select_related('template_node')
             .order_by('domain', 'item_code', 'side')
@@ -1058,6 +1090,7 @@ class PatientSummaryView(TenantScopedView):
 
         ctx = request.access_context
         patient = get_object_or_404(scope_to_tenant(Patient.objects.all(), ctx), id=patient_id)
+        registrar_leitura(request, patient.id, 'resumo_completo')
         encounters = list(
             scope_to_tenant(Encounter.objects.all(), ctx)
             .filter(patient=patient)
@@ -1117,10 +1150,11 @@ class PatientSummaryView(TenantScopedView):
         })
 
 
+@method_decorator(transaction.atomic, name='post')
 class MedicationCreateView(TenantScopedView):
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-medicacoes')
         form = MedicationForm(request.POST)
         if not form.is_valid():
@@ -1132,7 +1166,7 @@ class MedicationCreateView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.medication_added',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'name': medication.name},
+            integrity_metadata={'medication_id': str(medication.id)},
         )
         messages.success(request, f'{medication.name} incluído nas medicações em uso.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
@@ -1142,6 +1176,7 @@ def _prefixo_da_medicacao(medication):
     return f'med{medication.id.hex}'
 
 
+@method_decorator(transaction.atomic, name='post')
 class MedicationUpdateView(TenantScopedView):
     """Altera uma medicação já registrada neste atendimento.
 
@@ -1157,7 +1192,7 @@ class MedicationUpdateView(TenantScopedView):
 
     def post(self, request, encounter_id, medication_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-medicacoes')
         medication = get_object_or_404(
             Medication, tenant_id=request.access_context.tenant_id, encounter=encounter, id=medication_id,
@@ -1174,16 +1209,17 @@ class MedicationUpdateView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.medication_updated',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'name': medication.name, 'campos': sorted(form.changed_data)},
+            integrity_metadata={'medication_id': str(medication.id), 'campos': sorted(form.changed_data)},
         )
         messages.success(request, f'{medication.name} atualizado.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
 
 
+@method_decorator(transaction.atomic, name='post')
 class MedicationDeleteView(TenantScopedView):
     def post(self, request, encounter_id, medication_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-medicacoes')
         medication = get_object_or_404(
             Medication, tenant_id=request.access_context.tenant_id, encounter=encounter, id=medication_id,
@@ -1193,12 +1229,13 @@ class MedicationDeleteView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.medication_removed',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'name': name},
+            integrity_metadata={},
         )
         messages.success(request, f'{name} removido das medicações em uso.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-medicacoes')
 
 
+@method_decorator(transaction.atomic, name='post')
 class ExamResultCreateView(TenantScopedView):
     """Registra um resultado de exame e, se houver PDF, pede a leitura à IA.
 
@@ -1215,7 +1252,7 @@ class ExamResultCreateView(TenantScopedView):
         from tenancy.models import Tenant
 
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
         form = ExamResultForm(request.POST, request.FILES)
         if not form.is_valid():
@@ -1246,7 +1283,7 @@ class ExamResultCreateView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.exam_result_added',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'name': exam_result.name, 'has_report': attachment is not None},
+            integrity_metadata={'exam_result_id': str(exam_result.id), 'has_report': attachment is not None},
         )
 
         messages.success(request, f'{exam_result.name} registrado.')
@@ -1260,10 +1297,11 @@ def _exam_result_or_404(request, encounter, exam_result_id):
     )
 
 
+@method_decorator(transaction.atomic, name='post')
 class ExamResultDeleteView(TenantScopedView):
     def post(self, request, encounter_id, exam_result_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
         exam_result = _exam_result_or_404(request, encounter, exam_result_id)
         name = exam_result.name
@@ -1274,16 +1312,17 @@ class ExamResultDeleteView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.exam_result_removed',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'name': name},
+            integrity_metadata={},
         )
         messages.success(request, f'{name} removido dos resultados de exame.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 
+@method_decorator(transaction.atomic, name='post')
 class LabValueCreateView(TenantScopedView):
     def post(self, request, encounter_id, exam_result_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
         exam_result = _exam_result_or_404(request, encounter, exam_result_id)
         form = LabValueForm(request.POST)
@@ -1299,10 +1338,11 @@ class LabValueCreateView(TenantScopedView):
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 
+@method_decorator(transaction.atomic, name='post')
 class LabValueDeleteView(TenantScopedView):
     def post(self, request, encounter_id, value_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
         value = get_object_or_404(
             LabValue, tenant_id=request.access_context.tenant_id,
@@ -1352,6 +1392,7 @@ class DiagnosticSupportRequestView(TenantScopedView):
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-hipoteses')
 
 
+@method_decorator(transaction.atomic, name='post')
 class DiagnosisFromSupportView(TenantScopedView):
     """Leva uma hipótese sugerida para a lista do prontuário.
 
@@ -1362,7 +1403,7 @@ class DiagnosisFromSupportView(TenantScopedView):
 
     def post(self, request, encounter_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-hipoteses')
         label = (request.POST.get('label') or '').strip()
         if not label:
@@ -1377,12 +1418,16 @@ class DiagnosisFromSupportView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.diagnosis_from_ai',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'label': label[:255]},
+            # O rótulo da hipótese é conteúdo clínico e fica no prontuário; a
+            # trilha diz quem aceitou a sugestão, e onde (auditoria externa de
+            # 2026-11-20). O mesmo vale para nome de medicamento e de exame.
+            integrity_metadata={},
         )
         messages.success(request, f'“{label}” registrada como hipótese.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-hipoteses')
 
 
+@method_decorator(transaction.atomic, name='post')
 class FindingDeleteView(TenantScopedView):
     """Remove um item registrado no exame, a partir do grid.
 
@@ -1394,7 +1439,7 @@ class FindingDeleteView(TenantScopedView):
 
     def post(self, request, encounter_id, finding_id):
         encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
-        if not encounter.is_editable():
+        if not _travar_editavel(encounter):
             return _blocked(
                 request, encounter,
                 'Atendimento finalizado: o exame não pode mais ser alterado.',

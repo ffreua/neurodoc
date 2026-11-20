@@ -32,7 +32,10 @@ ONLINE_TTL_SECONDS = 75
 
 
 def _client():
-    return redis.Redis.from_url(settings.TEAMCHAT_REDIS_URL, decode_responses=True)
+    # O mesmo pool do streaming (`teamchat.streaming._client`).
+    from .streaming import _client as cliente
+
+    return cliente()
 
 
 def _key(tenant_id):

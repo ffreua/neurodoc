@@ -531,6 +531,26 @@ separa um contato cadastrado de um contato que recebe.{% endcomment %}
                 </ul>
             </div>
         </div>
+        {% if acessos is not None %}
+        <div class="card mt-4" id="acessos">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quem abriu este prontuário</h5>
+            </div>
+            <div class="card-body p-0">
+                <p class="fs-11 text-muted px-3 pt-3 mb-2">Só o responsável pela clínica vê esta lista. Cada pessoa aparece uma vez a cada 30 minutos por tela.</p>
+                <ul class="list-group list-group-flush" style="max-height: 320px; overflow-y: auto;">
+                    {% for acesso in acessos %}
+                    <li class="list-group-item">
+                        <span class="d-block fw-semibold text-dark fs-13">{{ acesso.quem }}</span>
+                        <span class="d-block fs-11 text-muted">{{ acesso.onde }} · {{ acesso.quando|date:"d/m/Y H:i" }}</span>
+                    </li>
+                    {% empty %}
+                    <li class="list-group-item text-muted fs-12">Nenhum acesso registrado ainda.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

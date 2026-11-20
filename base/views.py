@@ -12,7 +12,8 @@ from audit.services import record_audit_event
 from tenancy.invitations import peek_invitation
 from tenancy.models import InvitationPurpose
 from tenancy.services import (
-    EmailAlreadyRegistered, EmailDescartavel, InvalidInvitation, accept_platform_invitation,
+    EmailAlreadyRegistered, EmailDescartavel, InvalidInvitation, InvitationEmailMismatch,
+    accept_platform_invitation,
 )
 
 from .content import (
@@ -463,6 +464,12 @@ class OrganizationSignupView(View):
         except InvalidInvitation:
             form.add_error(None, 'Convite inválido, expirado ou já utilizado.')
             return render(request, 'onboarding/signup.html', self._contexto(None, form))
+        except InvitationEmailMismatch:
+            form.add_error('email', 'Este convite foi emitido para outro e-mail. Use o mesmo e-mail '
+                                    'informado na contratação.')
+            return render(request, 'onboarding/signup.html', self._contexto(
+                self._invitation_or_none(token), form,
+            ))
         except EmailAlreadyRegistered:
             form.add_error('email', 'Este e-mail já possui conta. Faça login para vincular uma organização.')
             return render(request, 'onboarding/signup.html', self._contexto(

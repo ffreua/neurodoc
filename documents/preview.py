@@ -6,7 +6,7 @@ from .storage import local_path
 from .models import AttachmentScanStatus
 
 PREVIEW_TIMEOUT_SECONDS = 15
-PREVIEW_DPI = 72
+PREVIEW_LADO_MAX = 1024
 
 
 class PreviewUnavailable(Exception):
@@ -29,7 +29,12 @@ def render_preview_png(attachment):
         if extension == 'pdf':
             try:
                 subprocess.run(
-                    ['pdftoppm', '-png', '-f', '1', '-l', '1', '-r', str(PREVIEW_DPI),
+                    # `-scale-to` e não `-r`: a resolução fixa multiplica o
+                    # tamanho da página declarado no PDF, e uma página de 5 m de
+                    # lado virava uma imagem de centenas de MB na memória do
+                    # `app` (auditoria externa de 2026-11-20). Com o lado maior
+                    # preso a 1024 px, a prévia custa o mesmo para todo arquivo.
+                    ['pdftoppm', '-png', '-f', '1', '-l', '1', '-scale-to', str(PREVIEW_LADO_MAX),
                      source_path, out_prefix],
                     check=True, capture_output=True, timeout=PREVIEW_TIMEOUT_SECONDS,
                 )

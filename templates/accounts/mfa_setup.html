@@ -6,6 +6,13 @@
 {% if error %}
 <div class="alert alert-danger fade show fs-13" role="alert">{{ error }}</div>
 {% endif %}
+{% if trocando %}
+<div class="alert alert-soft-warning fs-13" role="status">
+    <strong>Troca de celular.</strong> Ao confirmar o código do aparelho novo, o
+    anterior deixa de valer, os navegadores confiáveis são revogados e você recebe
+    códigos de recuperação novos.
+</div>
+{% endif %}
 {% if request.GET.obrigatorio %}
 <div class="alert alert-soft-warning fs-13" role="status">
     Para responsáveis e médicos, o código do celular é obrigatório para entrar no

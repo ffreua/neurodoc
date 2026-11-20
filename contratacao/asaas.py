@@ -162,3 +162,20 @@ def cancelar_checkout(checkout_id):
 def link_do_checkout(dados):
     """O link que a resposta traz; se não vier, o formato da documentação."""
     return dados.get('link') or f'https://www.asaas.com/checkoutSession/show?id={dados["id"]}'
+
+
+#: O começo das referências que o ProntDoc manda à mesma conta Asaas.
+PREFIXO_DO_OUTRO_PRODUTO = 'prontdoc:'
+
+
+def referencia_alheia(objeto):
+    """`True` quando o objeto traz `externalReference` do ProntDoc.
+
+    O NeuroDoc continua mandando a referência sem prefixo, como sempre
+    mandou: trocá-la deixaria sem reconhecimento os pedidos abertos antes da
+    mudança. Por isso o critério aqui é o inverso do de lá: alheia é a que
+    começa com o prefixo do outro produto, e todo o resto segue para a busca
+    pelos ids da Asaas, que é a trava de fato.
+    """
+    referencia = str((objeto or {}).get('externalReference') or '')
+    return referencia.startswith(PREFIXO_DO_OUTRO_PRODUTO)
