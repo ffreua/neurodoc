@@ -1498,6 +1498,37 @@ class UsersView(SuperAdminView):
 
 # ------------------------------------------------------------------- auditoria
 
+class TelasLentasView(SuperAdminView):
+    """As telas que passaram do limite de tempo, por rota (`base/lentidao.py`).
+
+    Só leitura: é a medida real de lentidão em produção, para ser visitada
+    de tempos em tempos e decidir o que otimizar (e quando o teste de carga
+    passa a valer). Sem paciente, clínica nem pessoa — só o nome da rota.
+    """
+
+    PERIODOS = (1, 7, 30)
+
+    def get(self, request):
+        from django.conf import settings as dj_settings
+
+        from base.lentidao import RETENCAO_DIAS, resumo
+
+        try:
+            dias = int(request.GET.get('dias', 7))
+        except ValueError:
+            dias = 7
+        if dias not in self.PERIODOS:
+            dias = 7
+        linhas = resumo(dias)
+        return render(request, 'ops/superadmin/telas_lentas.html', {
+            **_nav('telas-lentas'),
+            'linhas': linhas, 'dias': dias, 'periodos': self.PERIODOS,
+            'limite': getattr(dj_settings, 'TELAS_LENTAS_MS', 500),
+            'retencao': RETENCAO_DIAS,
+            'total': sum(linha['ocorrencias'] for linha in linhas),
+        })
+
+
 class AuditView(SuperAdminView):
     """A trilha da instalação inteira, filtrável.
 

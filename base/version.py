@@ -336,7 +336,12 @@ carimbá-la na publicação.
 #: no mesmo dia: restauração, IA da instalação, sanitizador, sessões antigas,
 #: portal, travas e logs (`accounts/0006` encerra uma vez as sessões que nunca
 #: passaram pelo código).
-VERSION = '1.53'
+#: A **1.54** (2026-11-20, junto com o ProntDoc 1.8.0): o **registro de telas
+#: lentas** -- toda resposta acima de `TELAS_LENTAS_MS` (500 ms) grava a rota
+#: pelo nome, o tempo e as consultas, sem dado que identifique, por 30 dias, e
+#: o console mostra por rota em `/instalacao/telas-lentas/`
+#: (`base/lentidao.py`). Uma migração (`base/0005_telalenta`), só acrescenta.
+VERSION = '1.54'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

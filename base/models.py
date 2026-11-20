@@ -275,3 +275,34 @@ class InstallationSettings(TimestampedModel):
         from base.crypto import decrypt_secret
 
         return decrypt_secret(self.ai_reserva_chave_cifrada, self.ai_reserva_chave_meta)
+
+
+class TelaLenta(models.Model):
+    """Uma resposta que passou do limite (`TELAS_LENTAS_MS`), para o console.
+
+    O log da aplicação não guarda tempo de requisição (o uvicorn roda sem
+    log de acesso), e até 2026-11-20 não havia medida real nenhuma de
+    lentidão em produção. Isto é essa medida, com três escolhas:
+
+    - grava **só o que já está lento**: a resposta rápida não toca no banco,
+      e a lenta ganha uns milissegundos sobre centenas;
+    - **sem nada que identifique**: a rota pelo nome (`patients:detail`),
+      nunca o endereço — que leva o id do paciente e a busca digitada —,
+      sem pessoa, sem clínica, sem parâmetro;
+    - **some em 30 dias** (`base.tasks.apagar_telas_lentas`): serve para
+      ver tendência, não para guardar histórico.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    criada_em = models.DateTimeField(auto_now_add=True, db_index=True)
+    rota = models.CharField(max_length=150)
+    metodo = models.CharField(max_length=10)
+    status = models.PositiveSmallIntegerField()
+    milissegundos = models.PositiveIntegerField()
+    consultas = models.PositiveIntegerField()
+
+    class Meta:
+        indexes = [models.Index(fields=['rota', 'criada_em'], name='base_telalenta_rota_idx')]
+
+    def __str__(self):
+        return f'{self.rota} {self.milissegundos} ms'

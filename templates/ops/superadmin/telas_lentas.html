@@ -1,0 +1,69 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Telas lentas — NeuroDoc{% endblock %}
+{% block page_title %}Telas lentas{% endblock %}
+{% block super_section %}Telas lentas{% endblock %}
+{% block super_content %}
+{% comment %}O registro de `base/lentidao.py`: só respostas acima do limite, só o
+nome da rota (nunca o endereço, que leva id de paciente e busca digitada).
+Visitada de tempos em tempos para decidir o que otimizar; a estimativa de
+capacidade de 2026-11-20 está em docs/operations/capacidade.md.{% endcomment %}
+
+<div class="alert alert-soft-primary fs-13 mb-4" role="note">
+    Entram aqui as respostas que levaram <strong>{{ limite }} ms ou mais</strong> no servidor
+    (sem a rede até o navegador), com o nome da rota, o tempo e o número de consultas ao banco.
+    Nenhum dado de paciente, clínica ou pessoa. Cada registro some em {{ retencao }} dias.
+    Uma rota aparecendo raramente é normal (o primeiro acesso depois de publicar, um relatório
+    grande); a mesma rota todo dia, com p95 subindo, é a que pede otimização.
+</div>
+
+<div class="card">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <h5 class="card-title mb-0">Por rota</h5>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            {% for p in periodos %}
+            <a class="btn btn-sm {% if p == dias %}btn-primary{% else %}btn-light{% endif %}"
+               href="?dias={{ p }}">{% if p == 1 %}Último dia{% else %}Últimos {{ p }} dias{% endif %}</a>
+            {% endfor %}
+            <span class="badge bg-soft-primary text-primary">{{ total }} resposta{{ total|pluralize }} lenta{{ total|pluralize }}</span>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if linhas %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Rota</th>
+                        <th scope="col">Método</th>
+                        <th class="text-end" scope="col">Vezes</th>
+                        <th class="text-end" scope="col">Mediana</th>
+                        <th class="text-end" scope="col">p95</th>
+                        <th class="text-end" scope="col">Máximo</th>
+                        <th class="text-end" scope="col">Consultas</th>
+                        <th class="pe-4" scope="col">Última</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in linhas %}
+                    <tr>
+                        <td class="ps-4 fs-12"><code>{{ l.rota }}</code></td>
+                        <td class="fs-12 text-muted">{{ l.metodo }}</td>
+                        <td class="fs-12 text-end">{{ l.ocorrencias }}</td>
+                        <td class="fs-12 text-end">{{ l.mediana }} ms</td>
+                        <td class="fs-12 text-end fw-semibold">{{ l.p95 }} ms</td>
+                        <td class="fs-12 text-end">{{ l.maximo }} ms</td>
+                        <td class="fs-12 text-end">{{ l.consultas }}</td>
+                        <td class="pe-4 fs-12 text-muted">{{ l.ultima|date:"d/m/Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted fs-13 p-4 mb-0">
+            Nenhuma resposta passou de {{ limite }} ms neste período. É o resultado esperado com a carga de hoje.
+        </p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

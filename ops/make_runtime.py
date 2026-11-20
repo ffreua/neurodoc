@@ -69,7 +69,10 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  'APP_WORKERS', 'WORKER_CONCURRENCY',
                  # O endereço da API da Asaas (1.46). Vazio = produção; só o
                  # sandbox o declara.
-                 'ASAAS_BASE_URL']
+                 'ASAAS_BASE_URL',
+                 # O limite do registro de telas lentas (`base/lentidao.py`).
+                 # Opcional: sem ela, 500 ms; 0 desliga.
+                 'TELAS_LENTAS_MS']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 

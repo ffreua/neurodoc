@@ -79,6 +79,10 @@ MIDDLEWARE = [
     # 301 antes de abrir sessão. Ver `base/middleware.py`.
     'base.middleware.HostCanonicoMiddleware',
     'ops.staticfiles.ReleaseStaticMiddleware',
+    # Depois dos estáticos (que respondem antes e não interessam) e antes do
+    # resto: o tempo medido inclui sessão, autenticação, clínica e a view.
+    # Ver `base/lentidao.py`.
+    'base.lentidao.TelasLentasMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -106,6 +110,12 @@ MIDDLEWARE = [
 # Ligar é uma variável e um redeploy, e desligar tem o mesmo custo. Ver
 # `base/csp.py` para as diretivas e o porquê de cada uma.
 CSP_ENFORCE = env.bool('CSP_ENFORCE', default=False)
+
+# Limite, em milissegundos, acima do qual a resposta entra no registro de
+# telas lentas (`base/lentidao.py`, console `/instalacao/telas-lentas/`).
+# 0 desliga. Fora do `.env.example` de propósito: o deploy completa o `.env`
+# da VPS com o molde, e o padrão do código basta.
+TELAS_LENTAS_MS = env.int('TELAS_LENTAS_MS', default=500)
 
 # A partir de quando dono e médico precisam do segundo fator para usar
 # `/app/` — data ISO, ou `desligado`. Ver `accounts/mfa.py`: até o dia, só o
@@ -376,6 +386,10 @@ CELERY_BEAT_SCHEDULE = {
     'teamchat-apagar-vencidas': {
         'task': 'teamchat.tasks.apagar_vencidas',
         'schedule': crontab(minute=35),
+    },
+    'base-apagar-telas-lentas': {
+        'task': 'base.tasks.apagar_telas_lentas',
+        'schedule': crontab(hour=1, minute=40),
     },
     'notifications-purge-expired': {
         'task': 'notifications.tasks.purge_expired',

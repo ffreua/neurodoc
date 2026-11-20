@@ -78,6 +78,10 @@ resolvido.{% endcomment %}
         <a class="nav-link {% if nav_active == 'audit' %}active{% endif %}"
            href="{% url 'superadmin:audit' %}">Auditoria</a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'telas-lentas' %}active{% endif %}"
+           href="{% url 'superadmin:telas-lentas' %}">Telas lentas</a>
+    </li>
 </ul>
 
 {% block super_content %}{% endblock %}

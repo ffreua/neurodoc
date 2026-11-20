@@ -82,6 +82,45 @@ processo do `app` e ~110 MiB por tarefa do worker antes de passar do limite
 de memória. `check_processos.py` confere que os limites do stack cabem os
 processos e que o `entrypoint.sh` recusa os valores inválidos.
 
+## Medido em 2026-11-20 (e como acompanhar)
+
+A estimativa acima foi refeita com medida, sem teste de carga:
+
+- **Carga real** (trilha de auditoria, 30 dias): pico de 3 pessoas ao mesmo tempo e 11 ações por minuto; 6 pessoas por dia, 5 atendimentos por dia. CPU do `app`
+  abaixo de 2%, banco inteiro em memória.
+- **Tempo de servidor das telas** (ambiente local, 3.000 pacientes e 9.080
+  atendimentos numa clínica, mais que a base inteira do NeuroDoc): 13 a
+  70 ms na maioria; atendimento finalizado ~105 ms; Dashboard ~120 ms;
+  **Indicadores ~360 ms** (soma o histórico inteiro — o primeiro a
+  otimizar se a base crescer). Nenhuma tela cresce em consultas com o volume.
+- **Conta:** cada processo do `app` atende uma tela por vez; ~50 ms por
+  tela dá ~20 por segundo por processo, ~160 nos 8 processos, ~80 com
+  folga de 50%. Quem trabalha abre 6 a 10 telas por minuto, e as telas
+  não consultam o servidor sozinhas (só o stream do chat da equipe, ~1 ms
+  por segundo por aba). **Teto estimado: 300 a 500 pessoas ativas ao
+  mesmo tempo**, mais de 100 clínicas típicas na mesma hora — duas ordens
+  de grandeza acima do pico de hoje. O titular pediu folga para 50
+  clínicas simultâneas: está coberta.
+- **Ressalvas:** medido num computador, não na VPS (pode tirar até metade
+  da folga); o banco tem 1 núcleo e seria o primeiro gargalo muito acima
+  de 100 pessoas ativas; a IA roda no worker e o limite dela é o provedor.
+
+**Teste de carga (Locust):** não necessário agora. Passa a valer antes de
+uma campanha que traga mais de umas 50 clínicas de uma vez, ou se o
+registro abaixo mostrar p95 acima de 500 ms em produção. Nunca contra a
+produção (trilha imutável, SMS, e-mail e IA de verdade, bloqueio por IP):
+numa cópia restaurada de backup, com o envio desligado.
+
+**O registro de telas lentas** (1.54, `base/lentidao.py`): toda resposta
+acima de `TELAS_LENTAS_MS` (padrão 500; 0 desliga; opcional no `.env`)
+grava a rota pelo nome, o método, o status, o tempo e o número de
+consultas — sem endereço, paciente, clínica ou pessoa — e some em 30 dias.
+O console mostra por rota, com mediana, p95 e máximo:
+**`/instalacao/telas-lentas/`**. Custo: duas leituras de relógio e um
+contador por requisição; gravar só acontece na resposta que já passou do
+limite. **Visite de tempos em tempos**: a mesma rota todo dia, com p95
+subindo, é a que pede otimização.
+
 ## Como conferir
 
 ```bash
@@ -90,5 +129,6 @@ docker stats --no-stream | grep -E 'app|worker|db' # memória de cada um
 docker exec <app> cat /proc/1/cmdline | tr '\0' ' ' # --workers N
 ```
 
-Para um número medido em vez de estimado, o passo seguinte é um teste de
-carga no ambiente local simulando N clínicas ao mesmo tempo.
+Para um número medido em produção, o registro de telas lentas
+(`/instalacao/telas-lentas/`); o teste de carga fica para quando ele, ou
+uma campanha grande, pedir (seção acima).
