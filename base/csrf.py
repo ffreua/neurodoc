@@ -40,7 +40,8 @@ def csrf_failure(request, reason='', template_name='base/csrf_failure.html'):
     return render(
         request, template_name,
         {
-            'caminho_de_volta': request.path,
+            # Uma barra só no começo: `//outro.site` viraria link para fora.
+            'caminho_de_volta': '/' + request.path.lstrip('/'),
             'autenticado': request.user.is_authenticated,
             'publico': publico,
             # O arquivo escolhido nao volta: o navegador nao deixa

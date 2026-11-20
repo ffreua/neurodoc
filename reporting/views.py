@@ -338,6 +338,16 @@ class MailingView(CapabilityRequiredView):
         volta = reverse('reporting:painel')
         if escopo.medico_id:
             volta = f'{volta}?{urlencode({"medico": escopo.medico_id})}'
+        # Médico pedido e não reconhecido (saiu da clínica, id adulterado):
+        # o escopo cairia na clínica inteira, e a lista exportada não seria a
+        # que a tela prometeu. Recusa em vez de alargar.
+        if (request.POST.get('medico') or '').strip() and not escopo.medico_id:
+            messages.error(
+                request,
+                'O médico escolhido não está mais nesta clínica. Escolha de novo '
+                'e exporte outra vez.',
+            )
+            return redirect(volta)
         if request.POST.get('declaracao') != 'sim':
             messages.error(
                 request,

@@ -21,6 +21,9 @@ def apply_adjustment(receivable, adjustment_type, amount, reason, approved_by, p
     original, receivable = receivable, _travada(receivable)
     if receivable.status == ReceivableStatus.CANCELLED:
         raise ValueError('Esta cobrança foi cancelada e não recebe ajuste.')
+    # Conferido de novo com a linha travada (ver `record_payment`).
+    if receivable.archived_at or receivable.doctor_share_paid_at:
+        raise ValueError('Esta cobrança já saiu do financeiro (repasse realizado ou arquivada).')
     # Os tetos (auditoria de 2026-11-11). Sem eles, um desconto de
     # R$ 2.000,00 digitado no lugar de R$ 20,00 deixava a cobrança negativa
     # e marcada "Pago" sem pagamento nenhum; o estorno maior que o recebido

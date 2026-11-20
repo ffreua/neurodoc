@@ -454,8 +454,10 @@ def run_job(job_id):
     # `request_diagnostic_support` so a gravam depois de a tela ter mostrado
     # qual marcador foi encontrado. O resumo automatico nao tem como chegar
     # aqui com ela.
+    # O pedido do médico vai ao prompt e não passava pela trava: um marcador
+    # escrito nele não bloqueava (auditoria externa de 2026-11-20).
     decision = privacy_policy.evaluate_privacy_policy(
-        encounter, deidentified_text,
+        encounter, f"{deidentified_text}\n{(prompt_extras or {}).get('pedido', '')}",
         risco_confirmado=bool((job.target_ref or {}).get('risco_confirmado')),
     )
     if not decision.allowed:
@@ -734,6 +736,17 @@ def request_patient_report(access_context, patient, codigo_finalidade, pedido,
         'pedido': (pedido or '').strip()[:4000],
         'ref': relatorio.referencia_do_pedido(escolhida.codigo, pedido),
     }
+    # A confirmação só vale depois de um bloqueio real deste pedido: um POST
+    # com `risco_confirmado=1` de saída punha na trilha que o risco foi
+    # confirmado sem que marcador nenhum tivesse aparecido na tela
+    # (auditoria externa de 2026-11-20).
+    if risco_confirmado:
+        risco_confirmado = AIJob.objects.filter(
+            tenant_id=access_context.tenant_id, patient_id=patient.id,
+            kind=AIJobKind.PATIENT_REPORT, status=AIJobStatus.BLOCKED_PRIVACY,
+            target_ref__pedido=target_ref['pedido'],
+            created_at__gte=timezone.now() - timezone.timedelta(hours=24),
+        ).exists()
     if risco_confirmado:
         target_ref['risco_confirmado'] = True
         # A chave muda junto: sem isso, confirmar o risco reaproveitaria a

@@ -110,7 +110,11 @@ CSP_ENFORCE = env.bool('CSP_ENFORCE', default=False)
 # A partir de quando dono e médico precisam do segundo fator para usar
 # `/app/` — data ISO, ou `desligado`. Ver `accounts/mfa.py`: até o dia, só o
 # aviso; depois, a entrada passa pela configuração do código.
-SEGUNDO_FATOR_OBRIGATORIO_DESDE = env('SEGUNDO_FATOR_OBRIGATORIO_DESDE', default='2026-11-16')
+# Vazio vale o padrão, como o `.env.example` promete: `accounts/mfa.py` lê
+# vazio como desligado, e só não desligava em produção porque o deploy
+# remove a chave vazia — qualquer outro caminho a desligaria calado
+# (auditoria externa de 2026-11-20). Desligar é escrever `desligado`.
+SEGUNDO_FATOR_OBRIGATORIO_DESDE = env('SEGUNDO_FATOR_OBRIGATORIO_DESDE', default='') or '2026-11-16'
 CSP_REPORT_URI = env('CSP_REPORT_URI', default='/csp-report/')
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',

@@ -316,7 +316,10 @@ def emitir(context, encounter, membership, usuario, secoes, modo, chave_do_model
             object_type='encounter', object_id=enc.id, outcome='success',
             # Identificadores e contagem, nunca o texto (CLAUDE.md, trilha).
             integrity_metadata={
-                'modelo': chave_do_modelo, 'modo': modo, 'registro': destino,
+                # A origem do modelo (s = do sistema, u = do médico), e não a
+                # chave: `s:miopatia` ou `s:rastreio-paraneoplasico` dizem a
+                # suspeita clínica (auditoria externa de 2026-11-20).
+                'origem': chave_do_modelo.split(':', 1)[0], 'modo': modo, 'registro': destino,
                 'documentos': [str(d.id) for d in documentos],
             },
         )

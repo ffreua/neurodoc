@@ -302,6 +302,12 @@ class MembershipPasswordResetView(OrgAdminView):
             Membership.objects.select_related('user', 'tenant'),
             id=membership_id, tenant_id=self.tenant_id, status=MembershipStatus.ACTIVE,
         )
+        from base.net import passou_do_limite
+
+        if passou_do_limite(f'redefinicao-pelo-responsavel:{membership.id}', 3, 3600):
+            messages.error(request, 'Já foram enviadas três redefinições na última hora. '
+                                    'Peça que a pessoa confira a caixa de entrada e o spam.')
+            return redirect('tenancy:team')
         sent = send_password_reset(membership.user, request)
         record_audit_event(
             request.user, membership.tenant, 'accounts.password_reset_requested_by_owner',
@@ -1135,11 +1141,19 @@ class PlanoView(OrgAdminView):
         return render(request, 'tenancy/plano.html', self._contexto(tenant))
 
     def post(self, request):
+        # A clínica travada até o pedido existir: dois envios ao mesmo
+        # tempo (duas abas) passavam juntos por `pedido_em_aberto` e abriam
+        # dois checkouts (auditoria externa de 2026-11-20). O checkout sai
+        # por `on_commit`, depois da trava.
+        return self._renovar(request)
+
+    @transaction.atomic
+    def _renovar(self, request):
         from base.net import client_ip
         from contratacao import vigencias
         from contratacao.forms import RenovarForm
 
-        tenant = Tenant.objects.get(id=self.tenant_id)
+        tenant = Tenant.objects.select_for_update().get(id=self.tenant_id)
         if not vigencias.renovacao_disponivel(tenant):
             messages.error(request, 'A renovação pelo sistema não está disponível agora. '
                                     'Nada foi cobrado.')

@@ -714,7 +714,9 @@ class PatientMeasurementCreateView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'patients.measurement_recorded',
             object_type='patient', object_id=patient.id, outcome='success',
-            integrity_metadata={kind: str(value) for kind, value, _ in form.measurements},
+            # Quais medidas, e não os valores: peso e altura são dado de saúde,
+            # e a trilha é imutável (auditoria externa de 2026-11-20).
+            integrity_metadata={'tipos': sorted(kind for kind, _, _ in form.measurements)},
         )
         messages.success(request, 'Medida registrada.')
         return redirect('patients:detail', patient_id=patient.id)

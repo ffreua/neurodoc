@@ -61,9 +61,26 @@ MAX_ITERATIONS_SAFETY = 7200
 
 @sync_to_async
 def _membership_still_active(membership_id, tenant_id):
-    return Membership.objects.filter(
-        id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE,
-    ).exists()
+    """Vínculo ativo, pessoa ativa e clínica não encerrada — e a conexão solta.
+
+    Sem o `close_old_connections`, a conexão com o PostgreSQL aberta na
+    primeira conferência ficava presa ao stream por até duas horas: uma por
+    pessoa on-line, contra o `max_connections` do banco. E a conferência
+    olhava só o vínculo: a clínica encerrada mantém os vínculos ativos, e o
+    stream seguia (auditoria externa de 2026-11-20). A suspensa continua,
+    porque só lê.
+    """
+    from django.db import close_old_connections
+
+    from tenancy.models import TenantStatus
+
+    try:
+        return Membership.objects.filter(
+            id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE,
+            user__is_active=True,
+        ).exclude(tenant__status=TenantStatus.CLOSED).exists()
+    finally:
+        close_old_connections()
 
 
 async def inbox_stream_view(request):

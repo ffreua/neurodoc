@@ -235,7 +235,8 @@ try:
     conferir('marcador de risco bloqueia',
              evaluate_privacy_policy(None, texto_de_risco).allowed, False)
     conferir('e o motivo diz qual marcador foi encontrado',
-             'doenca rara' in evaluate_privacy_policy(None, texto_de_risco).reason, True)
+             'doenca rara' in evaluate_privacy_policy(None, texto_de_risco).reason
+             .replace('ç', 'c'), True)
     conferir('a confirmacao do medico atravessa',
              evaluate_privacy_policy(None, texto_de_risco, risco_confirmado=True).allowed, True)
     conferir('texto sem marcador passa normalmente',

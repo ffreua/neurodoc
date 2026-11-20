@@ -64,6 +64,11 @@ CAMPOS = [
     # ilegível — e a reserva falharia justamente no dia de cobrir o principal.
     ('base.InstallationSettings', 'ai_reserva_chave_cifrada', 'ai_reserva_chave_meta',
      'chave do provedor de IA reserva da instalação'),
+    # O código do convite que o pedido pago guarda para a página de "criar
+    # clínica". Fora daqui, a rotação o deixava ilegível e o botão sumia
+    # (auditoria externa de 2026-11-20).
+    ('contratacao.Pedido', 'convite_token_cifrado', 'convite_token_meta',
+     'código do convite do pedido pago'),
 ]
 
 

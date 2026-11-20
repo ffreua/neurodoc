@@ -590,12 +590,20 @@ class MedicalDocumentSendView(ClinicalDocumentView):
         from communications.tasks import deliver_document_task
 
         document = _medical_document_or_404(request, document_id)
-        if document.status not in ('issued', 'issued_on_paper'):
+        # Só o assinado: o emitido em papel não tem o PDF que o link serve, e
+        # o paciente recebia um link que dava 404 (auditoria externa de
+        # 2026-11-20). Quem reenvia continua como o PRD manda.
+        if document.status != 'issued':
             messages.error(
                 request,
-                'Só documento emitido pode ser enviado ao paciente. '
-                'Assine antes de enviar.',
+                'Só documento assinado digitalmente pode ser enviado ao paciente. '
+                'O emitido em papel é entregue impresso.',
             )
+            return redirect('documents:medical-detail', document_id=document.id)
+        from base.net import passou_do_limite
+
+        if passou_do_limite(f'reenvio-documento:{document.id}', 5, 3600):
+            messages.error(request, 'Este documento já foi reenviado cinco vezes na última hora.')
             return redirect('documents:medical-detail', document_id=document.id)
 
         # A falta de contato é conferida aqui, e não só no worker: é o

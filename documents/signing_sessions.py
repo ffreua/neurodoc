@@ -74,6 +74,8 @@ def start_session(request, physician_membership, credential, password, duration_
     finally:
         del pfx_bytes
 
+    # Uma sessão aberta por vínculo: a anterior sai antes de a nova nascer.
+    revogar_abertas(physician=physician_membership)
     ephemeral_key_id = uuid.uuid4()
     ephemeral_key = Fernet.generate_key()
     key_path = _key_path(ephemeral_key_id)
@@ -109,6 +111,23 @@ def revoke_session(session):
     session.save(update_fields=['revoked_at'])
     _key_path(session.ephemeral_key_id).unlink(missing_ok=True)
     return session
+
+
+def revogar_abertas(**filtro):
+    """Revoga as sessões de assinatura ainda abertas que casam com `filtro`.
+
+    A sessão só servia ao navegador que a abriu, mas a linha e a chave no
+    tmpfs ficavam vivas até as 4 h depois do logout, da sessão nova ou do
+    vínculo revogado — material de desbloqueio do PFX à disposição de quem
+    alcançasse o servidor nesse meio-tempo (auditoria externa de
+    2026-11-20). Rodando fora do `app` (worker, console), a chave não está
+    montada: a linha é revogada e o temporizador de limpeza apaga o arquivo.
+    """
+    revogadas = 0
+    for sessao in SigningSession.objects.filter(revoked_at=None, **filtro):
+        revoke_session(sessao)
+        revogadas += 1
+    return revogadas
 
 
 def unlock_password(session):

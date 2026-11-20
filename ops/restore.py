@@ -130,7 +130,10 @@ def read_manifest(folder, registry_esperado):
 
 
 #: Imagens de infraestrutura que a restauração sobe a partir do manifesto.
-IMAGENS_DE_INFRA = ('POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE')
+#: O `docker_proxy` entrou depois: ele monta o socket do Docker, e uma imagem
+#: trocada no manifesto rodaria com acesso de root ao servidor.
+IMAGENS_DE_INFRA = ('POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE',
+                    'DOCKER_PROXY_IMAGE')
 
 
 def _repositorio(referencia):
@@ -260,7 +263,11 @@ def activate(record):
         raise RuntimeError('Data restore marker mismatch')
     params = dict(record, ROLLOUT_ID=uuid.uuid4().hex,
                   APP_REPLICAS=config['APP_REPLICAS'])
-    for key in ['APP_IMAGE', 'POSTGRES_IMAGE', 'RABBITMQ_IMAGE', 'REDIS_IMAGE', 'TRAEFIK_IMAGE']:
+    # Backup anterior ao `docker_proxy` não traz a imagem dele: vale a do
+    # `.env` desta instalação. Com ela no registro, `conferir_imagens` já a
+    # prendeu ao repositório declarado, e aqui ela é resolvida como as outras.
+    params.setdefault('DOCKER_PROXY_IMAGE', config['DOCKER_PROXY_IMAGE'])
+    for key in ['APP_IMAGE', *IMAGENS_DE_INFRA]:
         params[key] = resolve_image(params[key])
     prepare_runtime(config)
     initialize_volumes(params['APP_IMAGE'])

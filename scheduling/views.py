@@ -755,7 +755,15 @@ def _first_error(form):
 
 
 def _agenda_redirect(request, doctor, day, anchor=''):
-    base = request.POST.get('return_to') or reverse('scheduling:week')
+    from django.utils.http import url_has_allowed_host_and_scheme
+
+    base = request.POST.get('return_to') or ''
+    # Só caminho deste site: o campo vem do formulário, e um endereço de
+    # fora mandaria quem acabou de marcar para outro domínio (auditoria
+    # externa de 2026-11-20).
+    if not url_has_allowed_host_and_scheme(base, allowed_hosts={request.get_host()},
+                                           require_https=request.is_secure()):
+        base = reverse('scheduling:week')
     url = f'{base}?physician={doctor.id}&date={day.isoformat()}'
     return redirect(f'{url}#{anchor}' if anchor else url)
 

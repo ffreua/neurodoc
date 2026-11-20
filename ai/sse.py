@@ -68,11 +68,14 @@ def _membership_still_authorized(membership_id, tenant_id):
         # ler o plano da clinica seria uma segunda consulta por volta, num
         # stream que pode durar minutos.
         .select_related('tenant')
-        .filter(id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE)
+        .filter(id=membership_id, tenant_id=tenant_id, status=MembershipStatus.ACTIVE,
+                user__is_active=True)
         .first()
     )
     close_old_connections()
-    if membership is None:
+    # Clínica encerrada mantém os vínculos ativos; o stream para mesmo assim
+    # (auditoria externa de 2026-11-20).
+    if membership is None or membership.tenant.status == 'closed':
         return False
     return Capability.CLINICAL_AI in capabilities_for(
         membership.roles, clinically_enabled=membership.can_practice_clinically(),

@@ -49,11 +49,34 @@ def _hora(valor):
     return valor[:5] if isinstance(valor, str) else valor.strftime('%H:%M')
 
 
+class _GuiaCongelada:
+    """A guia com os campos dela lidos do snapshot, e o resto da linha.
+
+    Prestador, beneficiário e itens já vinham do snapshot; os campos da
+    própria guia (indicação, senha, números, observação) vinham da linha
+    viva, e a folha de uma guia fechada podia divergir do XML enviado, que
+    os lê do snapshot (auditoria externa de 2026-11-20). As datas chegam
+    como texto ISO, e os formatadores desta folha já as aceitam assim.
+    """
+
+    def __init__(self, guia, campos):
+        self._guia, self._campos = guia, campos
+
+    def __getattr__(self, nome):
+        if nome in self._campos:
+            return self._campos[nome]
+        return getattr(self._guia, nome)
+
+
 def dados(guia):
     """Tudo o que a folha mostra, de uma fonte só: o snapshot se fechada."""
     fechada = guia.estado != EstadoGuia.RASCUNHO and guia.snapshot
     if fechada:
         s = guia.snapshot
+        # Guia fechada antes de o snapshot guardar os campos dela fica com
+        # a linha, como antes.
+        if s.get('guia'):
+            guia = _GuiaCongelada(guia, s['guia'])
         operadora, prestador = s['operadora'], s['prestador']
         cred = s['credenciamento']
         benef = s['beneficiario']

@@ -128,7 +128,10 @@ class VerifyEmailView(View):
 
 class ResendVerificationEmailView(LoginRequiredMixin, View):
     def post(self, request):
-        if request.user.email_verified_at is None:
+        from base.net import passou_do_limite
+
+        if request.user.email_verified_at is None and not passou_do_limite(
+                f'reenvio-verificacao:{request.user.pk}', 3, 3600):
             services.send_email_verification(request.user, request)
         return render(request, 'accounts/email_verification_sent.html')
 
@@ -411,6 +414,7 @@ class MFASetupView(LoginRequiredMixin, View):
                     )
                 record_audit_event(request.user, None, 'accounts.mfa_trocado', outcome='success')
             codes = mfa.generate_recovery_codes(request.user)
+            services.encerrar_outras_sessoes(request.user, manter=request.session.session_key)
             # A sessão passa a valer como verificada aqui mesmo.
             #
             # O código que a pessoa acabou de digitar **é** o segundo fator:

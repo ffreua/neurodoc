@@ -35,9 +35,35 @@ def _extension_of(name):
     return name.rsplit('.', 1)[-1].lower() if '.' in name else ''
 
 
+#: Mais que isto não é laudo, é outra coisa — e cada página é trabalho para
+#: a prévia e para quem vai ler.
+MAX_PAGINAS_PDF = 500
+
+
 def _validate_pdf_structure(content):
     if not content.startswith(b'%PDF-'):
         raise UploadRejected('Este arquivo não é um PDF válido.')
+    # Só o começo do arquivo era conferido; agora ele precisa abrir como PDF
+    # e ter páginas (auditoria externa de 2026-11-20). `strict=False` para
+    # aceitar o PDF levemente fora da norma que todo leitor abre — o que se
+    # recusa é o que não abre, o protegido por senha e o desmedido.
+    import io
+
+    from pypdf import PdfReader
+
+    try:
+        leitor = PdfReader(io.BytesIO(content), strict=False)
+        if leitor.is_encrypted and not leitor.decrypt(''):
+            raise UploadRejected('Este PDF está protegido por senha. Envie uma cópia sem senha.')
+        paginas = len(leitor.pages)
+    except UploadRejected:
+        raise
+    except Exception as exc:                                # noqa: BLE001
+        raise UploadRejected('Este PDF está danificado e não pôde ser aberto.') from exc
+    if paginas == 0:
+        raise UploadRejected('Este PDF não tem páginas.')
+    if paginas > MAX_PAGINAS_PDF:
+        raise UploadRejected(f'Este PDF tem mais de {MAX_PAGINAS_PDF} páginas.')
 
 
 def _validate_docx_structure(content):

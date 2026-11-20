@@ -42,6 +42,8 @@ from .tools import clinical as clinical_tools
 #: ponta da mesma convenção, e as duas mudam juntas.
 MARCADORES_DE_DESIDENTIFICACAO = (
     '[PACIENTE]', '[NOME_MAE]', '[CPF]', '[TELEFONE]', '[EMAIL]',
+    # Escrito por `deidentification.py` e esquecido aqui até 2026-11-20.
+    '[NASCIMENTO]',
     # A consanguinidade omitida (2026-11-02, `omitir_consanguinidade`): o
     # modelo que a repetir no texto mandaria a marca ao papel.
     MARCADOR_CONSANGUINIDADE,

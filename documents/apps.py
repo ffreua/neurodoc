@@ -7,7 +7,23 @@ class DocumentsConfig(AppConfig):
     def ready(self):
         from django.contrib.auth.signals import user_logged_in
 
+        from django.contrib.auth.signals import user_logged_out
+
         user_logged_in.connect(_encerra_identificacao_do_portal, dispatch_uid='documents.portal_no_login')
+        user_logged_out.connect(_encerra_sessao_de_assinatura, dispatch_uid='documents.assinatura_no_logout')
+
+
+def _encerra_sessao_de_assinatura(sender, request, user, **kwargs):
+    """Sair do sistema revoga a sessão de assinatura aberta neste navegador.
+
+    O sinal vem antes de a sessão do Django ser apagada, então a chave dela
+    ainda identifica a sessão de assinatura presa a este navegador.
+    """
+    if request is None or not getattr(request, 'session', None) or not request.session.session_key:
+        return
+    from .signing_sessions import _session_binding_hash, revogar_abertas
+
+    revogar_abertas(session_binding_hash=_session_binding_hash(request))
 
 
 def _encerra_identificacao_do_portal(sender, request, user, **kwargs):

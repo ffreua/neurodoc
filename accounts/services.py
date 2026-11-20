@@ -54,6 +54,22 @@ def send_password_reset(user, request):
     return True
 
 
+def encerrar_outras_sessoes(user, manter=None):
+    """Encerra as sessões da pessoa, menos a `manter` (a chave da atual).
+
+    Chamada ao confirmar um aparelho do segundo fator: as sessões abertas
+    antes — com a senha, quando ainda não havia segundo fator, ou no
+    aparelho que acabou de ser trocado — não passaram pelo código novo, e
+    continuariam valendo até expirar (auditoria externa de 2026-11-20).
+    """
+    user_id = str(user.pk)
+    for session in Session.objects.filter(expire_date__gte=timezone.now()).iterator():
+        if session.session_key == manter:
+            continue
+        if str(session.get_decoded().get('_auth_user_id', '')) == user_id:
+            session.delete()
+
+
 def invalidate_user_sessions(user):
     """Encerra sessões existentes após uma alteração administrativa de MFA."""
     user_id = str(user.pk)
@@ -104,6 +120,12 @@ def revoke_membership(membership, actor):
     membership.revoked_at = timezone.now()
     membership.row_version += 1
     membership.save(update_fields=['status', 'revoked_at', 'row_version', 'updated_at'])
+    # As sessões de assinatura do vínculo saem junto. O certificado não: ele
+    # volta a valer se a clínica recontratar a pessoa pelo mesmo vínculo, e
+    # apagá-lo é decisão de retenção, não efeito colateral.
+    from documents.signing_sessions import revogar_abertas
+
+    revogar_abertas(physician=membership)
     record_audit_event(
         actor, membership.tenant, 'tenancy.membership_revoked',
         object_type='membership', object_id=membership.id, outcome='success',

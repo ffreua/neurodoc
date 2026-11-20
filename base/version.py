@@ -332,7 +332,10 @@ carimbá-la na publicação.
 #: campanha pausada com a clínica inativa, PDF do paciente no quadro, a
 #: corrida ao finalizar travada, trilha sem nome de medicamento e de exame,
 #: teto de 40 MB no corpo da requisição; e **quem abriu o prontuário**, na
-#: trilha e na ficha (adoção do PD-M02 do ProntDoc). Sem migração.
+#: trilha e na ficha (adoção do PD-M02 do ProntDoc). Na segunda leitura,
+#: no mesmo dia: restauração, IA da instalação, sanitizador, sessões antigas,
+#: portal, travas e logs (`accounts/0006` encerra uma vez as sessões que nunca
+#: passaram pelo código).
 VERSION = '1.53'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de

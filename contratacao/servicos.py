@@ -212,7 +212,10 @@ def processar_evento(evento_id):
         # (nome, documento e e-mail de cliente do outro produto) ficava
         # guardado aqui sem finalidade (auditoria externa de 2026-11-20).
         # Fica a linha, com o id e o tipo; o conteúdo sai.
-        if nota.startswith(NOTA_DE_OUTRO_PRODUTO):
+        # E o aviso que não casou com pedido daqui também: sem referência
+        # (cobrança e assinatura nem sempre a trazem), ele é do outro
+        # produto ou de nada, e o conteúdo ficava para sempre.
+        if nota.startswith(NOTA_DE_OUTRO_PRODUTO) or NOTA_SEM_PEDIDO in nota:
             evento.payload = {}
             campos.append('payload')
         evento.save(update_fields=campos)
@@ -356,7 +359,14 @@ def _renovacao_paga(pedido):
     return ''
 
 
+#: O pedaço comum das notas de aviso que não casou com pedido desta instalação.
+NOTA_SEM_PEDIDO = 'não é de pedido desta instalação'
+
+
 def _evento_de_assinatura(tipo, assinatura):
+    # A recusa por referência valia para checkout e cobrança, e não aqui.
+    if asaas.referencia_alheia(assinatura):
+        return NOTA_DE_OUTRO_PRODUTO
     pedido = None
     sessao = str(assinatura.get('checkoutSession') or '')
     if sessao:

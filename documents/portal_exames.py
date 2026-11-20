@@ -48,6 +48,11 @@ MAX_BYTES = 3 * 1024 * 1024
 #: para quem quisesse encher o disco da clínica.
 ENVIOS_POR_HORA = 6
 
+#: O que o portal pode gravar numa clínica em 24 h. Dez envios cheios por
+#: dia já são raros; o teto existe para o portal não esgotar a cota da
+#: clínica inteira (auditoria externa de 2026-11-20).
+SUBCOTA_DIARIA_BYTES = 300 * 1024 * 1024
+
 #: O mais antigo que se aceita. Não é regra clínica -- exame antigo vale --,
 #: é o que separa uma data digitada errado (0202, 1026) de uma data velha.
 DATA_MINIMA = datetime.date(1950, 1, 1)
@@ -196,6 +201,18 @@ def receber(request, tenant, patient, linhas, requester_name, requester_is_patie
     escritos = []
     try:
         with transaction.atomic():
+            # Subcota do portal: o que entra por ele, numa clínica, em 24 h.
+            # Os envios dividiam a cota inteira da clínica, e quem tivesse
+            # um par CPF e nascimento válido podia, de vários endereços,
+            # encher o espaço e travar os anexos da equipe (auditoria
+            # externa de 2026-11-20). A mensagem é a mesma da cota cheia.
+            from django.db.models import Sum
+
+            desde = timezone.now() - timezone.timedelta(hours=24)
+            usados = PortalExamUpload.objects.filter(tenant=tenant, created_at__gte=desde).aggregate(
+                total=Sum('attachment__bytes'))['total'] or 0
+            if usados + sum(len(linha.conteudo) for linha in linhas) > SUBCOTA_DIARIA_BYTES:
+                raise QuotaExceeded('subcota diária do portal')
             envios = []
             for linha in linhas:
                 # Contexto e autor nulos: quem envia não tem conta, e

@@ -558,6 +558,238 @@ try:
         conferir('a presença usa o mesmo pool',
                  presence._client().connection_pool is streaming._client().connection_pool)
 
+        # ------------------------------------------------------------ 17
+        print('\n17. Restauração: a imagem do proxy do Docker também presa ao .env')
+        from ops import restore as restauracao
+
+        conferir('DOCKER_PROXY_IMAGE está entre as imagens conferidas',
+                 'DOCKER_PROXY_IMAGE' in restauracao.IMAGENS_DE_INFRA)
+
+        # ------------------------------------------------------------ 18
+        print('\n18. Endereço da IA da instalação fora do catálogo')
+        from ai.providers.catalog import ProviderProbeFailed, assert_endereco_permitido
+
+        for endereco in ('http://10.0.0.5/v1', 'http://169.254.169.254/latest', 'https://ia.example.com/v1'):
+            try:
+                assert_endereco_permitido(endereco)
+                conferir(f'{endereco} recusado', False)
+            except ProviderProbeFailed:
+                conferir(f'{endereco} recusado', True)
+
+        # ------------------------------------------------------------ 19
+        print('\n19. O chat de IA não deixa passar link perigoso')
+        from ai.rendering import render_markdown
+
+        for bruto in ('[x](javascript:alert(1))', '[x](java\tscript:alert(1))',
+                      '[x](JaVaScRiPt:alert(1))', '[x](data:text/html,oi)',
+                      '[x](vbscript:msgbox)', '[x](&#106;avascript:alert(1))'):
+            import html as _html
+            import re as _re
+
+            saida = render_markdown(bruto)
+            # Como o navegador lê o atributo: uma decodificação de entidades,
+            # sem os invisíveis que ele ignora no esquema.
+            hrefs = [_re.sub(r'[\x00-\x20\x7f]+', '', _html.unescape(h)).lower()
+                     for h in _re.findall(r'href="([^"]*)"', saida)]
+            conferir(f'{bruto!r} neutralizado',
+                     not any(h.startswith(('javascript:', 'vbscript:', 'data:')) for h in hrefs), saida)
+        conferir('link https continua', 'href="https://example.com/a"' in render_markdown('[a](https://example.com/a)'))
+        conferir('âncora e relativo continuam', 'href="/app/"' in render_markdown('[a](/app/)'))
+
+        # ------------------------------------------------------------ 20
+        print('\n20. Sessões abertas antes do segundo fator são encerradas')
+        from django.contrib.sessions.backends.db import SessionStore
+
+        from accounts.services import encerrar_outras_sessoes
+
+        dono_s, _ = nova_pessoa('sessoes', clinica, [Role.OWNER])
+        velha, atual = SessionStore(), SessionStore()
+        for s in (velha, atual):
+            s['_auth_user_id'] = str(dono_s.pk)
+            s.create()
+        encerrar_outras_sessoes(dono_s, manter=atual.session_key)
+        conferir('a sessão antiga some', not SessionStore().exists(velha.session_key))
+        conferir('a atual fica', SessionStore().exists(atual.session_key))
+
+        # ------------------------------------------------------------ 21
+        print('\n21. Chat da equipe: clínica encerrada e pessoa desativada param o stream')
+        from unittest import mock
+
+        from teamchat.sse import _membership_still_active as _ainda_ativo_async
+        from tenancy.models import TenantStatus
+
+        def _membership_still_active(mid, tid):
+            # A função é `sync_to_async`: chamada sem `await`, devolve uma
+            # corrotina, que conta como verdadeira. Aqui roda a função de
+            # dentro, com o `close_old_connections` neutralizado, porque o
+            # roteiro está numa transação e fechá-la a desfaria.
+            with mock.patch('django.db.close_old_connections'):
+                return _ainda_ativo_async.func(mid, tid)
+
+        pessoa_c, membro_c = nova_pessoa('chat', clinica, [Role.SECRETARY], com_totp=False)
+        conferir('vínculo ativo continua', _membership_still_active(membro_c.id, clinica.id))
+        Tenant.objects.filter(id=clinica.id).update(status=TenantStatus.SUSPENDED)
+        conferir('clínica suspensa continua (só lê)', _membership_still_active(membro_c.id, clinica.id))
+        Tenant.objects.filter(id=clinica.id).update(status=TenantStatus.CLOSED)
+        conferir('clínica encerrada para', not _membership_still_active(membro_c.id, clinica.id))
+        Tenant.objects.filter(id=clinica.id).update(status=TenantStatus.ACTIVE)
+        User.objects.filter(id=pessoa_c.id).update(is_active=False)
+        conferir('pessoa desativada para', not _membership_still_active(membro_c.id, clinica.id))
+
+        # ------------------------------------------------------------ 22
+        print('\n22. Avisos do Asaas: assinatura alheia e aviso sem pedido sem conteúdo')
+        from contratacao import asaas as asaas_mod
+        from contratacao.servicos import NOTA_DE_OUTRO_PRODUTO, _evento_de_assinatura
+
+        prefixo_alheio = getattr(asaas_mod, 'PREFIXO_DO_OUTRO_PRODUTO', None) or 'neurodoc:'
+        conferir('assinatura do outro produto reconhecida como alheia',
+                 _evento_de_assinatura('SUBSCRIPTION_CREATED',
+                                       {'id': 'sub_x', 'externalReference': f'{prefixo_alheio}abc'})
+                 == NOTA_DE_OUTRO_PRODUTO)
+        ev2 = EventoAsaas.objects.create(
+            event_id=f'evt_{uuid.uuid4().hex}', tipo='PAYMENT_RECEIVED',
+            payload={'payment': {'id': f'pay_{uuid.uuid4().hex}', 'customer': 'cus_x',
+                                 'customerData': {'name': 'BELTRANO'}}},
+        )
+        processar_evento(ev2.id)
+        ev2.refresh_from_db()
+        conferir('o aviso sem pedido é guardado sem o conteúdo',
+                 ev2.processado_em is not None and ev2.payload == {}, (ev2.erro, ev2.payload))
+
+        # ------------------------------------------------------------ 23
+        print('\n23. Logs e relatório de CSP sem token nem credencial')
+        import logging as _logging
+
+        from base.csp_views import _sem_dado
+        from base.logging import RedactSensitiveDataFilter
+
+        for rota in ('/signup/abc123/', '/invite/abc123/', '/descadastrar/abc123/',
+                     '/verify-email/abc123/', '/d/abc123/', '/verificar/abc123/'):
+            limpo = _sem_dado('document-uri', f'https://x.example{rota}?q=MARIA')
+            conferir(f'{rota} sem o token', 'abc123' not in limpo and 'MARIA' not in limpo, limpo)
+        registro = _logging.LogRecord('t', _logging.ERROR, __file__, 1,
+                                      'Authorization: Bearer eyJsegredo123 em redis://u:senha123@h/0',
+                                      None, None)
+        RedactSensitiveDataFilter().filter(registro)
+        texto = registro.getMessage()
+        conferir('Bearer e senha na URL saem do log',
+                 'eyJsegredo123' not in texto and 'senha123' not in texto, texto)
+
+        # ------------------------------------------------------------ 24
+        print('\n24. PDF conferido pela estrutura')
+        import io
+
+        from pypdf import PdfWriter
+
+        from documents.validators import UploadRejected, _validate_pdf_structure
+
+        escrito = io.BytesIO()
+        w = PdfWriter()
+        w.add_blank_page(width=200, height=200)
+        w.write(escrito)
+        try:
+            _validate_pdf_structure(escrito.getvalue())
+            conferir('PDF de verdade passa', True)
+        except UploadRejected as exc:
+            conferir('PDF de verdade passa', False, str(exc))
+        for rotulo, conteudo in (('só o cabeçalho', b'%PDF-1.4\nlixo lixo lixo\n'),
+                                 ('sem páginas', b'%PDF-1.4\n%%EOF\n')):
+            try:
+                _validate_pdf_structure(conteudo)
+                conferir(f'{rotulo} recusado', False)
+            except UploadRejected:
+                conferir(f'{rotulo} recusado', True)
+
+        # ------------------------------------------------------------ 25
+        print('\n25. Pagamento e estorno em cobrança já repassada')
+        enc2 = Encounter.objects.create(
+            tenant=clinica, patient=paciente, physician_membership=membro_medico,
+            occurred_at=timezone.now(), kind=EncounterKind.FREE_TEXT,
+            status=EncounterStatus.FINALIZED, finalized_at=timezone.now(), finalized_by=membro_medico,
+        )
+        rec2 = Receivable.objects.create(
+            tenant=clinica, patient=paciente, encounter=enc2, fee_snapshot={'payment_category': 'private'},
+            expected_amount=Decimal('80.00'), charged_amount=Decimal('80.00'),
+            due_date=hoje, competence_date=hoje, status=ReceivableStatus.PENDING,
+            doctor_share_paid_at=timezone.now(),
+        )
+        for rotulo, acao in (
+            ('pagamento', lambda: record_payment(rec2, Decimal('10.00'), 'PIX', membro_medico.user_id)),
+            ('estorno', lambda: apply_adjustment(rec2, AdjustmentType.DISCOUNT, Decimal('5.00'), 'x', membro_medico)),
+        ):
+            try:
+                acao()
+                conferir(f'{rotulo} recusado', False)
+            except ValueError:
+                conferir(f'{rotulo} recusado', True)
+
+        # ------------------------------------------------------------ 26
+        print('\n26. Portal: paciente arquivado no meio da sessão')
+        from django.test import RequestFactory
+
+        from documents import portal as portal_mod
+
+        req = RequestFactory().get('/')
+        req.session = SessionStore()
+        req.session['anonimo'] = 'x'
+        req.session.create()
+        chave_antes = req.session.session_key
+        req.session.cycle_key()
+        req.session[portal_mod.SESSION_KEY] = {
+            'patient_id': str(paciente.id), 'tenant_id': str(clinica.id),
+            'at': timezone.now().isoformat(), 'token': 't', 'privacy_at': timezone.now().isoformat(),
+        }
+        conferir('a troca de chave muda a sessão e guarda o conteúdo',
+                 req.session.session_key != chave_antes and req.session.get('anonimo') == 'x')
+        conferir('identify troca a chave da sessão',
+                 'request.session.cycle_key()' in open(portal_mod.__file__, encoding='utf-8').read())
+        conferir('ativo é reconhecido', portal_mod.verified_patient(req, clinica) is not None)
+        Patient.objects.filter(id=paciente.id).update(status=PatientStatus.ARCHIVED)
+        conferir('arquivado não é mais', portal_mod.verified_patient(req, clinica) is None)
+        Patient.objects.filter(id=paciente.id).update(status=PatientStatus.ACTIVE)
+
+        # ------------------------------------------------------------ 27
+        print('\n27. Convite de equipe em clínica que não está ativa')
+        from tenancy.services import InvalidInvitation, accept_collaborator_invitation_new_user
+
+        convite_e, token_e = issue_invitation(
+            InvitationPurpose.COLLABORATOR, target_tenant=clinica, role_grants=[Role.SECRETARY],
+        )
+        Tenant.objects.filter(id=clinica.id).update(status=TenantStatus.SUSPENDED)
+        try:
+            with transaction.atomic():
+                accept_collaborator_invitation_new_user(
+                    token_e, f'eq-{uuid.uuid4().hex[:8]}@example.com', 'SenhaLonga!2026xx')
+            conferir('aceite recusado na suspensa', False)
+        except InvalidInvitation:
+            conferir('aceite recusado na suspensa', True)
+        convite_e.refresh_from_db()
+        conferir('e o convite continua valendo', convite_e.consumed_at is None)
+        Tenant.objects.filter(id=clinica.id).update(status=TenantStatus.ACTIVE)
+
+        # ------------------------------------------------------------ 28
+        print('\n28. /verificar/ sem cache e chaves da rotação')
+        from base.management.commands.rotate_secrets_master_key import CAMPOS
+
+        resposta = Client().get('/verificar/')
+        conferir('/verificar/ responde no-store', 'no-store' in resposta.get('Cache-Control', ''),
+                 resposta.get('Cache-Control'))
+        conferir('o convite do pedido entra na rotação',
+                 any(c[0] == 'contratacao.Pedido' and c[1] == 'convite_token_cifrado' for c in CAMPOS))
+        conferir('segundo fator vazio no .env não desliga',
+                 dj_settings.SEGUNDO_FATOR_OBRIGATORIO_DESDE not in ('', None))
+
+        # ------------------------------------------------------------ 29
+        print('\n29. Mailing com médico inexistente não exporta a clínica inteira')
+        dono_m, _ = nova_pessoa('mailing', clinica, [Role.OWNER])
+        cli_m = Client()
+        entrar_com_codigo(cli_m, dono_m, clinica)
+        antes = ReportExport.objects.filter(tenant=clinica).count()
+        cli_m.post(reverse('reporting:painel-mailing'),
+                   {'medico': str(uuid.uuid4()), 'declaracao': 'sim'})
+        conferir('nenhuma exportação criada',
+                 ReportExport.objects.filter(tenant=clinica).count() == antes)
+
         raise Desfazer
 except Desfazer:
     pass

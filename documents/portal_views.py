@@ -20,6 +20,9 @@ from .models import DocumentRequestKind
 #: Finalidades de relatório, herdadas do portal em uso. A lista existe
 #: porque "relatório para quê" muda o texto inteiro, e deixar isso em
 #: campo livre produz pedido que o médico devolve pedindo esclarecimento.
+#: O mesmo teto que o formulário mostra (`portal_request.html`).
+MAX_MEDICACOES_POR_PEDIDO = 20
+
 REPORT_PURPOSES = [
     'Fisioterapia', 'Fonoaudiologia', 'Terapia ocupacional', 'Reabilitação',
     'Convênio / plano de saúde', 'INSS / benefício / perícia',
@@ -240,6 +243,11 @@ class PortalRequestView(PortalBaseView):
                     return None, ('Em cada medicação, informe o nome, a dose e como '
                                   'você utiliza.')
                 medicacoes.append({'nome': nome[:120], 'dose': dose[:80], 'uso': uso[:180]})
+            # O teto de 20 existia só no navegador; um POST montado à mão
+            # gravava centenas (auditoria externa de 2026-11-20).
+            if len(medicacoes) > MAX_MEDICACOES_POR_PEDIDO:
+                return None, (f'No máximo {MAX_MEDICACOES_POR_PEDIDO} medicações por pedido. '
+                              'Para mais, envie outro pedido.')
             if not medicacoes:
                 return None, 'Adicione ao menos uma medicação.'
             return {'medicacoes': medicacoes}, None
@@ -382,4 +390,11 @@ class PortalMedicationSearchView(PortalBaseView):
     def get(self, request, slug):
         from catalogs.selectors import search_medications
 
-        return JsonResponse({'results': search_medications(request.GET.get('q', ''))})
+        # Pública e sem limite, com uma condição `ILIKE` por palavra: um
+        # robô podia pôr o banco para trabalhar à vontade (auditoria
+        # externa de 2026-11-20). Teto por IP e no tamanho da busca; o
+        # autocomplete de quem digita não chega perto de nenhum dos dois.
+        if portal._rate_limit(request, 'medicamentos', 240, 600):
+            return JsonResponse({'results': []}, status=429)
+        termo = ' '.join((request.GET.get('q', '') or '')[:100].split()[:6])
+        return JsonResponse({'results': search_medications(termo)})

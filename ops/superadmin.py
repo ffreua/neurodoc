@@ -748,6 +748,23 @@ class InstallationAIView(SuperAdminView):
                 'Provedor próprio exige o endereço da API. Nada foi alterado.',
             )
             return redirect('superadmin:operations')
+        # O endereço vale para **qualquer** provedor (`resolve_base_url`): com
+        # `nvidia` e um endereço trocado, o worker mandava a chave da
+        # instalação e os prompts de todas as clínicas que usam o padrão a
+        # quem o escreveu. A reserva já conferia a lista de liberados e
+        # pedia o código; o padrão, não (auditoria externa de 2026-11-20).
+        if base_url:
+            from ai.providers.catalog import ProviderProbeFailed, assert_endereco_permitido
+
+            try:
+                assert_endereco_permitido(base_url)
+            except ProviderProbeFailed as exc:
+                messages.error(request, f'Endereço da API recusado: {exc} Nada foi alterado.')
+                return redirect('superadmin:operations')
+            if base_url != (config.ai_base_url or ''):
+                pedido = _pede_codigo_de_novo(request, 'superadmin:operations')
+                if pedido:
+                    return pedido
 
         antes = config.ia_da_instalacao()
         pesado_antes = config.ai_model_pesado

@@ -55,9 +55,12 @@ CAMPOS = ('violated-directive', 'effective-directive', 'blocked-uri', 'document-
 MAX_CAMPO = 200
 
 
-#: Rotas com segredo no caminho: o token do link do documento e o da
-#: verificação pública.
-_TOKEN_NA_ROTA = re.compile(r'/(d|verificar)/[^/?#]+')
+#: Rotas com segredo no caminho: o link do documento, a verificação
+#: pública, o cadastro por convite, o convite de equipe, a verificação de
+#: e-mail, o descadastro e a redefinição de senha. Só as duas primeiras
+#: estavam aqui, e o token de convite pago ia para o log a cada violação de
+#: CSP provocada por extensão do navegador (auditoria externa de 2026-11-20).
+_TOKEN_NA_ROTA = re.compile(r'/(d|verificar|signup|invite|verify-email|descadastrar|reset)/[^?#]+')
 
 
 def _sem_dado(campo, valor):

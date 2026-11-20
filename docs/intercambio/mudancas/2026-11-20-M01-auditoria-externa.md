@@ -87,3 +87,95 @@ indicado.
 bateria vizinha (MFA, dispositivo confiável, exportação, Dashboard,
 pagamentos, TISS, campanhas, prontuário, texto livre, estruturado,
 imutabilidade, contratação, isolamento, idioma, CSP).
+
+## Segunda leitura: o relatório completo da auditoria
+
+O titular trouxe depois o relatório inteiro (24 achados por sistema). Os
+17 da primeira leitura já estavam corrigidos acima. Do resto, conferido no
+código já corrigido, procedeu e foi feito nos dois sistemas (salvo onde
+indicado):
+
+**Antes de publicar**
+
+16. **Restauração:** a imagem do proxy do Docker também vem do `.env`, e
+    não do manifesto do backup (o serviço monta o socket do Docker).
+17. **Endereço da IA da instalação:** conferido contra o catálogo e a lista
+    liberada ao gravar no console (com o código de novo quando muda) e a
+    cada uso; o cliente HTTP do provedor não segue redirecionamento.
+18. **Sanitizador do chat de IA:** lista de esquemas permitidos (http,
+    https, mailto, relativo) no lugar da lista negra, que deixava passar
+    `java\tscript:`.
+19. **Sessões que nunca passaram pelo código:** a migração
+    `accounts/0006_encerrar_sessoes_sem_codigo` apaga, uma vez, as sessões
+    de quem tem segundo fator e não traz a marca do código; confirmar um
+    aparelho encerra as outras sessões da pessoa.
+20. **Chat da equipe:** a conferência solta a conexão do banco, e para com
+    a clínica encerrada ou a pessoa desativada (a suspensa continua, porque
+    só lê); o mesmo no stream da IA.
+
+**Dados e operação**
+
+21. **Avisos do Asaas:** o de assinatura também confere a referência, e o
+    aviso que não é de pedido desta instalação é guardado sem o conteúdo.
+22. **Trilha:** sem os valores de peso e altura e sem o nome do modelo de
+    pedido (que revela a suspeita clínica).
+23. **Quem abriu o prontuário:** a busca de pacientes por CID entra no
+    registro, e a janela de 30 minutos passou a ser por objeto (o segundo
+    atendimento do mesmo paciente também fica registrado).
+24. **Logs:** o relatório de CSP tira o token de cadastro, convite,
+    verificação de e-mail, descadastro e redefinição; o filtro de log tira
+    `Bearer`/`Basic`, senha em URL e o mesmo nos tracebacks.
+25. **Sessão de assinatura** revogada no logout, ao abrir outra e com o
+    vínculo revogado. O certificado **não** é revogado com o vínculo: volta
+    a valer se o médico for recontratado.
+26. **Portal do paciente:** chave de sessão nova ao identificar, paciente
+    arquivado deixa de valer na hora, limite na busca pública de
+    medicamentos, teto de medicações conferido no servidor e cota própria
+    dos envios do portal dentro da cota da clínica.
+27. **Travas:** pagamento e ajuste recusados em cobrança repassada ou
+    arquivada; renovação com trava na clínica (dois cliques, um checkout);
+    indicação clínica da guia TISS sob a trava do rascunho, e a impressão da
+    guia fechada lendo os campos do snapshot.
+
+**Endurecimento**
+
+28. PDF conferido pela estrutura (`pypdf`): danificado, sem páginas, com
+    senha ou com mais de 500 páginas é recusado. Os 178 PDFs do NeuroDoc em
+    produção passaram na validação nova antes de ela entrar. `documents/ocr.py`
+    (sem chamador desde a 1.18) foi apagado.
+29. O código do convite do pedido entra na rotação da chave-mestra.
+30. `SEGUNDO_FATOR_OBRIGATORIO_DESDE` vazio volta ao padrão (exigido), em vez
+    de desligar.
+31. IA: o marcador de nascimento no relatório, doença rara no plural e com
+    acento na trava, o pedido do médico avaliado pela trava e a confirmação
+    de risco só depois de um bloqueio de fato.
+32. Limites no reenvio de verificação de e-mail e no reenvio de documento
+    (que passa a aceitar só documento assinado — o de papel mandava um link
+    que dava 404); convite de equipe recusado em clínica que não está ativa
+    (o convite continua valendo para quando ela voltar).
+33. `/verificar/` com `no-store`, e consulta com código inexistente ou acima
+    do limite no log, sem o código.
+34. **Só no ProntDoc:** "Monitorização neurofisiológica intraoperatória"
+    virou "Monitorização intraoperatória".
+35. Mailing com médico que não está mais na clínica é recusado, em vez de
+    exportar a clínica inteira.
+
+**Não procedeu, ou fica como está (decisão do titular onde indicado)**
+
+- Exigir autoria no reenvio de documento: o PRD autoriza dono e secretária.
+- Restringir a edição do atendimento aberto ao médico dele (ND-015): fica
+  como está, por decisão do titular — quebraria substituição, preceptoria e
+  carteira compartilhada.
+- A tela de bloqueio dos 180 dias continua mostrando a data e o médico
+  (decisão do titular).
+- Gatilho no banco contra apagar atendimento finalizado e hash do
+  prontuário cobrindo os itens filhos: procedem, mas mudam prova jurídica e
+  quebram roteiros; ficam para a rodada da trilha com hash encadeado.
+- Nome completo na tela do portal: intencional (protege contra trocar a
+  ficha entre abas). Limite do portal só por IP: escolha documentada.
+  `delete_all_financial_history` sem trava: já trava.
+- Prefixar `neurodoc:` na referência do Asaas: o ProntDoc já ignora o que
+  não tem `prontdoc:`, e inverter o critério aqui perderia avisos de
+  parcelas de pedidos antigos.
+
+Seções 17 a 29 do mesmo roteiro cobrem a segunda leitura.

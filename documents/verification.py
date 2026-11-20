@@ -15,7 +15,11 @@ validador do ITI ou em leitor de PDF compatível; esta página confirma a
 existência e a proveniência do documento no sistema que o emitiu.
 """
 
+import logging
+
 from django.http import Http404
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import never_cache
 from django.shortcuts import render
 from django.utils import timezone
 from django.views import View
@@ -27,6 +31,8 @@ from base.net import client_ip
 #: o limite existe para que nem valha a pena tentar, e para que a tentativa
 #: apareça no log em vez de passar despercebida.
 LOOKUP_MAX_ATTEMPTS = 20
+
+logger = logging.getLogger(__name__)
 LOOKUP_WINDOW_SECONDS = 900
 
 
@@ -77,6 +83,10 @@ def _lookup(token):
     )
 
 
+# `no-store`: a resposta traz o nome mascarado, o médico e o hash, e a URL
+# carrega o código, que é a credencial. Nem a Cloudflare nem o navegador de
+# um computador compartilhado (balcão de farmácia) devem guardá-la.
+@method_decorator(never_cache, name='dispatch')
 class DocumentVerificationView(View):
     """Aberta, sem sessão. É o que o QR impresso alcança."""
 
@@ -98,6 +108,7 @@ class DocumentVerificationView(View):
                 'Muitas consultas a partir deste endereço. Aguarde alguns minutos '
                 'e tente novamente.'
             )
+            logger.warning('verificar: limite de consultas atingido', extra={'origin_ip': client_ip(request)})
             return render(request, self.template_name, context, status=429)
 
         document = _lookup(token) if token else None
@@ -106,6 +117,9 @@ class DocumentVerificationView(View):
                 'Nenhum documento com este código. Confira a digitação, ou leia o '
                 'QR code impresso no documento.'
             )
+            # Código errado não tem clínica para a trilha; vai ao log (sem o
+            # código), para que uma varredura apareça e não passe calada.
+            logger.warning('verificar: código inexistente', extra={'origin_ip': client_ip(request)})
             return render(request, self.template_name, context, status=404)
 
         if document is not None:

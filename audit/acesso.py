@@ -46,7 +46,10 @@ def registrar_leitura(request, patient_id, onde, objeto_id=None):
     ctx = getattr(request, 'access_context', None)
     if ctx is None or not getattr(request.user, 'is_authenticated', False):
         return None
-    chave = f'prontuario-aberto:{ctx.tenant_id}:{request.user.pk}:{patient_id}:{onde}'
+    # O objeto entra na chave: sem ele, o segundo atendimento do mesmo
+    # paciente aberto na janela não era anotado (auditoria externa de
+    # 2026-11-20).
+    chave = f'prontuario-aberto:{ctx.tenant_id}:{request.user.pk}:{patient_id}:{onde}:{objeto_id or ""}'
     try:
         if not cache.add(chave, 1, JANELA_SEGUNDOS):
             return None

@@ -94,3 +94,21 @@ def client_ip(request):
         if not _is_trusted(endereco, redes):
             return endereco
     return encaminhados[0] if encaminhados else remoto
+
+
+def passou_do_limite(chave, limite, janela_segundos):
+    """Conta um uso em `chave` e diz se passou de `limite` na janela.
+
+    Para os envios que saem pelo SMTP da instalação a pedido de quem está na
+    tela (reenvio de verificação, redefinição pelo responsável, reenvio de
+    documento): sem teto, cada clique era um e-mail, e a reputação do
+    servidor é de todas as clínicas (auditoria externa de 2026-11-20). Falha
+    aberto se o cache cair: o envio é legítimo na quase totalidade.
+    """
+    from django.core.cache import cache
+
+    try:
+        cache.add(chave, 0, janela_segundos)
+        return cache.incr(chave) > limite
+    except Exception:                                       # noqa: BLE001
+        return False

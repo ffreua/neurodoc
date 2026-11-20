@@ -9,8 +9,17 @@ _PATTERN = re.compile(
 )
 
 
+#: `Authorization: Bearer xyz` passava: o padrão de cima levava só a primeira
+#: palavra depois de `authorization:`. E senha em URL (`smtp://u:s@host`) não
+#: era tratada (auditoria externa de 2026-11-20).
+_ESQUEMA_DE_AUTENTICACAO = re.compile(r'(?i)\b(bearer|basic)\s+[A-Za-z0-9._~+/=-]+')
+_SENHA_NA_URL = re.compile(r'(://[^/\s:@]*:)[^/\s@]+@')
+
+
 def _redact(value):
     if isinstance(value, str):
+        value = _ESQUEMA_DE_AUTENTICACAO.sub(r'\1 [REDACTED]', value)
+        value = _SENHA_NA_URL.sub(r'\1[REDACTED]@', value)
         return _PATTERN.sub(r'\1\2[REDACTED]', value)
     return value
 
@@ -26,6 +35,13 @@ class RedactSensitiveDataFilter(logging.Filter):
                 record.args = {key: _redact(value) for key, value in record.args.items()}
             else:
                 record.args = tuple(_redact(arg) for arg in record.args)
+        # O traceback também: a mensagem de uma exceção carrega URL e
+        # cabeçalho, e o formatador só o monta depois deste filtro. Montado
+        # aqui e redigido, o formatador usa o `exc_text` pronto.
+        if record.exc_info and not record.exc_text:
+            record.exc_text = _redact(logging.Formatter().formatException(record.exc_info))
+        elif record.exc_text:
+            record.exc_text = _redact(record.exc_text)
         return True
 
 

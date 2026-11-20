@@ -281,6 +281,20 @@ class PatientsByDiagnosisView(TenantScopedView):
             request.access_context, termo, leitura=leitura,
             incluir_arquivados=arquivados, page=request.GET.get('page', 1),
         )
+        # A busca entra na trilha: ela é "quem aqui tem tal diagnóstico", a
+        # leitura de prontuário mais larga que existe, e não deixava rastro
+        # (auditoria externa de 2026-11-20). Quem buscou, quando, com que
+        # leitura e quantos achou — não o termo, nem quem apareceu.
+        if resultados is not None and str(request.GET.get('page', 1)) in ('', '1'):
+            paginador = getattr(resultados, 'paginator', None)
+            record_audit_event(
+                request.user, request.access_context.tenant_id, 'clinical.busca_por_cid',
+                object_type='tenant', object_id=request.access_context.tenant_id, outcome='success',
+                integrity_metadata={
+                    'certeza': leitura, 'arquivados': arquivados,
+                    'resultados': paginador.count if paginador is not None else None,
+                },
+            )
         return render(request, 'clinical/por_cid.html', {
             'termo': termo,
             'resultados': resultados,
@@ -1456,7 +1470,7 @@ class FindingDeleteView(TenantScopedView):
         record_audit_event(
             request.user, request.access_context.tenant_id, 'clinical.exam_finding_deleted',
             object_type='encounter', object_id=encounter.id, outcome='success',
-            integrity_metadata={'item_code': item},
+            integrity_metadata={},
         )
         messages.success(request, f'Item removido do exame ({label}).')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exame')

@@ -54,8 +54,23 @@ def evaluate_privacy_policy(encounter, combined_text, risco_confirmado=False):
     # `encounter` fica na assinatura por quem chama: a regra que o usava (a
     # consanguinidade confirmada no campo estruturado) saiu em 2026-11-02,
     # junto com o próprio dado, que não vai mais ao provedor.
-    haystack = (combined_text or '').lower()
-    for marker in RARE_DISEASE_MARKERS:
-        if marker in haystack:
+    # Sem acento e com o plural: "doenças raras" e "Doenca rara" escapavam
+    # da comparação literal (auditoria externa de 2026-11-20).
+    import re
+    import unicodedata
+
+    haystack = unicodedata.normalize('NFKD', (combined_text or '').lower())
+    haystack = ''.join(c for c in haystack if not unicodedata.combining(c))
+    for marker, padrao in _PADROES:
+        if re.search(padrao, haystack):
             return PolicyDecision(False, f'Marcador de risco de reidentificação detectado: "{marker}".')
     return PolicyDecision(True)
+
+
+#: Os marcadores acima como padrão: sem acento, singular ou plural, e o
+#: espaço que for. O rótulo é o primeiro da lista, para a tela.
+_PADROES = (
+    ('doença rara', r'\bdoencas?\s+raras?\b'),
+    ('genealogia', r'\bgenealogi'),
+    ('herança genética', r'\bherancas?\s+geneticas?\b'),
+)

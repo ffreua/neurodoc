@@ -5,7 +5,7 @@ from django.utils import timezone
 from django.utils.text import slugify
 
 from .invitations import consume_invitation
-from .models import InvitationPurpose, Membership, MembershipStatus, Role, Tenant
+from .models import InvitationPurpose, Membership, MembershipStatus, Role, Tenant, TenantStatus
 
 
 class EmailDescartavel(Exception):
@@ -206,6 +206,13 @@ def _assert_doctor_vacancy(invitation):
     """
     from .limits import assert_can_add_doctor
 
+    # Convite de equipe só vale para clínica ativa. Suspensa congela (nada se
+    # cria) e encerrada já rescindiu: vincular alguém ali daria acesso a
+    # prontuário de um contrato sem vigência. A função roda dentro do atomic
+    # do aceite, então a recusa devolve o convite intacto, e ele volta a valer
+    # quando a clínica for reativada.
+    if invitation.target_tenant.status != TenantStatus.ACTIVE:
+        raise InvalidInvitation('clinica-inativa')
     if Role.DOCTOR in (invitation.role_grants or []):
         assert_can_add_doctor(invitation.target_tenant)
 

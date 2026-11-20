@@ -141,6 +141,11 @@ def identify(request, tenant, cpf, birth_date):
     if patient is None:
         return None
 
+    # Chave de sessão nova ao identificar: a sessão anônima de antes (num
+    # computador compartilhado, ou plantada por quem preparou o navegador)
+    # não vira a sessão do paciente (auditoria externa de 2026-11-20). O
+    # conteúdo, inclusive o login de quem trabalha na clínica, é preservado.
+    request.session.cycle_key()
     request.session[SESSION_KEY] = {
         'patient_id': str(patient.id),
         'tenant_id': str(tenant.id),
@@ -170,7 +175,13 @@ def verified_patient(request, tenant):
     if (timezone.now() - quando).total_seconds() > SESSION_MAX_AGE_SECONDS:
         request.session.pop(SESSION_KEY, None)
         return None
-    return Patient.objects.filter(id=data['patient_id'], tenant=tenant).first()
+    # Ficha arquivada durante a sessão deixa de valer na hora, e não só
+    # quando os 30 minutos acabam.
+    from patients.models import PatientStatus
+
+    return Patient.objects.filter(
+        id=data['patient_id'], tenant=tenant, status=PatientStatus.ACTIVE,
+    ).first()
 
 
 def identity_token(request):

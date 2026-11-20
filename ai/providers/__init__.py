@@ -89,10 +89,18 @@ def _build(provider, model, api_key, base_url='', *, da_instalacao=False, timeou
         # A clínica que usa a própria chave da OpenRouter escolhe o roteamento
         # no contrato dela; o da instalação é decisão do NeuroDoc.
         extras['extra_body'] = {'provider': dict(ROTEAMENTO_OPENROUTER_DA_INSTALACAO)}
+    # Sem seguir redirecionamento: o endereço é conferido contra a lista de
+    # liberados antes, e um 307 do servidor liberado levaria a chamada para
+    # onde a conferência não olhou (auditoria externa de 2026-11-20).
+    import httpx
+
+    prazo = timeout or REQUEST_TIMEOUT_SECONDS
     return ChatOpenAI(
         model=model, api_key=api_key,
         base_url=resolve_base_url(provider, base_url),
-        timeout=timeout or REQUEST_TIMEOUT_SECONDS,
+        timeout=prazo,
+        http_client=httpx.Client(follow_redirects=False, timeout=prazo),
+        http_async_client=httpx.AsyncClient(follow_redirects=False, timeout=prazo),
         **extras,
     )
 
@@ -181,6 +189,15 @@ def _installation_model(timeout=None, pesado=False):
     from base.models import InstallationSettings
 
     provider, model, base_url = InstallationSettings.carregar().ia_da_instalacao(pesado=pesado)
+    if base_url:
+        # Conferido na hora de usar, como a clínica e a reserva: a lista de
+        # liberados pode ter encolhido depois de gravado.
+        from .catalog import ProviderProbeFailed, assert_endereco_permitido
+
+        try:
+            assert_endereco_permitido(base_url)
+        except ProviderProbeFailed as exc:
+            raise ProviderUnavailable(f'Endereço da IA da instalação recusado: {exc}') from exc
     if provider not in PROVIDERS:
         conhecidos = ', '.join(sorted(PROVIDERS))
         raise ProviderUnavailable(

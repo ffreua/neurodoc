@@ -248,19 +248,28 @@ class IndicacaoView(TissView):
         if not request.access_context.can(Capability.WRITE_CLINICAL):
             raise Http404
         guia = _guia(request, pk)
-        if not guia.editavel:
-            raise Http404
         form = IndicacaoForm(request.POST)
-        if form.is_valid():
-            guias.registrar_indicacao(request.access_context, request.user, guia,
-                                      form.cleaned_data['indicacao_clinica'])
-            guia.save(update_fields=['indicacao_clinica', 'indicacao_por', 'indicacao_em', 'updated_at'])
-            record_audit_event(
-                request.user, guia.tenant_id, 'tiss.indicacao_registrada', object_type='guia_tiss',
-                object_id=guia.id, outcome='success',
-                integrity_metadata={'preenchida': bool(guia.indicacao_clinica)},
-            )
-            messages.success(request, 'Indicação clínica gravada.')
+        from django.db import transaction
+
+        # A guia travada, como em `GuiaView`: conferir `editavel` sem trava
+        # deixava a indicação mudar numa guia que outra pessoa fechava no
+        # mesmo instante, e a folha impressa divergia do XML (auditoria
+        # externa de 2026-11-20).
+        with transaction.atomic():
+            try:
+                guia = guias._travar_rascunho(guia)
+            except guias.GuiaRecusada:
+                raise Http404
+            if form.is_valid():
+                guias.registrar_indicacao(request.access_context, request.user, guia,
+                                          form.cleaned_data['indicacao_clinica'])
+                guia.save(update_fields=['indicacao_clinica', 'indicacao_por', 'indicacao_em', 'updated_at'])
+                record_audit_event(
+                    request.user, guia.tenant_id, 'tiss.indicacao_registrada', object_type='guia_tiss',
+                    object_id=guia.id, outcome='success',
+                    integrity_metadata={'preenchida': bool(guia.indicacao_clinica)},
+                )
+                messages.success(request, 'Indicação clínica gravada.')
         return redirect('tiss:guia', pk=guia.id)
 
 

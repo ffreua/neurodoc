@@ -80,6 +80,11 @@ def record_payment(receivable, amount, method, actor_id, paid_at=None, external_
         # trocada de forma de cobrança). O pagamento entrava no caixa, e a
         # situação continuava "Cancelado".
         raise ValueError('Esta cobrança foi cancelada e não recebe pagamento.')
+    # A view confere o repasse e o arquivamento antes, sem trava; o repasse
+    # marcado no meio deixava o pagamento entrar numa cobrança já fechada
+    # (auditoria externa de 2026-11-20). Aqui a linha está travada.
+    if receivable.archived_at or receivable.doctor_share_paid_at:
+        raise ValueError('Esta cobrança já saiu do financeiro (repasse realizado ou arquivada).')
     payment = Payment.objects.create(
         tenant=receivable.tenant, receivable=receivable, paid_at=paid_at or timezone.now(),
         amount=amount, method=method, external_reference=external_reference[:100],
