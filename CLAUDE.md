@@ -984,6 +984,16 @@ com trava de execução. **A porta de entrada é `DEPLOY.md`.**
   as pegadinhas e a tabela "para mexer em X, abra Y". É síntese de
   leitura, não especificação — onde divergir deste arquivo ou do código,
   vale o código.
+- **`docs/GRAFO.md` — o grafo do código (graphify), leia antes de codar
+  algo que atravesse módulos.** Quem chama quem, o raio de impacto, as
+  espinhas (`record_audit_event`, `Membership`, `Tenant`) e o **traçado do
+  vínculo até a permissão** (middleware → `AccessContext` →
+  `capabilities_for` → view, e os pontos fora da requisição que relêem o
+  vínculo), com as armadilhas de leitura (bundle do Duralux, arestas
+  inferidas, caminho mais curto que não é fluxo). O grafo não é versionado:
+  `scripts/grafo_codigo.py` o reconstrói em `graphify-out/`, só o código e
+  sem tokens. Camadas: regras (este arquivo) → mapa (`CODEBASE_MAP.md`) →
+  grafo → código.
 - `PRD.md` — a especificação completa (matriz de permissão §4, roteiro de
   homologação §21).
 - `docs/index.md` — índice da documentação técnica por sprint.
