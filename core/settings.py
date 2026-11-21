@@ -75,6 +75,10 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'ops.http_health.HealthMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    # Logo no começo da lista, que é o fim da volta: comprime a resposta já
+    # pronta, depois de todo middleware que lê ou escreve o corpo. Só texto,
+    # nunca stream (o chat ao vivo). Ver `base/compressao.py`.
+    'base.compressao.CompressaoDeTextoMiddleware',
     # Logo depois da segurança: a vitrine pedida por subdomínio sai daqui com
     # 301 antes de abrir sessão. Ver `base/middleware.py`.
     'base.middleware.HostCanonicoMiddleware',

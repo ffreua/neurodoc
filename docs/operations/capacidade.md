@@ -105,6 +105,24 @@ A estimativa acima foi refeita com medida, sem teste de carga:
   da folga); o banco tem 1 núcleo e seria o primeiro gargalo muito acima
   de 100 pessoas ativas; a IA roda no worker e o limite dela é o provedor.
 
+**Corrigido no mesmo dia, medido na VPS** (o provedor mudou em
+2026-11-20): a CPU dela é **cerca de 2 vezes mais lenta** que a do
+computador onde as telas foram medidas (o mesmo teste: ~430 ms contra
+~200 ms), com ~7% de *steal*. O teto cai para **150 a 250 pessoas ativas
+ao mesmo tempo** — as 50 clínicas simultâneas continuam cobertas.
+
+**Por que a vitrine parecia lenta** (o registro de telas lentas apontou no
+primeiro dia): não era o código. Dentro do contêiner ela monta em ~25 ms.
+O tempo visto de fora era (1) a distância — ~0,4 s em toda página, com o
+servidor nos EUA e os usuários no Brasil; (2) o HTML saindo **sem
+compressão** até a Cloudflare, ~0,25 a 0,45 s a mais conforme o tamanho da
+página; e (3) o aquecimento de cada processo, 1,2 a 1,6 s na primeira
+visita depois de um deploy (são esses os registros de 1,4 s sem consulta).
+O (2) foi corrigido: `base/compressao.py` comprime o texto na saída (a
+vitrine vai de 124 KB a ~21 KB), sem tocar em stream nem em imagem. O (3)
+ficou como está, por decisão do titular. O (1) só muda com servidor no
+Brasil, que exigiria nova versão do contrato.
+
 **Teste de carga (Locust):** não necessário agora. Passa a valer antes de
 uma campanha que traga mais de umas 50 clínicas de uma vez, ou se o
 registro abaixo mostrar p95 acima de 500 ms em produção. Nunca contra a
