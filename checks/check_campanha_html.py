@@ -323,6 +323,110 @@ try:
         html_teste = teste[0].alternatives[0][0]
         confere('exemplo.invalid' in html_teste and 'exemplo.invalid' in teste[0].body,
                 'o teste leva o link de exemplo, não o de um contato')
+    print('=== 7. a contagem de cliques ===')
+    from communications.models import CampaignLink
+    HTML_LINKS = ('<p>Agende: <a href="https://clinica.example/agenda?x=1&amp;y=2">aqui</a></p>'
+                  '<p><a href="mailto:contato@clinica.example">escreva</a></p>')
+    cliq = MarketingCampaign.objects.create(
+        tenant=tenant, subject='Cliques', body_html=HTML_LINKS,
+        body_text='Veja https://clinica.example/blog. Até.', per_minute=50,
+    )
+    criadas.append(cliq)
+    marketing.build_recipients(cliq)
+    cliq.recipients.exclude(contact__email__in=meus).delete()
+    cliq.status = CampaignStatus.SENDING
+    cliq.save(update_fields=['status'])
+    mail.outbox = []
+    marketing.send_batch(cliq)
+    saidas = [m for m in mail.outbox if m.to and m.to[0] in meus]
+    confere(len(saidas) == 2, 'saíram duas mensagens com links', str(len(saidas)))
+    links = {l.url: l for l in CampaignLink.objects.filter(campaign=cliq)}
+    agenda = links.get('https://clinica.example/agenda?x=1&y=2')
+    blog = links.get('https://clinica.example/blog')
+    confere(agenda is not None, 'o link do HTML virou um link contado (com o & desfeito)', str(list(links)))
+    confere(blog is not None, 'o link do texto virou um link contado, sem o ponto final', str(list(links)))
+    confere(not any('mailto' in u or 'descadastrar' in u for u in links), 'mailto e descadastro não são contados')
+    if agenda and blog and len(saidas) == 2:
+        for m in saidas:
+            html_saida = m.alternatives[0][0]
+            confere(f'/c/{agenda.token}/' in html_saida and 'clinica.example/agenda' not in html_saida,
+                    f'{m.to[0]}: o HTML leva o link contado, não o original')
+            confere(f'/c/{blog.token}/' in m.body, f'{m.to[0]}: o texto leva o link contado')
+            confere('mailto:contato@clinica.example' in html_saida, f'{m.to[0]}: o mailto continua direto')
+            contato = next(c_ for c_ in contatos if c_.email == m.to[0])
+            contato.refresh_from_db()
+            confere(marketing.unsubscribe_url(contato) in html_saida,
+                    f'{m.to[0]}: o descadastro continua direto, sem contagem')
+        h1 = saidas[0].alternatives[0][0]
+        h2 = saidas[1].alternatives[0][0]
+        confere(h1.count(f'/c/{agenda.token}/') == h2.count(f'/c/{agenda.token}/') == 1,
+                'os dois destinatários recebem o MESMO link (a contagem não identifica ninguém)')
+
+        visitante = Client()
+        NAV = 'Mozilla/5.0 (Windows NT 10.0) AppleWebKit/537.36 Chrome/150 Safari/537.36'
+        r = visitante.get(f'/c/{agenda.token}/', HTTP_USER_AGENT=NAV)
+        agenda.refresh_from_db()
+        confere(r.status_code == 302 and r['Location'] == 'https://clinica.example/agenda?x=1&y=2',
+                'o clique leva ao destino gravado', f'{r.status_code} {r.get("Location")}')
+        confere(agenda.clicks == 1 and agenda.last_click_at is not None, 'o clique conta 1', str(agenda.clicks))
+        confere(r.get('Referrer-Policy') == 'no-referrer', 'o destino não recebe o endereço de origem')
+        visitante.get(f'/c/{agenda.token}/', HTTP_USER_AGENT=NAV)
+        agenda.refresh_from_db()
+        confere(agenda.clicks == 1, 'o mesmo visitante de novo em seguida não conta outra vez', str(agenda.clicks))
+        visitante.get(f'/c/{agenda.token}/', HTTP_USER_AGENT=NAV + ' Firefox')
+        agenda.refresh_from_db()
+        confere(agenda.clicks == 2, 'outro visitante conta', str(agenda.clicks))
+        for agente in ('Mozilla/5.0 (compatible; Googlebot/2.1)', 'WhatsApp/2.23', 'python-requests/2.32', ''):
+            visitante.get(f'/c/{agenda.token}/', HTTP_USER_AGENT=agente)
+        r = visitante.head(f'/c/{agenda.token}/', HTTP_USER_AGENT=NAV + ' Edge')
+        agenda.refresh_from_db()
+        confere(agenda.clicks == 2 and r.status_code == 302,
+                'robô, mensageiro, script, sem navegador e HEAD não contam', str(agenda.clicks))
+        r = visitante.get('/c/inexistente-token-qualquer/', HTTP_USER_AGENT=NAV)
+        confere(r.status_code == 404 and 'não está mais disponível' in r.content.decode(),
+                'link desconhecido: 404 com explicação')
+        r = visitante.get(f'/c/{agenda.token}/?destino=https://malicioso.example', HTTP_USER_AGENT=NAV + ' X')
+        confere(r['Location'] == 'https://clinica.example/agenda?x=1&y=2',
+                'o destino nunca vem da requisição (não é redirecionador aberto)')
+
+        r = c.get(f'/app/org/campanhas/{cliq.id}/')
+        corpo = r.content.decode()
+        confere('Cliques nos links' in corpo and 'clinica.example/agenda' in corpo,
+                'a tela da campanha mostra os cliques por link')
+
+    texto, documento = marketing.mensagem_da_campanha(cliq, 'https://exemplo.invalid/d/')
+    confere('/c/' not in documento and 'clinica.example/agenda' in documento,
+            'a prévia e o teste mostram o link original, sem contar')
+
+    print('=== 8. excluir a campanha ===')
+    token_antigo = agenda.token if agenda else None
+    cliq.status = CampaignStatus.SENDING
+    cliq.save(update_fields=['status'])
+    c.post(f'/app/org/campanhas/{cliq.id}/excluir/')
+    confere(MarketingCampaign.objects.filter(id=cliq.id).exists(), 'campanha enviando não é excluída')
+    cliq.status = CampaignStatus.SENT
+    cliq.save(update_fields=['status'])
+    confere(c.get(f'/app/org/campanhas/{cliq.id}/excluir/').status_code == 405, 'excluir não aceita GET')
+    if outra:
+        confere(c.post(f'/app/org/campanhas/{alheia.id}/excluir/').status_code == 404
+                and MarketingCampaign.objects.filter(id=alheia.id).exists(),
+                'campanha de outra clínica: 404, e ela fica')
+    r = c.post(f'/app/org/campanhas/{cliq.id}/excluir/')
+    confere(r.status_code == 302 and not MarketingCampaign.objects.filter(id=cliq.id).exists(),
+            'a campanha concluída é excluída de verdade')
+    confere(not MarketingRecipient.objects.filter(campaign_id=cliq.id).exists(), 'a lista sai junto')
+    confere(not CampaignLink.objects.filter(campaign_id=cliq.id).exists(), 'os links saem junto')
+    trilha = AuditEvent.objects.filter(action='communications.campaign_deleted', object_id=str(cliq.id)).first()
+    confere(trilha is not None, 'a exclusão vai à trilha')
+    if trilha:
+        meta = str(trilha.integrity_metadata)
+        confere('Cliques' not in meta and 'clinica.example' not in meta and 'cliques' in meta,
+                'a trilha guarda os números, não o assunto nem os links', meta)
+    if token_antigo:
+        r = Client().get(f'/c/{token_antigo}/', HTTP_USER_AGENT='Mozilla/5.0 Chrome')
+        confere(r.status_code == 404, 'o link já entregue de campanha excluída deixa de funcionar')
+    r = c.get('/app/org/campanhas/')
+    confere('/excluir/' in r.content.decode(), 'a lista tem o botão de excluir')
 finally:
     for camp in criadas:
         MarketingRecipient.objects.filter(campaign=camp).delete()

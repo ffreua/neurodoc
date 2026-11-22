@@ -35,6 +35,40 @@
             </div>
         </div>
 
+        {% if links %}
+        <div class="card mt-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Cliques nos links</h5>
+                <span class="fs-12 text-muted">{{ clicks_total }} no total</span>
+            </div>
+            <div class="card-body p-0">
+                <ul class="list-group list-group-flush">
+                    {% for link in links %}
+                    <li class="list-group-item d-flex justify-content-between gap-3">
+                        <span class="fs-12 text-dark text-break">{{ link.url }}</span>
+                        <span class="fs-12 fw-semibold text-dark text-nowrap">{{ link.clicks }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% comment %}O que este número é e o que não é, como a taxa de entrega
+            ao lado: o mesmo link para todos, então ele conta cliques e não diz
+            quem clicou.{% endcomment %}
+            <div class="card-footer fs-11 text-muted">
+                Cliques de pessoas, somados por link. O link é o mesmo para todos os
+                destinatários, então a contagem não diz quem clicou — e o mesmo
+                visitante clicando de novo em meia hora conta uma vez. Verificação
+                automática de antivírus e pré-visualização de mensageiro não contam.
+            </div>
+        </div>
+        {% elif campaign.status != 'draft' and campaign.body_html %}
+        <div class="card mt-4">
+            <div class="card-body fs-12 text-muted">
+                Nenhum link para contar: a mensagem não tem links para páginas.
+            </div>
+        </div>
+        {% endif %}
+
         {% if failed %}
         <div class="card mt-4">
             <div class="card-header">
@@ -162,6 +196,16 @@
 
                 {% if campaign.status == 'draft' %}
                 <a class="btn btn-light w-100" href="{% url 'messaging:campaign-edit' campaign.id %}">Alterar a mensagem</a>
+                {% endif %}
+
+                {% if campaign.status != 'sending' %}
+                <form method="post" action="{% url 'messaging:campaign-delete' campaign.id %}" class="border-top pt-3 mt-2"
+                      data-nd-confirm="Excluir esta campanha? A lista e a contagem de cliques saem junto, e os links já enviados deixam de funcionar. Não há como desfazer.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger w-100">Excluir a campanha</button>
+                </form>
+                {% else %}
+                <span class="fs-11 text-muted border-top pt-3 mt-2">Para excluir, pause o envio antes.</span>
                 {% endif %}
 
                 {% if campaign.status == 'draft' and own_server %}

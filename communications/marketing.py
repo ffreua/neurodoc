@@ -28,6 +28,8 @@ quatro portas: a tela, a guarda do disparo, cada fatia e o próprio envio.
 
 from contextlib import contextmanager
 
+import html as _html
+import re as _re
 import secrets
 
 from django.db import transaction
@@ -164,7 +166,51 @@ def texto_da_campanha(campaign):
     return texto_do_html(corpo)
 
 
-def html_da_campanha(campaign, link_descadastro):
+_HREF = _re.compile(r'(<a\b[^>]*?\shref=")(https?://[^"]+)(")', _re.IGNORECASE)
+_URL_NO_TEXTO = _re.compile(r'https?://[^\s<>()"\']+[^\s<>()"\'.,;:!?]')
+
+
+def link_rastreado(campaign, url):
+    """O endereço `/c/<token>/` que conta o clique e leva a `url`.
+
+    Um por link e por campanha, criado no primeiro envio e reaproveitado
+    nos seguintes: todo destinatário recebe o mesmo endereço, e o clique
+    soma no link, não em alguém.
+    """
+    from django.conf import settings
+    from django.db import IntegrityError
+
+    from .models import CampaignLink
+
+    url = url.strip()
+    link = CampaignLink.objects.filter(campaign=campaign, url=url).first()
+    if link is None:
+        try:
+            with transaction.atomic():
+                link = CampaignLink.objects.create(
+                    tenant_id=campaign.tenant_id, campaign=campaign, url=url,
+                    token=secrets.token_urlsafe(16),
+                )
+        except IntegrityError:
+            # Duas fatias criando o mesmo link ao mesmo tempo: vale o da outra.
+            link = CampaignLink.objects.get(campaign=campaign, url=url)
+    base = getattr(settings, 'PUBLIC_BASE_URL', '').rstrip('/')
+    return f'{base}/c/{link.token}/'
+
+
+def _rastrear_html(campaign, corpo):
+    return _HREF.sub(lambda m: f'{m.group(1)}{link_rastreado(campaign, html_unescape(m.group(2)))}{m.group(3)}', corpo)
+
+
+def _rastrear_texto(campaign, texto):
+    return _URL_NO_TEXTO.sub(lambda m: link_rastreado(campaign, m.group(0)), texto)
+
+
+def html_unescape(valor):
+    return _html.unescape(valor)
+
+
+def html_da_campanha(campaign, link_descadastro, rastrear=False):
     """O documento HTML que sai, ou `None` para campanha só em texto.
 
     Limpo de novo aqui, e não só ao gravar: o que está no banco pode ter
@@ -178,19 +224,30 @@ def html_da_campanha(campaign, link_descadastro):
     css, corpo = limpar_html(campaign.body_html)
     if not corpo:
         return None
+    if rastrear:
+        # Só o corpo de quem escreveu: o rodapé é montado depois, e o link
+        # de descadastro nunca passa pela contagem.
+        corpo = _rastrear_html(campaign, corpo)
     return montar_documento(css, corpo, _nome_da_clinica(campaign), link_descadastro,
                             assunto=campaign.subject)
 
 
-def mensagem_da_campanha(campaign, link_descadastro):
+def mensagem_da_campanha(campaign, link_descadastro, rastrear=False):
     """`(texto, html)`, com o rodapé obrigatório nos dois.
 
     Um lugar só para o envio, o teste e a prévia: o teste montava o rodapé
     à mão, e duas montagens são duas chances de divergir.
+
+    `rastrear` troca os links do corpo pelo endereço que conta o clique.
+    Só o envio de verdade rastreia: a prévia e o teste mostram o endereço
+    original, e o clique de quem confere o teste não entra na contagem.
     """
+    texto = texto_da_campanha(campaign)
+    if rastrear:
+        texto = _rastrear_texto(campaign, texto)
     return (
-        _texto_com_rodape(campaign, texto_da_campanha(campaign), link_descadastro),
-        html_da_campanha(campaign, link_descadastro),
+        _texto_com_rodape(campaign, texto, link_descadastro),
+        html_da_campanha(campaign, link_descadastro, rastrear=rastrear),
     )
 
 
@@ -380,7 +437,9 @@ def _enviar_fatia(campaign, limit):
             # e-mail oferece, além do link no rodapé. Sem ele o Gmail e o
             # Yahoo tratam a mensagem em massa com mais desconfiança — e o
             # servidor é o da própria clínica.
-            texto, html_body = mensagem_da_campanha(campaign, unsubscribe_url(contact))
+            texto, html_body = mensagem_da_campanha(
+                campaign, unsubscribe_url(contact), rastrear=True,
+            )
             send_email(
                 contact.email, campaign.subject, texto, html_body=html_body,
                 tenant_id=campaign.tenant_id, require_own_server=True,

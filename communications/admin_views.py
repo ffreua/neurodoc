@@ -601,10 +601,13 @@ class CampaignDetailView(ManagerRequiredView):
             campaign.recipients.filter(status=RecipientStatus.SKIPPED)
             .select_related('contact__patient')[:50]
         )
+        links = list(campaign.links.order_by('-clicks', 'url'))
+        cliques = sum(link.clicks for link in links)
         return render(request, 'communications/campaign_detail.html', {
             'campaign': campaign, 'counts': campaign.counts,
             'delivery_rate': campaign.delivery_rate,
             'failed': falhas, 'skipped': pulados,
+            'links': links, 'clicks_total': cliques,
             **_contexto_servidor(campaign.tenant_id),
         })
 
@@ -791,3 +794,47 @@ class CampaignEditView(ManagerRequiredView):
         )
         messages.success(request, 'Campanha alterada.')
         return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+
+
+class CampaignDeleteView(ManagerRequiredView):
+    """Excluir a campanha de verdade: ela, a lista e os links.
+
+    Recusada **enquanto envia**: apagar a lista no meio deixaria a fatia
+    seguinte do worker sem campanha, e quem pede exclusão de uma campanha
+    saindo quer, antes, que ela pare. Pausar é um clique, e depois exclui.
+
+    O que fica é a trilha: quem excluiu, quando, e os números da entrega —
+    sem o assunto nem o texto. Os links já entregues passam a responder que
+    não estão mais disponíveis.
+    """
+
+    def post(self, request, campaign_id):
+        from django.db import transaction
+
+        from .models import CampaignStatus, MarketingCampaign
+
+        campaign = get_object_or_404(
+            MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
+        )
+        if campaign.status == CampaignStatus.SENDING:
+            messages.error(request, 'A campanha está enviando. Pause antes de excluir.')
+            return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+        with transaction.atomic():
+            campaign = (MarketingCampaign.objects.select_for_update()
+                        .get(id=campaign.id, tenant_id=campaign.tenant_id))
+            if campaign.status == CampaignStatus.SENDING:
+                messages.error(request, 'A campanha está enviando. Pause antes de excluir.')
+                return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+            numeros = {
+                'status': campaign.status, **campaign.counts,
+                'cliques': sum(campaign.links.values_list('clicks', flat=True)),
+            }
+            campaign_id = campaign.id
+            campaign.delete()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'communications.campaign_deleted',
+            object_type='marketing_campaign', object_id=campaign_id, outcome='success',
+            integrity_metadata=numeros,
+        )
+        messages.success(request, 'Campanha excluída.')
+        return redirect('messaging:campaigns')

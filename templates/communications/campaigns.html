@@ -101,8 +101,17 @@ campanha é descobrir tarde.{% endcomment %}
                             {% else %}—{% endif %}
                         </td>
                         <td class="text-end pe-4">
-                            <a class="btn btn-sm btn-light"
-                               href="{% url 'messaging:campaign-detail' campaign.id %}">Abrir</a>
+                            <div class="d-inline-flex gap-2 justify-content-end">
+                                <a class="btn btn-sm btn-light"
+                                   href="{% url 'messaging:campaign-detail' campaign.id %}">Abrir</a>
+                                {% if campaign.status != 'sending' %}
+                                <form method="post" action="{% url 'messaging:campaign-delete' campaign.id %}"
+                                      data-nd-confirm="Excluir a campanha “{{ campaign.subject|truncatechars:60 }}”? A lista e a contagem de cliques saem junto, e os links já enviados deixam de funcionar. Não há como desfazer.">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-light-danger">Excluir</button>
+                                </form>
+                                {% endif %}
+                            </div>
                         </td>
                     </tr>
                     {% empty %}

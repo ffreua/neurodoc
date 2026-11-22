@@ -346,8 +346,11 @@ carimbá-la na publicação.
 #: permissão (`communications/email_html.py`, com `nh3`) ao gravar e de novo
 #: ao enviar, o rodapé de descadastro fora do HTML de quem escreve, a versão
 #: em texto gerada quando não há uma, a prévia num quadro `sandbox` com
-#: política própria e o rascunho que pode ser alterado. Uma migração
-#: (`communications/0012_campanha_html`), só acrescenta.
+#: política própria e o rascunho que pode ser alterado. E os **cliques
+#: contados por link** (`/c/<token>/`, o mesmo para todos, sem guardar quem
+#: clicou nem IP; robô e pré-visualização não contam) e **excluir a
+#: campanha** de verdade (não enquanto envia). Duas migrações
+#: (`communications/0012` e `0013`), só acrescentam.
 VERSION = '1.55'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de

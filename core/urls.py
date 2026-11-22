@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.urls import include, path
 from base.csp_views import CspReportView
 
-from communications.views import UnsubscribeView
+from communications.views import CampaignClickView, UnsubscribeView
 from documents.verification import DocumentVerificationView
 from ops.docs import technical_docs
 
@@ -57,6 +57,9 @@ urlpatterns = [
     # farmácia e não tem conta neste sistema.
     # Descadastro de comunicação em massa — público, um clique, sem conta.
     path('descadastrar/<str:token>/', UnsubscribeView.as_view(), name='marketing-unsubscribe'),
+    # Clique num link de campanha — conta no link (o mesmo para todos) e leva
+    # ao destino gravado no envio.
+    path('c/<str:token>/', CampaignClickView.as_view(), name='campaign-click'),
     path('verificar/', DocumentVerificationView.as_view(), name='verify-document'),
     path('verificar/<str:token>/', DocumentVerificationView.as_view(), name='verify-document-token'),
     # Portal de solicitações do paciente — público, por clínica.

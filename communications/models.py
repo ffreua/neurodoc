@@ -443,6 +443,37 @@ class RecipientStatus(models.TextChoices):
     SKIPPED = 'skipped', 'Não enviada'
 
 
+class CampaignLink(TenantModel):
+    """Um link da campanha, e quantas vezes ele foi clicado (2026-11-22).
+
+    **O mesmo link para todos os destinatários, de propósito.** O endereço
+    `/c/<token>/` não carrega quem recebeu: o clique soma no link, e não
+    num paciente. É a medida que a campanha pode ter sem virar vigilância
+    sobre dado de saúde — "o link da agenda teve 42 cliques" responde se a
+    campanha funcionou; "o paciente X clicou" não muda nada no cuidado dele
+    e criaria um registro por pessoa (ver o docstring da campanha, que
+    recusa o pixel de abertura pelo mesmo motivo). Nem IP nem navegador
+    são guardados.
+
+    Apagado junto com a campanha: o link no e-mail já entregue passa a
+    responder que não está mais disponível.
+    """
+
+    campaign = models.ForeignKey(MarketingCampaign, on_delete=models.CASCADE, related_name='links')
+    url = models.URLField(max_length=2000)
+    token = models.CharField(max_length=32, unique=True)
+    clicks = models.PositiveIntegerField(default=0)
+    last_click_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['campaign', 'url'], name='comm_campaign_link_url_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.url} ({self.clicks})'
+
+
 class MarketingRecipient(TenantModel):
     """Um destinatário de uma campanha, com o que aconteceu com ele.
 

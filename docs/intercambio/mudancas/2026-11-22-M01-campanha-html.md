@@ -1,4 +1,4 @@
-# 2026-11-22 — Campanha em HTML com CSS
+# 2026-11-22 — Campanha em HTML com CSS, cliques e exclusão
 
 | Campo | Valor |
 | --- | --- |
@@ -28,5 +28,21 @@ era idêntico, fora o nome do produto):
 Decisão registrada: imagem remota permitida. O HTML é o mesmo para todos
 (não há campo de mesclagem), então uma imagem não identifica quem abriu —
 a regra de não medir abertura por paciente continua de pé.
+
+Na mesma rodada, também pedidos pelo titular (com autorização da Dra.
+Karina, sem mudança no contrato):
+
+- **Cliques por link** (`CampaignLink`, migração `0013`; no ProntDoc a
+  dependência do `tenancy` é a `0025`): no envio, os links do HTML e do
+  texto viram `/c/<token>/`, **o mesmo para todos os destinatários** — a
+  contagem é do link, nunca da pessoa, e nem IP nem navegador são
+  guardados (o IP entra só no cache, embaralhado, por 30 min, para o mesmo
+  visitante contar uma vez). Robô, antivírus, mensageiro e `HEAD` não
+  contam. O destino é o gravado no envio, nunca parâmetro da requisição.
+  Prévia e teste não passam pela contagem.
+- **Excluir a campanha** de verdade, com a lista e os links; recusado
+  enquanto envia (pausar antes). A trilha guarda os números, não o
+  conteúdo; os links já entregues passam a responder "não está mais
+  disponível".
 
 Roteiro: `check_campanha_html`, passando nos dois.

@@ -191,3 +191,70 @@ class UnsubscribeView(View):
             'clinic': contact.tenant.trade_name or contact.tenant.legal_name,
             'done': True,
         })
+
+
+#: Agentes que abrem o link sem ser a pessoa: o antivírus do provedor que
+#: confere o endereço antes da entrega, a pré-visualização do mensageiro e
+#: o robô de busca. Contá-los inflaria os cliques de toda campanha.
+ROBOS = (
+    'bot', 'crawl', 'spider', 'slurp', 'preview', 'facebookexternalhit', 'whatsapp',
+    'proofpoint', 'mimecast', 'barracuda', 'safelinks', 'scanner', 'python-requests',
+    'curl', 'wget', 'headless', 'go-http-client', 'okhttp', 'java/', 'libwww',
+)
+
+#: Janela em que o mesmo visitante clicando de novo no mesmo link conta uma
+#: vez só. O IP entra só no cache, embaralhado e com prazo — nunca no banco.
+JANELA_DO_MESMO_CLIQUE = 30 * 60
+
+
+class CampaignClickView(View):
+    """Conta o clique num link de campanha e leva ao destino.
+
+    Sem login, sem pergunta: é o link que o paciente clicou no e-mail. O
+    destino é o gravado ao enviar (vindo do HTML já limpo, só `http(s)`),
+    nunca um parâmetro da requisição — senão este endereço viraria um
+    redirecionador aberto com o domínio do sistema.
+    """
+
+    def _conta(self, request):
+        import hashlib
+
+        from django.core.cache import cache
+
+        from base.net import client_ip
+
+        agente = (request.META.get('HTTP_USER_AGENT') or '').lower()
+        if not agente or any(r in agente for r in ROBOS):
+            return False
+        visitante = hashlib.sha256(f'{client_ip(request)}|{agente}'.encode()).hexdigest()[:24]
+        return cache.add(f'campanha:clique:{self.link.token}:{visitante}', 1, JANELA_DO_MESMO_CLIQUE)
+
+    def get(self, request, token):
+        from django.db.models import F
+        from django.http import HttpResponseRedirect
+        from django.utils import timezone
+
+        from .models import CampaignLink
+
+        self.link = CampaignLink.objects.filter(token=token).only('id', 'token', 'url').first()
+        if self.link is None:
+            return render(request, 'communications/link_indisponivel.html', status=404)
+        if self._conta(request):
+            CampaignLink.objects.filter(id=self.link.id).update(
+                clicks=F('clicks') + 1, last_click_at=timezone.now(),
+            )
+        resposta = HttpResponseRedirect(self.link.url)
+        resposta['Cache-Control'] = 'no-store'
+        resposta['Referrer-Policy'] = 'no-referrer'
+        return resposta
+
+    def head(self, request, token):
+        # O antivírus que confere o link costuma usar HEAD: leva, não conta.
+        from django.http import HttpResponseRedirect
+
+        from .models import CampaignLink
+
+        link = CampaignLink.objects.filter(token=token).only('url').first()
+        if link is None:
+            return render(request, 'communications/link_indisponivel.html', status=404)
+        return HttpResponseRedirect(link.url)
