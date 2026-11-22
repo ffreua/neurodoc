@@ -73,17 +73,23 @@ def returning_patients_count(tenant, start, end):
 
 
 def no_show_rate(tenant, start, end, physician_membership=None):
-    """no_show / (completed + no_show) de consultas com desfecho no
-    período -- canceladas/futuras/em andamento excluídas; `n` sempre
-    retornado ao lado da taxa.
+    """faltas / (atendidos + faltas) de consultas com desfecho no período --
+    canceladas e futuras excluídas; `n` sempre retornado ao lado da taxa.
+
+    **Atendido é quem fez check-in** (2026-11-22), a mesma regra das
+    estatísticas da agenda (`scheduling.estatisticas.ATENDIDOS`). Contava só
+    `COMPLETED`, e a clínica fecha o atendimento pelo check-in: a taxa saía
+    "sem dados" num mês com dezenas de consultas.
     """
+    from scheduling.estatisticas import ATENDIDOS
+
     qs = Appointment.objects.filter(
-        tenant=tenant, status__in=[AppointmentStatus.COMPLETED, AppointmentStatus.NO_SHOW],
+        tenant=tenant, status__in=[*ATENDIDOS, AppointmentStatus.NO_SHOW],
         starts_at__date__gte=start, starts_at__date__lte=end,
     )
     if physician_membership is not None:
         qs = qs.filter(physician_membership=physician_membership)
-    completed = qs.filter(status=AppointmentStatus.COMPLETED).count()
+    completed = qs.filter(status__in=ATENDIDOS).count()
     no_show = qs.filter(status=AppointmentStatus.NO_SHOW).count()
     n = completed + no_show
     rate = Decimal(no_show) / Decimal(n) if n else None

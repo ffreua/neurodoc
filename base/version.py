@@ -355,7 +355,16 @@ carimbá-la na publicação.
 #: paginado (`sncr:historico`); no Dashboard, o município somado sem
 #: diferença de acento e caixa (nome do IBGE), o exterior em "Exterior" na
 #: UF e o cartão **País**.
-VERSION = '1.55'
+#: A **1.56** (2026-11-22, junto com o ProntDoc 1.10.0): o **painel de indicadores
+#: completo** -- cartões de **seguimentos** e **retornos** pelo tipo da agenda
+#: com check-in, as consultas atendidas por tipo, e a **receita por tipo de
+#: atendimento** (primeira consulta, seguimento, retorno e cada procedimento
+#: pelo código TUSS, com quantidade, valor, médio e %, fechando com a receita
+#: por competência; `reporting.operations.receita_por_tipo`); a **taxa de
+#: falta** contando o check-in como atendido (saía "sem dados"); e no
+#: Dashboard a **naturalidade** (país de nascimento, com a célula pequena, e
+#: a UF de nascimento dos brasileiros). Sem migração.
+VERSION = '1.56'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

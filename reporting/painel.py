@@ -455,6 +455,39 @@ def pais(escopo, limite=None):
     )
 
 
+def naturalidade(escopo, limite=None):
+    """País de nascimento, com a regra das células pequenas.
+
+    O campo nasce "BR" em todo cadastro, preenchido ou não: contar todos
+    eles como brasileiros inflaria a linha com quem nunca informou onde
+    nasceu. Brasil é quem tem a cidade **ou** a UF de nascimento; o resto,
+    "Não informado".
+    """
+    from patients.naturalidade import rotulo_do_pais
+
+    contagem = Counter()
+    for codigo, cidade, estado in carteira(escopo).values_list('birth_country', 'birth_city', 'birth_state'):
+        codigo = (codigo or '').upper()
+        if not codigo or (codigo == 'BR' and not (cidade or '').strip() and not (estado or '').strip()):
+            contagem['Não informado'] += 1
+        else:
+            contagem[rotulo_do_pais(codigo)] += 1
+    return _celulas_pequenas(
+        contagem, f'Outros países (menos de {SMALL_CELL_THRESHOLD} pacientes cada)',
+        limite=limite, sempre=('Não informado', rotulo_do_pais('BR')),
+    )
+
+
+def naturalidade_uf(escopo):
+    """UF de nascimento de quem nasceu no Brasil e a informou."""
+    contagem = Counter(
+        (estado or '').strip().upper()
+        for codigo, estado in carteira(escopo).values_list('birth_country', 'birth_state')
+        if (codigo or 'BR').upper() == 'BR' and (estado or '').strip()
+    )
+    return _com_percentual([{'rotulo': r, 'n': n} for r, n in contagem.most_common()])
+
+
 def municipio(escopo, limite=None):
     """Municípios com a regra das células pequenas. `limite=None` traz todos.
 
@@ -654,6 +687,8 @@ SECOES_CSV = {
     'sexo': ('Sexo', 'pacientes por sexo'),
     'uf': ('UF', 'pacientes por estado'),
     'pais': ('País', 'pacientes por país de residência'),
+    'naturalidade': ('Naturalidade', 'pacientes por país de nascimento'),
+    'naturalidade_uf': ('UF de nascimento', 'pacientes nascidos no Brasil, por UF de nascimento'),
     'municipio': ('Município', 'pacientes por município'),
     'origem': ('Como chegou', 'pacientes por origem'),
     'pagamento': ('Forma de pagamento', 'pacientes por forma de pagamento'),
@@ -681,6 +716,7 @@ def linhas_csv(escopo, secao):
         return ['certeza', 'cid', 'descricao', 'pacientes'], linhas
     funcoes = {
         'idade': lambda e: idade(e)['linhas'], 'sexo': sexo, 'uf': uf, 'pais': pais,
+        'naturalidade': naturalidade, 'naturalidade_uf': naturalidade_uf,
         'municipio': municipio,
         'origem': origem, 'pagamento': pagamento, 'convenios': convenios,
     }

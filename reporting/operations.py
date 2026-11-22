@@ -155,3 +155,94 @@ def doctor_share_forecast(tenant, start, end):
         if share:
             total += quantize_brl(Decimal(share))
     return total
+
+
+def atendidos_por_tipo(tenant, start, end):
+    """Consultas atendidas no período, por tipo da agenda.
+
+    Atendido é quem fez check-in, como nas estatísticas da agenda. O tipo é
+    o que a secretária marcou no horário (primeira consulta, seguimento,
+    retorno, procedimento) — não inferido do histórico do paciente.
+    """
+    from django.db.models import Count
+
+    from scheduling.estatisticas import ATENDIDOS
+    from scheduling.models import AppointmentType
+
+    linhas = dict(
+        Appointment.objects.filter(
+            tenant=tenant, status__in=ATENDIDOS,
+            starts_at__date__gte=start, starts_at__date__lte=end,
+        ).values_list('type').annotate(n=Count('id'))
+    )
+    return {codigo: linhas.get(codigo, 0) for codigo, _rotulo in AppointmentType.choices}
+
+
+#: A ordem das linhas da receita por tipo: as consultas na ordem da agenda,
+#: depois os procedimentos, um por linha, do que mais rendeu.
+_ORDEM_DAS_CONSULTAS = ('first_visit', 'follow_up', 'return_visit', 'other', 'procedure', '')
+
+
+def receita_por_tipo(tenant, start, end):
+    """A receita por competência, discriminada: consultas por tipo e cada procedimento.
+
+    Soma o mesmo conjunto de `revenue_by_competence` (cobranças visíveis e
+    não canceladas com competência no período), então a última linha fecha
+    com o total da tela. Cada cobrança vai para uma linha só:
+
+    - **procedimento** (`charge_kind`, ou o procedimento na regra de
+      honorário) entra na linha do próprio procedimento, pelo código TUSS e
+      a descrição — "para quem faz": sem procedimento, a linha não existe;
+    - **consulta** entra pelo tipo do horário (primeira consulta, seguimento,
+      retorno); sem horário, pelo tipo gravado na regra de honorário; sem
+      nenhum dos dois, "Consulta sem tipo na agenda" (atendimento aberto
+      direto no prontuário, ou o histórico migrado).
+    """
+    from catalogs.models import ProcedureCode
+    from finance.models import ChargeKind
+    from scheduling.models import AppointmentType
+
+    rotulos = dict(AppointmentType.choices)
+    cobrancas = list(
+        visible_receivables(tenant).filter(
+            competence_date__gte=start, competence_date__lte=end,
+        ).exclude(status=ReceivableStatus.CANCELLED).select_related('appointment')
+        .only('charge_kind', 'fee_snapshot', 'charged_amount', 'appointment__type')
+    )
+    ids_de_procedimento = {
+        (c.fee_snapshot or {}).get('procedure_id') for c in cobrancas
+    } - {None, ''}
+    procedimentos = {
+        str(pid): f'{codigo} — {descricao[:80]}'
+        for pid, codigo, descricao in ProcedureCode.objects.filter(id__in=ids_de_procedimento)
+        .values_list('id', 'code', 'description')
+    }
+
+    grupos = {}
+    for c in cobrancas:
+        snap = c.fee_snapshot or {}
+        pid = snap.get('procedure_id')
+        if c.charge_kind == ChargeKind.PROCEDURE or pid:
+            chave = ('procedimento', str(pid or ''))
+            rotulo = procedimentos.get(str(pid), 'Procedimento sem código')
+        else:
+            tipo = (c.appointment.type if c.appointment_id else '') or snap.get('appointment_type') or ''
+            chave = ('consulta', tipo)
+            rotulo = rotulos.get(tipo, 'Consulta sem tipo na agenda')
+        g = grupos.setdefault(chave, {'rotulo': rotulo, 'grupo': chave[0], 'tipo': chave[1],
+                                      'n': 0, 'valor': quantize_brl(0)})
+        g['n'] += 1
+        g['valor'] += c.charged_amount
+
+    consultas = sorted(
+        (g for (k, _), g in grupos.items() if k == 'consulta'),
+        key=lambda g: _ORDEM_DAS_CONSULTAS.index(g['tipo']) if g['tipo'] in _ORDEM_DAS_CONSULTAS else 99,
+    )
+    procs = sorted((g for (k, _), g in grupos.items() if k == 'procedimento'), key=lambda g: -g['valor'])
+    linhas = consultas + procs
+    total = sum((g['valor'] for g in linhas), quantize_brl(0))
+    for g in linhas:
+        g['valor'] = quantize_brl(g['valor'])
+        g['medio'] = quantize_brl(g['valor'] / g['n']) if g['n'] else quantize_brl(0)
+        g['pct'] = (g['valor'] / total * 100) if total else Decimal(0)
+    return {'linhas': linhas, 'total': quantize_brl(total), 'n': sum(g['n'] for g in linhas)}

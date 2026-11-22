@@ -239,6 +239,34 @@
     </div>
 </div>
 
+{# ---------------------------------------------------------- naturalidade #}
+<div class="row g-3 mb-3">
+    <div class="col-lg-6 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Naturalidade (país de nascimento)</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=naturalidade">CSV</a>
+            </div>
+            <div class="card-body">
+                {% include "reporting/_barras.html" with linhas=naturalidade unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}
+                <p class="fs-11 text-muted mt-2 mb-0">Onde a pessoa nasceu, não onde mora. "Não informado" é quem não tem cidade nem UF de nascimento na ficha; país com menos de {{ limiar }} pacientes entra em "Outros".</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6 nd-revela">
+        <div class="card nd-painel-card h-100 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">UF de nascimento</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=naturalidade_uf">CSV</a>
+            </div>
+            <div class="card-body">
+                {% include "reporting/_barras.html" with linhas=naturalidade_uf unidade="pacientes" vazio="Nenhum paciente com UF de nascimento informada." %}
+                <p class="fs-11 text-muted mt-2 mb-0">Só quem nasceu no Brasil e tem a UF de nascimento na ficha.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 {# ------------------------------------------------ origem, pagamento, convênio #}
 <div class="row g-3 mb-3">
     <div class="col-lg-4 nd-revela">

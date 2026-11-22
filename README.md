@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologistas e neurocirurgiões
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.55-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.56-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -33,7 +33,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.55 (`base/version.py`) |
+| **Versão** | 1.56 (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
 | **Verificação** | 191 roteiros em `checks/` |
@@ -106,8 +106,11 @@ provedor; convênios, honorários com vigência,
 recebíveis e pagamentos (tudo em `Decimal`); exportação do acervo em
 Markdown e JSON.
 
-**Gestão.** **Dashboard** por clínica e por médico — idade, sexo, UF,
-município, país, origem, pagamento, convênio, atendimentos por mês e CID —,
+**Gestão.** **Indicadores** com primeiras consultas, seguimentos e retornos,
+e a receita discriminada por tipo de atendimento e por procedimento.
+**Dashboard** por clínica e por médico — idade, sexo, UF,
+município, país, naturalidade, origem, pagamento, convênio, atendimentos por
+mês e CID —,
 cada tabela em CSV agregado, com a regra das células pequenas. **Mailing** de
 quem consentiu, com o link de descadastro de cada um. **Comunicação em
 massa em HTML com CSS**, com prévia, teste e **cliques contados por link**
@@ -320,11 +323,11 @@ em ordem cronológica; o histórico inteiro está em `base/version.py` e em
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
-| **1.51** | 2026-11-18 | a vitrine | **A página de vendas repaginada**, com efeitos de rolagem e de cursor, e o NeuroDoc como produto de **neurologia e neurocirurgia** — as outras especialidades vão ao ProntDoc. **Dezoito páginas de entrada da busca** (nove áreas da neurologia, nove recursos) no sitemap, no JSON-LD e no `llms.txt`. Sem migração. |
 | **1.52** | 2026-11-19 | Dashboard | **Dashboard no menu**: o perfil da carteira e da atividade por clínica e por médico (idade, sexo, UF, município, origem, pagamento, convênio, mês a mês e CID), cada tabela em CSV agregado; quem administra escolhe o médico, o médico vê a própria carteira. O **mailing** dos contatos que consentiram, só pelo responsável e com o código recente. Junto, a correção de incluir horário fora da cadência na agenda. Sem migração. `check_painel` |
 | **1.53** | 2026-11-20 | a auditoria | **A auditoria externa conferida e corrigida**: segundo fator que só se troca com o código atual, o `/admin/login/` pedindo o código, acervo e mailing baixados só por quem pediu, convite pago preso ao e-mail, restauração presa ao `.env`, pagamento estornado que não se apaga, PDF do paciente no quadro, a corrida ao finalizar travada, a trilha sem nome de medicamento e de exame; e **quem abriu o prontuário**, na trilha e na ficha. `check_revisao_2026_11_20` |
 | **1.54** | 2026-11-20 | telas lentas | **O registro de telas lentas**: toda resposta acima de 500 ms grava a rota, o tempo e as consultas, sem dado que identifique, por 30 dias, e o console mostra por rota. Junto, o **HTML comprimido na saída** (a vitrine de 124 KB a 21 KB). Uma migração, só acrescenta. `check_telas_lentas`, `check_compressao` |
 | **1.55** | 2026-11-22 | a campanha | **Comunicação em massa em HTML com CSS**, limpa por lista de permissão, com prévia, rascunho editável, **cliques contados por link** (sem identificar quem clicou) e **excluir campanha**. O painel do SNCR com lista curta de pedidos e histórico paginado; no Dashboard, o município somado sem diferença de acento, o **Exterior** e o cartão **País**; o país do endereço numa lista na ficha. Duas migrações, só acrescentam. `check_campanha_html`, `check_sncr_lista_de_pedidos` |
+| **1.56** | 2026-11-22 | indicadores | **O painel de indicadores completo**: cartões de **seguimentos** e **retornos** pelo tipo da agenda, as consultas atendidas por tipo e a **receita por tipo de atendimento** — primeira consulta, seguimento, retorno e cada procedimento pelo código TUSS, com quantidade, valor, médio e porcentagem; a taxa de falta contando o check-in. No Dashboard, a **naturalidade** (país e UF de nascimento). Sem migração. `check_indicadores_por_tipo` |
 
 ---
 
