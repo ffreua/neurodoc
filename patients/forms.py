@@ -236,7 +236,6 @@ class PatientForm(forms.ModelForm):
             'complement': forms.TextInput(attrs={'placeholder': 'Ex.: apto 42, bloco B'}),
             'district': forms.TextInput(attrs={'placeholder': 'Ex.: Bela Vista'}),
             'city': forms.TextInput(attrs={'placeholder': 'Ex.: São Paulo'}),
-            'country': forms.TextInput(attrs={'placeholder': 'BR', 'maxlength': '2'}),
             'referral_details': forms.TextInput(attrs={'placeholder': 'Ex.: Dr. Carlos Lima (neurologia)'}),
             'occupation': forms.TextInput(attrs={'placeholder': 'Ex.: professora'}),
             'administrative_notes': forms.Textarea(
@@ -282,9 +281,20 @@ class PatientForm(forms.ModelForm):
         # criados antes desta regra.
         self.fields['cpf'].required = True
 
-        self.fields['country'].required = False
-        if not self.instance.pk and not self.initial.get('country'):
-            self.fields['country'].initial = 'BR'
+        # O país do endereço numa lista, como o de nascimento (2026-11-22).
+        # Era uma caixa de duas letras já com "BR", e ninguém a trocava: quem
+        # mora fora ficava como Brasil, com o país escrito na cidade
+        # ("MICHIGAN/EUA"), e o Dashboard não tinha como contá-lo. Código que
+        # já está gravado e não está na lista continua aceito, para editar a
+        # ficha antiga sem perder o que havia.
+        atual = (self.instance.country or '').upper() if self.instance.pk else ''
+        opcoes = [c for c in PAIS_CHOICES if c[0]]
+        if atual and atual not in dict(opcoes):
+            opcoes.append((atual, atual))
+        self.fields['country'] = forms.ChoiceField(
+            label='País', choices=opcoes, required=False, initial=atual or 'BR',
+            help_text='Onde a pessoa mora. Fora do Brasil, deixe a UF em branco.',
+        )
 
         # Preenche o bloco de plano a partir da cobertura vigente ao editar.
         # `_state.adding` e nao `pk`: a chave e um UUID com default, e vem
