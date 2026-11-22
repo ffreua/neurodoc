@@ -6,6 +6,7 @@ app_name = 'sncr'
 
 urlpatterns = [
     path('', views.PainelView.as_view(), name='painel'),
+    path('historico/', views.HistoricoView.as_view(), name='historico'),
     path('pedir/<str:tipo>/', views.PedirView.as_view(), name='pedir'),
     path('retorno/', views.RetornoView.as_view(), name='retorno'),
     path('pedido/<uuid:pedido_id>/conferir/', views.ConferirPedidoView.as_view(), name='conferir'),

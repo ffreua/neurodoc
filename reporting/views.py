@@ -289,6 +289,7 @@ class PainelView(TenantScopedView):
             'idade': painel.idade(escopo),
             'sexo': painel.sexo(escopo),
             'uf': painel.uf(escopo),
+            'pais': painel.pais(escopo, limite=painel.TOPO),
             'municipio': painel.municipio(escopo, limite=painel.TOPO),
             'origem': painel.origem(escopo),
             'pagamento': painel.pagamento(escopo),

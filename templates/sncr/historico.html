@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Histórico de pedidos SNCR — NeuroDoc{% endblock %}
+{% block page_title %}Histórico de pedidos{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'sncr:painel' %}">Numeração SNCR</a></li>
+<li class="breadcrumb-item">Histórico</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-light" href="{% url 'sncr:painel' %}">Voltar</a>
+{% endblock %}
+{% block content %}
+<div class="row g-4">
+    <div class="col-xxl-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Pedidos — {{ medico }}</h5>
+                <span class="fs-12 text-muted">{{ pedidos.paginator.count }} no total</span>
+            </div>
+            <div class="card-body">
+                {% for p in pedidos %}{% include "sncr/_pedido.html" %}{% empty %}
+                <span class="fs-12 text-muted">Nenhum pedido ainda.</span>
+                {% endfor %}
+            </div>
+            {% if pedidos.paginator.num_pages > 1 %}
+            <div class="card-footer">
+                <nav aria-label="Paginação">
+                    <ul class="pagination mb-0 justify-content-center justify-content-sm-end">
+                        <li class="page-item {% if not pedidos.has_previous %}disabled{% endif %}">
+                            {% if pedidos.has_previous %}
+                            <a class="page-link" href="?page={{ pedidos.previous_page_number }}">Anterior</a>
+                            {% else %}<span class="page-link">Anterior</span>{% endif %}
+                        </li>
+                        <li class="page-item disabled">
+                            <span class="page-link">{{ pedidos.number }} / {{ pedidos.paginator.num_pages }}</span>
+                        </li>
+                        <li class="page-item {% if not pedidos.has_next %}disabled{% endif %}">
+                            {% if pedidos.has_next %}
+                            <a class="page-link" href="?page={{ pedidos.next_page_number }}">Próxima</a>
+                            {% else %}<span class="page-link">Próxima</span>{% endif %}
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="col-xxl-4">
+        <div class="card">
+            <div class="card-header"><h5 class="card-title mb-0">Blocos recebidos</h5></div>
+            <div class="card-body">
+                {% for b in blocos %}
+                <div class="fs-12 py-1 border-bottom">{{ b.tipo }}: {{ b.inicio }} a {{ b.fim }}{% if b.tipo in notificacoes %} ({{ b.quantidade }} números){% endif %}{% if not b.utilizavel %} — <span class="text-danger">{{ b.motivo_bloqueio }}</span>{% endif %}
+                    <span class="d-block text-muted">{{ b.created_at|date:"d/m/Y H:i" }}</span></div>
+                {% empty %}
+                <span class="fs-12 text-muted">Nenhum bloco recebido.</span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

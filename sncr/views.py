@@ -17,7 +17,10 @@ from accounts.models import PhysicianProfile
 from tenancy.permissions import Capability, CapabilityRequiredView
 
 from . import fluxo
-from .models import BlocoNumeracao, Configuracao, EstadoNumero, NumeroSncr, PedidoNumeracao, TipoReceita, eh_notificacao
+from .models import (
+    BlocoNumeracao, Configuracao, EstadoNumero, EstadoPedido, NumeroSncr, PedidoNumeracao, TipoReceita,
+    eh_notificacao,
+)
 from .numeracao import saldo
 
 
@@ -47,10 +50,55 @@ class PainelView(SncrView):
             })
         return render(request, 'sncr/painel.html', {
             'config': config, 'medico': medico, 'tipos': tipos,
-            'blocos': BlocoNumeracao.objects.filter(medico=medico).order_by('-created_at')[:20],
-            'pedidos': PedidoNumeracao.objects.filter(medico=medico).order_by('-created_at')[:20],
+            **_lista_curta(medico),
             'usados': NumeroSncr.objects.filter(medico=medico, estado=EstadoNumero.CONSUMIDO).count(),
             'quantidades': fluxo.QUANTIDADES_DO_LOTE, 'lote_padrao': fluxo.LOTE_PADRAO,
+            'notificacoes': [t.value for t in TipoReceita if eh_notificacao(t.value)],
+        })
+
+
+#: Quantos pedidos e blocos o painel mostra. O resto mora no histórico,
+#: paginado: a lista crescia um item por tentativa de login no Gov.br e
+#: empurrava o saldo, que é o que o médico abre a tela para ver.
+PEDIDOS_NO_PAINEL = 6
+BLOCOS_NO_PAINEL = 5
+PEDIDOS_POR_PAGINA = 25
+
+
+def _lista_curta(medico):
+    """Os pedidos e blocos do painel: os incertos todos, e os mais recentes.
+
+    O incerto não entra na conta do teto: é o único pedido que pede ação, e
+    enquanto estiver aberto barra o pedido novo daquele tipo.
+    """
+    pedidos = PedidoNumeracao.objects.filter(medico=medico)
+    incertos = list(pedidos.filter(estado=EstadoPedido.INCERTO).order_by('-created_at'))
+    recentes = list(pedidos.exclude(estado=EstadoPedido.INCERTO).order_by('-created_at')[:PEDIDOS_NO_PAINEL])
+    blocos = BlocoNumeracao.objects.filter(medico=medico)
+    return {
+        'pedidos_incertos': incertos,
+        'pedidos': recentes,
+        'pedidos_total': pedidos.count(),
+        'pedidos_mostrados': len(incertos) + len(recentes),
+        'blocos': list(blocos.order_by('-created_at')[:BLOCOS_NO_PAINEL]),
+        'blocos_total': blocos.count(),
+    }
+
+
+class HistoricoView(SncrView):
+    """Todos os pedidos de numeração do médico, paginados, e todos os blocos."""
+
+    def get(self, request):
+        from django.core.paginator import Paginator
+
+        medico = _medico(request)
+        if medico is None:
+            raise Http404
+        pedidos = PedidoNumeracao.objects.filter(medico=medico).order_by('-created_at')
+        return render(request, 'sncr/historico.html', {
+            'medico': medico,
+            'pedidos': Paginator(pedidos, PEDIDOS_POR_PAGINA).get_page(request.GET.get('page')),
+            'blocos': BlocoNumeracao.objects.filter(medico=medico).order_by('-created_at'),
             'notificacoes': [t.value for t in TipoReceita if eh_notificacao(t.value)],
         })
 

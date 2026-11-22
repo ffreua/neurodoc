@@ -350,7 +350,11 @@ carimbá-la na publicação.
 #: contados por link** (`/c/<token>/`, o mesmo para todos, sem guardar quem
 #: clicou nem IP; robô e pré-visualização não contam) e **excluir a
 #: campanha** de verdade (não enquanto envia). Duas migrações
-#: (`communications/0012` e `0013`), só acrescentam.
+#: (`communications/0012` e `0013`), só acrescentam. E ainda: o painel do
+#: SNCR com lista curta de pedidos (os incertos sempre) e o histórico
+#: paginado (`sncr:historico`); no Dashboard, o município somado sem
+#: diferença de acento e caixa (nome do IBGE), o exterior em "Exterior" na
+#: UF e o cartão **País**.
 VERSION = '1.55'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de

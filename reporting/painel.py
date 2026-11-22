@@ -362,26 +362,58 @@ def pagamento(escopo):
     return _por_escolha(carteira(escopo), 'payment_category', PaymentCategory.choices)
 
 
-def uf(escopo):
-    contagem = Counter(
-        (valor or '').upper() or 'Não informado'
-        for valor in carteira(escopo).values_list('state', flat=True)
+#: O rótulo de quem mora fora do Brasil no gráfico de UF. Antes caía em
+#: "Não informado" (estrangeiro não tem UF) ou numa sigla que não é UF — e
+#: os pacientes do exterior sumiam do painel.
+EXTERIOR = 'Exterior'
+
+#: Palavras que ficam em minúscula no nome de lugar ("São Caetano do Sul",
+#: e não o "Do Sul" que o `title()` fazia).
+_MINUSCULAS = {'da', 'das', 'de', 'do', 'dos', 'e', 'd'}
+
+
+def _chave_de_lugar(texto):
+    """O nome reduzido para comparar: sem acento, sem caixa, sem espaço sobrando.
+
+    "Sao Paulo", "SÃO PAULO" e "São  Paulo" são o mesmo município, e
+    contavam como três — o cadastro é texto livre, e veio de migração.
+    """
+    import unicodedata
+
+    sem_acento = ''.join(
+        c for c in unicodedata.normalize('NFKD', texto or '') if not unicodedata.combining(c)
     )
-    return _com_percentual([{'rotulo': r, 'n': n} for r, n in contagem.most_common()])
+    return ' '.join(sem_acento.upper().replace('.', ' ').split())
 
 
-def municipio(escopo, limite=None):
-    """Municípios com a regra das células pequenas. `limite=None` traz todos."""
-    contagem = Counter()
-    for cidade, estado in carteira(escopo).values_list('city', 'state'):
-        cidade = (cidade or '').strip()
-        if not cidade:
-            contagem['Não informado'] += 1
-        else:
-            contagem[f'{cidade.title()}/{(estado or "").upper()}'.rstrip('/')] += 1
+def _nome_de_lugar(texto):
+    """O nome em caixa de título, com as preposições em minúscula."""
+    palavras = ' '.join((texto or '').split()).lower().split(' ')
+    return ' '.join(
+        p if (i and p in _MINUSCULAS) else p[:1].upper() + p[1:]
+        for i, p in enumerate(palavras)
+    )
+
+
+def _do_brasil(pais):
+    return (pais or 'BR').upper() == 'BR'
+
+
+def _nomes_do_ibge(ufs):
+    """`{(chave, UF): nome oficial}` dos municípios das UFs pedidas."""
+    from catalogs.models import Municipality
+
+    return {
+        (_chave_de_lugar(nome), uf): nome
+        for nome, uf in Municipality.objects.filter(uf__in=ufs).values_list('name', 'uf')
+    }
+
+
+def _celulas_pequenas(contagem, rotulo_outros, limite=None, sempre=('Não informado',)):
+    """A regra das células pequenas, comum ao município e ao país."""
     visiveis, outros = [], 0
     for rotulo, n in contagem.most_common():
-        if rotulo != 'Não informado' and n < SMALL_CELL_THRESHOLD:
+        if rotulo not in sempre and n < SMALL_CELL_THRESHOLD:
             outros += n
         else:
             visiveis.append({'rotulo': rotulo, 'n': n})
@@ -389,8 +421,82 @@ def municipio(escopo, limite=None):
         outros += sum(linha['n'] for linha in visiveis[limite:])
         visiveis = visiveis[:limite]
     if outros:
-        visiveis.append({'rotulo': f'Outros municípios (menos de {SMALL_CELL_THRESHOLD} pacientes cada)', 'n': outros})
+        visiveis.append({'rotulo': rotulo_outros, 'n': outros})
     return _com_percentual(visiveis)
+
+
+def uf(escopo):
+    """UF de quem mora no Brasil; quem mora fora entra numa linha só, "Exterior"."""
+    contagem = Counter()
+    for estado, pais in carteira(escopo).values_list('state', 'country'):
+        if not _do_brasil(pais):
+            contagem[EXTERIOR] += 1
+        else:
+            contagem[(estado or '').strip().upper() or 'Não informado'] += 1
+    return _com_percentual([{'rotulo': r, 'n': n} for r, n in contagem.most_common()])
+
+
+def pais(escopo, limite=None):
+    """País de residência, com a regra das células pequenas.
+
+    Mesma regra do município, e pelo mesmo motivo: a tabela sai em CSV, e
+    um país com um paciente só identifica a pessoa. O total do exterior
+    continua inteiro na linha "Exterior" do gráfico de UF.
+    """
+    from patients.naturalidade import rotulo_do_pais
+
+    contagem = Counter(
+        rotulo_do_pais((codigo or 'BR').upper()) or 'Não informado'
+        for codigo in carteira(escopo).values_list('country', flat=True)
+    )
+    return _celulas_pequenas(
+        contagem, f'Outros países (menos de {SMALL_CELL_THRESHOLD} pacientes cada)',
+        limite=limite, sempre=('Não informado', rotulo_do_pais('BR')),
+    )
+
+
+def municipio(escopo, limite=None):
+    """Municípios com a regra das células pequenas. `limite=None` traz todos.
+
+    Agrupado pelo nome **sem acento e sem caixa**, junto com a UF (ou o
+    país, para quem mora fora): "Sao Paulo/SP" e "São Paulo/SP" somam. O
+    nome mostrado é o do catálogo do IBGE quando o município está nele, e
+    senão a grafia mais frequente — preferindo a acentuada, que é a certa
+    quando as duas aparecem.
+    """
+    from patients.naturalidade import rotulo_do_pais
+
+    linhas = list(carteira(escopo).values_list('city', 'state', 'country'))
+    oficiais = _nomes_do_ibge({(e or '').strip().upper() for _c, e, p in linhas if _do_brasil(p)})
+    contagem = Counter()
+    grafias = {}
+    for cidade, estado, codigo in linhas:
+        cidade = (cidade or '').strip()
+        if not cidade:
+            contagem[('', 'Não informado')] += 1
+            continue
+        chave = _chave_de_lugar(cidade)
+        lugar = (estado or '').strip().upper() if _do_brasil(codigo) else rotulo_do_pais((codigo or '').upper())
+        contagem[(chave, lugar)] += 1
+        grafias.setdefault((chave, lugar), Counter())[cidade] += 1
+
+    def _rotulo(chave, lugar):
+        if not chave:
+            return 'Não informado'
+        nome = oficiais.get((chave, lugar))
+        if nome is None:
+            opcoes = grafias[(chave, lugar)]
+            acentuadas = [g for g in opcoes if _chave_de_lugar(g) != g.upper()]
+            nome = max(acentuadas or opcoes, key=lambda g: opcoes[g])
+            nome = _nome_de_lugar(nome)
+        return f'{nome}/{lugar}'.rstrip('/')
+
+    por_rotulo = Counter()
+    for (chave, lugar), n in contagem.items():
+        por_rotulo[_rotulo(chave, lugar)] += n
+    return _celulas_pequenas(
+        por_rotulo, f'Outros municípios (menos de {SMALL_CELL_THRESHOLD} pacientes cada)', limite=limite,
+    )
 
 
 def convenios(escopo, limite=None):
@@ -547,6 +653,7 @@ SECOES_CSV = {
     'idade': ('Faixa etária', 'pacientes por faixa etária'),
     'sexo': ('Sexo', 'pacientes por sexo'),
     'uf': ('UF', 'pacientes por estado'),
+    'pais': ('País', 'pacientes por país de residência'),
     'municipio': ('Município', 'pacientes por município'),
     'origem': ('Como chegou', 'pacientes por origem'),
     'pagamento': ('Forma de pagamento', 'pacientes por forma de pagamento'),
@@ -573,7 +680,8 @@ def linhas_csv(escopo, secao):
         ]
         return ['certeza', 'cid', 'descricao', 'pacientes'], linhas
     funcoes = {
-        'idade': lambda e: idade(e)['linhas'], 'sexo': sexo, 'uf': uf, 'municipio': municipio,
+        'idade': lambda e: idade(e)['linhas'], 'sexo': sexo, 'uf': uf, 'pais': pais,
+        'municipio': municipio,
         'origem': origem, 'pagamento': pagamento, 'convenios': convenios,
     }
     if secao not in funcoes:

@@ -204,12 +204,25 @@
 {# ---------------------------------------------------------- localização #}
 <div class="row g-3 mb-3">
     <div class="col-lg-5 nd-revela">
-        <div class="card nd-painel-card h-100 mb-0">
+        <div class="card nd-painel-card mb-0">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="card-title mb-0">Estado (UF)</h5>
                 <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=uf">CSV</a>
             </div>
-            <div class="card-body">{% include "reporting/_barras.html" with linhas=uf unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}</div>
+            <div class="card-body">
+                {% include "reporting/_barras.html" with linhas=uf unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}
+                <p class="fs-11 text-muted mt-2 mb-0">Quem mora fora do Brasil entra em "Exterior"; o país está no quadro abaixo.</p>
+            </div>
+        </div>
+        <div class="card nd-painel-card mt-3 mb-0">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">País</h5>
+                <a class="btn btn-sm btn-light-brand" href="?{{ qs }}&amp;baixar=pais">CSV</a>
+            </div>
+            <div class="card-body">
+                {% include "reporting/_barras.html" with linhas=pais unidade="pacientes" vazio="Nenhum paciente ativo na carteira." %}
+                <p class="fs-11 text-muted mt-2 mb-0">País com menos de {{ limiar }} pacientes entra em "Outros", pela mesma razão do município.</p>
+            </div>
         </div>
     </div>
     <div class="col-lg-7 nd-revela">

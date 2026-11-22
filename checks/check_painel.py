@@ -396,6 +396,58 @@ try:
         html = r.content.decode()
         conferir('a B não vê nome da A', 'Clínica A do Dashboard' not in html and 'Colega' not in html)
 
+        print(CHR + '9. Lugar: grafias do mesmo município e quem mora fora (2026-11-22)')
+        C = nova_clinica('Clínica C do Dashboard')
+        dona_c, v_dona_c = nova_pessoa('donac', C, [Role.OWNER])
+
+        def morador(nome, cidade, uf='', pais='BR'):
+            p = paciente(C, nome, uf=uf, cidade=cidade)
+            Patient.objects.filter(id=p.id).update(country=pais)
+            return p
+
+        for i, grafia in enumerate(['Sao Paulo', 'Sao Paulo', 'Sao Paulo', 'São Paulo', 'São Paulo', 'SÃO  PAULO']):
+            morador(f'SP {i}', grafia, 'SP')
+        for i in range(5):
+            morador(f'SCS {i}', 'sao caetano do sul', 'sp')
+        for i in range(5):
+            morador(f'Lisboa {i}', 'Lisboa', pais='PT')
+        morador('Miami 1', 'Miami', pais='US')
+        morador('Miami 2', 'Miami', pais='US')
+        morador('Buenos Aires', 'Buenos Aires', uf='BA', pais='AR')
+        e = escopo_de(v_dona_c, periodo='12m')
+
+        mun = linhas(painel.municipio(e))
+        conferir('"Sao Paulo", "São Paulo" e "SÃO  PAULO" somam numa linha só, com acento',
+                 mun.get('São Paulo/SP') == 6 and not any(k.startswith('Sao Paulo') for k in mun), str(mun))
+        caetano = [k for k in mun if 'Caetano' in k]
+        conferir('"sao caetano do sul" vira um nome com "do" em minúscula e UF em maiúscula',
+                 len(caetano) == 1 and caetano[0].endswith(' do Sul/SP') and mun[caetano[0]] == 5, str(mun))
+        conferir('quem mora fora aparece como Cidade/País', mun.get('Lisboa/Portugal') == 5, str(mun))
+        conferir('Miami e Buenos Aires (menos de 5) em "Outros municípios"',
+                 any(k.startswith('Outros municípios') and v == 3 for k, v in mun.items()), str(mun))
+
+        ufs = linhas(painel.uf(e))
+        conferir('UF: o exterior numa linha "Exterior", e a sigla de fora não vira UF',
+                 ufs == {'SP': 11, 'Exterior': 8}, str(ufs))
+
+        paises = linhas(painel.pais(e))
+        conferir('País: Brasil e Portugal com o total certo', paises.get('Brasil') == 11 and paises.get('Portugal') == 5,
+                 str(paises))
+        conferir('País: menos de 5 em "Outros países" (EUA 2 + Argentina 1)',
+                 any(k.startswith('Outros países') and v == 3 for k, v in paises.items())
+                 and 'Estados Unidos' not in str(paises), str(paises))
+        cabecalho, csv_pais = painel.linhas_csv(e, 'pais')
+        conferir('o CSV do país existe e soma a carteira', sum(l['pacientes'] for l in csv_pais) == 19, str(csv_pais))
+        c = Client()
+        na_clinica(c, dona_c, C)
+        r = c.get(url + '?periodo=12m')
+        html = r.content.decode()
+        conferir('o Dashboard mostra o cartão País e o Exterior', r.status_code == 200 and '>País<' in html
+                 and 'Exterior' in html and 'baixar=pais' in html, str(r.status_code))
+        r = c.get(url + '?periodo=12m&baixar=pais')
+        conferir('o CSV do país baixa', r.status_code == 200 and 'Portugal' in r.content.decode('utf-8-sig'),
+                 str(r.status_code))
+
         raise Desfazer
 except Desfazer:
     pass
