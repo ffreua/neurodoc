@@ -567,7 +567,7 @@ class CampaignCreateView(ManagerRequiredView):
         record_audit_event(
             request.user, campaign.tenant_id, 'communications.campaign_created',
             object_type='marketing_campaign', object_id=campaign.id, outcome='success',
-            integrity_metadata={'recipients': total},
+            integrity_metadata={'recipients': total, 'html': bool(campaign.body_html)},
         )
         if not total:
             messages.warning(
@@ -669,18 +669,9 @@ class CampaignTestView(ManagerRequiredView):
             return redirect('messaging:campaign-detail', campaign_id=campaign.id)
 
         destino = form.cleaned_data['to_email']
-        tenant = self.membership.tenant
-        nome = tenant.trade_name or tenant.legal_name
-        corpo = (
-            f'{campaign.body_text}\n\n'
-            '---\n'
-            f'Você recebeu esta mensagem porque autorizou {nome} a enviar comunicações.\n'
-            'Para não receber mais, acesse: (link de descadastro, individual por contato)\n'
-            'Esta é uma mensagem de divulgação. Para assuntos do seu atendimento, '
-            'use os canais de sempre da clínica.\n'
-        )
+        texto, html_body = mensagem_da_campanha(campaign, LINK_DE_EXEMPLO)
         try:
-            send_email(destino, f'[TESTE] {campaign.subject}', corpo,
+            send_email(destino, f'[TESTE] {campaign.subject}', texto, html_body=html_body,
                        tenant_id=campaign.tenant_id, require_own_server=True)
         except EmailSendFailed as exc:
             # A causa provável, e não o texto do `smtplib` (auditoria de
@@ -695,4 +686,108 @@ class CampaignTestView(ManagerRequiredView):
             f'Teste enviado para {destino}. O rodapé real traz o link de descadastro '
             'próprio de cada contato.',
         )
+        return redirect('messaging:campaign-detail', campaign_id=campaign.id)
+
+
+#: O link de descadastro do teste e da prévia. Não é de contato nenhum: o
+#: verdadeiro é individual e só existe no envio para aquela pessoa, e um
+#: link real aqui descadastraria quem clicasse para conferir o teste.
+LINK_DE_EXEMPLO = 'https://exemplo.invalid/descadastrar/link-individual-de-cada-contato/'
+
+#: A política da prévia. A página é o HTML de quem escreveu, já limpo, e
+#: mostrado dentro de um quadro `sandbox`: nada executa (`script-src` não
+#: existe), a imagem pode vir de `https:` (a política do produto só aceita
+#: as do próprio site, e a prévia mostraria o e-mail sem o logotipo), e só
+#: o próprio site pode emoldurá-la.
+POLITICA_DA_PREVIA = (
+    "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'; "
+    "frame-ancestors 'self'; base-uri 'none'; form-action 'none'"
+)
+
+
+def mensagem_da_campanha(campaign, link):
+    from .marketing import mensagem_da_campanha as montar
+
+    return montar(campaign, link)
+
+
+class CampaignPreviewView(ManagerRequiredView):
+    """O e-mail como ele sai, com o rodapé, para o quadro da tela de detalhe."""
+
+    def get(self, request, campaign_id):
+        from django.http import HttpResponse
+
+        from django.utils.html import escape
+
+        from .models import MarketingCampaign
+
+        campaign = get_object_or_404(
+            MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
+        )
+        texto, documento = mensagem_da_campanha(campaign, LINK_DE_EXEMPLO)
+        if documento is None:
+            # Campanha só em texto: a prévia mostra o texto como ele chega,
+            # já com o rodapé — que no texto simples vem dentro do próprio texto.
+            documento = (
+                '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"></head>'
+                '<body><pre style="white-space:pre-wrap;font-family:Arial,sans-serif;'
+                f'font-size:14px;margin:16px;">{escape(texto)}</pre></body></html>'
+            )
+        resposta = HttpResponse(documento, content_type='text/html; charset=utf-8')
+        resposta['Content-Security-Policy'] = POLITICA_DA_PREVIA
+        resposta['Content-Security-Policy-Report-Only'] = POLITICA_DA_PREVIA
+        resposta['X-Frame-Options'] = 'SAMEORIGIN'
+        resposta['Cache-Control'] = 'private, no-store'
+        return resposta
+
+
+class CampaignEditView(ManagerRequiredView):
+    """Corrigir o rascunho antes do disparo.
+
+    Só em rascunho: a campanha que já começou a sair tem o texto que parte
+    das pessoas recebeu, e trocá-lo no meio faria dois públicos lerem duas
+    mensagens sob o mesmo registro. A lista de destinatários não é
+    refeita — ela foi montada ao criar, e o consentimento é reconferido no
+    envio de qualquer jeito.
+    """
+
+    def _rascunho(self, request, campaign_id):
+        from .models import CampaignStatus, MarketingCampaign
+
+        campaign = get_object_or_404(
+            MarketingCampaign, id=campaign_id, tenant_id=request.access_context.tenant_id,
+        )
+        if campaign.status != CampaignStatus.DRAFT:
+            messages.error(request, 'Só a campanha em rascunho pode ser alterada.')
+            return campaign, redirect('messaging:campaign-detail', campaign_id=campaign.id)
+        return campaign, None
+
+    def get(self, request, campaign_id):
+        from .forms import MarketingCampaignForm
+
+        campaign, recusa = self._rascunho(request, campaign_id)
+        if recusa is not None:
+            return recusa
+        return render(request, 'communications/campaign_form.html', {
+            'form': MarketingCampaignForm(instance=campaign), 'campaign': campaign,
+        })
+
+    def post(self, request, campaign_id):
+        from .forms import MarketingCampaignForm
+
+        campaign, recusa = self._rascunho(request, campaign_id)
+        if recusa is not None:
+            return recusa
+        form = MarketingCampaignForm(request.POST, instance=campaign)
+        if not form.is_valid():
+            return render(request, 'communications/campaign_form.html', {
+                'form': form, 'campaign': campaign,
+            })
+        form.save()
+        record_audit_event(
+            request.user, campaign.tenant_id, 'communications.campaign_edited',
+            object_type='marketing_campaign', object_id=campaign.id, outcome='success',
+            integrity_metadata={'campos': sorted(form.changed_data), 'html': bool(campaign.body_html)},
+        )
+        messages.success(request, 'Campanha alterada.')
         return redirect('messaging:campaign-detail', campaign_id=campaign.id)

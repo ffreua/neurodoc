@@ -341,7 +341,14 @@ carimbá-la na publicação.
 #: pelo nome, o tempo e as consultas, sem dado que identifique, por 30 dias, e
 #: o console mostra por rota em `/instalacao/telas-lentas/`
 #: (`base/lentidao.py`). Uma migração (`base/0005_telalenta`), só acrescenta.
-VERSION = '1.54'
+#: A **1.55** (2026-11-22, junto com o ProntDoc 1.9.0): a **campanha em HTML com
+#: CSS** -- corpo em HTML ao lado do texto simples, limpo por lista de
+#: permissão (`communications/email_html.py`, com `nh3`) ao gravar e de novo
+#: ao enviar, o rodapé de descadastro fora do HTML de quem escreve, a versão
+#: em texto gerada quando não há uma, a prévia num quadro `sandbox` com
+#: política própria e o rascunho que pode ser alterado. Uma migração
+#: (`communications/0012_campanha_html`), só acrescenta.
+VERSION = '1.55'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

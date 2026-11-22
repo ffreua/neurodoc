@@ -149,6 +149,63 @@ def build_recipients(campaign):
     return criados
 
 
+def _nome_da_clinica(campaign):
+    tenant = campaign.tenant
+    return tenant.trade_name or tenant.legal_name
+
+
+def texto_da_campanha(campaign):
+    """O texto simples escrito, ou, sem ele, o gerado do HTML."""
+    from .email_html import limpar_html, texto_do_html
+
+    if (campaign.body_text or '').strip():
+        return campaign.body_text
+    _css, corpo = limpar_html(campaign.body_html)
+    return texto_do_html(corpo)
+
+
+def html_da_campanha(campaign, link_descadastro):
+    """O documento HTML que sai, ou `None` para campanha só em texto.
+
+    Limpo de novo aqui, e não só ao gravar: o que está no banco pode ter
+    entrado por outro caminho (admin, migração, versão anterior da
+    limpeza), e o envio é a última porta antes do paciente.
+    """
+    from .email_html import limpar_html, montar_documento
+
+    if not (campaign.body_html or '').strip():
+        return None
+    css, corpo = limpar_html(campaign.body_html)
+    if not corpo:
+        return None
+    return montar_documento(css, corpo, _nome_da_clinica(campaign), link_descadastro,
+                            assunto=campaign.subject)
+
+
+def mensagem_da_campanha(campaign, link_descadastro):
+    """`(texto, html)`, com o rodapé obrigatório nos dois.
+
+    Um lugar só para o envio, o teste e a prévia: o teste montava o rodapé
+    à mão, e duas montagens são duas chances de divergir.
+    """
+    return (
+        _texto_com_rodape(campaign, texto_da_campanha(campaign), link_descadastro),
+        html_da_campanha(campaign, link_descadastro),
+    )
+
+
+def _texto_com_rodape(campaign, corpo, link):
+    nome = _nome_da_clinica(campaign)
+    return (
+        f'{corpo}\n\n'
+        '---\n'
+        f'Você recebeu esta mensagem porque autorizou {nome} a enviar comunicações.\n'
+        f'Para não receber mais, acesse: {link}\n'
+        'Esta é uma mensagem de divulgação. Para assuntos do seu atendimento, '
+        'use os canais de sempre da clínica.\n'
+    )
+
+
 def _body_with_footer(campaign, contact):
     """O texto escrito, mais o rodapé obrigatório.
 
@@ -156,16 +213,7 @@ def _body_with_footer(campaign, contact):
     não deve poder removê-lo por esquecimento nem por escolha. Diz quem
     mandou, por que a pessoa está recebendo, e como parar.
     """
-    tenant = campaign.tenant
-    nome = tenant.trade_name or tenant.legal_name
-    return (
-        f'{campaign.body_text}\n\n'
-        '---\n'
-        f'Você recebeu esta mensagem porque autorizou {nome} a enviar comunicações.\n'
-        f'Para não receber mais, acesse: {unsubscribe_url(contact)}\n'
-        'Esta é uma mensagem de divulgação. Para assuntos do seu atendimento, '
-        'use os canais de sempre da clínica.\n'
-    )
+    return _texto_com_rodape(campaign, texto_da_campanha(campaign), unsubscribe_url(contact))
 
 
 #: Classe de trava das campanhas, no espaco de travas consultivas do
@@ -224,8 +272,8 @@ def guard(campaign):
         if campaign.status == CampaignStatus.SENDING:
             raise CampaignBlocked('Esta campanha já está enviando.')
         raise CampaignBlocked('Esta campanha já foi concluída ou cancelada.')
-    if not campaign.subject.strip() or not campaign.body_text.strip():
-        raise CampaignBlocked('Assunto e texto são obrigatórios.')
+    if not campaign.subject.strip() or not texto_da_campanha(campaign).strip():
+        raise CampaignBlocked('Assunto e mensagem (texto ou HTML) são obrigatórios.')
     if not has_own_server(campaign.tenant_id):
         raise CampaignBlocked(SEM_SERVIDOR_PROPRIO)
     if not _clinica_ativa(campaign.tenant_id):
@@ -332,8 +380,9 @@ def _enviar_fatia(campaign, limit):
             # e-mail oferece, além do link no rodapé. Sem ele o Gmail e o
             # Yahoo tratam a mensagem em massa com mais desconfiança — e o
             # servidor é o da própria clínica.
+            texto, html_body = mensagem_da_campanha(campaign, unsubscribe_url(contact))
             send_email(
-                contact.email, campaign.subject, _body_with_footer(campaign, contact),
+                contact.email, campaign.subject, texto, html_body=html_body,
                 tenant_id=campaign.tenant_id, require_own_server=True,
                 headers={'List-Unsubscribe': f'<{unsubscribe_url(contact)}>'},
             )

@@ -382,7 +382,14 @@ class MarketingCampaign(TenantModel):
     """
 
     subject = models.CharField(max_length=200)
-    body_text = models.TextField()
+    #: O texto simples. Opcional quando há HTML: a parte `text/plain` sai
+    #: então do próprio HTML (`email_html.texto_do_html`). Uma das duas é
+    #: obrigatória, conferido no formulário e na guarda do disparo.
+    body_text = models.TextField(blank=True)
+    #: O corpo em HTML com CSS (2026-11-22), já limpo ao gravar e limpo de
+    #: novo ao enviar (`email_html.limpar_html`). Vazio = a campanha sai
+    #: só em texto, como antes.
+    body_html = models.TextField(blank=True, default='')
     status = models.CharField(max_length=20, choices=CampaignStatus.choices, default=CampaignStatus.DRAFT)
     #: Mensagens por minuto. O padrão é conservador de propósito: é mais
     #: fácil aumentar depois de ver o servidor aguentando do que recuperar

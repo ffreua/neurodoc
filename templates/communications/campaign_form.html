@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% block title %}Nova campanha — NeuroDoc{% endblock %}
-{% block page_title %}Nova campanha{% endblock %}
+{% block page_title %}{% if campaign %}Alterar campanha{% else %}Nova campanha{% endif %}{% endblock %}
 {% block breadcrumb %}
 <li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
 <li class="breadcrumb-item"><a href="{% url 'messaging:campaigns' %}">Campanhas</a></li>
-<li class="breadcrumb-item">Nova</li>
+<li class="breadcrumb-item">{% if campaign %}Alterar{% else %}Nova{% endif %}</li>
 {% endblock %}
 {% block page_actions %}
-<a class="btn btn-light" href="{% url 'messaging:campaigns' %}">Cancelar</a>
+<a class="btn btn-light" href="{% if campaign %}{% url 'messaging:campaign-detail' campaign.id %}{% else %}{% url 'messaging:campaigns' %}{% endif %}">Cancelar</a>
 {% endblock %}
 {% block content %}
 <div class="row justify-content-center">
@@ -20,13 +20,21 @@
                 <form method="post" novalidate>
                     {% csrf_token %}
                     {% include "partials/form_fields.html" %}
+                    {% if campaign %}
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar a mensagem</button>
+                    <span class="d-block fs-11 text-muted mt-2">
+                        Salvar não envia, e a lista de destinatários continua a mesma.
+                        Confira a prévia e mande um teste antes de disparar.
+                    </span>
+                    {% else %}
                     <button type="submit" class="btn btn-primary" data-nd-busy>
                         Criar e montar a lista
                     </button>
                     <span class="d-block fs-11 text-muted mt-2">
                         Criar não envia. A lista é montada com quem consentiu, e o
-                        disparo é um segundo passo, na tela seguinte.
+                        disparo é um segundo passo, na tela seguinte, com a prévia.
                     </span>
+                    {% endif %}
                 </form>
             </div>
         </div>
@@ -48,7 +56,14 @@ Esta é uma mensagem de divulgação. Para assuntos do seu atendimento, use os
 canais de sempre da clínica.</pre>
                 <span class="d-block fs-11 text-muted">
                     O rodapé é acrescentado no envio e não é editável — é ele que
-                    torna a revogação tão fácil quanto o consentimento.
+                    torna a revogação tão fácil quanto o consentimento. Na mensagem
+                    em HTML ele vai no fim, com estilo próprio, e o link aparece
+                    como "clique aqui para se descadastrar".
+                </span>
+                <span class="d-block fs-11 text-muted mt-2">
+                    No HTML, ficam fora: script, formulário, iframe, vídeo, fonte
+                    externa e imagem que não seja de endereço <code>https://</code>.
+                    O que for retirado não aparece na prévia, e a prévia é o que sai.
                 </span>
             </div>
         </div>

@@ -61,3 +61,4 @@ e foram corrigidos em `b26c256`, adaptados aos dois tipos de atendimento.
 | MD-2026-11-20-02 | [Grafo do código (graphify) e o traçado do vínculo até a permissão](mudancas/2026-11-20-M02-grafo-do-codigo.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-20-02) | — |
 | MD-2026-11-20-03 | [Registro de telas lentas e a estimativa de capacidade](mudancas/2026-11-20-M03-telas-lentas.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-20-03) | — |
 | MD-2026-11-20-04 | [Compressão do HTML e o diagnóstico da vitrine lenta](mudancas/2026-11-20-M04-compressao.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-20-04) | — |
+| MD-2026-11-22-01 | [Campanha em HTML com CSS](mudancas/2026-11-22-M01-campanha-html.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-22-01) | — |

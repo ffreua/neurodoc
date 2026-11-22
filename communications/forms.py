@@ -187,24 +187,34 @@ class MarketingCampaignForm(forms.ModelForm):
         from .models import MarketingCampaign
 
         model = MarketingCampaign
-        fields = ['subject', 'body_text', 'per_minute']
+        fields = ['subject', 'body_html', 'body_text', 'per_minute']
         labels = {
             'subject': 'Assunto',
-            'body_text': 'Mensagem',
+            'body_html': 'Mensagem em HTML (opcional)',
+            'body_text': 'Mensagem em texto simples',
             'per_minute': 'Envios por minuto',
         }
         help_texts = {
             'subject': 'Aparece na caixa de entrada. Sem conteúdo clínico e sem o '
                        'nome de quem recebe.',
-            'body_text': 'Texto simples. O rodapé com o link de descadastro é '
-                         'acrescentado automaticamente em toda mensagem.',
+            'body_html': 'Cole o HTML com CSS (bloco <style> ou style= nas marcas). '
+                         'Script, formulário e iframe são retirados; imagem só de '
+                         'endereço https://. O rodapé com o link de descadastro é '
+                         'acrescentado no envio.',
+            'body_text': 'Obrigatória se não houver HTML. Com HTML, é a versão para '
+                         'quem não vê HTML — em branco, sai gerada do próprio HTML. '
+                         'O rodapé com o link de descadastro é acrescentado no envio.',
             'per_minute': 'Comece baixo. Provedor que recebe um lote grande de um '
                           'remetente novo trata as mensagens seguintes como spam, e '
                           'recuperar a reputação de um domínio leva semanas.',
         }
         widgets = {
             'subject': forms.TextInput(attrs={'placeholder': 'Ex.: Campanha de vacinação 2026'}),
-            'body_text': forms.Textarea(attrs={'rows': 12}),
+            'body_html': forms.Textarea(attrs={
+                'rows': 14, 'spellcheck': 'false', 'class': 'font-monospace fs-12',
+                'placeholder': '<table width="100%">…</table>',
+            }),
+            'body_text': forms.Textarea(attrs={'rows': 8}),
             'per_minute': forms.NumberInput(attrs={'min': 1, 'inputmode': 'numeric'}),
         }
 
@@ -220,6 +230,38 @@ class MarketingCampaignForm(forms.ModelForm):
                 'configuração vira problema de reputação antes de alguém perceber.'
             )
         return valor
+
+    def clean_body_html(self):
+        from .email_html import MAX_HTML, limpar_html
+
+        bruto = (self.cleaned_data.get('body_html') or '').strip()
+        if not bruto:
+            return ''
+        css, corpo = limpar_html(bruto)
+        if not corpo:
+            raise forms.ValidationError(
+                'Nada do HTML sobrou depois da limpeza. Confira se ele tem conteúdo '
+                'visível (texto ou imagem https://) e não só script ou estilo.'
+            )
+        # Grava-se o que vai sair, e não o que foi colado: a tela de detalhe,
+        # a prévia e o envio leem a mesma coisa, e o que a limpeza retirou não
+        # fica guardado esperando outro caminho de leitura.
+        limpo = (f'<style>{css}</style>\n' if css else '') + corpo
+        if len(limpo) > MAX_HTML:
+            raise forms.ValidationError(
+                f'O HTML passa de {MAX_HTML // 1000} mil caracteres. O Gmail corta a '
+                'mensagem acima de ~100 KB e esconde o fim — justamente onde fica o '
+                'link de descadastro. Reduza o HTML (imagens vão por endereço, não '
+                'embutidas).'
+            )
+        return limpo
+
+    def clean(self):
+        dados = super().clean()
+        if not (dados.get('body_html') or '').strip() and not (dados.get('body_text') or '').strip():
+            if 'body_html' not in self.errors:
+                self.add_error('body_text', 'Escreva a mensagem em texto simples, em HTML, ou nos dois.')
+        return dados
 
     def clean_body_text(self):
         texto = self.cleaned_data['body_text']

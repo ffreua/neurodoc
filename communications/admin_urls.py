@@ -42,6 +42,8 @@ urlpatterns = [
     path('campanhas/nova/', admin_views.CampaignCreateView.as_view(), name='campaign-new'),
     path('campanhas/<uuid:campaign_id>/', admin_views.CampaignDetailView.as_view(), name='campaign-detail'),
     path('campanhas/<uuid:campaign_id>/testar/', admin_views.CampaignTestView.as_view(), name='campaign-test'),
+    path('campanhas/<uuid:campaign_id>/previa/', admin_views.CampaignPreviewView.as_view(), name='campaign-preview'),
+    path('campanhas/<uuid:campaign_id>/editar/', admin_views.CampaignEditView.as_view(), name='campaign-edit'),
     path(
         'campanhas/<uuid:campaign_id>/<str:action>/',
         admin_views.CampaignActionView.as_view(), name='campaign-action',
