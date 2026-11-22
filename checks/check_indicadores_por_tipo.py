@@ -158,6 +158,27 @@ try:
                  str(falta))
         conferir('taxa 1/7', falta['rate'] is not None and abs(float(falta['rate']) - 1 / 7) < 1e-9, str(falta['rate']))
 
+        # O horário que terminou sem check-in é falta (regra das estatísticas
+        # da agenda): ocupou a agenda e o paciente não apareceu.
+        meia_noite = timezone.make_aware(datetime.datetime.combine(hoje, datetime.time(0, 0)))
+        vencido = Appointment.objects.create(
+            tenant=A, patient=p2, physician_membership=v_dona, starts_at=meia_noite,
+            ends_at=meia_noite + datetime.timedelta(minutes=1),
+            occupied_range=(meia_noite, meia_noite + datetime.timedelta(minutes=1)),
+            status=AppointmentStatus.SCHEDULED, type=AppointmentType.FOLLOW_UP,
+        )
+        falta2 = rp.no_show_rate(A, inicio, hoje)
+        conferir('o horário vencido sem check-in conta como falta', falta2['n'] == 8 and falta2['no_show'] == 2
+                 and falta2['sem_checkin'] == 1 and falta2['registradas'] == 1, str(falta2))
+        from scheduling import estatisticas
+        _t, totais, _m = estatisticas._por_tipo(A.id, inicio, hoje)
+        conferir('a mesma conta das estatísticas do mês', totais['faltas'] == falta2['no_show']
+                 and totais['atendidos'] == falta2['completed'], f'{totais} x {falta2}')
+        conferir('o percentual pronto, com vírgula', falta2['percentual'] == '25,0%', str(falta2['percentual']))
+        vencido.delete()
+        zero = rp.no_show_rate(B, inicio, hoje)
+        conferir('taxa zero sai 0,0%, e não "sem dados"', zero['n'] == 1 and zero['percentual'] == '0,0%', str(zero))
+
         print('=== 3. a receita por tipo ===')
         rel = CatalogRelease.objects.create(system=CatalogSystem.TUSS, version=f'ind-{uuid.uuid4().hex[:6]}',
                                             status=CatalogReleaseStatus.SUPERSEDED,
@@ -243,7 +264,8 @@ try:
         conferir('cartão Retornos pelo tipo da agenda', '>Retornos</h3>' in html)
         conferir('o quadro da receita por tipo, com o total', 'Receita por tipo de atendimento' in html
                  and 'R$ 3800,00' in html and '40103650' in html)
-        conferir('a taxa de falta deixou de ser "sem dados" (10 atendidos e 1 falta até aqui)', 'n=11' in html)
+        conferir('a taxa de falta com o número (10 atendidos e 1 falta até aqui)',
+                 '1 falta(s) em 11 consulta(s)' in html and '9,1%' in html and 'sem check-in=0' in html)
         conferir('nada da outra clínica', '777' not in html)
 
         print('=== 5. a naturalidade no Dashboard ===')

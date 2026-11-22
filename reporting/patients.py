@@ -73,27 +73,34 @@ def returning_patients_count(tenant, start, end):
 
 
 def no_show_rate(tenant, start, end, physician_membership=None):
-    """faltas / (atendidos + faltas) de consultas com desfecho no período --
-    canceladas e futuras excluídas; `n` sempre retornado ao lado da taxa.
+    """faltas / (atendidos + faltas) das consultas com desfecho no período;
+    canceladas e futuras ficam fora, e `n` volta sempre ao lado da taxa.
 
-    **Atendido é quem fez check-in** (2026-11-22), a mesma regra das
-    estatísticas da agenda (`scheduling.estatisticas.ATENDIDOS`). Contava só
-    `COMPLETED`, e a clínica fecha o atendimento pelo check-in: a taxa saía
-    "sem dados" num mês com dezenas de consultas.
+    **A regra é a das estatísticas da agenda** (`scheduling.estatisticas`),
+    reaproveitada e não copiada (2026-11-22): falta é quem ocupou o horário
+    e não apareceu, ou seja, a falta registrada **mais** o horário que
+    terminou sem check-in; atendido é quem fez check-in ou teve atendimento
+    aberto no prontuário. Antes só a falta registrada à mão contava, e a
+    clínica quase nunca registra: Indicadores mostrava 0 faltas onde as
+    Estatísticas do mês mostravam a falta sem check-in.
     """
-    from scheduling.estatisticas import ATENDIDOS
+    from scheduling.estatisticas import _por_tipo
 
-    qs = Appointment.objects.filter(
-        tenant=tenant, status__in=[*ATENDIDOS, AppointmentStatus.NO_SHOW],
-        starts_at__date__gte=start, starts_at__date__lte=end,
-    )
-    if physician_membership is not None:
-        qs = qs.filter(physician_membership=physician_membership)
-    completed = qs.filter(status__in=ATENDIDOS).count()
-    no_show = qs.filter(status=AppointmentStatus.NO_SHOW).count()
+    tenant_id = getattr(tenant, 'pk', tenant)
+    medico_id = getattr(physician_membership, 'pk', physician_membership)
+    _tipos, totais, _medicos = _por_tipo(tenant_id, start, end, medico_id)
+    completed = totais['atendidos']
+    no_show = totais['faltas']
     n = completed + no_show
     rate = Decimal(no_show) / Decimal(n) if n else None
-    return {'rate': rate, 'n': n, 'completed': completed, 'no_show': no_show}
+    # O texto pronto evita o `default:` do template, que trata a taxa 0 como
+    # vazia e mostrava "sem dados" num mês sem nenhuma falta.
+    percentual = (f'{rate * 100:.1f}%'.replace('.', ',') if rate is not None else None)
+    return {
+        'rate': rate, 'percentual': percentual, 'n': n, 'completed': completed,
+        'no_show': no_show, 'registradas': totais['faltas_registradas'],
+        'sem_checkin': totais['sem_checkin'],
+    }
 
 
 def age_distribution(tenant, as_of_date):

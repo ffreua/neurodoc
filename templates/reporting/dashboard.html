@@ -172,11 +172,12 @@
                         <tbody>
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark">Taxa de falta</td>
-                                <td>{{ indicators.no_show.rate|default:"sem dados" }}</td>
+                                <td>{% if indicators.no_show.percentual %}{{ indicators.no_show.percentual }}{% else %}sem dados{% endif %}</td>
                                 <td class="pe-4 fs-11 text-muted text-wrap">
-                                    n={{ indicators.no_show.n }}
-                                    (concluídos={{ indicators.no_show.completed }},
-                                    faltas={{ indicators.no_show.no_show }})
+                                    {{ indicators.no_show.no_show }} falta(s) em {{ indicators.no_show.n }} consulta(s) com desfecho
+                                    (atendidos={{ indicators.no_show.completed }};
+                                    faltas registradas={{ indicators.no_show.registradas }},
+                                    sem check-in={{ indicators.no_show.sem_checkin }})
                                 </td>
                             </tr>
                             <tr>
