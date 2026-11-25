@@ -364,7 +364,24 @@ carimbá-la na publicação.
 #: falta** contando o check-in como atendido (saía "sem dados"); e no
 #: Dashboard a **naturalidade** (país de nascimento, com a célula pequena, e
 #: a UF de nascimento dos brasileiros). Sem migração.
-VERSION = '1.56'
+#: A **1.57** (2026-11-25, junto com o ProntDoc 1.11.0): quatro ajustes de
+#: dentro do atendimento e da agenda, todos sem migração. (1) **Editar o
+#: exame e o diagnóstico já lançados** pelo lápis da linha, como nas
+#: medicações — inclusive mudar a certeza da hipótese de **suspeita para
+#: confirmada** e voltar; a trilha guarda o **nome** do campo que mudou,
+#: nunca o conteúdo clínico, e a edição é recusada em atendimento
+#: finalizado, para a secretária, em outra clínica e em item de outro
+#: atendimento (`clinical.DiagnosisUpdateView`, `ExamResultUpdateView`).
+#: (2) Nos **indicadores**, o **% de cada subtipo** de consulta ao lado do
+#: valor (primeira consulta, seguimento, retorno, procedimento). (3) A
+#: **data de nascimento no pré-cadastro** da agenda, para a idade aparecer:
+#: quando informada, grava a data e tira o motivo "a completar na recepção"
+#: (`scheduling.services.quick_register_patient`). (4) Nas **estatísticas
+#: do mês**, ao lado dos horários livres, **quantas consultas de cada tipo
+#: cabem** no tempo livre, pela divisão inteira do tempo livre de cada
+#: médico pela duração do tipo, somada entre os médicos
+#: (`scheduling.estatisticas`).
+VERSION = '1.57'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

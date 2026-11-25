@@ -819,6 +819,7 @@ class QuickBookingView(TenantScopedView):
                         note=form.cleaned_data.get('note', ''),
                         email=form.cleaned_data.get('new_email', ''),
                         accepts_messages=form.cleaned_data.get('contact_accepts_messages', True),
+                        birth_date=form.cleaned_data.get('new_birth_date'),
                     )
                 appointment = services.reserve_from_grid(
                     request.access_context, patient, doctor, starts_at,

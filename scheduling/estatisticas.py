@@ -58,7 +58,7 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 
-from .availability import month_summary
+from .availability import month_summary, type_durations
 from .models import Appointment, AppointmentStatus, AppointmentType
 
 #: Status que significam "o paciente veio".
@@ -192,11 +192,19 @@ def _ocupacao(primeiro, ultimo, medicos, pacientes_por_medico=None):
     ]
     soma = {'total': 0, 'ocupados': 0, 'atendidos': 0, 'vagos': 0,
             'livres': 0, 'bloqueados': 0}
+    # Quantas consultas de cada tipo cabem no tempo ainda livre do mês, pela
+    # duração de cada tipo (que é por médico). Some por médico e depois pelos
+    # tipos: 120 min livres com seguimento de 80 e retorno de 40 cabem como
+    # "1 seguimento" (120 // 80) ou "3 retornos" (120 // 40) -- quantas fecham
+    # no tempo livre, para o planejamento do mês. Divisão inteira: meia
+    # consulta não cabe.
+    cabem = {tipo: 0 for tipo in ORDEM_DOS_TIPOS}
     por_medico = []
     for medico in medicos:
         resumo = month_summary(medico.id, dias)
         linha = {'medico': medico, 'total': 0, 'ocupados': 0, 'atendidos': 0,
                  'vagos': 0, 'livres': 0, 'bloqueados': 0}
+        livres_min = 0
         for dados in resumo.values():
             celulas = dados['cells']
             linha['total'] += len(celulas)
@@ -205,6 +213,15 @@ def _ocupacao(primeiro, ultimo, medicos, pacientes_por_medico=None):
             linha['bloqueados'] += dados['blocked']
             linha['ocupados'] += sum(1 for c in celulas if c['status'] == 'busy')
             linha['atendidos'] += sum(1 for c in celulas if c['status'] == 'done')
+            livres_min += sum(
+                (c['end'] - c['start']).total_seconds() / 60
+                for c in celulas if c['status'] == 'free'
+            )
+        duracoes = type_durations(medico.id)
+        for tipo in ORDEM_DOS_TIPOS:
+            minutos = duracoes.get(tipo)
+            if minutos:
+                cabem[tipo] += int(livres_min // minutos)
         for chave in soma:
             soma[chave] += linha[chave]
         # Pacientes, e não horários: a consulta de 80 min ocupa duas
@@ -221,7 +238,7 @@ def _ocupacao(primeiro, ultimo, medicos, pacientes_por_medico=None):
     usados = soma['ocupados'] + soma['atendidos']
     soma['usados'] = usados
     soma['taxa'] = round(100 * usados / soma['total'], 1) if soma['total'] else 0.0
-    return soma, por_medico
+    return soma, por_medico, cabem
 
 
 def do_mes(tenant_id, ano, mes, medicos, physician_membership_id=None):
@@ -235,7 +252,11 @@ def do_mes(tenant_id, ano, mes, medicos, physician_membership_id=None):
             or str(m.id) == str(physician_membership_id)]
 
     por_tipo, totais, pacientes = _por_tipo(tenant_id, primeiro, ultimo, physician_membership_id)
-    ocupacao, por_medico = _ocupacao(primeiro, ultimo, alvo, pacientes)
+    ocupacao, por_medico, cabem = _ocupacao(primeiro, ultimo, alvo, pacientes)
+    cabem_por_tipo = [
+        {'tipo': tipo, 'rotulo': AppointmentType(tipo).label, 'cabem': cabem[tipo]}
+        for tipo in ORDEM_DOS_TIPOS if cabem[tipo]
+    ]
 
     # O mês anterior, só nos números de atendimento: repetir a varredura de
     # grade dobraria o custo da tela para uma comparação que ninguém pediu
@@ -259,6 +280,7 @@ def do_mes(tenant_id, ano, mes, medicos, physician_membership_id=None):
         'totais_anteriores': totais_ant,
         'variacao': totais['atendidos'] - totais_ant['atendidos'],
         'ocupacao': ocupacao,
+        'cabem_por_tipo': cabem_por_tipo,
         'por_medico': por_medico,
         'mes_anterior': (ano_ant, mes_ant),
     }

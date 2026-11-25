@@ -202,8 +202,44 @@ de salvar cada — e salvar o texto perdendo a conduta digitada logo abaixo
                                 </td>
                                 <td><span class="fs-12 text-dark">{{ d.description_snapshot }}</span></td>
                                 <td class="text-wrap"><span class="fs-12 text-muted">{{ d.physician_note|default:"—"|linebreaksbr }}</span></td>
-                                <td><span class="fs-12 text-muted">{{ d.get_certainty_display }}</span></td>
+                                <td>
+                                    <span class="fs-12 text-muted">{{ d.get_certainty_display }}</span>
+                                    {% if encounter.status != 'finalized' and d.edit_form %}
+                                    <button type="button" class="btn btn-icon btn-sm btn-light-primary ms-1"
+                                            data-bs-toggle="collapse" data-bs-target="#diag-edit-{{ d.id }}"
+                                            aria-expanded="false" aria-controls="diag-edit-{{ d.id }}"
+                                            aria-label="Alterar hipótese" title="Alterar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                                    </button>
+                                    {% endif %}
+                                </td>
                             </tr>
+                            {% if encounter.status != 'finalized' and d.edit_form %}
+                            <tr class="collapse" id="diag-edit-{{ d.id }}">
+                                <td colspan="4" class="p-0">
+                                    <form method="post" data-nd-save-encounter-before-submit
+                                          action="{% url 'clinical:update-diagnosis' encounter.id d.id %}"
+                                          novalidate class="border-top bg-gray-100 p-3">
+                                        {% csrf_token %}
+                                        <h6 class="fw-bold text-dark mb-3">Alterar hipótese</h6>
+                                        {% with f=d.edit_form %}
+                                        <div class="row g-3">
+                                            {% include "partials/field.html" with field=f.certainty col="col-lg-3 col-md-6" %}
+                                            {% include "partials/field.html" with field=f.rank col="col-lg-2 col-md-6" %}
+                                            {% include "partials/field.html" with field=f.code_snapshot col="col-lg-3 col-md-6" %}
+                                            {% include "partials/field.html" with field=f.description_snapshot col="col-lg-4 col-md-6" %}
+                                            {% include "partials/field.html" with field=f.physician_note col="col-12" %}
+                                        </div>
+                                        {% endwith %}
+                                        <div class="d-flex gap-2 mt-3">
+                                            <button type="submit" class="btn btn-primary" data-nd-busy>Salvar alteração</button>
+                                            <button type="button" class="btn btn-light"
+                                                    data-bs-toggle="collapse" data-bs-target="#diag-edit-{{ d.id }}">Cancelar</button>
+                                        </div>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>

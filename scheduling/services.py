@@ -285,7 +285,7 @@ def reserve_from_grid(
 
 
 @transaction.atomic
-def quick_register_patient(context, name, phone, note='', email='', accepts_messages=True):
+def quick_register_patient(context, name, phone, note='', email='', accepts_messages=True, birth_date=None):
     """Pré-cadastro de paciente para o agendamento por telefone.
 
     Grava o mínimo que a secretária tem na ligação — nome e contato — e
@@ -308,10 +308,16 @@ def quick_register_patient(context, name, phone, note='', email='', accepts_mess
 
     assert_can_add_patient(context.tenant_id)
 
+    # Se a secretaria ja souber a data de nascimento, ela e gravada e a idade
+    # aparece no pre-cadastro; o motivo "a completar" so fica quando a data
+    # falta (Patient.clean() exige data **ou** motivo).
     patient = Patient(
         tenant_id=context.tenant_id,
         full_name=name.strip(),
-        birth_date_unknown_reason='Pré-cadastro por telefone; a completar na recepção.',
+        birth_date=birth_date,
+        birth_date_unknown_reason=(
+            '' if birth_date else 'Pré-cadastro por telefone; a completar na recepção.'
+        ),
         registration_stage=RegistrationStage.PRELIMINARY,
         administrative_notes=note.strip()[:2000],
     )

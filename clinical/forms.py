@@ -257,6 +257,31 @@ class AmendmentForm(forms.Form):
     text = forms.CharField(label='Texto do adendo', max_length=20000, widget=forms.Textarea(attrs={'rows': 4}))
 
 
+class DiagnosisEditForm(forms.Form):
+    """Edicao de uma hipotese ja incluida -- em especial a **certeza**.
+
+    O caso que motivou: a suspeita que a investigacao confirma (ou afasta).
+    Antes so dava para excluir e lancar de novo, perdendo a ordem e a nota.
+    O codigo CID em si pode ser corrigido no texto; a troca de CID pela busca
+    continua sendo excluir e incluir, que ja preenche codigo e descricao.
+    """
+
+    certainty = forms.ChoiceField(label='Certeza', choices=DiagnosisCertainty.choices)
+    rank = forms.IntegerField(label='Ordem', min_value=1)
+    code_snapshot = forms.CharField(label='CID', max_length=20, required=False)
+    description_snapshot = forms.CharField(label='Hipotese', max_length=4000)
+    physician_note = forms.CharField(
+        label='Nota do medico', max_length=2000, required=False,
+        widget=forms.Textarea(attrs={'rows': 2}),
+    )
+
+    def clean_description_snapshot(self):
+        valor = (self.cleaned_data.get('description_snapshot') or '').strip()
+        if not valor:
+            raise forms.ValidationError('A hipotese nao pode ficar em branco.')
+        return valor
+
+
 class MedicationForm(forms.ModelForm):
     class Meta:
         model = Medication
@@ -334,6 +359,22 @@ class ExamResultForm(forms.ModelForm):
             }),
             'conclusion': forms.Textarea(attrs={'rows': 3, 'placeholder': 'Impressão diagnóstica do laudo'}),
         }
+
+
+class ExamResultEditForm(ExamResultForm):
+    """Edicao de um resultado de exame ja incluido.
+
+    E o mesmo formulario de incluir, sem o laudo em PDF: trocar o arquivo
+    anexado tem o caminho proprio (quarentena e antivirus), e aqui o que se
+    corrige e o texto -- nome, data, laboratorio, laudo e conclusao. A data
+    errada na pressa e o laudo colado pela metade sao os casos reais.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # O anexo nao se troca por esta tela; o campo some para nao sugerir
+        # que da. O laudo original fica como esta.
+        self.fields.pop('report_file', None)
 
 
 class LabValueForm(forms.ModelForm):

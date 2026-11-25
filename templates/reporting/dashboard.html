@@ -115,6 +115,7 @@
                         <div>
                             <div class="fs-4 fw-bold text-dark"><span class="counter">{{ indicators.atendidos_por_tipo.follow_up }}</span></div>
                             <h3 class="fs-13 text-muted mb-0">Seguimentos</h3>
+                            <span class="fs-11 text-muted">{{ indicators.atendidos_por_tipo_pct.follow_up }}% das consultas</span>
                         </div>
                     </div>
                 </div>
@@ -138,6 +139,7 @@
                         <div>
                             <div class="fs-4 fw-bold text-dark"><span class="counter">{{ indicators.atendidos_por_tipo.return_visit }}</span></div>
                             <h3 class="fs-13 text-muted mb-0">Retornos</h3>
+                            <span class="fs-11 text-muted">{{ indicators.atendidos_por_tipo_pct.return_visit }}% das consultas</span>
                         </div>
                     </div>
                 </div>
@@ -219,11 +221,11 @@
                             <tr>
                                 <td class="ps-4 fw-semibold text-dark">Consultas atendidas por tipo</td>
                                 <td>
-                                    <span class="badge bg-soft-primary text-primary">Primeira consulta: {{ indicators.atendidos_por_tipo.first_visit }}</span>
-                                    <span class="badge bg-soft-primary text-primary">Seguimento: {{ indicators.atendidos_por_tipo.follow_up }}</span>
-                                    <span class="badge bg-soft-info text-info">Retorno: {{ indicators.atendidos_por_tipo.return_visit }}</span>
-                                    {% if indicators.atendidos_por_tipo.procedure %}<span class="badge bg-soft-warning text-warning">Procedimento: {{ indicators.atendidos_por_tipo.procedure }}</span>{% endif %}
-                                    {% if indicators.atendidos_por_tipo.other %}<span class="badge bg-gray-200 text-dark">Outro: {{ indicators.atendidos_por_tipo.other }}</span>{% endif %}
+                                    <span class="badge bg-soft-primary text-primary">Primeira consulta: {{ indicators.atendidos_por_tipo.first_visit }} ({{ indicators.atendidos_por_tipo_pct.first_visit }}%)</span>
+                                    <span class="badge bg-soft-primary text-primary">Seguimento: {{ indicators.atendidos_por_tipo.follow_up }} ({{ indicators.atendidos_por_tipo_pct.follow_up }}%)</span>
+                                    <span class="badge bg-soft-info text-info">Retorno: {{ indicators.atendidos_por_tipo.return_visit }} ({{ indicators.atendidos_por_tipo_pct.return_visit }}%)</span>
+                                    {% if indicators.atendidos_por_tipo.procedure %}<span class="badge bg-soft-warning text-warning">Procedimento: {{ indicators.atendidos_por_tipo.procedure }} ({{ indicators.atendidos_por_tipo_pct.procedure }}%)</span>{% endif %}
+                                    {% if indicators.atendidos_por_tipo.other %}<span class="badge bg-gray-200 text-dark">Outro: {{ indicators.atendidos_por_tipo.other }} ({{ indicators.atendidos_por_tipo_pct.other }}%)</span>{% endif %}
                                 </td>
                                 <td class="pe-4 fs-11 text-muted text-wrap">pelo tipo marcado na agenda, com check-in</td>
                             </tr>

@@ -397,6 +397,10 @@ class QuickBookingForm(forms.Form):
             'autocomplete': 'off',
         }),
     )
+    new_birth_date = forms.DateField(
+        label='Data de nascimento', required=False, widget=HTML5DateInput(),
+        help_text='Opcional. Se informada, a idade já aparece no pré-cadastro.',
+    )
     #: Nasce marcada, como no cadastro completo (`patients/forms.py`), e pela
     #: mesma razao: mensagem transacional e execucao do que a pessoa pediu --
     #: confirmar o horario que ela acabou de marcar --, e quem deu o telefone

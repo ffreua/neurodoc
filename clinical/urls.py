@@ -55,6 +55,10 @@ urlpatterns = [
         views.ExamResultDeleteView.as_view(), name='delete-exam-result',
     ),
     path(
+        '<uuid:encounter_id>/exames/<uuid:exam_result_id>/editar/',
+        views.ExamResultUpdateView.as_view(), name='update-exam-result',
+    ),
+    path(
         '<uuid:encounter_id>/exames/<uuid:exam_result_id>/analitos/',
         views.LabValueCreateView.as_view(), name='add-lab-value',
     ),
@@ -63,6 +67,10 @@ urlpatterns = [
         views.LabValueDeleteView.as_view(), name='delete-lab-value',
     ),
     path('<uuid:encounter_id>/diagnoses/', views.DiagnosisCreateView.as_view(), name='add-diagnosis'),
+    path(
+        '<uuid:encounter_id>/diagnoses/<uuid:diagnosis_id>/editar/',
+        views.DiagnosisUpdateView.as_view(), name='update-diagnosis',
+    ),
     path(
         '<uuid:encounter_id>/apoio-diagnostico/',
         views.DiagnosticSupportRequestView.as_view(), name='request-diagnostic-support',

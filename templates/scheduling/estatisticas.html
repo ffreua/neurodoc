@@ -120,6 +120,25 @@ em que as primeiras consultas caíram.
     </div>
 </div>
 
+{% if cabem_por_tipo %}
+{% comment %}O tempo ainda livre do mês traduzido em consultas de cada tipo,
+pela duração de cada um — ajuda a planejar o mês. É "quantas fecham no tempo
+livre" (divisão inteira): as opções não se somam entre si.{% endcomment %}
+<div class="card mb-3">
+    <div class="card-body">
+        <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-2">No tempo livre ainda cabem</span>
+        <div class="d-flex flex-wrap gap-2">
+            {% for item in cabem_por_tipo %}
+            <span class="badge bg-soft-success text-success fs-12">{{ item.cabem }} {{ item.rotulo|lower }}</span>
+            {% endfor %}
+        </div>
+        <span class="d-block fs-11 text-muted mt-2">
+            Cada opção usa todo o tempo livre para aquele tipo; elas não se somam entre si.
+        </span>
+    </div>
+</div>
+{% endif %}
+
 <div class="card mb-3">
     <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
         <h5 class="card-title mb-0">Por tipo de atendimento</h5>

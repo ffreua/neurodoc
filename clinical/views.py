@@ -30,7 +30,8 @@ from exams.selectors import build_tree, resolve_template
 
 from .examination import group_findings_by_domain, upsert_finding
 from .forms import (
-    AmendmentForm, DiagnosisForm, EncounterForm, ExamResultForm, FindingForm,
+    AmendmentForm, DiagnosisEditForm, DiagnosisForm, EncounterForm, ExamResultEditForm,
+    ExamResultForm, FindingForm,
     FreeTextEncounterForm, LabValueForm,
     MedicationForm,
 )
@@ -437,7 +438,7 @@ class EncounterDetailView(TenantScopedView):
             'exam_readonly': not encounter.is_editable(),
             'scales': scales,
             'scale_values': scale_values,
-            'diagnoses': encounter.diagnoses.all().order_by('rank'),
+            'diagnoses': _diagnoses_com_edicao(encounter),
             'amendments': encounter.amendments.all().order_by('authored_at'),
             # O que falta para finalizar, tudo de uma vez: a tela mostra a
             # lista antes do clique em vez de recusar um requisito por vez.
@@ -510,6 +511,7 @@ class EncounterDetailView(TenantScopedView):
             result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
             result.values_in = [v for v in values if v.flag == 'normal']
             result.values_unknown = [v for v in values if v.flag == 'no_reference']
+            result.edit_form = ExamResultEditForm(instance=result, prefix=f'examres-{result.id}')
 
         support_job, support_artifact = latest_diagnostic_support(encounter)
         support_hypotheses, support_steps = [], []
@@ -1188,6 +1190,86 @@ class MedicationCreateView(TenantScopedView):
 
 def _prefixo_da_medicacao(medication):
     return f'med{medication.id.hex}'
+
+
+def _diagnoses_com_edicao(encounter):
+    """As hipoteses do atendimento, cada uma com o formulario de edicao ja
+    preenchido (prefixo pelo id, para dez linhas nao repetirem `id_rank`)."""
+    diagnoses = list(encounter.diagnoses.all().order_by('rank'))
+    for d in diagnoses:
+        d.edit_form = DiagnosisEditForm(
+            prefix=f'diag-{d.id}',
+            initial={
+                'certainty': d.certainty, 'rank': d.rank,
+                'code_snapshot': d.code_snapshot,
+                'description_snapshot': d.description_snapshot,
+                'physician_note': d.physician_note,
+            },
+        )
+    return diagnoses
+
+
+@method_decorator(transaction.atomic, name='post')
+class DiagnosisUpdateView(TenantScopedView):
+    """Altera uma hipotese ja incluida -- sobretudo a certeza (suspeita para
+    confirmada, e o contrario). Mesma regra das outras escritas: so enquanto
+    o atendimento nao foi finalizado; depois, por adendo. A trilha guarda
+    **quais campos** mudaram, nunca o conteudo clinico."""
+
+    def post(self, request, encounter_id, diagnosis_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not _travar_editavel(encounter):
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-hipoteses')
+        diagnosis = get_object_or_404(
+            EncounterDiagnosis, tenant_id=request.access_context.tenant_id,
+            encounter=encounter, id=diagnosis_id,
+        )
+        form = DiagnosisEditForm(request.POST, prefix=f'diag-{diagnosis.id}')
+        if not form.is_valid():
+            return _blocked(request, encounter, _first_error(form), anchor='tab-hipoteses')
+        mudou = []
+        for campo in ('certainty', 'rank', 'code_snapshot', 'description_snapshot', 'physician_note'):
+            if getattr(diagnosis, campo) != form.cleaned_data[campo]:
+                setattr(diagnosis, campo, form.cleaned_data[campo])
+                mudou.append(campo)
+        if not mudou:
+            messages.info(request, 'Nada mudou na hipotese.')
+            return redirect(_detalhe(encounter, 'tab-hipoteses'))
+        diagnosis.save(update_fields=mudou)
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.diagnosis_updated',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'diagnosis_id': str(diagnosis.id), 'campos': sorted(mudou)},
+        )
+        messages.success(request, 'Hipotese atualizada.')
+        return redirect(_detalhe(encounter, 'tab-hipoteses'))
+
+
+@method_decorator(transaction.atomic, name='post')
+class ExamResultUpdateView(TenantScopedView):
+    """Altera um resultado de exame ja incluido (texto: nome, data, laudo...).
+    O laudo em PDF anexado nao se troca por aqui. Trilha com os nomes dos
+    campos, nunca o conteudo."""
+
+    def post(self, request, encounter_id, exam_result_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not _travar_editavel(encounter):
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        exam_result = _exam_result_or_404(request, encounter, exam_result_id)
+        form = ExamResultEditForm(request.POST, instance=exam_result, prefix=f'examres-{exam_result.id}')
+        if not form.is_valid():
+            return _blocked(request, encounter, _first_error(form), anchor='tab-exames')
+        if not form.has_changed():
+            messages.info(request, f'Nada mudou em {exam_result.name}.')
+            return redirect(_detalhe(encounter, 'tab-exames'))
+        exam_result = form.save()
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.exam_result_updated',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={'exam_result_id': str(exam_result.id), 'campos': sorted(form.changed_data)},
+        )
+        messages.success(request, f'{exam_result.name} atualizado.')
+        return redirect(_detalhe(encounter, 'tab-exames'))
 
 
 @method_decorator(transaction.atomic, name='post')

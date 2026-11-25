@@ -91,12 +91,20 @@ class DashboardView(HomeRedirectMixin, TenantScopedView):
         start, end = _parse_period(request)
         tenant = Tenant.objects.get(id=request.access_context.tenant_id)
 
+        atendidos_tipo = operations.atendidos_por_tipo(tenant, start, end)
+        total_atendidos_tipo = sum(atendidos_tipo.values())
         indicators = {
             'active_patients': patients.active_patients_count(tenant),
             'patients_seen': patients.patients_seen(tenant, start, end),
             'new_patients': patients.new_patients_count(tenant, start, end),
             'returning_patients': patients.returning_patients_count(tenant, start, end),
-            'atendidos_por_tipo': operations.atendidos_por_tipo(tenant, start, end),
+            'atendidos_por_tipo': atendidos_tipo,
+            # A fatia de cada subtipo sobre o total atendido, para a tela dizer
+            # "seguimento: 27 (44%)". Arredondada ao inteiro; soma ~100.
+            'atendidos_por_tipo_pct': {
+                k: (round(100 * v / total_atendidos_tipo) if total_atendidos_tipo else 0)
+                for k, v in atendidos_tipo.items()
+            },
             'receita_por_tipo': operations.receita_por_tipo(tenant, start, end),
             'no_show': patients.no_show_rate(tenant, start, end),
             'age': patients.age_distribution(tenant, end),
