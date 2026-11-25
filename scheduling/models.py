@@ -306,6 +306,18 @@ class Appointment(TenantModel):
     #: daria erro de coluna obrigatória nos dois casos.
     teleatendimento = models.BooleanField('teleatendimento', default=False, db_default=False)
 
+    #: O link do vídeo do teleatendimento (Meet, Teams, cockpit do Einstein,
+    #: o que a clínica usar), colado na agenda e enviado ao paciente pelo
+    #: botão "Enviar link". Como a marca acima, é informação de agenda — não
+    #: muda duração, preço nem lembrete. `db_default=''` pelo mesmo motivo do
+    #: `teleatendimento`: o código antigo, durante a troca de versão, grava
+    #: numa tabela que já tem a coluna. **O link não vai para a trilha de
+    #: auditoria** (pode carregar um token que dá acesso à sala do vídeo); o
+    #: audit event registra só se o campo foi preenchido.
+    teleatendimento_link = models.URLField(
+        'link do vídeo', max_length=500, blank=True, default='', db_default='',
+    )
+
     class Meta(TenantModel.Meta):
         constraints = TenantModel.Meta.constraints + [
             models.CheckConstraint(

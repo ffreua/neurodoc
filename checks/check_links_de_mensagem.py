@@ -76,6 +76,15 @@ try:
     # transacao desfeita nao pode ter mandado mensagem nenhuma -- se
     # mandou, mandou com dados que nao existem mais.
     from communications import mail_backend
+    from django.test import override_settings
+
+    # O backend do worker fixado aqui: com o e-mail desligado no `.env`
+    # local (o do ProntDoc), o padrão é a caixa em memória, que não
+    # enfileira nada, e a seção reprovava pelo ambiente e não pelo código.
+    _do_worker = override_settings(
+        EMAIL_BACKEND='communications.mail_backend.WorkerEmailBackend',
+    )
+    _do_worker.enable()
 
     with patch('communications.tasks.deliver_installation_email.delay') as fila:
         try:
@@ -98,6 +107,7 @@ try:
 
             send_mail('Roteiro', 'corpo', 'de@example.invalid', ['para@example.invalid'])
         conferir('a transacao que fecha manda', fila.called, True)
+    _do_worker.disable()
 
     fonte = Path(dj_settings.BASE_DIR, 'communications', 'mail_backend.py').read_text(encoding='utf-8')
     conferir('e o backend usa on_commit, nao delay direto',

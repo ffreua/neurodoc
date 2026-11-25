@@ -359,6 +359,35 @@ clicado diz qual horário e qual paciente.
                             Retirar a marca de teleatendimento
                         </button>
                     </form>
+                    {% comment %}Link do vídeo do teleatendimento: colar o link
+                    (Meet, Teams, cockpit do Einstein, o que a clínica usar),
+                    guardar, e enviá-lo ao paciente por e-mail com as
+                    orientações e o termo. Só aparece no horário por vídeo. O
+                    "Enviar" sai pelo worker, como a confirmação.{% endcomment %}
+                    <form method="post" id="slot-tele-link-form" class="border rounded-3 p-2 bg-gray-100" hidden>
+                        {% csrf_token %}
+                        <input type="hidden" name="return_to" value="{{ request.path }}">
+                        <label class="form-label fw-semibold fs-12 mb-1" for="slot-tele-link-input">
+                            {% include "scheduling/_tele.html" %} Link do vídeo
+                        </label>
+                        <input type="url" class="form-control form-control-sm" id="slot-tele-link-input"
+                               name="link" placeholder="https://… (Meet, Teams, cockpit, etc.)">
+                        <div class="d-flex gap-2 mt-2">
+                            <button type="submit" name="acao" value="salvar"
+                                    class="btn btn-light btn-sm flex-fill" data-nd-busy>
+                                Salvar link
+                            </button>
+                            <button type="submit" name="acao" value="enviar"
+                                    class="btn btn-light-primary btn-sm flex-fill" data-nd-busy>
+                                Enviar ao paciente
+                            </button>
+                        </div>
+                        <div class="form-text fs-11">
+                            O paciente recebe o link por e-mail, com as orientações e o
+                            termo de consentimento. Participar da teleconsulta implica
+                            concordar com o termo.
+                        </div>
+                    </form>
                     {% comment %}Lista de espera pela agenda (2026-11-12): para
                     antecipar quem já tem horário. O estado vem do servidor ao
                     abrir o modal (`agenda.js`), e o JS mostra incluir ou

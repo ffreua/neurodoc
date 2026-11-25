@@ -96,15 +96,29 @@ print('=== 2. registrar exame com PDF segue funcionando, sem IA ===')
 from django.core.files.uploadedfile import SimpleUploadedFile
 from unittest.mock import patch
 
-pdf = SimpleUploadedFile('laudo-roteiro.pdf', b'%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n',
-                         content_type='application/pdf')
+# Um PDF de verdade, com uma página. O de antes (só cabeçalho e trailer)
+# passou a ser recusado como danificado quando o envio começou a abrir o
+# PDF e exigir páginas (auditoria externa de 2026-11-20) -- e a seção só
+# seguia passando onde sobrava um exame de mesmo nome de rodada anterior.
+import io as _io
+from pypdf import PdfWriter as _PdfWriter
+
+_escritor = _PdfWriter()
+_escritor.add_blank_page(width=595, height=842)
+_buffer = _io.BytesIO()
+_escritor.write(_buffer)
+pdf = SimpleUploadedFile('laudo-roteiro.pdf', _buffer.getvalue(), content_type='application/pdf')
 antes_jobs = AIJob.objects.filter(tenant=tenant).count()
+from django.utils import timezone as _tz
+agora_do_envio = _tz.now()
 with patch('documents.tasks.scan_attachment.delay'):
     r = cliente.post(reverse('clinical:add-exam-result', args=[aberto.id]), {
         'category': 'laboratory', 'name': 'Hemograma do roteiro de retirada',
         'report_file': pdf, 'run_extraction': 'on',
     })
-exame = ExamResult.objects.filter(encounter=aberto, name='Hemograma do roteiro de retirada').first()
+exame = ExamResult.objects.filter(
+    encounter=aberto, name='Hemograma do roteiro de retirada', created_at__gte=agora_do_envio,
+).first()
 if exame:
     criados_exames.append(exame)
 confere(r.status_code in (302, 303) and exame is not None, 'o exame com PDF foi registrado',

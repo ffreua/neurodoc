@@ -344,6 +344,21 @@ class ContractView(View):
         return render(request, 'onboarding/contrato.html', {'contrato': contract})
 
 
+class TermoTeleconsultaView(View):
+    """O termo de consentimento do teleatendimento, público.
+
+    Sem login e sem convite de propósito: o paciente recebe o link por e-mail,
+    com o aviso de que participar da teleconsulta implica concordar com este
+    termo, e precisa poder lê-lo antes do atendimento. É um termo **genérico**
+    (sem nome de paciente, de clínica ou do médico) — a página é aberta, e o
+    aceite é por participação, não por assinatura. A redação é da Dra. Karina
+    Albuquerque Freua (OAB/SP nº 450.476); correção de texto passa por ela.
+    """
+
+    def get(self, request):
+        return render(request, 'onboarding/termo_teleconsulta.html')
+
+
 class OrganizationSignupView(View):
     def _invitation_or_none(self, token):
         invitation = peek_invitation(token)

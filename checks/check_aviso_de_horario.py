@@ -212,7 +212,31 @@ def _limpar_avisos(agendamento=None):
 from datetime import timedelta as _td6
 from scheduling.models import Appointment as _Ap6, AppointmentStatus as _St6
 
-_inicio6 = (timezone.now() + _td6(days=5)).replace(second=0, microsecond=0)
+
+def _horario_livre(base, passo):
+    """O primeiro intervalo de 40 min a partir de `base`, andando `passo`,
+    sem nada na agenda do médico de `consulta`.
+
+    Os horários deste roteiro são criados na agenda de um médico de verdade
+    do banco, e a restrição `scheduling_appointment_no_overlap` recusa dois
+    horários sobrepostos dele. Com "agora ± N dias" fixo, o roteiro reprovava
+    quando rodava na mesma hora de um horário que já existia -- às 11h, contra
+    o da demonstração das 11h00 (2026-11-25): defeito do relógio, não do
+    produto.
+    """
+    inicio = base.replace(second=0, microsecond=0)
+    for _ in range(500):
+        fim = inicio + _td6(minutes=40)
+        if not _Ap6.objects.filter(
+            physician_membership=consulta.physician_membership,
+            occupied_range__overlap=(inicio, fim),
+        ).exists():
+            return inicio
+        inicio += passo
+    raise RuntimeError('nenhum intervalo livre de 40 min perto de %s' % base)
+
+
+_inicio6 = _horario_livre(timezone.now() + _td6(days=5), _td6(hours=1))
 alvo = _Ap6.objects.create(
     tenant=consulta.tenant, patient=consulta.patient,
     physician_membership=consulta.physician_membership,
@@ -296,12 +320,13 @@ confere(JANELA_DO_AVISO >= _td(hours=1),
 # outra guarda.
 from scheduling.models import Appointment as _Ap, AppointmentStatus as _St
 
+_inicio_futuro = _horario_livre(timezone.now() + _td(days=3), _td(hours=1))
 futuro = _Ap.objects.create(
     tenant=consulta.tenant, patient=consulta.patient,
     physician_membership=consulta.physician_membership,
-    starts_at=timezone.now() + _td(days=3),
-    ends_at=timezone.now() + _td(days=3, minutes=40),
-    occupied_range=(timezone.now() + _td(days=3), timezone.now() + _td(days=3, minutes=40)),
+    starts_at=_inicio_futuro,
+    ends_at=_inicio_futuro + _td(minutes=40),
+    occupied_range=(_inicio_futuro, _inicio_futuro + _td(minutes=40)),
     status=_St.SCHEDULED, type=consulta.type,
 )
 try:
@@ -318,13 +343,14 @@ try:
     from communications.services import deliver_appointment_notice as _entregar
 
     # Consulta que ja aconteceu nunca vira "sua consulta esta marcada".
+    # Para trás, para continuar no passado.
+    _inicio_passada = _horario_livre(timezone.now() - _td(days=2), -_td(hours=1))
     passada = _Ap.objects.create(
         tenant=consulta.tenant, patient=consulta.patient,
         physician_membership=consulta.physician_membership,
-        starts_at=timezone.now() - _td(days=2),
-        ends_at=timezone.now() - _td(days=2) + _td(minutes=40),
-        occupied_range=(timezone.now() - _td(days=2),
-                        timezone.now() - _td(days=2) + _td(minutes=40)),
+        starts_at=_inicio_passada,
+        ends_at=_inicio_passada + _td(minutes=40),
+        occupied_range=(_inicio_passada, _inicio_passada + _td(minutes=40)),
         status=_St.SCHEDULED, type=consulta.type,
     )
     try:

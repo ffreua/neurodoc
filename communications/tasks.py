@@ -174,3 +174,47 @@ def send_confirmation_task(self, appointment_id, channel, actor_id, contact_id=N
         # para repetir a tarefa três vezes.
         return {'status': 'no_contact'}
     return {'status': entrega.status, 'delivery_id': str(entrega.id)}
+
+
+@shared_task(
+    name='communications.tasks.enviar_link_teleconsulta',
+    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 3},
+    expires=600, bind=True,
+)
+def enviar_link_teleconsulta_task(self, appointment_id, actor_id, contact_id=None):
+    """Envia o link do teleatendimento ao paciente **no worker**.
+
+    Como a confirmação do horário, sai pelo worker e não de dentro da
+    requisição: o processo `app` não tem o secret de SMTP (§2), e a entrega
+    não pode prender nem derrubar a tela. A view já conferiu, antes de
+    enfileirar, que há link e que há e-mail; chegar aqui sem um dos dois é o
+    caso raro de algo ter mudado no meio, e não é motivo para repetir três
+    vezes.
+    """
+    from scheduling.models import Appointment
+
+    from .services import (
+        NoUsableContact, SemLinkDeTeleconsulta, enviar_link_teleconsulta,
+    )
+
+    appointment = Appointment.objects.filter(id=appointment_id).select_related(
+        'tenant', 'patient', 'physician_membership__user',
+    ).first()
+    if appointment is None:
+        return {'status': 'skipped'}
+
+    contato = None
+    if contact_id:
+        from patients.models import PatientContact
+
+        contato = PatientContact.objects.filter(
+            tenant_id=appointment.tenant_id, id=contact_id,
+        ).first()
+
+    try:
+        entrega = enviar_link_teleconsulta(
+            None, appointment, actor_id, contact=contato, envio_id=self.request.id,
+        )
+    except (NoUsableContact, SemLinkDeTeleconsulta):
+        return {'status': 'no_contact'}
+    return {'status': entrega.status, 'delivery_id': str(entrega.id)}

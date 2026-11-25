@@ -381,7 +381,20 @@ carimbá-la na publicação.
 #: cabem** no tempo livre, pela divisão inteira do tempo livre de cada
 #: médico pela duração do tipo, somada entre os médicos
 #: (`scheduling.estatisticas`).
-VERSION = '1.57'
+#: A **1.58** (2026-11-25, junto com o ProntDoc 1.12.0): o **teleatendimento
+#: por vídeo com link e termo**. No horário marcado como teleatendimento, um
+#: **campo para colar o link do vídeo** (Meet, Teams, cockpit do Einstein, o
+#: que a clínica usar) e o botão **"Enviar link"**, que manda ao e-mail do
+#: paciente o link, as orientações (local bem iluminado e reservado, preferir
+#: computador, conferir a conexão) e o aviso de que participar implica
+#: concordar com o **termo de consentimento** — numa **página pública**
+#: (`/termo-teleconsulta/`, redação da Dra. Karina, aceite por participação,
+#: sem assinatura por paciente). O e-mail sai pelo worker, **só pelo botão**
+#: (a confirmação comum da agenda não muda) e só com o link preenchido; o
+#: link não vai para a trilha (pode carregar token da sala). Uma migração
+#: (`scheduling.0013`), só acrescenta a coluna `teleatendimento_link`
+#: (`scheduling.set_teleatendimento_link`, `communications.enviar_link_teleconsulta`).
+VERSION = '1.58'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

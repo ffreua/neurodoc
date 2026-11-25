@@ -176,6 +176,7 @@ contexto completo.{% endcomment %}
                                             data-nd-type-code="{{ cell.appointment.type }}"
                                             data-nd-status-label="{{ cell.appointment.get_status_display }}"
                                             data-nd-tele="{% if cell.appointment.teleatendimento %}1{% else %}0{% endif %}"
+                                            data-nd-tele-link="{{ cell.appointment.teleatendimento_link }}"
                                             data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                                             {% with contato=cell.appointment.patient|nd_confirmation_contacts %}
                                             data-nd-phone="{{ contato.phone }}" data-nd-email="{{ contato.email }}"

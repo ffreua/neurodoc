@@ -1150,6 +1150,80 @@ class SendConfirmationView(TenantScopedView):
         return _agenda_redirect(request, doctor, day)
 
 
+class TeleatendimentoLinkView(TenantScopedView):
+    """Guarda o link do vídeo do teleatendimento e, se pedido, envia ao paciente.
+
+    Dois botões no modal, um POST só: "Salvar" guarda o link; "Enviar ao
+    paciente" guarda e enfileira o e-mail. **Quem envia é o worker**, nunca
+    esta view — o processo `app` não tem o secret de SMTP (§2), como a
+    confirmação manual do horário. O e-mail do teleatendimento é a única
+    entrega com o link e as orientações do vídeo; a confirmação comum da
+    agenda não muda.
+    """
+
+    def post(self, request, appointment_id):
+        from communications.models import DeliveryChannel
+        from communications.services import confirmation_contacts
+        from communications.tasks import enviar_link_teleconsulta_task
+
+        from .models import Appointment
+
+        appointment = get_object_or_404(
+            scope_to_tenant(Appointment.objects.all(), request.access_context),
+            id=appointment_id,
+        )
+        day = timezone.localtime(appointment.starts_at).date()
+        doctor = appointment.physician_membership
+        acao = request.POST.get('acao', 'salvar')
+        link = (request.POST.get('link') or '').strip()
+
+        try:
+            services.set_teleatendimento_link(
+                request.access_context, appointment, link, request.user.id,
+            )
+        except services.SchedulingError as exc:
+            messages.error(request, str(exc))
+            return _agenda_redirect(request, doctor, day)
+
+        if acao != 'enviar':
+            messages.success(
+                request,
+                'Link do teleatendimento guardado.' if link
+                else 'Link do teleatendimento removido.',
+            )
+            return _agenda_redirect(request, doctor, day)
+
+        # Enviar ao paciente: a falta de link e de e-mail é conferida aqui,
+        # e não só no worker, pelo mesmo motivo da confirmação manual — é o
+        # desfecho que a pessoa na tela pode resolver agora.
+        if not link:
+            messages.error(
+                request, 'Informe o link do vídeo antes de enviar ao paciente.',
+            )
+            return _agenda_redirect(request, doctor, day)
+        contatos = [
+            c for c in confirmation_contacts(appointment, DeliveryChannel.EMAIL)
+            if c is not None
+        ]
+        if not contatos:
+            messages.error(
+                request,
+                'Nenhum contato deste paciente tem e-mail cadastrado. '
+                'Inclua o contato na ficha do paciente.',
+            )
+            return _agenda_redirect(request, doctor, day)
+        enviar_link_teleconsulta_task.delay(
+            str(appointment.id), request.user.id, str(contatos[0].id),
+        )
+        messages.success(
+            request,
+            f'Link do teleatendimento a caminho de {contatos[0].email}. O envio sai '
+            'pelo worker; o resultado aparece na lista de entregas do agendamento '
+            'em instantes.',
+        )
+        return _agenda_redirect(request, doctor, day)
+
+
 class WhatsAppReminderView(TenantScopedView):
     """Abre a conversa com o paciente no WhatsApp da clínica (1.39).
 

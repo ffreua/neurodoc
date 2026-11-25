@@ -311,6 +311,8 @@
         var teleBadge = document.getElementById('slot-tele');
         var teleOnForm = document.getElementById('slot-tele-on-form');
         var teleOffForm = document.getElementById('slot-tele-off-form');
+        var teleLinkForm = document.getElementById('slot-tele-link-form');
+        var teleLinkInput = document.getElementById('slot-tele-link-input');
         var rescheduleLink = document.getElementById('slot-reschedule');
         var declaracaoLink = document.getElementById('slot-declaracao');
         var changePanel = document.getElementById('slot-change-panel');
@@ -427,6 +429,16 @@
             if (teleOffForm) {
                 teleOffForm.action = '/app/scheduling/' + id + '/presencial/';
                 teleOffForm.hidden = !tele || !teleEditavel;
+            }
+            /* O link do vídeo só faz sentido no horário por vídeo, e só
+             * enquanto ele é da agenda. O campo vem preenchido com o que já
+             * estava guardado, para a secretária ver antes de reenviar. */
+            if (teleLinkForm) {
+                teleLinkForm.action = '/app/scheduling/' + id + '/teleatendimento/link/';
+                teleLinkForm.hidden = !tele || !teleEditavel;
+                if (teleLinkInput) {
+                    teleLinkInput.value = cell.getAttribute('data-nd-tele-link') || '';
+                }
             }
 
             carregarEspera(id);

@@ -642,6 +642,77 @@ def set_teleatendimento(context, appointment, ligado, actor_id):
     return appointment
 
 
+#: Teto do link do vídeo, o mesmo `max_length` da coluna.
+LINK_DE_VIDEO_MAX = 500
+
+
+def _conferir_link_de_video(link):
+    """Recusa o link que não é endereço web, antes de gravar.
+
+    O serviço grava sem `full_clean`, então o `URLField` do modelo sozinho
+    não conferia nada: um texto acima de 500 caracteres estourava a coluna
+    (erro 500 na tela, em vez de recusa), e um `javascript:` ou um texto
+    qualquer seria gravado e mandado ao paciente como "link do vídeo". Só
+    `http`/`https` — é o que o paciente abre num clique. Vazio é permitido:
+    é como se retira o link.
+    """
+    if not link:
+        return
+    from django.core.exceptions import ValidationError
+    from django.core.validators import URLValidator
+
+    if len(link) > LINK_DE_VIDEO_MAX:
+        raise SchedulingError(
+            f'O link do vídeo passa de {LINK_DE_VIDEO_MAX} caracteres. '
+            'Confira se colou só o endereço da sala.'
+        )
+    try:
+        URLValidator(schemes=['http', 'https'])(link)
+    except ValidationError:
+        raise SchedulingError(
+            'O link do vídeo precisa ser um endereço da web completo, '
+            'começando com https:// (por exemplo, https://meet.google.com/…).'
+        ) from None
+
+
+@transaction.atomic
+def set_teleatendimento_link(context, appointment, link, actor_id):
+    """Grava (ou limpa) o link do vídeo do teleatendimento.
+
+    Como a marca de teleatendimento, é informação de agenda: não mexe em
+    `row_version` (não muda o horário nem invalida lembretes já agendados). O
+    link só faz sentido num horário por vídeo, então exige a marca ligada; e o
+    horário ainda tem de ser da agenda — concluído, cancelado e falta são
+    história.
+
+    **O link não vai para a trilha**: pode carregar um token que dá acesso à
+    sala do vídeo, e a trilha não é lugar de credencial. Registra-se só se o
+    campo ficou preenchido.
+    """
+    appointment = _relida(appointment)
+    if appointment.status not in TELEATENDIMENTO_EDITAVEL:
+        raise SchedulingError(
+            f'Este horário está "{appointment.get_status_display().lower()}" e o link '
+            'do teleatendimento não muda mais.'
+        )
+    if not appointment.teleatendimento:
+        raise SchedulingError(
+            'Marque o horário como teleatendimento antes de guardar o link do vídeo.'
+        )
+    link = (link or '').strip()
+    _conferir_link_de_video(link)
+    if appointment.teleatendimento_link == link:
+        return appointment
+    appointment.teleatendimento_link = link
+    appointment.save(update_fields=['teleatendimento_link', 'updated_at'])
+    record_audit_event(
+        actor_id, context.tenant_id, 'scheduling.appointment_teleatendimento_link_changed',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={'preenchido': bool(link)},
+    )
+    return appointment
+
+
 @transaction.atomic
 def include_extra_hours(context, physician_membership, day, start_time, cells, reason=''):
     """Abre horário extra num dia, a partir da própria agenda.

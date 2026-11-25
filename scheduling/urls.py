@@ -129,5 +129,11 @@ urlpatterns = [
         '<uuid:appointment_id>/whatsapp/',
         views.WhatsAppReminderView.as_view(), name='whatsapp',
     ),
+    # Link do vídeo do teleatendimento: guardar e enviar ao paciente. Antes
+    # da rota genérica pelo mesmo motivo (recebe o link no corpo).
+    path(
+        '<uuid:appointment_id>/teleatendimento/link/',
+        views.TeleatendimentoLinkView.as_view(), name='teleatendimento-link',
+    ),
     path('<uuid:appointment_id>/<str:action>/', views.AppointmentActionView.as_view(), name='action'),
 ]

@@ -12,6 +12,10 @@ urlpatterns = [
     # contrato que so aparece na hora de clicar em "aceito" e um contrato
     # que ninguem teve como avaliar.
     path('contrato/', views.ContractView.as_view(), name='contrato'),
+    # O termo de consentimento do teleatendimento, aberto: o paciente recebe
+    # o link por e-mail e precisa poder lê-lo sem conta. Participar da
+    # teleconsulta implica concordar com ele (sem assinatura por paciente).
+    path('termo-teleconsulta/', views.TermoTeleconsultaView.as_view(), name='termo-teleconsulta'),
     # Páginas de entrada da busca (2026-11-18, `base/paginas_seo.py`).
     path('neurologia/<slug:slug>/', views.TematicaView.as_view(tipo='area'), name='area'),
     path('recursos/<slug:slug>/', views.TematicaView.as_view(tipo='recurso'), name='recurso'),

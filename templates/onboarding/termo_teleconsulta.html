@@ -1,0 +1,81 @@
+{% extends "base_public.html" %}
+{% comment %}Termo de consentimento do teleatendimento, público e genérico
+(1.58). O paciente recebe o link por e-mail com o aviso de que participar da
+teleconsulta implica concordar com este termo, e precisa poder lê-lo sem
+conta. Sem nome de paciente, de clínica nem do médico: a página é aberta, e
+o paciente, o representante legal, o médico responsável (CRM/UF) e a
+plataforma são os do convite que a clínica enviou. Redação da Dra. Karina
+Albuquerque Freua; correção de texto passa por ela (registro em
+docs/governance/teleconsulta-termo.md).{% endcomment %}
+{% block title %}Termo de consentimento para teleconsulta{% endblock %}
+{% block content %}
+<section class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <h1 class="h3 fw-bold mb-3">Termo de consentimento para teleconsulta</h1>
+
+                    <p class="text-muted">
+                        Este termo se refere à sua teleconsulta (consulta por vídeo). O
+                        <strong>paciente</strong>, o <strong>representante legal</strong>, quando
+                        houver, o <strong>médico responsável</strong> (com CRM/UF) e a
+                        <strong>plataforma</strong> de vídeo são os indicados no convite que a
+                        clínica lhe enviou.
+                    </p>
+
+                    <p>
+                        Ao participar da teleconsulta, você autoriza, de forma livre e
+                        esclarecida, a sua realização pelo médico responsável, utilizando a
+                        plataforma informada, e declara estar ciente de que:
+                    </p>
+
+                    <ol class="ps-3">
+                        <li class="mb-2">
+                            O atendimento ocorrerá a distância, com limitações para o exame
+                            físico. O médico poderá indicar avaliação presencial para
+                            complementar ou concluir o atendimento.
+                        </li>
+                        <li class="mb-2">
+                            Posso recusar ou interromper a teleconsulta e solicitar atendimento
+                            presencial, sem que essa decisão implique renúncia ao meu direito à
+                            assistência.
+                        </li>
+                        <li class="mb-2">
+                            Podem ocorrer falhas de conexão e riscos à privacidade inerentes à
+                            comunicação digital. Procurarei participar em ambiente reservado e
+                            informarei ao médico caso haja outras pessoas presentes.
+                        </li>
+                        <li class="mb-2">
+                            Autorizo a transmissão dos dados, imagens e informações de saúde
+                            necessários ao atendimento e seu registro no prontuário, com
+                            observância do sigilo médico e da legislação de proteção de dados.
+                            Este aceite não autoriza gravação de áudio ou vídeo da consulta, que
+                            dependerá de consentimento específico.
+                        </li>
+                        <li class="mb-2">
+                            Em caso de urgência ou emergência, devo procurar atendimento
+                            presencial imediato, sem aguardar a teleconsulta.
+                        </li>
+                    </ol>
+
+                    <p class="mb-1">
+                        Tive oportunidade de esclarecer dúvidas, compreendi as informações e
+                        concordo com o atendimento nesta modalidade.
+                    </p>
+                    <p class="fw-semibold">
+                        Entendo que participar da teleconsulta implica em concordar com este
+                        termo de consentimento.
+                    </p>
+
+                    <hr class="my-4">
+                    <p class="fs-11 text-muted mb-0">
+                        Plataforma mantida por {{ nd_mantenedora.nome }}, CNPJ
+                        {{ nd_mantenedora.cnpj }}.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

@@ -3,7 +3,7 @@ import hashlib
 import logging
 import secrets
 from contextlib import contextmanager
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, urlparse
 
 from django.conf import settings
 from django.db import transaction
@@ -1089,6 +1089,161 @@ def send_appointment_confirmation(context, appointment, channel, actor_id, conta
         integrity_metadata={
             'channel': channel, 'contact_id': str(target.id), 'status': delivery.status,
             'attempt': sent + 1,
+        },
+    )
+    return delivery
+
+
+#: O assunto e o corpo do e-mail do teleatendimento, à parte do aviso de
+#: horário de propósito: o link e as orientações do vídeo só saem **quando a
+#: secretária clica em "Enviar link"**, nunca junto com a confirmação comum —
+#: a maioria das consultas é presencial, e o aviso de sempre não deve mudar.
+TELECONSULTA_EMAIL_SUBJECT = 'Link do seu teleatendimento'
+
+TELECONSULTA_EMAIL_TEMPLATE = """Olá, {patient}.
+
+Sua consulta por vídeo (teleatendimento) está marcada:
+
+  Data e hora .... {when}
+  Profissional ... {doctor}
+{plataforma_bloco}  Link do vídeo .. {link}
+
+No horário combinado, abra o link acima para entrar na consulta.
+
+Para a teleconsulta correr bem:
+  - fique num local bem iluminado e reservado;
+  - prefira um computador (câmera e tela maiores ajudam);
+  - confira a sua conexão de internet antes de começar.
+
+Ao participar da teleconsulta, você concorda com o termo de consentimento,
+que pode ler aqui:
+  {termo}
+
+Esta mensagem é automática e esta caixa não recebe respostas — se você
+responder a este e-mail, ninguém vai ler.
+
+É apenas o acesso ao seu atendimento por vídeo: não contém informação
+clínica, nem diagnóstico, nem resultado de exame.
+"""
+
+#: Plataformas de vídeo reconhecidas pelo domínio do link, só para dizer o
+#: nome no e-mail ("pela plataforma Google Meet"). A lista é de conveniência,
+#: não de permissão: um link de qualquer outra plataforma é aceito e enviado
+#: igual, só sem o nome por extenso.
+PLATAFORMAS_DE_VIDEO = {
+    'meet.google.com': 'Google Meet',
+    'teams.microsoft.com': 'Microsoft Teams',
+    'teams.live.com': 'Microsoft Teams',
+    'zoom.us': 'Zoom',
+    'whereby.com': 'Whereby',
+    'meet.jit.si': 'Jitsi Meet',
+}
+
+
+def plataforma_do_link(url):
+    """O nome da plataforma de vídeo pelo domínio do link, ou '' se não for uma
+    das conhecidas. Serve só para o texto do e-mail — qualquer link vale."""
+    host = (urlparse(url or '').hostname or '').lower()
+    if not host:
+        return ''
+    for dominio, nome in PLATAFORMAS_DE_VIDEO.items():
+        if host == dominio or host.endswith('.' + dominio):
+            return nome
+    return ''
+
+
+def _teleconsulta_message(appointment):
+    """O corpo do e-mail do teleatendimento, com o link e as orientações."""
+    from base import seo
+
+    doctor = (
+        appointment.physician_membership.user.get_full_name()
+        or appointment.physician_membership.user.email
+    )
+    when = timezone.localtime(appointment.starts_at).strftime('%d/%m/%Y às %H:%M')
+    nome_plataforma = plataforma_do_link(appointment.teleatendimento_link)
+    plataforma_bloco = (
+        f'  Plataforma ..... {nome_plataforma}\n' if nome_plataforma else ''
+    )
+    return TELECONSULTA_EMAIL_TEMPLATE.format(
+        patient=appointment.patient.full_name.split()[0],
+        when=when, doctor=doctor,
+        plataforma_bloco=plataforma_bloco,
+        link=appointment.teleatendimento_link,
+        termo=seo.absoluta('/termo-teleconsulta/'),
+    )
+
+
+class SemLinkDeTeleconsulta(Exception):
+    """O horário não tem link de vídeo para enviar."""
+
+
+def enviar_link_teleconsulta(context, appointment, actor_id, contact=None, envio_id=None):
+    """Manda ao paciente, por e-mail, o link do teleatendimento e o termo.
+
+    Espelha `send_appointment_confirmation` (entrega gravada antes do envio,
+    marcada pelo pedido para a repetição não reenviar, envio pelo worker), mas:
+
+    - é **só e-mail** — o link e as orientações não cabem num SMS, e o termo é
+      para ler numa tela;
+    - **não é o aviso de horário**: só sai quando a secretária clica em
+      "Enviar link", então a confirmação comum da agenda não muda;
+    - exige o horário marcado como teleatendimento e com link preenchido.
+
+    O audit event **não** leva o link (pode conter token de acesso à sala).
+    """
+    from audit.services import record_audit_event
+
+    if not appointment.teleatendimento or not (appointment.teleatendimento_link or '').strip():
+        raise SemLinkDeTeleconsulta(
+            'Guarde o link do vídeo no horário antes de enviá-lo ao paciente.'
+        )
+
+    candidates = [contact] if contact is not None else confirmation_contacts(
+        appointment, DeliveryChannel.EMAIL,
+    )
+    candidates = [c for c in candidates if c is not None]
+    if not candidates:
+        raise NoUsableContact(
+            'Nenhum contato deste paciente tem e-mail cadastrado. '
+            'Inclua o contato na ficha do paciente.'
+        )
+
+    target = candidates[0]
+    message = _teleconsulta_message(appointment)
+    anteriores = Delivery.objects.filter(
+        appointment=appointment, contact=target, channel=DeliveryChannel.EMAIL,
+        idempotency_key__startswith=f'teleconsulta:{appointment.id}:',
+    )
+    delivery = None
+    if envio_id is not None:
+        marca = marca_do_envio(envio_id)
+        delivery = anteriores.filter(idempotency_key__endswith=f':{marca}').first()
+    if delivery is not None:
+        sent = anteriores.filter(created_at__lt=delivery.created_at).count()
+    else:
+        sent = anteriores.count()
+        chave = (
+            f'teleconsulta:{appointment.id}:{sent + 1}:{marca}'
+            if envio_id is not None
+            else f'teleconsulta:{appointment.id}:{target.id}:{sent + 1}'
+        )
+        with transaction.atomic():
+            delivery = Delivery.objects.create(
+                tenant=appointment.tenant, appointment=appointment, contact=target,
+                channel=DeliveryChannel.EMAIL, event_version=appointment.row_version,
+                idempotency_key=chave,
+            )
+    _send(
+        delivery, message, subject=TELECONSULTA_EMAIL_SUBJECT,
+        physician_membership=appointment.physician_membership,
+    )
+    delivery.refresh_from_db()
+    record_audit_event(
+        actor_id, appointment.tenant_id, 'communications.teleconsulta_link_sent',
+        object_type='appointment', object_id=appointment.id, outcome='success',
+        integrity_metadata={
+            'contact_id': str(target.id), 'status': delivery.status, 'attempt': sent + 1,
         },
     )
     return delivery

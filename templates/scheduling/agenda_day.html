@@ -81,6 +81,7 @@
                         data-nd-type-code="{{ cell.appointment.type }}"
                         data-nd-status-label="{{ cell.appointment.get_status_display }}"
                         data-nd-tele="{% if cell.appointment.teleatendimento %}1{% else %}0{% endif %}"
+                        data-nd-tele-link="{{ cell.appointment.teleatendimento_link }}"
                         data-nd-preliminary="{% if cell.appointment.patient.registration_stage == 'preliminary' %}1{% else %}0{% endif %}"
                     {% comment %}Contato do paciente no atributo: o modal precisa
                     dizer para onde a confirmação vai antes de alguém clicar.
