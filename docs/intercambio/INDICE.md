@@ -64,3 +64,4 @@ e foram corrigidos em `b26c256`, adaptados aos dois tipos de atendimento.
 | MD-2026-11-22-01 | [Campanha em HTML com CSS](mudancas/2026-11-22-M01-campanha-html.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-22-01) | — |
 | MD-2026-11-22-02 | [Lista curta do SNCR e o lugar no Dashboard](mudancas/2026-11-22-M02-sncr-e-dashboard.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-22-02) | — |
 | MD-2026-11-22-03 | [Painel de indicadores completo e a naturalidade](mudancas/2026-11-22-M03-indicadores.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-22-03) | — |
+| MD-2026-11-24-04 | [Pillow e pypdf: correção de segurança (Strix)](mudancas/2026-11-24-M04-deps-seguranca.md) | segurança | feito | feito na mesma rodada | — |
