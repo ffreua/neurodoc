@@ -81,6 +81,10 @@ urlpatterns = [
         'operacao/coleta/',
         superadmin.GarbageCollectionView.as_view(), name='operations-gc',
     ),
+    path(
+        'operacao/whatsapp-twilio/',
+        superadmin.WhatsAppTwilioInstallationView.as_view(), name='operations-whatsapp-twilio',
+    ),
     path('auditoria/', superadmin.AuditView.as_view(), name='audit'),
     path('telas-lentas/', superadmin.TelasLentasView.as_view(), name='telas-lentas'),
 ]

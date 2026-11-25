@@ -45,6 +45,8 @@ def _planos_com(recurso):
 #: `passos` é uma lista de (texto, imagem, legenda). `imagem` vazia é um
 #: passo sem captura — nem todo passo merece uma, e uma imagem por
 #: parágrafo transforma o manual numa apresentação de slides.
+from .ajuda_whatsapp import artigo as _artigo_whatsapp
+
 ARTICLES = [
     # Primeiro da lista, de propósito: é o artigo para onde o e-mail de
     # boas-vindas (`tenancy/boas_vindas.py`) e o aviso de clínica sem médico
@@ -1013,15 +1015,23 @@ ARTICLES = [
              'sistema não conhece e aceita até 1.000 caracteres, com acento. Deixando em '
              'branco (ou em **Voltar ao texto padrão**), vale o texto do sistema.',
              '', ''),
-            ('O WhatsApp **não é enviado pelo NeuroDoc**: na agenda, o botão **WhatsApp** '
+            ('O **WhatsApp da recepção** não é enviado pelo NeuroDoc: na agenda, o botão **WhatsApp** '
              'abre a conversa com o paciente no WhatsApp da própria clínica — Web ou '
              'aplicativo — com a mensagem já escrita, e a secretária confere e envia. Por '
              'isso está em **todos os planos**, não tem custo, não precisa de chave nem '
-             'de aprovação, e o número da clínica não fica conectado ao sistema. O que '
-             'é automático continua sendo e-mail e SMS.',
+             'de aprovação, e o número da clínica não fica conectado ao sistema.',
+             '', ''),
+            ('**WhatsApp automático (opcional).** Para os avisos saírem sozinhos pelo '
+             'WhatsApp, a clínica pode ligar o próprio número pela **própria conta '
+             'Twilio**, que ela contrata e paga: cartão **WhatsApp automático (Twilio)**, '
+             'na mesma tela. O passo a passo está em '
+             '[WhatsApp automático pela Twilio da clínica](/ajuda/whatsapp-twilio/).',
              '', ''),
         ],
     },
+    # O tutorial do WhatsApp pela Twilio mora num arquivo próprio, igual nos
+    # dois produtos (`base/ajuda_whatsapp.py`).
+    _artigo_whatsapp('NeuroDoc'),
     {
         'slug': 'campanhas',
         'title': 'Comunicação em massa',

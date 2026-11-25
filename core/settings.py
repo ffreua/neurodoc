@@ -349,6 +349,12 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'communications.tasks.reconcile_pending_sms',
         'schedule': 60,
     },
+    # WhatsApp pela Twilio da clínica: o aviso de status resolve quase tudo;
+    # esta passada só pega o aviso que não chegou (15 e 60 min depois).
+    'communications-reconcile-pending-whatsapp': {
+        'task': 'communications.tasks.reconcile_pending_whatsapp',
+        'schedule': 300,
+    },
     # Avisos e diagnósticos de transporte são dados transitórios. A trilha
     # permanente continua nos objetos de origem e em `audit`; conservar estas
     # caixas indefinidamente só aumenta o banco e repete identificação de

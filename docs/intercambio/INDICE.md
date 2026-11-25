@@ -67,3 +67,4 @@ e foram corrigidos em `b26c256`, adaptados aos dois tipos de atendimento.
 | MD-2026-11-24-04 | [Pillow e pypdf: correção de segurança (Strix)](mudancas/2026-11-24-M04-deps-seguranca.md) | segurança | feito | feito na mesma rodada | — |
 | MD-2026-11-25-01 | [Editar exame/diagnóstico, % por subtipo, nascimento no pré-cadastro e livres por tipo (Leva A)](mudancas/2026-11-25-M01-edicao-indicadores-precadastro-estatisticas.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-25-01) | — |
 | MD-2026-11-25-02 | [Teleatendimento: link do vídeo, e-mail ao paciente e termo público (Leva B)](mudancas/2026-11-25-M02-teleconsulta-link-e-termo.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-25-02) | — |
+| MD-2026-11-25-03 | [WhatsApp automático pela Twilio da própria clínica (BYO)](mudancas/2026-11-25-M03-whatsapp-twilio-byo.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-25-03) | — |

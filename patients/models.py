@@ -387,6 +387,35 @@ class PatientContact(TenantModel):
     #: fácil quanto o consentimento (art. 8º, §5º).
     marketing_unsubscribe_token = models.CharField(max_length=64, blank=True, db_index=True)
 
+    # ---------------------------------------------------- WhatsApp (Twilio)
+    #
+    # Aceite **próprio** de WhatsApp, no molde do de divulgação: data, como
+    # foi obtido e revogação. A política do WhatsApp só permite falar com
+    # quem deu o número **e** autorizou receber mensagens por ali, e "aceita
+    # SMS" não é isso — é outra empresa, outro aplicativo, e a mensagem passa
+    # pelos servidores da Meta. Padrão no banco: o código anterior grava
+    # contato durante a troca de versão.
+    whatsapp_opt_in_at = models.DateTimeField(null=True, blank=True)
+    whatsapp_opt_in_evidence = models.CharField(max_length=255, blank=True, db_default='')
+    whatsapp_opt_out_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def aceita_whatsapp(self):
+        """Se este contato pode receber o WhatsApp automático hoje.
+
+        Telefone, aceite dado e não revogado, contato válido. A conferência do
+        número é o próprio aceite (a equipe confirmou o número com a pessoa ao
+        registrá-lo), e não o `verified_phone_at`, que só nasce com o SMS:
+        exigi-lo deixaria o WhatsApp fora da clínica cujo plano não tem SMS.
+        """
+        from django.utils import timezone
+
+        if not self.phone or self.whatsapp_opt_in_at is None:
+            return False
+        if self.whatsapp_opt_out_at is not None:
+            return False
+        return self.valid_until is None or self.valid_until > timezone.now()
+
     @property
     def accepts_marketing(self):
         """Se este contato pode receber comunicação em massa hoje.
@@ -413,6 +442,12 @@ class PatientContact(TenantModel):
             raise ValidationError({
                 'marketing_opt_in_evidence':
                     'Registre como o consentimento foi obtido. Consentimento sem '
+                    'procedência não se demonstra depois.',
+            })
+        if self.whatsapp_opt_in_at and not self.whatsapp_opt_in_evidence:
+            raise ValidationError({
+                'whatsapp_opt_in_evidence':
+                    'Registre como o aceite do WhatsApp foi obtido. Aceite sem '
                     'procedência não se demonstra depois.',
             })
         if self.authorized_for_documents and not self.relationship:

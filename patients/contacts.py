@@ -143,5 +143,9 @@ def remove_contact(contact):
         if contact.marketing_opt_in_at and not contact.marketing_opt_out_at:
             contact.marketing_opt_out_at = agora
             campos.append('marketing_opt_out_at')
+        # O aceite do WhatsApp cai junto: contato encerrado não recebe nada.
+        if contact.whatsapp_opt_in_at and not contact.whatsapp_opt_out_at:
+            contact.whatsapp_opt_out_at = agora
+            campos.append('whatsapp_opt_out_at')
         contact.save(update_fields=campos)
         return 'encerrado'

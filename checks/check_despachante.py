@@ -226,7 +226,9 @@ try:
     else:
         alcancou = []
         original = com_services._eligible_reminder_contacts
-        com_services._eligible_reminder_contacts = lambda p: alcancou.append(p.id) or []
+        # `**kw`: a função passou a receber `whatsapp=` (2026-11-25); o que este
+        # trecho mede é só se o consumidor chega até ela.
+        com_services._eligible_reminder_contacts = lambda p, **kw: alcancou.append(p.id) or []
         inicio = timezone.now() + timedelta(days=2)
         ap = Appointment.objects.create(
             tenant_id=base.tenant_id, patient=base.patient, physician_membership=base.physician_membership,

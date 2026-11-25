@@ -10,7 +10,10 @@ As duas alternativas foram estudadas e recusadas (2026-11-08):
 - **A API oficial da Meta** automatizaria o envio, mas exige o NeuroDoc
   credenciado como provedor na Meta, um modelo de mensagem aprovado a cada
   texto (até 24 h, e qualquer edição volta à análise), cartão de cada clínica
-  na conta dela e cobrança por mensagem. Fica para depois, se o volume pedir.
+  na conta dela e cobrança por mensagem. **Revisto em 2026-11-25:** com a
+  clínica dona da própria conta Twilio (BYO), o sistema não precisa ser
+  provedor, e o envio automático existe, opcional, em `whatsapp_twilio.py`
+  (`docs/governance/whatsapp-twilio.md`). Este botão continua igual.
 - **Conectar o WhatsApp da clínica por QR Code** (Baileys, Evolution API,
   Z-API e afins) finge ser o WhatsApp Web, fere os termos do WhatsApp e expõe
   o número da clínica a bloqueio — justamente o número que os pacientes

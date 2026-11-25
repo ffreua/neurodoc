@@ -538,6 +538,24 @@ class PatientContactForm(forms.ModelForm):
         }),
         help_text='Obrigatório quando a autorização é marcada.',
     )
+    #: O aceite de WhatsApp, à parte do SMS: a política do WhatsApp só deixa
+    #: a clínica falar com quem autorizou receber mensagens por ali, e a
+    #: mensagem passa pelos servidores da Meta. Só é usado se a clínica
+    #: ligou o WhatsApp pela Twilio (Integrações → Mensageria).
+    accepts_whatsapp = forms.BooleanField(
+        label='Autoriza receber avisos da clínica pelo WhatsApp',
+        required=False,
+        help_text='Avisos de horário e de documento disponível, pelo WhatsApp da '
+                  'clínica. Diferente de "aceita SMS". Marque só se a pessoa '
+                  'autorizou expressamente este telefone para WhatsApp.',
+    )
+    whatsapp_opt_in_evidence = forms.CharField(
+        label='Como o aceite do WhatsApp foi obtido', required=False, max_length=255,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Ex.: autorizou por telefone na marcação, em 12/03/2026',
+        }),
+        help_text='Obrigatório quando o aceite é marcado.',
+    )
 
     class Meta:
         model = PatientContact
@@ -567,6 +585,13 @@ class PatientContactForm(forms.ModelForm):
             self.fields['marketing_opt_in_evidence'].initial = (
                 self.instance.marketing_opt_in_evidence
             )
+            self.fields['accepts_whatsapp'].initial = (
+                self.instance.whatsapp_opt_in_at is not None
+                and self.instance.whatsapp_opt_out_at is None
+            )
+            self.fields['whatsapp_opt_in_evidence'].initial = (
+                self.instance.whatsapp_opt_in_evidence
+            )
 
     def clean(self):
         cleaned = super().clean()
@@ -580,6 +605,15 @@ class PatientContactForm(forms.ModelForm):
             self.add_error('sms_enabled', 'Informe o telefone antes de habilitar SMS.')
         if cleaned.get('email_enabled') and not (cleaned.get('email') or '').strip():
             self.add_error('email_enabled', 'Informe o e-mail antes de habilitar este canal.')
+        if cleaned.get('accepts_whatsapp'):
+            if not (cleaned.get('phone') or '').strip():
+                self.add_error('accepts_whatsapp', 'Informe o telefone antes de autorizar o WhatsApp.')
+            if not (cleaned.get('whatsapp_opt_in_evidence') or '').strip():
+                self.add_error(
+                    'whatsapp_opt_in_evidence',
+                    'Registre como o aceite do WhatsApp foi obtido. Aceite sem '
+                    'procedência não se demonstra depois.',
+                )
         if cleaned.get('accepts_marketing'):
             if not (cleaned.get('email') or '').strip():
                 self.add_error(
@@ -615,6 +649,16 @@ class PatientContactForm(forms.ModelForm):
             contato.marketing_opt_out_at = None
         elif contato.marketing_opt_in_at is not None and contato.marketing_opt_out_at is None:
             contato.marketing_opt_out_at = timezone.now()
+        # O aceite do WhatsApp segue a mesma regra das datas.
+        contato.whatsapp_opt_in_evidence = (
+            self.cleaned_data.get('whatsapp_opt_in_evidence') or ''
+        )
+        if self.cleaned_data.get('accepts_whatsapp'):
+            if contato.whatsapp_opt_in_at is None or contato.whatsapp_opt_out_at is not None:
+                contato.whatsapp_opt_in_at = timezone.now()
+            contato.whatsapp_opt_out_at = None
+        elif contato.whatsapp_opt_in_at is not None and contato.whatsapp_opt_out_at is None:
+            contato.whatsapp_opt_out_at = timezone.now()
         if commit:
             contato.save()
         return contato

@@ -115,6 +115,25 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
             </div>
         </div>
 
+        {% comment %}------------------------- WhatsApp automático (Twilio)
+
+        O canal automático pela conta Twilio da própria clínica tem tela
+        própria (credenciais, modelos, teste); aqui, só a situação e o
+        caminho. Diferente do cartão abaixo, que abre o WhatsApp da recepção.{% endcomment %}
+        <div class="card mt-4" id="whatsapp-twilio">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">WhatsApp automático (Twilio)</h5>
+                <span class="badge {{ whatsapp_twilio_classe }}">{{ whatsapp_twilio_rotulo }}</span>
+            </div>
+            <div class="card-body fs-13">
+                <p class="text-muted">Avisos de horário e de documento enviados sozinhos pelo
+                número de WhatsApp da clínica, pela conta Twilio da própria clínica (que paga a
+                Twilio e a Meta). Opcional: sem ele, nada muda.</p>
+                <a class="btn btn-light" href="{% url 'messaging:whatsapp-twilio' %}">Configurar</a>
+                <a class="btn btn-link" href="{% url 'onboarding:help-article' 'whatsapp-twilio' %}" target="_blank" rel="noopener">Como funciona</a>
+            </div>
+        </div>
+
         {% comment %}-------------------------------------------- WhatsApp (1.39)
 
         Não é canal de envio: o botão "WhatsApp" da agenda abre a conversa com

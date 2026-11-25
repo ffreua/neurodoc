@@ -167,6 +167,15 @@ class InstallationSettings(TimestampedModel):
     #: isto esta ligado?" um ano depois nao tem outra fonte.
     documents_gc_note = models.CharField(max_length=255, blank=True)
 
+    #: O WhatsApp automático pela Twilio da clínica (2026-11-25). **Nasce
+    #: desligado**, com padrão no banco: a clínica pode configurar e
+    #: verificar a conta dela, mas nada sai para paciente até a instalação
+    #: liberar — e a liberação espera a homologação com uma conta Twilio real
+    #: (`docs/governance/whatsapp-twilio.md`, Pendências). Recolher é um
+    #: clique e para todo envio na hora, inclusive o que já está na fila.
+    whatsapp_twilio_liberado = models.BooleanField(default=False, db_default=False)
+    whatsapp_twilio_nota = models.CharField(max_length=255, blank=True, db_default='')
+
     updated_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

@@ -55,6 +55,11 @@ CAMPOS = [
      'chave de API do SMS'),
     ('communications.MessagingSettings', 'smtp_password_ciphertext', 'smtp_password_metadata',
      'senha de SMTP da clínica'),
+    # O Auth Token da Twilio da clínica (WhatsApp, 2026-11-25). Fora daqui, a
+    # rotação o deixava ilegível: o envio passava a falhar e o aviso de status
+    # a ser recusado por assinatura, sem nada na tela explicar por quê.
+    ('communications.WhatsAppTwilio', 'auth_token_ciphertext', 'auth_token_metadata',
+     'Auth Token da Twilio (WhatsApp) da clínica'),
     ('communications.DoctorEmailSettings', 'smtp_password_ciphertext', 'smtp_password_metadata',
      'senha de SMTP do médico'),
     ('ai.AIProviderSettings', 'api_key_ciphertext', 'api_key_metadata',

@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+{% load nd %}
+{% block title %}WhatsApp pela Twilio — Mensageria{% endblock %}
+{% block head_extra %}{% if verificando %}
+    {% comment %}Enquanto o worker confere a conta na Twilio, a tela recarrega a
+    cada quatro segundos. `meta refresh`, e não script: não precisa de nonce e
+    funciona sem JavaScript.{% endcomment %}
+    <meta http-equiv="refresh" content="4">
+{% endif %}{% endblock %}
+{% block page_title %}WhatsApp pela Twilio{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'messaging:settings' %}">Mensageria</a></li>
+<li class="breadcrumb-item">WhatsApp pela Twilio</li>
+{% endblock %}
+{% block page_actions %}
+<a class="btn btn-primary" href="{% url 'onboarding:help-article' 'whatsapp-twilio' %}" target="_blank" rel="noopener">Tutorial passo a passo</a>
+<a class="btn btn-light" href="{% url 'messaging:deliveries' %}">Entregas recentes</a>
+{% endblock %}
+{% block content %}
+
+{% comment %}O WhatsApp automático pela conta Twilio da própria clínica (BYO).
+Decisões em docs/governance/whatsapp-twilio.md. Nenhum segredo volta para a
+tela: o Auth Token aparece só mascarado.{% endcomment %}
+
+<p class="fs-13 text-muted mb-3">
+    O sistema envia avisos de agenda e de documento pelo <strong>número de WhatsApp da
+    própria clínica</strong>, usando a <strong>conta Twilio da clínica</strong>. A clínica
+    contrata e paga a Twilio e a Meta diretamente; o sistema só guarda as credenciais,
+    cifradas. Nenhuma informação clínica vai pelo WhatsApp. Não sabe por onde começar?
+    Abra o <a href="{% url 'onboarding:help-article' 'whatsapp-twilio' %}" target="_blank" rel="noopener">tutorial passo a passo</a>.
+</p>
+
+{% if not liberado %}
+<div class="alert alert-light-warning fs-13 d-flex align-items-start gap-2" role="alert">
+    <span>
+        <strong>Ainda não liberado pela administração do sistema.</strong>
+        Você já pode cadastrar e verificar a conta Twilio da clínica e os modelos; as
+        mensagens a pacientes (e o envio de teste) passam a sair quando o canal for
+        liberado.
+    </span>
+</div>
+{% endif %}
+
+{% if not has_master_key %}
+<div class="alert alert-light-warning fs-13" role="alert">
+    <strong>Guarda de credenciais ainda não liberada.</strong> O Auth Token só pode ser
+    salvo quando a administração do sistema concluir a configuração de segurança.
+</div>
+{% endif %}
+
+<div class="row g-4">
+    <div class="col-xxl-5 col-xl-6">
+        {% comment %}------------------------------------------------ estado{% endcomment %}
+        <div class="card" id="estado">
+            <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">Situação</h5>
+                <span class="badge {{ estado_classe }}" data-nd-estado="{{ estado }}">{{ estado_rotulo }}</span>
+            </div>
+            <div class="card-body fs-13">
+                {% if estado == 'nao_configurado' %}
+                <p class="mb-0">Nada configurado ainda. Siga o tutorial para abrir a conta na
+                Twilio e cadastrar o número; depois preencha as credenciais ao lado.</p>
+                {% elif estado == 'pendente' %}
+                <p class="mb-0">Credenciais salvas, <strong>ainda não verificadas</strong> na
+                Twilio. Nada é enviado enquanto a verificação não passar.</p>
+                {% elif estado == 'invalido' %}
+                <p class="mb-2">A última verificação <strong>não passou</strong>. Nada é enviado
+                até corrigir e verificar de novo.</p>
+                {% elif estado == 'validado' %}
+                <p class="mb-0">Conta e número conferidos na Twilio.
+                {% if not config.ativo %}Ative o envio abaixo.{% elif not liberado %}Falta a
+                liberação da administração do sistema.{% else %}Falta ligar ao menos uma ocasião
+                com modelo aprovado.{% endif %}</p>
+                {% elif estado == 'operacional' %}
+                <p class="mb-0">Enviando pelas ocasiões ligadas abaixo.</p>
+                {% elif estado == 'desativado' %}
+                <p class="mb-0">Conta verificada, com o envio <strong>desligado</strong> nesta
+                clínica (ainda não ativado, ou suspenso). As credenciais continuam guardadas;
+                nada é enviado até ativar abaixo.</p>
+                {% endif %}
+
+                {% if config and config.erro_texto %}
+                <div class="border-start border-3 border-danger ps-2 mt-2">
+                    {{ config.erro_texto }}
+                    {% if config.erro_codigo %}<div class="fs-11 text-muted">Código: {{ config.erro_codigo }}</div>{% endif %}
+                </div>
+                {% endif %}
+
+                {% if config and config.verificado_em %}
+                <dl class="row fs-12 mt-3 mb-0">
+                    <dt class="col-5">Verificado em</dt><dd class="col-7">{{ config.verificado_em|date:"d/m/Y H:i" }}</dd>
+                    <dt class="col-5">Tipo de conta</dt><dd class="col-7">{{ config.conta_tipo|default:"—" }}</dd>
+                    <dt class="col-5">Número na Twilio</dt><dd class="col-7">{{ config.numero }} — {{ config.remetente_status }}</dd>
+                    <dt class="col-5">Qualidade</dt><dd class="col-7">{{ config.remetente_qualidade|default:"—" }}</dd>
+                    <dt class="col-5">Limite de envio</dt><dd class="col-7">{{ config.remetente_limite|default:"—" }}</dd>
+                </dl>
+                {% endif %}
+
+                {% if verificando %}
+                <p class="fs-12 text-muted mt-3 mb-0">Verificando na Twilio… esta tela se atualiza sozinha.</p>
+                {% elif config and config.tem_credenciais %}
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-verificar' %}" class="mt-3">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light" data-nd-busy>Verificar agora</button>
+                    <span class="fs-11 text-muted ms-2">Confere conta, número e modelos. Não envia mensagem.</span>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% comment %}------------------------------------------- credenciais{% endcomment %}
+        <div class="card mt-4" id="credenciais">
+            <div class="card-header"><h5 class="card-title mb-0">Credenciais da conta Twilio</h5></div>
+            <div class="card-body">
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-credenciais' %}" novalidate>
+                    {% csrf_token %}
+                    {% include "partials/form_errors.html" with form=form %}
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.account_sid col="col-12" %}
+                        {% include "partials/field.html" with field=form.auth_token col="col-12" %}
+                        {% include "partials/field.html" with field=form.numero col="col-12" %}
+                        {% include "partials/field.html" with field=form.messaging_service_sid col="col-12" %}
+                    </div>
+                    {% if config and config.tem_token %}
+                    <div class="form-text fs-11">
+                        Auth Token guardado: <code>{{ config.auth_token_hint }}</code>
+                        {% if config.updated_by %}— atualizado por {{ config.updated_by.user.get_full_name|default:config.updated_by.user.email }} em {{ config.updated_at|date:"d/m/Y H:i" }}{% endif %}
+                    </div>
+                    {% endif %}
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-primary" data-nd-busy {% if not has_master_key %}disabled{% endif %}>Salvar e verificar</button>
+                    </div>
+                </form>
+                {% if config and config.tem_credenciais %}
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-remover' %}" class="mt-3"
+                      data-nd-confirm="Apagar as credenciais da Twilio e desligar o WhatsApp nesta clínica? Os avisos voltam a sair só por e-mail e SMS.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-light-danger btn-sm">Apagar credenciais e desligar</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {% comment %}---------------------------------------- ativar e teste{% endcomment %}
+        <div class="card mt-4" id="ativar">
+            <div class="card-header"><h5 class="card-title mb-0">Ativar ou suspender</h5></div>
+            <div class="card-body fs-13">
+                {% if config and config.ativo %}
+                <p>O envio está <strong>ativo</strong> nesta clínica.</p>
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-ativar' %}"
+                      data-nd-confirm="Suspender o WhatsApp? Os avisos voltam a sair só por e-mail e SMS até reativar.">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="suspender">
+                    <button type="submit" class="btn btn-light">Suspender</button>
+                </form>
+                {% else %}
+                <p>O envio está <strong>desligado</strong> nesta clínica.</p>
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-ativar' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="ativar">
+                    <button type="submit" class="btn btn-primary" {% if not config.verificado_em %}disabled{% endif %}>Ativar</button>
+                    {% if not config.verificado_em %}<span class="fs-11 text-muted ms-2">Disponível depois da verificação.</span>{% endif %}
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mt-4" id="teste">
+            <div class="card-header"><h5 class="card-title mb-0">Envio de teste</h5></div>
+            <div class="card-body fs-13">
+                <p class="text-muted">Manda o modelo de uma ocasião ao seu celular, com dados de
+                exemplo (nenhum paciente). O número não fica guardado.</p>
+                {% if pode_testar %}
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-teste' %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <div class="col-sm-5">
+                        <label class="form-label" for="teste-evento">Ocasião</label>
+                        <select class="form-select" id="teste-evento" name="evento">
+                            {% for linha in linhas %}{% if linha.aprovado %}<option value="{{ linha.evento }}">{{ linha.info.rotulo }}</option>{% endif %}{% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-sm-5">
+                        <label class="form-label" for="teste-telefone">Seu celular</label>
+                        <input type="tel" class="form-control" id="teste-telefone" name="telefone" placeholder="(11) 98765-4321" autocomplete="off">
+                    </div>
+                    <div class="col-sm-2"><button type="submit" class="btn btn-light w-100" data-nd-busy>Enviar</button></div>
+                </form>
+                {% else %}
+                <p class="mb-0">Disponível com a conta verificada, ao menos um modelo aprovado e o
+                canal liberado pela administração do sistema.</p>
+                {% endif %}
+                {% if config and config.teste_enviado_em %}
+                <div class="fs-12 mt-3">
+                    Último teste: {{ config.teste_enviado_em|date:"d/m/Y H:i" }} —
+                    <strong data-nd-teste-status>{{ config.teste_status|default:"aguardando" }}</strong>
+                    {% if config.teste_erro %}<div class="text-danger">{{ config.teste_erro }}</div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xxl-7 col-xl-6">
+        {% comment %}------------------------------------------------ modelos{% endcomment %}
+        <div class="card" id="modelos">
+            <div class="card-header"><h5 class="card-title mb-0">Modelos de mensagem por ocasião</h5></div>
+            <div class="card-body fs-13">
+                <p class="text-muted">Fora da conversa iniciada pelo paciente, o WhatsApp só entrega
+                <strong>modelos aprovados pela Meta</strong>. Crie cada modelo na Twilio (Content
+                Template Builder) com o texto sugerido — ou outro com as <strong>mesmas variáveis,
+                na mesma ordem</strong> —, envie para aprovação e cole aqui o identificador
+                (começa com <code>HX</code>). Só a ocasião ligada e com modelo aprovado sai por
+                WhatsApp; nela, o WhatsApp substitui o SMS e o e-mail continua.</p>
+                <form method="post" action="{% url 'messaging:whatsapp-twilio-modelos' %}">
+                    {% csrf_token %}
+                    {% for linha in linhas %}
+                    <div class="border rounded-3 p-3 mb-3" data-nd-evento="{{ linha.evento }}">
+                        <div class="d-flex flex-wrap justify-content-between gap-2">
+                            <strong>{{ linha.info.rotulo }}</strong>
+                            {% if linha.aprovado %}
+                            <span class="badge bg-soft-success text-success">Aprovado</span>
+                            {% elif linha.modelo.content_sid and not linha.modelo.conferido_em and not linha.modelo.erro_texto %}
+                            <span class="badge bg-soft-warning text-warning">Aguardando verificação</span>
+                            {% elif linha.modelo.content_sid %}
+                            <span class="badge bg-soft-danger text-danger">Não utilizável</span>
+                            {% else %}
+                            <span class="badge bg-gray-200 text-dark">Sem modelo</span>
+                            {% endif %}
+                        </div>
+                        <div class="fs-12 text-muted mt-1">{{ linha.info.quando }}</div>
+                        <div class="fs-12 mt-2">Variáveis, nesta ordem:
+                            {% for v in linha.info.variaveis %}<code>{% templatetag openvariable %}{{ forloop.counter }}{% templatetag closevariable %}</code> {{ v }}{% if not forloop.last %}; {% endif %}{% endfor %}
+                        </div>
+                        <details class="fs-12 mt-2">
+                            <summary>Texto sugerido para o modelo</summary>
+                            <pre class="bg-gray-100 p-2 mt-1 mb-0" style="white-space: pre-wrap;">{{ linha.info.sugestao }}</pre>
+                        </details>
+                        <div class="row g-2 mt-2 align-items-end">
+                            <div class="col-md-8">
+                                <label class="form-label fs-12" for="sid-{{ linha.evento }}">Identificador do modelo (Content SID)</label>
+                                <input type="text" class="form-control form-control-sm" id="sid-{{ linha.evento }}" name="sid_{{ linha.evento }}"
+                                       value="{{ linha.modelo.content_sid }}" placeholder="HX…" autocomplete="off" spellcheck="false">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="ligado-{{ linha.evento }}" name="ligado_{{ linha.evento }}" {% if linha.modelo.ligado %}checked{% endif %}>
+                                    <label class="form-check-label" for="ligado-{{ linha.evento }}">Usar nesta ocasião</label>
+                                </div>
+                            </div>
+                        </div>
+                        {% if linha.modelo.conferido_em %}
+                        <div class="fs-11 text-muted mt-1">Na Twilio: {{ linha.modelo.nome_na_twilio|default:"—" }} · {{ linha.modelo.idioma|default:"—" }} · {{ linha.modelo.aprovacao }} · {{ linha.modelo.variaveis }} variável(is)</div>
+                        {% endif %}
+                        {% if linha.modelo.erro_texto %}<div class="fs-12 text-danger mt-1">{{ linha.modelo.erro_texto }}</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Salvar modelos e ocasiões</button>
+                </form>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header"><h5 class="card-title mb-0">O que este canal faz e não faz</h5></div>
+            <div class="card-body fs-13">
+                <ul class="mb-0 ps-3">
+                    <li>Só envia a contatos com o <strong>aceite de WhatsApp</strong> registrado na ficha (com a forma como foi obtido).</li>
+                    <li><strong>Nada clínico</strong> na mensagem: nem médico, nem tipo de consulta, nem nome do exame. O documento nunca vai anexado — vai o link seguro, que pede os 4 últimos dígitos do CPF.</li>
+                    <li><strong>Não lê respostas.</strong> Quem responder no WhatsApp não é atendido pelo sistema; o modelo deve dizer isso.</li>
+                    <li>Custos: cada mensagem é cobrada na <strong>conta Twilio da clínica</strong> (tarifa da Twilio mais a da Meta).</li>
+                    <li>A situação de cada mensagem (entregue, falhou) aparece em <a href="{% url 'messaging:deliveries' %}">Entregas recentes</a>.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -10,7 +10,7 @@ outro passa a exigir `current_app`. Namespace distinto é o que faz
 """
 from django.urls import path
 
-from . import admin_views
+from . import admin_views, whatsapp_views
 
 app_name = 'messaging'
 
@@ -36,6 +36,34 @@ urlpatterns = [
         admin_views.ClinicEmailTestView.as_view(), name='test-clinic-email',
     ),
     path('mensageria/entregas/', admin_views.DeliveryLogView.as_view(), name='deliveries'),
+
+    # WhatsApp pela Twilio da própria clínica (BYO). Ver
+    # `docs/governance/whatsapp-twilio.md`.
+    path('mensageria/whatsapp-twilio/', whatsapp_views.WhatsAppTwilioView.as_view(), name='whatsapp-twilio'),
+    path(
+        'mensageria/whatsapp-twilio/credenciais/',
+        whatsapp_views.WhatsAppCredenciaisSaveView.as_view(), name='whatsapp-twilio-credenciais',
+    ),
+    path(
+        'mensageria/whatsapp-twilio/verificar/',
+        whatsapp_views.WhatsAppVerificarView.as_view(), name='whatsapp-twilio-verificar',
+    ),
+    path(
+        'mensageria/whatsapp-twilio/modelos/',
+        whatsapp_views.WhatsAppModelosSaveView.as_view(), name='whatsapp-twilio-modelos',
+    ),
+    path(
+        'mensageria/whatsapp-twilio/ativar/',
+        whatsapp_views.WhatsAppAtivarView.as_view(), name='whatsapp-twilio-ativar',
+    ),
+    path(
+        'mensageria/whatsapp-twilio/teste/',
+        whatsapp_views.WhatsAppTesteView.as_view(), name='whatsapp-twilio-teste',
+    ),
+    path(
+        'mensageria/whatsapp-twilio/remover/',
+        whatsapp_views.WhatsAppRemoverView.as_view(), name='whatsapp-twilio-remover',
+    ),
 
     # Comunicação em massa.
     path('campanhas/', admin_views.CampaignListView.as_view(), name='campaigns'),

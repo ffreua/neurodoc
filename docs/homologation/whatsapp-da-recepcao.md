@@ -46,6 +46,13 @@ Estudado em 2026-11-08, com a documentação oficial da Meta:
   Web, fere os termos do WhatsApp e expõe o número da clínica a bloqueio, além
   de deixar no servidor uma sessão que lê todas as conversas dela. Recusado.
 
+**Revisto em 2026-11-25** (`docs/governance/whatsapp-twilio.md`): a
+objeção à API oficial era o NeuroDoc ter de ser Tech Provider na Meta. No
+modelo em que **a clínica** abre a própria conta na Twilio e cadastra o
+próprio número (Self Sign-up, como cliente direto), o sistema só guarda as
+credenciais dela — e o envio automático passou a existir, **opcional**, ao
+lado deste botão, que continua igual e em todos os planos.
+
 O link `wa.me` é o caminho público do WhatsApp para abrir uma conversa: não
 precisa de cadastro nem de aprovação, aceita acento e o texto inteiro, não tem
 custo e não põe o número em risco, porque quem envia é uma pessoa.

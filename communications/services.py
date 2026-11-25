@@ -17,6 +17,9 @@ from .email import EmailSendFailed, send_email
 from .models import Delivery, DeliveryAttempt, DeliveryAttemptOutcome, DeliveryChannel, DeliveryStatus
 from .reconciliation import POLL_OFFSETS_MINUTES
 from .smsdev import SmsChannelDisabled, SmsSendFailed, send_sms
+from .whatsapp_twilio import (
+    CredencialRecusada, FalhaDeTransporte, WhatsAppIndisponivel, WhatsAppRecusado,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,24 +70,48 @@ def _still_valid(contact):
     return contact.valid_until is None or contact.valid_until > timezone.now()
 
 
-def _eligible_document_contacts(patient):
+def _eligible_document_contacts(patient, whatsapp=False):
     return [
         c for c in authorized_document_contacts(patient).all()
         if _still_valid(c) and (
             (c.email_enabled and c.verified_email_at and c.email)
             or (c.sms_enabled and c.verified_phone_at and c.phone)
+            or (whatsapp and c.aceita_whatsapp)
         )
     ]
 
 
-def _eligible_reminder_contacts(patient):
+def _eligible_reminder_contacts(patient, whatsapp=False):
     return [
         c for c in patient.contacts.all()
         if _still_valid(c) and (
             (c.email_enabled and c.verified_email_at and c.email)
             or (c.sms_enabled and c.verified_phone_at and c.phone)
+            or (whatsapp and c.aceita_whatsapp)
         )
     ]
+
+
+def _whatsapp_da_ocasiao(tenant_id, evento):
+    """Esta ocasião sai por WhatsApp nesta clínica agora?
+
+    Perguntado uma vez por envio, e não por contato: a resposta é da clínica
+    (credenciais verificadas, canal ativo, liberado na instalação, modelo
+    aprovado e ligado para a ocasião), não do paciente. `_send` pergunta de
+    novo na hora de enviar.
+    """
+    from .whatsapp_twilio import para_enviar
+
+    return para_enviar(tenant_id, evento) is not None
+
+
+def _nome_da_clinica(tenant):
+    return (tenant.trade_name or tenant.legal_name or 'Clínica')[:60]
+
+
+def _data_e_hora(momento):
+    local = timezone.localtime(momento)
+    return local.strftime('%d/%m/%Y'), local.strftime('%H:%M')
 
 
 def _proprio_primeiro(contacts):
@@ -119,11 +146,39 @@ def _repetido(vistos, contact, channel):
     return False
 
 
-def _channels_for(contact):
+def _reserva_sms(contact, delivery):
+    """O WhatsApp não saiu agora: este contato recebe o SMS no lugar?
+
+    No contato com aceite, o WhatsApp **substitui** o SMS (`_channels_for`).
+    Sem a reserva, uma recusa na hora do envio — modelo reprovado, número
+    inválido, credencial trocada na Twilio, canal suspenso no meio — deixaria
+    o paciente sem aviso nenhum, quando antes do WhatsApp ele receberia o SMS.
+    Só a falha **imediata** tem reserva: a que chega depois, pelo aviso de
+    status, já é de uma mensagem que saiu, e reenviar por outro canal sem
+    saber se ela foi lida mandaria o mesmo aviso duas vezes.
+    """
+    return bool(
+        delivery.channel == DeliveryChannel.WHATSAPP
+        and delivery.status in (DeliveryStatus.FAILED, DeliveryStatus.CHANNEL_UNAVAILABLE)
+        and contact.sms_enabled and contact.verified_phone_at and contact.phone
+    )
+
+
+def _channels_for(contact, whatsapp=False):
+    """Os canais deste contato nesta ocasião.
+
+    **O WhatsApp substitui o SMS, não se soma a ele**: os dois chegam ao
+    mesmo celular, e a pessoa seria avisada duas vezes da mesma coisa (com a
+    clínica pagando duas). O e-mail continua. `whatsapp=True` só quando a
+    ocasião está operacional na clínica (`_whatsapp_da_ocasiao`); o contato
+    ainda precisa do aceite próprio de WhatsApp.
+    """
     channels = []
     if contact.email_enabled and contact.verified_email_at and contact.email:
         channels.append(DeliveryChannel.EMAIL)
-    if contact.sms_enabled and contact.verified_phone_at and contact.phone:
+    if whatsapp and contact.aceita_whatsapp:
+        channels.append(DeliveryChannel.WHATSAPP)
+    elif contact.sms_enabled and contact.verified_phone_at and contact.phone:
         channels.append(DeliveryChannel.SMS)
     return channels
 
@@ -229,7 +284,56 @@ def no_consumidor(event):
     return tentar_de_novo_se_o_transporte_falhar(getattr(event, 'attempts', 0) >= MAX_ATTEMPTS)
 
 
-def _send(delivery, message, subject='Notificação NeuroDoc', physician_membership=None):
+def _enviar_whatsapp(delivery, whatsapp):
+    """Envia a entrega de WhatsApp e devolve o SID da mensagem na Twilio.
+
+    `whatsapp` é `(evento, variaveis)`: o modelo aprovado da ocasião e os
+    valores dele. Sem isso não há envio — o canal nunca manda o texto livre
+    de `message`, que fora da janela de 24 h a Meta recusa (63016) e que
+    não passou por aprovação nenhuma.
+
+    A pergunta "esta ocasião sai por WhatsApp?" é refeita aqui, e o aceite
+    do contato também: entre a escolha do canal e o envio a instalação pode
+    ter recolhido o canal, a clínica suspendido ou trocado a credencial, e o
+    paciente revogado o aceite.
+    """
+    from .whatsapp_twilio import (
+        WhatsAppIndisponivel, WhatsAppRecusado, enviar_modelo, numero_e164, para_enviar,
+    )
+
+    if not whatsapp:
+        raise WhatsAppIndisponivel('entrega de WhatsApp sem ocasião definida')
+    evento, variaveis = whatsapp
+    achado = para_enviar(delivery.tenant_id, evento)
+    if achado is None:
+        raise WhatsAppIndisponivel(f'WhatsApp não operacional para "{evento}"')
+    if not delivery.contact.aceita_whatsapp:
+        raise WhatsAppIndisponivel('o contato não aceita mais WhatsApp')
+    destino = numero_e164(delivery.contact.phone)
+    if destino is None:
+        raise WhatsAppRecusado(
+            'telefone', 'O telefone do contato não forma um número válido (falta o DDD?).',
+        )
+    config, modelo = achado
+    return enviar_modelo(config, modelo, destino, variaveis)
+
+
+def _credencial_recusada(tenant_id, exc):
+    """A Twilio recusou a credencial no envio: a configuração volta a inválida.
+
+    Sem isto a tela continuaria dizendo "Operacional" enquanto toda entrega
+    falha — e é o caso típico de quem trocou o Auth Token na Twilio e não
+    aqui.
+    """
+    from .models import WhatsAppTwilio
+
+    WhatsAppTwilio.objects.filter(tenant_id=tenant_id).update(
+        verificado_em=None, erro_codigo=str(exc.codigo)[:20], erro_texto=exc.texto[:300],
+        updated_at=timezone.now(),
+    )
+
+
+def _send(delivery, message, subject='Notificação NeuroDoc', physician_membership=None, whatsapp=None):
     # Clínica desligada não fala com paciente em nome dela.
     #
     # Quase tudo que envia nasce de um POST, e o middleware já recusa POST
@@ -278,6 +382,10 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
                 delivery.contact.email, subject, message,
                 physician_membership=physician_membership, tenant_id=delivery.tenant_id,
             )
+        elif delivery.channel == DeliveryChannel.WHATSAPP:
+            # Ramo próprio, e não o `else` do SMS: até aqui todo canal que
+            # não fosse e-mail caía no SMSDEV.
+            delivery.provider_id = _enviar_whatsapp(delivery, whatsapp)[:100]
         else:
             result = send_sms(
                 delivery.contact.phone, message, refer=str(delivery.id),
@@ -293,7 +401,31 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
         delivery.save(update_fields=['status'])
         _record_attempt(delivery, DeliveryAttemptOutcome.FAILED, sanitized_error='channel_disabled')
         return
-    except (EmailSendFailed, SmsSendFailed) as exc:
+    except WhatsAppIndisponivel as exc:
+        # Como o SMS desligado: quem não pode enviar é o canal da clínica,
+        # e não o paciente que não tem contato.
+        delivery.status = DeliveryStatus.CHANNEL_UNAVAILABLE
+        delivery.save(update_fields=['status'])
+        _record_attempt(
+            delivery, DeliveryAttemptOutcome.FAILED,
+            provider_code='whatsapp', sanitized_error=str(exc),
+        )
+        return
+    except WhatsAppRecusado as exc:
+        # Recusa da Twilio (4xx): número inválido, modelo recusado,
+        # credencial errada. Repetir não conserta, então "Falhou" com o
+        # código — que é o que a lista de entregas mostra a quem vai
+        # corrigir.
+        if isinstance(exc, CredencialRecusada):
+            _credencial_recusada(delivery.tenant_id, exc)
+        delivery.status = DeliveryStatus.FAILED
+        delivery.save(update_fields=['status'])
+        _record_attempt(
+            delivery, DeliveryAttemptOutcome.FAILED,
+            provider_code=f'twilio:{exc.codigo}'[:100], sanitized_error=exc.texto,
+        )
+        return
+    except (EmailSendFailed, SmsSendFailed, FalhaDeTransporte) as exc:
         # De volta à fila, como era antes da posse: falha de transporte é
         # tentativa registrada, e a entrega continua reenviável.
         delivery.status = DeliveryStatus.PENDING
@@ -330,6 +462,14 @@ def _send(delivery, message, subject='Notificação NeuroDoc', physician_members
         # Email has no DLR-equivalent in this baseline, so ACCEPTED is its
         # final state; only SMS gets polled for a real DELIVERED/FAILED.
         delivery.next_attempt_at = timezone.now() + timezone.timedelta(minutes=POLL_OFFSETS_MINUTES[0])
+    elif delivery.channel == DeliveryChannel.WHATSAPP:
+        # O aviso de status da Twilio é quem resolve; a consulta periódica
+        # só cobre o aviso que não chegou (`reconcile_pending_whatsapp`).
+        from .reconciliation import WHATSAPP_PRIMEIRA_CONSULTA_MINUTOS
+
+        delivery.next_attempt_at = timezone.now() + timezone.timedelta(
+            minutes=WHATSAPP_PRIMEIRA_CONSULTA_MINUTOS,
+        )
     delivery.save(update_fields=['status', 'provider_id', 'next_attempt_at'])
     _record_attempt(delivery, DeliveryAttemptOutcome.ACCEPTED)
 
@@ -364,7 +504,8 @@ def deliver_document(document, force_new_link=False, envio_id=None):
     marca do pedido: a repetição encontra o que já saiu e não envia de novo,
     e só revoga se nada deste pedido foi gravado ainda.
     """
-    contacts = _eligible_document_contacts(document.patient)
+    whatsapp = _whatsapp_da_ocasiao(document.tenant_id, 'documento')
+    contacts = _eligible_document_contacts(document.patient, whatsapp=whatsapp)
     if not contacts:
         numero = document.document_number or 'sem número'
         _notify_no_contact(
@@ -391,7 +532,9 @@ def deliver_document(document, force_new_link=False, envio_id=None):
     deliveries = []
     vistos = set()
     for contact in _proprio_primeiro(contacts):
-        for channel in _channels_for(contact):
+        fila = _channels_for(contact, whatsapp=whatsapp)
+        while fila:
+            channel = fila.pop(0)
             if _repetido(vistos, contact, channel):
                 continue
             idem_key = f'document:{document.id}:{contact.id}:{channel}'
@@ -435,8 +578,11 @@ def deliver_document(document, force_new_link=False, envio_id=None):
                 _send(
                     delivery, _document_message(document, link, delivery.channel),
                     physician_membership=document.physician,
+                    whatsapp=('documento', [_nome_da_clinica(document.tenant), link]),
                 )
             deliveries.append(delivery)
+            if _reserva_sms(contact, delivery):
+                fila.append(DeliveryChannel.SMS)
     return deliveries
 
 
@@ -516,7 +662,8 @@ def deliver_appointment_reminder(appointment, event_version):
         return []
     if appointment.starts_at <= timezone.now():
         return []
-    contacts = _eligible_reminder_contacts(appointment.patient)
+    whatsapp = _whatsapp_da_ocasiao(appointment.tenant_id, 'lembrete')
+    contacts = _eligible_reminder_contacts(appointment.patient, whatsapp=whatsapp)
     if not contacts:
         from django.utils import timezone as _tz
 
@@ -534,10 +681,13 @@ def deliver_appointment_reminder(appointment, event_version):
     message = _encurtar_para_sms(
         REMINDER_MESSAGE_TEMPLATE, clinic, '', when, '',
     )
+    variaveis = [_nome_da_clinica(appointment.tenant), *_data_e_hora(appointment.starts_at)]
     deliveries = []
     vistos = set()
     for contact in _proprio_primeiro(contacts):
-        for channel in _channels_for(contact):
+        fila = _channels_for(contact, whatsapp=whatsapp)
+        while fila:
+            channel = fila.pop(0)
             if _repetido(vistos, contact, channel):
                 continue
             idem_key = f'reminder:{appointment.id}:{event_version}:{contact.id}:{channel}'
@@ -552,8 +702,11 @@ def deliver_appointment_reminder(appointment, event_version):
                 _send(
                     delivery, message,
                     physician_membership=appointment.physician_membership,
+                    whatsapp=('lembrete', variaveis),
                 )
             deliveries.append(delivery)
+            if _reserva_sms(contact, delivery):
+                fila.append(DeliveryChannel.SMS)
     return deliveries
 
 
@@ -581,17 +734,25 @@ def deliver_exam_reminder(reserva, event_version):
         return []
     if event_version != reserva.versao_lembrete:
         return []
-    contacts = _eligible_reminder_contacts(reserva.paciente)
+    # O modelo do lembrete de consulta, de propósito: "horário marcado" na
+    # clínica, sem dizer que é exame nem qual — o nome do exame é dado de
+    # saúde, e um modelo a mais seria outra aprovação na Meta para a mesma
+    # mensagem.
+    whatsapp = _whatsapp_da_ocasiao(reserva.tenant_id, 'lembrete')
+    contacts = _eligible_reminder_contacts(reserva.paciente, whatsapp=whatsapp)
     when = timezone.localtime(reserva.inicio).strftime('%d/%m às %H:%M')
     if not contacts:
         _notify_no_contact(reserva.paciente, f'lembrete do exame de {when}')
         return []
     clinic = (reserva.tenant.trade_name or reserva.tenant.legal_name or 'Clinica')[:24]
     message = _encurtar_para_sms(LEMBRETE_EXAME_TEMPLATE, clinic, '', when, '')
+    variaveis = [_nome_da_clinica(reserva.tenant), *_data_e_hora(reserva.inicio)]
     deliveries = []
     vistos = set()
     for contact in _proprio_primeiro(contacts):
-        for channel in _channels_for(contact):
+        fila = _channels_for(contact, whatsapp=whatsapp)
+        while fila:
+            channel = fila.pop(0)
             if _repetido(vistos, contact, channel):
                 continue
             idem_key = f'exame:{reserva.id}:{event_version}:{contact.id}:{channel}'
@@ -603,8 +764,10 @@ def deliver_exam_reminder(reserva, event_version):
                 },
             )
             if created or delivery.status == DeliveryStatus.PENDING:
-                _send(delivery, message)
+                _send(delivery, message, whatsapp=('lembrete', variaveis))
             deliveries.append(delivery)
+            if _reserva_sms(contact, delivery):
+                fila.append(DeliveryChannel.SMS)
     return deliveries
 
 
@@ -962,6 +1125,10 @@ def deliver_appointment_notice(appointment, motivo, event_version):
 
     Idempotente pela chave da entrega: o dispatcher pode reentregar o
     evento, e o paciente não recebe dois e-mails do mesmo cancelamento.
+
+    **E o WhatsApp da clínica**, quando ela o ligou para a ocasião e o
+    contato deu o aceite próprio (`_aviso_por_whatsapp`); o SMS continua
+    fora, pelos motivos acima.
     """
     # ------------------------------------------- duas guardas de coerência
     #
@@ -988,12 +1155,12 @@ def deliver_appointment_notice(appointment, motivo, event_version):
     if motivo in ('booked', 'rescheduled') and cancelada:
         return []
 
+    deliveries = _aviso_por_whatsapp(appointment, motivo, event_version)
     contacts = confirmation_contacts(appointment, DeliveryChannel.EMAIL)
     if not contacts:
-        return []
+        return deliveries
     message = _confirmation_message(appointment, DeliveryChannel.EMAIL, motivo=motivo)
     assunto = ASSUNTOS[motivo]
-    deliveries = []
     for contact in contacts:
         idem_key = f'notice:{motivo}:{appointment.id}:{event_version}:{contact.id}'
         delivery, created = Delivery.objects.get_or_create(
@@ -1008,6 +1175,48 @@ def deliver_appointment_notice(appointment, motivo, event_version):
                 delivery, message, subject=assunto,
                 physician_membership=appointment.physician_membership,
             )
+        deliveries.append(delivery)
+    return deliveries
+
+
+#: O motivo do aviso de horário → a ocasião do WhatsApp.
+_EVENTO_DO_AVISO = {'booked': 'marcado', 'rescheduled': 'remarcado', 'cancelled': 'cancelado'}
+
+
+def _aviso_por_whatsapp(appointment, motivo, event_version):
+    """O aviso de horário pelo WhatsApp da clínica, além do e-mail.
+
+    Diferente do e-mail deste aviso, que vai a qualquer contato com endereço
+    (mensagem transacional no endereço que a pessoa deu), o WhatsApp exige o
+    **aceite próprio** do contato: a política do WhatsApp só permite falar
+    com quem autorizou, e o custo é da clínica. Sem SMS aqui, como antes — o
+    WhatsApp entra no lugar de nada, não no do SMS.
+
+    Chave própria (`…:whatsapp`), para não colidir com a do e-mail, que é
+    mais antiga e fica como estava.
+    """
+    evento = _EVENTO_DO_AVISO.get(motivo)
+    if evento is None or not _whatsapp_da_ocasiao(appointment.tenant_id, evento):
+        return []
+    variaveis = [_nome_da_clinica(appointment.tenant), *_data_e_hora(appointment.starts_at)]
+    deliveries = []
+    vistos = set()
+    contatos = [
+        c for c in _proprio_primeiro(appointment.patient.contacts.all()) if c.aceita_whatsapp
+    ]
+    for contact in contatos:
+        if _repetido(vistos, contact, DeliveryChannel.WHATSAPP):
+            continue
+        idem_key = f'notice:{motivo}:{appointment.id}:{event_version}:{contact.id}:whatsapp'
+        delivery, created = Delivery.objects.get_or_create(
+            tenant=appointment.tenant, idempotency_key=idem_key,
+            defaults={
+                'appointment': appointment, 'contact': contact,
+                'channel': DeliveryChannel.WHATSAPP, 'event_version': event_version,
+            },
+        )
+        if created or delivery.status == DeliveryStatus.PENDING:
+            _send(delivery, '', whatsapp=(evento, variaveis))
         deliveries.append(delivery)
     return deliveries
 

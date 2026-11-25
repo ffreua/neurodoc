@@ -207,7 +207,12 @@ print('=== 7. nenhuma entrega sai de dentro da requisicao ===')
 # nao tem as chaves de egresso, entao quem envia e o worker. Foi a falta
 # desta varredura que deixou a confirmacao de horario para tras depois de
 # a entrega de documento ja ter sido corrigida.
-PROIBIDOS = ('send_sms(', 'send_appointment_confirmation(', 'deliver_document(')
+# As do WhatsApp pela Twilio (2026-11-25) entram pelo mesmo motivo: o envio,
+# a consulta e a verificação falam com a Twilio, e isso é do worker.
+PROIBIDOS = (
+    'send_sms(', 'send_appointment_confirmation(', 'deliver_document(',
+    'enviar_modelo(', 'consultar_mensagem(', 'conferir_modelo(', 'wa.verificar(',
+)
 PERMITIDOS = {
     'communications/tasks.py': 'e o worker',
     'communications/services.py': 'e a implementacao, chamada pelo worker',

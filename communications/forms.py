@@ -326,3 +326,78 @@ class WhatsAppTextForm(forms.ModelForm):
                 'escritos exatamente como aparecem.'
             )
         return texto
+
+
+class WhatsAppTwilioForm(forms.Form):
+    """As credenciais da conta Twilio da clínica.
+
+    Formato conferido aqui (o que se confere sem perguntar à Twilio); se a
+    credencial **vale**, só a verificação no worker diz. O Auth Token em
+    branco mantém o guardado, como a senha do SMTP.
+    """
+
+    account_sid = forms.CharField(
+        label='Account SID', max_length=40,
+        widget=forms.TextInput(attrs={'placeholder': 'AC…', 'autocomplete': 'off', 'spellcheck': 'false'}),
+        help_text='Na página inicial do Console da Twilio, em "Account Info". Começa com AC.',
+    )
+    auth_token = forms.CharField(
+        label='Auth Token', required=False, max_length=64,
+        widget=forms.PasswordInput(render_value=False, attrs={'autocomplete': 'off'}),
+        help_text='Também em "Account Info" (clique em "Show" para copiar). Guardado cifrado; '
+                  'deixe em branco para manter o atual.',
+    )
+    numero = forms.CharField(
+        label='Número do WhatsApp da clínica', max_length=20,
+        widget=forms.TextInput(attrs={'placeholder': '+55 11 98765-4321', 'autocomplete': 'off'}),
+        help_text='O número cadastrado em WhatsApp Senders na Twilio, com DDD.',
+    )
+    messaging_service_sid = forms.CharField(
+        label='Messaging Service SID (opcional)', required=False, max_length=40,
+        widget=forms.TextInput(attrs={'placeholder': 'MG…', 'autocomplete': 'off', 'spellcheck': 'false'}),
+        help_text='Só se a Twilio exigir um Messaging Service para o envio. Na dúvida, deixe em branco.',
+    )
+
+    def __init__(self, *args, tem_token=False, **kwargs):
+        self.tem_token = tem_token
+        super().__init__(*args, **kwargs)
+
+    def clean_account_sid(self):
+        import re
+
+        valor = (self.cleaned_data.get('account_sid') or '').strip()
+        if not re.fullmatch(r'AC[0-9a-fA-F]{32}', valor):
+            raise forms.ValidationError(
+                'O Account SID tem 34 caracteres e começa com AC. Copie de novo de "Account Info".',
+            )
+        return valor
+
+    def clean_auth_token(self):
+        import re
+
+        valor = (self.cleaned_data.get('auth_token') or '').strip()
+        if not valor and not self.tem_token:
+            raise forms.ValidationError('Informe o Auth Token.')
+        if valor and not re.fullmatch(r'[0-9a-fA-F]{32}', valor):
+            raise forms.ValidationError(
+                'O Auth Token tem 32 letras e números. Copie de novo de "Account Info".',
+            )
+        return valor
+
+    def clean_numero(self):
+        from .whatsapp_twilio import numero_e164
+
+        valor = numero_e164(self.cleaned_data.get('numero'))
+        if valor is None:
+            raise forms.ValidationError(
+                'Número inválido. Use o número com DDD (e com +55, ou o código do país).',
+            )
+        return valor
+
+    def clean_messaging_service_sid(self):
+        import re
+
+        valor = (self.cleaned_data.get('messaging_service_sid') or '').strip()
+        if valor and not re.fullmatch(r'MG[0-9a-fA-F]{32}', valor):
+            raise forms.ValidationError('O Messaging Service SID tem 34 caracteres e começa com MG.')
+        return valor

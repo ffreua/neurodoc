@@ -446,6 +446,61 @@ tela: o campo só aceita gravar. Ligar exige a verificação em verde.
                 {% endif %}
             </div>
         </div>
+
+        {% comment %}WhatsApp pela Twilio da clínica (2026-11-25). Nasce recolhido; a
+        liberação espera a homologação com conta real (docs/governance/whatsapp-twilio.md).{% endcomment %}
+        <div class="card mt-4" id="whatsapp-twilio">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="card-title mb-0">WhatsApp pela Twilio das clínicas</h5>
+                {% if config.whatsapp_twilio_liberado %}
+                <span class="badge bg-soft-success text-success">Liberado</span>
+                {% else %}
+                <span class="badge bg-soft-primary text-primary">Recolhido</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <p class="fs-13">
+                    Cada clínica usa a <strong>própria</strong> conta Twilio e o próprio número, e
+                    paga a Twilio e a Meta. Recolhido, as clínicas configuram e verificam, mas nada
+                    sai para paciente. Recolher fecha o envio em todas as clínicas na hora; nada é
+                    apagado. Antes de liberar, veja as pendências em
+                    <code>docs/governance/whatsapp-twilio.md</code>.
+                </p>
+                <div class="row g-3 fs-12 mb-3">
+                    <div class="col-sm-4"><span class="d-block text-muted">Clínicas com credenciais</span><strong>{{ whatsapp.configuradas }}</strong></div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Verificadas</span><strong>{{ whatsapp.verificadas }}</strong></div>
+                    <div class="col-sm-4"><span class="d-block text-muted">Ativas</span><strong>{{ whatsapp.ativas }}</strong></div>
+                </div>
+                {% if config.whatsapp_twilio_liberado %}
+                {% if config.whatsapp_twilio_nota %}<p class="fs-12 text-muted">Motivo registrado: {{ config.whatsapp_twilio_nota }}</p>{% endif %}
+                <form method="post" action="{% url 'superadmin:operations-whatsapp-twilio' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="recolher">
+                    <button type="submit" class="btn btn-primary" data-nd-busy>Recolher agora</button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'superadmin:operations-whatsapp-twilio' %}" class="row g-2 align-items-end">
+                    {% csrf_token %}
+                    <input type="hidden" name="acao" value="liberar">
+                    <div class="col-md-6">
+                        <label class="form-label fs-12" for="whatsapp-motivo">Por que liberar?</label>
+                        <input type="text" class="form-control form-control-sm" id="whatsapp-motivo"
+                               name="motivo" maxlength="255" placeholder="Ex.: parecer da Dra. Karina de 01/12">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label fs-12" for="whatsapp-confirmacao">
+                            Digite <code>{{ whatsapp.confirmacao }}</code>
+                        </label>
+                        <input type="text" class="form-control form-control-sm" id="whatsapp-confirmacao"
+                               name="confirmacao" autocomplete="off">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-danger btn-sm w-100" data-nd-busy>Liberar</button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+        </div>
     </div>
 
     {# ------------------------------------------ e-mail descartável #}

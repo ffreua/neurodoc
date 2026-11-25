@@ -394,7 +394,16 @@ carimbá-la na publicação.
 #: link não vai para a trilha (pode carregar token da sala). Uma migração
 #: (`scheduling.0013`), só acrescenta a coluna `teleatendimento_link`
 #: (`scheduling.set_teleatendimento_link`, `communications.enviar_link_teleconsulta`).
-VERSION = '1.58'
+#: A **1.59** (2026-11-25, junto com o ProntDoc 1.13.0): o **WhatsApp
+#: automático pela conta Twilio da própria clínica** (BYO), opcional e
+#: desligado por padrão: modelos aprovados pela Meta em cinco ocasiões
+#: (lembrete, marcado, remarcado, cancelado, documento), no lugar do SMS de
+#: quem deu o **aceite próprio de WhatsApp** (`PatientContact.whatsapp_*`), sem
+#: dado clínico; credenciais cifradas por clínica, verificação no worker,
+#: aviso de status com a assinatura da Twilio e a chave da instalação no
+#: console, que nasce recolhida (`docs/governance/whatsapp-twilio.md`). Três
+#: migrações aditivas (`communications.0014`, `patients.0014`, `base.0006`).
+VERSION = '1.59'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

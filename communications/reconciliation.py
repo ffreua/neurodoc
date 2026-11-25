@@ -131,3 +131,89 @@ def reconcile_pending_sms():
             _record_poll(delivery, DeliveryAttemptOutcome.UNKNOWN)
             _schedule_next_or_give_up(delivery, poll_count)
     return processed
+
+
+# --------------------------------------------------------------- WhatsApp
+#
+# A situação da mensagem de WhatsApp chega pelo aviso de status da Twilio
+# (`communications.webhooks`), que a Twilio não garante entregar nem em
+# ordem. A consulta abaixo cobre o aviso que não veio — inclusive o que foi
+# recusado por assinatura na janela em que a clínica trocou o Auth Token na
+# Twilio e ainda não aqui. Duas consultas, e depois "Sem confirmação" para
+# alguém olhar, como no SMS: nunca um reenvio às cegas.
+
+WHATSAPP_PRIMEIRA_CONSULTA_MINUTOS = 15
+WHATSAPP_CONSULTAS_MINUTOS = [WHATSAPP_PRIMEIRA_CONSULTA_MINUTOS, 60]
+
+
+def aplicar_status_whatsapp(tenant_id, message_sid, status_twilio, codigo_erro='', origem='wa_status'):
+    """Aplica a situação da Twilio à entrega **desta clínica** com este SID.
+
+    Só avança: aceita (ou sem confirmação) vira entregue ou falhou, por um
+    `UPDATE` condicional. O aviso repetido, o fora de ordem ("sent" depois
+    de "delivered") e dois avisos ao mesmo tempo não regridem nem duplicam
+    nada — só quem fizer a transição grava a tentativa. Devolve se mudou.
+    """
+    from .whatsapp_twilio import STATUS_ENTREGUE, STATUS_FALHOU, traduzir_erro
+
+    if status_twilio in STATUS_ENTREGUE:
+        novo, resultado, texto = DeliveryStatus.DELIVERED, DeliveryAttemptOutcome.DELIVERED, ''
+    elif status_twilio in STATUS_FALHOU:
+        novo, resultado = DeliveryStatus.FAILED, DeliveryAttemptOutcome.FAILED
+        texto = traduzir_erro(None, {'code': codigo_erro})[1] if codigo_erro else ''
+    else:
+        return False
+    alvo = Delivery.objects.filter(
+        tenant_id=tenant_id, channel=DeliveryChannel.WHATSAPP, provider_id=message_sid,
+    )
+    mudou = alvo.filter(
+        status__in=[DeliveryStatus.ACCEPTED, DeliveryStatus.UNKNOWN],
+    ).update(status=novo, next_attempt_at=None)
+    if mudou:
+        delivery = alvo.first()
+        codigo = f'{origem}:{status_twilio}' + (f':{codigo_erro}' if codigo_erro else '')
+        DeliveryAttempt.objects.create(
+            tenant=delivery.tenant, delivery=delivery,
+            attempt_number=delivery.attempts.count() + 1,
+            started_at=timezone.now(), ended_at=timezone.now(), outcome=resultado,
+            provider_code=codigo[:100], sanitized_error=texto[:255],
+        )
+    return bool(mudou)
+
+
+def reconcile_pending_whatsapp():
+    """Consulta na Twilio as mensagens aceitas que não tiveram aviso de status."""
+    from .models import WhatsAppTwilio
+    from .whatsapp_twilio import FalhaDeTransporte, WhatsAppIndisponivel, WhatsAppRecusado, consultar_mensagem
+
+    due = Delivery.objects.filter(
+        channel=DeliveryChannel.WHATSAPP, status=DeliveryStatus.ACCEPTED,
+        next_attempt_at__lte=timezone.now(),
+    )
+    processed = 0
+    for delivery in due:
+        processed += 1
+        consultas = delivery.attempts.filter(provider_code__startswith='wa_poll').count()
+        config = WhatsAppTwilio.objects.filter(tenant_id=delivery.tenant_id).first()
+        situacao = codigo = ''
+        if delivery.provider_id and config is not None and config.tem_credenciais:
+            try:
+                situacao, codigo = consultar_mensagem(config, delivery.provider_id)
+            except (FalhaDeTransporte, WhatsAppIndisponivel, WhatsAppRecusado):
+                situacao = ''
+        if aplicar_status_whatsapp(delivery.tenant_id, delivery.provider_id, situacao, codigo, 'wa_poll'):
+            continue
+        DeliveryAttempt.objects.create(
+            tenant=delivery.tenant, delivery=delivery, attempt_number=delivery.attempts.count() + 1,
+            started_at=timezone.now(), ended_at=timezone.now(),
+            outcome=DeliveryAttemptOutcome.UNKNOWN, provider_code=f'wa_poll:{situacao or "?"}'[:100],
+        )
+        if consultas + 1 >= len(WHATSAPP_CONSULTAS_MINUTOS):
+            delivery.status = DeliveryStatus.UNKNOWN
+            delivery.next_attempt_at = None
+        else:
+            delivery.next_attempt_at = timezone.now() + timezone.timedelta(
+                minutes=WHATSAPP_CONSULTAS_MINUTOS[consultas + 1] - WHATSAPP_CONSULTAS_MINUTOS[consultas],
+            )
+        delivery.save(update_fields=['status', 'next_attempt_at'])
+    return processed

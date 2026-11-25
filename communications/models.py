@@ -20,6 +20,9 @@ def _remetente(nome, endereco):
 class DeliveryChannel(models.TextChoices):
     EMAIL = 'email', 'E-mail'
     SMS = 'sms', 'SMS'
+    #: Pela conta Twilio **da própria clínica** (`WhatsAppTwilio`), só com
+    #: modelo aprovado pela Meta. Ver `docs/governance/whatsapp-twilio.md`.
+    WHATSAPP = 'whatsapp', 'WhatsApp'
 
 
 class DeliveryStatus(models.TextChoices):
@@ -505,3 +508,128 @@ class MarketingRecipient(TenantModel):
 
     def __str__(self):
         return f'{self.email} ({self.status})'
+
+
+class WhatsAppTwilio(TenantModel):
+    """A conta Twilio **da clínica** para o WhatsApp automático (BYO).
+
+    Uma linha por clínica. A clínica contrata e paga a Twilio e a Meta; o
+    sistema guarda só as credenciais dela, cifradas, e chama a API em nome
+    dela. Decisões em `docs/governance/whatsapp-twilio.md`.
+
+    **Preencher não é funcionar.** `verificado_em` só é gravado pela
+    verificação feita no worker contra a Twilio, e qualquer troca de
+    credencial ou de número o apaga (`invalidar_verificacao`): a tela volta a
+    "Pendente" e o envio para até verificar de novo. Sem isso, um token
+    digitado errado apareceria como canal pronto até o primeiro paciente
+    ficar sem aviso.
+    """
+
+    account_sid = models.CharField(max_length=40, blank=True)
+    #: O Auth Token **principal**: é ele que assina os avisos de status
+    #: (`X-Twilio-Signature`), e sem conferir a assinatura o aviso não pode
+    #: ser aceito. Envelope de `base.crypto`, como a chave do SMS.
+    auth_token_ciphertext = models.TextField(blank=True)
+    auth_token_metadata = models.JSONField(default=dict, blank=True)
+    auth_token_hint = models.CharField(max_length=40, blank=True)
+    #: O número do WhatsApp da clínica, em E.164 (`+5511999998888`).
+    numero = models.CharField(max_length=20, blank=True)
+    #: Opcional. Com ele, o envio vai por `MessagingServiceSid` em vez de
+    #: `From`: a documentação da Twilio é ambígua sobre exigir o serviço no
+    #: envio de modelo, e o campo cobre as contas em que ele é exigido.
+    messaging_service_sid = models.CharField(max_length=40, blank=True)
+
+    #: O interruptor da clínica: suspender e reativar sem apagar nada.
+    ativo = models.BooleanField(default=False)
+
+    #: A última verificação contra a Twilio. `verificado_em` só com sucesso;
+    #: a falha deixa o código e a explicação, sem segredo nem dado pessoal.
+    verificacao_pedida_em = models.DateTimeField(null=True, blank=True)
+    verificacao_concluida_em = models.DateTimeField(null=True, blank=True)
+    verificado_em = models.DateTimeField(null=True, blank=True)
+    conta_tipo = models.CharField(max_length=20, blank=True)
+    remetente_status = models.CharField(max_length=40, blank=True)
+    remetente_qualidade = models.CharField(max_length=40, blank=True)
+    remetente_limite = models.CharField(max_length=60, blank=True)
+    erro_codigo = models.CharField(max_length=20, blank=True)
+    erro_texto = models.CharField(max_length=300, blank=True)
+
+    #: Parte aleatória da URL do aviso de status. **Só acha a clínica**; quem
+    #: autentica é a assinatura da Twilio. Não é o id da clínica de
+    #: propósito: o aviso chega de fora, e um id adivinhável seria convite.
+    token_webhook = models.CharField(max_length=64, unique=True)
+
+    #: O envio de teste (para o celular de quem configura), e a situação que
+    #: o aviso da Twilio devolveu para ele. O número do teste não é guardado.
+    teste_enviado_em = models.DateTimeField(null=True, blank=True)
+    teste_sid = models.CharField(max_length=64, blank=True)
+    teste_status = models.CharField(max_length=40, blank=True)
+    teste_erro = models.CharField(max_length=300, blank=True)
+
+    updated_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='+',
+    )
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant'], name='comm_whatsapp_twilio_tenant_uniq'),
+        ]
+
+    @property
+    def tem_token(self):
+        return bool(self.auth_token_ciphertext)
+
+    @property
+    def tem_credenciais(self):
+        return bool(self.account_sid and self.auth_token_ciphertext and self.numero)
+
+    def auth_token(self):
+        from base.crypto import decrypt_secret
+
+        if not self.auth_token_ciphertext:
+            return ''
+        return decrypt_secret(self.auth_token_ciphertext, self.auth_token_metadata)
+
+    def invalidar_verificacao(self):
+        """Volta a "Pendente": credencial ou número mudou desde a verificação."""
+        self.verificado_em = None
+        self.verificacao_concluida_em = None
+        self.remetente_status = ''
+        self.remetente_qualidade = ''
+        self.remetente_limite = ''
+        self.conta_tipo = ''
+        self.erro_codigo = ''
+        self.erro_texto = ''
+
+    def __str__(self):
+        return f'WhatsApp Twilio de {self.tenant_id}'
+
+
+class WhatsAppModelo(TenantModel):
+    """O modelo aprovado pela Meta que a clínica usa numa ocasião.
+
+    Fora da janela de 24 h o WhatsApp só entrega modelo aprovado (erro 63016),
+    e todo aviso deste sistema é iniciado pela clínica — por isso não há envio
+    de texto livre. O texto mora na Twilio (Content Template Builder); aqui
+    fica só o identificador (`HX…`) e o que a verificação conferiu nele.
+    """
+
+    evento = models.CharField(max_length=20)
+    content_sid = models.CharField(max_length=40, blank=True)
+    #: A clínica escolhe em que ocasiões o WhatsApp é usado.
+    ligado = models.BooleanField(default=False)
+    aprovacao = models.CharField(max_length=30, blank=True)
+    variaveis = models.PositiveSmallIntegerField(null=True, blank=True)
+    idioma = models.CharField(max_length=10, blank=True)
+    nome_na_twilio = models.CharField(max_length=200, blank=True)
+    conferido_em = models.DateTimeField(null=True, blank=True)
+    erro_texto = models.CharField(max_length=300, blank=True)
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(fields=['tenant', 'evento'], name='comm_whatsapp_modelo_uniq'),
+        ]
+
+    def __str__(self):
+        return f'{self.evento}: {self.content_sid or "sem modelo"}'

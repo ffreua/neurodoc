@@ -684,7 +684,84 @@ class OperationsView(SuperAdminView):
             'sncr': sncr_resumo(),
             'tiss': tiss_resumo(),
             'descartaveis': descartaveis_resumo(),
+            'whatsapp': whatsapp_resumo(),
         })
+
+
+def whatsapp_resumo():
+    """Quantas clínicas configuraram e ativaram o WhatsApp pela Twilio."""
+    from communications.models import WhatsAppTwilio
+
+    configuradas = WhatsAppTwilio.objects.exclude(account_sid='')
+    return {
+        'configuradas': configuradas.count(),
+        'verificadas': configuradas.filter(verificado_em__isnull=False).count(),
+        'ativas': configuradas.filter(verificado_em__isnull=False, ativo=True).count(),
+        'confirmacao': CONFIRMACAO_LIBERAR_WHATSAPP,
+    }
+
+
+CONFIRMACAO_LIBERAR_WHATSAPP = 'LIBERAR'
+
+
+class WhatsAppTwilioInstallationView(SuperAdminView):
+    """A chave do WhatsApp pela Twilio na instalação inteira.
+
+    Nasce desligada, e a liberação espera o parecer jurídico registrado em
+    `docs/governance/whatsapp-twilio.md`. **Assimétrica, como a do TISS:**
+    recolher é um clique e para todo envio na hora (inclusive o que já está
+    na fila, que `_send` reconfere); liberar exige o código do segundo fator,
+    a palavra e o motivo, que vai para a trilha.
+    """
+
+    def post(self, request):
+        from audit.services import record_audit_event
+        from base.models import InstallationSettings
+
+        config = InstallationSettings.carregar()
+        acao = request.POST.get('acao')
+        if acao == 'recolher':
+            config.whatsapp_twilio_liberado = False
+            config.whatsapp_twilio_nota = ''
+            evento, aviso = 'ops.whatsapp_twilio_recolhido', (
+                'WhatsApp pela Twilio recolhido: nenhuma clínica envia por ele a partir de agora.'
+            )
+        elif acao == 'liberar':
+            pedido = _pede_codigo_de_novo(request, 'superadmin:operations')
+            if pedido is not None:
+                return pedido
+            if (request.POST.get('confirmacao') or '').strip() != CONFIRMACAO_LIBERAR_WHATSAPP:
+                messages.error(
+                    request,
+                    f'Para liberar, digite {CONFIRMACAO_LIBERAR_WHATSAPP} no campo de '
+                    'confirmação. Nada foi alterado.',
+                )
+                return redirect('superadmin:operations')
+            motivo = (request.POST.get('motivo') or '').strip()
+            if not motivo:
+                messages.error(request, 'Escreva o motivo. Nada foi alterado.')
+                return redirect('superadmin:operations')
+            config.whatsapp_twilio_liberado = True
+            config.whatsapp_twilio_nota = motivo[:255]
+            evento, aviso = 'ops.whatsapp_twilio_liberado', (
+                'WhatsApp pela Twilio liberado. Cada clínica ainda precisa verificar a conta, '
+                'aprovar os modelos e ativar o envio.'
+            )
+        else:
+            raise Http404
+        config.updated_by = request.user
+        config.save(update_fields=[
+            'whatsapp_twilio_liberado', 'whatsapp_twilio_nota', 'updated_by', 'updated_at',
+        ])
+        record_audit_event(
+            request.user, None, evento, object_type='installation', object_id=config.id,
+            outcome='success',
+            integrity_metadata={
+                'liberado': config.whatsapp_twilio_liberado, 'nota': config.whatsapp_twilio_nota,
+            },
+        )
+        messages.success(request, aviso)
+        return redirect('superadmin:operations')
 
 
 class InstallationAIView(SuperAdminView):

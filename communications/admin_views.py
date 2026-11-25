@@ -115,6 +115,9 @@ class MessagingSettingsView(ManagerRequiredView):
         from .forms import WhatsAppTextForm
 
         whatsapp_form = overrides.pop('whatsapp_form', None) or WhatsAppTextForm(instance=sms)
+        from . import whatsapp_twilio
+
+        _wa_codigo = whatsapp_twilio.estado(whatsapp_twilio.config_da_clinica(tenant_id))
         context = {
             'email_form_membership': failed,
             'sms': sms,
@@ -124,6 +127,11 @@ class MessagingSettingsView(ManagerRequiredView):
             'whatsapp_campos': whatsapp.CAMPOS,
             'whatsapp_exemplo': whatsapp.exemplo(manager_membership.tenant),
             'whatsapp_padrao': not (sms.whatsapp_texto or '').strip(),
+            # O WhatsApp automático pela Twilio da clínica: só a situação, para
+            # o cartão que leva à tela própria.
+            'whatsapp_twilio_estado': _wa_codigo,
+            'whatsapp_twilio_rotulo': whatsapp_twilio.ESTADOS[_wa_codigo][0],
+            'whatsapp_twilio_classe': whatsapp_twilio.ESTADOS[_wa_codigo][1],
             'sms_form': SmsSettingsForm(instance=sms),
             'clinic_email_form': ClinicEmailSettingsForm(instance=sms),
             'email_test_form': EmailTestForm(),

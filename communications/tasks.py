@@ -218,3 +218,139 @@ def enviar_link_teleconsulta_task(self, appointment_id, actor_id, contact_id=Non
     except (NoUsableContact, SemLinkDeTeleconsulta):
         return {'status': 'no_contact'}
     return {'status': entrega.status, 'delivery_id': str(entrega.id)}
+
+
+@shared_task(name='communications.tasks.reconcile_pending_whatsapp')
+def reconcile_pending_whatsapp_task():
+    from .reconciliation import reconcile_pending_whatsapp
+
+    return reconcile_pending_whatsapp()
+
+
+@shared_task(
+    name='communications.tasks.verificar_whatsapp_twilio',
+    # `max_retries` na tarefa, e não em `retry_kwargs`: o corpo pergunta
+    # `self.max_retries` para saber se é a última tentativa, e o atributo só
+    # reflete o que é declarado aqui.
+    autoretry_for=(Exception,), retry_backoff=True, max_retries=2,
+    expires=600, bind=True,
+)
+def verificar_whatsapp_twilio_task(self, tenant_id, actor_id):
+    """Confere conta, número e modelos da clínica na Twilio (botão "Verificar agora").
+
+    No worker, e não na tela: são até sete chamadas à Twilio, e o `app` não
+    fala com provedor (CLAUDE.md §2). A tela recarrega sozinha enquanto
+    `verificacao_pedida_em` for mais nova que `verificacao_concluida_em`.
+    Falha de rede tenta de novo; credencial recusada é resultado, não erro.
+    """
+    from audit.services import record_audit_event
+
+    from django.utils import timezone
+
+    from .whatsapp_twilio import FalhaDeTransporte, WhatsAppIndisponivel, config_da_clinica, verificar
+
+    config = config_da_clinica(tenant_id)
+    if config is None or not config.tem_credenciais:
+        return {'status': 'sem_credenciais'}
+    try:
+        ok = verificar(config)
+    except FalhaDeTransporte:
+        # A Twilio não respondeu. Tenta de novo; na última, a verificação
+        # **termina** com o motivo — senão a tela, que recarrega enquanto
+        # ela está pedida e não concluída, recarregaria para sempre.
+        if self.request.retries < self.max_retries:
+            raise
+        config.refresh_from_db()
+        config.invalidar_verificacao()
+        config.verificacao_concluida_em = timezone.now()
+        config.erro_codigo = 'rede'
+        config.erro_texto = 'A Twilio não respondeu agora. Tente "Verificar agora" de novo em alguns minutos.'
+        config.save()
+        ok = False
+    except WhatsAppIndisponivel as exc:
+        config.invalidar_verificacao()
+        config.verificacao_concluida_em = timezone.now()
+        config.erro_codigo = 'token'
+        config.erro_texto = str(exc)[:300]
+        config.save()
+        ok = False
+    record_audit_event(
+        actor_id, tenant_id, 'communications.whatsapp_verificado',
+        object_type='tenant', object_id=tenant_id, outcome='success' if ok else 'failure',
+        integrity_metadata={'ok': ok, 'codigo': config.erro_codigo},
+    )
+    return {'status': 'ok' if ok else 'falhou', 'codigo': config.erro_codigo}
+
+
+@shared_task(
+    name='communications.tasks.enviar_teste_whatsapp_twilio',
+    autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={'max_retries': 2},
+    expires=600, bind=True,
+)
+def enviar_teste_whatsapp_twilio_task(self, tenant_id, actor_id, evento, telefone):
+    """Envia o modelo de uma ocasião ao celular de quem configura, com dados de exemplo.
+
+    O telefone vem no argumento e **não** é guardado: só o SID e a situação
+    da mensagem, para a tela mostrar se chegou. Os valores das variáveis são
+    de exemplo (nenhum paciente) e o link do documento aponta para a página
+    inicial — não existe documento no teste.
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from audit.services import record_audit_event
+    from base.seo import absoluta
+
+    from .whatsapp_twilio import (
+        EVENTOS, FalhaDeTransporte, WhatsAppIndisponivel, WhatsAppRecusado, config_da_clinica,
+        enviar_modelo, liberado_na_instalacao, modelo_aprovado, numero_e164,
+    )
+    from .models import WhatsAppModelo
+
+    config = config_da_clinica(tenant_id)
+    if config is None:
+        # As credenciais foram apagadas enquanto o teste esperava na fila.
+        return {'status': 'sem_credenciais'}
+    modelo = WhatsAppModelo.objects.filter(tenant_id=tenant_id, evento=evento).first()
+    config.teste_enviado_em = timezone.now()
+    config.teste_sid = ''
+    config.teste_status = ''
+    config.teste_erro = ''
+    destino = numero_e164(telefone)
+    if not (config.verificado_em and liberado_na_instalacao() and modelo_aprovado(modelo) and destino):
+        config.teste_status = 'não enviado'
+        config.teste_erro = 'O teste exige conta verificada, modelo aprovado, canal liberado e um celular válido.'
+    else:
+        tenant = config.tenant
+        amanha = timezone.localtime() + timedelta(days=1)
+        exemplos = {
+            'nome da clínica': (tenant.trade_name or tenant.legal_name or 'Clínica')[:60],
+            'link seguro do documento': absoluta('/'),
+        }
+        variaveis = []
+        for nome in EVENTOS[evento]['variaveis']:
+            if nome.startswith('data') or nome.startswith('nova data'):
+                variaveis.append(amanha.strftime('%d/%m/%Y'))
+            elif nome.startswith('hora') or nome.startswith('nova hora'):
+                variaveis.append('09:00')
+            else:
+                variaveis.append(exemplos.get(nome, 'exemplo'))
+        try:
+            config.teste_sid = enviar_modelo(config, modelo, destino, variaveis)[:64]
+            config.teste_status = 'aceita pela Twilio'
+        except FalhaDeTransporte:
+            raise
+        except (WhatsAppRecusado, WhatsAppIndisponivel) as exc:
+            config.teste_status = 'recusada'
+            config.teste_erro = (getattr(exc, 'texto', '') or str(exc))[:300]
+    config.save(update_fields=['teste_enviado_em', 'teste_sid', 'teste_status', 'teste_erro', 'updated_at'])
+    record_audit_event(
+        actor_id, tenant_id, 'communications.whatsapp_teste_enviado',
+        object_type='tenant', object_id=tenant_id,
+        outcome='success' if config.teste_sid else 'failure',
+        # Sem o telefone: o teste vai ao celular de quem configura, e a trilha
+        # não precisa dele para dizer que o teste aconteceu.
+        integrity_metadata={'evento': evento, 'aceito': bool(config.teste_sid)},
+    )
+    return {'status': config.teste_status}

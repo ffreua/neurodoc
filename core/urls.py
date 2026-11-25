@@ -3,6 +3,7 @@ from django.urls import include, path
 from base.csp_views import CspReportView
 
 from communications.views import CampaignClickView, UnsubscribeView
+from communications.webhooks import StatusWhatsAppView
 from documents.verification import DocumentVerificationView
 from ops.docs import technical_docs
 
@@ -52,6 +53,9 @@ urlpatterns = [
     path('app/org/', include('patients.admin_urls')),
     path('app/org/', include('finance.admin_urls')),
     path('d/', include('communications.urls')),
+    # Aviso de status do WhatsApp pela Twilio da clínica: público, autenticado
+    # pela assinatura da Twilio (`communications.webhooks`).
+    path('whatsapp/status/<str:token>/', StatusWhatsAppView.as_view(), name='whatsapp-status'),
     # Verificação pública de documento — é o destino do QR impresso na
     # receita. Fica na raiz, e não sob `/app/`, porque quem a abre está na
     # farmácia e não tem conta neste sistema.

@@ -43,7 +43,7 @@ tela um arquivo de mensagens do paciente, que é outra coisa.{% endcomment %}
                         <td class="text-wrap">
                             <span class="fs-12 fw-semibold text-dark">{{ delivery.contact.patient.full_name }}</span>
                             <span class="d-block fs-11 text-muted">
-                                {% if delivery.channel == 'sms' %}{{ delivery.contact.phone }}
+                                {% if delivery.channel == 'sms' or delivery.channel == 'whatsapp' %}{{ delivery.contact.phone }}
                                 {% else %}{{ delivery.contact.email }}{% endif %}
                             </span>
                         </td>

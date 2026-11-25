@@ -226,7 +226,7 @@
                             {{ delivery.get_channel_display }}
                         </span>
                         <span class="fs-12 text-dark flex-grow-1">
-                            {% if delivery.channel == 'sms' %}
+                            {% if delivery.channel == 'sms' or delivery.channel == 'whatsapp' %}
                             {{ delivery.contact.phone }}
                             {% else %}
                             {{ delivery.contact.email }}

@@ -6,6 +6,7 @@
     `{% include %}`, e enquanto o titulo morou la nenhuma pagina conseguiu
     declarar o proprio. O padrao vem do catalogo de `base/seo.py`.{% endcomment %}
     <title>{% block title %}{{ nd_seo.titulo }}{% endblock %}</title>
+    {% block head_extra %}{% endblock %}
 </head>
 {% comment %}`nd-no-shell` quando nao ha barra lateral: o tema reserva
 280px a esquerda para ela, e sem a classe essa margem vira uma faixa
