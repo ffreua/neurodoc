@@ -209,6 +209,97 @@ class SmsSettingsSaveView(ManagerRequiredView):
         return redirect('messaging:settings')
 
 
+#: Os campos do servidor de e-mail da clínica que "Remover" devolve ao
+#: padrão do modelo. Escritos à mão, e não "todo campo `smtp_*`", porque a
+#: mesma linha guarda o SMS e o texto do WhatsApp, que não saem junto.
+CAMPOS_DO_EMAIL_DA_CLINICA = (
+    'email_enabled', 'email_from_name', 'email_from_address', 'email_reply_to',
+    'smtp_host', 'smtp_port', 'smtp_user', 'smtp_use_tls', 'smtp_use_ssl',
+    'smtp_password_ciphertext', 'smtp_password_metadata', 'smtp_password_hint',
+)
+
+
+def _ao_padrao(linha, campos):
+    for nome in campos:
+        setattr(linha, nome, linha._meta.get_field(nome).get_default())
+
+
+class SmsSettingsRemoveView(ManagerRequiredView):
+    """Apaga a chave do SMSDEV da clínica e desliga o canal próprio (2026-11-26).
+
+    Não havia como apagar: a chave em branco **mantém** a guardada, de
+    propósito, e desligar também a mantém. O nome que aparece na mensagem
+    fica — ele não é credencial e vale também para o SMS da instalação.
+
+    Sem chave e desligada, a clínica volta ao SMS padrão da instalação, se o
+    plano o incluir (`smsdev.resolve_api_key`). É o oposto de desligar **com**
+    a chave guardada, que é recusa de mandar SMS.
+    """
+
+    def post(self, request):
+        tenant_id = request.access_context.tenant_id
+        linha = _sms_settings(tenant_id)
+        _ao_padrao(linha, ('sms_enabled', 'sms_api_key_ciphertext', 'sms_api_key_metadata',
+                           'sms_api_key_hint'))
+        linha.updated_by = self.membership
+        linha.save()
+        record_audit_event(
+            request.user, tenant_id, 'communications.sms_settings_removed',
+            object_type='tenant', object_id=tenant_id, outcome='success', integrity_metadata={},
+        )
+        messages.success(request, 'Chave do SMS removida. A clínica passa a usar o SMS padrão do sistema, '
+                                  'se o plano o incluir.')
+        return redirect('messaging:settings')
+
+
+class ClinicEmailRemoveView(ManagerRequiredView):
+    """Apaga o servidor de e-mail da clínica: remetente, servidor e senha.
+
+    O e-mail volta a sair pelo remetente da instalação. Campanha em andamento
+    **pausa** na fatia seguinte, que confere o servidor próprio
+    (`marketing.guard`), em vez de recuar para a instalação.
+    """
+
+    def post(self, request):
+        tenant_id = request.access_context.tenant_id
+        linha = _sms_settings(tenant_id)
+        _ao_padrao(linha, CAMPOS_DO_EMAIL_DA_CLINICA)
+        linha.updated_by = self.membership
+        linha.save()
+        record_audit_event(
+            request.user, tenant_id, 'communications.clinic_email_settings_removed',
+            object_type='tenant', object_id=tenant_id, outcome='success', integrity_metadata={},
+        )
+        messages.success(request, 'Servidor de e-mail da clínica removido, com a senha. O e-mail '
+                                  'passa a sair pelo remetente padrão do sistema.')
+        return redirect('messaging:settings')
+
+
+class DoctorEmailRemoveView(ManagerRequiredView):
+    """Apaga o remetente próprio de um médico, com a senha do SMTP.
+
+    O e-mail dele volta a sair pelo servidor da clínica, ou, sem ele, pela
+    instalação (`email.resolve_sender`).
+    """
+
+    def post(self, request, membership_id):
+        from tenancy.models import Membership
+
+        tenant_id = request.access_context.tenant_id
+        doctor = get_object_or_404(Membership, id=membership_id, tenant_id=tenant_id)
+        apagadas = DoctorEmailSettings.objects.filter(
+            tenant_id=tenant_id, physician_membership=doctor,
+        ).delete()[0]
+        record_audit_event(
+            request.user, tenant_id, 'communications.doctor_email_settings_removed',
+            object_type='membership', object_id=doctor.id, outcome='success',
+            integrity_metadata={'removidas': apagadas},
+        )
+        name = doctor.user.get_full_name() or doctor.user.email
+        messages.success(request, f'Remetente de e-mail de {name} removido, com a senha.')
+        return redirect('messaging:settings')
+
+
 class WhatsAppTextSaveView(ManagerRequiredView):
     """Grava o texto do lembrete pelo WhatsApp (1.39).
 

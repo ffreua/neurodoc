@@ -420,7 +420,14 @@ carimbá-la na publicação.
 #: primeira pessoa só nos atendimentos de quem assina (`ai/relatorio.py` marca a
 #: autoria). Migração só acrescenta uma tabela (`clinical.0014`).
 
-VERSION = '1.61'
+#: A **1.62** (2026-11-26, junto com o ProntDoc 1.16.0): o grupo **Portal** no menu, no
+#: lugar do sino — Solicitações e **Exames enviados** (lista nova, com paciente,
+#: quem enviou, laudo, prontuário e Ciente), cada um com o contador amarelo —; e o
+#: **liga/desliga** com **remover a credencial** na IA própria, no SMS e no e-mail
+#: da clínica e do médico (antes, campo em branco mantinha e nada apagava). Sem
+#: migração.
+
+VERSION = '1.62'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

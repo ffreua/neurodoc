@@ -82,10 +82,12 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
                 <form method="post" action="{% url 'messaging:save-sms' %}" novalidate>
                     {% csrf_token %}
                     {% include "partials/form_errors.html" with form=sms_form %}
+                    {% include "partials/switch.html" with field=sms_form.sms_enabled alvo="sms-campos" ajuda="Desligado e sem chave própria, a clínica usa o SMS padrão do sistema (se o plano incluir). Desligado com a chave guardada, a clínica não envia SMS." %}
+                    <div id="sms-campos" {% if not sms_form.sms_enabled.value %}hidden{% endif %}>
                     <div class="row g-3">
                         {% include "partials/field.html" with field=sms_form.api_key col="col-12" %}
                         {% include "partials/field.html" with field=sms_form.sms_sender_name col="col-12" %}
-                        {% include "partials/field.html" with field=sms_form.sms_enabled col="col-12" %}
+                    </div>
                     </div>
                     {% if sms.has_api_key %}
                     <div class="form-text fs-11">
@@ -101,6 +103,13 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
                                 {% if not has_master_key %}disabled{% endif %}>Salvar</button>
                     </div>
                 </form>
+                {% if sms.has_api_key %}
+                <form method="post" action="{% url 'messaging:remove-sms' %}" class="mt-2"
+                      data-nd-confirm="Apagar a chave do SMSDEV desta clínica? A clínica passa a usar o SMS padrão do sistema, se o plano incluir.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Remover chave</button>
+                </form>
+                {% endif %}
 
                 {% if sms.has_api_key %}
                 <form method="post" action="{% url 'messaging:test-sms' %}" class="mt-2">
@@ -224,15 +233,28 @@ infraestrutura, e quem le esta tela nao tem como atende-la.{% endcomment %}
 
                 <form method="post" action="{% url 'messaging:save-clinic-email' %}" novalidate>
                     {% csrf_token %}
-                    {% with form=clinic_email_form %}{% include "partials/form_fields.html" %}{% endwith %}
+                    {% with form=clinic_email_form %}
+                    {% include "partials/form_fields.html" with pular="email_enabled,email_from_name,email_from_address,email_reply_to,smtp_host,smtp_port,smtp_user,smtp_password,smtp_use_tls,smtp_use_ssl" %}
+                    {% include "partials/switch.html" with field=form.email_enabled alvo="email-clinica-campos" ajuda="Desligado, o e-mail sai pelo remetente padrão do sistema. A senha guardada continua guardada." %}
+                    <div id="email-clinica-campos" {% if not form.email_enabled.value %}hidden{% endif %}>
+                    {% include "partials/form_fields.html" with somente="email_from_name,email_from_address,email_reply_to,smtp_host,smtp_port,smtp_user,smtp_password,smtp_use_tls,smtp_use_ssl" %}
                     {% if sms.has_smtp_password %}
                     <div class="form-text fs-11 mb-3">
                         Senha guardada: <code>{{ sms.smtp_password_hint }}</code>.
-                        O campo em branco mantém esta senha.
+                        O campo em branco mantém esta senha; para apagá-la, use "Remover servidor e senha".
                     </div>
                     {% endif %}
+                    </div>
+                    {% endwith %}
                     <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
                 </form>
+                {% if sms.has_smtp_password or sms.smtp_host or sms.email_from_address %}
+                <form method="post" action="{% url 'messaging:remove-clinic-email' %}" class="mt-2"
+                      data-nd-confirm="Apagar o servidor de e-mail da clínica, com a senha? O e-mail passa a sair pelo remetente padrão do sistema, e campanha em andamento pausa.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Remover servidor e senha</button>
+                </form>
+                {% endif %}
 
                 {% if sms.email_enabled and sms.email_from_address %}
                 {% comment %}Teste com envio real, e não só abertura de conexão.

@@ -24,13 +24,17 @@
 - O navegador punha o e-mail de login no "Endereço da API": `autocomplete="off"` nele e
   `new-password` na chave.
 
-## Pendência anotada
+## SMS e e-mail (resolvido na mesma rodada)
 
-SMS e e-mail (SMTP) da clínica e do médico têm o mesmo "em branco mantém" e também não têm
-como apagar a senha; o WhatsApp pela Twilio já tem "Remover". Fica para a próxima rodada.
+O mesmo "em branco mantém, e não há como apagar" valia para a chave do SMS, o servidor de
+e-mail da clínica e o remetente por médico. Os três ganharam o liga/desliga
+(`partials/switch.html`, reaproveitável) e um botão de remover
+(`SmsSettingsRemoveView`, `ClinicEmailRemoveView`, `DoctorEmailRemoveView`). A regra do
+SMS ficou: desligado **com** chave guardada é recusa de mandar SMS; remover a chave volta ao
+SMS padrão da instalação, se o plano incluir. O nome da mensagem não é credencial e fica.
 
 ## Verificação
 
-`check_portal_no_menu` e `check_ia_propria_liga` (novos), `check_exames_do_portal`,
+`check_portal_no_menu`, `check_ia_propria_liga` e `check_integracoes_liga` (novos), `check_exames_do_portal`,
 `check_notificacoes`, `check_servicos_do_inquilino`, `check_ia_plano`, `check_csp`,
 `check_rotulos`, `check_idioma`, `check_mobile`, `check_paginacao`, nos dois.

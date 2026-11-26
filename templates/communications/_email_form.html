@@ -11,11 +11,14 @@ a porta e salvar não pode zerar a credencial.
 <form method="post" action="{% url 'messaging:save-doctor-email' doctor.id %}" novalidate>
     {% csrf_token %}
     {% include "partials/form_errors.html" with form=form %}
+    {% with did=doctor.id|stringformat:"s" %}
+    {% include "partials/switch.html" with field=form.enabled alvo="email-medico-campos-"|add:did id="id_enabled_"|add:did ajuda="Desligado, o e-mail deste médico sai pelo servidor da clínica ou pelo padrão do sistema. A senha guardada continua guardada." %}
+    {% endwith %}
+    <div id="email-medico-campos-{{ doctor.id }}" {% if not form.enabled.value %}hidden{% endif %}>
     <div class="row g-3">
         {% include "partials/field.html" with field=form.from_name col="col-lg-6" %}
         {% include "partials/field.html" with field=form.from_email col="col-lg-6" %}
         {% include "partials/field.html" with field=form.reply_to col="col-lg-6" %}
-        {% include "partials/field.html" with field=form.enabled col="col-lg-6" %}
     </div>
 
     <details class="mt-3" {% if settings.uses_own_server or form.smtp_host.errors or form.smtp_port.errors or form.smtp_password.errors %}open{% endif %}>
@@ -31,16 +34,24 @@ a porta e salvar não pode zerar a credencial.
             </div>
             {% if settings and settings.has_password %}
             <div class="form-text fs-11">
-                Senha guardada: <code>{{ settings.smtp_password_hint }}</code>. Em branco, mantém.
+                Senha guardada: <code>{{ settings.smtp_password_hint }}</code>. Em branco, mantém; para apagá-la, use "Remover remetente e senha".
             </div>
             {% endif %}
         </div>
     </details>
+    </div>
 
     <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
         <button type="submit" class="btn btn-primary" data-nd-busy>Salvar remetente</button>
     </div>
 </form>
+{% if settings.pk %}
+<form method="post" action="{% url 'messaging:remove-doctor-email' doctor.id %}" class="mt-2"
+      data-nd-confirm="Apagar o remetente próprio deste médico, com a senha do SMTP?">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Remover remetente e senha</button>
+</form>
+{% endif %}
 {% if settings and settings.uses_own_server %}
 <form method="post" action="{% url 'messaging:test-doctor-email' doctor.id %}" class="mt-2">
     {% csrf_token %}

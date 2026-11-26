@@ -15,7 +15,8 @@ class SmsSettingsForm(forms.ModelForm):
     api_key = forms.CharField(
         label='Chave da API do SMSDEV', required=False,
         widget=forms.PasswordInput(render_value=False, attrs={
-            'placeholder': 'Cole a chave aqui', 'autocomplete': 'off',
+            # `new-password`: o Chrome ignora `off` em campo de senha.
+            'placeholder': 'Cole a chave aqui', 'autocomplete': 'new-password',
         }),
         help_text='Guardada cifrada. Deixe em branco para manter a chave atual.',
     )

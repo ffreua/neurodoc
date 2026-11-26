@@ -1,0 +1,17 @@
+{% comment %}Liga e desliga (2026-11-26): uma caixa de marcar desenhada como
+chave, verde ligada e cinza desligada (`.nd-switch`), que mostra o bloco
+`alvo` só quando ligada (`data-nd-revela`, em `nd-inline.js`, sem script
+inline por causa da CSP). O bloco escondido continua no formulário e no POST:
+o servidor grava o que sempre gravou.
+
+    {% include "partials/switch.html" with field=form.enabled alvo="ai-campos" ajuda="…" %}
+
+`id` troca o id do campo quando o mesmo formulário aparece várias vezes na
+página (um por médico), senão o rótulo de um ligaria a caixa de outro.
+{% endcomment %}<div class="form-check form-switch nd-switch mb-3">
+    <input class="form-check-input" type="checkbox" role="switch" name="{{ field.html_name }}"
+           id="{{ id|default:field.id_for_label }}" data-nd-revela="{{ alvo }}" {% if field.value %}checked{% endif %}>
+    <label class="form-check-label fw-semibold" for="{{ id|default:field.id_for_label }}">{{ rotulo|default:field.label }}</label>
+    {% if ajuda %}<div class="form-text fs-11">{{ ajuda }}</div>{% endif %}
+    {% for error in field.errors %}<div class="invalid-feedback d-block fs-11">{{ error }}</div>{% endfor %}
+</div>
