@@ -259,6 +259,26 @@ def montar_contexto(authorization, patient, teto=TETO_DE_ATENDIMENTOS):
         1 for a in atendimentos
         if any((a.get(c) or '').endswith(clinical_tools.MARCA_DE_CORTE) for c in clinical_tools._CAMPOS_NARRATIVOS)
     )
+    # Quem atendeu cada consulta, sem nome: o prompt escreve em primeira
+    # pessoa ("avaliei", "optei") só o que é do médico que pediu o
+    # relatório, que é quem vai assiná-lo. Sem esta marca, a consulta de um
+    # colega da clínica sairia no papel como se fosse dele. O nome do
+    # colega fica de fora: não serve ao relatório e não tem por que ir ao
+    # provedor.
+    donos = {
+        str(eid): dono for eid, dono in Encounter.objects.filter(
+            tenant_id=authorization.tenant_id,
+            id__in=[a['encounter_id'] for a in atendimentos],
+        ).values_list('id', 'physician_membership_id')
+    }
+    for a in atendimentos:
+        dono = donos.get(a['encounter_id'])
+        if dono is None:
+            a['autoria'] = 'nao_registrada'
+        elif dono == authorization.membership_id:
+            a['autoria'] = 'medico_que_assina'
+        else:
+            a['autoria'] = 'outro_profissional'
     vigentes, refutados = clinical_tools.get_patient_diagnoses(authorization)
     medicacoes = clinical_tools.get_patient_medications(authorization)
     exames = clinical_tools.get_exam_results(authorization)

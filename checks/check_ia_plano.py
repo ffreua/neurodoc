@@ -154,7 +154,7 @@ contrato_ptbr = (
 print(f'  contrato de idioma no prompt={contrato_ptbr} versao={PROMPT_VERSION}')
 if not contrato_ptbr:
     falhas.append('o prompt de resumo nao exige valores textuais em portugues brasileiro')
-if PROMPT_VERSION != 'v3':
+if PROMPT_VERSION < 'v3':  # v4 (2026-11-26): o relatório ganhou prompt de sistema
     falhas.append(f'a mudanca de idioma nao versionou o prompt (esta em {PROMPT_VERSION})')
 
 print(f'  plano inexistente -> {has_clinical_ai("nao-existe")} (tem de ser False)')

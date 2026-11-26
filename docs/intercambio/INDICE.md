@@ -70,3 +70,4 @@ e foram corrigidos em `b26c256`, adaptados aos dois tipos de atendimento.
 | MD-2026-11-25-03 | [WhatsApp automático pela Twilio da própria clínica (BYO)](mudancas/2026-11-25-M03-whatsapp-twilio-byo.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-25-03) | — |
 | MD-2026-11-25-04 | [LME do medicamento de alto custo, e a vitrine com LME e WhatsApp](mudancas/2026-11-25-M04-lme.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-25-04) | — |
 | MD-2026-11-26-01 | [IA da instalação passa a ser só OpenRouter](mudancas/2026-11-26-M01-ia-openrouter.md) | operação | feito | feito na mesma rodada (PD-M-2026-11-26-01) | — |
+| MD-2026-11-26-02 | [Prompt de sistema do relatório por IA](mudancas/2026-11-26-M02-prompt-do-relatorio.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-26-02) | — |
