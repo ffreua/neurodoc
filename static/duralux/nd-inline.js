@@ -74,6 +74,19 @@
         }
     }, true);
 
+    /* ------------------------- mostrar ao ligar */
+
+    /* Caixa com `data-nd-revela="<id>"`: o elemento de id indicado aparece
+     * com a caixa marcada e some com ela desmarcada (2026-11-26, a IA própria
+     * da clínica). Só `hidden`: os campos continuam no formulário e no POST,
+     * e o servidor decide o que gravar. */
+    document.addEventListener('change', function (evento) {
+        var caixa = evento.target;
+        if (!caixa || !caixa.hasAttribute || !caixa.hasAttribute('data-nd-revela')) return;
+        var alvo = document.getElementById(caixa.getAttribute('data-nd-revela'));
+        if (alvo) alvo.hidden = !caixa.checked;
+    });
+
     /* ------------------------- enviar o formulário ao trocar o campo */
 
     /* Seletor que filtra ao mudar. Sem JavaScript o `<noscript>` ao lado

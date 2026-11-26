@@ -15,7 +15,9 @@ class AIProviderSettingsForm(forms.ModelForm):
     api_key = forms.CharField(
         label='Chave da API', required=False,
         widget=forms.PasswordInput(render_value=False, attrs={
-            'placeholder': 'Cole a chave aqui', 'autocomplete': 'off',
+            # `new-password`, e não `off`: o Chrome ignora `off` em campo de
+            # senha e preenchia aqui a senha de login da pessoa.
+            'placeholder': 'Cole a chave aqui', 'autocomplete': 'new-password',
         }),
         help_text='Guardada cifrada. Deixe em branco para manter a chave atual.',
     )
@@ -38,7 +40,13 @@ class AIProviderSettingsForm(forms.ModelForm):
         }
         widgets = {
             'provider': forms.Select(choices=PROVIDER_CHOICES),
-            'base_url': forms.TextInput(attrs={'placeholder': 'https://…/v1'}),
+            # Sem preenchimento automático (2026-11-26): o navegador punha o
+            # e-mail de login da pessoa neste campo, e o endereço "salvo" era
+            # o e-mail dela.
+            'base_url': forms.TextInput(attrs={
+                'placeholder': 'https://…/v1', 'autocomplete': 'off',
+                'inputmode': 'url', 'spellcheck': 'false',
+            }),
         }
 
     def __init__(self, *args, **kwargs):

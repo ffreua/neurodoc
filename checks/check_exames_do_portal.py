@@ -292,17 +292,37 @@ confere(any(e.original_filename == 'Ressonância (1).pdf' for e in envios),
 r = c.get(f'/solicitacoes/{clinica.slug}/exames/')
 confere(r.status_code == 302, 'a identificacao foi encerrada depois do envio')
 
-print('=== 7. quem e avisado ===')
+print('=== 7. sem aviso no sino: o contador do menu e a lista (2026-11-26) ===')
+# Antes o envio avisava o medico no sino. A pedido do titular, o envio sai do
+# sino e vai para Portal -> Exames enviados, com o contador dos pendentes.
 novas = Notification.objects.filter(kind='portal_exam').exclude(id__in=_notificacoes_antes)
-destinos = set(novas.values_list('user__email', flat=True))
-confere(Notification.objects.filter(kind='portal_exam').count() > notif_antes, 'houve aviso')
-confere('doctor-a@demo.neurodoc.local' in destinos, 'o medico foi avisado')
-confere('secretary-a@demo.neurodoc.local' not in destinos, 'a secretaria nao foi avisada')
-from notifications.targets import url_for
+confere(Notification.objects.filter(kind='portal_exam').count() == notif_antes and not novas.exists(),
+        'nenhum aviso novo no sino')
+doc7 = logado('doctor-a@demo.neurodoc.local', clinica)
+import re as _re
 
-n = novas.first()
-confere(n is not None and url_for(n) == f'/app/documents/patients/{_paciente.id}/',
-        f'o aviso leva aos anexos do paciente ({url_for(n) if n else None})')
+corpo_inicio = doc7.get('/app/patients/').content.decode()
+confere('Exames enviados' in corpo_inicio and '/app/documents/exames-do-portal/' in corpo_inicio,
+        'o menu Portal mostra Exames enviados ao medico')
+_m = _re.search(r'Exames enviados\s*<span class="badge[^>]*>(\d+)</span>', corpo_inicio)
+confere(_m is not None and int(_m.group(1)) >= 2,
+        f'e o contador amarelo conta os pendentes ({_m.group(1) if _m else None})')
+lista = doc7.get('/app/documents/exames-do-portal/')
+corpo_lista = lista.content.decode()
+confere(lista.status_code == 200, f'a lista abre para o medico ({lista.status_code})')
+confere(_paciente.full_name in corpo_lista and 'Teste do pezinho' in corpo_lista,
+        'a lista traz o paciente e o exame')
+confere('pelo próprio paciente' in corpo_lista or 'por ' in corpo_lista, 'e quem enviou')
+confere(f'/app/clinical/patients/{_paciente.id}/timeline/' in corpo_lista, 'e o acesso ao prontuario')
+confere(f'/app/documents/patients/{_paciente.id}/exames-do-portal/ciente/' in corpo_lista,
+        'e o botao Ciente')
+sec7 = logado('secretary-a@demo.neurodoc.local', clinica)
+confere(sec7.get('/app/documents/exames-do-portal/').status_code in (403, 404),
+        'a secretaria nao abre a lista')
+confere('Exames enviados' not in sec7.get('/app/patients/').content.decode(),
+        'nem ve o item no menu')
+confere(doc7.get('/app/documents/exames-do-portal/?ver=todos&page=999').status_code == 200,
+        'pagina inexistente nao vira erro 500')
 
 print('=== 8. o alerta no prontuario ===')
 doc = logado('doctor-a@demo.neurodoc.local', clinica)

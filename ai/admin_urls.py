@@ -14,6 +14,7 @@ app_name = 'ai-admin'
 urlpatterns = [
     path('ia/', admin_views.AISettingsView.as_view(), name='settings'),
     path('ia/salvar/', admin_views.AISettingsSaveView.as_view(), name='save'),
+    path('ia/remover/', admin_views.AISettingsRemoveView.as_view(), name='remove'),
     path('ia/modelos/', admin_views.AIModelsRefreshView.as_view(), name='refresh-models'),
     path('ia/testar/', admin_views.AITestView.as_view(), name='test'),
 ]

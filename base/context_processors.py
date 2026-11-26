@@ -224,16 +224,24 @@ def _portal_badge(context):
     para quem tem a capacidade clínica.
     """
     if not context.can(Capability.READ_CLINICAL):
-        return {'nd_portal_requests': 0, 'nd_portal_visible': False}
+        return {'nd_portal_requests': 0, 'nd_portal_exams': 0, 'nd_portal_total': 0,
+                'nd_portal_visible': False}
 
-    from documents.models import DocumentRequest, DocumentRequestStatus
+    from documents.models import DocumentRequest, DocumentRequestStatus, PortalExamUpload
     from tenancy.models import ClinicProfile
 
     abertos = DocumentRequest.objects.filter(
         tenant_id=context.tenant_id,
         status__in=[DocumentRequestStatus.RECEIVED, DocumentRequestStatus.IN_REVIEW],
     ).count()
-    visivel = abertos > 0 or ClinicProfile.objects.filter(
+    # Os exames que o paciente mandou e ninguém marcou como vistos
+    # (2026-11-26): o contador que substituiu o aviso do sino. O mesmo
+    # critério do alerta do prontuário, `portal_exames.pendentes`.
+    exames = PortalExamUpload.objects.filter(
+        tenant_id=context.tenant_id, acknowledged_at=None,
+    ).count()
+    visivel = abertos > 0 or exames > 0 or ClinicProfile.objects.filter(
         tenant_id=context.tenant_id, patient_portal_enabled=True,
     ).exists()
-    return {'nd_portal_requests': abertos, 'nd_portal_visible': visivel}
+    return {'nd_portal_requests': abertos, 'nd_portal_exams': exames,
+            'nd_portal_total': abertos + exames, 'nd_portal_visible': visivel}

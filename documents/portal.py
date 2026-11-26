@@ -239,21 +239,10 @@ def submit(request, tenant, patient, kind, requester_name, requester_is_patient,
         object_type='document_request', object_id=pedido.id, outcome='success',
         integrity_metadata={'kind': kind},
     )
-    # Por capacidade, e não por papel: a fila exige capacidade clínica, e
-    # avisar a secretária de um pedido que ela não pode abrir a informa de
-    # que aquele paciente pediu alguma coisa e entrega um link que responde
-    # 404.
-    from notifications.services import notify_capability, patient_context
-    from tenancy.permissions import Capability
-
-    notify_capability(
-        tenant, Capability.READ_CLINICAL, kind='portal_request',
-        sanitized_title=f'{pedido.get_kind_display()} solicitada no portal',
-        target_type='document_request', target_id=pedido.id,
-        context=patient_context(
-            patient,
-            requester=('' if requester_is_patient else requester_name),
-        ),
-    )
+    # Sem aviso no sino desde 2026-11-26, a pedido do titular: o pedido do
+    # portal é fila, e fila se lê no menu (Portal → Solicitações, com o
+    # contador de pendentes, `base.context_processors._portal_badge`). No
+    # sino ele competia com o que precisa de atenção agora, e cada pedido
+    # virava dois lugares para marcar como visto.
     clear(request)
     return pedido

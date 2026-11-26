@@ -51,6 +51,7 @@ urlpatterns = [
     ),
 
     path('solicitacoes/', request_views.DocumentRequestQueueView.as_view(), name='request-queue'),
+    path('exames-do-portal/', views.PortalExamListView.as_view(), name='portal-exams'),
     path(
         'solicitacoes/<uuid:request_id>/',
         request_views.DocumentRequestDetailView.as_view(), name='request-detail',

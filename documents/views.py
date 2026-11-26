@@ -892,6 +892,41 @@ class SigningSessionRevokeView(SigningView):
         return redirect('documents:credential-list')
 
 
+class PortalExamListView(ClinicalDocumentView):
+    """Os exames que pacientes mandaram pelo portal, de todos os pacientes.
+
+    Nasceu para substituir o aviso do sino (2026-11-26): fila de envio se lê
+    numa lista, com quem mandou, quando e de quem é o exame, e não numa caixa
+    de avisos que mistura tudo. Por padrão, só os que ninguém marcou como
+    vistos; "todos" mostra também os vistos, com quem viu e quando.
+
+    Exige capacidade clínica, a mesma de abrir o laudo: a lista diz que exame
+    cada paciente fez.
+    """
+
+    POR_PAGINA = 50
+
+    def get(self, request):
+        from django.core.paginator import Paginator
+
+        from .models import PortalExamUpload
+
+        ver = 'todos' if request.GET.get('ver') == 'todos' else 'pendentes'
+        envios = (
+            PortalExamUpload.objects
+            .filter(tenant_id=request.access_context.tenant_id)
+            .select_related('patient', 'attachment', 'acknowledged_by__user')
+            .order_by('-created_at')
+        )
+        if ver == 'pendentes':
+            envios = envios.filter(acknowledged_at=None)
+        return render(request, 'documents/exames_do_portal_lista.html', {
+            'ver': ver,
+            'envios': Paginator(envios, self.POR_PAGINA).get_page(request.GET.get('page')),
+            'next': request.get_full_path(),
+        })
+
+
 class PortalExamAcknowledgeView(ClinicalDocumentView):
     """"Ciente" dos laudos que o paciente mandou pelo portal.
 

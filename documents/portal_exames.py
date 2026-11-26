@@ -185,8 +185,6 @@ def receber(request, tenant, patient, linhas, requester_name, requester_is_patie
     transação, e sem isso sobraria arquivo sem linha no banco.
     """
     from audit.services import record_audit_event
-    from notifications.services import notify_capability, patient_context
-    from tenancy.permissions import Capability
 
     from .storage import QuotaExceeded, receive_upload
     from .tasks import scan_attachment
@@ -246,18 +244,10 @@ def receber(request, tenant, patient, linhas, requester_name, requester_is_patie
                     object_type='attachment', object_id=envio.attachment_id, outcome='success',
                     integrity_metadata={'exam_type': envio.exam_type},
                 )
-            quantos = len(envios)
-            notify_capability(
-                tenant, Capability.READ_CLINICAL, kind='portal_exam',
-                sanitized_title=(
-                    'Exame enviado pelo paciente no portal' if quantos == 1
-                    else f'{quantos} exames enviados pelo paciente no portal'
-                ),
-                target_type='portal_exam', target_id=patient.id,
-                context=patient_context(
-                    patient, requester=('' if requester_is_patient else requester_name),
-                ),
-            )
+            # Sem aviso no sino desde 2026-11-26, a pedido do titular: o envio
+            # aparece em Portal → Exames enviados, com o contador dos que
+            # ninguém marcou como vistos, e no alerta vermelho do prontuário
+            # (`nd_exames_do_portal`), que continua até o "Ciente".
     except QuotaExceeded:
         _apagar(escritos)
         # O motivo real (espaço da clínica) não é do paciente, e dizer

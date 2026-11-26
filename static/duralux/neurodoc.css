@@ -1634,3 +1634,20 @@ body.nd-no-shell .nxl-content {
  * .dropdown-item`, e com duas o nome e a explicação ficavam lado a lado. */
 .nd-resumo__menu { min-width: 16rem; }
 .dropdown .nd-resumo__menu .dropdown-item { display: block; white-space: normal; padding: .55rem .9rem; }
+
+/* Liga e desliga (2026-11-26): verde ligado, cinza desligado, maior que a
+ * caixa de marcar comum para ser lido como chave, e não como opção. */
+.nd-switch .form-check-input {
+    width: 2.75em;
+    height: 1.4em;
+    margin-top: 0.05em;
+    cursor: pointer;
+}
+.nd-switch .form-check-input:checked {
+    background-color: var(--bs-success, #17c666);
+    border-color: var(--bs-success, #17c666);
+}
+.nd-switch .form-check-label {
+    padding-left: 0.35em;
+    cursor: pointer;
+}

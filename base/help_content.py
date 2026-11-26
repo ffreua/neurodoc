@@ -146,8 +146,10 @@ ARTICLES = [
              '', ''),
             ('**Portal do paciente.** Em Identidade da clínica você pode publicar o '
              'portal, por onde o paciente pede receita, relatório ou exame e envia '
-             'os laudos que fez fora — sem precisar de conta. Os pedidos caem em '
-             '**Solicitações**. Ver [Portal do paciente](/ajuda/solicitacoes/).',
+             'os laudos que fez fora — sem precisar de conta. Tudo cai no menu '
+             '**Portal**: os pedidos em **Solicitações** e os laudos em **Exames '
+             'enviados**, cada um com o número do que espera alguém. Ver [Portal do '
+             'paciente](/ajuda/solicitacoes/).',
              '', ''),
             ('**Pronto para o primeiro atendimento:** cadastre o paciente, marque na '
              'agenda e, na ficha dele, abra **Novo atendimento**. Dúvidas? Este '
@@ -649,7 +651,9 @@ ARTICLES = [
              'verificação de vírus de qualquer anexo e aparece em **Anexos** pelo nome '
              'do exame, com as marcas *Enviado pelo paciente* e *Novo*.',
              '', ''),
-            ('Quem tem acesso clínico recebe o aviso no sino, e o prontuário mostra um '
+            ('O envio não avisa no sino: ele aparece em **Portal → Exames enviados**, '
+             'com o paciente, quem enviou, a data, o laudo e o acesso ao prontuário, e '
+             'o número em amarelo no menu conta os que ninguém viu. O prontuário mostra um '
              '**alerta vermelho** no topo — na linha do tempo, no atendimento e na '
              'ficha — até alguém apertar **Ciente**, que fica registrado com quem e '
              'quando. A secretária vê que chegou um anexo do paciente, mas não qual '

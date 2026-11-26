@@ -205,6 +205,36 @@ class AISettingsSaveView(ManagerRequiredView):
         return redirect('ai-admin:settings')
 
 
+class AISettingsRemoveView(ManagerRequiredView):
+    """Apaga a IA própria da clínica: provedor, modelo, endereço e a chave.
+
+    Existe porque não havia como apagar (2026-11-26). O campo da chave em
+    branco **mantém** a chave guardada, de propósito — reabrir a tela para
+    trocar o modelo não pode zerá-la —, e desligar a caixa "Usar IA" também
+    a mantém, para religar sem colar de novo. A clínica que quer que a chave
+    saia do sistema precisa de um ato próprio, e é este.
+
+    Apaga a linha inteira, e não só a chave: endereço e modelo sem chave não
+    servem para nada, e deixá-los faria a tela parecer configurada pela
+    metade. A clínica passa a usar a IA da instalação, se o plano a incluir.
+    """
+
+    def post(self, request):
+        apagadas = AIProviderSettings.objects.filter(tenant_id=self.tenant_id).delete()[0]
+        record_audit_event(
+            request.user, self.tenant_id, 'ai.provider_settings_removed',
+            object_type='tenant', object_id=self.tenant_id, outcome='success',
+            # Nem a chave nem o provedor: só o fato.
+            integrity_metadata={'removidas': apagadas},
+        )
+        messages.success(
+            request,
+            'IA própria removida: a chave e a configuração foram apagadas. A clínica '
+            'passa a usar a IA padrão do sistema, se o plano a incluir.',
+        )
+        return redirect('ai-admin:settings')
+
+
 class AIModelsRefreshView(ManagerRequiredView):
     """Pergunta ao provedor quais modelos ele oferece para esta chave."""
 

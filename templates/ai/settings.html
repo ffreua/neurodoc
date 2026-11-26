@@ -69,16 +69,34 @@ some sozinho quando o recurso e ligado.{% endcomment %}
                     </span>
                 </div>
                 {% else %}
+                {% comment %}Liga e desliga (2026-11-26): os campos só aparecem com a
+                chave ligada. Desligar e salvar **guarda** a configuração e a chave,
+                para religar sem colar de novo; apagar de verdade é "Remover chave e
+                configuração", abaixo. Os campos escondidos continuam no POST — o
+                servidor grava o que sempre gravou.{% endcomment %}
                 <form method="post" action="{% url 'ai-admin:save' %}" novalidate id="ai-form">
                     {% csrf_token %}
-                    {% include "partials/form_fields.html" %}
+                    {% include "partials/form_fields.html" with pular="enabled,provider,base_url,model,api_key" %}
 
-                    {% if ai.has_api_key %}
-                    <div class="form-text fs-11 mb-3">
-                        Chave guardada: <code>{{ ai.api_key_hint }}</code>.
-                        O campo em branco mantém esta chave.
+                    <div class="form-check form-switch nd-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" name="enabled"
+                               id="id_enabled" data-nd-revela="ai-campos" {% if form.enabled.value %}checked{% endif %}>
+                        <label class="form-check-label fw-semibold" for="id_enabled">Usar IA própria nesta clínica</label>
+                        <div class="form-text fs-11">
+                            Desligada, a clínica usa a IA padrão do sistema. A chave guardada continua guardada.
+                        </div>
                     </div>
-                    {% endif %}
+
+                    <div id="ai-campos" {% if not form.enabled.value %}hidden{% endif %}>
+                        {% include "partials/form_fields.html" with somente="provider,base_url,model,api_key" %}
+
+                        {% if ai.has_api_key %}
+                        <div class="form-text fs-11 mb-3">
+                            Chave guardada: <code>{{ ai.api_key_hint }}</code>.
+                            O campo em branco mantém esta chave; para apagá-la, use "Remover chave e configuração".
+                        </div>
+                        {% endif %}
+                    </div>
 
                     <div class="d-flex flex-wrap gap-2">
                         <button type="submit" class="btn btn-primary" data-nd-busy>Salvar</button>
@@ -98,6 +116,14 @@ some sozinho quando o recurso e ligado.{% endcomment %}
                         </button>
                     </div>
                 </form>
+                {% if ai.has_api_key or ai.model or ai.base_url %}
+                <form method="post" action="{% url 'ai-admin:remove' %}" class="mt-3 pt-3 border-top"
+                      data-nd-confirm="Apagar a chave da API e a configuração de IA desta clínica? A clínica passa a usar a IA padrão do sistema.">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy>Remover chave e configuração</button>
+                    <span class="fs-11 text-muted ms-2">Apaga a chave cifrada, o provedor e o modelo. Não tem volta.</span>
+                </form>
+                {% endif %}
                 {% endif %}
             </div>
         </div>

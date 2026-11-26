@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Exames enviados pelo portal — NeuroDoc{% endblock %}
+{% block page_title %}Exames enviados pelo portal{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item">Portal</li>
+<li class="breadcrumb-item">Exames enviados</li>
+{% endblock %}
+{% block content %}
+{% comment %}Os laudos que pacientes mandaram pelo portal (2026-11-26), no
+lugar do aviso do sino. "Ciente" marca todos os envios pendentes daquele
+paciente, como no alerta do prontuário — quem os viu viu todos —, e volta
+para esta lista.{% endcomment %}
+<div class="card mb-4">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+        <div>
+            <h5 class="card-title mb-0">
+                {% if ver == 'todos' %}Todos os envios{% else %}Aguardando ciente{% endif %}
+            </h5>
+            <span class="fs-11 text-muted">
+                O exame entra direto nos anexos do paciente; o alerta no prontuário some no "Ciente".
+            </span>
+        </div>
+        <ul class="nav nav-pills gap-1">
+            <li class="nav-item"><a class="nav-link {% if ver != 'todos' %}active{% endif %}" href="?ver=pendentes">Aguardando ciente</a></li>
+            <li class="nav-item"><a class="nav-link {% if ver == 'todos' %}active{% endif %}" href="?ver=todos">Todos</a></li>
+        </ul>
+    </div>
+    <div class="card-body p-0">
+        {% if envios.object_list %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-gray-100">
+                    <tr class="border-b">
+                        <th class="ps-4" scope="col">Paciente</th>
+                        <th scope="col">Exame</th>
+                        <th scope="col">Enviado</th>
+                        <th scope="col">Situação</th>
+                        <th class="text-end pe-4" scope="col">Ação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in envios %}
+                    <tr>
+                        <td class="ps-4">
+                            <a class="fw-semibold text-dark d-block" href="{% url 'patients:detail' e.patient_id %}">{{ e.patient.full_name }}</a>
+                            <span class="fs-11 text-muted">
+                                {% if e.patient.record_number %}Prontuário {{ e.patient.record_number }}{% endif %}{% if e.patient.birth_date %} · nasc. {{ e.patient.birth_date|date:"d/m/Y" }}{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="d-block text-dark">{{ e.exam_label }}</span>
+                            <span class="fs-11 text-muted">realizado em {{ e.performed_on|date:"d/m/Y" }}{% if e.performed_at_place %}, {{ e.performed_at_place }}{% endif %}</span>
+                        </td>
+                        <td>
+                            <span class="d-block">{{ e.created_at|date:"d/m/Y H:i" }}</span>
+                            <span class="fs-11 text-muted">{% if e.requester_is_patient %}pelo próprio paciente{% else %}por {{ e.requester_name }}{% endif %}</span>
+                        </td>
+                        <td>
+                            {% if e.acknowledged_at %}
+                            <span class="badge bg-soft-success text-success">ciente</span>
+                            <span class="d-block fs-11 text-muted">{{ e.acknowledged_at|date:"d/m/Y H:i" }}{% if e.acknowledged_by %} · {{ e.acknowledged_by.user.get_full_name|default:e.acknowledged_by.user.email }}{% endif %}</span>
+                            {% else %}
+                            <span class="badge bg-soft-warning text-warning">aguardando ciente</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                {% if e.attachment.scan_status == 'available' %}
+                                <a class="btn btn-sm btn-light" href="{% url 'documents:download' e.attachment_id %}">Abrir laudo</a>
+                                {% elif e.attachment.scan_status == 'quarantined' %}
+                                <span class="btn btn-sm btn-light disabled">Em verificação de vírus</span>
+                                {% endif %}
+                                <a class="btn btn-sm btn-light" href="{% url 'clinical:timeline' e.patient_id %}">Prontuário</a>
+                                {% if not e.acknowledged_at %}
+                                <form method="post" action="{% url 'documents:portal-exams-ack' e.patient_id %}">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="next" value="{{ next }}">
+                                    <button type="submit" class="btn btn-sm btn-success" data-nd-busy
+                                            aria-label="Ciente dos exames de {{ e.patient.full_name }}">Ciente</button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-5 fs-13">
+            {% if ver == 'todos' %}Nenhum exame enviado pelo portal ainda.{% else %}Nenhum exame aguardando ciente.{% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% if envios.paginator.num_pages > 1 %}
+    <div class="card-footer">
+        <nav aria-label="Paginação">
+            <ul class="pagination mb-0 justify-content-center justify-content-sm-end">
+                <li class="page-item {% if not envios.has_previous %}disabled{% endif %}">
+                    {% if envios.has_previous %}
+                    <a class="page-link" href="?ver={{ ver }}&amp;page={{ envios.previous_page_number }}">Anterior</a>
+                    {% else %}<span class="page-link">Anterior</span>{% endif %}
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link">{{ envios.number }} / {{ envios.paginator.num_pages }}</span>
+                </li>
+                <li class="page-item {% if not envios.has_next %}disabled{% endif %}">
+                    {% if envios.has_next %}
+                    <a class="page-link" href="?ver={{ ver }}&amp;page={{ envios.next_page_number }}">Próxima</a>
+                    {% else %}<span class="page-link">Próxima</span>{% endif %}
+                </li>
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
