@@ -51,6 +51,10 @@ urlpatterns = [
     ),
     path('<uuid:encounter_id>/exames/', views.ExamResultCreateView.as_view(), name='add-exam-result'),
     path(
+        '<uuid:encounter_id>/exames-trazidos/<uuid:link_id>/retirar/',
+        views.ExamLinkRemoveView.as_view(), name='remove-exam-link',
+    ),
+    path(
         '<uuid:encounter_id>/exames/<uuid:exam_result_id>/remover/',
         views.ExamResultDeleteView.as_view(), name='delete-exam-result',
     ),

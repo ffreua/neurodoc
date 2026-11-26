@@ -1,4 +1,4 @@
-"""Cópia da consulta anterior: conduta, impressões, hipóteses (CID) e medicação.
+"""Cópia da consulta anterior: conduta, impressões, hipóteses (CID), medicação e exames.
 
 RF-03.04: copiar do último atendimento **finalizado do próprio médico**
 para aquele paciente, e só o que é decisão clínica que continua valendo —
@@ -9,13 +9,23 @@ Nada é aplicado sozinho: cada item vira um `CarryForwardItem` pendente, que
 o médico aceita ou recusa um a um. É a diferença entre trazer a consulta
 anterior e assinar a consulta anterior.
 
+Os **exames** (2026-11-26) entram por outro caminho, e não por cópia: o
+item aceito vira um `EncounterExamLink` para o mesmo `ExamResult`. O exame é
+um fato com data, e duplicá-lo poria o mesmo valor duas vezes na curva de
+evolução, na lista de exames do paciente e no que a IA lê. Vêm os exames
+lançados na consulta de origem **e** os que ela já tinha trazido — é assim
+que o exame acompanha o paciente de retorno em retorno enquanto o médico
+quiser, e some no retorno em que ele o descartar.
+
 Um atendimento de origem diferente do último pode ser passado pelo chamador,
 sempre de forma explícita e nunca inferido — a "seleção explícita
 autorizada" do requisito.
 """
 from django.db import transaction
 
-from .models import CarryForwardItem, Encounter, EncounterStatus, MedicationStatus
+from .models import (
+    CarryForwardItem, Encounter, EncounterStatus, ExamResult, MedicationStatus,
+)
 
 
 class CarryForwardBlocked(Exception):
@@ -110,7 +120,51 @@ def carry_forward(context, target_encounter, source_encounter=None):
             },
         )
         items.append(item)
+
+    # Exames: os lançados na consulta de origem e os que ela já tinha trazido.
+    # O que já está nesta consulta (lançado ou vinculado) não vira item: o
+    # médico não precisa recusar o que já tem.
+    ja_aqui = set(
+        target_encounter.exam_links.values_list('exam_result_id', flat=True)
+    ) | set(target_encounter.exam_results.values_list('id', flat=True))
+    for exame in exames_da_consulta(source_encounter):
+        if exame.id in ja_aqui:
+            continue
+        item, _ = CarryForwardItem.objects.update_or_create(
+            tenant_id=context.tenant_id, target_encounter=target_encounter,
+            field_path=f'exam:{exame.id}',
+            defaults={
+                'source_encounter': source_encounter,
+                'source_version_hash': versao,
+                # Só o que a tela precisa para o médico decidir; o exame em si
+                # não é copiado, e o aceite lê o registro original.
+                'copied_value': {
+                    'name': exame.name,
+                    'category': exame.get_category_display(),
+                    'performed_on': exame.performed_on.isoformat() if exame.performed_on else None,
+                    'conclusion': (exame.conclusion or '')[:300],
+                },
+            },
+        )
+        items.append(item)
     return items
+
+
+def exames_da_consulta(encounter):
+    """Os exames que aparecem nesta consulta: os lançados nela e os trazidos.
+
+    Do mais recente ao mais antigo, sem repetir. É o que a cópia oferece ao
+    retorno seguinte, e é a mesma lista que a tela e o resumo mostram.
+    """
+    from django.db.models import Q
+
+    from .ordem import exames_em_ordem
+
+    return exames_em_ordem(
+        ExamResult.objects.filter(tenant_id=encounter.tenant_id, patient_id=encounter.patient_id)
+        .filter(Q(encounter=encounter) | Q(links__encounter=encounter))
+        .distinct()
+    )
 
 
 def has_pending_review(target_encounter):
@@ -128,6 +182,7 @@ FIELD_LABELS = {
 }
 DIAGNOSIS_LABEL = 'Hipótese da consulta anterior'
 MEDICATION_LABEL = 'Medicação da consulta anterior'
+EXAM_LABEL = 'Exame da consulta anterior'
 
 
 def describe_item(item):
@@ -153,6 +208,19 @@ def describe_item(item):
         )
         detalhe = ' · '.join(parte for parte in (posologia, value.get('indication')) if parte)
         return {'label': MEDICATION_LABEL, 'value': value.get('name') or '', 'detail': detalhe}
+    if item.field_path.startswith('exam:'):
+        # Data e tipo na mesma linha, e a conclusão embaixo: é o que decide se
+        # o exame ainda serve a esta consulta. Um exame de dois anos atrás é
+        # outro exame, e a data é o que mostra isso.
+        data = value.get('performed_on') or ''
+        if data:
+            ano, mes, dia = data.split('-')
+            data = f'{dia}/{mes}/{ano}'
+        detalhe = ' · '.join(
+            parte for parte in (data or 'data não informada', value.get('category'),
+                                value.get('conclusion')) if parte
+        )
+        return {'label': EXAM_LABEL, 'value': value.get('name') or '', 'detail': detalhe}
     if item.field_path.startswith('diagnosis:'):
         code = value.get('code_snapshot') or ''
         description = value.get('description_snapshot') or ''
@@ -185,7 +253,9 @@ def review_carry_forward_item(item, action, actor_membership_id):
     """
     from django.utils import timezone
 
-    from .models import Encounter, EncounterDiagnosis, Medication, MedicationRoute, ReviewAction
+    from .models import (
+        Encounter, EncounterDiagnosis, EncounterExamLink, Medication, MedicationRoute, ReviewAction,
+    )
 
     # O atendimento relido **com trava** antes de conferir (auditoria de
     # 2026-11-11). Conferido na instância que a tela carregou, a finalização
@@ -270,4 +340,20 @@ def review_carry_forward_item(item, action, actor_membership_id):
                 'physician_note': 'Trazida da consulta anterior e revisada.',
             },
         )
+    elif item.field_path.startswith('exam:'):
+        # O exame é procurado **no paciente desta consulta e nesta clínica**,
+        # e não só pelo id gravado no item: o item é dado, e um id adulterado
+        # não pode vincular aqui o exame de outro paciente.
+        exame = ExamResult.objects.filter(
+            tenant_id=encounter.tenant_id, patient_id=encounter.patient_id,
+            id=item.field_path.split(':', 1)[1],
+        ).first()
+        if exame is not None and exame.encounter_id != encounter.id:
+            EncounterExamLink.objects.get_or_create(
+                tenant_id=encounter.tenant_id, encounter=encounter, exam_result=exame,
+                defaults={
+                    'source_encounter_id': item.source_encounter_id,
+                    'linked_by_id': actor_membership_id,
+                },
+            )
     return item

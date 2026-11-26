@@ -20,7 +20,7 @@ from tenancy.selectors import scope_to_tenant
 from . import carry_forward as cf
 from . import estrutura as estrutura_do_atendimento
 from . import finalization, selectors
-from .ordem import exames_em_ordem, medicacoes_em_ordem
+from .ordem import chave_do_exame, exames_em_ordem, medicacoes_em_ordem
 from .cranial_nerves import upsert_cranial_nerve_finding
 from exams.models import ExamScale
 from exams.recording import (
@@ -38,7 +38,7 @@ from .forms import (
 from .models import (
     EncounterKind, EstruturaDoAtendimento,
     Encounter, EncounterDiagnosis, EncounterStatus, ExaminationDomain, ExaminationFinding,
-    ExamResult, LabValue, Medication, ReviewAction,
+    EncounterExamLink, ExamResult, LabValue, Medication, ReviewAction,
 )
 
 
@@ -512,6 +512,7 @@ class EncounterDetailView(TenantScopedView):
             result.values_in = [v for v in values if v.flag == 'normal']
             result.values_unknown = [v for v in values if v.flag == 'no_reference']
             result.edit_form = ExamResultEditForm(instance=result, prefix=f'examres-{result.id}')
+        exam_links = _exames_trazidos(encounter)
 
         support_job, support_artifact = latest_diagnostic_support(encounter)
         support_hypotheses, support_steps = [], []
@@ -538,6 +539,8 @@ class EncounterDetailView(TenantScopedView):
             'medications': medications,
             'medication_form': MedicationForm(),
             'exam_results': exam_results,
+            'exam_links': exam_links,
+            'exam_links_count': len(exam_links),
             'exam_result_form': ExamResultForm(),
             'lab_value_form': LabValueForm(),
             'support_job': support_job,
@@ -1073,6 +1076,7 @@ class EncounterSummaryView(TenantScopedView):
             'findings_count': len(findings),
             'medications': list(medicacoes_em_ordem(encounter.medications.all())),
             'exam_results': exam_results,
+            'exam_links': _exames_trazidos(encounter),
             'diagnoses': encounter.diagnoses.all().order_by('rank'),
             'amendments': encounter.amendments.all().order_by('authored_at'),
             'printed_at': timezone.now(),
@@ -1135,6 +1139,11 @@ class PatientSummaryView(TenantScopedView):
             result.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
             result.values_in_count = sum(1 for v in values if v.flag == 'normal')
         exames = agrupar(resultados)
+        trazidos = agrupar(_com_valores(sorted(
+            EncounterExamLink.objects.filter(**do_paciente)
+            .select_related('exam_result__encounter').prefetch_related('exam_result__lab_values'),
+            key=lambda link: chave_do_exame(link.exam_result),
+        )))
         hipoteses = agrupar(EncounterDiagnosis.objects.filter(**do_paciente).order_by('rank'))
         adendos = agrupar(
             ClinicalAmendment.objects.filter(**do_paciente)
@@ -1150,6 +1159,7 @@ class PatientSummaryView(TenantScopedView):
                 'findings_count': len(do_atendimento),
                 'medications': medicacoes.get(encounter.id, []),
                 'exam_results': exames.get(encounter.id, []),
+                'exam_links': trazidos.get(encounter.id, []),
                 'diagnoses': hipoteses.get(encounter.id, []),
                 'amendments': adendos.get(encounter.id, []),
             })
@@ -1383,6 +1393,59 @@ class ExamResultCreateView(TenantScopedView):
         )
 
         messages.success(request, f'{exam_result.name} registrado.')
+        return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
+
+
+def _com_valores(links):
+    """Os analitos de cada exame trazido, separados como na lista dos lançados."""
+    for link in links:
+        values = list(link.exam_result.lab_values.all())
+        link.values_out = [v for v in values if v.flag in ('low', 'high', 'abnormal')]
+        link.values_in = [v for v in values if v.flag == 'normal']
+        link.values_unknown = [v for v in values if v.flag == 'no_reference']
+        link.values_in_count = len(link.values_in)
+    return links
+
+
+def _exames_trazidos(encounter):
+    """Os exames de outras consultas que o médico trouxe para esta.
+
+    Na mesma ordem dos lançados (`clinical/ordem.py`), e só leitura: o exame
+    se corrige na consulta em que foi lançado. Aqui ele só entra ou sai.
+    """
+    return _com_valores(sorted(
+        encounter.exam_links
+        .select_related('exam_result__attachment', 'exam_result__encounter', 'source_encounter')
+        .prefetch_related('exam_result__lab_values'),
+        key=lambda link: chave_do_exame(link.exam_result),
+    ))
+
+
+@method_decorator(transaction.atomic, name='post')
+class ExamLinkRemoveView(TenantScopedView):
+    """Retira desta consulta um exame trazido de outra. O exame continua.
+
+    Só apaga o vínculo: o `ExamResult` é da consulta em que foi lançado, e
+    some daqui sem sumir de lá, da lista do paciente nem da curva.
+    """
+
+    def post(self, request, encounter_id, link_id):
+        encounter = selectors.get_encounter_or_404(request.access_context, encounter_id)
+        if not _travar_editavel(encounter):
+            return _blocked(request, encounter, 'Atendimento finalizado.', anchor='tab-exames')
+        link = get_object_or_404(
+            EncounterExamLink.objects.select_related('exam_result'),
+            tenant_id=request.access_context.tenant_id, encounter=encounter, id=link_id,
+        )
+        nome = link.exam_result.name
+        link.delete()
+        # Sem o nome do exame na trilha (auditoria de 2026-11-20): só o fato.
+        record_audit_event(
+            request.user, request.access_context.tenant_id, 'clinical.exam_link_removed',
+            object_type='encounter', object_id=encounter.id, outcome='success',
+            integrity_metadata={},
+        )
+        messages.success(request, f'{nome} retirado desta consulta. O exame continua no prontuário.')
         return redirect(f'{reverse("clinical:detail", args=[encounter.id])}#tab-exames')
 
 

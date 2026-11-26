@@ -328,8 +328,17 @@ ARTICLES = [
              'cefaleia, e diluídos no texto livre somem na releitura.',
              '', ''),
             ('O que foi registrado na consulta anterior pode ser **trazido para esta** '
-             '— medicações em uso, por exemplo. Cada item vem para revisão, e você '
-             'aceita ou descarta um a um. O sistema nunca copia nada sozinho.',
+             '— conduta, impressões, hipóteses, medicações em uso e **resultados de '
+             'exames**. Cada item vem para revisão, e você aceita ou descarta um a um '
+             '(ou usa **Trazer tudo**). O sistema nunca copia nada sozinho.',
+             '', ''),
+            ('O **exame trazido** não é uma cópia: é o mesmo registro da consulta em '
+             'que foi lançado, mostrado em **Resultados de exames** como "Trazidos de '
+             'consultas anteriores", com a data do exame e a consulta de origem. Assim '
+             'ele não aparece duas vezes na lista do paciente nem no gráfico de '
+             'evolução. Para corrigir o exame, abra a consulta em que ele foi lançado; '
+             'aqui, **Retirar desta consulta** só o tira desta folha. O exame trazido '
+             'volta a ser oferecido no retorno seguinte, até você descartá-lo.',
              '', ''),
             ('Na aba **Medicações em uso**, o **lápis** ao lado de cada medicação abre o '
              'cadastro dela já preenchido: mude a dose, a posologia ou a situação e '

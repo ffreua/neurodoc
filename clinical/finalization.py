@@ -263,6 +263,8 @@ def discard_encounter(context, encounter, actor_membership, reason=''):
     # é referenciado por PROTECT em várias delas, então apagar o pai antes
     # levantaria ProtectedError.
     encounter.carry_forward_items.all().delete()
+    # Só o vínculo: o exame trazido é de outra consulta e continua lá.
+    encounter.exam_links.all().delete()
     encounter.examination_findings.all().delete()
     encounter.diagnoses.all().delete()
     encounter.amendments.all().delete()

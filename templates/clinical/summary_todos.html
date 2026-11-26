@@ -100,7 +100,7 @@ Como a folha de um atendimento, não é documento assinado: o rodapé diz isso.
             {% endif %}
         </div>
 
-        {% include "clinical/_resumo_corpo.html" with encounter=item.encounter medications=item.medications findings_by_domain=item.findings_by_domain findings_count=item.findings_count exam_results=item.exam_results diagnoses=item.diagnoses amendments=item.amendments %}
+        {% include "clinical/_resumo_corpo.html" with encounter=item.encounter medications=item.medications findings_by_domain=item.findings_by_domain findings_count=item.findings_count exam_results=item.exam_results exam_links=item.exam_links diagnoses=item.diagnoses amendments=item.amendments %}
 
         <p class="atd-registro">
             {% if item.encounter.migrado %}

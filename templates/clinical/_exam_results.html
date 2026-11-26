@@ -188,8 +188,105 @@ mais na consulta (`docs/homologation/leitura-de-laudo-por-ia.md`).
         {% endif %}
     </div>
     {% empty %}
+    {% if not exam_links %}
     <div class="text-center text-muted py-5 fs-13 border rounded-3">
         Nenhum resultado de exame registrado neste atendimento.
     </div>
+    {% endif %}
     {% endfor %}
+
+    {% comment %}Exames trazidos de consultas anteriores (2026-11-26): o médico
+    os aceitou um a um no cartão "Trazido da consulta anterior". É o mesmo
+    registro da consulta em que foi lançado — não uma cópia —, por isso aqui
+    não há lápis nem analito: corrige-se lá. Aqui ele só entra ou sai.{% endcomment %}
+    {% if exam_links %}
+    <div class="d-flex flex-wrap align-items-center gap-2 {% if exam_results %}mt-4{% endif %} mb-1" id="exames-trazidos">
+        <h6 class="fw-bold text-dark mb-0">Trazidos de consultas anteriores</h6>
+        <span class="badge bg-gray-200 text-dark">{{ exam_links|length }}</span>
+    </div>
+    <p class="fs-11 text-muted mb-3">
+        O mesmo registro da consulta em que foi lançado: alterações se fazem lá. Retirar daqui não apaga o exame.
+    </p>
+    {% for link in exam_links %}
+    {% with result=link.exam_result %}
+    <div class="border rounded-3 mb-3 bg-gray-100">
+        <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 p-3 {% if result.report_text or result.conclusion or link.values_out or link.values_in or link.values_unknown %}border-bottom{% endif %}">
+            <div class="flex-grow-1">
+                <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="fw-bold text-dark fs-14">{{ result.name }}</span>
+                    <span class="badge bg-soft-primary text-primary">{{ result.get_category_display }}</span>
+                    <span class="badge bg-soft-info text-info">trazido</span>
+                </div>
+                <div class="d-flex flex-wrap align-items-center gap-3 fs-11 text-muted mt-1">
+                    <span>{{ result.performed_on|date:"d/m/Y"|default:"data não informada" }}</span>
+                    {% if result.service_name %}<span>{{ result.service_name }}</span>{% endif %}
+                    <span>lançado na consulta de {{ result.encounter.occurred_at|date:"d/m/Y" }}</span>
+                </div>
+            </div>
+            <div class="d-inline-flex flex-wrap gap-1">
+                {% if result.attachment and result.attachment.scan_status == 'available' %}
+                <a class="btn btn-sm btn-light" href="{% url 'documents:download' result.attachment.id %}">
+                    Abrir laudo
+                </a>
+                {% endif %}
+                {% if encounter.status != 'finalized' %}
+                <form method="post" data-nd-save-encounter-before-submit
+                      action="{% url 'clinical:remove-exam-link' encounter.id link.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-light-danger" data-nd-busy
+                            aria-label="Retirar {{ result.name }} desta consulta">
+                        Retirar desta consulta
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        {% if result.report_text or result.conclusion or link.values_out or link.values_in or link.values_unknown %}
+        <div class="p-3">
+            {% if result.report_text or result.conclusion %}
+            <div class="row g-3">
+                {% if result.report_text %}
+                <div class="col-lg-8">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-1">Laudo</span>
+                    <span class="fs-13 nd-prose">{{ result.report_text }}</span>
+                </div>
+                {% endif %}
+                {% if result.conclusion %}
+                <div class="col-lg-4">
+                    <span class="d-block fs-11 text-uppercase text-muted fw-semibold mb-1">Conclusão</span>
+                    <span class="fs-13 nd-prose fw-semibold text-dark">{{ result.conclusion }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% if link.values_out or link.values_in or link.values_unknown %}
+            <div class="{% if result.report_text or result.conclusion %}mt-3 pt-3 border-top{% endif %}">
+                {% if link.values_out %}
+                <div class="d-flex align-items-center gap-2 mb-2">
+                    <span class="fw-semibold text-dark fs-13">Fora da faixa de referência</span>
+                    <span class="badge bg-soft-warning text-warning">{{ link.values_out|length }}</span>
+                </div>
+                {% include "clinical/_lab_table.html" with values=link.values_out %}
+                {% endif %}
+                {% if link.values_unknown %}
+                <div class="d-flex align-items-center gap-2 mb-2 mt-3">
+                    <span class="fw-semibold text-dark fs-13">Sem faixa de referência no laudo</span>
+                    <span class="badge bg-gray-200 text-dark">{{ link.values_unknown|length }}</span>
+                </div>
+                {% include "clinical/_lab_table.html" with values=link.values_unknown %}
+                {% endif %}
+                {% if link.values_in %}
+                <details class="mt-3">
+                    <summary class="fs-12 text-muted">{{ link.values_in|length }} dentro da faixa de referência</summary>
+                    <div class="mt-2">{% include "clinical/_lab_table.html" with values=link.values_in %}</div>
+                </details>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endwith %}
+    {% endfor %}
+    {% endif %}
 </div>

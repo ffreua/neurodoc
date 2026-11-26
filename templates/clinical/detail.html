@@ -106,8 +106,8 @@ digitado em outra.{% endcomment %}
                 <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-exames"
                         type="button" role="tab" aria-selected="false">
                     Resultados de exames
-                    {% if exam_results %}
-                    <span class="badge bg-gray-200 text-dark ms-1">{{ exam_results|length }}</span>
+                    {% if exam_results or exam_links %}
+                    <span class="badge bg-gray-200 text-dark ms-1">{{ exam_results|length|add:exam_links_count }}</span>
                     {% endif %}
                 </button>
             </li>

@@ -173,7 +173,41 @@ Recebe `encounter`, `medications`, `findings_by_domain`, `findings_count`,
         </p>
         {% endif %}
         {% endfor %}
-        {% else %}
+        {% endif %}
+        {% comment %}Os trazidos de consultas anteriores (2026-11-26): o mesmo
+        registro da consulta em que foram lançados, ditos como tal no papel.{% endcomment %}
+        {% for link in exam_links %}
+        <h3>
+            {{ link.exam_result.name }}
+            <span class="muted">
+                — {{ link.exam_result.get_category_display|lower }}{% if link.exam_result.performed_on %}, {{ link.exam_result.performed_on|date:"d/m/Y" }}{% endif %}{% if link.exam_result.service_name %}, {{ link.exam_result.service_name }}{% endif %}; trazido da consulta de {{ link.exam_result.encounter.occurred_at|date:"d/m/Y" }}
+            </span>
+        </h3>
+        {% if link.exam_result.report_text %}<p class="prose">{{ link.exam_result.report_text }}</p>{% endif %}
+        {% if link.exam_result.conclusion %}<p class="prose"><strong>Conclusão:</strong> {{ link.exam_result.conclusion }}</p>{% endif %}
+        {% if link.values_out %}
+        <table>
+            <thead>
+                <tr><th>Fora da referência</th><th>Resultado</th><th>Referência do laudo</th></tr>
+            </thead>
+            <tbody>
+                {% for value in link.values_out %}
+                <tr>
+                    <td>{{ value.analyte }}</td>
+                    <td class="num">{{ value.value_text }} {{ value.unit }}</td>
+                    <td class="num muted">{{ value.reference_display }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+        {% if link.values_in_count %}
+        <p class="muted" style="font-size:11px">
+            {{ link.values_in_count }} analito(s) dentro da faixa de referência do laudo.
+        </p>
+        {% endif %}
+        {% endfor %}
+        {% if not exam_results and not exam_links %}
         <p class="empty">Nenhum resultado de exame registrado.</p>
         {% endif %}
     </div>

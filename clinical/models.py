@@ -497,6 +497,44 @@ class ExamResult(TenantModel):
         return f'{self.name} ({self.performed_on})'
 
 
+class EncounterExamLink(TenantModel):
+    """Exame de uma consulta anterior trazido para esta, por decisão do médico.
+
+    É um **vínculo**, e não uma cópia, de propósito (2026-11-26). O exame é
+    um fato com data: o hemograma de 03/10 é o mesmo hemograma na consulta
+    de outubro e no retorno de dezembro. Copiá-lo como `ExamResult` novo
+    duplicaria o registro em tudo que lê exames do paciente — a lista de
+    exames, os gráficos de evolução dos analitos, o contexto da IA, a
+    exportação do acervo — e o mesmo valor apareceria duas vezes na curva.
+    Vinculado, ele continua um registro só, editável só na consulta em que
+    foi lançado, e aparece aqui como "trazido da consulta anterior".
+
+    Nasce só pelo aceite do item de `carry_forward` (o médico escolhe exame
+    a exame) e sai pelo botão "Retirar desta consulta" enquanto ela está
+    aberta. A consulta finalizada não ganha nem perde vínculo.
+    """
+
+    encounter = models.ForeignKey(Encounter, on_delete=models.PROTECT, related_name='exam_links')
+    exam_result = models.ForeignKey(ExamResult, on_delete=models.PROTECT, related_name='links')
+    #: A consulta de onde o médico o trouxe — que pode não ser a do
+    #: lançamento, quando o exame já vinha sendo trazido de retorno em retorno.
+    source_encounter = models.ForeignKey(Encounter, on_delete=models.PROTECT, related_name='+')
+    linked_by = models.ForeignKey(
+        'tenancy.Membership', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
+    )
+
+    class Meta(TenantModel.Meta):
+        constraints = TenantModel.Meta.constraints + [
+            models.UniqueConstraint(
+                fields=['tenant', 'encounter', 'exam_result'],
+                name='clinical_examlink_unique',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.exam_result_id} -> {self.encounter_id}'
+
+
 class LabValueFlag(models.TextChoices):
     NORMAL = 'normal', 'Dentro da referência'
     LOW = 'low', 'Abaixo da referência'

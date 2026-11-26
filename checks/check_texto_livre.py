@@ -104,7 +104,10 @@ cliente = entrar()
 print('=== 1. os dois tipos abrem, e cada um na sua tela ===')
 for rotulo, valor, marca_esperada, marca_proibida in [
     ('estruturado', 'structured', 'tab-conduta', 'id_free_text'),
-    ('texto livre', 'free_text', 'id_free_text', 'tab-exame'),
+    # A aba do roteiro de exame neurologico e `id="tab-exame"`; desde
+    # 2026-11-26 o texto livre tem o cartao de **resultados** de exames
+    # (`id="tab-exames"`), que o teste por pedaco de texto confundia.
+    ('texto livre', 'free_text', 'id_free_text', 'id="tab-exame"'),
 ]:
     r = cliente.post(f'/app/clinical/patients/{paciente.id}/new/', {'kind': valor}, follow=True)
     e = Encounter.objects.filter(tenant=tenant_a, patient=paciente, kind=valor).order_by('-created_at').first()

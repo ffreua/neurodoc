@@ -323,7 +323,12 @@ try:
         conferir('o script do seletor', 'clinical/exam.js' in html)
         conferir('o formulário salva o texto antes', 'nd-scale-form' in html
                  and re.search(r'class="nd-scale-form"[^>]*data-nd-save-encounter-before-submit', html) is not None)
-        conferir('continua sem o roteiro de exame', 'tab-exame' not in html)
+        # O roteiro de exame neurológico é a aba `id="tab-exame"`. Desde
+        # 2026-11-26 o texto livre tem o cartão de **resultados** de exames
+        # (`id="tab-exames"`, para os exames trazidos da consulta anterior),
+        # e o teste por pedaço de texto confundia os dois.
+        conferir('continua sem o roteiro de exame',
+                 'id="tab-exame"' not in html and 'data-bs-target="#tab-exame"' not in html)
         escala = (ExamScale.objects.filter(tenant=tenant, active=True)
                   .prefetch_related('items').order_by('code').first())
         conferir('há escala cadastrada para aplicar', escala is not None)
