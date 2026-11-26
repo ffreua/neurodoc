@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologistas e neurocirurgiões
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.56-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.60-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -23,9 +23,11 @@ neurocirurgiões**: o exame neurológico estruturado e as 14 escalas que a
 especialidade usa — ou o texto livre, como o médico preferir —, com
 **apoio de IA** revisado pelo médico, agenda, **receita digital da Anvisa
 (SNCR)**, **Notificação de Receita A, B e B2 eletrônica**, documento
-assinado em PAdES, **faturamento TISS**, agenda de EEG, ENMG e
-polissonografia, portal do paciente, Dashboard e financeiro. Feito por um
-neurologista, em uso real em consultório.
+assinado em PAdES, **LME do medicamento de alto custo** no formulário do
+Ministério da Saúde, **faturamento TISS**, agenda de EEG, ENMG e
+polissonografia, teleatendimento com link e termo, portal do paciente,
+**WhatsApp automático pela conta Twilio da própria clínica** (em liberação),
+Dashboard e financeiro. Feito por um neurologista, em uso real em consultório.
 
 Django monolítico modular, SSR com Django Templates, PostgreSQL como fonte
 de verdade clínica e Celery para trabalho pesado. Multi-inquilino: uma
@@ -33,10 +35,10 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.56 (`base/version.py`) |
+| **Versão** | 1.60 (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
-| **Verificação** | 191 roteiros em `checks/` |
+| **Verificação** | 198 roteiros em `checks/` |
 | **Stack** | Python 3.14 · Django 6.1 · PostgreSQL 17 · Celery · RabbitMQ · Redis · Traefik · Docker Swarm · Cloudflare |
 
 ## Apoie o projeto
@@ -76,6 +78,16 @@ publicamente por QR, sem conta. **Modelos de documento** por médico
 direto da Conduta. Catálogo CMED/Anvisa com 26 mil apresentações no
 autocomplete.
 
+**LME do medicamento de alto custo** (CEAF, 1.60). O laudo sai no
+**formulário oficial do Ministério da Saúde** (revisão 2026-03, travado por
+SHA-256), preenchido com nome, mãe, peso, altura e documento do paciente,
+até seis medicamentos com a quantidade de seis meses, CID-10, anamnese,
+tratamento prévio e o atestado de capacidade com o responsável. A lista do
+formulário é só sugestão: o médico escreve o medicamento como quiser. **Sempre
+impressa, assinada à mão e carimbada** — o servidor recusa a assinatura
+digital —, e a renovação parte da LME anterior
+([`docs/governance/lme.md`](docs/governance/lme.md)).
+
 **Receita controlada no SNCR da Anvisa** (RDC 1.000/2025). O médico pede a
 própria numeração com o Gov.br e emite, no **modelo oficial**, a Receita de
 Controle Especial e a de Retenção (blocos de 1.000 números) e, desde a 1.34,
@@ -102,7 +114,14 @@ público onde o paciente pede receita, relatório ou pedido de exames sem
 criar conta, e **envia os laudos dos exames que fez** (PDF, direto no
 prontuário, com alerta ao médico até o "Ciente"); outbox de entrega
 por e-mail e SMS com links opacos, OTP e confirmação de entrega lida do
-provedor; convênios, honorários com vigência,
+provedor; **WhatsApp automático pela conta Twilio da própria clínica**
+(1.59, opcional e **em liberação**): modelos aprovados pela Meta para
+lembrete, horário marcado, remarcado ou cancelado e documento disponível, no
+lugar do SMS de quem deu o aceite de WhatsApp, sem dado clínico, com as
+credenciais cifradas por clínica e o status assinado pela Twilio
+([`docs/governance/whatsapp-twilio.md`](docs/governance/whatsapp-twilio.md));
+**teleatendimento por vídeo** com o link enviado ao paciente e o termo de
+consentimento em página pública (1.58); convênios, honorários com vigência,
 recebíveis e pagamentos (tudo em `Decimal`); exportação do acervo em
 Markdown e JSON.
 
@@ -323,11 +342,11 @@ em ordem cronológica; o histórico inteiro está em `base/version.py` e em
 
 | Versão | Data | Nome | O que entrou |
 | --- | --- | --- | --- |
-| **1.52** | 2026-11-19 | Dashboard | **Dashboard no menu**: o perfil da carteira e da atividade por clínica e por médico (idade, sexo, UF, município, origem, pagamento, convênio, mês a mês e CID), cada tabela em CSV agregado; quem administra escolhe o médico, o médico vê a própria carteira. O **mailing** dos contatos que consentiram, só pelo responsável e com o código recente. Junto, a correção de incluir horário fora da cadência na agenda. Sem migração. `check_painel` |
-| **1.53** | 2026-11-20 | a auditoria | **A auditoria externa conferida e corrigida**: segundo fator que só se troca com o código atual, o `/admin/login/` pedindo o código, acervo e mailing baixados só por quem pediu, convite pago preso ao e-mail, restauração presa ao `.env`, pagamento estornado que não se apaga, PDF do paciente no quadro, a corrida ao finalizar travada, a trilha sem nome de medicamento e de exame; e **quem abriu o prontuário**, na trilha e na ficha. `check_revisao_2026_11_20` |
-| **1.54** | 2026-11-20 | telas lentas | **O registro de telas lentas**: toda resposta acima de 500 ms grava a rota, o tempo e as consultas, sem dado que identifique, por 30 dias, e o console mostra por rota. Junto, o **HTML comprimido na saída** (a vitrine de 124 KB a 21 KB). Uma migração, só acrescenta. `check_telas_lentas`, `check_compressao` |
-| **1.55** | 2026-11-22 | a campanha | **Comunicação em massa em HTML com CSS**, limpa por lista de permissão, com prévia, rascunho editável, **cliques contados por link** (sem identificar quem clicou) e **excluir campanha**. O painel do SNCR com lista curta de pedidos e histórico paginado; no Dashboard, o município somado sem diferença de acento, o **Exterior** e o cartão **País**; o país do endereço numa lista na ficha. Duas migrações, só acrescentam. `check_campanha_html`, `check_sncr_lista_de_pedidos` |
 | **1.56** | 2026-11-22 | indicadores | **O painel de indicadores completo**: cartões de **seguimentos** e **retornos** pelo tipo da agenda, as consultas atendidas por tipo e a **receita por tipo de atendimento** — primeira consulta, seguimento, retorno e cada procedimento pelo código TUSS, com quantidade, valor, médio e porcentagem; a taxa de falta contando o check-in. No Dashboard, a **naturalidade** (país e UF de nascimento). Sem migração. `check_indicadores_por_tipo` |
+| **1.57** | 2026-11-25 | editar e livres | **Editar o exame e o diagnóstico já lançados** pelo lápis da linha (inclusive a certeza da hipótese), o **%** de cada tipo de consulta nos indicadores, a **data de nascimento opcional** no pré-cadastro por telefone e os **horários livres por tipo** nas estatísticas do mês. Sem migração. `check_editar_exame_diagnostico`, `check_precadastro_e_livres` |
+| **1.58** | 2026-11-25 | teleatendimento | **Teleatendimento por vídeo**: o link do vídeo no horário marcado como teleatendimento, o botão **Enviar link** (e-mail ao paciente com orientações) e o **termo de consentimento** numa página pública. Uma migração, só acrescenta. `check_teleconsulta_link` |
+| **1.59** | 2026-11-25 | WhatsApp | **WhatsApp automático pela conta Twilio da própria clínica**, opcional e em liberação: modelos aprovados pela Meta em cinco ocasiões, aceite próprio do paciente, nada clínico, credenciais cifradas, status assinado, tutorial no manual. Três migrações, só acrescentam. `check_whatsapp_twilio` |
+| **1.60** | 2026-11-25 | LME | **LME do medicamento de alto custo** no formulário oficial do Ministério da Saúde, preenchida e **sempre impressa** para assinar e carimbar, da Conduta, da ficha e de "Emitir documento"; a renovação a partir da anterior. Migração só de opções, sem DDL. `check_lme` |
 
 ---
 

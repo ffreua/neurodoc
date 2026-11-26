@@ -24,10 +24,12 @@ class AttachmentUploadForm(forms.Form):
 #: lista (exames, procedimentos, materiais), e este formulário só carrega
 #: texto — escolhê-los aqui geraria um documento vazio. Nascem da tela de
 #: emissão por modelo (`modelos/emissao.py`), e a retificação deles também
-#: não passa por aqui.
+#: não passa por aqui. A LME também fica de fora: tem tela própria
+#: (`documents/lme_views.py`), com o formulário do Ministério campo a campo.
 TIPOS_DO_FORMULARIO = [
     (valor, rotulo) for valor, rotulo in MedicalDocumentKind.choices
-    if valor not in (MedicalDocumentKind.EXAM_REQUEST, MedicalDocumentKind.SURGERY_REQUEST)
+    if valor not in (MedicalDocumentKind.EXAM_REQUEST, MedicalDocumentKind.SURGERY_REQUEST,
+                     MedicalDocumentKind.LME)
 ]
 
 

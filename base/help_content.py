@@ -46,6 +46,7 @@ def _planos_com(recurso):
 #: passo sem captura — nem todo passo merece uma, e uma imagem por
 #: parágrafo transforma o manual numa apresentação de slides.
 from .ajuda_whatsapp import artigo as _artigo_whatsapp
+from .ajuda_lme import artigo as _artigo_lme
 
 ARTICLES = [
     # Primeiro da lista, de propósito: é o artigo para onde o e-mail de
@@ -518,6 +519,7 @@ ARTICLES = [
              '', ''),
         ],
     },
+    _artigo_lme('NeuroDoc'),
     {
         'slug': 'modelos',
         'title': 'Modelos de documento',

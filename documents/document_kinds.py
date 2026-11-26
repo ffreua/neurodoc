@@ -1,5 +1,7 @@
 from sncr.receita import CAMPOS_DO_FORMULARIO as ITENS_DO_SNCR
 
+from . import lme
+
 from .models import MedicalDocumentKind
 
 NUMBER_PREFIX = {
@@ -9,6 +11,7 @@ NUMBER_PREFIX = {
     MedicalDocumentKind.REFERRAL: 'ENC',
     MedicalDocumentKind.EXAM_REQUEST: 'PEX',
     MedicalDocumentKind.SURGERY_REQUEST: 'CIR',
+    MedicalDocumentKind.LME: 'LME',
 }
 
 TITLE = {
@@ -18,6 +21,7 @@ TITLE = {
     MedicalDocumentKind.REFERRAL: 'Encaminhamento',
     MedicalDocumentKind.EXAM_REQUEST: 'Pedido de exames',
     MedicalDocumentKind.SURGERY_REQUEST: 'Solicitação de cirurgia',
+    MedicalDocumentKind.LME: 'LME — Laudo de medicamento especializado',
 }
 
 REQUIRED_FIELDS = {
@@ -29,6 +33,8 @@ REQUIRED_FIELDS = {
     # exigem é uma **lista** não vazia, conferida em `LISTA_OBRIGATORIA`.
     MedicalDocumentKind.EXAM_REQUEST: (),
     MedicalDocumentKind.SURGERY_REQUEST: (),
+    # A LME é conferida inteira por `lme.validar`, na tela e na criação.
+    MedicalDocumentKind.LME: (),
 }
 
 #: A lista que não pode chegar vazia, por tipo. `validate_content` conferia
@@ -36,6 +42,7 @@ REQUIRED_FIELDS = {
 LISTA_OBRIGATORIA = {
     MedicalDocumentKind.EXAM_REQUEST: ('itens', 'Inclua ao menos um exame no pedido.'),
     MedicalDocumentKind.SURGERY_REQUEST: ('procedimentos', 'Inclua ao menos um procedimento.'),
+    MedicalDocumentKind.LME: ('medicamentos', 'Inclua ao menos um medicamento na LME.'),
 }
 
 OPTIONAL_FIELDS = {
@@ -64,6 +71,7 @@ OPTIONAL_FIELDS = {
         'fornecedores', 'monitorizacao', 'materiais_hospitalares', 'equipe_anestesia',
         'tempo_sala', 'dias_uti', 'hemo_ch', 'hemo_plasma', 'hemo_plaquetas',
     ),
+    MedicalDocumentKind.LME: lme.CHAVES,
 }
 
 
@@ -81,3 +89,5 @@ def validate_content(kind, content):
         campo, mensagem = LISTA_OBRIGATORIA[kind]
         if not content.get(campo):
             raise ValueError(mensagem)
+    if kind == MedicalDocumentKind.LME:
+        lme.validar(content)

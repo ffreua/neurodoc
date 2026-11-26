@@ -15,7 +15,9 @@
     <span>Baixar PDF assinado</span>
 </a>
 {% elif document.pdf_attachment_id %}
-<a class="btn btn-light-primary" href="{% url 'documents:download' document.pdf_attachment_id %}">Baixar rascunho</a>
+{% comment %}O emitido em papel não é rascunho: é o PDF que se imprime, assina
+e carimba (e a LME só existe assim).{% endcomment %}
+<a class="btn btn-light-primary" href="{% url 'documents:download' document.pdf_attachment_id %}">{% if document.status == "issued_on_paper" %}Baixar PDF para imprimir{% else %}Baixar rascunho{% endif %}</a>
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -111,7 +113,7 @@
         {% comment %}Pedido de exames e solicitação de cirurgia (os que nascem de modelo)
         não têm retificação por aqui: o conteúdo deles é lista, e este formulário só
         corrige texto. Para corrigir, emite-se outro pelo modelo.{% endcomment %}
-        {% if is_own_document and document.status == "issued" and not rx and document.kind != "exam_request" and document.kind != "surgery_request" %}
+        {% if is_own_document and document.status == "issued" and not rx and document.kind != "exam_request" and document.kind != "surgery_request" and document.kind != "lme" %}
         <div class="card mt-4">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Correção (nova versão)</h5>
@@ -301,7 +303,15 @@
                 {% if rx %}{% include "documents/_refazer_impressa.html" %}{% endif %}
                 {% elif document.status == "ready_to_sign" %}
                 {% rce_assinatura_bloqueada document as rce_bloqueada %}
-                {% if rce_bloqueada %}
+                {% if document.kind == "lme" %}
+                {% comment %}Sem o botão de assinar: a LME é sempre impressa, assinada à
+                mão e carimbada (documents/lme.py; o servidor recusa a assinatura
+                digital em issuance._sign_and_issue).{% endcomment %}
+                <p class="fs-12 text-muted mb-0" data-nd-lme-impressa>
+                    A LME é sempre impressa: emita, imprima, assine à mão e carimbe (campo 17).
+                    Ela não é assinada digitalmente.
+                </p>
+                {% elif rce_bloqueada %}
                 {% comment %}Sem o botão de assinar: o servidor recusaria
                 (issuance._sign_and_issue, documents/rce_impressa.py). A emissão
                 em papel, logo abaixo, é o caminho válido; a frase diz por que o
@@ -363,6 +373,18 @@
                 <div class="alert alert-success fade show fs-12 mb-0" role="alert">
                     Documento emitido e assinado. Correções geram uma nova versão.
                 </div>
+                {% endif %}
+                {% if document.kind == "lme" and document.status == "issued_on_paper" %}
+                <div class="alert alert-soft-warning fs-12 mb-0" role="note" data-nd-lme-impressa>
+                    Imprima, assine à mão e carimbe no campo 17. A LME não é enviada ao paciente por link.
+                </div>
+                {% endif %}
+                {% if document.kind == "lme" and nd_can.issue_document %}
+                {% comment %}A renovação: o formulário abre com o conteúdo desta LME
+                (documents/lme_views.py, só do mesmo paciente e da mesma clínica).{% endcomment %}
+                <a class="btn btn-light w-100" href="{% url 'documents:patient-lme-new' document.patient_id %}?a_partir_de={{ document.id }}">
+                    Nova LME a partir desta
+                </a>
                 {% endif %}
             </div>
         </div>

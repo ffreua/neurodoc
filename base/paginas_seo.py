@@ -387,8 +387,9 @@ RECURSOS = [
             'WhatsApp da própria clínica, com o lembrete já escrito: nome, data, horário, '
             'médico e endereço. A secretária confere e envia. É a mensagem que a clínica '
             'escreve uma vez, em Integrações, com os campos que ela escolher.',
-            'O sistema não envia WhatsApp sozinho, de propósito: a conversa sai do número que '
-            'o paciente já conhece. E o portal do paciente tira do WhatsApp o pedido de '
+            'O botão não envia nada sozinho, de propósito: a conversa sai do número que o '
+            'paciente já conhece. O envio automático, quando a clínica quiser, é a integração '
+            'com a conta Twilio dela. E o portal do paciente tira do WhatsApp o pedido de '
             'renovação de receita — a recepção respira.',
         ],
         'destaques': [
@@ -399,7 +400,7 @@ RECURSOS = [
         ],
         'perguntas': [
             ('O NeuroDoc envia WhatsApp automaticamente?',
-             'Não. O botão abre a conversa no WhatsApp da clínica com a mensagem pronta, e quem envia é a recepção. A confirmação automática sai por e-mail e, nos planos pagos, por SMS.'),
+             'Este botão não: ele abre a conversa no WhatsApp da clínica com a mensagem pronta, e quem envia é a recepção. O envio automático é outra integração, em liberação, pela conta Twilio da própria clínica.'),
             ('Posso mudar o texto do lembrete?',
              'Sim. A clínica escreve o texto em Integrações, com os campos de uma lista fechada, e vê a prévia antes de salvar.'),
         ],
@@ -587,6 +588,69 @@ RECURSOS = [
              'Não. É uma agenda por equipamento, à parte.'),
             ('Em qual plano está?',
              'No Completo e no Personalizado, junto com o faturamento TISS.'),
+        ],
+    },
+    {
+        'slug': 'lme-medicamento-alto-custo',
+        'nome': 'LME do medicamento de alto custo',
+        'titulo': 'LME de alto custo preenchida no prontuário | NeuroDoc',
+        'descricao': 'A LME do CEAF no formulário oficial do Ministério da Saúde, já com os dados do '
+                     'paciente e os medicamentos, para imprimir, assinar e carimbar.',
+        'h1': 'LME do medicamento de alto custo, no formulário do Ministério e já preenchida',
+        'chamada': 'Chega de preencher à mão o mesmo laudo a cada três meses. A LME sai do '
+                   'prontuário com o que o sistema já sabe, e a renovação parte da anterior.',
+        'intro': [
+            'O NeuroDoc preenche o próprio formulário do Ministério da Saúde: nome, mãe, peso, '
+            'altura e documento do paciente, até seis medicamentos com a quantidade de seis '
+            'meses, CID-10, anamnese, tratamento prévio e, se o paciente for incapaz, o '
+            'responsável. O médico completa o que é dele, na Conduta ou na ficha.',
+            'A LME sai para imprimir, assinar à mão e carimbar, com número e data. A lista de '
+            'medicamentos do formulário aparece como sugestão, e o médico escreve o que '
+            'precisar; "Nova LME a partir desta" refaz a renovação em segundos.',
+        ],
+        'destaques': [
+            ('Formulário oficial', 'O modelo do Ministério da Saúde, não um parecido.'),
+            ('Dados do paciente prontos', 'Cadastro, peso e altura já no lugar.'),
+            ('Seis meses por medicamento', 'Até seis medicamentos, mês a mês.'),
+            ('Renovação rápida', 'A nova LME parte da anterior.'),
+        ],
+        'perguntas': [
+            ('A LME é assinada digitalmente?',
+             'Não. Ela sai para imprimir, assinar à mão e carimbar, que é o que toda farmácia de alto custo aceita.'),
+            ('Posso prescrever um medicamento que não está na lista do formulário?',
+             'Pode. A lista do Ministério aparece só como sugestão, e o médico escreve o medicamento como quiser.'),
+        ],
+    },
+    {
+        'slug': 'whatsapp-automatico',
+        'nome': 'WhatsApp automático',
+        'titulo': 'WhatsApp automático pela conta Twilio da clínica | NeuroDoc',
+        'descricao': 'Lembrete, aviso de horário e documento disponível por WhatsApp, pela conta '
+                     'Twilio e pelo número da própria clínica, com modelos aprovados pela Meta.',
+        'h1': 'WhatsApp automático pela conta Twilio da própria clínica',
+        'chamada': 'Os avisos que hoje saem por SMS e e-mail, também pelo WhatsApp oficial da '
+                   'clínica — sem a secretária digitar nada e sem dado clínico na mensagem.',
+        'intro': [
+            'Em liberação: a clínica abre a própria conta na Twilio, liga o número de WhatsApp '
+            'dela e informa as credenciais ao NeuroDoc, que confere a conta antes de ativar. '
+            'Lembrete, horário marcado, remarcado ou cancelado e documento disponível saem por '
+            'modelos aprovados pela Meta, só para quem deu o aceite de WhatsApp.',
+            'A mensagem leva o nome da clínica, a data e o horário, ou o link seguro do '
+            'documento — nunca diagnóstico, exame ou receita. A clínica paga as mensagens '
+            'direto à Twilio, pode suspender a qualquer momento, e o passo a passo está no '
+            'manual.',
+        ],
+        'destaques': [
+            ('Número da clínica', 'O paciente reconhece quem escreve.'),
+            ('Modelos aprovados pela Meta', 'Sem texto livre, sem surpresa.'),
+            ('Sem dado clínico', 'Só data, horário ou link seguro.'),
+            ('Custo direto na Twilio', 'Sem intermediário na conta da mensagem.'),
+        ],
+        'perguntas': [
+            ('Quanto custa?',
+             'A clínica paga as mensagens direto à Twilio e à Meta, na conta dela. O NeuroDoc não cobra pela integração.'),
+            ('Posso usar o número que já está no WhatsApp Business do celular?',
+             'A Twilio pede que o número não esteja registrado em outro WhatsApp; o manual explica as opções e recomenda um número só para os avisos.'),
         ],
     },
 ]

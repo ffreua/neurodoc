@@ -93,7 +93,9 @@ class RobotsView(View):
       documento, médico e data. Daí o `Allow` de uma linha só, com `$`,
       **antes** do `Disallow` da pasta;
     - `/instalacao/`, `/admin/` e `/technical-docs/` são o console de
-      quem opera o servidor.
+      quem opera o servidor;
+    - `/whatsapp/` é o aviso de status que a Twilio manda (2026-11-25):
+      só `POST` assinado, e o `GET` responde 404 — nada ali é página.
 
     `robots.txt` não é controle de acesso — quem obedece é robô educado.
     O que impede o acesso de verdade continua sendo `TenantMiddleware`, a
@@ -119,6 +121,7 @@ class RobotsView(View):
             'Disallow: /invite/',
             'Disallow: /comecar-gratis/',
             'Disallow: /degustacao/',
+            'Disallow: /whatsapp/',
             '',
             'Sitemap: ' + seo.absoluta('/sitemap.xml'),
             # Não é diretiva do padrão: é o aviso, para quem lê o arquivo,

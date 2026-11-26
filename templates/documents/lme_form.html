@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Nova LME — NeuroDoc{% endblock %}
+{% block page_title %}LME — medicamento especializado{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'reporting:dashboard' %}">Início</a></li>
+<li class="breadcrumb-item"><a href="{% url 'patients:detail' patient.id %}">{{ patient.full_name }}</a></li>
+{% if encounter %}
+<li class="breadcrumb-item"><a href="{% url 'clinical:detail' encounter.id %}">Atendimento</a></li>
+{% endif %}
+<li class="breadcrumb-item">Nova LME</li>
+{% endblock %}
+{% block page_actions %}
+{% if encounter %}
+<a class="btn btn-light" href="{% url 'clinical:detail' encounter.id %}">Cancelar</a>
+{% else %}
+<a class="btn btn-light" href="{% url 'patients:detail' patient.id %}">Cancelar</a>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-xxl-9 col-xl-11">
+        {% comment %}O aviso vem antes de tudo: a LME é sempre impressa, assinada
+        à mão e carimbada (decisão do titular, documents/lme.py). Quem está
+        acostumado a assinar a receita digitalmente precisa saber disso antes
+        de preencher, e não ao procurar o botão de assinar.{% endcomment %}
+        <div class="alert alert-warning fade show" role="note" data-nd-lme-impressa>
+            <span class="fw-semibold d-block">A LME é sempre impressa.</span>
+            <span class="fs-12">
+                Ela sai no formulário oficial do Ministério da Saúde para ser <strong>assinada à mão e
+                carimbada</strong> (campo 17) — não é assinada digitalmente nem enviada ao paciente por link.
+                Depois de gerar o rascunho, revise e use “Emitir para assinar e carimbar”.
+            </span>
+        </div>
+
+        <div class="card stretch stretch-full">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <div>
+                    <h5 class="card-title mb-0">Laudo de Solicitação, Avaliação e Autorização de Medicamento(s)</h5>
+                    <span class="fs-11 text-muted">
+                        {{ patient.full_name }}
+                        {% if patient.record_number %}· prontuário {{ patient.record_number }}{% endif %}
+                        {% if encounter %}· atendimento de {{ encounter.occurred_at|date:"d/m/Y" }}
+                        {% else %}· <span class="text-warning fw-semibold">sem atendimento vinculado</span>{% endif %}
+                        {% if base %}· a partir da {{ base.document_number|default:"LME em rascunho" }}{% endif %}
+                    </span>
+                </div>
+                <span class="badge bg-soft-warning text-warning">Gera rascunho sem validade</span>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate id="nd-lme-form">
+                    {% csrf_token %}
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger fade show" role="alert">
+                        {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+                    </div>
+                    {% endif %}
+                    <p class="fs-12 text-muted">
+                        Os números são os itens do formulário oficial (modelo {{ versao_modelo }}). Os itens com
+                        asterisco no formulário são obrigatórios aqui também; telefone, e-mail e documento do
+                        paciente são opcionais.
+                    </p>
+
+                    <h6 class="fw-bold text-dark mt-3">Estabelecimento e paciente</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.cnes col="col-md-3" %}
+                        {% include "partials/field.html" with field=form.estabelecimento col="col-md-9" %}
+                        {% include "partials/field.html" with field=form.paciente col="col-md-8" %}
+                        {% include "partials/field.html" with field=form.peso col="col-md-2" %}
+                        {% include "partials/field.html" with field=form.altura col="col-md-2" %}
+                        {% include "partials/field.html" with field=form.mae col="col-md-8" %}
+                    </div>
+
+                    <h6 class="fw-bold text-dark mt-4">7 e 8 — Medicamentos e quantidade por mês</h6>
+                    <p class="fs-12 text-muted mb-2">
+                        Escreva o medicamento como quiser: a lista que aparece ao digitar é a do formulário do
+                        Ministério e serve só de sugestão. A quantidade é a do mês (comprimidos, frascos, ampolas…).
+                    </p>
+                    <div class="table-responsive">
+                        <table class="table table-sm align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="fs-11">Nº</th>
+                                    <th scope="col" class="fs-11" style="min-width: 260px">Medicamento</th>
+                                    <th scope="col" class="fs-11 text-center">1º mês</th>
+                                    <th scope="col" class="fs-11 text-center">2º mês</th>
+                                    <th scope="col" class="fs-11 text-center">3º mês</th>
+                                    <th scope="col" class="fs-11 text-center">4º mês</th>
+                                    <th scope="col" class="fs-11 text-center">5º mês</th>
+                                    <th scope="col" class="fs-11 text-center">6º mês</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for linha in form.linhas_de_medicamento %}
+                                <tr>
+                                    <td class="fs-12 fw-semibold">{{ linha.n }}</td>
+                                    <td>
+                                        <input type="text" class="form-control form-control-sm{% if linha.nome.errors %} is-invalid{% endif %}"
+                                               name="{{ linha.nome.html_name }}" id="{{ linha.nome.auto_id }}"
+                                               value="{{ linha.nome.value|default:'' }}" maxlength="250"
+                                               list="nd-lme-medicamentos" autocomplete="off"
+                                               aria-label="Medicamento {{ linha.n }}">
+                                        {% for error in linha.nome.errors %}<div class="invalid-feedback d-block fs-11">{{ error }}</div>{% endfor %}
+                                    </td>
+                                    {% for mes in linha.meses %}
+                                    <td style="width: 70px">
+                                        <input type="text" class="form-control form-control-sm text-center"
+                                               name="{{ mes.html_name }}" id="{{ mes.auto_id }}"
+                                               value="{{ mes.value|default:'' }}" maxlength="4" inputmode="numeric"
+                                               aria-label="{{ mes.label }}">
+                                    </td>
+                                    {% endfor %}
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <datalist id="nd-lme-medicamentos">
+                        {% for nome in medicamentos_sugeridos %}<option value="{{ nome }}"></option>{% endfor %}
+                    </datalist>
+
+                    <h6 class="fw-bold text-dark mt-4">Justificativa</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.cid col="col-md-3" %}
+                        {% include "partials/field.html" with field=form.diagnostico col="col-md-9" %}
+                        {% include "partials/field.html" with field=form.anamnese col="col-12" %}
+                        {% include "partials/field.html" with field=form.tratamento_previo col="col-md-5" %}
+                        {% include "partials/field.html" with field=form.tratamento_relato col="col-md-7" %}
+                        {% include "partials/field.html" with field=form.incapaz col="col-md-5" %}
+                        {% include "partials/field.html" with field=form.responsavel col="col-md-7" %}
+                    </div>
+
+                    <h6 class="fw-bold text-dark mt-4">Médico solicitante</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.medico col="col-md-8" %}
+                        {% include "partials/field.html" with field=form.medico_cns col="col-md-4" %}
+                    </div>
+                    <p class="fs-11 text-muted mt-2 mb-0">
+                        16 — A data da solicitação é a da emissão. 17 — Assinatura e carimbo: à mão, no papel.
+                    </p>
+
+                    <h6 class="fw-bold text-dark mt-4">Dados complementares do paciente (19 a 23)</h6>
+                    <div class="row g-3">
+                        {% include "partials/field.html" with field=form.preenchido_por col="col-md-4" %}
+                        {% include "partials/field.html" with field=form.preenchido_outro_nome col="col-md-5" %}
+                        {% include "partials/field.html" with field=form.preenchido_outro_cpf col="col-md-3" %}
+                        {% include "partials/field.html" with field=form.raca col="col-md-4" %}
+                        {% include "partials/field.html" with field=form.etnia col="col-md-8" %}
+                        {% include "partials/field.html" with field=form.telefone1 col="col-md-4" %}
+                        {% include "partials/field.html" with field=form.telefone2 col="col-md-4" %}
+                        {% include "partials/field.html" with field=form.email col="col-md-4" %}
+                        {% include "partials/field.html" with field=form.documento_tipo col="col-md-4" %}
+                        {% include "partials/field.html" with field=form.documento_numero col="col-md-4" %}
+                    </div>
+                    <p class="fs-11 text-muted mt-2 mb-0">
+                        Raça/cor e o CNS do paciente ficam só nesta LME (não entram no cadastro) e aparecem
+                        preenchidos na próxima LME deste paciente.
+                    </p>
+
+                    <div class="d-flex align-items-center gap-2 mt-4">
+                        <button type="submit" class="btn btn-primary" data-nd-busy>Gerar rascunho da LME</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

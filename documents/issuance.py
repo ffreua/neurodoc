@@ -9,7 +9,7 @@ from events.models import OutboxEvent, OutboxEventStatus
 
 from sncr import receita as sncr_receita
 
-from . import document_kinds, rce_impressa
+from . import document_kinds, lme, rce_impressa
 from .credentials import credential_is_usable, decrypt_pfx_bytes
 from .models import MedicalDocument, MedicalDocumentKind, MedicalDocumentStatus
 from .pdf import render_medical_document_pdf
@@ -439,6 +439,11 @@ def _sign_and_issue(document, request, physician_membership):
             NotReadyToSign(rce_impressa.recusa()),
             'denied', rce_impressa.MOTIVO_AUDITORIA,
         )
+    # A LME é sempre impressa, assinada à mão e carimbada (decisão do
+    # titular, 2026-11-25; `documents/lme.py`). A tela não oferece a
+    # assinatura; esta recusa é o que vale para um POST forjado.
+    if lme.assinatura_digital_bloqueada(locked):
+        raise _falhou(NotReadyToSign(lme.RECUSA_DIGITAL), 'denied', lme.MOTIVO_AUDITORIA)
 
     session = get_active_session(request, physician_membership)
     if session is None:

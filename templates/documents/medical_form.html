@@ -83,6 +83,16 @@ o prontuário de onde a pessoa saiu.{% endcomment %}
                     demais. Campo que não se aplica não deve estar na tela.{% endcomment %}
                     <div class="row g-3">
                         {% include "partials/field.html" with field=form.kind col="col-md-6" %}
+                        {% if encounter or patient %}
+                        {% comment %}A LME não é um tipo desta lista: tem o formulário do
+                        Ministério campo a campo, numa tela própria, e sai só em papel.{% endcomment %}
+                        <div class="col-md-6 d-flex align-items-end">
+                            <a class="btn btn-light-primary" data-nd-lme
+                               href="{% if encounter %}{% url 'documents:lme-new' encounter.id %}{% else %}{% url 'documents:patient-lme-new' patient.id %}{% endif %}">
+                                LME — medicamento de alto custo
+                            </a>
+                        </div>
+                        {% endif %}
                     </div>
 
                     {% comment %}Cada grupo carrega o tipo a que pertence. O JavaScript

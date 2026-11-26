@@ -403,7 +403,16 @@ carimbá-la na publicação.
 #: aviso de status com a assinatura da Twilio e a chave da instalação no
 #: console, que nasce recolhida (`docs/governance/whatsapp-twilio.md`). Três
 #: migrações aditivas (`communications.0014`, `patients.0014`, `base.0006`).
-VERSION = '1.59'
+#: A **1.60** (2026-11-25, junto com o ProntDoc 1.14.0): a **LME** — o laudo do
+#: medicamento de alto custo (CEAF) — no **modelo do Ministério da Saúde**
+#: (revisão 2026-03, travado por SHA-256), preenchida com os dados do
+#: paciente, até seis medicamentos com a quantidade de seis meses, CID-10,
+#: anamnese, tratamento prévio e o atestado de capacidade (responsável),
+#: a partir da Conduta, da ficha e da tela "Emitir documento". **Sempre
+#: impressa, assinada à mão e carimbada**: o servidor recusa a assinatura
+#: digital (`documents/lme.py`, `docs/governance/lme.md`). Migração só de
+#: opções do campo, sem DDL (`documents.0011`).
+VERSION = '1.60'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

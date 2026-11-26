@@ -119,15 +119,20 @@ INSTAGRAM = {
 #:
 #: 2026-10-30 (1.30): o faturamento TISS e a agenda de exames. A chave nova
 #: faz o aviso aparecer também para quem fechou o do SNCR.
+#:
+#: 2026-11-25 (1.60): a LME do medicamento de alto custo e o WhatsApp pela
+#: conta Twilio da clínica. O WhatsApp é dito "em liberação": a chave da
+#: instalação nasce recolhida (`docs/governance/whatsapp-twilio.md`), e a
+#: vitrine não promete o que a clínica ainda não consegue ligar sozinha.
 NOVIDADE = {
-    'chave': 'tiss-2026-10',
+    'chave': 'lme-whatsapp-2026-11',
     'selo': 'Novidade',
-    'titulo': 'Faturamento de convênio TISS e agenda de exames',
-    'texto': 'Guias de Consulta e SP/SADT preenchidas com o que o sistema já sabe, '
-             'lotes em XML nas versões que cada operadora aceita, e uma agenda própria '
-             'para EEG, ENMG e polissonografia — no plano Completo.',
-    'link': '/ajuda/faturamento-tiss/',
-    'link_rotulo': 'Como funciona',
+    'titulo': 'LME de alto custo no modelo do Ministério e WhatsApp automático',
+    'texto': 'A LME sai no formulário oficial do Ministério da Saúde, já com os dados do '
+             'paciente e os medicamentos, para imprimir, assinar e carimbar. E, em '
+             'liberação, os lembretes por WhatsApp pela conta Twilio da própria clínica.',
+    'link': '/ajuda/lme/',
+    'link_rotulo': 'Como emitir a LME',
 }
 
 #: O produto irmão, para as outras especialidades (2026-11-18). O NeuroDoc é
@@ -231,18 +236,20 @@ TRUNFOS = [
 #: conferível.
 NOVIDADES = [
     {
-        'icone': 'TISS',
-        'titulo': 'Faturamento de convênio TISS',
-        'texto': 'Guias de Consulta e SP/SADT preenchidas com o que o sistema já sabe, '
-                 'e lotes em XML na versão que cada operadora aceita. No plano Completo.',
-        'link': '/ajuda/faturamento-tiss/', 'rotulo': 'Como funciona',
+        'icone': 'LME',
+        'titulo': 'LME do medicamento de alto custo',
+        'texto': 'O laudo do CEAF no formulário oficial do Ministério da Saúde, com os dados '
+                 'do paciente, até seis medicamentos e a quantidade de seis meses. Sai para '
+                 'imprimir, assinar e carimbar. Em todos os planos.',
+        'link': '/ajuda/lme/', 'rotulo': 'Como emitir',
     },
     {
-        'icone': 'EEG',
-        'titulo': 'Agenda de exames',
-        'texto': 'EEG, ENMG e polissonografia com agenda por equipamento, inclusive a '
-                 'noite inteira, sem ocupar vaga de médico. No plano Completo.',
-        'link': '/ajuda/agenda-exames/', 'rotulo': 'Ver a agenda',
+        'icone': 'WA',
+        'titulo': 'WhatsApp automático pela sua conta Twilio',
+        'texto': 'Em liberação: lembrete, aviso de horário e documento disponível por '
+                 'WhatsApp, com modelos aprovados pela Meta, pela conta e pelo número da '
+                 'própria clínica — que paga a mensagem direto à Twilio. Sem dado clínico.',
+        'link': '/ajuda/whatsapp-twilio/', 'rotulo': 'Como configurar',
     },
     {
         'icone': '℞',
@@ -294,7 +301,17 @@ RECURSOS = [
         'titulo': 'Lembrete pelo WhatsApp da clínica, em um clique',
         'texto': 'Na agenda e no balcão, o botão WhatsApp abre a conversa no número da '
                  'própria clínica com o lembrete já escrito — nome, data, horário, médico '
-                 'e endereço. A secretária confere e envia. Em todos os planos.',
+                 'e endereço. A secretária confere e envia. Em todos os planos. E, em '
+                 'liberação, o envio automático pela conta Twilio da própria clínica, com '
+                 'modelos aprovados pela Meta e sem dado clínico na mensagem.',
+    },
+    {
+        'titulo': 'LME do medicamento de alto custo, já preenchida',
+        'texto': 'O laudo do Componente Especializado (CEAF) sai no formulário oficial do '
+                 'Ministério da Saúde com o nome, a mãe, o peso, a altura e o documento do '
+                 'paciente, até seis medicamentos com a quantidade de seis meses, CID-10, '
+                 'anamnese e o responsável pelo paciente incapaz. O médico completa, imprime, assina e '
+                 'carimba; a renovação parte da LME anterior.',
     },
     {
         'titulo': 'Receita controlada com a numeração da Anvisa',
@@ -480,7 +497,15 @@ FAQ = [
                     'fila que só o médico revisa. E o lembrete de consulta sai pelo WhatsApp '
                     'da própria clínica num clique, com a mensagem já escrita; quem envia é a '
                     'recepção, do número que o paciente conhece. A confirmação automática sai '
-                    'por e-mail e, nos planos pagos, por SMS.',
+                    'por e-mail e, nos planos pagos, por SMS. Em liberação, o envio automático '
+                    'por WhatsApp pela conta Twilio da própria clínica.',
+    },
+    {
+        'pergunta': 'O NeuroDoc emite a LME de medicamento de alto custo?',
+        'resposta': 'Emite. A LME sai no formulário oficial do Ministério da Saúde, preenchida '
+                    'com os dados do paciente e os medicamentos com a quantidade de cada mês, '
+                    'para o médico imprimir, assinar à mão e carimbar. A lista de medicamentos '
+                    'do formulário aparece como sugestão, e o médico pode escrever qualquer outro.',
     },
     {
         'pergunta': 'Quem consegue ler o prontuário dos meus pacientes?',

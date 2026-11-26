@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import request_views, views
+from . import lme_views, request_views, views
 
 app_name = 'documents'
 
@@ -26,6 +26,9 @@ urlpatterns = [
         'patients/<uuid:patient_id>/medical/new/',
         views.PatientDocumentCreateView.as_view(), name='patient-medical-new',
     ),
+    # A LME (medicamento de alto custo, CEAF): tela própria, só em papel.
+    path('encounters/<uuid:encounter_id>/lme/nova/', lme_views.LmeCreateView.as_view(), name='lme-new'),
+    path('patients/<uuid:patient_id>/lme/nova/', lme_views.PatientLmeCreateView.as_view(), name='patient-lme-new'),
     path(
         'medical/<uuid:document_id>/emitir-em-papel/',
         views.MedicalDocumentIssueOnPaperView.as_view(), name='medical-issue-paper',

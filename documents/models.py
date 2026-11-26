@@ -82,6 +82,10 @@ class MedicalDocumentKind(models.TextChoices):
     #: (`documents.forms.TIPOS_DO_FORMULARIO`).
     EXAM_REQUEST = 'exam_request', 'Pedido de exames'
     SURGERY_REQUEST = 'surgery_request', 'Solicitação de cirurgia'
+    #: O laudo do medicamento de alto custo (CEAF), no modelo do Ministério
+    #: da Saúde. Tela própria (`documents/lme_views.py`) e **só em papel**:
+    #: não é assinado digitalmente (`documents/lme.py`).
+    LME = 'lme', 'LME — medicamento especializado'
 
 
 class MedicalDocumentStatus(models.TextChoices):
