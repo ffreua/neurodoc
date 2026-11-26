@@ -412,7 +412,15 @@ carimbá-la na publicação.
 #: impressa, assinada à mão e carimbada**: o servidor recusa a assinatura
 #: digital (`documents/lme.py`, `docs/governance/lme.md`). Migração só de
 #: opções do campo, sem DDL (`documents.0011`).
-VERSION = '1.60'
+#: A **1.61** (2026-11-26, junto com o ProntDoc 1.15.0): **trazer os exames da
+#: consulta anterior**, item a item por escolha do médico, como **vínculo** ao
+#: mesmo registro (`clinical.EncounterExamLink`) e nunca cópia — não duplica a
+#: lista do paciente, a curva de evolução nem o que a IA lê; e o **prompt de
+#: sistema do relatório por IA**, escrito como um médico experiente escreve, em
+#: primeira pessoa só nos atendimentos de quem assina (`ai/relatorio.py` marca a
+#: autoria). Migração só acrescenta uma tabela (`clinical.0014`).
+
+VERSION = '1.61'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido
