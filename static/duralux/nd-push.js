@@ -44,6 +44,15 @@
         });
     }
 
+    /* A promessa, ou o erro com a mensagem se ela não resolver no prazo. */
+    function prazo(promessa, ms, mensagem) {
+        return new Promise(function (resolve, reject) {
+            var relogio = window.setTimeout(function () { reject(new Error(mensagem)); }, ms);
+            promessa.then(function (valor) { window.clearTimeout(relogio); resolve(valor); },
+                function (erro) { window.clearTimeout(relogio); reject(erro); });
+        });
+    }
+
     function chave(base64) {
         var preenchida = (base64 + '===='.slice((base64.length % 4) || 4))
             .replace(/-/g, '+').replace(/_/g, '/');
@@ -94,16 +103,37 @@
         aviso('');
         var feito;
         if (acao === 'ligar') {
-            feito = Notification.requestPermission().then(function (permissao) {
-                if (permissao !== 'granted') { throw new Error('bloqueado'); }
-                return registro.pushManager.subscribe({
+            var rotulo = botao.textContent;
+            /* Cada passo com prazo e com o que fazer. Sem prazo, o botão ficava
+             * desbotado para sempre no app instalado do Android (2026-11-27): o
+             * Chrome pode pedir a permissão pelo sininho "discreto" da barra de
+             * endereço, e o app instalado não tem barra — a promessa nunca
+             * resolve, e nada dizia por quê. Permissão já dada não é pedida de novo. */
+            var permissao = Notification.permission === 'granted'
+                ? Promise.resolve('granted')
+                : (botao.textContent = 'Pedindo a permissão…', prazo(Notification.requestPermission(), 8000,
+                    'O pedido de permissão não apareceu. Libere as notificações deste site ' +
+                    '(no app instalado: segure o ícone → Informações do app → Notificações → ' +
+                    'Permitir; no Chrome: toque no cadeado ao lado do endereço → Permissões → ' +
+                    'Notificações) e toque de novo em Ativar.'));
+            feito = permissao.then(function (resposta) {
+                if (resposta !== 'granted') { throw new Error('bloqueado'); }
+                botao.textContent = 'Registrando o aparelho…';
+                return prazo(registro.pushManager.subscribe({
                     userVisibleOnly: true,
                     applicationServerKey: chave(raiz.getAttribute('data-nd-push-chave'))
-                });
+                }), 20000, 'O serviço de avisos do celular não respondeu. Confira a internet ' +
+                    'e tente de novo; se continuar, abra o sistema pelo Chrome e ative por lá.');
             }).then(function (inscricao) {
-                return enviar(raiz.getAttribute('data-nd-push-ativar'), inscricao.toJSON());
+                botao.textContent = 'Gravando…';
+                return prazo(enviar(raiz.getAttribute('data-nd-push-ativar'), inscricao.toJSON()),
+                    15000, 'O sistema não respondeu a tempo. Tente de novo.');
             }).then(function () {
                 window.location.reload();
+            });
+            feito = feito.catch(function (erro) {
+                botao.textContent = rotulo;
+                throw erro;
             });
         } else if (acao === 'testar') {
             feito = atual().then(function (inscricao) {

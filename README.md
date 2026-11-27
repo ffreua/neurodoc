@@ -1,6 +1,6 @@
 # NeuroDoc — prontuário eletrônico para neurologistas e neurocirurgiões
 
-[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.64-3454d1)](docs/releases/)
+[![Versão](https://img.shields.io/badge/vers%C3%A3o-1.65-3454d1)](docs/releases/)
 [![Licença MIT](https://img.shields.io/badge/licen%C3%A7a-MIT-green)](LICENSE)
 [![Em produção](https://img.shields.io/badge/produ%C3%A7%C3%A3o-neurodoc.app.br-3454d1)](https://neurodoc.app.br)
 [![Python 3.14](https://img.shields.io/badge/python-3.14-blue)](https://www.python.org/)
@@ -35,7 +35,7 @@ instalação, várias clínicas.
 
 | | |
 | --- | --- |
-| **Versão** | 1.64 (`base/version.py`) |
+| **Versão** | 1.65 (`base/version.py`) |
 | **Em produção** | <https://neurodoc.app.br> — em uso real desde 02/10/2026 |
 | **Licença** | [MIT](LICENSE) — código aberto |
 | **Verificação** | 198 roteiros em `checks/` |
@@ -349,6 +349,7 @@ em ordem cronológica; o histórico inteiro está em `base/version.py` e em
 | **1.60** | 2026-11-25 | LME | **LME do medicamento de alto custo** no formulário oficial do Ministério da Saúde, preenchida e **sempre impressa** para assinar e carimbar, da Conduta, da ficha e de "Emitir documento"; a renovação a partir da anterior. Migração só de opções, sem DDL. `check_lme` |
 | **1.61** | 2026-11-26 | exames do retorno | **Trazer os exames da consulta anterior** no retorno, um a um, por vínculo e sem duplicar; o cartão de exames também no texto livre; e o **prompt do relatório por IA** reescrito. Uma migração, só acrescenta uma tabela. `check_exames_da_consulta_anterior`, `check_relatorio_ia` |
 | **1.62** | 2026-11-26 | Portal e integrações | O grupo **Portal** no menu no lugar do sino (Solicitações e **Exames enviados**), e o **liga/desliga com remover a credencial** na IA própria, no SMS e no e-mail. Sem migração. `check_portal_no_menu`, `check_ia_propria_liga`, `check_integracoes_liga` |
+| **1.65** | 2026-11-27 | contrato 2.5 | **Contrato 2.5** (aprovado pela Dra. Karina): comunicados comerciais aos usuários na cláusula 18.3, a **propaganda** do console liberada para quem aceitar a versão nova, a IA descrita como está (OpenRouter) e a **Z.AI fora** do roteamento; e o **Ativar neste aparelho** com prazo e instrução em cada passo (ficava preso no app instalado do Android). Sem migração. `check_contrato` |
 | **1.64** | 2026-11-27 | avisos no celular | **Aplicativo instalado, Etapa 2**: os **avisos no celular** (Web Push), ligados por aparelho na Central de notificações — o sino, a mensagem da equipe e o pedido e o exame do portal, com **só o tipo** do aviso na notificação e nunca o paciente; cifra e assinatura sem dependência nova, conferidas contra a RFC 8291; o envio pelo worker; **Sair** desliga o aparelho. E os **comunicados do console**: aviso do sistema ou propaganda ao sino e ao celular, por clínica, plano ou papel — a propaganda travada até o contrato 2.5. Migrações `base.0007`, `notifications.0003` e `0004`. `check_push`, `check_comunicados` |
 | **1.63** | 2026-11-27 | app instalado | **Aplicativo instalado (PWA), Etapa 1**: o ícone deixa de abrir um 404, atalhos Agenda e Pacientes, a tela **sem internet** sem guardar nenhuma tela do sistema, o botão de emergência, e **Instalar o app** no menu, no login e na ajuda. Sem migração. `check_pwa` |
 

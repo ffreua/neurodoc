@@ -104,10 +104,20 @@ from django.utils.safestring import mark_safe
 #: borda dizia "sem armazenamento como serviço". É o que permite ligar
 #: `ops/nuvem.py` em produção. Quem aceitou a 2.3 ou antes continua nela;
 #: o console segue exigindo o mesmo mínimo para ligar o checkout.
-VERSAO = '2.4'
+#:
+#: **A 2.5** (2026-11-27) é a 2.4 com os **comunicados da instalação**, aprovada
+#: pela Dra. Karina sobre a minuta (`docs/governance/contrato-2.5-minuta.md`):
+#: cláusula 18.3 (avisos do sistema e comunicações comerciais da PRONTDOC aos
+#: usuários, no sino e no aparelho, integrando a contratação, sem recusa), a
+#: linha COMUNICADOS no quadro-resumo, os serviços de notificação dos
+#: navegadores no Anexo II e o Aviso de Privacidade (§2, §3, §4, §5, §10); e a
+#: IA descrita como está desde 2026-11-26 (só a OpenRouter, DeepSeek e GLM).
+#: É a versão que libera a propaganda (`tenancy.plans.CONTRATO_COM_PROPAGANDA`),
+#: e só para a clínica que a aceitar. Quem aceitou a 2.4 ou antes continua nela.
+VERSAO = '2.5'
 
 #: Início da vigência desta redação, no formato ISO.
-VIGENCIA_DESDE = '2026-11-18'
+VIGENCIA_DESDE = '2026-11-27'
 
 ARQUIVO = Path(__file__).resolve().parent / 'contrato' / f'contrato-{VERSAO}.md'
 

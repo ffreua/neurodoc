@@ -124,8 +124,14 @@ try:
     with transaction.atomic():
         # ---------------------------------------------------------------- 1
         secao('1. A trava da propaganda')
+        # A redação vigente já prevê a propaganda desde 2026-11-27 (NeuroDoc 2.5,
+        # ProntDoc 1.4). A trava é conferida com um limiar acima da vigente, como
+        # ficaria se um dia a redação mudasse de novo.
+        confere(comunicados.propaganda_liberada(),
+                f'contrato vigente {contract.VERSAO} >= {plans.CONTRATO_COM_PROPAGANDA}: liberada')
+        plans.CONTRATO_COM_PROPAGANDA = '99'
         confere(not comunicados.propaganda_liberada(),
-                f'contrato {contract.VERSAO} < {plans.CONTRATO_COM_PROPAGANDA}: travada')
+                f'contrato {contract.VERSAO} < 99: travada')
         try:
             comunicados.validar({'categoria': 'propaganda', 'publico': 'todos',
                                  'titulo': 'Oferta', 'texto': 'x'})
@@ -230,8 +236,15 @@ try:
                 'médico da clínica: 404')
         r = c.get('/instalacao/comunicados/')
         html = r.content.decode()
-        confere(r.status_code == 200 and 'Propaganda travada' in html and 'disabled' in html,
-                'a tela abre e mostra a propaganda travada')
+        confere(r.status_code == 200 and 'Propaganda travada' not in html
+                and '(travada)' not in html, 'a tela abre, com a propaganda liberada pelo contrato vigente')
+        plans.CONTRATO_COM_PROPAGANDA = '99'
+        try:
+            html = c.get('/instalacao/comunicados/').content.decode()
+        finally:
+            plans.CONTRATO_COM_PROPAGANDA = limiar_original
+        confere('Propaganda travada' in html and 'disabled' in html,
+                'com a redação abaixo do limiar, a tela mostra a propaganda travada')
         confere('href="/instalacao/comunicados/"' in c.get('/instalacao/').content.decode(),
                 'no menu do console')
         dados = {**base, 'publico': 'clinica', 'clinica': str(clinica.id), 'link': '/ajuda/'}

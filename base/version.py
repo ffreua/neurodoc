@@ -452,7 +452,15 @@ carimbá-la na publicação.
 #: `docs/governance/comunicados-minuta.md`). Migrações `base.0007`,
 #: `notifications.0003` e `0004`.
 
-VERSION = '1.64'
+#: A **1.65** (2026-11-27): o **contrato 2.5** (aprovado pela Dra. Karina),
+#: que prevê os comunicados comerciais e libera a **propaganda** no console para
+#: cada clínica que o aceitar; a IA descrita como está (só a OpenRouter) e a
+#: **Z.AI fora** do roteamento da IA da instalação (empresa chinesa, servia o
+#: modelo da reserva); e o **Ativar neste aparelho** que não fica mais preso em
+#: silêncio no app instalado do Android (prazo e instrução em cada passo).
+#: Sem migração.
+
+VERSION = '1.65'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

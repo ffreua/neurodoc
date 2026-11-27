@@ -176,6 +176,14 @@ obrigatorias = [
     ('chave do backup fora do servidor e da Cloudflare', r'n[aã]o [eé] armazenada no servidor nem entregue [aà] Cloudflare'),
     ('R2 no Anexo II', r'Cloudflare — armazenamento de c[oó]pias de backup \(R2\)'),
     ('60 dias em cada copia externa', r'at[eé] 60 dias em cada c[oó]pia externa'),
+    # 2.5 (2026-11-27, aprovada pela Dra. Karina): os comunicados do console
+    # (`notifications.comunicados`) e a IA como está. Sem a 18.3, a propaganda
+    # sairia para clínica cujo contrato não a prevê.
+    ('comunicados e comunicacoes comerciais na 18.3', r'18\.3\. A PRONTDOC poder[aá] enviar.*comunica[cç][oõ]es comerciais'),
+    ('comunicados integram a contratacao', r'O recebimento desses comunicados integra a contrata[cç][aã]o do servi[cç]o'),
+    ('servicos de notificacao no Anexo II', r'Servi[cç]os de notifica[cç][aã]o dos navegadores'),
+    ('o Aviso de Privacidade informa o uso para publicidade', r'inclusive os comerciais; ele n[aã]o [eé] usado para rastreamento'),
+    ('a IA pela OpenRouter, DeepSeek e GLM', r'utiliza a OpenRouter como provedor de IA, com o modelo DeepSeek como principal e o modelo GLM'),
 ]
 presentes = 0
 for rotulo, padrao in obrigatorias:

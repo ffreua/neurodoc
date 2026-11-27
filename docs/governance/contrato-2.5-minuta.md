@@ -1,13 +1,13 @@
 # Contrato 2.5 — minuta do que muda (para a Dra. Karina conferir)
 
-> **Situação:** minuta redigida em 2026-11-27 a pedido do Dr. Fernando, para
-> a aprovação da Dra. Karina Albuquerque Freua (OAB/SP 450.476). **Não
-> publicada.** O texto integral, já com as trocas, está em
-> `docs/governance/contrato-2.5-proposta.md` (é o 2.4 vigente com
+> **Aprovada pela Dra. Karina em 2026-11-27** e publicada como
+> `tenancy/contrato/contrato-2.5.md` (`tenancy/contract.py::VERSAO = '2.5'`),
+> com o NeuroDoc 1.65. O que segue é o registro da minuta como foi enviada.
+> Redigida em 2026-11-27 a pedido do Dr. Fernando, para a aprovação da Dra. Karina
+> Albuquerque Freua (OAB/SP 450.476). O texto integral, já com as trocas, está em
+> `tenancy/contrato/contrato-2.5.md` (é o 2.4 vigente com
 > exatamente as trocas da tabela abaixo, aplicadas por script que confere cada
-> trecho). Aprovada, publicar é copiar esse arquivo para
-> `tenancy/contrato/contrato-2.5.md` e subir `tenancy/contract.py::VERSAO`
-> para `'2.5'`.
+> trecho); publicado, ele passou a `tenancy/contrato/contrato-2.5.md`.
 
 ## Motivo
 

@@ -1,6 +1,6 @@
 # Comunicados da instalação com propaganda — minuta para o contrato 2.5
 
-> **Situação:** aprovada pela advogada em 2026-11-27; **redação da cláusula pendente**. Para a Dra. Karina Albuquerque
+> **Situação:** aprovada pela advogada e **publicada no contrato 2.5** em 2026-11-27. Para a Dra. Karina Albuquerque
 > Freua (OAB/SP 450.476), autora da redação do contrato. A propaganda está
 > travada no código até `tenancy.contract.VERSAO` chegar a
 > `tenancy.plans.CONTRATO_COM_PROPAGANDA` (**2.5**); depois disso, cada
@@ -16,7 +16,7 @@ na versão 2.5 do contrato (e o ajuste do Aviso de Privacidade); publicada a
 2.5 em `tenancy/contrato/`, a propaganda libera sozinha para cada clínica que
 aceitá-la.
 
-**Redação proposta (2026-11-27):** `docs/governance/contrato-2.5-minuta.md` (o que muda) e `contrato-2.5-proposta.md` (texto integral), para a aprovação dela.
+**Redação proposta (2026-11-27):** `docs/governance/contrato-2.5-minuta.md` (o que muda); aprovada e publicada como `tenancy/contrato/contrato-2.5.md`.
 
 ## O que o sistema passou a fazer (2026-11-27)
 
