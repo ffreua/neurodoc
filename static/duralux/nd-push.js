@@ -82,10 +82,49 @@
         return registro.pushManager.getSubscription();
     }
 
+    /* O estado que o push usa de fato. No app instalado do Android a permissão
+     * do site e a do app são duas coisas (o Android pode dizer "Permitido" com o
+     * site em "Perguntar"), e `Notification.permission` sozinho não conta a
+     * história inteira — por isso as três respostas vão ao diagnóstico. */
+    function estadoDoPush() {
+        var push = registro && registro.pushManager.permissionState
+            ? registro.pushManager.permissionState({userVisibleOnly: true}).catch(function () { return '?'; })
+            : Promise.resolve('?');
+        var site = navigator.permissions && navigator.permissions.query
+            ? navigator.permissions.query({name: 'notifications'})
+                .then(function (r) { return r.state; }, function () { return '?'; })
+            : Promise.resolve('?');
+        return Promise.all([push, site]).then(function (r) {
+            return {push: r[0], site: r[1], notificacao: Notification.permission};
+        });
+    }
+
+    /* Uma linha para o print: com ela, "não funcionou" vira "o site está em
+     * prompt no Chrome 131 instalado", e a próxima correção não é palpite. */
+    function diagnostico(extra) {
+        var linha = raiz.querySelector('[data-nd-push-diag]');
+        if (!linha) { return; }
+        var ua = navigator.userAgent;
+        var navegador = (ua.match(/SamsungBrowser\/[\d.]+|EdgA?\/[\d.]+|Firefox\/[\d.]+|CriOS\/[\d.]+|Chrome\/[\d.]+|Version\/[\d.]+ .*Safari/) || ['?'])[0];
+        estadoDoPush().then(function (e) {
+            linha.textContent = 'Diagnóstico: ' + navegador.split(' ')[0] + ' · ' +
+                (instalado ? 'app instalado' : 'navegador') + ' · push=' + e.push +
+                ' · site=' + e.site + ' · notificação=' + e.notificacao +
+                (extra ? ' · ' + extra : '');
+            linha.hidden = false;
+        });
+    }
+
     function conferir() {
-        if (Notification.permission === 'denied') { mostrar('bloqueado'); return; }
-        atual().then(function (inscricao) {
-            mostrar(inscricao ? 'ligado' : 'desligado');
+        estadoDoPush().then(function (e) {
+            if (e.push === 'denied' || e.notificacao === 'denied') {
+                mostrar('bloqueado');
+                diagnostico();
+                return;
+            }
+            atual().then(function (inscricao) {
+                mostrar(inscricao ? 'ligado' : 'desligado');
+            });
         });
     }
 
@@ -104,19 +143,29 @@
         var feito;
         if (acao === 'ligar') {
             var rotulo = botao.textContent;
-            /* Cada passo com prazo e com o que fazer. Sem prazo, o botão ficava
-             * desbotado para sempre no app instalado do Android (2026-11-27): o
-             * Chrome pode pedir a permissão pelo sininho "discreto" da barra de
-             * endereço, e o app instalado não tem barra — a promessa nunca
-             * resolve, e nada dizia por quê. Permissão já dada não é pedida de novo. */
-            var permissao = Notification.permission === 'granted'
-                ? Promise.resolve('granted')
-                : (botao.textContent = 'Pedindo a permissão…', prazo(Notification.requestPermission(), 8000,
-                    'O pedido de permissão não apareceu. Libere as notificações deste site ' +
-                    '(no app instalado: segure o ícone → Informações do app → Notificações → ' +
-                    'Permitir; no Chrome: toque no cadeado ao lado do endereço → Permissões → ' +
-                    'Notificações) e toque de novo em Ativar.'));
+            /* O pedido de permissão sai **dentro do toque** (o navegador recusa
+             * fora dele), e não é abandonado por prazo: no app instalado do
+             * Android o Chrome pode não mostrá-lo (2026-11-27: o Android dizia
+             * "Permitido" e a promessa ficava pendente). Passados 8 s, aparece o
+             * caminho da permissão **do site** no Chrome, e o pedido continua
+             * valendo — liberado lá, a ativação segue sozinha. */
+            var pedido = Notification.requestPermission();
+            var dica = window.setTimeout(function () {
+                aviso('O pedido de permissão não apareceu. No Chrome: menu ⋮ → Configurações → ' +
+                    'Configurações do site → Notificações → ' + window.location.hostname +
+                    ' → Permitir (e, se houver, desligue "Usar mensagens mais discretas"). Ou abra ' +
+                    window.location.hostname + ' no Chrome, fora do app, e ative por lá.');
+                diagnostico('pedido sem resposta');
+                botao.textContent = rotulo;
+                botao.disabled = false;
+            }, 8000);
+            botao.textContent = 'Pedindo a permissão…';
+            var permissao = estadoDoPush().then(function (e) {
+                return e.push === 'granted' ? 'granted' : pedido;
+            });
             feito = permissao.then(function (resposta) {
+                window.clearTimeout(dica);
+                aviso('');
                 if (resposta !== 'granted') { throw new Error('bloqueado'); }
                 botao.textContent = 'Registrando o aparelho…';
                 return prazo(registro.pushManager.subscribe({
@@ -132,7 +181,9 @@
                 window.location.reload();
             });
             feito = feito.catch(function (erro) {
+                window.clearTimeout(dica);
                 botao.textContent = rotulo;
+                diagnostico(erro && erro.name && erro.name !== 'Error' ? erro.name : '');
                 throw erro;
             });
         } else if (acao === 'testar') {
