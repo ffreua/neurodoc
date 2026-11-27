@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 {% block title %}Notificações — NeuroDoc{% endblock %}
 {% block page_title %}Notificações{% endblock %}
 {% block breadcrumb %}
@@ -29,6 +30,9 @@
 {% block content %}
 <div class="row justify-content-center">
     <div class="col-xxl-9 col-lg-11">
+        {% comment %}Os avisos no celular antes da lista, e não depois: uma caixa
+        com dezenas de avisos empurrava o painel para onde ninguém rola.{% endcomment %}
+        {% if push_ligado %}{% include "notifications/_avisos_no_celular.html" %}{% endif %}
         <div class="card stretch stretch-full">
             <div class="card-header d-flex align-items-center justify-content-between">
                 <h5 class="card-title mb-0">Central de notificações</h5>
@@ -107,3 +111,4 @@
     </div>
 </div>
 {% endblock %}
+{% block scripts %}{% if push_ligado %}<script src="{% static 'duralux/nd-push.js' %}" defer></script>{% endif %}{% endblock %}

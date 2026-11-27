@@ -176,6 +176,16 @@ class InstallationSettings(TimestampedModel):
     whatsapp_twilio_liberado = models.BooleanField(default=False, db_default=False)
     whatsapp_twilio_nota = models.CharField(max_length=255, blank=True, db_default='')
 
+    #: O par de chaves VAPID dos avisos no celular (`notifications.push`),
+    #: gerado na primeira vez que alguém abre a tela dos avisos. A privada
+    #: cifrada como a chave da IA reserva; não é segredo do Swarm porque um
+    #: segredo novo teria de existir na VPS antes do deploy. **Trocar o par
+    #: derruba todas as inscrições** — o navegador amarra a inscrição à
+    #: chave pública —, então ninguém troca à mão.
+    push_vapid_publica = models.CharField(max_length=120, blank=True, db_default='')
+    push_vapid_privada_cifrada = models.TextField(blank=True, db_default='')
+    push_vapid_privada_meta = models.JSONField(default=dict, blank=True, db_default={})
+
     updated_by = models.ForeignKey(
         'accounts.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='+',
     )

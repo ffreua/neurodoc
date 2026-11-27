@@ -51,6 +51,8 @@ urlpatterns = [
         superadmin.ClinicMessagesView.as_view(), name='clinic-messages',
     ),
     path('contratos/', superadmin.ContractsView.as_view(), name='contracts'),
+    # Comunicados da instalação ao sino e ao celular (2026-11-27).
+    path('comunicados/', superadmin.ComunicadosView.as_view(), name='comunicados'),
     path('usuarios/', superadmin.UsersView.as_view(), name='users'),
     path('operacao/', superadmin.OperationsView.as_view(), name='operations'),
     path(

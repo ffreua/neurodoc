@@ -1,0 +1,62 @@
+{% comment %}Os avisos no celular (Etapa 2 do aplicativo instalado,
+`notifications/push.py`). Cada bloco `data-nd-push-estado` é um estado do
+aparelho, e `nd-push.js` mostra um só; todos nascem escondidos, para o
+navegador sem script não mostrar botão que não funciona. O texto diz o que
+a notificação mostra — o tipo, nunca o paciente — porque é a primeira
+pergunta de quem vai deixar o celular na mesa.{% endcomment %}
+<div class="card mb-4" data-nd-push
+     data-nd-push-chave="{{ push_chave }}"
+     data-nd-push-ativar="{% url 'notifications:push-ativar' %}"
+     data-nd-push-desativar="{% url 'notifications:push-desativar' %}"
+     data-nd-push-testar="{% url 'notifications:push-testar' %}">
+    <div class="card-header">
+        <h5 class="card-title mb-0">Avisos no celular</h5>
+    </div>
+    <div class="card-body">
+        <p class="fs-13 text-muted mb-3">
+            Receba neste aparelho os avisos do sino, as mensagens da equipe e os
+            pedidos e exames enviados pelo portal. A notificação diz só o tipo do
+            aviso ("Nova mensagem da equipe") e <strong>nunca o nome do paciente</strong>;
+            ao tocar nela, o sistema abre e pede a entrada como sempre.
+        </p>
+
+        <div data-nd-push-estado="desligado" hidden>
+            <button type="button" class="btn btn-primary" data-nd-push-acao="ligar">Ativar neste aparelho</button>
+        </div>
+        <div data-nd-push-estado="ligado" hidden>
+            <p class="fs-13 mb-2"><span class="badge bg-soft-success text-success me-1">Ativo</span> Este aparelho recebe os avisos.</p>
+            <div class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-light" data-nd-push-acao="testar">Enviar um aviso de teste</button>
+                <button type="button" class="btn btn-light-danger" data-nd-push-acao="desligar">Desativar neste aparelho</button>
+            </div>
+        </div>
+        <div data-nd-push-estado="bloqueado" hidden>
+            <p class="fs-13 mb-0">Os avisos foram <strong>bloqueados</strong> neste navegador. Para receber, libere as notificações deste site nas configurações do navegador ou do celular e volte a esta tela.</p>
+        </div>
+        <div data-nd-push-estado="iphone" hidden>
+            <p class="fs-13 mb-0">No iPhone e no iPad os avisos chegam só pelo <strong>aplicativo instalado</strong> (iOS 16.4 ou mais novo). Instale pelo Safari — <a href="{% url 'onboarding:help-article' 'instalar-app' %}">veja como</a> —, abra o sistema pelo ícone na tela inicial e volte a esta tela.</p>
+        </div>
+        <div data-nd-push-estado="sem-suporte" hidden>
+            <p class="fs-13 mb-0">Este navegador não recebe avisos. Use o Chrome, o Edge, o Firefox ou o Safari atualizados, ou o aplicativo instalado.</p>
+        </div>
+        <p class="fs-12 text-danger mt-2 mb-0" data-nd-push-msg role="status"></p>
+
+        {% if push_aparelhos %}
+        <hr>
+        <h6 class="fs-13 fw-semibold mb-2">Seus aparelhos com avisos</h6>
+        <ul class="list-unstyled mb-2">
+            {% for aparelho in push_aparelhos %}
+            <li class="d-flex align-items-center justify-content-between gap-2 py-1">
+                <span class="fs-13">{{ aparelho }} <span class="text-muted fs-12">· desde {{ aparelho.created_at|date:"d/m/Y" }}</span></span>
+                <form method="post" action="{% url 'notifications:push-desativar' %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="id" value="{{ aparelho.pk }}">
+                    <button type="submit" class="btn btn-sm btn-light" data-nd-busy>Tirar</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+        <p class="fs-12 text-muted mb-0">Ao sair do sistema por <strong>Sair</strong>, o aparelho deixa de receber os avisos.</p>
+        {% endif %}
+    </div>
+</div>

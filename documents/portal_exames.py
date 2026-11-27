@@ -248,6 +248,12 @@ def receber(request, tenant, patient, linhas, requester_name, requester_is_patie
             # aparece em Portal → Exames enviados, com o contador dos que
             # ninguém marcou como vistos, e no alerta vermelho do prontuário
             # (`nd_exames_do_portal`), que continua até o "Ciente".
+            # No celular, um aviso por envio (não por arquivo), decisão do
+            # titular de 2026-11-27 — sai depois do commit, então o envio
+            # desfeito pela cota não avisa ninguém.
+            from notifications.push import avisar_portal
+
+            avisar_portal(tenant, 'portal_exame')
     except QuotaExceeded:
         _apagar(escritos)
         # O motivo real (espaço da clínica) não é do paciente, e dizer

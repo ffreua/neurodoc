@@ -60,6 +60,10 @@ resolvido.{% endcomment %}
            href="{% url 'superadmin:clinic-messages' %}">Mensagens</a>
     </li>
     <li class="nav-item">
+        <a class="nav-link {% if nav_active == 'comunicados' %}active{% endif %}"
+           href="{% url 'superadmin:comunicados' %}">Comunicados</a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link {% if nav_active == 'contracts' %}active{% endif %}"
            href="{% url 'superadmin:contracts' %}">Contratos</a>
     </li>

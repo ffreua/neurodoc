@@ -189,7 +189,39 @@ def send(tenant_id, conversation, sender_user_id, body):
 
     payload = message_payload(mensagem)
     transaction.on_commit(lambda: _announce(tenant_id, participantes, payload))
+    _avisar_no_celular(tenant_id, conversation.pk, sender_user_id, participantes)
     return mensagem
+
+
+#: Uma notificação por conversa a cada tanto, por pessoa. Uma conversa ativa
+#: são dez mensagens em dois minutos, e dez vibrações no bolso por uma
+#: conversa só fazem a pessoa desligar os avisos.
+AVISO_NO_CELULAR_A_CADA = 120
+
+
+def _avisar_no_celular(tenant_id, conversation_id, sender_user_id, participantes):
+    """A mensagem nova vai ao celular de quem **não** está com o sistema aberto.
+
+    Quem está on-line já tem o contador, o som e a janela
+    (`presence.online_user_ids`); o celular é para quem saiu. O texto é só
+    "Nova mensagem da equipe" — nem quem mandou, nem o que diz: a mensagem da
+    equipe fala de paciente, e a notificação aparece na tela bloqueada.
+    """
+    from django.core.cache import cache
+
+    from notifications import push
+
+    from . import presence
+
+    on_line = presence.online_user_ids(tenant_id)
+    destinatarios = []
+    for user_id in participantes:
+        if str(user_id) == str(sender_user_id) or str(user_id) in on_line:
+            continue
+        # `add` só grava se a chave não existe: é a trava e o relógio juntos.
+        if cache.add(f'push:equipe:{conversation_id}:{user_id}', 1, AVISO_NO_CELULAR_A_CADA):
+            destinatarios.append(user_id)
+    push.avisar(destinatarios, 'equipe', '/app/', tag=f'equipe-{conversation_id}', ttl=3600)
 
 
 def _announce(tenant_id, participantes, payload):

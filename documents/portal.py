@@ -244,5 +244,12 @@ def submit(request, tenant, patient, kind, requester_name, requester_is_patient,
     # contador de pendentes, `base.context_processors._portal_badge`). No
     # sino ele competia com o que precisa de atenção agora, e cada pedido
     # virava dois lugares para marcar como visto.
+    #
+    # No celular, sim (decisão do titular de 2026-11-27): o aviso ali não
+    # compete com o sino e não precisa ser marcado como visto — ele diz só
+    # que chegou um pedido, e o toque leva à fila.
+    from notifications.push import avisar_portal
+
+    avisar_portal(tenant, 'portal_pedido')
     clear(request)
     return pedido

@@ -21,6 +21,11 @@ dinossauro do navegador. Nada além disso, e cada recusa é deliberada:
   podem se disfarçar de "sem conexão", senão o diagnóstico vai para o lugar
   errado.
 
+Desde a Etapa 2 (2026-11-27) o worker também **mostra os avisos no
+celular** (`push` e `notificationclick`; o envio em `notifications/push.py`):
+a notificação traz só o tipo do aviso, e o toque abre só endereço do
+próprio site — o que vem no aviso não pode mandar o aparelho para fora.
+
 O botão de emergência é `PWA_SERVICE_WORKER=False` (ver `core/settings.py`):
 as páginas param de registrar o worker e `/sw.js` passa a servir um que se
 apaga sozinho. Apagar o arquivo não bastaria — o worker já instalado num
@@ -105,6 +110,42 @@ self.addEventListener('fetch', function (evento) {
             return caches.match(OFFLINE).then(function (guardada) {
                 return guardada || Response.error();
             });
+        })
+    );
+});
+
+/* Etapa 2: os avisos no celular (notifications/push.py). O aviso traz só o
+ * tipo, nunca o paciente; o toque abre a tela pelo endereço do próprio site. */
+self.addEventListener('push', function (evento) {
+    var dados = {};
+    try { dados = evento.data ? evento.data.json() : {}; } catch (erro) { dados = {}; }
+    evento.waitUntil(self.registration.showNotification(dados.titulo || '%(produto)s', {
+        body: dados.corpo || 'Você tem um novo aviso.',
+        tag: dados.tag || 'aviso',
+        renotify: true,
+        icon: '/icon-192.png',
+        badge: '/icon-192.png',
+        lang: 'pt-BR',
+        data: {url: dados.url || '/app/'}
+    }));
+});
+
+self.addEventListener('notificationclick', function (evento) {
+    evento.notification.close();
+    var alvo = (evento.notification.data && evento.notification.data.url) || '/app/';
+    if (alvo.charAt(0) !== '/' || alvo.charAt(1) === '/') { alvo = '/app/'; }
+    var url = new URL(alvo, self.location.origin).href;
+    evento.waitUntil(
+        self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(function (janelas) {
+            for (var i = 0; i < janelas.length; i++) {
+                var janela = janelas[i];
+                if (new URL(janela.url).origin === self.location.origin && 'focus' in janela) {
+                    return janela.focus().then(function (focada) {
+                        return focada && 'navigate' in focada ? focada.navigate(url) : focada;
+                    });
+                }
+            }
+            return self.clients.openWindow(url);
         })
     );
 });

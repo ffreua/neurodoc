@@ -19,12 +19,19 @@ não entra**. Quem tem vínculo ativo já vê o nome do paciente na agenda e
 na lista; o que a caixa não pode fazer é contar o que foi escrito no
 prontuário — ela é lida em toda requisição para montar o sino do
 cabeçalho.
+
+**Toda linha nova do sino vai também ao celular** de quem ligou os avisos
+(`push.avisar_do_sino`, decisão do titular de 2026-11-27) — com o texto do
+tipo, e não com o título, que nomeia o paciente. Por isso as três funções
+de criação chamam o aviso, e quem criar `Notification` por outro caminho
+fica sem ele.
 """
 
 from tenancy.models import Membership, MembershipStatus
 from tenancy.permissions import capabilities_for
 from tenancy.plans import has_clinical_ai
 
+from . import push
 from .models import Notification
 
 
@@ -76,13 +83,15 @@ def notify_capability(tenant, capability, kind, sanitized_title,
     revise pedido do portal, e inventar destinatário não resolveria.
     """
     destinatarios = _members_with(tenant, capability)
-    return Notification.objects.bulk_create([
+    criadas = Notification.objects.bulk_create([
         Notification(
             tenant=tenant, user_id=m.user_id, kind=kind, sanitized_title=sanitized_title,
             target_type=target_type, target_id=target_id, context=context or {},
         )
         for m in destinatarios
     ])
+    push.avisar_do_sino([n.user_id for n in criadas], kind)
+    return criadas
 
 
 def notify_role(tenant, roles, kind, sanitized_title, target_type='', target_id=None,
@@ -104,15 +113,19 @@ def notify_role(tenant, roles, kind, sanitized_title, target_type='', target_id=
         )
         for m in memberships
     ]
-    return Notification.objects.bulk_create(notifications)
+    criadas = Notification.objects.bulk_create(notifications)
+    push.avisar_do_sino([n.user_id for n in criadas], kind)
+    return criadas
 
 
 def notify_user(tenant, user_id, kind, sanitized_title, target_type='', target_id=None,
                 context=None):
-    return Notification.objects.create(
+    criada = Notification.objects.create(
         tenant=tenant, user_id=user_id, kind=kind, sanitized_title=sanitized_title,
         target_type=target_type, target_id=target_id, context=context or {},
     )
+    push.avisar_do_sino([user_id], kind)
+    return criada
 
 
 def mark_read(notification):

@@ -43,6 +43,12 @@ def artigo(produto):
         ('**Atalhos.** No Android e no computador, segurar o ícone (ou clicar nele com o '
          'botão direito) mostra **Agenda** e **Pacientes**, que abrem direto nessas telas. '
          'O iPhone não mostra atalhos.'),
+        ('**Avisos no celular.** Em **Notificações** (o sino → Central de notificações), '
+         'toque em **Ativar neste aparelho** e permita as notificações. Chegam os avisos '
+         'do sino, as mensagens da equipe e os pedidos e exames enviados pelo portal. A '
+         'notificação diz **só o tipo** do aviso, nunca o nome do paciente; ao tocar, o '
+         '{p} abre. No **iPhone e iPad**, só pelo app instalado e no iOS 16.4 ou mais '
+         'novo. **Sair** desliga os avisos naquele aparelho.'),
         ('**Sem internet.** O {p} precisa de internet para abrir as telas: sem conexão, '
          'aparece uma tela própria com o botão **Tentar de novo**. O rascunho do '
          'atendimento que você estava escrevendo continua guardado no navegador e volta '

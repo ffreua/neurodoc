@@ -105,6 +105,11 @@ EXCECOES_NA_TELA = {
     # A troca entre primeira consulta e seguimento (clinical/estrutura.py,
     # 1.41): as recusas dizem em português o que fazer com o texto escrito.
     'TrocaRecusada', 'ValorInvalido',
+    # Os avisos no celular (notifications/push.py, 2026-11-27): a recusa da
+    # inscrição que o navegador mandou, escrita em português.
+    'InscricaoRecusada',
+    # Os comunicados do console (notifications/comunicados.py), em português.
+    'ComunicadoRecusado',
 }
 
 #: Arquivos que falam com quem opera o servidor, nao com quem usa o

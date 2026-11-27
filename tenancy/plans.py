@@ -82,6 +82,14 @@ PERIODICIDADES = {
 #: Karina; publicada, o parcelamento liga sozinho.
 CONTRATO_COM_PARCELAMENTO = '2.3'
 
+#: A primeira redação do contrato que prevê **propaganda** nos comunicados do
+#: console (`notifications.comunicados`, pedido do titular de 2026-11-27). A
+#: 2.4 cobre o aviso do sistema (cláusula 18.1) e não a publicidade — o Aviso
+#: de Privacidade pede "versão complementar antes de sua ativação". A minuta
+#: está em `docs/governance/comunicados-minuta.md`, com a Dra. Karina;
+#: publicada, a propaganda vai a cada clínica que aceitar a redação nova.
+CONTRATO_COM_PROPAGANDA = '2.5'
+
 #: A primeira que a vitrine mostra, e a do convite que não disser outra.
 PERIODICIDADE_PADRAO = Periodicidade.ANUAL
 

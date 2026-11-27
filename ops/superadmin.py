@@ -2013,3 +2013,66 @@ def _is_iso_date(value):
         return True
     except ValueError:
         return False
+
+
+# ------------------------------------------------------------------ comunicados
+
+class ComunicadosView(SuperAdminView):
+    """Comunicados da instalação: escrever, ver quantos recebem, enviar.
+
+    Três passos, e o do meio é o que importa: a prévia mostra quantas
+    clínicas, pessoas e aparelhos recebem **antes** do envio, porque não há
+    como desfazer uma notificação que já tocou no celular de quinhentas
+    pessoas. Enviar pede o código do aplicativo de novo, como as outras
+    ações graves do console. Regras e o contrato em
+    `notifications/comunicados.py`.
+    """
+
+    def _contexto(self, dados=None):
+        from notifications import comunicados
+        from notifications.models import Comunicado
+        from tenancy.models import Role, Tenant, TenantStatus
+        from tenancy.plans import CONTRATO_COM_PROPAGANDA, PLANS
+
+        context = _nav('comunicados')
+        context.update({
+            'dados': dados or {},
+            'categorias': Comunicado.Categoria.choices,
+            'publicos': Comunicado.Publico.choices,
+            'planos': [(c, p['label']) for c, p in PLANS.items()],
+            'papeis': Role.choices,
+            'clinicas': Tenant.objects.exclude(status=TenantStatus.CLOSED).order_by('legal_name')
+            .values_list('id', 'legal_name', 'trade_name'),
+            'propaganda_liberada': comunicados.propaganda_liberada(),
+            'contrato_propaganda': CONTRATO_COM_PROPAGANDA,
+            'titulo_max': comunicados.TITULO_MAX, 'texto_max': comunicados.TEXTO_MAX,
+            'historico': Comunicado.objects.select_related('criado_por')[:50],
+        })
+        return context
+
+    def get(self, request):
+        return render(request, 'ops/superadmin/comunicados.html', self._contexto())
+
+    def post(self, request):
+        from notifications import comunicados
+
+        dados = request.POST
+        if dados.get('acao') == 'enviar':
+            volta = _pede_codigo_de_novo(request, 'superadmin:comunicados')
+            if volta is not None:
+                return volta
+            try:
+                comunicado = comunicados.criar(request.user, dados)
+            except comunicados.ComunicadoRecusado as exc:
+                messages.error(request, str(exc))
+                return render(request, 'ops/superadmin/comunicados.html', self._contexto(dados))
+            messages.success(request, f'Comunicado "{comunicado.titulo}" na fila de envio.')
+            return redirect('superadmin:comunicados')
+        try:
+            campos = comunicados.validar(dados)
+        except comunicados.ComunicadoRecusado as exc:
+            messages.error(request, str(exc))
+            return render(request, 'ops/superadmin/comunicados.html', self._contexto(dados))
+        context = self._contexto(dados)
+        context['previa'] = comunicados.previa(campos['categoria'], campos['publico'], campos['filtro'])
+        return render(request, 'ops/superadmin/comunicados.html', context)

@@ -435,7 +435,24 @@ carimbá-la na publicação.
 #: manifesto fora das telas do paciente, e **Instalar o app** no menu, no login e
 #: num artigo da ajuda com o botão "Instalar agora". Sem migração.
 
-VERSION = '1.63'
+#: A **1.64** (2026-11-27, junto com o ProntDoc 1.18.0): o **aplicativo instalado,
+#: Etapa 2 — avisos no celular** (Web Push). Ativado por aparelho na Central de
+#: notificações; chegam o que vai ao sino, a mensagem da equipe (para quem não
+#: está com o sistema aberto, uma por conversa a cada dois minutos) e o pedido e o
+#: exame do portal (para quem lê prontuário). A notificação diz **só o tipo**,
+#: nunca o paciente. Cifra e assinatura escritas sobre `cryptography` e `httpx`,
+#: sem dependência nova (`notifications/webpush.py`, conferida contra a RFC 8291);
+#: o par VAPID gerado na primeira vez e guardado cifrado na configuração da
+#: instalação; o envio pelo worker, só para os serviços de push conhecidos;
+#: **Sair** desliga o aparelho; `PWA_PUSH=False` desliga só os avisos. E os
+#: **comunicados do console** (`/instalacao/comunicados/`): aviso do sistema ou
+#: propaganda, para todas as clínicas, um plano, uma clínica ou um papel, ao sino
+#: e ao celular, com prévia de quantos recebem e o código do segundo fator para
+#: enviar; a **propaganda travada** até o contrato 2.5 (minuta com a Dra. Karina,
+#: `docs/governance/comunicados-minuta.md`). Migrações `base.0007`,
+#: `notifications.0003` e `0004`.
+
+VERSION = '1.64'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

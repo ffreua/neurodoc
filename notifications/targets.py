@@ -32,6 +32,11 @@ class Target:
 
 
 REGISTRY = {
+    # O comunicado do console é da instalação, não da clínica: `exists`
+    # o procura sem o inquilino (ver abaixo).
+    'comunicado': Target(
+        'notifications:comunicado', 'notifications.Comunicado', 'Ler comunicado',
+    ),
     'document_request': Target(
         'documents:request-detail', 'documents.DocumentRequest', 'Revisar solicitação',
     ),
@@ -102,6 +107,9 @@ def exists(notification):
     from django.apps import apps
 
     model = apps.get_model(target.model)
-    return model.objects.filter(
-        id=notification.target_id, tenant_id=notification.tenant_id,
-    ).exists()
+    filtro = {'id': notification.target_id}
+    # Alvo sem inquilino (o comunicado da instalação) não tem com que
+    # comparar; os outros continuam presos à clínica da notificação.
+    if any(f.name == 'tenant' for f in model._meta.fields):
+        filtro['tenant_id'] = notification.tenant_id
+    return model.objects.filter(**filtro).exists()

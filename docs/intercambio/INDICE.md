@@ -74,3 +74,5 @@ e foram corrigidos em `b26c256`, adaptados aos dois tipos de atendimento.
 | MD-2026-11-26-03 | [Exames da consulta anterior, por escolha do médico](mudancas/2026-11-26-M03-exames-da-consulta-anterior.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-26-03) | — |
 | MD-2026-11-26-04 | [Portal no menu, e a IA própria com liga e desliga](mudancas/2026-11-26-M04-portal-no-menu-e-ia-propria.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-26-04) | — |
 | MD-2026-11-27-01 | [Aplicativo instalado (PWA), Etapa 1](mudancas/2026-11-27-M01-pwa-etapa-1.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-27-01) | — |
+| MD-2026-11-27-02 | [Aplicativo instalado, Etapa 2: avisos no celular](mudancas/2026-11-27-M02-pwa-etapa-2-avisos.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-27-02) | — |
+| MD-2026-11-27-03 | [Comunicados do console ao sino e ao celular](mudancas/2026-11-27-M03-comunicados.md) | mudança | feito | feito na mesma rodada (PD-M-2026-11-27-03) | — |

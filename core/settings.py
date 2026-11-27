@@ -129,6 +129,10 @@ TELAS_LENTAS_MS = env.int('TELAS_LENTAS_MS', default=500)
 # Fora do `.env.example` de propósito, como `TELAS_LENTAS_MS`: o deploy
 # completa o `.env` da VPS com o molde, e o padrão do código basta.
 PWA_SERVICE_WORKER = env.bool('PWA_SERVICE_WORKER', default=True)
+# Os avisos no celular (Etapa 2, `notifications/push.py`). `False` para só
+# eles — a tela sem internet continua; o `PWA_SERVICE_WORKER=False` desliga
+# os dois. Fora do `.env.example` pelo mesmo motivo da chave acima.
+PWA_PUSH = env.bool('PWA_PUSH', default=True)
 
 # A partir de quando dono e médico precisam do segundo fator para usar
 # `/app/` — data ISO, ou `desligado`. Ver `accounts/mfa.py`: até o dia, só o

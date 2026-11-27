@@ -1,0 +1,127 @@
+{% extends "ops/superadmin/_base.html" %}
+{% block title %}Comunicados — NeuroDoc{% endblock %}
+{% block page_title %}Comunicados{% endblock %}
+{% block super_section %}Comunicados{% endblock %}
+{% block super_content %}
+
+{% comment %}Escrever, conferir quantos recebem, enviar. O comunicado vai ao
+sino de cada pessoa (na clínica dela) e ao celular de quem ligou os avisos.
+Regras em `notifications/comunicados.py`.{% endcomment %}
+
+{% if not propaganda_liberada %}
+<div class="alert alert-warning fade show" role="alert">
+    <strong>Propaganda travada.</strong> O contrato vigente cobre os avisos do sistema
+    (cláusula 18.1), mas não a publicidade. Ela libera com a redação
+    {{ contrato_propaganda }} — a minuta está com a advogada — e, depois de publicada,
+    vai a cada clínica que aceitar a versão nova.
+</div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header"><h5 class="card-title mb-0">{% if previa %}Conferir e enviar{% else %}Novo comunicado{% endif %}</h5></div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="c-categoria">Tipo</label>
+                    <select class="form-select" id="c-categoria" name="categoria" required>
+                        {% for valor, rotulo in categorias %}
+                        <option value="{{ valor }}" {% if dados.categoria == valor %}selected{% endif %}{% if valor == 'propaganda' and not propaganda_liberada %} disabled{% endif %}>{{ rotulo }}{% if valor == 'propaganda' and not propaganda_liberada %} (travada){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="c-publico">Para quem</label>
+                    <select class="form-select" id="c-publico" name="publico" required>
+                        {% for valor, rotulo in publicos %}
+                        <option value="{{ valor }}" {% if dados.publico == valor %}selected{% endif %}>{{ rotulo }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="c-plano">Plano <span class="text-muted fs-12">(se "as clínicas de um plano")</span></label>
+                    <select class="form-select" id="c-plano" name="plano">
+                        <option value="">—</option>
+                        {% for valor, rotulo in planos %}<option value="{{ valor }}" {% if dados.plano == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="c-clinica">Clínica <span class="text-muted fs-12">(se "uma clínica")</span></label>
+                    <select class="form-select" id="c-clinica" name="clinica">
+                        <option value="">—</option>
+                        {% for id, razao, fantasia in clinicas %}<option value="{{ id }}" {% if dados.clinica == id|stringformat:"s" %}selected{% endif %}>{{ fantasia|default:razao }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="c-papel">Papel <span class="text-muted fs-12">(se "um papel")</span></label>
+                    <select class="form-select" id="c-papel" name="papel">
+                        <option value="">—</option>
+                        {% for valor, rotulo in papeis %}<option value="{{ valor }}" {% if dados.papel == valor %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="c-titulo">Título <span class="text-muted fs-12">(até {{ titulo_max }} caracteres; é o que aparece em negrito no celular)</span></label>
+                    <input class="form-control" id="c-titulo" name="titulo" maxlength="{{ titulo_max }}" required value="{{ dados.titulo|default_if_none:"" }}">
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="c-texto">Texto <span class="text-muted fs-12">(até {{ texto_max }}; o celular mostra o começo, o resto abre ao tocar)</span></label>
+                    <textarea class="form-control" id="c-texto" name="texto" rows="5" maxlength="{{ texto_max }}" required>{{ dados.texto|default_if_none:"" }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="c-link">Link <span class="text-muted fs-12">(opcional, um endereço deste sistema, como /ajuda/instalar-app/)</span></label>
+                    <input class="form-control" id="c-link" name="link" maxlength="200" value="{{ dados.link|default_if_none:"" }}">
+                </div>
+            </div>
+            <p class="fs-12 text-muted mt-3 mb-0">Nunca escreva dado de paciente: o comunicado aparece na tela bloqueada do celular.</p>
+
+            {% if previa %}
+            <div class="alert alert-info mt-3 mb-0" role="status">
+                Vai para <strong>{{ previa.pessoas }} pessoa{{ previa.pessoas|pluralize }}</strong>
+                em <strong>{{ previa.clinicas }} clínica{{ previa.clinicas|pluralize }}</strong>,
+                no sino; <strong>{{ previa.aparelhos }} aparelho{{ previa.aparelhos|pluralize }}</strong>
+                com avisos ligados recebem também no celular. Não há como desfazer depois de enviado.
+            </div>
+            <div class="d-flex flex-wrap gap-2 mt-3">
+                <button type="submit" name="acao" value="previa" class="btn btn-light">Conferir de novo</button>
+                {% if previa.pessoas %}
+                <button type="submit" name="acao" value="enviar" class="btn btn-primary" data-nd-busy
+                        data-nd-confirm="Enviar o comunicado para {{ previa.pessoas }} pessoa(s)? Não há como desfazer.">Enviar agora</button>
+                {% endif %}
+            </div>
+            {% else %}
+            <button type="submit" name="acao" value="previa" class="btn btn-primary mt-3">Ver quem recebe</button>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><h5 class="card-title mb-0">Enviados</h5></div>
+    <div class="card-body p-0">
+        {% if not historico %}
+        <p class="fs-13 text-muted p-4 mb-0">Nenhum comunicado ainda.</p>
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead><tr><th>Quando</th><th>Título</th><th>Tipo</th><th>Para quem</th><th>Pessoas</th><th>Celular</th><th>Situação</th><th>Por</th></tr></thead>
+                <tbody>
+                    {% for c in historico %}
+                    <tr>
+                        <td class="fs-12">{{ c.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="fs-13">{{ c.titulo }}</td>
+                        <td class="fs-12">{{ c.get_categoria_display }}</td>
+                        <td class="fs-12">{{ c.get_publico_display }}{% if c.filtro %} <span class="text-muted">({{ c.filtro|truncatechars:12 }})</span>{% endif %}</td>
+                        <td class="fs-12">{{ c.pessoas }}</td>
+                        <td class="fs-12">{{ c.aparelhos_entregues }}{% if c.aparelhos_falhas %} <span class="text-danger">· {{ c.aparelhos_falhas }} falha(s)</span>{% endif %}</td>
+                        <td class="fs-12">{{ c.get_situacao_display }}</td>
+                        <td class="fs-12">{{ c.criado_por.email|default:"—" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

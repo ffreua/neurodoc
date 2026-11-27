@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ comunicado.titulo }} — NeuroDoc{% endblock %}
+{% block page_title %}Comunicado{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'notifications:list' %}">Notificações</a></li>
+<li class="breadcrumb-item">Comunicado</li>
+{% endblock %}
+{% block content %}
+{% comment %}O texto sai escapado e só com as quebras de linha: quem escreve no
+console não escreve HTML, e um comunicado que aceitasse marcação seria o
+lugar perfeito para um link disfarçado.{% endcomment %}
+<div class="row justify-content-center">
+    <div class="col-xxl-7 col-lg-9">
+        <div class="card">
+            <div class="card-header d-flex align-items-center justify-content-between gap-2">
+                <h5 class="card-title mb-0">{{ comunicado.titulo }}</h5>
+                <span class="badge {% if comunicado.categoria == 'propaganda' %}bg-soft-warning text-warning{% else %}bg-soft-primary text-primary{% endif %}">{{ comunicado.get_categoria_display }}</span>
+            </div>
+            <div class="card-body">
+                <p class="fs-14 text-dark mb-3">{{ comunicado.texto|linebreaksbr }}</p>
+                <p class="fs-12 text-muted mb-0">{{ comunicado.enviado_em|default:comunicado.created_at|date:"d/m/Y H:i" }}</p>
+                {% if comunicado.link %}
+                <a class="btn btn-primary mt-3" href="{{ comunicado.link }}">Saiba mais</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
