@@ -149,12 +149,28 @@
              * "Permitido" e a promessa ficava pendente). Passados 8 s, aparece o
              * caminho da permissão **do site** no Chrome, e o pedido continua
              * valendo — liberado lá, a ativação segue sozinha. */
-            var pedido = Notification.requestPermission();
+            // As duas formas do pedido: a promessa e a função de retorno antiga.
+            // Navegador derivado do Chromium pode atender só uma delas, e esperar
+            // pela que ele não atende era um pedido "sem resposta" para sempre.
+            var pedido = new Promise(function (resolve) {
+                var promessa = Notification.requestPermission(resolve);
+                if (promessa && promessa.then) { promessa.then(resolve); }
+            });
             var dica = window.setTimeout(function () {
-                aviso('O pedido de permissão não apareceu. No Chrome: menu ⋮ → Configurações → ' +
-                    'Configurações do site → Notificações → ' + window.location.hostname +
-                    ' → Permitir (e, se houver, desligue "Usar mensagens mais discretas"). Ou abra ' +
-                    window.location.hostname + ' no Chrome, fora do app, e ative por lá.');
+                // A permissão é do site **no navegador que instalou o app**: o
+                // app do Samsung Internet não lê o que foi liberado no Chrome.
+                var site = window.location.hostname;
+                aviso(/SamsungBrowser/.test(navigator.userAgent)
+                    ? 'O pedido de permissão não apareceu. Este app foi instalado pelo Samsung ' +
+                      'Internet: abra o app Internet da Samsung (fora deste app), entre em ' + site +
+                      ', vá a Notificações e toque em Ativar neste aparelho — lá o pedido aparece. ' +
+                      'Se não aparecer: Internet → menu ☰ → Configurações → Sites e downloads → ' +
+                      'Notificações → deixe ligado "Permitir solicitações de notificação" e libere ' +
+                      site + '. Depois volte a este app.'
+                    : 'O pedido de permissão não apareceu. No Chrome: menu ⋮ → Configurações → ' +
+                      'Configurações do site → Notificações → ' + site + ' → Permitir (e, se ' +
+                      'houver, desligue "Usar mensagens mais discretas"). Ou abra ' + site +
+                      ' no Chrome, fora do app, e ative por lá.');
                 diagnostico('pedido sem resposta');
                 botao.textContent = rotulo;
                 botao.disabled = false;
