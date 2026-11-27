@@ -16,6 +16,8 @@ na versão 2.5 do contrato (e o ajuste do Aviso de Privacidade); publicada a
 2.5 em `tenancy/contrato/`, a propaganda libera sozinha para cada clínica que
 aceitá-la.
 
+**Redação proposta (2026-11-27):** `docs/governance/contrato-2.5-minuta.md` (o que muda) e `contrato-2.5-proposta.md` (texto integral), para a aprovação dela.
+
 ## O que o sistema passou a fazer (2026-11-27)
 
 O console do superadministrador escreve um **comunicado** (título, texto,

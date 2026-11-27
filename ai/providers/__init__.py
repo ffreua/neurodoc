@@ -60,10 +60,16 @@ def _tenant_settings(tenant_id):
 #: Conferido em produção no mesmo dia: o pedido continua respondendo, e o
 #: provedor excluído deixa de ser escolhido. Ver
 #: `docs/governance/suboperadores.md`.
+#:
+#: `z-ai` entrou em 2026-11-27: a reserva passou a ser o `z-ai/glm-5.3-flash`
+#: (2026-11-26), e a própria Z.AI, empresa chinesa, é um dos 42 provedores que
+#: o servem na OpenRouter — a lista antiga fora escrita para os do DeepSeek, e
+#: a troca de modelo abriu a porta que o contrato promete fechada ("não
+#: sediado na China"). Trocou o modelo, confira quem o serve.
 ROTEAMENTO_OPENROUTER_DA_INSTALACAO = {
     'zdr': True,
     'data_collection': 'deny',
-    'ignore': ['baidu', 'alibaba', 'siliconflow', 'streamlake'],
+    'ignore': ['baidu', 'alibaba', 'siliconflow', 'streamlake', 'z-ai'],
 }
 
 

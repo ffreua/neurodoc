@@ -464,7 +464,7 @@ try:
         conferir(roteamento(inst) == ROT, 'a OpenRouter da instalação saiu sem a restrição de roteamento')
         conferir(ROT.get('zdr') is True and ROT.get('data_collection') == 'deny',
                  'a restrição não exige retenção zero e recusa de treino')
-        conferir({'baidu', 'alibaba', 'siliconflow', 'streamlake'} <= set(ROT.get('ignore', [])),
+        conferir({'baidu', 'alibaba', 'siliconflow', 'streamlake', 'z-ai'} <= set(ROT.get('ignore', [])),
                  'os provedores excluídos sumiram da restrição')
         conferir(roteamento(clin) is None, 'a chave da clínica recebeu o roteamento da instalação')
         conferir(roteamento(outro) is None, 'provedor que não é a OpenRouter recebeu parâmetro dela')
