@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from base.csp_views import CspReportView
 
 from communications.views import CampaignClickView, UnsubscribeView
@@ -34,6 +35,12 @@ urlpatterns = [
     path('', include('contratacao.urls')),
     path('accounts/', include('accounts.urls')),
     path('', include('tenancy.urls')),
+    # `/app/` em si: o ícone do aplicativo instalado abre aqui (o
+    # `start_url` do manifesto) e, sem esta linha, abria um 404 depois do
+    # login. Redireciona à tela inicial de todos os papéis, a mesma do
+    # seletor de organização. Rota, e não troca do `start_url`: o iPhone
+    # guarda o endereço no dia em que o ícone foi criado e nunca o relê.
+    path('app/', RedirectView.as_view(pattern_name='reporting:dashboard'), name='app-inicio'),
     path('app/patients/', include('patients.urls')),
     path('app/scheduling/', include('scheduling.urls')),
     path('app/clinical/', include('clinical.urls')),

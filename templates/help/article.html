@@ -40,6 +40,9 @@ mesma pagina. Dois lugares para o mesmo texto e um deles envelhecendo.{% endcomm
                 <span class="badge bg-gray-200 text-dark mb-2 fs-11">{{ article.audience }}</span>
                 <h1 class="fw-bold text-dark mb-2" style="font-size: 1.9rem;">{{ article.title }}</h1>
                 <p class="fs-14 text-muted mb-5">{{ article.summary }}</p>
+                {% comment %}O artigo de instalar o app ganha o botão "Instalar agora" quando
+                o navegador oferece a instalação (`base/ajuda_instalar.py`).{% endcomment %}
+                {% if article.slug == 'instalar-app' %}{% include "help/_instalar_agora.html" %}{% endif %}
 
                 {% for passo in passos %}
                 <div class="nd-help-step">

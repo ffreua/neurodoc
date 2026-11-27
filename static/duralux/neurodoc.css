@@ -1651,3 +1651,12 @@ body.nd-no-shell .nxl-content {
     padding-left: 0.35em;
     cursor: pointer;
 }
+
+/* O que só faz sentido no navegador (o convite a instalar o app) some quando
+ * a tela foi aberta pelo próprio app instalado. `display-mode` é como o
+ * Chrome, o Edge e o Safari 16.4+ dizem que a janela é a do app. */
+@media (display-mode: standalone) {
+    [data-nd-so-navegador] {
+        display: none !important;
+    }
+}

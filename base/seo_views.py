@@ -95,7 +95,9 @@ class RobotsView(View):
     - `/instalacao/`, `/admin/` e `/technical-docs/` são o console de
       quem opera o servidor;
     - `/whatsapp/` é o aviso de status que a Twilio manda (2026-11-25):
-      só `POST` assinado, e o `GET` responde 404 — nada ali é página.
+      só `POST` assinado, e o `GET` responde 404 — nada ali é página;
+    - `/offline/` é a tela sem internet do aplicativo instalado
+      (`base/pwa.py`): página de sistema, sem nada a encontrar na busca.
 
     `robots.txt` não é controle de acesso — quem obedece é robô educado.
     O que impede o acesso de verdade continua sendo `TenantMiddleware`, a
@@ -122,6 +124,7 @@ class RobotsView(View):
             'Disallow: /comecar-gratis/',
             'Disallow: /degustacao/',
             'Disallow: /whatsapp/',
+            'Disallow: /offline/',
             '',
             'Sitemap: ' + seo.absoluta('/sitemap.xml'),
             # Não é diretiva do padrão: é o aviso, para quem lê o arquivo,
@@ -328,6 +331,10 @@ class ManifestView(View):
             'short_name': 'NeuroDoc',
             'description': seo.RESUMO,
             'lang': 'pt-BR',
+            # A identidade do aplicativo instalado. Sem `id`, ela é o
+            # `start_url` — e mudá-lo um dia faria o Android tratar a versão
+            # nova como outro aplicativo, com dois ícones na tela.
+            'id': '/app/',
             'start_url': '/app/',
             'scope': '/',
             'display': 'standalone',
@@ -339,6 +346,17 @@ class ManifestView(View):
                 {'src': '/icon-512.png', 'sizes': '512x512', 'type': 'image/png'},
                 {'src': '/icon-maskable-512.png', 'sizes': '512x512',
                  'type': 'image/png', 'purpose': 'maskable'},
+            ],
+            'categories': ['medical', 'productivity'],
+            # O que aparece ao segurar o ícone (Android e computador; o
+            # iPhone não mostra). Só telas que os quatro papéis abrem: um
+            # atalho que desse 404 para a secretária seria pior que nenhum.
+            # "Novo atendimento" não entra porque precisa de um paciente.
+            'shortcuts': [
+                {'name': 'Agenda', 'url': '/app/scheduling/',
+                 'icons': [{'src': '/icon-192.png', 'sizes': '192x192', 'type': 'image/png'}]},
+                {'name': 'Pacientes', 'url': '/app/patients/',
+                 'icons': [{'src': '/icon-192.png', 'sizes': '192x192', 'type': 'image/png'}]},
             ],
         }
         return HttpResponse(json.dumps(dados, ensure_ascii=False, indent=2),

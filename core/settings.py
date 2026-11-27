@@ -121,6 +121,15 @@ CSP_ENFORCE = env.bool('CSP_ENFORCE', default=False)
 # da VPS com o molde, e o padrão do código basta.
 TELAS_LENTAS_MS = env.int('TELAS_LENTAS_MS', default=500)
 
+# O service worker do aplicativo instalado (`base/pwa.py`). Ligado por
+# padrão; `False` é o botão de emergência: as páginas deixam de registrá-lo
+# e `/sw.js` passa a servir um que se apaga sozinho em cada aparelho na
+# próxima visita — sem isso, um worker com defeito ficaria instalado nos
+# celulares, porque apagar o arquivo do servidor não o tira de lá.
+# Fora do `.env.example` de propósito, como `TELAS_LENTAS_MS`: o deploy
+# completa o `.env` da VPS com o molde, e o padrão do código basta.
+PWA_SERVICE_WORKER = env.bool('PWA_SERVICE_WORKER', default=True)
+
 # A partir de quando dono e médico precisam do segundo fator para usar
 # `/app/` — data ISO, ou `desligado`. Ver `accounts/mfa.py`: até o dia, só o
 # aviso; depois, a entrada passa pela configuração do código.

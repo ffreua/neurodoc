@@ -15,6 +15,7 @@ from .content import INSTAGRAM
 from .paginas_seo import AREAS as PAGINAS_AREAS, RECURSOS as PAGINAS_RECURSOS
 from tenancy.permissions import Capability
 
+from . import pwa
 from .version import VERSION
 
 #: Todas as capacidades declaradas, para o dicionário do template trazer
@@ -117,6 +118,10 @@ def shell(request):
         'nd_segundo_fator_prazo': None,
         'nd_degustacao': None,
         'nd_vigencia': None,
+        # O aplicativo instalado (`base/pwa.py`): a página se oferece como o
+        # app da equipe (manifesto e worker) fora das telas do paciente.
+        'nd_app_instalavel': pwa.instalavel(getattr(request, 'path', '') or ''),
+        'nd_pwa_sw': pwa.worker_ligado(),
     }
     if context is None:
         return data

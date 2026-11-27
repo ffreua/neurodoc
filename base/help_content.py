@@ -47,6 +47,7 @@ def _planos_com(recurso):
 #: parágrafo transforma o manual numa apresentação de slides.
 from .ajuda_whatsapp import artigo as _artigo_whatsapp
 from .ajuda_lme import artigo as _artigo_lme
+from .ajuda_instalar import artigo as _artigo_instalar
 
 ARTICLES = [
     # Primeiro da lista, de propósito: é o artigo para onde o e-mail de
@@ -1193,6 +1194,9 @@ ARTICLES = [
              '', ''),
         ],
     },
+    # Instalar como aplicativo (PWA): arquivo próprio, igual nos dois produtos
+    # (`base/ajuda_instalar.py`).
+    _artigo_instalar('NeuroDoc'),
 ]
 
 

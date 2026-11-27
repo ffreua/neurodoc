@@ -10,5 +10,10 @@
 </form>
 <div class="text-center mt-4">
     <a class="fs-12 fw-semibold" href="{% url 'accounts:password_reset' %}">Esqueci minha senha</a>
+    {% comment %}O convite a instalar o app some dentro do próprio app
+    (`data-nd-so-navegador`).{% endcomment %}
+    <div class="mt-2" data-nd-so-navegador>
+        <a class="fs-12 text-muted" href="{% url 'onboarding:help-article' 'instalar-app' %}">Usar como aplicativo no celular ou no computador</a>
+    </div>
 </div>
 {% endblock %}

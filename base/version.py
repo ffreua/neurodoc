@@ -427,7 +427,15 @@ carimbá-la na publicação.
 #: da clínica e do médico (antes, campo em branco mantinha e nada apagava). Sem
 #: migração.
 
-VERSION = '1.62'
+#: A **1.63** (2026-11-27, junto com o ProntDoc 1.17.0): o **aplicativo instalado (PWA),
+#: Etapa 1** — `/app/` deixa de dar 404 depois do login (o ícone instalado abria
+#: ali), o manifesto com identidade fixa e os atalhos Agenda e Pacientes, o
+#: service worker que só mostra a tela **sem internet** e não guarda nenhuma tela
+#: do sistema (`base/pwa.py`, botão de emergência `PWA_SERVICE_WORKER`), o
+#: manifesto fora das telas do paciente, e **Instalar o app** no menu, no login e
+#: num artigo da ajuda com o botão "Instalar agora". Sem migração.
+
+VERSION = '1.63'
 
 #: Nome do marco, quando houver. Aparece ao lado da versão nas telas de
 #: instalação; vazio não mostra nada, e é o padrão — inventar um apelido

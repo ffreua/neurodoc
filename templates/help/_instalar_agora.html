@@ -1,0 +1,20 @@
+{% load static %}
+{% comment %}O bloco "Instalar agora" do artigo `instalar-app`.
+
+Sem script, mostra só a primeira frase, e os passos abaixo bastam. Com
+script (`static/duralux/nd-instalar.js`), troca a frase conforme o aparelho:
+o botão aparece só quando o navegador entrega o pedido de instalação (Chrome
+e Edge, no Android e no computador); no iPhone, que nunca entrega, aponta o
+passo do Safari; e quem já abriu pelo app instalado lê isso. O `hidden` vale
+até o script decidir — botão que não instala nada não pode aparecer.{% endcomment %}
+<div class="card border mb-5" data-nd-instalar>
+    <div class="card-body">
+        <p class="fs-14 mb-0" data-nd-instalar-padrao>Siga abaixo o passo do seu aparelho.</p>
+        <p class="fs-14 mb-0" data-nd-instalar-pronto hidden>Este navegador pode instalar o aplicativo agora, num toque.</p>
+        <p class="fs-14 mb-0" data-nd-instalar-ios hidden>Neste iPhone ou iPad, a instalação é pelo Safari: veja o passo 2.</p>
+        <p class="fs-14 mb-0" data-nd-instalar-ja hidden>Você está usando o aplicativo instalado neste aparelho. Não há mais nada a fazer.</p>
+        <p class="fs-14 mb-0" data-nd-instalar-feito hidden>Pronto: o aplicativo foi instalado. Procure o ícone na tela inicial ou na lista de aplicativos.</p>
+        <button type="button" class="btn btn-primary mt-3" data-nd-instalar-botao hidden>Instalar agora</button>
+    </div>
+</div>
+<script src="{% static 'duralux/nd-instalar.js' %}"></script>

@@ -11,6 +11,7 @@ navegador pede `/favicon.ico` literal, sem ler o HTML.
 """
 from django.urls import path
 
+from .pwa import OfflineView, ServiceWorkerView
 from .seo_views import ATIVOS, AtivoDaRaiz, LlmsView, ManifestView, RobotsView, LlmsFullView, SitemapView
 
 urlpatterns = [
@@ -23,6 +24,10 @@ urlpatterns = [
     path('llm.txt', LlmsView.as_view(), name='llm'),
     # O manual inteiro em texto, para quando o índice acima não basta.
     path('llms-full.txt', LlmsFullView.as_view(), name='llms-full'),
+    # O aplicativo instalado (`base/pwa.py`): o worker precisa morar na raiz
+    # para valer no site inteiro, e a tela sem internet é o que ele guarda.
+    path('sw.js', ServiceWorkerView.as_view(), name='service-worker'),
+    path('offline/', OfflineView.as_view(), name='offline'),
 ] + [
     path(nome, AtivoDaRaiz.as_view(), {'nome': nome}, name='ativo-%s' % nome)
     for nome in ATIVOS

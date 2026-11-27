@@ -262,6 +262,9 @@ script embutido que nem nonce salva.{% endcomment %}
 {% comment %}O código do segundo fator em casas (1.41): só desenha sobre o campo
 que já existe, e só onde houver `data-nd-otp`.{% endcomment %}
 <script src="{% static 'duralux/nd-otp.js' %}" defer></script>
+{% comment %}O worker do aplicativo instalado (`base/pwa.py`): só nas telas da
+equipe e com o botão de emergência (`PWA_SERVICE_WORKER`) ligado.{% endcomment %}
+{% if nd_app_instalavel and nd_pwa_sw %}<script src="{% static 'duralux/nd-pwa.js' %}" defer></script>{% endif %}
 {% if request.access_context %}<script src="{% static 'teamchat/teamchat.js' %}" defer></script>
 <script src="{% static 'patients/busca-global.js' %}" defer></script>{% endif %}
 {% block scripts %}{% endblock %}

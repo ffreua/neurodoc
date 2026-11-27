@@ -46,6 +46,9 @@ no header — the Duralux auth card layout instead.{% endcomment %}
 {% comment %}Entrar, configurar e reconfirmar o segundo fator são telas daqui: o
 código em casas (1.41) mora nelas mais do que em qualquer outra.{% endcomment %}
 <script src="{% static 'duralux/nd-otp.js' %}" defer></script>
+{% comment %}O worker do aplicativo instalado (`base/pwa.py`): só nas telas da
+equipe e com o botão de emergência (`PWA_SERVICE_WORKER`) ligado.{% endcomment %}
+{% if nd_app_instalavel and nd_pwa_sw %}<script src="{% static 'duralux/nd-pwa.js' %}" defer></script>{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>

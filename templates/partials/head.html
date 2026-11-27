@@ -62,7 +62,13 @@ a linha e cai no `.ico`, que traz 16, 32 e 48 px dentro.{% endcomment %}
 <link rel="icon" href="/neurodoc-mark.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon.ico" sizes="any">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="manifest" href="/site.webmanifest">
+{% comment %}O manifesto é o que faz a página se oferecer como o aplicativo
+da equipe. Fora das telas do paciente (`base/pwa.py::instalavel`): o paciente
+que adicionasse o portal à tela inicial ganharia um ícone que abre o login da
+clínica. `is not False`, e não um `if` simples, para a página renderizada sem
+o processador de contexto continuar como sempre foi.{% endcomment %}
+{% if nd_app_instalavel is not False %}<link rel="manifest" href="/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="NeuroDoc">{% endif %}
 <meta name="theme-color" content="#3454d1">
 
 {% comment %}Dados estruturados (schema.org), montados em `base/seo.py` a

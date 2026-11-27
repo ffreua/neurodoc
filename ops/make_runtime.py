@@ -72,7 +72,11 @@ OPTIONAL_KEYS = ['TRUSTED_PROXIES', 'AI_BASE_URL_ALLOWLIST',
                  'ASAAS_BASE_URL',
                  # O limite do registro de telas lentas (`base/lentidao.py`).
                  # Opcional: sem ela, 500 ms; 0 desliga.
-                 'TELAS_LENTAS_MS']
+                 'TELAS_LENTAS_MS',
+                 # O botão de emergência do aplicativo instalado (`base/pwa.py`).
+                 # Opcional: sem ela, ligado. Sem esta linha, `False` no `.env`
+                 # não chegaria ao contêiner, e o botão não desligaria nada.
+                 'PWA_SERVICE_WORKER']
 BASE_SECRETS = ['DJANGO_SECRET_KEY', 'DB_APP_PASSWORD',
                 'RABBITMQ_PASSWORD', 'REDIS_PASSWORD']
 
