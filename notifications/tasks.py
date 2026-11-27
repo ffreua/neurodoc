@@ -31,8 +31,14 @@ def enviar_push_teste(inscricao_id):
         return None
     from django.urls import reverse
 
-    return enviar([inscricao.user_id], 'teste', reverse('notifications:list'), 'teste', 300,
-                  somente=[inscricao.pk])
+    from django.core.cache import cache
+
+    resultado = enviar([inscricao.user_id], 'teste', reverse('notifications:list'), 'teste', 300,
+                       somente=[inscricao.pk])
+    # A tela espera por isto (`views.PushTestarView`): a resposta do serviço
+    # de push, para quem testa saber se o aviso saiu, e o que o recusou.
+    cache.set(f'push:teste:{inscricao_id}', resultado, 120)
+    return resultado
 
 
 @shared_task(name='notifications.tasks.enviar_comunicado', ignore_result=True)

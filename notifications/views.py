@@ -266,8 +266,35 @@ class PushTestarView(PushView):
         if inscricao is None:
             return JsonResponse({'erro': 'Este aparelho não está com os avisos ligados.'},
                                 status=404)
+        from django.core.cache import cache
+
+        cache.delete(f'push:teste:{inscricao.pk}')
         enviar_push_teste.delay(inscricao.pk)
-        return JsonResponse({'ok': True})
+        return JsonResponse({'ok': True, 'resultado': _resultado_do_teste(cache, inscricao.pk)})
+
+
+def _resultado_do_teste(cache, inscricao_id, espera=10):
+    """Espera o worker dizer o que o serviço de push respondeu ao teste.
+
+    Até `espera` segundos, consultando o cache que a tarefa preenche. Sem a
+    resposta (worker ocupado), a tela diz só que o aviso foi para a fila — e
+    não "enviado", que era o que ela dizia antes mesmo quando o serviço recusava.
+    """
+    import time
+
+    limite = time.monotonic() + espera
+    while time.monotonic() < limite:
+        resultado = cache.get(f'push:teste:{inscricao_id}')
+        if resultado is not None:
+            resposta = (resultado.get('respostas') or [{}])[0]
+            status = resposta.get('status')
+            if resultado.get('enviados'):
+                return {'ok': True, 'texto': f'Entregue ao serviço de avisos ({resposta.get("servico")}). '
+                                             'A notificação chega em alguns segundos.'}
+            return {'ok': False, 'texto': f'O serviço de avisos ({resposta.get("servico")}) recusou: '
+                                          f'{status} {resposta.get("texto", "")}'.strip()}
+        time.sleep(0.5)
+    return None
 
 
 class ComunicadoView(TenantScopedView):

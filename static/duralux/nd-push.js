@@ -203,11 +203,27 @@
                 throw erro;
             });
         } else if (acao === 'testar') {
+            botao.textContent = 'Enviando…';
+            var rotuloTeste = 'Enviar um aviso de teste';
             feito = atual().then(function (inscricao) {
                 if (!inscricao) { throw new Error('Este aparelho não está com os avisos ligados.'); }
-                return enviar(raiz.getAttribute('data-nd-push-testar'), {endpoint: inscricao.endpoint});
-            }).then(function () {
-                aviso('Aviso de teste enviado. Ele chega em alguns segundos.');
+                var testar = function () {
+                    return enviar(raiz.getAttribute('data-nd-push-testar'), {endpoint: inscricao.endpoint});
+                };
+                /* O navegador tem a inscrição e o servidor não (ela foi apagada lá,
+                 * ou a gravação se perdeu): grava de novo e testa — sem obrigar a
+                 * desativar e ativar para sair do estado "Ativo" que não recebe. */
+                return testar().catch(function () {
+                    return enviar(raiz.getAttribute('data-nd-push-ativar'), inscricao.toJSON()).then(testar);
+                });
+            }).then(function (dados) {
+                botao.textContent = rotuloTeste;
+                var r = dados && dados.resultado;
+                aviso(r ? r.texto : 'Aviso de teste na fila de envio. Ele chega em alguns segundos.');
+                if (r && !r.ok) { diagnostico('teste recusado'); }
+            }, function (erro) {
+                botao.textContent = rotuloTeste;
+                throw erro;
             });
         } else if (acao === 'desligar') {
             feito = atual().then(function (inscricao) {

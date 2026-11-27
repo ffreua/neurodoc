@@ -95,7 +95,7 @@ class ServicoFalso:
 
     def post(self, url, headers=None, content=None):
         self.pedidos.append((url, headers, content))
-        return type('R', (), {'status_code': 201})()
+        return type('R', (), {'status_code': 201, 'text': ''})()
 
 
 clinica = Tenant.objects.get(slug='demo-clinica-a')

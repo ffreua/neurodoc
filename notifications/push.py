@@ -275,7 +275,7 @@ def enviar(user_ids, tipo, url='', tag='', ttl=86400, *, somente=None, titulo=No
     from . import webpush
     from .models import PushSubscription
 
-    resultado = {'enviados': 0, 'removidos': 0, 'falhas': 0}
+    resultado = {'enviados': 0, 'removidos': 0, 'falhas': 0, 'respostas': []}
     if not ligado():
         return resultado
     consulta = PushSubscription.objects.filter(user_id__in=user_ids)
@@ -300,10 +300,13 @@ def enviar(user_ids, tipo, url='', tag='', ttl=86400, *, somente=None, titulo=No
 
     with httpx.Client(timeout=10, follow_redirects=False) as cliente:
         for inscricao in inscricoes:
+            servico = urlsplit(inscricao.endpoint).hostname
             if not endereco_aceito(inscricao.endpoint):
                 # Linha anterior a uma mudança da lista: não sai daqui.
+                logger.warning('push: endereco fora da lista (%s), inscricao apagada', servico)
                 inscricao.delete()
                 resultado['removidos'] += 1
+                resultado['respostas'].append({'servico': servico, 'status': 'fora da lista'})
                 continue
             try:
                 cabecalhos, corpo = webpush.montar_pedido(
@@ -314,7 +317,18 @@ def enviar(user_ids, tipo, url='', tag='', ttl=86400, *, somente=None, titulo=No
             except (httpx.HTTPError, ValueError) as exc:
                 _falhou(inscricao, type(exc).__name__)
                 resultado['falhas'] += 1
+                resultado['respostas'].append({'servico': servico, 'status': type(exc).__name__})
                 continue
+            # A resposta de cada serviço vai ao resultado (o teste a mostra na
+            # tela) e, quando não é sucesso, ao log — inclusive o 404/410 que
+            # apaga a inscrição. Sem isso, em 2026-11-27 uma inscrição real
+            # sumiu em produção sem deixar rastro de quem a recusou nem por quê.
+            texto_da_resposta = ' '.join((resposta.text or '').split())[:200]
+            resultado['respostas'].append({'servico': servico, 'status': resposta.status_code,
+                                           'texto': texto_da_resposta})
+            if resposta.status_code not in (200, 201, 202):
+                logger.warning('push: %s respondeu %s: %s', servico, resposta.status_code,
+                               texto_da_resposta)
             if resposta.status_code in (200, 201, 202):
                 PushSubscription.objects.filter(pk=inscricao.pk).update(
                     falhas=0, ultimo_envio_em=timezone.now())

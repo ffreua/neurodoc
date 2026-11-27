@@ -102,6 +102,7 @@ def abrir(corpo, privada_do_aparelho, p256dh, auth):
 class Resposta:
     def __init__(self, status):
         self.status_code = status
+        self.text = '' if status < 300 else 'recusado pelo servico falso'
 
 
 class ServicoFalso:
@@ -446,7 +447,9 @@ try:
         servico = ServicoFalso(201)
         r = com_servico(servico, push.enviar, [medico.user_id], 'ai_job_succeeded', '/app/notifications/',
                         'sino-ai_job_succeeded')
-        confere(r == {'enviados': 2, 'removidos': 0, 'falhas': 0}, 'um POST por aparelho')
+        confere({k: r[k] for k in ('enviados', 'removidos', 'falhas')} == {'enviados': 2, 'removidos': 0, 'falhas': 0}
+                and len(r['respostas']) == 2 and {x['status'] for x in r['respostas']} == {201},
+                'um POST por aparelho, com a resposta de cada servico')
         url, cabecalhos, corpo = next(p for p in servico.pedidos if p[0] == FCM + 'envio-a')
         mensagem = json.loads(abrir(corpo, priv_m, p_m, a_m))
         confere(mensagem['corpo'] == push.TEXTOS['ai_job_succeeded'] and mensagem['url'] == '/app/notifications/',
@@ -459,7 +462,9 @@ try:
             confere(push.texto(tipo) and 'JOSÉ' not in push.texto(tipo), f'texto genérico: {tipo}')
         servico = ServicoFalso(lambda u: 410 if 'apple' in u else 500)
         r = com_servico(servico, push.enviar, [medico.user_id], 'equipe')
-        confere(r == {'enviados': 0, 'removidos': 1, 'falhas': 1}, '410 apaga, 500 conta falha')
+        confere({k: r[k] for k in ('enviados', 'removidos', 'falhas')} == {'enviados': 0, 'removidos': 1, 'falhas': 1}
+                and {x['status'] for x in r['respostas']} == {410, 500},
+                '410 apaga, 500 conta falha, e as duas respostas ficam no resultado')
         confere(not PushSubscription.objects.filter(endpoint=APPLE + 'envio-b').exists()
                 and PushSubscription.objects.get(pk=ia.pk).falhas == 1, 'a linha certa em cada caso')
         for _ in range(push.FALHAS_PARA_DESISTIR - 1):
